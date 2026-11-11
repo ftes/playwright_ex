@@ -1,7 +1,8 @@
 defmodule PlaywrightEx.Test.EndToEndTest do
-  # A suite on `PlaywrightEx.Test` in a child BEAM (`test/support/test_runner_impl.exs`), with
-  # `trace: :retain_on_failure, screenshot: :only_on_failure`: only the failing test keeps its
-  # artifacts and gets `error-context.md`, and no driver outlives the halted VM (`after_suite`).
+  # Suites on `PlaywrightEx.Test` in a child BEAM (`test/support/test_runner_impl.exs`): only the
+  # failing test keeps its artifacts and gets `error-context.md`, no driver outlives the halted
+  # VM (`after_suite`), and each module's isolated drivers are checked in at its end (discarded
+  # after a failure), also when `max_failures` stops the run.
   use ExUnit.Case, async: true
 
   alias PlaywrightEx.RemoteServer.ChildProcess
@@ -9,17 +10,27 @@ defmodule PlaywrightEx.Test.EndToEndTest do
   @moduletag :tmp_dir
   @moduletag timeout: 60_000
 
-  test "only the failure keeps artifacts, and no driver survives the VM", %{tmp_dir: tmp_dir} do
-    output_dir = Path.join(tmp_dir, "test-results")
-    go = Path.join(tmp_dir, "go")
+  defp start(mode, tmp_dir, args \\ []) do
     ebin = Path.dirname(:code.which(PlaywrightEx))
     script = Path.join([__DIR__, "..", "..", "support", "test_runner_impl.exs"])
-    args = ["-pa", ebin, script, output_dir, System.get_env("BROWSER", "chromium"), go]
-
-    child =
-      ChildProcess.start(System.find_executable("elixir"), args, %{"PWTEST_UNDER_TEST" => nil})
-
+    browser = System.get_env("BROWSER", "chromium")
+    args = ["-pa", ebin, script, mode, Path.join(tmp_dir, "test-results"), browser | args]
+    child = ChildProcess.start(System.find_executable("elixir"), args, %{"PWTEST_UNDER_TEST" => nil})
     on_exit(fn -> ChildProcess.stop(child) end)
+    child
+  end
+
+  defp report(child) do
+    assert ChildProcess.exit_code(child, 60_000) == 0
+    output = ChildProcess.output(child)
+    [_, report] = Regex.run(~r/\(report=>(%\{.*\})\)/, output)
+    {report, []} = Code.eval_string(report)
+    {output, report}
+  end
+
+  test "only the failure keeps artifacts, and no driver survives the VM", %{tmp_dir: tmp_dir} do
+    go = Path.join(tmp_dir, "go")
+    child = start("artifacts", tmp_dir, [go])
 
     ChildProcess.await(child, &if(&1 =~ "(ready=>true)", do: {:ok, true}))
     drivers = child |> ChildProcess.pid() |> descendants() |> Enum.filter(&(elem(&1, 1) =~ "run-driver"))
@@ -31,6 +42,7 @@ defmodule PlaywrightEx.Test.EndToEndTest do
     # The halt came after the drivers had exited.
     assert alive(drivers) == []
 
+    output_dir = Path.join(tmp_dir, "test-results")
     assert [dir] = File.ls!(output_dir)
     assert dir =~ ~r/fails-[0-9a-f]{5}$/
     assert Enum.sort(File.ls!(Path.join(output_dir, dir))) == ["error-context.md", "test-failed-1.png", "trace.zip"]
@@ -38,7 +50,28 @@ defmodule PlaywrightEx.Test.EndToEndTest do
     assert error_context =~ "- Name: test/support/test_runner_impl.exs >> fails"
     assert error_context =~ "ExUnit.AssertionError: on purpose"
     assert error_context =~ ~s(heading "Fails")
-    assert error_context =~ ~r/^> \d+ \| +flunk\("on purpose"\)$/m
+    assert error_context =~ ~r/^> \d+ +\| +flunk\("on purpose"\)$/m
+  end
+
+  test "a module's isolated drivers: one per driver key, checked in at its end, discarded after a failure",
+       %{tmp_dir: tmp_dir} do
+    {output, report} = report(start("modules", tmp_dir))
+    assert output =~ ~r"15 tests, 1 failure|Result: 14/15 passed"
+
+    assert report.busy == 0
+    # Not the failed module's.
+    assert report.free == [:param_1, :param_2, :ten, :two_a, :two_b]
+    # Ten tests and two browser keys on one driver; a token per parameter set, each its own driver.
+    assert report.drivers.ten == 1
+    assert report.tokens.ten == 1
+    assert report.param_tokens == 2
+  end
+
+  test "max_failures: a module still running is checked in", %{tmp_dir: tmp_dir} do
+    {output, report} = report(start("max_failures", tmp_dir))
+    assert output =~ "--max-failures reached, aborting test suite"
+    assert report.busy == 0
+    assert report.free == [:isolated]
   end
 
   defp alive(processes) do

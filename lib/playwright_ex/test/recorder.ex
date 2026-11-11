@@ -9,8 +9,10 @@ defmodule PlaywrightEx.Test.Recorder do
   # the test's contexts and anchors them (so their pages and videos stay readable after the
   # process that created or closed them exits). Its listener (`ClientInstrumentation`) runs in
   # the processes that create and close contexts; `finish/2` runs in ExUnit's `on_exit`
-  # process. Every artifact step rescues and logs: an exception in `on_exit` would fail the
-  # test and hide its own error, and upstream's artifact code swallows its errors too.
+  # process, once the test's result is known (`PlaywrightEx.Test.Pool.result/2`), and keeps or
+  # drops the artifacts by it. Every artifact step rescues and logs: an exception in `on_exit`
+  # would fail the test and hide its own error, and upstream's artifact code swallows its errors
+  # too.
   use GenServer
 
   alias PlaywrightEx.BrowserContext
@@ -40,12 +42,9 @@ defmodule PlaywrightEx.Test.Recorder do
     end
   end
 
-  @doc "A test's key, `{module, name, parameters}`, as the formatter gets it (`%ExUnit.Test{}`)."
-  def test_key(%{module: module, test: test} = context), do: {module, test, parameters(module, context)}
-
   @doc """
-  The parameters of `context` in `module` (`%{}` for a module without `parameterize:`): a guess,
-  the module's parameter map whose keys have the context's values.
+  The parameters of `context` in `module` (`%{}` for a module without `parameterize:`), for its
+  output dir: a guess, the module's parameter map whose keys have the context's values.
   """
   def parameters(module, context) do
     case parameterize(module) do
@@ -85,10 +84,7 @@ defmodule PlaywrightEx.Test.Recorder do
     end
   end
 
-  @doc """
-  Starts the recorder of the test `test_pid` (`opts.test_key` names its retained files for the
-  formatter). Not linked: it outlives the test process, until `finish/2`.
-  """
+  @doc "Starts the recorder of the test `test_pid`. Not linked: it outlives the test process, until `finish/2`."
   def start(test_pid, opts) do
     Pool.ensure_started()
     {:ok, pid} = GenServer.start(__MODULE__, {test_pid, opts})
@@ -108,19 +104,21 @@ defmodule PlaywrightEx.Test.Recorder do
     listener = %{
       runBeforeCreateBrowserContext: &before_create(&1, test_pid, opts),
       runAfterCreateBrowserContext: &after_create(&1, this, test_pid, opts),
-      runBeforeCloseBrowserContext: &before_close(&1, this, opts)
+      runBeforeCloseBrowserContext: &before_close(&1, this, test_pid, opts)
     }
 
-    # `contexts` in creation order, `closed` (guids) in close order.
+    # `contexts` in creation order, `closed` (guids) in close order, `screenshots` (temporary
+    # files) in capture order.
     {:ok,
      %{
+       test_pid: test_pid,
        opts: opts,
        listener: listener,
        instrumentations: [],
        contexts: [],
        closed: [],
        chunks: [],
-       screenshots: 0,
+       screenshots: [],
        page_snapshot: nil
      }}
   end
@@ -143,8 +141,8 @@ defmodule PlaywrightEx.Test.Recorder do
 
   def handle_call({:closed, guid}, _from, state), do: {:reply, :ok, %{state | closed: state.closed ++ [guid]}}
 
-  def handle_call(:next_screenshot, _from, state),
-    do: {:reply, state.screenshots + 1, %{state | screenshots: state.screenshots + 1}}
+  def handle_call({:add_screenshot, path}, _from, state),
+    do: {:reply, :ok, %{state | screenshots: state.screenshots ++ [path]}}
 
   def handle_call({:add_chunk, path}, _from, state), do: {:reply, :ok, %{state | chunks: state.chunks ++ [path]}}
   def handle_call({:page_snapshot, snapshot}, _from, state), do: {:reply, :ok, %{state | page_snapshot: snapshot}}
@@ -212,25 +210,29 @@ defmodule PlaywrightEx.Test.Recorder do
   # `willCloseBrowserContext`: the trace chunk, the screenshots (`captureTemporary`), then the
   # page snapshot (`_takePageSnapshot`).
   # Taking the row makes it once per context, also when closes race.
-  defp before_close(context, recorder, opts) do
+  defp before_close(context, recorder, test_pid, opts) do
     if :ets.select_delete(Pool.table(), [{{{:context, context.guid}, recorder}, [], [true]}]) == 1 do
       call(recorder, {:closed, context.guid})
-      collect(context, recorder, opts)
+      collect(context, recorder, test_pid, opts)
     end
 
     nil
   end
 
-  defp collect(context, recorder, opts) do
+  defp collect(context, recorder, test_pid, opts) do
     if opts.trace != :off, do: step("save the trace", fn -> stop_tracing(context, recorder, opts) end)
     if opts.screenshot != :off, do: screenshots(context, recorder, opts)
-    if opts.error_context, do: step("take a page snapshot", fn -> page_snapshot(context, recorder) end)
+    step("take a page snapshot", fn -> page_snapshot(context, recorder, test_pid) end)
   end
 
-  # `_takePageSnapshot` (`packages/playwright/src/index.ts:767`): once per test, of the first page.
-  # Taken for every test, passed or not: ExUnit tells `on_exit` nothing of the result.
-  defp page_snapshot(context, recorder) do
-    with %{page_snapshot: nil} <- call(recorder, :state),
+  # `_takePageSnapshot`: once per test, of the first page, when the test failed (upstream's
+  # `testInfo.errors`) without a matcher's snapshot. A context closed while the test runs has no
+  # errors yet, as upstream's.
+  defp page_snapshot(context, recorder, test_pid) do
+    with false <- Process.alive?(test_pid),
+         {:failed, failures} <- Pool.result(test_pid, 5000),
+         false <- Enum.any?(failures, &ErrorContext.error(&1).error_context),
+         %{page_snapshot: nil} <- call(recorder, :state),
          [page | _] <- BrowserContext.pages(context),
          # The snapshot may fail: ignored, as upstream's.
          {:ok, snapshot} <- Page.aria_snapshot(page, mode: :ai, timeout: 5000),
@@ -249,12 +251,12 @@ defmodule PlaywrightEx.Test.Recorder do
         do: step("take a screenshot", fn -> screenshot(page, recorder, opts) end)
   end
 
-  # `SnapshotRecorder`: `page.screenshot({ timeout: 5000, path, caret: 'initial' })`, named
-  # `test-finished-N.png` (`on`) or `test-failed-N.png` (`only_on_failure`, kept on failure only).
+  # `SnapshotRecorder.captureTemporary`: `page.screenshot({ timeout: 5000, path, caret: 'initial' })`
+  # to a temporary file, kept by `persist_screenshots/3`.
   defp screenshot(page, recorder, opts) do
-    kind = if opts.screenshot == :only_on_failure, do: "failed", else: "finished"
-    path = Path.join(opts.dir, "test-#{kind}-#{call(recorder, :next_screenshot)}.png")
+    path = Path.join([opts.tmp, "screenshots", "#{System.unique_integer([:positive])}.png"])
     Page.screenshot!(page, path: path, timeout: 5000, caret: :initial)
+    call(recorder, {:add_screenshot, path})
   end
 
   defp call(recorder, message) do
@@ -265,13 +267,14 @@ defmodule PlaywrightEx.Test.Recorder do
   end
 
   @doc """
-  The end of the test (its first `on_exit`, so it runs last): closes the test's contexts still
-  open, saves the videos, merges the trace and notes the files to delete if the test passes,
-  within `budget` ms (ExUnit's `on_exit` shares the test's timeout). Then, whatever happened,
-  removes the listener and stops the recorder.
+  The end of the test (its first `on_exit`, so it runs last): within `budget` ms (ExUnit's
+  `on_exit` shares the test's timeout), waits for the test's result, closes its contexts still
+  open, then keeps the videos, trace and screenshots as the modes and the result say and writes
+  `error-context.md` of a failure. Then, whatever happened, removes the listener and stops the
+  recorder.
   """
   def finish(pid, budget) do
-    task = Task.async(fn -> step("finish the recording", fn -> collect_all(pid) end) end)
+    task = Task.async(fn -> step("finish the recording", fn -> collect_all(pid, budget) end) end)
     finished? = Task.yield(task, budget) != nil
 
     if !finished? do
@@ -283,12 +286,6 @@ defmodule PlaywrightEx.Test.Recorder do
       state = GenServer.call(pid, :state, :infinity)
       for instrumentation <- state.instrumentations, do: remove_listener(instrumentation, state.listener)
       if !finished?, do: close_leftovers(state)
-
-      # For the formatter: `error-context.md` if the test failed.
-      if state.opts.error_context do
-        info = Map.merge(Map.take(state.opts, [:dir, :title_path, :location]), %{page_snapshot: state.page_snapshot})
-        :ets.insert(Pool.table(), {{:error_context, state.opts.test_key}, info})
-      end
     end)
 
     :ok
@@ -298,8 +295,9 @@ defmodule PlaywrightEx.Test.Recorder do
     step("stop the recorder", fn -> GenServer.stop(pid) end)
   end
 
-  defp collect_all(pid) do
+  defp collect_all(pid, budget) do
     state = GenServer.call(pid, :state, :infinity)
+    {verdict, failures} = Pool.result(state.test_pid, budget)
 
     # `didFinishTest`: the leftover contexts. A shared browser outlives the test.
     for %{guid: guid, context: context} <- state.contexts,
@@ -307,8 +305,16 @@ defmodule PlaywrightEx.Test.Recorder do
         do: step("close a context", fn -> BrowserContext.close!(context, reason: "Test ended.") end)
 
     state = GenServer.call(pid, :state, :infinity)
-    retained = save_videos(state) ++ save_trace(state) ++ failure_screenshots(state)
-    if retained != [], do: :ets.insert(Pool.table(), {{:retained, state.opts.test_key}, retained})
+    # A test of another macro (a doctest) has no result: kept as a failure's.
+    failed? = verdict != :passed
+    save_videos(state, failed?)
+    save_trace(state, failed?)
+    persist_screenshots(state, failed?)
+
+    if verdict == :failed do
+      info = Map.merge(Map.take(state.opts, [:dir, :title_path, :location]), %{page_snapshot: state.page_snapshot})
+      step("write error-context.md", fn -> ErrorContext.write(info, failures) end)
+    end
   end
 
   # Past the budget: the contexts still open are closed in the background, so they don't pile up
@@ -344,44 +350,53 @@ defmodule PlaywrightEx.Test.Recorder do
     e in PlaywrightEx.TargetClosedError -> if e.message != "Playwright driver closed", do: reraise(e, __STACKTRACE__)
   end
 
-  # `_contextFactory`'s close: `video.webm`, `video-1.webm`, ... in the order the contexts closed.
-  defp save_videos(%{opts: %{video: :off}}), do: []
-
-  defp save_videos(state) do
+  # `_contextFactory`'s close (`shouldPreserveVideo`): `video.webm`, `video-1.webm`, ... in the
+  # order the contexts closed.
+  defp save_videos(%{opts: %{video: video}} = state, failed?)
+       when video == :on or (video == :retain_on_failure and failed?) do
     by_guid = Map.new(state.contexts, &{&1.guid, &1})
     open = for %{guid: guid} <- state.contexts, guid not in state.closed, do: guid
     pages = for guid <- state.closed ++ open, page <- by_guid[guid].pages, do: page
     videos = for page <- pages, video = step("find a video", fn -> Page.video(page) end), video != nil, do: video
 
-    saved =
-      for {video, i} <- Enum.with_index(videos),
-          path = Path.join(state.opts.dir, if(i == 0, do: "video.webm", else: "video-#{i}.webm")),
-          step("save a video", fn -> save_video(video, path) end),
-          do: path
-
-    if state.opts.video == :retain_on_failure, do: saved, else: []
+    for {video, i} <- Enum.with_index(videos) do
+      path = Path.join(state.opts.dir, if(i == 0, do: "video.webm", else: "video-#{i}.webm"))
+      step("save a video", fn -> save_video(video, path) end)
+    end
   end
+
+  # The recording goes with the recorder's temporary dir.
+  defp save_videos(_state, _failed?), do: :ok
 
   defp save_video(video, path) do
     File.mkdir_p!(Path.dirname(path))
     Video.save_as!(video, path)
   end
 
-  defp save_trace(%{opts: %{trace: :off}}), do: []
+  # `testTracing`'s `_shouldAbandonTrace`: a passed test's trace with `retain_on_failure`.
+  defp save_trace(%{opts: %{trace: trace}} = state, failed?)
+       when trace == :on or (trace == :retain_on_failure and failed?),
+       do: step("merge the traces", fn -> merge_traces(Path.join(state.opts.dir, "trace.zip"), state.chunks) end)
 
-  defp save_trace(state) do
-    path = Path.join(state.opts.dir, "trace.zip")
+  defp save_trace(_state, _failed?), do: :ok
 
-    case step("merge the traces", fn -> merge_traces(path, state.chunks) end) do
-      :ok when state.opts.trace == :retain_on_failure -> [path]
-      _ -> []
+  # `SnapshotRecorder.persistTemporary`: `test-failed-N.png` of a failed test, else
+  # `test-finished-N.png` (`on` only), in capture order.
+  defp persist_screenshots(%{opts: %{screenshot: mode}} = state, failed?)
+       when mode == :on or (mode == :only_on_failure and failed?) do
+    kind = if failed?, do: "failed", else: "finished"
+
+    for {file, i} <- Enum.with_index(state.screenshots, 1) do
+      path = Path.join(state.opts.dir, "test-#{kind}-#{i}.png")
+
+      step("save a screenshot", fn ->
+        File.mkdir_p!(state.opts.dir)
+        File.cp!(file, path)
+      end)
     end
   end
 
-  defp failure_screenshots(%{opts: %{screenshot: :only_on_failure, dir: dir}}),
-    do: Path.wildcard(Path.join(dir, "test-failed-*.png"))
-
-  defp failure_screenshots(_state), do: []
+  defp persist_screenshots(_state, _failed?), do: :ok
 
   @doc """
   Upstream's `mergeTraceFiles`: one trace of all of the test's chunks, each cut to its own stacks
@@ -452,28 +467,6 @@ defmodule PlaywrightEx.Test.Recorder do
     if MapSet.member?(names, name),
       do: {entries, names},
       else: {[{String.to_charlist(name), data} | entries], MapSet.put(names, name)}
-  end
-
-  @doc """
-  Called by the formatter with the test's `state`: deletes the retained files of a passing test
-  (and its dir if empty), writes `error-context.md` of a failed one (`didFinishTest`).
-  """
-  def test_finished(key, state) do
-    {retained, error_context} =
-      if Pool.started?(),
-        do: {:ets.take(Pool.table(), {:retained, key}), :ets.take(Pool.table(), {:error_context, key})},
-        else: {[], []}
-
-    for {_, files} <- retained, state == nil do
-      Enum.each(files, &File.rm/1)
-      files |> Enum.map(&Path.dirname/1) |> Enum.uniq() |> Enum.each(&File.rmdir/1)
-    end
-
-    for {_, info} <- error_context,
-        {:failed, failures} <- [state],
-        do: step("write error-context.md", fn -> ErrorContext.write(info, failures) end)
-
-    :ok
   end
 
   @doc "The output dir of the test of `context` (see `output_dir/5`)."

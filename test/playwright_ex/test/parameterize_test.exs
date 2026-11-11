@@ -3,7 +3,7 @@ defmodule PlaywrightEx.Test.ParameterizeTest do
   # module of a file has its own recorder and output dir, also for tests of the same name.
   use ExUnit.Case, async: true, parameterize: [%{n: 1}, %{n: 2}]
 
-  import PlaywrightEx.Test
+  use PlaywrightEx.Test
 
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Page
@@ -41,7 +41,7 @@ end
 defmodule PlaywrightEx.Test.ParameterizeTest.Other do
   use ExUnit.Case, async: true
 
-  import PlaywrightEx.Test
+  use PlaywrightEx.Test
 
   alias PlaywrightEx.Test.ParameterizeTest
 

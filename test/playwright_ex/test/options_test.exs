@@ -47,8 +47,27 @@ defmodule PlaywrightEx.Test.OptionsTest do
       assert %{context_options: [locale: "de-DE"]} = Options.context(context_options: [locale: "de-DE"])
     end
 
-    test "isolate needs the module's context map" do
-      assert_raise ArgumentError, ~r/isolate: true needs the module/, fn -> PlaywrightEx.Test.browser(isolate: true) end
+    test "isolate needs the context map of a module with use PlaywrightEx.Test" do
+      message = assert_raise(ArgumentError, fn -> PlaywrightEx.Test.browser(isolate: true) end).message
+      assert message =~ "browser(context, isolate: true) needs a test module with `use PlaywrightEx.Test`"
+      assert message =~ "add it after `use ExUnit.Case`"
+    end
+
+    test "fragments given the context map of a module without use PlaywrightEx.Test say to add it", ctx do
+      for {what, fun} <- [
+            {"browser/1", &PlaywrightEx.Test.browser/1},
+            {"record_artifacts/2", &PlaywrightEx.Test.record_artifacts/1}
+          ],
+          do:
+            assert_raise(
+              ArgumentError,
+              ~r/^#{Regex.escape(what)} needs a test module with `use PlaywrightEx.Test`/,
+              fn -> fun.(ctx) end
+            )
+
+      assert_raise ArgumentError, ~r/^new_context\/2 needs a test module/, fn ->
+        PlaywrightEx.Test.new_context(Map.put(ctx, :browser, :a_browser))
+      end
     end
 
     test "fragments need their keys" do
@@ -58,20 +77,6 @@ defmodule PlaywrightEx.Test.OptionsTest do
       assert_raise ArgumentError, ~r/expected :file/, fn ->
         PlaywrightEx.Test.record_artifacts(%{module: M, test: :t})
       end
-    end
-
-    test "error-context.md needs the formatter" do
-      assert Options.error_context?([PlaywrightEx.Test.Formatter])
-      refute Options.error_context?([ExUnit.CLIFormatter])
-    end
-
-    test "options that need the formatter say how to add it" do
-      message =
-        assert_raise(ArgumentError, fn -> Options.require_formatter!("isolate: true", [ExUnit.CLIFormatter]) end).message
-
-      assert message =~ "isolate: true needs PlaywrightEx.Test.Formatter"
-      assert message =~ "ExUnit.start(formatters: [ExUnit.CLIFormatter, PlaywrightEx.Test.Formatter])"
-      assert Options.require_formatter!("isolate: true", [PlaywrightEx.Test.Formatter]) == :ok
     end
   end
 
@@ -191,6 +196,7 @@ end
 defmodule PlaywrightEx.Test.ConfigTest do
   # Sets the application env.
   use ExUnit.Case, async: false
+  use PlaywrightEx.Test
 
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Page
@@ -245,9 +251,11 @@ defmodule PlaywrightEx.Test.ConfigTest do
       Options.artifacts([])
     end
 
-    # `isolate` is an argument only.
-    Application.put_env(:playwright_ex, :test, config ++ [isolate: true])
-    assert_raise ArgumentError, ~r/unknown keys \[:isolate\]/, fn -> Options.browser([]) end
+    # `isolate` is an argument only, and error-context.md has no switch, as upstream.
+    for key <- [:isolate, :error_context] do
+      Application.put_env(:playwright_ex, :test, config ++ [{key, true}])
+      assert_raise ArgumentError, ~r/unknown keys \[#{inspect(key)}\]/, fn -> Options.browser([]) end
+    end
 
     Application.put_env(:playwright_ex, :test, config ++ [trace: :sometimes])
     assert_raise ArgumentError, ~r/invalid trace: :sometimes/, fn -> Options.artifacts([]) end

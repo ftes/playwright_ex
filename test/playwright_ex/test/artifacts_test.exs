@@ -2,12 +2,14 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
   use ExUnit.Case, async: true
 
   import ExUnit.CaptureLog
-  import PlaywrightEx.Test
+  use PlaywrightEx.Test
 
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime.Heap
   alias PlaywrightEx.Test.ErrorContext
+  alias PlaywrightEx.Test.Pool
   alias PlaywrightEx.Test.Recorder
   alias PlaywrightEx.Tracing
 
@@ -23,6 +25,48 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     page = BrowserContext.new_page!(context)
     Page.set_content!(page, "<h1>#{marker}</h1>")
     page
+  end
+
+  # A recorder of a test process of its own (watched as the `test` macro's), which ends when sent
+  # `{:end, messages, reason}`: `messages` of its pid (`&{:passed, &1}`), then exit `reason`.
+  defp fake_test(ctx, modes, marked \\ "setup failed") do
+    token = Pool.start_module()
+    on_exit(fn -> Pool.module_finished(token) end)
+
+    pid =
+      spawn(fn ->
+        receive do
+          {:end, messages, reason} ->
+            for message <- messages, do: Pool.notify(message.(self()))
+            exit(reason)
+        end
+      end)
+
+    Pool.watch(pid, token, marked, nil)
+    dir = Path.join(System.tmp_dir!(), "playwright_ex-artifacts-test-#{System.unique_integer([:positive])}")
+    on_exit(fn -> File.rm_rf!(dir) end)
+
+    recorder =
+      Recorder.start(
+        pid,
+        Map.merge(%{trace: :off, screenshot: :off, video: :off}, modes)
+        |> Map.merge(%{dir: dir, title: "t", title_path: ["x_test.exs", "t"], location: {__ENV__.file, 1}})
+      )
+
+    Recorder.ensure_listener(recorder, Heap.get(ctx.browser, :_instrumentation))
+
+    %{
+      pid: pid,
+      recorder: recorder,
+      dir: dir,
+      context: fn -> Recorder.with_identity(pid, fn -> Browser.new_context!(ctx.browser) end) end
+    }
+  end
+
+  defp end_test(%{pid: pid}, messages, reason) do
+    ref = Process.monitor(pid)
+    send(pid, {:end, messages, reason})
+    assert_receive {:DOWN, ^ref, :process, _, _}
   end
 
   @tag :tmp_dir
@@ -100,16 +144,7 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
   end
 
   test "finish is bounded: past its budget it logs, closes the contexts left and stops the recorder", ctx do
-    opts = %{
-      trace: :on,
-      screenshot: :off,
-      video: :off,
-      error_context: false,
-      dir: dir(ctx),
-      title: "bounded",
-      test_key: :bounded
-    }
-
+    opts = %{trace: :on, screenshot: :off, video: :off, dir: dir(ctx), title: "bounded"}
     recorder = Recorder.start(self(), opts)
     Recorder.ensure_listener(recorder, PlaywrightEx.Runtime.Heap.get(ctx.browser, :_instrumentation))
     context = Browser.new_context!(ctx.browser)
@@ -134,17 +169,9 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     start_supervised!({PlaywrightEx.Supervisor, name: name})
     instrumentation = PlaywrightEx.Runtime.Heap.get(PlaywrightEx.playwright(name), :_instrumentation)
 
-    opts = %{
-      trace: :on,
-      screenshot: :off,
-      video: :off,
-      error_context: false,
-      dir: dir(ctx),
-      title: "closed",
-      test_key: :closed
-    }
-
-    recorder = Recorder.start(self(), opts)
+    # A test that ended unwatched: no result to wait for.
+    test_pid = spawn(fn -> :ok end)
+    recorder = Recorder.start(test_pid, %{trace: :on, screenshot: :off, video: :off, dir: dir(ctx), title: "closed"})
     Recorder.ensure_listener(recorder, instrumentation)
     stop_supervised!(name)
 
@@ -221,14 +248,39 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     Page.set_content!(page, "<h1>AFTER</h1>")
   end
 
-  test "a test takes one page snapshot for error-context.md, of the first closed context's first page", ctx do
-    %{context: one} = new_context(ctx)
-    %{context: two} = new_context(ctx)
-    page(one, "FIRST")
-    page(two, "SECOND")
-    BrowserContext.close!(one)
-    BrowserContext.close!(two)
-    assert GenServer.call(Recorder.lookup(self()), :state).page_snapshot =~ ~s(heading "FIRST")
+  test "a failed test keeps its screenshots and gets error-context.md, with a snapshot of a page closed after it failed",
+       ctx do
+    test = fake_test(ctx, %{screenshot: :only_on_failure})
+    [running, first, second] = for marker <- ~w(RUNNING FIRST SECOND), do: tap(test.context.(), &page(&1, marker))
+
+    # Closed while the test runs: no errors yet, as upstream.
+    BrowserContext.close!(running)
+    end_test(test, [&{:failed, &1, {:error, %RuntimeError{message: "on purpose"}, []}}], :shutdown)
+    BrowserContext.close!(first)
+    BrowserContext.close!(second)
+    Recorder.finish(test.recorder, 5000)
+
+    assert Enum.sort(File.ls!(test.dir)) == ~w(error-context.md test-failed-1.png test-failed-2.png test-failed-3.png)
+    error_context = File.read!(Path.join(test.dir, "error-context.md"))
+    assert error_context =~ "```\nRuntimeError: on purpose\n```"
+    assert error_context =~ ~s(heading "FIRST")
+    refute error_context =~ "RUNNING" or error_context =~ "SECOND"
+  end
+
+  test "a passed test keeps nothing of the on_failure modes", ctx do
+    test = fake_test(ctx, %{trace: :retain_on_failure, screenshot: :only_on_failure, video: :retain_on_failure})
+    page(test.context.(), "PASSED")
+    end_test(test, [&{:passed, &1}], :shutdown)
+    Recorder.finish(test.recorder, 5000)
+    refute File.exists?(test.dir)
+  end
+
+  test "a test of another macro (a doctest) keeps them, as a failure's, without error-context.md", ctx do
+    test = fake_test(ctx, %{trace: :retain_on_failure, screenshot: :only_on_failure, video: :retain_on_failure}, false)
+    page(test.context.(), "UNKNOWN")
+    end_test(test, [], :shutdown)
+    Recorder.finish(test.recorder, 5000)
+    assert Enum.sort(File.ls!(test.dir)) == ~w(test-failed-1.png trace.zip video.webm)
   end
 
   @tag :tmp_dir

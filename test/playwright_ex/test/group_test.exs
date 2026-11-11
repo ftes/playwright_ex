@@ -4,7 +4,7 @@ for name <- [PlaywrightEx.Test.GroupTest.A, PlaywrightEx.Test.GroupTest.B] do
   defmodule name do
     use ExUnit.Case, async: true, group: :playwright_ex_group_test
 
-    import PlaywrightEx.Test
+    use PlaywrightEx.Test
 
     alias PlaywrightEx.Page
 

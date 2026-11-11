@@ -33,12 +33,7 @@ ExUnit.start(
   timeout: 20_000,
   assert_receive_timeout: 10_000,
   max_cases: max_cases,
-  formatters: [
-    ExUnit.CLIFormatter,
-    PlaywrightEx.FailuresFormatter,
-    PlaywrightEx.ModuleTimesFormatter,
-    PlaywrightEx.Test.Formatter
-  ]
+  formatters: [ExUnit.CLIFormatter, PlaywrightEx.FailuresFormatter, PlaywrightEx.ModuleTimesFormatter]
 )
 
 # The artifacts dirs of `PlaywrightEx.UpstreamCase`'s drivers. Registered first, so it runs after

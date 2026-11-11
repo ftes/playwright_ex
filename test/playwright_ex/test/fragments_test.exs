@@ -1,7 +1,7 @@
 defmodule PlaywrightEx.Test.FragmentsTest do
   use ExUnit.Case, async: true
 
-  import PlaywrightEx.Test
+  use PlaywrightEx.Test
 
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
@@ -50,7 +50,7 @@ defmodule PlaywrightEx.Test.UserBrowserTest do
   # A `setup_all` of the user's own makes `%{browser: _}`; the other fragments take it.
   use ExUnit.Case, async: true
 
-  import PlaywrightEx.Test
+  use PlaywrightEx.Test
 
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType

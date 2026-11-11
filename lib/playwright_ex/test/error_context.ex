@@ -1,8 +1,8 @@
 defmodule PlaywrightEx.Test.ErrorContext do
   @moduledoc false
   # Upstream's `buildErrorContext` (`packages/playwright/src/errorContext.ts`): the
-  # `error-context.md` of a failed test, from ExUnit's failures (`{kind, reason, stacktrace}`) in
-  # place of `testInfo.errors`.
+  # `error-context.md` of a failed test, from its failures (`{kind, reason, stacktrace}` as
+  # ExUnit's, or a message: `PlaywrightEx.Test.Pool.result/2`) in place of `testInfo.errors`.
 
   alias PlaywrightEx.Isomorphic.StringUtils
 
@@ -18,6 +18,8 @@ defmodule PlaywrightEx.Test.ErrorContext do
   `testInfoError`: a failure as upstream's `TestInfoError`, `message` as `filterStackTrace`'s
   (`name: message`), `error_context` a failed matcher's aria snapshot.
   """
+  def error(message) when is_binary(message), do: %{message: message, stack: [], error_context: nil}
+
   def error({kind, reason, stack}) do
     message =
       if kind == :error and is_exception(reason),
