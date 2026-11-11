@@ -78,15 +78,11 @@ jobs:
         if: ${{ !cancelled() && steps.claude.outputs.execution_file != '' }}
         env:
           EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
-        # Only the final message and each denied call's command, path or URL: this repo is public,
-        # and the full transcript can contain secrets.
+        # .github/claude-summary.jq: only the final message and the denied calls (public repo). From
+        # the run's commit, as Claude may have edited the checkout; a failed `git show` stops the step.
         run: |
-          jq -r '.[] | select(.type == "result")
-            | (.result // .subtype),
-              (.permission_denials // [] | select(length > 0) | "\n**Denied tool calls (\(length)):**\n",
-                (.[] | (.tool_input | .command // .file_path // .path // .pattern // .url // "" | gsub("\\s+"; " ") | .[:200]) as $arg
-                  | "- \(.tool_name)" + (if $arg == "" then "" else ": `` \($arg) ``" end)))' \
-            "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
+          filter=$(git show "$GITHUB_SHA:.github/claude-summary.jq")
+          jq -r "$filter" "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
 
   # After triage, so only PRs worth keeping get fixed.
   classify:
@@ -167,8 +163,10 @@ jobs:
         uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
       - name: Install dependencies
         run: mix "do" deps.get, deps.compile
-      # --add-dir below needs it; `mix playwright_ex.parity` fills it.
-      - run: mkdir -p ~/.cache/playwright_ex
+      # May fail on a branch that doesn't compile; Claude then runs without them.
+      - name: Download upstream sources
+        continue-on-error: true
+        run: mkdir -p ~/.cache/playwright_ex && mix playwright_ex.upstream
       - name: Save the failed CI log
         shell: bash
         env:
@@ -195,9 +193,8 @@ jobs:
             Read it along with `gh pr view ${{ matrix.pr.number }}` and
             `gh pr diff ${{ matrix.pr.number }}` and find the cause. For a failing port or ported
             test, compare with upstream: its sources and specs at the pin are under
-            ~/.cache/playwright_ex/<version>/upstream once `mix playwright_ex.parity` has run.
-            Tests can't run here: CI runs them on your push. Don't merge or rebase on main. End with
-            exactly one of these:
+            ~/.cache/playwright_ex/<version>/upstream. Tests can't run here: CI runs them on your
+            push. Don't merge or rebase on main. End with exactly one of these:
 
             - The PR caused it: fix it, keeping what the PR set out to do and the public behaviour,
               and matching the surrounding code. Follow PORTING.md for ported code. Files marked
@@ -225,13 +222,11 @@ jobs:
         if: ${{ !cancelled() && steps.claude.outputs.execution_file != '' }}
         env:
           EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+        # .github/claude-summary.jq: only the final message and the denied calls (public repo). From
+        # the run's commit, as Claude may have edited the checkout; a failed `git show` stops the step.
         run: |
-          jq -r '.[] | select(.type == "result")
-            | (.result // .subtype),
-              (.permission_denials // [] | select(length > 0) | "\n**Denied tool calls (\(length)):**\n",
-                (.[] | (.tool_input | .command // .file_path // .path // .pattern // .url // "" | gsub("\\s+"; " ") | .[:200]) as $arg
-                  | "- \(.tool_name)" + (if $arg == "" then "" else ": `` \($arg) ``" end)))' \
-            "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
+          filter=$(git show "$GITHUB_SHA:.github/claude-summary.jq")
+          jq -r "$filter" "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
 
   # Replaces each conflicted PR with one on a new branch from main. The Claude app can't push
   # workflow file changes, which a merge or rebase of the old branch would carry from main.
@@ -259,8 +254,8 @@ jobs:
           fetch-depth: 0
       - name: Setup languages
         uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
-      - name: Install dependencies
-        run: mix "do" deps.get, deps.compile
+      - name: Install dependencies and upstream sources
+        run: mix "do" deps.get, deps.compile, playwright_ex.upstream
       - run: git switch -c "$NIGHTLY_BRANCH"
       - name: Run Claude
         id: claude
@@ -278,8 +273,10 @@ jobs:
             to do, then make the same change against the code as it is now, keeping what main has
             changed since. Files marked "do not edit manually" are regenerated with
             `mix playwright_ex.gen.api` or `mix playwright_ex.gen.protocol`, never merged by hand.
-            Run `mix format`, `mix compile --warnings-as-errors` and `mix credo`; they must pass. CI
-            on the new PR runs the test suite.
+            Ported code follows upstream's sources at the pin, under
+            ~/.cache/playwright_ex/<version>/upstream. Run `mix format`,
+            `mix compile --warnings-as-errors` and `mix credo`; they must pass. CI on the new PR
+            runs the test suite.
 
             If the change can't be redone without redesigning it, stop without pushing and say why.
 
@@ -297,18 +294,17 @@ jobs:
           claude_args: |
             --model claude-opus-5-5
             --max-turns 60
+            --add-dir /home/runner/.cache/playwright_ex
             --allowedTools "Read,Grep,Glob,Edit,Write,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix credo:*),Bash(mix playwright_ex.gen.api:*),Bash(mix playwright_ex.gen.protocol:*),Bash(gh pr view ${{ matrix.pr }}:*),Bash(gh pr diff ${{ matrix.pr }}:*),Bash(git push -u origin ${{ env.NIGHTLY_BRANCH }}),Bash(gh pr create --base main --head ${{ env.NIGHTLY_BRANCH }} *),Bash(gh pr close ${{ matrix.pr }} *)"
       - name: Summarize Claude's result
         if: ${{ !cancelled() && steps.claude.outputs.execution_file != '' }}
         env:
           EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+        # .github/claude-summary.jq: only the final message and the denied calls (public repo). From
+        # the run's commit, as Claude may have edited the checkout; a failed `git show` stops the step.
         run: |
-          jq -r '.[] | select(.type == "result")
-            | (.result // .subtype),
-              (.permission_denials // [] | select(length > 0) | "\n**Denied tool calls (\(length)):**\n",
-                (.[] | (.tool_input | .command // .file_path // .path // .pattern // .url // "" | gsub("\\s+"; " ") | .[:200]) as $arg
-                  | "- \(.tool_name)" + (if $arg == "" then "" else ": `` \($arg) ``" end)))' \
-            "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
+          filter=$(git show "$GITHUB_SHA:.github/claude-summary.jq")
+          jq -r "$filter" "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
 
   # Enforces the cap before any toolchain is set up. Runs even if an earlier job failed: the
   # count is still right, it just finds fewer slots.
@@ -374,10 +370,8 @@ jobs:
           fetch-depth: 0
       - name: Setup languages
         uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
-      - name: Install dependencies
-        run: mix "do" deps.get, deps.compile
-      # --add-dir below needs it; `mix playwright_ex.parity` fills it.
-      - run: mkdir -p ~/.cache/playwright_ex
+      - name: Install dependencies and upstream sources
+        run: mix "do" deps.get, deps.compile, playwright_ex.upstream
       - run: git switch -c "$NIGHTLY_BRANCH"
       - name: Pick tonight's focus area
         id: focus
@@ -418,8 +412,7 @@ jobs:
               Change only what brings it closer to upstream or PORTING.md's idioms. Prioritize
               removing a deviation nothing requires (PORTING.md, "Rules"): one no longer needed, or
               a synthetic special case for an edge case upstream doesn't handle. Upstream's sources
-              at the pin are under ~/.cache/playwright_ex/<version>/upstream once
-              `mix playwright_ex.parity` has run.
+              at the pin are under ~/.cache/playwright_ex/<version>/upstream.
             - Generated ("do not edit manually"): change the generator in dev/ and regenerate.
 
             1. Read PORTING.md, docs/architecture.md and enough of the code above to know the
@@ -466,10 +459,8 @@ jobs:
         if: ${{ !cancelled() && steps.claude.outputs.execution_file != '' }}
         env:
           EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+        # .github/claude-summary.jq: only the final message and the denied calls (public repo). From
+        # the run's commit, as Claude may have edited the checkout; a failed `git show` stops the step.
         run: |
-          jq -r '.[] | select(.type == "result")
-            | (.result // .subtype),
-              (.permission_denials // [] | select(length > 0) | "\n**Denied tool calls (\(length)):**\n",
-                (.[] | (.tool_input | .command // .file_path // .path // .pattern // .url // "" | gsub("\\s+"; " ") | .[:200]) as $arg
-                  | "- \(.tool_name)" + (if $arg == "" then "" else ": `` \($arg) ``" end)))' \
-            "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
+          filter=$(git show "$GITHUB_SHA:.github/claude-summary.jq")
+          jq -r "$filter" "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"

@@ -186,8 +186,10 @@ jobs:
         uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
       - name: Install dependencies
         run: mix "do" deps.get, deps.compile
-      # --add-dir below needs it; `mix playwright_ex.parity` fills it.
-      - run: mkdir -p ~/.cache/playwright_ex
+      # May fail on a branch that doesn't compile; Claude then runs without them.
+      - name: Download upstream sources
+        continue-on-error: true
+        run: mkdir -p ~/.cache/playwright_ex && mix playwright_ex.upstream
       - name: Save the failed CI log
         shell: bash
         env:
@@ -212,9 +214,8 @@ jobs:
 
             Read PORTING.md, the log and `gh pr view ${{ matrix.pr.number }}`, and find the cause.
             Compare a failing port or ported test with upstream: its sources and specs at the new
-            pin are under ~/.cache/playwright_ex/<version>/upstream once
-            `mix playwright_ex.parity` has run. Tests can't run here: CI runs them on your push.
-            Don't merge or rebase on main. End with exactly one of these:
+            pin are under ~/.cache/playwright_ex/<version>/upstream. Tests can't run here: CI runs
+            them on your push. Don't merge or rebase on main. End with exactly one of these:
 
             - The port caused it: fix it 1:1 per PORTING.md. Files marked "do not edit manually" are
               regenerated with `mix playwright_ex.gen.api` or `mix playwright_ex.gen.protocol`.
