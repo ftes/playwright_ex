@@ -99,7 +99,16 @@ defmodule PlaywrightEx.Isomorphic.StringUtils do
   end
 
   # truncateDataUrl, escapeRegExp, escapeHTMLAttribute, escapeHTML  -- not ported
-  # longestCommonSubstring, parseRegex, tomlBasicString, tomlArray, tomlMultilineBasicString, stripAnsiEscapes  -- not ported
+  # longestCommonSubstring, parseRegex, tomlBasicString, tomlArray, tomlMultilineBasicString  -- not ported
+
+  def strip_ansi_escapes(str) do
+    # ansiRegex (not a module attribute: OTP 28 cannot store a compiled regex in one).
+    Regex.replace(
+      ~r/([\x{1B}\x{9B}][[\]()#?]*(?:(?:(?:[a-zA-Z\d]*(?:;[-a-zA-Z\d\/#&.:=?%@~_]*)*)?\x{07})|(?:(?:\d{0,4}(?:;\d{0,4})*)?[\dA-PR-TZcf-ntqry=><~])))/u,
+      str,
+      ""
+    )
+  end
 
   # String(re): JS escapes `/` in the source (`~r/a\/b/` has the source "a/b").
   defp regex_to_string(re), do: RegExp.to_string(RegExp.from_regex(re))

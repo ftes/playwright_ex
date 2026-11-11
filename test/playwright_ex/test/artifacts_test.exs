@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Test.ErrorContext
   alias PlaywrightEx.Test.Recorder
   alias PlaywrightEx.Tracing
 
@@ -99,7 +100,16 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
   end
 
   test "finish is bounded: past its budget it logs, closes the contexts left and stops the recorder", ctx do
-    opts = %{trace: :on, screenshot: :off, video: :off, dir: dir(ctx), title: "bounded", test_key: :bounded}
+    opts = %{
+      trace: :on,
+      screenshot: :off,
+      video: :off,
+      error_context: false,
+      dir: dir(ctx),
+      title: "bounded",
+      test_key: :bounded
+    }
+
     recorder = Recorder.start(self(), opts)
     Recorder.ensure_listener(recorder, PlaywrightEx.Runtime.Heap.get(ctx.browser, :_instrumentation))
     context = Browser.new_context!(ctx.browser)
@@ -186,6 +196,46 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
 
     assert_receive :other_done, 10_000
     Page.set_content!(page, "<h1>AFTER</h1>")
+  end
+
+  @tag skip: if(!PlaywrightEx.Test.Options.error_context?(), do: "env: PLAYWRIGHT_NO_COPY_PROMPT")
+  test "a test takes one page snapshot for error-context.md, of the first closed context's first page", ctx do
+    %{context: one} = new_context(ctx)
+    %{context: two} = new_context(ctx)
+    page(one, "FIRST")
+    page(two, "SECOND")
+    BrowserContext.close!(one)
+    BrowserContext.close!(two)
+    assert GenServer.call(Recorder.lookup(self()), :state).page_snapshot =~ ~s(heading "FIRST")
+  end
+
+  @tag :tmp_dir
+  test "error-context.md has the errors, the source, and the page snapshot unless a matcher has one", %{tmp_dir: dir} do
+    info = %{
+      dir: dir,
+      title_path: ["x_test.exs", "t"],
+      location: {__ENV__.file, 1},
+      page_snapshot: ~s(- heading "PAGE")
+    }
+
+    stack = [{__MODULE__, :t, 1, file: __ENV__.file, line: __ENV__.line}]
+    failure = {:error, %ExUnit.AssertionError{message: "on purpose"}, stack}
+
+    read = fn -> File.read!(Path.join(dir, "error-context.md")) end
+
+    ErrorContext.write(info, [failure])
+
+    assert read.() =~
+             "# Test info\n\n- Name: x_test.exs >> t\n- Location: test/playwright_ex/test/artifacts_test.exs:1\n"
+
+    assert read.() =~ "```\nExUnit.AssertionError: on purpose\n```"
+    assert read.() =~ ~s(# Page snapshot\n\n```yaml\n- heading "PAGE"\n```)
+    assert read.() =~ ~r/^> \d+ \| +stack = .*\n +\| +\^ ExUnit.AssertionError: on purpose$/m
+
+    matcher = %PlaywrightEx.ExpectError{message: "Expected", matcherResult: %{ariaSnapshot: ~s(- heading "OWN")}}
+    ErrorContext.write(info, [{:error, matcher, []}])
+    assert read.() =~ ~s(```\nPlaywrightEx.ExpectError: Expected\n```\n\n```yaml\n- heading "OWN"\n```)
+    refute read.() =~ "# Page snapshot"
   end
 
   test "a test's dir is not emptied: a rerun keeps the first run's other files", ctx do

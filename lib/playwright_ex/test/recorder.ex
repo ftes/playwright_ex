@@ -18,6 +18,7 @@ defmodule PlaywrightEx.Test.Recorder do
   alias PlaywrightEx.Client.ClientInstrumentation
   alias PlaywrightEx.Page
   alias PlaywrightEx.Runtime.Heap
+  alias PlaywrightEx.Test.ErrorContext
   alias PlaywrightEx.Test.Pool
   alias PlaywrightEx.Tracing
   alias PlaywrightEx.Video
@@ -66,6 +67,16 @@ defmodule PlaywrightEx.Test.Recorder do
   def test_name(%{test: test} = context),
     do: test |> to_string() |> String.replace_prefix("#{context[:test_type] || :test} ", "")
 
+  @doc "Upstream's `testInfo.titlePath`: the file, the describe block, the test."
+  def title_path(%{file: file} = context) do
+    name = test_name(context)
+
+    case context[:describe] do
+      nil -> [Path.relative_to_cwd(file), name]
+      describe -> [Path.relative_to_cwd(file), describe, String.replace_prefix(name, describe <> " ", "")]
+    end
+  end
+
   @doc "The recorder of the test `test_pid`, or `nil`."
   def lookup(test_pid) do
     case Pool.started?() && :ets.lookup(Pool.table(), {:recorder, test_pid}) do
@@ -109,7 +120,8 @@ defmodule PlaywrightEx.Test.Recorder do
        contexts: [],
        closed: [],
        chunks: [],
-       screenshots: 0
+       screenshots: 0,
+       page_snapshot: nil
      }}
   end
 
@@ -135,6 +147,7 @@ defmodule PlaywrightEx.Test.Recorder do
     do: {:reply, state.screenshots + 1, %{state | screenshots: state.screenshots + 1}}
 
   def handle_call({:add_chunk, path}, _from, state), do: {:reply, :ok, %{state | chunks: state.chunks ++ [path]}}
+  def handle_call({:page_snapshot, snapshot}, _from, state), do: {:reply, :ok, %{state | page_snapshot: snapshot}}
   def handle_call(:state, _from, state), do: {:reply, state, state}
 
   @impl true
@@ -196,7 +209,8 @@ defmodule PlaywrightEx.Test.Recorder do
     for page <- BrowserContext.pages(context), do: GenServer.cast(recorder, {:add_page, context.guid, page})
   end
 
-  # `willCloseBrowserContext`: the trace chunk, then the screenshots (`captureTemporary`).
+  # `willCloseBrowserContext`: the trace chunk, the screenshots (`captureTemporary`), then the
+  # page snapshot (`_takePageSnapshot`).
   # Taking the row makes it once per context, also when closes race.
   defp before_close(context, recorder, opts) do
     if :ets.select_delete(Pool.table(), [{{{:context, context.guid}, recorder}, [], [true]}]) == 1 do
@@ -210,6 +224,17 @@ defmodule PlaywrightEx.Test.Recorder do
   defp collect(context, recorder, opts) do
     if opts.trace != :off, do: step("save the trace", fn -> stop_tracing(context, recorder, opts) end)
     if opts.screenshot != :off, do: screenshots(context, recorder, opts)
+    if opts.error_context, do: step("take a page snapshot", fn -> page_snapshot(context, recorder) end)
+  end
+
+  # `_takePageSnapshot` (`packages/playwright/src/index.ts:767`): once per test, of the first page.
+  # Taken for every test, passed or not: ExUnit tells `on_exit` nothing of the result.
+  defp page_snapshot(context, recorder) do
+    with %{page_snapshot: nil} <- call(recorder, :state),
+         [page | _] <- BrowserContext.pages(context),
+         # The snapshot may fail: ignored, as upstream's.
+         {:ok, snapshot} <- Page.aria_snapshot(page, mode: :ai, timeout: 5000),
+         do: call(recorder, {:page_snapshot, snapshot})
   end
 
   defp stop_tracing(context, recorder, opts) do
@@ -258,6 +283,12 @@ defmodule PlaywrightEx.Test.Recorder do
       state = GenServer.call(pid, :state, :infinity)
       for instrumentation <- state.instrumentations, do: remove_listener(instrumentation, state.listener)
       if !finished?, do: close_leftovers(state)
+
+      # For the formatter: `error-context.md` if the test failed.
+      if state.opts.error_context do
+        info = Map.merge(Map.take(state.opts, [:dir, :title_path, :location]), %{page_snapshot: state.page_snapshot})
+        :ets.insert(Pool.table(), {{:error_context, state.opts.test_key}, info})
+      end
     end)
 
     :ok
@@ -419,14 +450,24 @@ defmodule PlaywrightEx.Test.Recorder do
       else: {[{String.to_charlist(name), data} | entries], MapSet.put(names, name)}
   end
 
-  @doc "Called by the formatter: deletes the retained files of a passing test (and its dir if empty)."
-  def test_finished(key, passed?) do
-    retained = if Pool.started?(), do: :ets.take(Pool.table(), {:retained, key}), else: []
+  @doc """
+  Called by the formatter with the test's `state`: deletes the retained files of a passing test
+  (and its dir if empty), writes `error-context.md` of a failed one (`didFinishTest`).
+  """
+  def test_finished(key, state) do
+    {retained, error_context} =
+      if Pool.started?(),
+        do: {:ets.take(Pool.table(), {:retained, key}), :ets.take(Pool.table(), {:error_context, key})},
+        else: {[], []}
 
-    for {_, files} <- retained, passed? do
+    for {_, files} <- retained, state == nil do
       Enum.each(files, &File.rm/1)
       files |> Enum.map(&Path.dirname/1) |> Enum.uniq() |> Enum.each(&File.rmdir/1)
     end
+
+    for {_, info} <- error_context,
+        {:failed, failures} <- [state],
+        do: step("write error-context.md", fn -> ErrorContext.write(info, failures) end)
 
     :ok
   end

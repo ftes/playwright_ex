@@ -14,7 +14,8 @@ those of the release candidates below. From an earlier release, also read the se
 - `PlaywrightEx.Test`: ExUnit setup fragments (`browser/1`, `new_context/2`, `new_page/1`), a
   shared browser per set of options or one per module (`isolate: true`), and traces,
   screenshots and videos of every context a test creates (`record_artifacts/2`), kept for
-  failures with `PlaywrightEx.Test.Formatter`. See the [Testing with ExUnit](guides/testing-with-exunit.md) guide.
+  failures with `PlaywrightEx.Test.Formatter`, which also writes Playwright Test's
+  `error-context.md` of each failed test. See the [Testing with ExUnit](guides/testing-with-exunit.md) guide.
 
 ### Fixed
 - On Unix, stopping `PlaywrightEx.Supervisor` waits until the driver has exited (at most 31 s).

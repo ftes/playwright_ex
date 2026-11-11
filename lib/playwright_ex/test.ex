@@ -60,6 +60,11 @@ defmodule PlaywrightEx.Test do
       every page open when its context closes (`timeout: 5000, caret: :initial`, as upstream).
     * `video.webm`, `video-1.webm`, ... - every page's video. A context created with its own
       `record_video` keeps it, and its video is copied here too.
+    * `error-context.md` - a failed test's errors, source and an aria snapshot (`mode: :ai`) of
+      the first page of its first closed context, always on with the formatter unless
+      `PLAYWRIGHT_NO_COPY_PROMPT` is set (upstream's `didFinishTest` and `buildErrorContext`,
+      `packages/playwright/src/index.ts:767-838`, `errorContext.ts`). As `on_exit` doesn't know the
+      result, every test takes the snapshot.
 
   A failing artifact step is logged; the test's result stands. The `*_on_failure` modes record
   every test, and `PlaywrightEx.Test.Formatter` deletes the files of passing ones (not those you
@@ -155,7 +160,7 @@ defmodule PlaywrightEx.Test do
     * `:screenshot` - `:off` (default), `:on` or `:only_on_failure`.
     * `:video` - `:off` (default), `:on` or `:retain_on_failure`.
 
-  With all three `:off` it does nothing. `new_context/2` calls it with the config if the test
+  With all three `:off` it only takes the snapshot of `error-context.md` (see the moduledoc). `new_context/2` calls it with the config if the test
   hasn't. `retain_on_failure` and `only_on_failure` need `PlaywrightEx.Test.Formatter`.
   """
   @spec record_artifacts(map(), keyword()) :: :ok
@@ -166,7 +171,11 @@ defmodule PlaywrightEx.Test do
 
     Process.put(@recording, true)
 
-    if opts.trace != :off or opts.screenshot != :off or opts.video != :off, do: start_recording(context, opts)
+    opts = Map.put(opts, :error_context, Options.error_context?())
+
+    if opts.trace != :off or opts.screenshot != :off or opts.video != :off or opts.error_context,
+      do: start_recording(context, opts)
+
     :ok
   end
 
@@ -177,7 +186,19 @@ defmodule PlaywrightEx.Test do
     # Not emptied: files are overwritten by name, so a rerun keeps the first run's other files.
     dir = Recorder.output_dir(context)
     title = "#{Path.relative_to_cwd(context.file)}:#{context[:line]} › #{Recorder.test_name(context)}"
-    recorder = Recorder.start(self(), Map.merge(opts, %{dir: dir, title: title, test_key: Recorder.test_key(context)}))
+
+    recorder =
+      Recorder.start(
+        self(),
+        Map.merge(opts, %{
+          dir: dir,
+          title: title,
+          test_key: Recorder.test_key(context),
+          title_path: Recorder.title_path(context),
+          location: {context.file, context[:line]}
+        })
+      )
+
     # Each `on_exit` callback gets the test's timeout: half of it for the artifacts.
     budget =
       with timeout when is_integer(timeout) <- context[:timeout] || ExUnit.configuration()[:timeout],

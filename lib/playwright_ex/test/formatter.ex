@@ -21,7 +21,7 @@ defmodule PlaywrightEx.Test.Formatter do
 
   @impl true
   def handle_cast({:test_finished, %ExUnit.Test{} = test}, state) do
-    Recorder.test_finished({test.module, test.name, test.parameters}, test.state == nil)
+    Recorder.test_finished({test.module, test.name, test.parameters}, test.state)
     {:noreply, state}
   end
 

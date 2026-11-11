@@ -203,6 +203,9 @@ test-results/sign_up-signs-up-5d41a/trace.zip
 test-results/sign_up-signs-up-5d41a/test-failed-1.png
 ```
 
+A failed test also gets Playwright Test's `error-context.md`: its errors, its source and an aria
+snapshot of its page, for you or an agent to read (`PLAYWRIGHT_NO_COPY_PROMPT=1` turns it off).
+
 `trace`, `screenshot` and `video` are `:off` by default, as in Playwright Test.
 `:retain_on_failure` (trace, video) and `:only_on_failure` (screenshot) record every test and
 keep the files of failures. Open a trace with `mix playwright_ex.cli show-trace

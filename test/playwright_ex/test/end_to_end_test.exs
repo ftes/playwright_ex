@@ -1,7 +1,7 @@
 defmodule PlaywrightEx.Test.EndToEndTest do
   # A suite on `PlaywrightEx.Test` in a child BEAM (`test/support/test_runner_impl.exs`), with
   # `trace: :retain_on_failure, screenshot: :only_on_failure`: only the failing test keeps its
-  # artifacts, and no driver outlives the halted VM (`after_suite`).
+  # artifacts and gets `error-context.md`, and no driver outlives the halted VM (`after_suite`).
   use ExUnit.Case, async: true
 
   alias PlaywrightEx.RemoteServer.ChildProcess
@@ -15,7 +15,13 @@ defmodule PlaywrightEx.Test.EndToEndTest do
     ebin = Path.dirname(:code.which(PlaywrightEx))
     script = Path.join([__DIR__, "..", "..", "support", "test_runner_impl.exs"])
     args = ["-pa", ebin, script, output_dir, System.get_env("BROWSER", "chromium"), go]
-    child = ChildProcess.start(System.find_executable("elixir"), args, %{"PWTEST_UNDER_TEST" => nil})
+
+    child =
+      ChildProcess.start(System.find_executable("elixir"), args, %{
+        "PWTEST_UNDER_TEST" => nil,
+        "PLAYWRIGHT_NO_COPY_PROMPT" => nil
+      })
+
     on_exit(fn -> ChildProcess.stop(child) end)
 
     ChildProcess.await(child, &if(&1 =~ "(ready=>true)", do: {:ok, true}))
@@ -30,7 +36,12 @@ defmodule PlaywrightEx.Test.EndToEndTest do
 
     assert [dir] = File.ls!(output_dir)
     assert dir =~ ~r/fails-[0-9a-f]{5}$/
-    assert Enum.sort(File.ls!(Path.join(output_dir, dir))) == ["test-failed-1.png", "trace.zip"]
+    assert Enum.sort(File.ls!(Path.join(output_dir, dir))) == ["error-context.md", "test-failed-1.png", "trace.zip"]
+    error_context = File.read!(Path.join([output_dir, dir, "error-context.md"]))
+    assert error_context =~ "- Name: test/support/test_runner_impl.exs >> fails"
+    assert error_context =~ "ExUnit.AssertionError: on purpose"
+    assert error_context =~ ~s(heading "Fails")
+    assert error_context =~ ~r/^> \d+ \| +flunk\("on purpose"\)$/m
   end
 
   defp alive(processes) do

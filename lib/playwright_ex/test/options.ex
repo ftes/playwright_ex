@@ -134,6 +134,16 @@ defmodule PlaywrightEx.Test.Options do
   end
 
   @doc """
+  Whether a failed test gets `error-context.md`: with `PlaywrightEx.Test.Formatter`, unless
+  `PLAYWRIGHT_NO_COPY_PROMPT` is set, as upstream's.
+  """
+  def error_context?(
+        formatters \\ ExUnit.configuration()[:formatters] || [],
+        no_copy_prompt \\ System.get_env("PLAYWRIGHT_NO_COPY_PROMPT")
+      ),
+      do: @formatter in formatters and no_copy_prompt in [nil, ""]
+
+  @doc """
   Raises unless `PlaywrightEx.Test.Formatter` is one of `formatters`, for the options that need
   it (`what`).
   """
