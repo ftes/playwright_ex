@@ -55,6 +55,9 @@ Options go in as arguments, merged over the config: `setup_all do: browser(brows
 :firefox)`, `setup ctx, do: new_context(ctx, context_options: [locale: "de-DE"])`.
 `launch_options` and `context_options` are those of `PlaywrightEx.BrowserType.launch/2` and
 `PlaywrightEx.Browser.new_context/2`. `PlaywrightEx.Test` lists the fragments' own options.
+Every context a test creates starts from Playwright Test's defaults (`locale: "en-US"`, a
+1280x720 viewport, `color_scheme: :light`, ...); the options you give win. The config's
+`context_options` apply to `new_context/2` only.
 
 With `base_url`, `goto` and the URL matchers take paths. Actions and navigations wait 30 seconds
 by default, and ExUnit's test timeout is 60 seconds; `set_default_timeout/2` makes a stuck action

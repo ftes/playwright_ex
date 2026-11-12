@@ -147,7 +147,7 @@ defmodule PlaywrightEx.Test do
         launch_options: [],           # PlaywrightEx.BrowserType.launch/2
         driver: [],                   # PlaywrightEx.Supervisor: :env, :executable, :node, :cache_dir
         on_start: nil,
-        context_options: [],          # PlaywrightEx.Browser.new_context/2
+        context_options: [],          # PlaywrightEx.Browser.new_context/2, over the defaults below
         trace: :off,                  # :off | :on | :retain_on_failure, or [mode: _, ...]
         screenshot: :off,             # :off | :on | :only_on_failure, or [mode: _, ...]
         video: :off,                  # :off | :on | :retain_on_failure, or [mode: _, size: _]
@@ -158,6 +158,14 @@ defmodule PlaywrightEx.Test do
 
   The artifact modes are `off` by default and `output_dir` is `test-results`, as upstream's.
   `workers` is half the schedulers, as upstream's default `workers` is half the cores (`'50%'`).
+
+  In a test, every context the test creates (`new_context/2`, `PlaywrightEx.Browser.new_context/2`,
+  `PlaywrightEx.BrowserType.launch_persistent_context/3`, `PlaywrightEx.APIRequest.new_context/2`)
+  gets Playwright Test's context defaults (`locale: "en-US"`, a 1280x720 viewport,
+  `color_scheme: :light`, ...) for each option it doesn't give, as upstream's, on a driver of
+  `browser/2` or of a browser given to `new_context/2` or `record_artifacts/2`. An option given
+  as `nil` keeps the client's default; `viewport: :null` is none. Unlike upstream's, the config's
+  `context_options` are `new_context/2`'s only, and a `setup_all` context gets no defaults.
   """
 
   alias PlaywrightEx.Browser
@@ -396,6 +404,7 @@ defmodule PlaywrightEx.Test do
       end
 
     %{playwright: playwright, browser: browser} = Pool.browser(opts, token)
+    Options.ensure_context_defaults(Heap.get(playwright, :_instrumentation))
     %{playwright: playwright, browser_name: opts.browser_name, browser: browser}
   end
 
@@ -423,6 +432,8 @@ defmodule PlaywrightEx.Test do
     file = fetch!(context, :file)
     watch(context)
     if Process.get(@recording), do: raise(ArgumentError, "record_artifacts was called already for this test")
+    # A case template's `setup` runs before `__setup__/1`: its contexts get the defaults too.
+    if context[:playwright_ex] == :marked, do: TestInfo.start(context)
 
     # Not emptied: files are overwritten by name, so a rerun keeps the first run's other files.
     dir = Recorder.output_dir(context)
@@ -449,7 +460,12 @@ defmodule PlaywrightEx.Test do
     Process.put(@recording, {recorder, opts.screenshot[:mode]})
 
     channel = context[:browser] || context[:playwright]
-    if channel, do: Recorder.ensure_listener(recorder, Heap.get(channel, :_instrumentation))
+
+    if channel do
+      Recorder.ensure_listener(recorder, Heap.get(channel, :_instrumentation))
+      Options.ensure_context_defaults(Heap.get(channel, :_instrumentation))
+    end
+
     :ok
   end
 
@@ -457,8 +473,9 @@ defmodule PlaywrightEx.Test do
   A context of `context.browser` for the test, for `setup`: returns `context`.
 
   Option: `:context_options` for `PlaywrightEx.Browser.new_context/2`, as is (merged over the
-  config's). Starts `record_artifacts/2` with the config if the test hasn't, which closes the
-  context after the test.
+  config's), over Playwright Test's context defaults in a test (see Config). Starts
+  `record_artifacts/2` with the config if the test hasn't, which closes the context after the
+  test.
 
   The context map needs `browser`. Its `test_pid` picks the recording, so a process that creates
   contexts for a test (a GenServer) passes the test's whole context map, once the test's `setup`
@@ -472,10 +489,12 @@ defmodule PlaywrightEx.Test do
 
     case context[:test_pid] do
       nil ->
+        Options.ensure_context_defaults(Heap.get(browser, :_instrumentation))
         %{context: Browser.new_context!(browser, opts.context_options)}
 
       test_pid ->
         token!(context, "new_context/2")
+        Options.ensure_context_defaults(Heap.get(browser, :_instrumentation))
         if test_pid == self() and Process.get(@recording) == nil, do: record_artifacts(context)
         recorder = Recorder.lookup(test_pid)
         if recorder, do: Recorder.ensure_listener(recorder, Heap.get(browser, :_instrumentation))

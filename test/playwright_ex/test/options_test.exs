@@ -265,6 +265,14 @@ defmodule PlaywrightEx.Test.ConfigTest do
     Page.set_content!(BrowserContext.new_page!(context), "<h1>Defaults</h1>")
   end
 
+  test "the config's context_options win over Playwright Test's context defaults", ctx do
+    Application.put_env(:playwright_ex, :test, Keyword.put(ctx.config, :context_options, locale: "de-DE"))
+    %{browser: browser} = PlaywrightEx.Test.browser(ctx)
+    %{context: context} = PlaywrightEx.Test.new_context(Map.put(ctx, :browser, browser))
+    page = BrowserContext.new_page!(context)
+    assert Page.evaluate!(page, "navigator.language") == "de-DE"
+  end
+
   test "options merge over the config, option lists one level deep", %{config: config} do
     Application.put_env(
       :playwright_ex,

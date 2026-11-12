@@ -35,10 +35,10 @@ defmodule PlaywrightEx.Test.TestInfo do
   # `_tracing`: the test's recorder, if it records artifacts.
   defp _tracing(this), do: Recorder.lookup(this.test_pid)
 
-  @doc "Registers the running test of `context` (in its `setup`): matchers of its processes find it."
+  @doc "Registers the running test of `context` (in its `setup`), once: matchers of its processes find it."
   def start(context) do
     this = new(context)
-    :ets.insert(Pool.table(), {{:test_info, this.test_pid, :info}, this})
+    :ets.insert_new(Pool.table(), {{:test_info, this.test_pid, :info}, this})
     :ok
   end
 

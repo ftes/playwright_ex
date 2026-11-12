@@ -29,7 +29,8 @@ those of the release candidates below. From an earlier release, also read the se
   `Expect.soft/1` is `expect.soft`: in a test, a failed soft matcher returns and fails the test
   at the end of its body.
   `use PlaywrightEx.Test` imports `step/2,3` and `step_skip/2,3`, so a module with a `step` of
-  its own narrows the import. See the
+  its own narrows the import. Every context a test creates gets Playwright Test's context
+  defaults (`locale: "en-US"`, a 1280x720 viewport, ...) for the options it doesn't give. See the
   [Testing with ExUnit](guides/testing-with-exunit.md) guide.
 
 ### Changed

@@ -170,25 +170,6 @@ defmodule PlaywrightEx.UpstreamCase do
 
   @root Path.expand("../..", __DIR__)
 
-  # Playwright Test's option fixtures with no value given (`packages/playwright/src/index.ts`
-  # `playwrightFixtures`, as `_combinedContextOptions` collects them): `contextOptions` is `{}`.
-  @context_defaults %{
-    acceptDownloads: true,
-    bypassCSP: false,
-    colorScheme: "light",
-    contrast: "no-preference",
-    forcedColors: "none",
-    hasTouch: false,
-    ignoreHTTPSErrors: false,
-    isMobile: false,
-    javaScriptEnabled: true,
-    locale: "en-US",
-    offline: false,
-    reducedMotion: "no-preference",
-    viewport: %{width: 1280, height: 720},
-    serviceWorkers: "allow"
-  }
-
   @doc """
   Sets up a Playwright instance as Playwright Test's fixtures do (`packages/playwright/src/index.ts`):
 
@@ -204,7 +185,7 @@ defmodule PlaywrightEx.UpstreamCase do
   `artifacts_dir` stands in for the worker's artifacts dir (`artifacts_dir/0`), the caller removes it.
   """
   def setup_playwright(playwright, artifacts_dir) do
-    defaults = context_defaults()
+    defaults = PlaywrightEx.Test.Options.context_defaults()
 
     Api.call(nil, playwright, fn ->
       Heap.put(playwright, :_defaultContextTimeout, 0)
@@ -266,14 +247,6 @@ defmodule PlaywrightEx.UpstreamCase do
     dir = Path.join(artifacts_root(), "#{System.unique_integer([:positive])}")
     File.mkdir_p!(Path.join(dir, "traces"))
     dir
-  end
-
-  # `baseURL` is `process.env.PLAYWRIGHT_TEST_BASE_URL`.
-  defp context_defaults do
-    case System.get_env("PLAYWRIGHT_TEST_BASE_URL") do
-      nil -> @context_defaults
-      base_url -> Map.put(@context_defaults, :baseURL, base_url)
-    end
   end
 
   @doc false

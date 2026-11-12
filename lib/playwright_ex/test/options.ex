@@ -4,6 +4,9 @@ defmodule PlaywrightEx.Test.Options do
   # `config :playwright_ex, :test`, and validation. Unknown keys and bad values raise
   # `ArgumentError`, as the facade's do.
 
+  alias PlaywrightEx.Runtime.Heap
+  alias PlaywrightEx.Test.TestInfo
+
   # `isolate` is an argument only: as config it would isolate an in-test second `browser/1` too.
   @browser_keys [:browser_name, :launch_options, :driver, :on_start, :isolate]
   @artifact_keys [:trace, :screenshot, :video]
@@ -12,6 +15,27 @@ defmodule PlaywrightEx.Test.Options do
   @config_keys (@browser_keys -- [:isolate]) ++ @artifact_keys ++ @context_keys ++ @config_only_keys
 
   @driver_keys [:executable, :node, :cache_dir, :env]
+
+  # Playwright Test's context option fixtures with no value given (`playwrightFixtures` in
+  # `packages/playwright/src/index.ts`, as `_combinedContextOptions` collects them), as the client
+  # takes them. Deviation: without `...contextOptions`, the config's `context_options` are
+  # `new_context/2`'s only (facade options, converted by its call).
+  @context_defaults %{
+    acceptDownloads: true,
+    bypassCSP: false,
+    colorScheme: "light",
+    contrast: "no-preference",
+    forcedColors: "none",
+    hasTouch: false,
+    ignoreHTTPSErrors: false,
+    isMobile: false,
+    javaScriptEnabled: true,
+    locale: "en-US",
+    offline: false,
+    reducedMotion: "no-preference",
+    viewport: %{width: 1280, height: 720},
+    serviceWorkers: "allow"
+  }
 
   @modes %{
     trace: [:off, :on, :retain_on_failure],
@@ -36,6 +60,36 @@ defmodule PlaywrightEx.Test.Options do
 
   @doc "The context options: the config merged with `opts`."
   def context(opts), do: merge(@context_keys, opts)
+
+  @doc """
+  Adds the listener of `_setupArtifacts`' `runBeforeCreateBrowserContext` and
+  `runBeforeCreateRequestContext` to `instrumentation`, once: in a marked test (or a process with
+  it in `$callers`), each context gets the context defaults it does not give.
+  """
+  def ensure_context_defaults(instrumentation) do
+    listener = %{
+      runBeforeCreateBrowserContext: &__MODULE__.with_context_defaults/1,
+      runBeforeCreateRequestContext: &__MODULE__.with_context_defaults/1
+    }
+
+    Heap.update(instrumentation, :listeners, &if(listener in &1, do: &1, else: &1 ++ [listener]))
+  end
+
+  @doc """
+  Playwright Test's context option defaults, with the client's keys and values; `baseURL` is
+  `process.env.PLAYWRIGHT_TEST_BASE_URL`.
+  """
+  def context_defaults do
+    case System.get_env("PLAYWRIGHT_TEST_BASE_URL") do
+      nil -> @context_defaults
+      base_url -> Map.put(@context_defaults, :baseURL, base_url)
+    end
+  end
+
+  @doc false
+  # `if (!(key in options)) options[key] = value;`: a key given as `nil` (`undefined`) stays.
+  def with_context_defaults(options),
+    do: if(TestInfo.current(), do: Map.merge(context_defaults(), options), else: options)
 
   @doc "The root of the output dirs (config `output_dir`, default `test-results`)."
   def output_dir, do: config()[:output_dir]
