@@ -39,6 +39,13 @@ those of the release candidates below. From an earlier release, also read the se
 - `%PlaywrightEx.Expect{}` also carries `isSoft`, and `isNot` defaults to `false`: build a
   negated receiver with `Expect.not_/1`.
 - The facade's `__options__/1` is documented as unstable: its shape may change between releases.
+- User callbacks run on behalf of the process that registered them, with its `$callers`, as a
+  `Task` does: route and WebSocket route handlers (and their `on_message`/`on_close`), event
+  listeners, exposed functions and bindings, locator handlers, and the processes the client
+  starts for a call (wait predicates). So the Ecto sandbox, Mox and `Req.Test` find the test in
+  them. In a `PlaywrightEx.Test` test, an error a route handler, listener or locator handler
+  raises now fails the test at the end of its body, as in Playwright Test, instead of only being
+  logged.
 
 ### Fixed
 - On Unix, stopping `PlaywrightEx.Supervisor` waits until the driver has exited (at most 31 s).

@@ -112,6 +112,12 @@ single thread. Use each only where the JS code needs it, with its marker.
   `# deviation: subscribe-first (OTP runtime)` (`Client.Frame._wait_for_navigation/3`). The same
   applies to test ports.
 
+- **`$callers`** ([why](docs/architecture.md#runtime)). A user callback the client runs in a
+  listener process (a handler stored at registration) runs on the registrant's behalf: capture
+  `Callers.capture()` where it is registered (in the caller, not in an `on_reply` fun) and
+  `Callers.adopt/1` or `run_as/2` before calling it, marked `# deviation:`
+  (`Client.RouteHandler`, `Client.Page.add_locator_handler/4`).
+
 ## Traps
 
 - A listener runs in a process of its own while the connection waits for it to return or first

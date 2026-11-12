@@ -320,6 +320,16 @@ A step runs in the calling process, so `assert_receive` works in it. It takes no
 running body can't be interrupted: the test's timeout bounds it. `step_skip` declares a step
 without running it. A wrapper library that narrows the import adds `step: 2, step: 3`.
 
+## Route handlers and listeners
+
+Route handlers (`Page.route/3`, `route_web_socket/3` and their WebSocket `on_message` and
+`on_close`), event listeners (`Page.on/3`), exposed functions, locator handlers and wait
+predicates run in processes of their own, on behalf of the process that registered them: they
+get its `$callers`, as a `Task` does. So the Ecto sandbox, Mox and `Req.Test` find the test in
+them without an explicit allowance, and matchers and `step` count for the test. An error a route
+handler, listener or locator handler raises fails the test at the end of its body, as in
+Playwright Test (outside a test, and once the test has ended, it is logged).
+
 ## Isolated modules
 
 A shared browser suits tests that only use contexts. A module that changes the driver or the

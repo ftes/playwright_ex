@@ -33,6 +33,7 @@ defmodule PlaywrightEx.Runtime.Conn do
 
   alias PlaywrightEx.Client.Connection
   alias PlaywrightEx.Client.EventEmitter
+  alias PlaywrightEx.Runtime.Callers
   alias PlaywrightEx.Runtime.Heap
   alias PlaywrightEx.Runtime.Invocation
   alias PlaywrightEx.Runtime.Zones
@@ -567,16 +568,21 @@ defmodule PlaywrightEx.Runtime.Conn do
         else: uncaught(fn -> EventEmitter._handle_listener_error(emitter, type, kind, reason, stacktrace) end)
   end
 
+  # Elixir only: in a `PlaywrightEx.Test` test (the listener's `$callers`) it fails the test.
   defp uncaught(fun) do
     fun.()
   catch
-    kind, reason -> Logger.error("Uncaught in event listener: " <> Exception.format(kind, reason, __STACKTRACE__))
+    kind, reason -> Callers.unhandled("Uncaught in event listener: ", kind, reason, __STACKTRACE__)
   end
 
   @doc false
   # The process of a user listener (`EventEmitter.on/3` under `PlaywrightEx.Runtime.Facade.listen/1`).
+  # Elixir only: it runs on behalf of the registering process (`Runtime.Callers`).
   def subscription(conn) do
+    callers = Callers.capture()
+
     spawn(fn ->
+      Callers.adopt(callers)
       mon = Process.monitor(conn)
       Process.put(:pw_listener, true)
       subscription_loop(conn, mon)
