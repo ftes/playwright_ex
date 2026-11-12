@@ -117,7 +117,9 @@ defmodule PlaywrightEx.Test.Pool do
     :ok
   end
 
-  defp driver_key(opts), do: {Enum.sort(opts.driver), opts.on_start}
+  @doc false
+  # Without `browser_name` and `launch_options`: one driver hosts every browser of its options.
+  def driver_key(opts), do: {Enum.sort(opts.driver), opts.on_start}
 
   @impl true
   def init(nil) do

@@ -5,22 +5,6 @@ defmodule PlaywrightEx.TestBrowser do
 
   def name, do: System.get_env("BROWSER", "chromium")
 
-  @doc "A browser type other than the one under test."
-  def other_name, do: if(name() == "firefox", do: :chromium, else: :firefox)
-
-  @doc """
-  `nil` when `other_name/0` is installed, else a skip reason, for `@tag skip:`: CI installs only
-  the browser under test (`mix playwright_ex.install -- $BROWSER`).
-  """
-  def other_skip_reason do
-    if !installed?(other_name()),
-      do: "env: #{other_name()} not installed (mix playwright_ex.install -- #{other_name()})"
-  end
-
-  # The executable a headless launch runs (chromium.ts `getExecutableName`).
-  defp installed?(:chromium), do: registry_executable("chromium-headless-shell") != nil
-  defp installed?(name), do: registry_executable(to_string(name)) != nil
-
   @doc """
   The executable `name` of the driver's own registry
   (`registry.findExecutable(name).executablePath()`), or `nil` when it isn't installed.

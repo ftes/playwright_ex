@@ -206,20 +206,21 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     on_exit(fn -> Page.close!(page) end)
   end
 
-  @tag skip: PlaywrightEx.TestBrowser.other_skip_reason()
-  test "a plain context of another browser type is recorded: one driver hosts them all", ctx do
+  test "a plain context of another browser on the driver is recorded", ctx do
     dir = dir(ctx)
 
     on_exit(fn ->
       trace = trace(dir, ctx.browser)
-      assert traced?(trace, "OWN") and traced?(trace, "OTHER-TYPE")
+      assert traced?(trace, "OWN") and traced?(trace, "OTHER-BROWSER")
       File.rm_rf!(dir)
     end)
 
     record_artifacts(ctx, trace: :on)
-    %{browser: browser} = browser(browser_name: PlaywrightEx.TestBrowser.other_name())
+    # Other launch options: another browser, the same driver.
+    %{playwright: playwright, browser: browser} = browser(launch_options: [slow_mo: 1])
+    assert playwright == ctx.playwright and browser != ctx.browser
     page(Browser.new_context!(ctx.browser), "OWN")
-    page(Browser.new_context!(browser), "OTHER-TYPE")
+    page(Browser.new_context!(browser), "OTHER-BROWSER")
   end
 
   @tag :tmp_dir

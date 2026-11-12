@@ -35,9 +35,10 @@ defmodule PlaywrightEx.Test.IsolateTest do
     assert playwright == first(playwright)
   end
 
-  @tag skip: PlaywrightEx.TestBrowser.other_skip_reason()
-  test "another browser_name launches on the same driver", ctx do
-    %{playwright: playwright} = browser(ctx, isolate: true, browser_name: PlaywrightEx.TestBrowser.other_name())
+  test "another browser key launches on the module's one driver", ctx do
+    %{browser: own} = browser(ctx, isolate: true)
+    %{playwright: playwright, browser: browser} = browser(ctx, isolate: true, launch_options: [slow_mo: 1])
+    assert browser != own
     assert [_] = workers(ctx)
     assert playwright == first(playwright)
   end

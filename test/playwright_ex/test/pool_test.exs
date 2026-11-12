@@ -6,6 +6,7 @@ defmodule PlaywrightEx.Test.PoolTest do
   use PlaywrightEx.Test
 
   alias PlaywrightEx.Browser
+  alias PlaywrightEx.Test.Options
   alias PlaywrightEx.Test.Pool
   alias PlaywrightEx.Test.TestInfo
 
@@ -90,10 +91,17 @@ defmodule PlaywrightEx.Test.PoolTest do
     refute Process.alive?(sup)
   end
 
-  @tag skip: PlaywrightEx.TestBrowser.other_skip_reason()
-  test "one driver hosts every browser type" do
-    a = browser(opts())
-    b = browser(Keyword.put(opts(), :browser_name, PlaywrightEx.TestBrowser.other_name()))
+  test "the driver key leaves out browser_name" do
+    opts = opts()
+    key = &Pool.driver_key(Options.browser(Keyword.put(opts, :browser_name, &1)))
+    assert key.(:chromium) == key.(:firefox)
+    assert key.(:firefox) == key.(:webkit)
+  end
+
+  test "one driver hosts several browsers" do
+    opts = opts()
+    a = browser(opts)
+    b = browser(Keyword.update!(opts, :launch_options, &[{:slow_mo, 1} | &1]))
     assert a.playwright == b.playwright
     assert a.browser != b.browser
   end
