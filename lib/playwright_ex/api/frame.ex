@@ -3610,13 +3610,13 @@ defmodule PlaywrightEx.Frame do
           [
             signal: PlaywrightEx.AbortSignal.t(),
             timeout: number() | :infinity,
-            url: String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
+            url: String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (URI.t() -> boolean()),
             wait_until: :load | :domcontentloaded | :networkidle | :commit
           ]
           | %{
               optional(:signal) => PlaywrightEx.AbortSignal.t(),
               optional(:timeout) => number() | :infinity,
-              optional(:url) => String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
+              optional(:url) => String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (URI.t() -> boolean()),
               optional(:wait_until) => :load | :domcontentloaded | :networkidle | :commit
             }
 
@@ -3659,7 +3659,7 @@ defmodule PlaywrightEx.Frame do
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
-  * `:url` (`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0` | `(String.t() -> boolean())`) - A glob pattern, regex pattern, URL pattern, or predicate receiving `URL` to match while waiting for the navigation. Note that if
+  * `:url` (`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0` | `(URI.t() -> boolean())`) - A glob pattern, regex pattern, URL pattern, or predicate receiving `URI` to match while waiting for the navigation. Note that if
     the parameter is a string without wildcard characters, the method will wait for navigation to URL that is exactly
     equal to the string.
   * `:wait_until` (`:load` | `:domcontentloaded` | `:networkidle` | `:commit`) - When to consider operation succeeded, defaults to `:load`. Events can be either:
@@ -3900,7 +3900,7 @@ defmodule PlaywrightEx.Frame do
 
   ## Arguments
 
-  * `url` - A glob pattern, regex pattern, URL pattern, or predicate receiving `URL` to match while waiting for the navigation. Note that if
+  * `url` - A glob pattern, regex pattern, URL pattern, or predicate receiving `URI` to match while waiting for the navigation. Note that if
     the parameter is a string without wildcard characters, the method will wait for navigation to URL that is exactly
     equal to the string.
 
@@ -3927,7 +3927,7 @@ defmodule PlaywrightEx.Frame do
   """
   @spec wait_for_url(
           t(),
-          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (URI.t() -> boolean()),
           wait_for_url_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def wait_for_url(frame, url, options \\ []) do
@@ -3938,7 +3938,7 @@ defmodule PlaywrightEx.Frame do
   @doc "Like `wait_for_url/3`, but returns the value and raises on error."
   @spec wait_for_url!(
           t(),
-          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (URI.t() -> boolean()),
           wait_for_url_options()
         ) :: :ok
   def wait_for_url!(frame, url, options \\ []) do
@@ -3976,13 +3976,13 @@ defmodule PlaywrightEx.Frame do
   @type expect_navigation_options ::
           [
             timeout: number() | :infinity,
-            url: String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
+            url: String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (URI.t() -> boolean()),
             wait_until: :load | :domcontentloaded | :networkidle | :commit,
             signal: PlaywrightEx.AbortSignal.t()
           ]
           | %{
               optional(:timeout) => number() | :infinity,
-              optional(:url) => String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
+              optional(:url) => String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (URI.t() -> boolean()),
               optional(:wait_until) => :load | :domcontentloaded | :networkidle | :commit,
               optional(:signal) => PlaywrightEx.AbortSignal.t()
             }
@@ -4026,7 +4026,7 @@ defmodule PlaywrightEx.Frame do
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
-  * `:url` (`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0` | `(String.t() -> boolean())`) - A glob pattern, regex pattern, or predicate receiving `URL` to match while waiting for the navigation. Note that if
+  * `:url` (`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0` | `(URI.t() -> boolean())`) - A glob pattern, regex pattern, or predicate receiving `URI` to match while waiting for the navigation. Note that if
     the parameter is a string without wildcard characters, the method will wait for navigation to URL that is exactly
     equal to the string.
   * `:wait_until` (`:load` | `:domcontentloaded` | `:networkidle` | `:commit`) - When to consider operation succeeded, defaults to `:load`. Events can be either:
@@ -5519,11 +5519,11 @@ defmodule PlaywrightEx.Frame do
         spec: quote(do: number() | :infinity)
       },
       url: %{
-        type_doc: "`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0` | `(String.t() -> boolean())`",
+        type_doc: "`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0` | `(URI.t() -> boolean())`",
         doc:
-          "A glob pattern, regex pattern, URL pattern, or predicate receiving `URL` to match while waiting for the navigation. Note that if the parameter is a string without wildcard characters, the method will wait for navigation to URL that is exactly equal to the string.",
+          "A glob pattern, regex pattern, URL pattern, or predicate receiving `URI` to match while waiting for the navigation. Note that if the parameter is a string without wildcard characters, the method will wait for navigation to URL that is exactly equal to the string.",
         since: nil,
-        spec: quote(do: String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()))
+        spec: quote(do: String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (URI.t() -> boolean()))
       },
       wait_until: %{
         type_doc: "`:load` | `:domcontentloaded` | `:networkidle` | `:commit`",
@@ -5601,11 +5601,11 @@ defmodule PlaywrightEx.Frame do
         spec: quote(do: number() | :infinity)
       },
       url: %{
-        type_doc: "`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0` | `(String.t() -> boolean())`",
+        type_doc: "`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0` | `(URI.t() -> boolean())`",
         doc:
-          "A glob pattern, regex pattern, or predicate receiving `URL` to match while waiting for the navigation. Note that if the parameter is a string without wildcard characters, the method will wait for navigation to URL that is exactly equal to the string.",
+          "A glob pattern, regex pattern, or predicate receiving `URI` to match while waiting for the navigation. Note that if the parameter is a string without wildcard characters, the method will wait for navigation to URL that is exactly equal to the string.",
         since: nil,
-        spec: quote(do: String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()))
+        spec: quote(do: String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (URI.t() -> boolean()))
       },
       wait_until: %{
         type_doc: "`:load` | `:domcontentloaded` | `:networkidle` | `:commit`",

@@ -473,7 +473,7 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
 
     test "EX-219 resolve predicate on initial call", %{page: page} do
       Page.goto!(page, "data:text/html,<div>A</div>")
-      Expect.to_have_url!(page, fn url -> url == "data:text/html,<div>A</div>" end, timeout: 1000)
+      Expect.to_have_url!(page, fn url -> URI.to_string(url) == "data:text/html,<div>A</div>" end, timeout: 1000)
     end
 
     test "EX-220 resolve predicate after retries", %{page: page} do
@@ -481,7 +481,7 @@ defmodule PlaywrightEx.Page.ExpectMiscTest do
 
       expect_promise =
         Runtime.Promise.async(fn ->
-          Expect.to_have_url!(page, fn url -> url == "data:text/html,<div>B</div>" end, timeout: 1000)
+          Expect.to_have_url!(page, fn url -> URI.to_string(url) == "data:text/html,<div>B</div>" end, timeout: 1000)
         end)
 
       Task.start(fn ->

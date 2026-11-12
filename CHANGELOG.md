@@ -42,6 +42,9 @@ those of the release candidates below. From an earlier release, also read the se
 - `%PlaywrightEx.Expect{}` also carries `isSoft`, and `isNot` defaults to `false`: build a
   negated receiver with `Expect.not_/1`.
 - The facade's `__options__/1` is documented as unstable: its shape may change between releases.
+- **Breaking:** function URL matchers (`wait_for_url`, `wait_for_navigation`, routes, WebSocket
+  routes, `Page.frame/2`, `to_have_url`) get the URL as a `URI` (`URI.parse/1`) instead of the
+  string, as upstream passes a `URL`: `&(&1.path == "/api/users")`.
 - User callbacks run on behalf of the process that registered them, with its `$callers`, as a
   `Task` does: route and WebSocket route handlers (and their `on_message`/`on_close`), event
   listeners, exposed functions and bindings, locator handlers, and the processes the client

@@ -5093,12 +5093,12 @@ defmodule PlaywrightEx.Expect do
   Expect.to_have_url!(page, ~r/docs?\//)
 
   # Check for the page URL to match the URL pattern (Elixir has no URLPattern: a predicate)
-  Expect.to_have_url!(page, &String.starts_with?(URI.parse(&1).path, "/docs/"))
+  Expect.to_have_url!(page, &String.starts_with?(&1.path, "/docs/"))
 
   # Check for the predicate to be satisfied
   # For example: verify query strings
   Expect.to_have_url!(page, fn url ->
-    params = URI.decode_query(URI.parse(url).query || "")
+    params = URI.decode_query(url.query || "")
     Map.has_key?(params, "search") and Map.has_key?(params, "options") and params["id"] == "5"
   end)
   ```
@@ -5107,7 +5107,7 @@ defmodule PlaywrightEx.Expect do
 
   ## Arguments
 
-  * `url` - Expected URL string, RegExp, or predicate receiving `URL` to match.
+  * `url` - Expected URL string, RegExp, or predicate receiving `URI` to match.
     When `:base_url` is provided via the context options and the `url` argument is a string, the two values are merged via the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor and used for the comparison against the current browser URL.
 
   ## Options
@@ -5125,7 +5125,7 @@ defmodule PlaywrightEx.Expect do
   """
   @spec to_have_url(
           PlaywrightEx.Page.t() | t(PlaywrightEx.Page.t()),
-          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (URI.t() -> boolean()),
           to_have_url_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def to_have_url(page, url, options \\ []) do
@@ -5145,7 +5145,7 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `to_have_url/3`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
   @spec to_have_url!(
           PlaywrightEx.Page.t() | t(PlaywrightEx.Page.t()),
-          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (URI.t() -> boolean()),
           to_have_url_options()
         ) :: :ok
   def to_have_url!(page, url, options \\ []) do
@@ -5181,7 +5181,7 @@ defmodule PlaywrightEx.Expect do
 
   ## Arguments
 
-  * `url` - Expected URL string, RegExp, or predicate receiving `URL` to match.
+  * `url` - Expected URL string, RegExp, or predicate receiving `URI` to match.
     When `:base_url` is provided via the context options and the `url` argument is a string, the two values are merged via the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor and used for the comparison against the current browser URL.
 
   ## Options
@@ -5199,7 +5199,7 @@ defmodule PlaywrightEx.Expect do
   """
   @spec not_to_have_url(
           PlaywrightEx.Page.t() | t(PlaywrightEx.Page.t()),
-          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (URI.t() -> boolean()),
           not_to_have_url_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_have_url(page, url, options \\ []) do
@@ -5219,7 +5219,7 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `not_to_have_url/3`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
   @spec not_to_have_url!(
           PlaywrightEx.Page.t() | t(PlaywrightEx.Page.t()),
-          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (URI.t() -> boolean()),
           not_to_have_url_options()
         ) :: :ok
   def not_to_have_url!(page, url, options \\ []) do

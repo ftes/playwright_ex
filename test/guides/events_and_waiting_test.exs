@@ -28,6 +28,7 @@ defmodule PlaywrightEx.Guides.EventsAndWaitingTest do
   <a href="/terms" target="_blank">Open terms</a>
   <input type="file" id="avatar" hidden><button onclick="avatar.click()">Upload avatar</button>
   <a href="/settings">Settings</a>
+  <a href="/authorize?login_hint=john@acme.org">Sign in</a>
   """
 
   setup_all do
@@ -38,6 +39,7 @@ defmodule PlaywrightEx.Guides.EventsAndWaitingTest do
     TestServer.set_content(server, "/", @home, "text/html")
     TestServer.set_content(server, "/terms", "<title>Terms</title>", "text/html")
     TestServer.set_content(server, "/settings", "<title>Settings</title>", "text/html")
+    TestServer.set_content(server, "/authorize", "<title>Authorize</title>", "text/html")
 
     TestServer.set_route(server, "/report.csv", fn conn ->
       conn
@@ -139,5 +141,11 @@ defmodule PlaywrightEx.Guides.EventsAndWaitingTest do
     Page.get_by_role(page, :link, name: "Settings") |> Locator.click!()
     Page.wait_for_url!(page, "**/settings")
     Page.wait_for_load_state!(page)
+
+    Page.go_back!(page)
+    Page.get_by_role(page, :link, name: "Sign in") |> Locator.click!()
+    Page.wait_for_url!(page, &match?(%URI{path: "/authorize"}, &1))
+
+    Page.wait_for_url!(page, fn uri -> match?(%{"login_hint" => "john@acme.org"}, URI.decode_query(uri.query || "")) end)
   end
 end

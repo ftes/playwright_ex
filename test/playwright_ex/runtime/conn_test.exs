@@ -374,7 +374,7 @@ defmodule PlaywrightEx.RuntimeConnTest do
       # Runs when the navigation commits: aborts once `load` fired, so the load state is not
       # waited for and the abort wins the response wait.
       url = fn url ->
-        if url =~ "grid.html" do
+        if url.path == "/grid.html" do
           wait_until(fn -> PlaywrightEx.Runtime.Heap.set_has(frame, :_loadStates, "load") end)
           AbortController.abort(controller)
           true

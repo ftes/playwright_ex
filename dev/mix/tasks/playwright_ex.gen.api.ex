@@ -1099,7 +1099,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   @simple %{
     "string" => "String.t()",
     "path" => "String.t()",
-    "URL" => "String.t()",
+    "URL" => "URI.t()",
     "boolean" => "boolean()",
     "int" => "integer()",
     "long" => "integer()",
@@ -1341,10 +1341,12 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   # (`[Promise]`), in one pass so that code and link texts are left alone.
   @inline ~r/\[`(method|property|event): (\w+)\.(\w+)(?:#\w+)?`\]|\[([^\]]*)\]\(([^)]*)\)|`([^`]+)`|\[([A-Za-z](?:[\w.]*\w)?)\]/
 
-  # Refs to web APIs and terms, as MDN links.
+  # Refs to web APIs and terms, as MDN links, or as the Elixir counterpart a port passes (`URL`:
+  # URL matchers get a `URI`, see @simple).
   @web_refs %{
     "UIEvent.detail" => "[`UIEvent.detail`](https://developer.mozilla.org/en-US/docs/Web/API/UIEvent/detail)",
-    "origin" => "[origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin)"
+    "origin" => "[origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin)",
+    "URL" => "`URI`"
   }
 
   # Upstream joins the lines of a paragraph with `↵` (soft line breaks).

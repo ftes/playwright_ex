@@ -546,12 +546,12 @@ defmodule PlaywrightEx.Examples.ExpectTest do
     Expect.to_have_url!(page, ~r/docs?\//)
 
     # Check for the page URL to match the URL pattern (Elixir has no URLPattern: a predicate)
-    Expect.to_have_url!(page, &String.starts_with?(URI.parse(&1).path, "/docs/"))
+    Expect.to_have_url!(page, &String.starts_with?(&1.path, "/docs/"))
 
     # Check for the predicate to be satisfied
     # For example: verify query strings
     Expect.to_have_url!(page, fn url ->
-      params = URI.decode_query(URI.parse(url).query || "")
+      params = URI.decode_query(url.query || "")
       Map.has_key?(params, "search") and Map.has_key?(params, "options") and params["id"] == "5"
     end)
   end

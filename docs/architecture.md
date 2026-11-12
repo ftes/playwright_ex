@@ -247,9 +247,12 @@ jest-matcher-utils/pretty-format/jest-diff (ExUnit.Diff is private and colour-on
 ## URL globs
 
 Globs become regexes through the driver (`LocalUtils.globToRegex`, cached per glob, base URL and
-WebSocket flag), as Python, Java and .NET do. Function matchers get the URL string, as in those
-clients; `URLPattern` has no Elixir counterpart and is dropped. A local port of `urlMatch` with a reduced WHATWG
-URL was tried and reverted: 417 more lines to keep exact for no user-visible gain.
+WebSocket flag), as Python, Java and .NET do. Function matchers get the URL as a `URI`
+(`URI.parse/1`), Elixir's counterpart of the `URL` upstream passes; those clients pass the string,
+having no such struct. It is not WHATWG-normalized and has no `searchParams`
+(`URI.decode_query(uri.query || "")`). `URLPattern` has no Elixir counterpart and is dropped. A
+local port of `urlMatch` with a reduced WHATWG URL was tried and reverted: 417 more lines to keep
+exact for no user-visible gain.
 `toHaveURL` with a base URL uses `URI.merge` plus lowercasing, less exact than WHATWG on
 default ports, IDN and percent-encoding.
 

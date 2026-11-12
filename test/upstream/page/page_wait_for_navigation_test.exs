@@ -191,7 +191,7 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
     response2_promise = Page.wait_for_navigation(page, url: ~r/\/frame.html/)
 
     response3_promise =
-      Page.wait_for_navigation(page, url: fn url -> URI.decode_query(URI.parse(url).query || "")["foo"] == "bar" end)
+      Page.wait_for_navigation(page, url: fn url -> URI.decode_query(url.query || "")["foo"] == "bar" end)
 
     {resolved1, resolved2, resolved3} =
       {then_resolved(response1_promise), then_resolved(response2_promise), then_resolved(response3_promise)}
