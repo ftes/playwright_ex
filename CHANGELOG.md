@@ -53,6 +53,9 @@ those of the release candidates below. From an earlier release, also read the se
 ### Fixed
 - Matching a JS regex in Elixir (`RegExp.compile!/1`, `wait_for_url`, routes): `\s` and `\S` follow JS's
   whitespace (NBSP, U+2003, U+FEFF, …), not PCRE's ASCII one.
+- A `Regex` with `u` whose source escapes punctuation (as `Regex.escape/1` does: `\#`, `\ `, `\-`)
+  works in locators and matchers: JS's `u` mode rejects those escapes, so the redundant backslash
+  is dropped.
 - On Unix, stopping `PlaywrightEx.Supervisor` waits until the driver has exited (at most 31 s).
   When the supervisor is stopped before the VM halts, the driver no longer resets the terminal
   afterwards (↑ printing `OA` in the shell after `mix test`). `mix test` and `mix run` halt

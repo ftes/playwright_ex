@@ -46,18 +46,22 @@ defmodule PlaywrightEx.RegExp do
   `pattern` may be a regex, as in JS (`new RegExp(re)`): its source, with its flags unless
   `flags` is given. A `Regex` is converted as wherever Playwright takes one: its options `i`, `m`,
   `s`, `u` become flags, and other options or PCRE-only syntax raise `ArgumentError` (see the
-  moduledoc). With `compile!/1`, Elixir matches it as the browser does.
+  moduledoc). Under `u`, escaped punctuation JS's `u` mode rejects loses its redundant backslash,
+  so `Regex.escape/1`'s output works. With `compile!/1`, Elixir matches it as the browser does.
+
+      iex> PlaywrightEx.RegExp.new(~r/^\#{Regex.escape("Owl #1 - Hedwig")}$/u)
+      #PlaywrightEx.RegExp</^Owl #1 - Hedwig$/u>
 
       iex> PlaywrightEx.RegExp.new(~r"a/b"i)
       #PlaywrightEx.RegExp</a\\/b/i>
   """
   @spec new(String.t() | Regex.t() | t(), String.t() | nil) :: t()
   def new(pattern, flags \\ nil)
-  def new(%Regex{} = regex, nil), do: new(Regex.source(regex), regex_flags(regex))
+  def new(%Regex{} = regex, nil), do: new(regex, regex_flags(regex))
 
   def new(%Regex{} = regex, flags) do
     check_js_compatible!(regex)
-    new(Regex.source(regex), flags)
+    new(js_source(regex, flags), flags)
   end
 
   def new(%__MODULE__{} = re, nil), do: re
@@ -96,7 +100,12 @@ defmodule PlaywrightEx.RegExp do
   @doc false
   # `{re.source, re.flags}` as sent to the browser or driver, `{nil, nil}` for anything else.
   def to_js(%__MODULE__{source: source, flags: flags}), do: {source, flags}
-  def to_js(%Regex{} = regex), do: {Regex.source(regex), regex_flags(regex)}
+
+  def to_js(%Regex{} = regex) do
+    flags = regex_flags(regex)
+    {js_source(regex, flags), flags}
+  end
+
   def to_js(_value), do: {nil, nil}
 
   @doc false
@@ -307,6 +316,31 @@ defmodule PlaywrightEx.RegExp do
       what -> raise ArgumentError, "#{what} is not JS RegExp syntax: #{inspect(regex)}"
     end
   end
+
+  # A `Regex`'s source for JS flags. PCRE takes an escape of any punctuation as that character,
+  # JS's `u` mode only of its syntax characters, `/` and `-` in a class: drop the redundant
+  # backslash of the others (`Regex.escape/1` gives `\#`, `\ `, `\-`), which means the same.
+  @redundant_escapes ~c" !\"#%&',:;<=>@_`~"
+  defp js_source(regex, flags) do
+    if String.contains?(flags, "u"),
+      do: drop_redundant_escapes(Regex.source(regex), false, ""),
+      else: Regex.source(regex)
+  end
+
+  defp drop_redundant_escapes(<<?\\, c, rest::binary>>, in_class, acc)
+       when c in @redundant_escapes or (c == ?- and in_class == false),
+       do: drop_redundant_escapes(rest, in_class, <<acc::binary, c>>)
+
+  defp drop_redundant_escapes(<<?\\, c::utf8, rest::binary>>, in_class, acc),
+    do: drop_redundant_escapes(rest, in_class, <<acc::binary, ?\\, c::utf8>>)
+
+  defp drop_redundant_escapes(<<?[, rest::binary>>, false, acc), do: drop_redundant_escapes(rest, true, acc <> "[")
+  defp drop_redundant_escapes(<<?], rest::binary>>, true, acc), do: drop_redundant_escapes(rest, false, acc <> "]")
+
+  defp drop_redundant_escapes(<<c::utf8, rest::binary>>, in_class, acc),
+    do: drop_redundant_escapes(rest, in_class, <<acc::binary, c::utf8>>)
+
+  defp drop_redundant_escapes(<<>>, _in_class, acc), do: acc
 
   defp pcre_only(<<?\\, c, _::binary>>, _unicode, _in_class) when c in @pcre_only_escapes, do: "\\#{<<c>>}"
   defp pcre_only(<<"\\x{", _::binary>>, _unicode, _in_class), do: "\\x{...}"

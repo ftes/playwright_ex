@@ -34,6 +34,22 @@ defmodule PlaywrightEx.RegExpTest do
     assert RegExp.to_js("a") == {nil, nil}
   end
 
+  test "under u, a Regex's redundant escapes lose their backslash, which JS's u mode rejects" do
+    # node: new RegExp("\\#", "u") throws; "[\\-]", "\\/" and syntax-character escapes don't.
+    assert RegExp.to_js(~r/^#{Regex.escape("Owl #1 - Hedwig!")}$/u) == {"^Owl #1 - Hedwig!$", "u"}
+    assert RegExp.to_js(~r"[\#\ \-a]\./\-\@\\"u) == {"[# \\-a]\\./-@\\\\", "u"}
+    assert RegExp.to_js(~r/\#\-/) == {"\\#\\-", ""}
+    assert RegExp.new(~r/\#/, "u") |> RegExp.source() == "#"
+    assert RegExp.new(~r/\#/u, "") |> RegExp.source() == "\\#"
+  end
+
+  @tag :page
+  test "Regex.escape output under u works in the browser", %{page: page} do
+    Page.set_content!(page, "<div>Owl #1 - Hedwig (snowy)</div>")
+    label = Regex.escape("Owl #1 - Hedwig (snowy)")
+    Expect.to_have_count!(Page.get_by_text(page, ~r/^#{label}$/u), 1)
+  end
+
   test "a JS regex always parses to a RegExp, losslessly" do
     for {p, f} <- [
           {"a\\/b.c", "imsu"},
