@@ -379,7 +379,7 @@ defmodule PlaywrightEx.Test.Recorder do
     call(recorder, {:add_context, context})
 
     if test.trace[:mode] != :off do
-      step("start tracing", fn -> start_tracing(BrowserContext.tracing(context), test) end)
+      step("start tracing", fn -> start_tracing(context, BrowserContext.tracing(context), test) end)
       request = BrowserContext.request(context)
 
       if :ets.insert_new(Pool.table(), {{:request, request.guid}, recorder}), do: start_request_tracing(request, test)
@@ -455,12 +455,20 @@ defmodule PlaywrightEx.Test.Recorder do
     """
   end
 
-  # `_startTraceChunkOnContextCreation`: `tracing.start({ ...options, title, name })`.
-  defp start_tracing(tracing, opts) do
-    Tracing.start!(
-      tracing,
-      Keyword.drop(opts.trace, [:mode, :attachments]) ++
-        [title: opts.title, name: "playwright_ex-#{System.unique_integer([:positive])}"]
+  # `_startTraceChunkOnContextCreation`: `tracing.start({ ...options, title, name })`, an internal
+  # call of the context or request context `owner`, as all the recording's tracing calls: no
+  # stack, no action of the test.
+  defp start_tracing(owner, tracing, opts) do
+    ChannelOwner._wrap_api_call(
+      owner,
+      fn _api_zone ->
+        Tracing.start!(
+          tracing,
+          Keyword.drop(opts.trace, [:mode, :attachments]) ++
+            [title: opts.title, name: "playwright_ex-#{System.unique_integer([:positive])}"]
+        )
+      end,
+      %{internal: true}
     )
   end
 
@@ -494,10 +502,10 @@ defmodule PlaywrightEx.Test.Recorder do
   end
 
   defp start_request_tracing(request, test),
-    do: step("start tracing", fn -> start_tracing(APIRequestContext.tracing(request), test) end)
+    do: step("start tracing", fn -> start_tracing(request, APIRequestContext.tracing(request), test) end)
 
   defp stop_request_tracing(request, recorder, state),
-    do: step("save the trace", fn -> stop_tracing(APIRequestContext.tracing(request), recorder, state) end)
+    do: step("save the trace", fn -> stop_tracing(request, APIRequestContext.tracing(request), recorder, state) end)
 
   defp follow_pages(context, recorder) do
     BrowserContext.on(context, :page, &GenServer.cast(recorder, {:add_page, context.guid, &1}))
@@ -520,7 +528,7 @@ defmodule PlaywrightEx.Test.Recorder do
 
   defp collect(context, recorder, %{opts: opts} = state) do
     if opts.trace[:mode] != :off,
-      do: step("save the trace", fn -> stop_tracing(BrowserContext.tracing(context), recorder, state) end)
+      do: step("save the trace", fn -> stop_tracing(context, BrowserContext.tracing(context), recorder, state) end)
 
     if opts.screenshot[:mode] != :off, do: screenshots(context, recorder, opts)
     step("take a page snapshot", fn -> page_snapshot(context, recorder, state) end)
@@ -549,10 +557,16 @@ defmodule PlaywrightEx.Test.Recorder do
 
   # `_stopTracing`: the chunk, or none once the test abandons its trace (a passed test's under
   # `retain_on_failure`), which `stopChunk` discards without saving it.
-  defp stop_tracing(tracing, recorder, %{opts: opts} = state) do
-    path = TestTracing.maybe_generate_next_trace_recording_path(state.tracing, opts.trace[:mode], opts.tmp)
-    Tracing.stop_chunk!(tracing, path: path)
-    if path, do: call(recorder, {:add_chunk, path})
+  defp stop_tracing(owner, tracing, recorder, %{opts: opts} = state) do
+    ChannelOwner._wrap_api_call(
+      owner,
+      fn _api_zone ->
+        path = TestTracing.maybe_generate_next_trace_recording_path(state.tracing, opts.trace[:mode], opts.tmp)
+        Tracing.stop_chunk!(tracing, path: path)
+        if path, do: call(recorder, {:add_chunk, path})
+      end,
+      %{internal: true}
+    )
   end
 
   # `SnapshotRecorder.captureTemporary`: the pages without a screenshot yet, to temporary files

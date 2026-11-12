@@ -46,6 +46,8 @@ those of the release candidates below. From an earlier release, also read the se
   (`APIRequest.new_context/2`), and disposes those left at the test's end.
 - Under `trace: :retain_on_failure`, the contexts a passed test leaves open discard their trace
   chunks at its end, as Playwright Test's do, instead of saving and then deleting them.
+- `PlaywrightEx.Test` starts and stops its traces with internal calls, as Playwright Test does,
+  so they send the driver no call stacks.
 - `PlaywrightEx.Test.info/1` takes the test's pid and works in `on_exit`, where it also has
   Playwright Test's `testInfo.status`, `errors`, `expectedStatus` and `duration`.
 - `PlaywrightEx.Test.attach/2` is Playwright Test's `testInfo.attach`: a file (`path:`, copied to

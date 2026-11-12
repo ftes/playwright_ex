@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
   import ExUnit.CaptureIO
   import ExUnit.CaptureLog
 
+  alias PlaywrightEx.APIRequestContext
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Page
@@ -433,21 +434,41 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     assert traced?(trace(test.dir, browser), "FAILED")
   end
 
+  # Upstream's `_startTraceChunkOnContextCreation` and `_stopTracing` run as internal calls: no
+  # stacks sent, no actions in the trace.
+  test "the recording's tracing calls are internal", %{browser: browser} do
+    test = fake_test(%{trace: :on})
+    methods = ~w(tracingStart tracingStartChunk tracingStopChunk addStackToTracingNoReply)
+    sent = record_sent(browser, &(to_string(&1.method) in methods))
+    context = test.run.(fn -> Browser.new_context!(browser) end)
+    guids = [BrowserContext.tracing(context).guid, APIRequestContext.tracing(BrowserContext.request(context)).guid]
+    finish(test, [passed()], :shutdown)
+
+    {tracing, stacks} = Enum.split_with(sent.(), &(&1.guid in guids))
+    # `start` (tracingStart, tracingStartChunk) and `stopChunk` of the context and its `request`.
+    assert length(tracing) == 6
+    assert Enum.all?(tracing, & &1.metadata.internal)
+    ids = Enum.map(tracing, & &1.id)
+    refute Enum.any?(stacks, &(&1.params.callData.id in ids))
+  end
+
   # The `localUtils.zip` calls of chunks under `tmp` (the test's), on the shared connection.
-  defp record_zips(browser, tmp) do
+  defp record_zips(browser, tmp),
+    do: record_sent(browser, &(to_string(&1.method) == "zip" and String.starts_with?(&1.params.zipFile, tmp)))
+
+  # The messages `filter` keeps, sent on the shared connection while the test runs.
+  defp record_sent(browser, filter) do
     connection = get(BrowserPool.playwright(browser), :_connection)
     onmessage = get(connection, :onmessage)
-    {:ok, zips} = Agent.start_link(fn -> [] end)
+    {:ok, sent} = Agent.start_link(fn -> [] end)
 
     put(connection, :onmessage, fn message ->
-      if to_string(message.method) == "zip" and String.starts_with?(message.params.zipFile, tmp),
-        do: Agent.update(zips, &[message | &1])
-
+      if filter.(message), do: Agent.update(sent, &[message | &1])
       onmessage.(message)
     end)
 
     on_exit(fn -> put(connection, :onmessage, onmessage) end)
-    fn -> Agent.get(zips, & &1) end
+    fn -> Agent.get(sent, &Enum.reverse/1) end
   end
 
   test "a test of another macro (a doctest) keeps them, as a failure's, without error-context.md", %{browser: browser} do
