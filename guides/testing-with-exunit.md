@@ -323,6 +323,11 @@ of a run, so delete `test-results/` yourself. Files of your own go in the test's
 `PlaywrightEx.Test.output_path("export.csv")`; they stay when the test passes. A flaky test that
 passes on the rerun leaves no trace; for those, `:retain_on_failure`.
 
+The files are written in the test's `on_exit`, which ExUnit runs in reverse order of
+registration. An `on_exit` that reads them (to check a `trace.zip`, say) must therefore be
+registered before the recording's: in a `setup` above `use PlaywrightEx.Test`. `info/0` raises in
+`on_exit`, so give it the path from the test, through an `Agent` for example.
+
 A trace you start yourself (`Tracing.start!(tracing, sources: true)`) on a shared driver also
 gets the stacks and sources of concurrent tests, as the driver adds every call's stack to each
 trace on the connection. The recording filters them out of its `trace.zip`; for your own traces,
