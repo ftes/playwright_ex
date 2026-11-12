@@ -44,6 +44,8 @@ those of the release candidates below. From an earlier release, also read the se
   sets it changes `get_by_test_id` for concurrent tests: set it suite-wide.
 - `PlaywrightEx.Test` traces each context's `request` and the test's own request contexts
   (`APIRequest.new_context/2`), and disposes those left at the test's end.
+- Under `trace: :retain_on_failure`, the contexts a passed test leaves open discard their trace
+  chunks at its end, as Playwright Test's do, instead of saving and then deleting them.
 - `PlaywrightEx.Test.info/1` takes the test's pid and works in `on_exit`, where it also has
   Playwright Test's `testInfo.status`, `errors`, `expectedStatus` and `duration`.
 - `PlaywrightEx.Test.attach/2` is Playwright Test's `testInfo.attach`: a file (`path:`, copied to

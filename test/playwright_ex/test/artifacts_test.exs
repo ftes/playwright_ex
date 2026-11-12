@@ -17,6 +17,8 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
   alias PlaywrightEx.Tracing
   alias PlaywrightEx.VideoPlayer
 
+  import PlaywrightEx.Runtime.Heap, only: [get: 2, put: 3]
+
   require PlaywrightEx.Test
 
   setup_all do
@@ -74,7 +76,7 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
       )
     end
 
-    %{pid: pid, dir: test.dir, run: run}
+    %{pid: pid, dir: test.dir, tmp: test.tmp, run: run}
   end
 
   # Ends the fake test, then runs its `on_exit`: what it printed.
@@ -403,6 +405,49 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     test.run.(fn -> page(Browser.new_context!(browser), "PASSED") end)
     assert finish(test, [passed()], :shutdown) == ""
     refute File.exists?(test.dir)
+  end
+
+  # Upstream's `maybeGenerateNextTraceRecordingPath`: once the test ended and passed, a context's
+  # chunk under `retain_on_failure` is discarded by the driver, not zipped and deleted.
+  test "a passed test's chunks under retain_on_failure are discarded, not zipped, once it ended", %{browser: browser} do
+    test = fake_test(%{trace: :retain_on_failure})
+    zips = record_zips(browser, test.tmp)
+    early = test.run.(fn -> Browser.new_context!(browser) end)
+    test.run.(fn -> page(Browser.new_context!(browser), "LATE") end)
+    # Closed while the test runs: zipped, as upstream (its result is not known yet).
+    test.run.(fn -> BrowserContext.close!(early) end)
+    assert length(zips.()) == 2
+    # The one left, closed at the end: discarded.
+    finish(test, [passed()], :shutdown)
+    assert length(zips.()) == 2
+    refute File.exists?(test.dir)
+  end
+
+  test "a failed test's chunks under retain_on_failure are zipped and kept", %{browser: browser} do
+    test = fake_test(%{trace: :retain_on_failure})
+    zips = record_zips(browser, test.tmp)
+    test.run.(fn -> page(Browser.new_context!(browser), "FAILED") end)
+    finish(test, [failed()], :shutdown)
+    # The context's chunk and its `request`'s.
+    assert length(zips.()) == 2
+    assert traced?(trace(test.dir, browser), "FAILED")
+  end
+
+  # The `localUtils.zip` calls of chunks under `tmp` (the test's), on the shared connection.
+  defp record_zips(browser, tmp) do
+    connection = get(BrowserPool.playwright(browser), :_connection)
+    onmessage = get(connection, :onmessage)
+    {:ok, zips} = Agent.start_link(fn -> [] end)
+
+    put(connection, :onmessage, fn message ->
+      if to_string(message.method) == "zip" and String.starts_with?(message.params.zipFile, tmp),
+        do: Agent.update(zips, &[message | &1])
+
+      onmessage.(message)
+    end)
+
+    on_exit(fn -> put(connection, :onmessage, onmessage) end)
+    fn -> Agent.get(zips, & &1) end
   end
 
   test "a test of another macro (a doctest) keeps them, as a failure's, without error-context.md", %{browser: browser} do

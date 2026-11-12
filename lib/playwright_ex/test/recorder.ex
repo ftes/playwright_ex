@@ -235,6 +235,11 @@ defmodule PlaywrightEx.Test.Recorder do
   def handle_call({:user_step, :end}, _from, state),
     do: {:reply, :ok, update_overlay(%{state | step_stack: Enum.drop(state.step_stack, -1)})}
 
+  def handle_call({:did_finish_test_function_and_after_each_hooks, failed?}, _from, state),
+    do:
+      {:reply, :ok,
+       %{state | tracing: TestTracing.did_finish_test_function_and_after_each_hooks(state.tracing, failed?)}}
+
   def handle_call({:append_trace_event, event}, _from, state),
     do: {:reply, :ok, %{state | tracing: %{state.tracing | trace_events: [event | state.tracing.trace_events]}}}
 
@@ -482,7 +487,7 @@ defmodule PlaywrightEx.Test.Recorder do
          %{} = state <- call(recorder, :state) do
       call(recorder, {:request_closed, request.guid})
 
-      if state.opts.trace[:mode] != :off, do: stop_request_tracing(request, recorder, state.opts)
+      if state.opts.trace[:mode] != :off, do: stop_request_tracing(request, recorder, state)
     end
 
     nil
@@ -491,8 +496,8 @@ defmodule PlaywrightEx.Test.Recorder do
   defp start_request_tracing(request, test),
     do: step("start tracing", fn -> start_tracing(APIRequestContext.tracing(request), test) end)
 
-  defp stop_request_tracing(request, recorder, opts),
-    do: step("save the trace", fn -> stop_tracing(APIRequestContext.tracing(request), recorder, opts) end)
+  defp stop_request_tracing(request, recorder, state),
+    do: step("save the trace", fn -> stop_tracing(APIRequestContext.tracing(request), recorder, state) end)
 
   defp follow_pages(context, recorder) do
     BrowserContext.on(context, :page, &GenServer.cast(recorder, {:add_page, context.guid, &1}))
@@ -515,7 +520,7 @@ defmodule PlaywrightEx.Test.Recorder do
 
   defp collect(context, recorder, %{opts: opts} = state) do
     if opts.trace[:mode] != :off,
-      do: step("save the trace", fn -> stop_tracing(BrowserContext.tracing(context), recorder, opts) end)
+      do: step("save the trace", fn -> stop_tracing(BrowserContext.tracing(context), recorder, state) end)
 
     if opts.screenshot[:mode] != :off, do: screenshots(context, recorder, opts)
     step("take a page snapshot", fn -> page_snapshot(context, recorder, state) end)
@@ -542,11 +547,12 @@ defmodule PlaywrightEx.Test.Recorder do
     end
   end
 
-  defp stop_tracing(tracing, recorder, opts) do
-    File.mkdir_p!(opts.tmp)
-    path = Path.join(opts.tmp, "#{System.unique_integer([:positive])}.zip")
+  # `_stopTracing`: the chunk, or none once the test abandons its trace (a passed test's under
+  # `retain_on_failure`), which `stopChunk` discards without saving it.
+  defp stop_tracing(tracing, recorder, %{opts: opts} = state) do
+    path = TestTracing.maybe_generate_next_trace_recording_path(state.tracing, opts.trace[:mode], opts.tmp)
     Tracing.stop_chunk!(tracing, path: path)
-    call(recorder, {:add_chunk, path})
+    if path, do: call(recorder, {:add_chunk, path})
   end
 
   # `SnapshotRecorder.captureTemporary`: the pages without a screenshot yet, to temporary files
@@ -622,6 +628,7 @@ defmodule PlaywrightEx.Test.Recorder do
     if state.closing, do: await_exit(state.closing)
     # A test of another macro (a doctest) has no result: kept as a failure's.
     failed? = verdict != :passed
+    GenServer.call(pid, {:did_finish_test_function_and_after_each_hooks, failed?}, :infinity)
 
     # `didFinishTest`: the open pages' screenshots, then the leftover contexts. A pooled browser
     # outlives the test.
