@@ -57,8 +57,8 @@ names match Python's: snake_case, keyword options, `expect_popup`, `eval_on_sele
 - [From playwright.dev to Elixir](guides/introduction/api-conventions.md): how a JS call reads in
   Elixir.
 - [Cheatsheet](guides/introduction/cheatsheet.cheatmd): frequent calls, JS next to Elixir.
-- [Testing with ExUnit](guides/testing-with-exunit.md): `PlaywrightEx.Test`'s setup fragments, assertions,
-  traces of failures.
+- [Testing with ExUnit](guides/testing-with-exunit.md): `PlaywrightEx.Test` and its browser pool,
+  assertions, traces of failures.
 - [Events and waiting](guides/events-and-waiting.md), [Network](guides/network.md),
   [Debugging and CI](guides/debugging-and-ci.md).
 - [Concurrency](guides/concurrency.md): listeners, promises and processes.

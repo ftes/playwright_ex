@@ -267,35 +267,85 @@ issues. So driver-rendered text (call logs, errors) stays JS. Text the client re
 
 `PlaywrightEx.Test`'s core is native, not a port. ExUnit is the runner, as pytest, NUnit and JUnit
 are for the non-JS clients, whose plugins (pytest-playwright, Playwright.NUnit, Java's
-`@UsePlaywright`) it follows: fixtures as setup fragments that only pass the context map,
-Playwright Test's names and defaults (trace, screenshot and video modes, artifact names,
-`testInfo.outputDir`), and upstream's artifact code as the model (`ArtifactsRecorder` hooks on
-`ClientInstrumentation`, `mergeTraceFiles`). Options are arguments plus config, passed to the
-facade as they are. `PlaywrightEx.Case` puts the fragments together as upstream's `test`
-fixtures are (`browser`, `context`, `page`). It is a case template with no logic of its own, so it is
-also the recipe a user copies when their template needs another shape.
+`@UsePlaywright`) it follows: Playwright Test's names and defaults (trace, screenshot and video
+modes, artifact names, `testInfo.outputDir`, context defaults), and upstream's artifact code as
+the model (`ArtifactsRecorder` hooks on `ClientInstrumentation`, `mergeTraceFiles`). The only
+fixture the facade can't provide is a pooled browser, so it is an explicit module; contexts and
+pages come from the plain API, and the user owns the ExUnit context map. Everything about the
+test (recording, context defaults, soft errors, output and snapshot paths, steps) is found
+through the calling process or its `$callers`, as the Ecto sandbox finds its owner. Settings with
+no call site (the recording modes) are config plus ExUnit tags; the rest are arguments.
 
-Browsers are shared by default, unlike those clients' browser per worker thread: their client
-is bound to a thread, ours serves any number of processes, and ExUnit runs twice the schedulers'
-worth of modules at once, so a driver per module would multiply drivers for nothing. Contexts
-isolate tests. A driver hosts every browser type, as upstream's one Playwright does, so a
-test's recording (a listener on the driver's instrumentation, keyed by `test_pid`) sees the
-contexts of all its browsers. The driver also adds every call's stack to each trace on its
-connection, so the trace merge keeps a chunk's own actions' stacks and sources. `isolate: true`
-is upstream's model for modules that change the driver or browser for everyone: an exclusive
-driver per driver key, taken on first use (upstream's worker-scoped `browser` fixture is lazy,
-`packages/playwright/src/index.ts:238`), checked in at the module's end if a test ran and all
-passed, else discarded. At most `workers` of them run, upstream's `workers` (all exclusive there;
-default half the cores, `packages/playwright/src/common/config.ts:111`), stopping ones included
-(upstream awaits `worker.stop()` before starting another,
-`packages/playwright/src/runner/dispatcher.ts:153`); a module that holds one takes its further
-driver keys over it, so none waits while holding one. Shared modules use one driver per key,
-outside the cap. Spreading a key's modules over capped drivers was tried and
-dropped (chromium, 2026-11-11, macOS): at 18 modules at once it took 210.7 s and 12.3 GB, against
-218 s and 8.8 GB with one driver per key and 207 s and 15.5 GB on main; at 9, one driver per
-key took 225 s against main's 276 s. The drivers stop in
-`ExUnit.after_suite/1`, as `mix test` halts without stopping applications (#191). The pool
-starts on first use, never with the application: a release has no ExUnit.
+| upstream | here |
+|---|---|
+| worker `browser` fixture, worker reuse by hash | `BrowserPool.exclusive/1` (cap `workers`, reuse by key, stopped after a failure) |
+| (none) | `BrowserPool.shared/1` |
+| `playwright` fixture | `BrowserPool.playwright/1` |
+| `context`/`page` fixtures, `browser.newContext()` | `Browser.new_context!/2`, `BrowserContext.new_page!/1`; `PlaywrightEx.Case` puts them together |
+| auto `_setupArtifacts` | the recording of every registered test (`error-context.md` whatever the modes) |
+| `_combinedContextOptions` (`{...contextOptions, ...options}`) | Playwright Test's defaults, then config `context_options`, then the call's (`key in options`) |
+| `test.use({ trace, screenshot, video })` | `@moduletag`/`@describetag`/`@tag` over config |
+| `--trace <mode>` | `TRACE` read in `config/test.exs` |
+| `test.info()` | `info/0` (`test_pid`, `file`, `test_name`, `output_dir`), raises outside a test |
+| `testInfo.outputPath`/`snapshotPath` | `output_path(name)`, `snapshot_path(name, opts)`: one string, no segments |
+| `test.step` | `step/2,3` (no timeout) |
+| list reporter's `npx playwright show-trace <path>` | a failure prints `mix playwright_ex.cli show-trace <path>` |
+| retry modes (`on-first-retry`, ...) | not supported: ExUnit has no retries; the `TRACE=1 mix test --failed` recipe |
+
+Deviations the port requires:
+
+- `shared/1`, with no upstream counterpart. Upstream's client is bound to a worker, ours serves
+  any number of processes. ExUnit's unit of concurrency is a cheap process and its default
+  `max_cases` (twice the schedulers) is far above upstream's default `workers` (half the cores),
+  so a browser per concurrent test would be many browsers; one browser with a context per test
+  is upstream's isolation model all the same. It suits mixed suites: browser tests, plain tests
+  and tests on a library built on PlaywrightEx share ExUnit's one pool, no worker holds an idle
+  browser, and browsers launch on first use. It isn't faster: per test the work is upstream's,
+  and on a realistic suite at the default parallelism the totals are about equal, with a
+  fraction of the memory and driver CPU. Wall time differs mostly by scheduling: ExUnit
+  balances whole modules (a module's tests run one after another), upstream's `fullyParallel`
+  single tests, so many small `async: true` modules parallelise better than a few big ones. Not
+  on Firefox, which dispatches the input of all a browser's pages in one queue: 20 `Mouse.move`s
+  take 378 ms on one page and 5 s on each of 16 pages at once, where Chromium and WebKit stay flat
+  (2026-11-11, macOS), and our page specs at 18 modules at once time out by the hundreds on one
+  shared Firefox, and still on 4. So Firefox suites use `exclusive` (our suite does), not a `pool_size` of shared
+  browsers per key: Firefox needs about a browser per module.
+- Closing the test's leftover contexts, last in its `on_exit`: a pooled browser outlives the test,
+  where upstream's worker browser closes them later.
+- A video of every context the test creates, not only the fixtures' (there are no context
+  fixtures).
+- `use PlaywrightEx.Test` as the first line of a case template's body: a template's own `setup`
+  callbacks run before those its `using` brings in, so the test is registered before them.
+
+A driver hosts every browser type, as upstream's one Playwright does. Each pooled driver gets one
+static listener when it starts (`runBeforeCreateBrowserContext`, `runAfterCreateBrowserContext`,
+`runBeforeCloseBrowserContext`, `runBeforeCreateRequestContext`), which finds the creating
+process's test (an ETS lookup of it and its `$callers`) and hands the context to that test's
+recorder, so a test's recording sees the contexts of all its browsers. The recorder process
+starts at the test's first context (at its registration when it traces, for its steps): a test
+without contexts runs none, and its `error-context.md` comes from `TestInfo`. A context a test
+process creates before its registration (a template's `setup` with the `use` only in `using`)
+makes the registration raise with the fix; one outside any test gets no defaults and no
+recording. The driver also adds every call's stack to each trace on its connection, so the trace
+merge keeps a chunk's own actions' stacks and sources.
+
+`exclusive/1` is held by the scope that calls it: `setup_all`'s module, or the test (a `Task`
+resolves to it through `$callers`). It is upstream's worker: a driver per driver key, reused
+warm by the next scope of its key when the scope passed, else stopped (upstream replaces a
+worker after a failure). At most `workers` of them run (upstream's, default half the cores,
+`packages/playwright/src/common/config.ts:111`), stopping ones included (upstream awaits
+`worker.stop()` before starting another, `packages/playwright/src/runner/dispatcher.ts:153`);
+waiters are served first come first served, and at the cap a key with no free driver stops the
+longest idle free one of another key. A scope that holds one takes its further driver keys over
+the cap, so none waits while holding one. The release is the last step of the test's `on_exit`
+(after its artifacts) or an `on_exit` of `setup_all`'s, never a `DOWN`: `on_exit` runs after the
+test process exits. A module's outcome is its tests', which ExUnit's runner spawns from the
+process that ran `setup_all` (`Process.info(pid, :parent)`). Shared browsers run on one driver
+per key, outside the cap. Spreading a key's modules over capped drivers was tried and dropped
+(chromium, 2026-11-11, macOS): at 18 modules at once it took 210.7 s and 12.3 GB, against 218 s
+and 8.8 GB with one driver per key. The drivers stop in `ExUnit.after_suite/1`, as `mix test`
+halts without stopping applications (#191). The pool starts on first use, never with the
+application: a release has no ExUnit.
 
 Upstream knows a test's result in-process (`testInfo.errors`, `status`) when it closes contexts
 and keeps artifacts; ExUnit tells `on_exit` nothing. So `use PlaywrightEx.Test` brings a `test`
@@ -303,27 +353,19 @@ macro that hands the body to `ExUnit.Case.test/3` with a mark at its end and a `
 notes the error and re-raises it: a test passed when it was marked and its process exited
 `:shutdown`, which a monitor sees for raises, exits, throws, timeouts (`:killed`), linked crashes
 and failed setups. The `catch` gives `error-context.md` the errors; failure output stays
-ExUnit's, byte for byte (tested). It also adds a `setup_all` whose module token keys the
-isolated drivers and whose `on_exit`, registered first, runs last: the module's end, also under
-`--max-failures`. The mark also takes the end-of-body screenshots (`didFinishTestFunction`).
-Not covered: doctests and other macros' tests (no mark: their artifacts are kept), a failure
-only in an `on_exit` (it counts as passed), a case template's `setup_all` `on_exit`, which
-runs after the module's end, and a failure in a case template's own `setup`, which runs before
-ours (the test isn't watched, so it doesn't discard the driver). Rejected: an ExUnit formatter
-(a second piece to install; `module_finished` never comes for a module `--max-failures` stops),
-a `defoverridable` wrapper of each test (renames the test's frame), and a monitor on the
+ExUnit's, byte for byte (tested). Its `setup` registers the test and adds the test's first
+`on_exit`, which runs last. The mark also takes the end-of-body screenshots
+(`didFinishTestFunction`). Not covered: doctests and other macros' tests (no mark: their
+artifacts are kept), a failure only in an `on_exit` (it counts as passed), and a failure in a
+case template's own `setup` before the registration. Rejected: an ExUnit formatter (a second
+piece to install; `module_finished` never comes for a module `--max-failures` stops), a
+`defoverridable` wrapper of each test (renames the test's frame), and a monitor on the
 `setup_all` process (its `DOWN` races the user's `on_exit`).
 
 A crashed shared browser fails the remaining tests of every module using it, where upstream
-restarts its worker; the next `browser/1` launches it again. ExUnit gives the context a
+restarts its worker; the next `shared/1` launches it again. ExUnit gives the context a
 `parameterize:` module's values, not its parameter map, so the output dir guesses the map for
 its hash.
-
-Firefox serializes input across the pages of a browser: 20 `Mouse.move`s take 378 ms on one
-page, and 5 s on each of 16 pages at once; Chromium and WebKit stay flat (2026-11-11, macOS).
-Our page specs at 18 modules at once time out by the hundreds on one shared Firefox, and still
-on 4. So `isolate: true` is the fix on Firefox (our suite isolates every module there), not a
-`pool_size` of shared browsers per key: Firefox needs about a browser per module.
 
 The matchers' `testInfo` is the running test, found by the calling process or its `$callers`
 (upstream's worker sets it per test): it resolves snapshot names by upstream's path templates
@@ -341,10 +383,15 @@ with upstream source references and `-- not ported`/`# deviation:` comments. The
 `@upstream`, as parity tracks the client API, not the runner; the rest of the runner is native.
 
 Rejected: porting the rest of Playwright Test, `toPass`, `expect.poll`, `createExpect`
-(`expect.configure`; `expect.soft` is a receiver, `soft/1`), options from tags (a template maps its own), a step's `timeout` (a
-process can't be interrupted, so the body would run in another process, with another `self()`
-and mailbox, and on past the timeout; the test's timeout bounds it) and a driver per module by
-default.
+(`expect.configure`; `expect.soft` is a receiver, `soft/1`), a step's `timeout` (a process can't
+be interrupted, so the body would run in another process, with another `self()` and mailbox, and
+on past the timeout; the test's timeout bounds it) and a driver per module by default. For the
+pool and fixtures: ambient fixtures (context keys the runner fills in: the user owns the map), a
+lazy module lease (a module's first test taking the browser for the module; a scope holds what
+it calls), serving waiters LIFO (first come first served bounds every wait), an `:open` lease
+that outlives its scope, `fresh: true` for a cold driver (`on_start` sets up each new one),
+retry modes (ExUnit has no retries), and tags for options other than the recording modes (a
+template maps its own tags).
 
 ## Mirroring upstream specs
 
@@ -370,7 +417,8 @@ proxy. Snapshot comparison and video decoding use the driver's own comparator an
 upstream and example modules share a driver each (the upstream one under test, set up as
 Playwright Test's fixtures by `on_start`), and the few that change the driver or its browser for
 others (selectors, test id, closing, tracing or counting `browser`'s contexts, the Playwright's
-defaults) declare `isolate: true`, upstream's worker. Cleanup closes only what a test or module
+defaults) declare `isolate: true`, which takes `BrowserPool.exclusive/1`, upstream's worker
+(every module does on Firefox). Cleanup closes only what a test or module
 created; a guard fails a shared module's test that left the driver changed (selectors, test id, a
 closed browser). Tests of driver env vars run a second driver with its own env; under test the client keeps `__testHook*` keys per connection. Every long-lived child (servers, the
 `ClientProcess` BEAM) exits on stdin EOF, so a killed test BEAM leaves no orphans
