@@ -167,6 +167,7 @@ defmodule PlaywrightEx.Test do
       config :playwright_ex, :test,
         browser_name: :chromium,      # BrowserPool: :chromium | :firefox | :webkit
         launch_options: [],           # BrowserPool: PlaywrightEx.BrowserType.launch/2
+        connect_options: nil,         # BrowserPool: [ws_endpoint: _, ...], default from PW_TEST_CONNECT_*
         driver: [],                   # BrowserPool: PlaywrightEx.Supervisor's :env, :executable, :node, :cache_dir
         on_start: nil,                # BrowserPool
         workers: max(div(System.schedulers_online(), 2), 1),

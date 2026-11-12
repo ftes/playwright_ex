@@ -279,6 +279,7 @@ no call site (the recording modes) are config plus ExUnit tags; the rest are arg
 | upstream | here |
 |---|---|
 | worker `browser` fixture, worker reuse by hash | `BrowserPool.exclusive/1` (cap `workers`, reuse by key, stopped after a failure) |
+| `connectOptions` (`PW_TEST_CONNECT_*`) | `connect_options` (part of the browser key) |
 | (none) | `BrowserPool.shared/1` |
 | `playwright` fixture | `BrowserPool.playwright/1` |
 | `context`/`page` fixtures, `browser.newContext()` | `Browser.new_context!/2`, `BrowserContext.new_page!/1`; `PlaywrightEx.Case` puts them together |

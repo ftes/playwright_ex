@@ -32,6 +32,21 @@ defmodule PlaywrightEx.Test.OptionsTest do
       assert_raise ArgumentError, ~r/expected a keyword list/, fn -> Options.pool([:driver]) end
     end
 
+    test "connect options: BrowserType.connect's and ws_endpoint, which is required" do
+      assert %{connect_options: [headers: %{"a" => "b"}, slow_mo: 1, ws_endpoint: "ws://x"]} =
+               Options.pool(connect_options: %{ws_endpoint: "ws://x", slow_mo: 1, headers: %{"a" => "b"}})
+
+      assert %{connect_options: nil} = Options.pool(connect_options: nil)
+
+      assert_raise ArgumentError, ~r/unknown connect options \[:launch_options\]/, fn ->
+        Options.pool(connect_options: [ws_endpoint: "ws://x", launch_options: []])
+      end
+
+      assert_raise ArgumentError, ~r/connect options need :ws_endpoint/, fn ->
+        Options.pool(connect_options: [timeout: 1])
+      end
+    end
+
     test "options are as given, keyword lists or maps; tags true and false are :on and :off" do
       assert %{launch_options: [slow_mo: 50], on_start: {M, :f, []}} =
                Options.pool(launch_options: %{slow_mo: 50}, on_start: {M, :f, []})
@@ -264,9 +279,38 @@ defmodule PlaywrightEx.Test.ConfigTest do
     assert %{trace: [mode: :off] ++ _} = Options.artifacts(%{trace: false})
   end
 
+  test "PW_TEST_CONNECT_* are the connect_options default, under the config and the call", %{config: config} do
+    env = ~w(PW_TEST_CONNECT_WS_ENDPOINT PW_TEST_CONNECT_HEADERS PW_TEST_CONNECT_EXPOSE_NETWORK)
+    saved = Map.new(env, &{&1, System.get_env(&1)})
+
+    on_exit(fn ->
+      Enum.each(saved, fn {name, value} -> if value, do: System.put_env(name, value), else: System.delete_env(name) end)
+    end)
+
+    System.put_env("PW_TEST_CONNECT_WS_ENDPOINT", "ws://env")
+    System.delete_env("PW_TEST_CONNECT_HEADERS")
+    System.delete_env("PW_TEST_CONNECT_EXPOSE_NETWORK")
+    assert %{connect_options: [ws_endpoint: "ws://env"]} = Options.pool([])
+
+    System.put_env("PW_TEST_CONNECT_HEADERS", ~s({"x-token": "t"}))
+    System.put_env("PW_TEST_CONNECT_EXPOSE_NETWORK", "<loopback>")
+
+    assert %{connect_options: [expose_network: "<loopback>", headers: %{"x-token" => "t"}, ws_endpoint: "ws://env"]} =
+             Options.pool([])
+
+    assert %{connect_options: nil} = Options.pool(connect_options: nil)
+    assert %{connect_options: [ws_endpoint: "ws://call"]} = Options.pool(connect_options: [ws_endpoint: "ws://call"])
+    Application.put_env(:playwright_ex, :test, config ++ [connect_options: [ws_endpoint: "ws://config"]])
+    assert %{connect_options: [ws_endpoint: "ws://config"]} = Options.pool([])
+    Application.put_env(:playwright_ex, :test, config ++ [connect_options: nil])
+    assert %{connect_options: nil} = Options.pool([])
+  end
+
   test "the defaults", %{config: config} do
     Application.delete_env(:playwright_ex, :test)
-    assert %{browser_name: :chromium, launch_options: [], driver: [], on_start: nil} = Options.pool([])
+
+    assert %{browser_name: :chromium, launch_options: [], connect_options: nil, driver: [], on_start: nil} =
+             Options.pool([])
 
     assert %{
              trace: [mode: :off, snapshots: true, screenshots: true, sources: true],

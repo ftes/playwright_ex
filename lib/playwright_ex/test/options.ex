@@ -6,12 +6,14 @@ defmodule PlaywrightEx.Test.Options do
 
   alias PlaywrightEx.Runtime.Facade
 
-  @pool_keys [:browser_name, :launch_options, :driver, :on_start]
+  @pool_keys [:browser_name, :launch_options, :connect_options, :driver, :on_start]
   @artifact_keys [:trace, :screenshot, :video]
   @config_only_keys [:context_options, :output_dir, :workers, :snapshot_dir, :snapshot_path_template]
   @config_keys @pool_keys ++ @artifact_keys ++ @config_only_keys
 
   @driver_keys [:executable, :node, :cache_dir, :env]
+  # Playwright Test's `connectOptions`: `wsEndpoint` and `BrowserType.connect`'s options.
+  @connect_keys [:ws_endpoint, :headers, :expose_network, :slow_mo, :timeout]
 
   # Playwright Test's context option fixtures with no value given (`playwrightFixtures` in
   # `packages/playwright/src/index.ts`, as `_combinedContextOptions` collects them), as the client
@@ -111,6 +113,27 @@ defmodule PlaywrightEx.Test.Options do
   @doc "The snapshots' path template (config `snapshot_path_template`, default `nil`)."
   def snapshot_path_template, do: config()[:snapshot_path_template]
 
+  # `connectOptionsFromEnv`: the `connect_options` default (the `connectOptions` fixture's), which
+  # the config and the call replace, as `use: { connectOptions }` replaces the fixture.
+  defp connect_options_from_env do
+    case System.get_env("PW_TEST_CONNECT_WS_ENDPOINT") do
+      blank when blank in [nil, ""] ->
+        nil
+
+      ws_endpoint ->
+        headers = System.get_env("PW_TEST_CONNECT_HEADERS", "")
+
+        Enum.reject(
+          [
+            ws_endpoint: ws_endpoint,
+            headers: if(headers != "", do: JSON.decode!(headers)),
+            expose_network: System.get_env("PW_TEST_CONNECT_EXPOSE_NETWORK")
+          ],
+          &match?({_key, nil}, &1)
+        )
+    end
+  end
+
   # Option lists merge one level deep (`launch_options: [slow_mo: 50]` keeps the config's
   # `headless`).
   defp merge_value(key, config, value) when key in [:launch_options, :driver],
@@ -138,6 +161,7 @@ defmodule PlaywrightEx.Test.Options do
     %{
       browser_name: :chromium,
       launch_options: [],
+      connect_options: connect_options_from_env(),
       driver: [],
       on_start: nil,
       trace: :off,
@@ -168,6 +192,25 @@ defmodule PlaywrightEx.Test.Options do
       unknown ->
         raise ArgumentError, "unknown driver options #{inspect(unknown)}, expected one of #{inspect(@driver_keys)}"
     end
+  end
+
+  defp validate!(:connect_options, nil), do: nil
+
+  defp validate!(:connect_options, options) do
+    options = to_keyword(:connect_options, options)
+
+    case Keyword.keys(options) -- @connect_keys do
+      [] ->
+        :ok
+
+      unknown ->
+        raise ArgumentError, "unknown connect options #{inspect(unknown)}, expected one of #{inspect(@connect_keys)}"
+    end
+
+    if !is_binary(options[:ws_endpoint]),
+      do: raise(ArgumentError, "connect options need :ws_endpoint, got: #{inspect(options)}")
+
+    Enum.sort(options)
   end
 
   defp validate!(:on_start, nil), do: nil

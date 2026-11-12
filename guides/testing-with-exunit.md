@@ -146,8 +146,7 @@ end
 
 `use PlaywrightEx.Test` imports only `test`; the rest is called qualified, as Playwright Test's
 `test.info()` and `test.step()`: `PlaywrightEx.Test.info/0`, `output_path/1`, `snapshot_path/2`,
-`step/3`. So a wrapper library's own `step` doesn't clash. A browser you connect to
-(`PlaywrightEx.BrowserType.connect/3`) is yours to manage, without defaults or recording.
+`step/3`. So a wrapper library's own `step` doesn't clash.
 
 ## Assertions
 
@@ -426,6 +425,40 @@ setup do
   %{page: BrowserContext.new_page!(context)}
 end
 ```
+
+## Remote browsers
+
+To run the browsers elsewhere (Playwright's Docker image, a grid), pass `connect_options`,
+Playwright Test's `connectOptions`: the pool then connects to a Playwright server instead of
+launching. It takes `ws_endpoint` and the options of `PlaywrightEx.BrowserType.connect/3`:
+
+```elixir
+# config/test.exs
+config :playwright_ex, :test,
+  connect_options: [ws_endpoint: "ws://localhost:3000/", expose_network: "<loopback>"]
+```
+
+Start the server as in [Remote browsers](debugging-and-ci.md#remote-browsers). The local driver
+still runs `on_start`, and contexts on the connected browser get Playwright Test's defaults and
+are recorded, as on a launched one. `launch_options` go to the server in the
+`x-playwright-launch-options` header, as Playwright Test sends them; the server applies those
+it allows (`headless`, `channel`, `slow_mo`, ...). A connected browser and a launched one are
+different browsers, also of one `browser_name`, and a lost connection is made again by the next
+call.
+
+`shared` connects once per set of options. `exclusive` connects once per driver, and the server
+launches a browser per connection, so each lease has a browser of its own, as each Playwright
+Test worker does.
+
+`PW_TEST_CONNECT_WS_ENDPOINT`, with `PW_TEST_CONNECT_HEADERS` (JSON) and
+`PW_TEST_CONNECT_EXPOSE_NETWORK`, is the default when the config sets no `connect_options`, as
+in Playwright Test. So a config that leaves it unset runs locally, and
+`PW_TEST_CONNECT_WS_ENDPOINT=ws://localhost:3000/ mix test` runs the same suite on remote
+browsers. A call's `connect_options` win too; `connect_options: nil` launches.
+
+The remote browser must reach your app: set `base_url` to a host the container resolves
+(`http://host.docker.internal:4000` on Docker Desktop), or pass `expose_network: "<loopback>"`
+so the server tunnels `localhost` to your machine.
 
 ## The running test
 

@@ -369,6 +369,34 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.ExclusiveTest do
   end
 end
 
+defmodule PlaywrightEx.Guides.TestingWithExUnit.RemoteTest do
+  # "Remote browsers": the config's `connect_options` as the call's, on a `run-server`.
+  use ExUnit.Case, async: true
+  use PlaywrightEx.Test
+
+  alias PlaywrightEx.Browser
+  alias PlaywrightEx.BrowserContext
+  alias PlaywrightEx.Expect
+  alias PlaywrightEx.Guides.TestingWithExUnit.App
+  alias PlaywrightEx.Page
+  alias PlaywrightEx.RemoteServer.RunServer
+  alias PlaywrightEx.Test.BrowserPool
+
+  setup_all do
+    server = RunServer.start()
+    on_exit(fn -> RunServer.close(server) end)
+    app = App.start!(Path.join(System.tmp_dir!(), "guide-app-#{System.unique_integer([:positive])}"))
+    connect_options = [ws_endpoint: RunServer.ws_endpoint(server), expose_network: "<loopback>"]
+    %{browser: BrowserPool.shared(connect_options: connect_options), base_url: app.prefix}
+  end
+
+  test "a page of the remote browser reaches the app on localhost", %{browser: browser, base_url: base_url} do
+    page = BrowserContext.new_page!(Browser.new_context!(browser, base_url: base_url))
+    Page.goto!(page, "/sign-up")
+    Expect.to_have_text!(Page.get_by_role(page, :button), "Sign up")
+  end
+end
+
 defmodule PlaywrightEx.Guides.TestingWithExUnit.GroupTest do
   # "Exclusive browsers": a group's modules share a browser. Deviation: `BROWSER`'s.
   use ExUnit.Case, async: true, group: :firefox
