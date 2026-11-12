@@ -13,6 +13,8 @@
 #   * `soft_errors` - tests whose matchers write missing snapshots (`snapshot_dir` next to the
 #     output dir), one of them failing after that, one killed past its timeout.
 #   * `steps` - tests failing in a boxed step and in a step past its timeout, with no browser.
+#   * `soft` - soft matchers (`Expect.soft/1`): failing ones, then the rest of the body, then a
+#     hard failure; and a passing one.
 
 # credo:disable-for-this-file Credo.Check.Warning.WrongTestFilename
 
@@ -240,6 +242,38 @@ case mode do
         # A missing aria snapshot is written past the matcher's timeout.
         Expect.to_match_aria_snapshot!(page, timeout: 500)
         Process.sleep(:infinity)
+      end
+    end
+
+  "soft" ->
+    defmodule SoftTest do
+      use ExUnit.Case, async: true
+      use PlaywrightEx.Test
+
+      alias PlaywrightEx.Expect
+      alias PlaywrightEx.Page
+
+      setup_all :browser
+      setup [:new_context, :new_page]
+
+      test "continues after a soft failure", %{page: page} do
+        Page.set_content!(page, "<h1>One</h1>")
+        heading = Page.locator(page, "h1")
+        assert :ok = heading |> Expect.soft() |> Expect.to_have_text!("Uno", timeout: 100)
+        IO.puts("(continued=>true)")
+      end
+
+      test "soft failures, then a hard one", %{page: page} do
+        Page.set_content!(page, "<h1>Two</h1>")
+        heading = Page.locator(page, "h1")
+        assert :ok = heading |> Expect.soft() |> Expect.to_have_text("Dos", timeout: 100)
+        assert :ok = heading |> Expect.not_() |> Expect.soft() |> Expect.to_have_text!("Two", timeout: 100)
+        Expect.to_have_text!(heading, "Deux", timeout: 100)
+      end
+
+      test "passes", %{page: page} do
+        Page.set_content!(page, "<h1>Three</h1>")
+        page |> Page.locator("h1") |> Expect.soft() |> Expect.to_have_text!("Three")
       end
     end
 

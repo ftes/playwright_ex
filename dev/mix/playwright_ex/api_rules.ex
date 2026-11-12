@@ -70,6 +70,9 @@ defmodule Mix.PlaywrightEx.ApiRules do
       both Locator and Page (`toMatchAriaSnapshot`) take either. The `not` property is the member
       `not_` (`"negate"`: the receiver classes), as `and_`/`or_`, Java's `not()`: it wraps the
       receiver, which the matchers take too (`locator |> Expect.not_() |> Expect.to_have_text("x")`).
+      `expect.soft` (not in api.json, a property of upstream's `expect` function) is the member
+      `soft` (`"soften"`, with the docs of upstream's soft assertions guide): it wraps the receiver
+      too, with `isSoft`, in either order with `not_`.
       Overloads are dropped, except that `toHaveAttribute(name, options)` makes `value` optional.
       `toHaveScreenshot` takes `name` as an option, which a `PlaywrightEx.Test` test resolves, or
       the snapshot file as a `path` option (`to_have_screenshot(page, path: "home.png")`), as does
@@ -369,7 +372,11 @@ defmodule Mix.PlaywrightEx.ApiRules do
       |> Enum.flat_map(&[&1, not_matcher(&1)])
 
     receivers = members |> Enum.flat_map(& &1["matcher"]["receivers"]) |> Enum.uniq()
-    members = [negate(Enum.find(assertions, &(&1["name"] == "LocatorAssertions")), receivers) | members]
+
+    members = [
+      negate(Enum.find(assertions, &(&1["name"] == "LocatorAssertions")), receivers),
+      soften(receivers) | members
+    ]
 
     spec =
       [
@@ -384,7 +391,9 @@ defmodule Mix.PlaywrightEx.ApiRules do
           "text" =>
             "`expect(locator).toHaveText(expected)` is " <>
               "`to_have_text(locator, expected)`, `expect(locator).not.toHaveText(expected)` is " <>
-              "`not_to_have_text(locator, expected)` or `locator |> not_() |> to_have_text(expected)`. They retry until the expectation is met or the timeout " <>
+              "`not_to_have_text(locator, expected)` or `locator |> not_() |> to_have_text(expected)`, and " <>
+              "a soft assertion is `locator |> soft() |> to_have_text(expected)` (see `soft/1`). " <>
+              "They retry until the expectation is met or the timeout " <>
               "(5 seconds by default, see Configuration below) passes, then return `:ok` or `{:error, %PlaywrightEx.ExpectError{}}` " <>
               "whose `matcherResult` mirrors JS; the bang forms raise the `PlaywrightEx.ExpectError` " <>
               "([Testing with ExUnit](testing-with-exunit.md) shows how to wrap it in an `ExUnit.AssertionError`)."
@@ -606,6 +615,51 @@ defmodule Mix.PlaywrightEx.ApiRules do
       "spec" => member["spec"] ++ [%{"type" => "text", "text" => text}],
       "negate" => receivers
     })
+  end
+
+  # `expect.soft(x)`: `soft(x)`, a soft receiver (`"soften"`). Not in api.json: the docs are
+  # upstream's soft assertions guide (`docs/src/test-assertions-js.md`).
+  defp soften(receivers) do
+    %{
+      "name" => "soft",
+      "alias" => "soft",
+      "kind" => "method",
+      "args" => [],
+      "type" => nil,
+      "langs" => %{},
+      "spec" => [
+        %{
+          "type" => "text",
+          "text" =>
+            "By default, failed assertion will terminate test execution. Playwright also supports *soft assertions*: " <>
+              "failed soft assertions **do not** terminate test execution, but mark the test as failed."
+        },
+        %{
+          "type" => "code",
+          "codeLang" => "js",
+          "lines" => [
+            "// Make a few checks that will not stop the test when failed...",
+            "await expect.soft(page.getByTestId('status')).toHaveText('Success');",
+            "await expect.soft(page.getByTestId('eta')).toHaveText('1 day');",
+            "",
+            "// ... and continue the test to check more things.",
+            "await page.getByRole('link', { name: 'next page' }).click();",
+            "await expect.soft(page.getByRole('heading', { name: 'Make another order' })).toBeVisible();"
+          ]
+        },
+        %{"type" => "text", "text" => "Note that soft assertions only work with Playwright test runner."},
+        %{
+          "type" => "text",
+          "text" =>
+            "In Elixir, `soft/1` wraps the receiver as `not_/1` does, in either order: " <>
+              "`locator |> Expect.soft() |> Expect.not_()` is `expect.soft(locator).not`, and the `not_to_*` matchers " <>
+              "take a soft receiver too. In a `PlaywrightEx.Test` test, a failed soft matcher returns `:ok` (the bang " <>
+              "form too) and the test fails at the end of its body with all its errors. Outside such a test it fails " <>
+              "as any matcher."
+        }
+      ],
+      "soften" => receivers
+    }
   end
 
   # `expect(x).not.toHaveText(...)`: Python's `not_to_have_text`.

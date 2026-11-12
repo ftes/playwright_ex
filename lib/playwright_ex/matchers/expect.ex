@@ -26,7 +26,9 @@ defmodule PlaywrightEx.Matchers.Expect do
   Port of `#{@upstream}`: how a matcher is called. The generated `PlaywrightEx.Expect` is
   `createMatchers`: one function per web-first matcher (`to_have_text`), and one with
   `isNot` set (`not_to_have_text`, Python's name for `expect(x).not.toHaveText`). Each calls
-  `create_matcher/4` with the matcher of `custom_async_matchers/0`.
+  `create_matcher/4` with the matcher of `custom_async_matchers/0`, and the info of its
+  receiver: `isNot` of `PlaywrightEx.Expect.not_/1`, `isSoft` of `PlaywrightEx.Expect.soft/1`
+  (`expect.soft`).
 
   A matcher gets the matcher state `this` (`ExpectMatcherStateInternal`): a map with `isNot`,
   `promise`, `utils` (`PlaywrightEx.Matchers.MatcherUtils`), `timeout` and `title`. It returns a
@@ -37,9 +39,10 @@ defmodule PlaywrightEx.Matchers.Expect do
   step of it (`category: 'expect'`), which records a result's `softError`: that fails the test
   at the end of its body; outside a test it is printed. The step's call is not the driver's
   `Frame.expect` action (the instrumentation can't set its `callId`), so a trace shows both.
-  There are no test deadlines or `expect.soft` (no `createExpect`), and no jest library: generic
-  matchers (`toBe`, `toEqual`, ...), `expect.poll`, `expect.extend`, `toPass`, `toMatchSnapshot`
-  and `resolves`/`rejects` are not ported.
+  A failed soft matcher in a test completes its step with the error as its `softError` and
+  returns. There are no test deadlines or `createExpect` (`expect.configure`), and no jest
+  library: generic matchers (`toBe`, `toEqual`, ...), `expect.poll`, `expect.extend`, `toPass`,
+  `toMatchSnapshot` and `resolves`/`rejects` are not ported.
 
   ## Configuration
 
@@ -163,7 +166,7 @@ defmodule PlaywrightEx.Matchers.Expect do
   end
 
   # allBuiltinMatchers, promiseThrowMatchers  -- not ported: jest generic assertions
-  # createExpect  -- not ported: no expect function object (configure, soft, poll, extend)
+  # createExpect  -- not ported: no expect function object (configure, poll, extend); its `soft` is the generated PlaywrightEx.Expect.soft/1
   # createMatchers  -- ported as the generated PlaywrightEx.Expect (see the moduledoc)
 
   # Elixir has no rest parameters: the matcher function takes the argument list.
@@ -200,10 +203,14 @@ defmodule PlaywrightEx.Matchers.Expect do
 
     step = if test_info, do: TestInfo._add_step(test_info, step_data)
 
-    # `error` is `{kind, reason, stacktrace}`. `info.isSoft`  -- not ported: expect.soft
+    # `error` is `{kind, reason, stacktrace}`.
     handle_error = fn {kind, reason, stacktrace} = error, result ->
-      if step, do: TestInfo.step_complete(step, Map.put(result || %{}, :error, error))
-      :erlang.raise(kind, reason, stacktrace)
+      if info[:isSoft] && step do
+        TestInfo.step_complete(step, Map.merge(result || %{}, %{error: error, softError: error}))
+      else
+        if step, do: TestInfo.step_complete(step, Map.put(result || %{}, :error, error))
+        :erlang.raise(kind, reason, stacktrace)
+      end
     end
 
     finalizer = fn result ->
@@ -247,28 +254,27 @@ defmodule PlaywrightEx.Matchers.Expect do
 
     # deviation: the finalizer's error is raised here, with Elixir's stacktrace of the raise
     # (`stackFrames` are only the step's). It runs after the `try`, as a second `handleError` of
-    # its error would do nothing.
+    # its error would do nothing. A soft error returns from `handleError`, so does the matcher.
     result =
       try do
         invoke = fn -> invoke_matcher(matcher_name, info, matcher, actual, args, promise, title) end
 
         # if (result instanceof Promise) return result.then(finalizer, handleError);  -- not ported: matchers return their result
-        if step, do: Zones.with(:stepZone, step, invoke), else: invoke.()
+        {:ok, if(step, do: Zones.with(:stepZone, step, invoke), else: invoke.())}
       catch
         kind, reason -> handle_error.({kind, reason, __STACKTRACE__}, nil)
       end
 
-    case finalizer.(result) do
-      {:error, error, result} ->
-        try do
-          raise error
-        rescue
-          error -> handle_error.({:error, error, __STACKTRACE__}, result)
-        end
-
-      :ok ->
-        :ok
+    with {:ok, result} <- result,
+         {:error, error, result} <- finalizer.(result) do
+      try do
+        raise error
+      rescue
+        error -> handle_error.({:error, error, __STACKTRACE__}, result)
+      end
     end
+
+    :ok
   end
 
   # JS truthiness of an argument.

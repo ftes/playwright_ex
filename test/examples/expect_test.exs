@@ -35,6 +35,27 @@ defmodule PlaywrightEx.Examples.ExpectTest do
     locator |> Expect.not_() |> Expect.to_contain_text!("error")
   end
 
+  example "Expect.soft",
+    js: ~S"""
+    // Make a few checks that will not stop the test when failed...
+    await expect.soft(page.getByTestId('status')).toHaveText('Success');
+    await expect.soft(page.getByTestId('eta')).toHaveText('1 day');
+
+    // ... and continue the test to check more things.
+    await page.getByRole('link', { name: 'next page' }).click();
+    await expect.soft(page.getByRole('heading', { name: 'Make another order' })).toBeVisible();
+    """,
+    html: ~s{<div data-testid="status">Success</div><div data-testid="eta">1 day</div>
+    <a href="/next">next page</a><h1>Make another order</h1>} do
+    # Make a few checks that will not stop the test when failed...
+    Page.get_by_test_id(page, "status") |> Expect.soft() |> Expect.to_have_text!("Success")
+    Page.get_by_test_id(page, "eta") |> Expect.soft() |> Expect.to_have_text!("1 day")
+
+    # ... and continue the test to check more things.
+    Page.get_by_role(page, :link, name: "next page") |> Locator.click!()
+    Page.get_by_role(page, :heading, name: "Make another order") |> Expect.soft() |> Expect.to_be_visible!()
+  end
+
   example "LocatorAssertions.toBeAttached",
     js: ~S"""
     await expect(page.getByText('Hidden text')).toBeAttached();

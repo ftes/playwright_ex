@@ -4,7 +4,7 @@ defmodule PlaywrightEx.Expect do
   @moduledoc ~S"""
   Web-first assertions: the methods of [`LocatorAssertions`](https://playwright.dev/docs/api/class-locatorassertions), [`PageAssertions`](https://playwright.dev/docs/api/class-pageassertions) and [`APIResponseAssertions`](https://playwright.dev/docs/api/class-apiresponseassertions), as functions of their receiver.
 
-  `expect(locator).toHaveText(expected)` is `to_have_text(locator, expected)`, `expect(locator).not.toHaveText(expected)` is `not_to_have_text(locator, expected)` or `locator |> not_() |> to_have_text(expected)`. They retry until the expectation is met or the timeout (5 seconds by default, see Configuration below) passes, then return `:ok` or `{:error, %PlaywrightEx.ExpectError{}}` whose `matcherResult` mirrors JS; the bang forms raise the `PlaywrightEx.ExpectError` ([Testing with ExUnit](testing-with-exunit.md) shows how to wrap it in an `ExUnit.AssertionError`).
+  `expect(locator).toHaveText(expected)` is `to_have_text(locator, expected)`, `expect(locator).not.toHaveText(expected)` is `not_to_have_text(locator, expected)` or `locator |> not_() |> to_have_text(expected)`, and a soft assertion is `locator |> soft() |> to_have_text(expected)` (see `soft/1`). They retry until the expectation is met or the timeout (5 seconds by default, see Configuration below) passes, then return `:ok` or `{:error, %PlaywrightEx.ExpectError{}}` whose `matcherResult` mirrors JS; the bang forms raise the `PlaywrightEx.ExpectError` ([Testing with ExUnit](testing-with-exunit.md) shows how to wrap it in an `ExUnit.AssertionError`).
 
   The [`LocatorAssertions`](https://playwright.dev/docs/api/class-locatorassertions) class provides assertion methods that can be used to make assertions about the [`Locator`](`PlaywrightEx.Locator`) state in the tests.
 
@@ -47,12 +47,12 @@ defmodule PlaywrightEx.Expect do
 
   alias PlaywrightEx.Runtime.Facade
 
-  @typedoc "A negated receiver (`not_/1`): `expect(actual).not` in JS."
-  @type t(actual) :: %__MODULE__{actual: actual, isNot: true}
-  @typedoc "A negated receiver of any matcher."
+  @typedoc "A negated (`not_/1`) or soft (`soft/1`) receiver: `expect(actual).not`, `expect.soft(actual)` in JS."
+  @type t(actual) :: %__MODULE__{actual: actual, isNot: boolean(), isSoft: boolean()}
+  @typedoc "A negated or soft receiver of any matcher."
   @type t :: t(PlaywrightEx.Locator.t() | PlaywrightEx.Page.t() | PlaywrightEx.APIResponse.t())
 
-  defstruct [:actual, isNot: true]
+  defstruct [:actual, isNot: false, isSoft: false]
 
   @doc ~S"""
   Makes the assertion check for the opposite condition.
@@ -69,12 +69,35 @@ defmodule PlaywrightEx.Expect do
 
   *Since Playwright 1.20.*
   """
-  @spec not_(actual) :: t(actual)
+  @spec not_(actual | t(actual)) :: t(actual)
         when actual: PlaywrightEx.Locator.t() | PlaywrightEx.Page.t() | PlaywrightEx.APIResponse.t()
-  def not_(%__MODULE__{}),
+  def not_(%__MODULE__{isNot: true}),
     do: raise(ArgumentError, "expect.not: the receiver is negated already (JS has no expect(x).not.not)")
 
-  def not_(actual), do: %__MODULE__{actual: actual}
+  def not_(%__MODULE__{} = expect), do: %{expect | isNot: true}
+  def not_(actual), do: %__MODULE__{actual: actual, isNot: true}
+
+  @doc ~S"""
+  By default, failed assertion will terminate test execution. Playwright also supports *soft assertions*: failed soft assertions **do not** terminate test execution, but mark the test as failed.
+
+  ```elixir
+  # Make a few checks that will not stop the test when failed...
+  Page.get_by_test_id(page, "status") |> Expect.soft() |> Expect.to_have_text!("Success")
+  Page.get_by_test_id(page, "eta") |> Expect.soft() |> Expect.to_have_text!("1 day")
+
+  # ... and continue the test to check more things.
+  Page.get_by_role(page, :link, name: "next page") |> Locator.click!()
+  Page.get_by_role(page, :heading, name: "Make another order") |> Expect.soft() |> Expect.to_be_visible!()
+  ```
+
+  Note that soft assertions only work with Playwright test runner.
+
+  In Elixir, `soft/1` wraps the receiver as `not_/1` does, in either order: `locator |> Expect.soft() |> Expect.not_()` is `expect.soft(locator).not`, and the `not_to_*` matchers take a soft receiver too. In a `PlaywrightEx.Test` test, a failed soft matcher returns `:ok` (the bang form too) and the test fails at the end of its body with all its errors. Outside such a test it fails as any matcher.
+  """
+  @spec soft(actual | t(actual)) :: t(actual)
+        when actual: PlaywrightEx.Locator.t() | PlaywrightEx.Page.t() | PlaywrightEx.APIResponse.t()
+  def soft(%__MODULE__{} = expect), do: %{expect | isSoft: true}
+  def soft(actual), do: %__MODULE__{actual: actual, isSoft: true}
 
   @to_be_attached_options {:object, %{attached: {:attached, nil}, signal: {:signal, nil}, timeout: {:timeout, nil}}}
 
@@ -114,13 +137,13 @@ defmodule PlaywrightEx.Expect do
   @spec to_be_attached(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_attached_options()) ::
           :ok | {:error, PlaywrightEx.error()}
   def to_be_attached(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toBeAttached")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toBeAttached")
     options = Facade.options!(options, @to_be_attached_options, "expect.toBeAttached")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeAttached",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_attached/3
       ).([options])
@@ -130,13 +153,13 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `to_be_attached/2`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
   @spec to_be_attached!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_attached_options()) :: :ok
   def to_be_attached!(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toBeAttached")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toBeAttached")
     options = Facade.options!(options, @to_be_attached_options, "expect.toBeAttached")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeAttached",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_attached/3
       ).([options])
@@ -172,16 +195,16 @@ defmodule PlaywrightEx.Expect do
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
-  @spec not_to_be_attached(PlaywrightEx.Locator.t(), not_to_be_attached_options()) ::
+  @spec not_to_be_attached(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), not_to_be_attached_options()) ::
           :ok | {:error, PlaywrightEx.error()}
   def not_to_be_attached(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToBeAttached")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeAttached")
     options = Facade.options!(options, @not_to_be_attached_options, "expect.notToBeAttached")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeAttached",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_attached/3
       ).([options])
@@ -189,15 +212,15 @@ defmodule PlaywrightEx.Expect do
   end
 
   @doc "Like `not_to_be_attached/2`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
-  @spec not_to_be_attached!(PlaywrightEx.Locator.t(), not_to_be_attached_options()) :: :ok
+  @spec not_to_be_attached!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), not_to_be_attached_options()) :: :ok
   def not_to_be_attached!(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToBeAttached")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeAttached")
     options = Facade.options!(options, @not_to_be_attached_options, "expect.notToBeAttached")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeAttached",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_attached/3
       ).([options])
@@ -258,13 +281,13 @@ defmodule PlaywrightEx.Expect do
   @spec to_be_checked(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_checked_options()) ::
           :ok | {:error, PlaywrightEx.error()}
   def to_be_checked(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toBeChecked")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toBeChecked")
     options = Facade.options!(options, @to_be_checked_options, "expect.toBeChecked")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeChecked",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_checked/3
       ).([options])
@@ -274,13 +297,13 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `to_be_checked/2`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
   @spec to_be_checked!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_checked_options()) :: :ok
   def to_be_checked!(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toBeChecked")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toBeChecked")
     options = Facade.options!(options, @to_be_checked_options, "expect.toBeChecked")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeChecked",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_checked/3
       ).([options])
@@ -331,15 +354,16 @@ defmodule PlaywrightEx.Expect do
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
-  @spec not_to_be_checked(PlaywrightEx.Locator.t(), not_to_be_checked_options()) :: :ok | {:error, PlaywrightEx.error()}
+  @spec not_to_be_checked(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), not_to_be_checked_options()) ::
+          :ok | {:error, PlaywrightEx.error()}
   def not_to_be_checked(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToBeChecked")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeChecked")
     options = Facade.options!(options, @not_to_be_checked_options, "expect.notToBeChecked")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeChecked",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_checked/3
       ).([options])
@@ -347,15 +371,15 @@ defmodule PlaywrightEx.Expect do
   end
 
   @doc "Like `not_to_be_checked/2`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
-  @spec not_to_be_checked!(PlaywrightEx.Locator.t(), not_to_be_checked_options()) :: :ok
+  @spec not_to_be_checked!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), not_to_be_checked_options()) :: :ok
   def not_to_be_checked!(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToBeChecked")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeChecked")
     options = Facade.options!(options, @not_to_be_checked_options, "expect.notToBeChecked")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeChecked",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_checked/3
       ).([options])
@@ -400,13 +424,13 @@ defmodule PlaywrightEx.Expect do
   @spec to_be_disabled(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_disabled_options()) ::
           :ok | {:error, PlaywrightEx.error()}
   def to_be_disabled(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toBeDisabled")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toBeDisabled")
     options = Facade.options!(options, @to_be_disabled_options, "expect.toBeDisabled")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeDisabled",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_disabled/3
       ).([options])
@@ -416,13 +440,13 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `to_be_disabled/2`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
   @spec to_be_disabled!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_disabled_options()) :: :ok
   def to_be_disabled!(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toBeDisabled")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toBeDisabled")
     options = Facade.options!(options, @to_be_disabled_options, "expect.toBeDisabled")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeDisabled",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_disabled/3
       ).([options])
@@ -453,16 +477,16 @@ defmodule PlaywrightEx.Expect do
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
-  @spec not_to_be_disabled(PlaywrightEx.Locator.t(), not_to_be_disabled_options()) ::
+  @spec not_to_be_disabled(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), not_to_be_disabled_options()) ::
           :ok | {:error, PlaywrightEx.error()}
   def not_to_be_disabled(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToBeDisabled")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeDisabled")
     options = Facade.options!(options, @not_to_be_disabled_options, "expect.notToBeDisabled")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeDisabled",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_disabled/3
       ).([options])
@@ -470,15 +494,15 @@ defmodule PlaywrightEx.Expect do
   end
 
   @doc "Like `not_to_be_disabled/2`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
-  @spec not_to_be_disabled!(PlaywrightEx.Locator.t(), not_to_be_disabled_options()) :: :ok
+  @spec not_to_be_disabled!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), not_to_be_disabled_options()) :: :ok
   def not_to_be_disabled!(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToBeDisabled")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeDisabled")
     options = Facade.options!(options, @not_to_be_disabled_options, "expect.notToBeDisabled")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeDisabled",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_disabled/3
       ).([options])
@@ -524,13 +548,13 @@ defmodule PlaywrightEx.Expect do
   @spec to_be_editable(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_editable_options()) ::
           :ok | {:error, PlaywrightEx.error()}
   def to_be_editable(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toBeEditable")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toBeEditable")
     options = Facade.options!(options, @to_be_editable_options, "expect.toBeEditable")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeEditable",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_editable/3
       ).([options])
@@ -540,13 +564,13 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `to_be_editable/2`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
   @spec to_be_editable!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_editable_options()) :: :ok
   def to_be_editable!(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toBeEditable")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toBeEditable")
     options = Facade.options!(options, @to_be_editable_options, "expect.toBeEditable")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeEditable",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_editable/3
       ).([options])
@@ -582,16 +606,16 @@ defmodule PlaywrightEx.Expect do
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
-  @spec not_to_be_editable(PlaywrightEx.Locator.t(), not_to_be_editable_options()) ::
+  @spec not_to_be_editable(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), not_to_be_editable_options()) ::
           :ok | {:error, PlaywrightEx.error()}
   def not_to_be_editable(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToBeEditable")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeEditable")
     options = Facade.options!(options, @not_to_be_editable_options, "expect.notToBeEditable")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeEditable",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_editable/3
       ).([options])
@@ -599,15 +623,15 @@ defmodule PlaywrightEx.Expect do
   end
 
   @doc "Like `not_to_be_editable/2`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
-  @spec not_to_be_editable!(PlaywrightEx.Locator.t(), not_to_be_editable_options()) :: :ok
+  @spec not_to_be_editable!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), not_to_be_editable_options()) :: :ok
   def not_to_be_editable!(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToBeEditable")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeEditable")
     options = Facade.options!(options, @not_to_be_editable_options, "expect.notToBeEditable")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeEditable",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_editable/3
       ).([options])
@@ -648,13 +672,13 @@ defmodule PlaywrightEx.Expect do
   @spec to_be_empty(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_empty_options()) ::
           :ok | {:error, PlaywrightEx.error()}
   def to_be_empty(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toBeEmpty")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toBeEmpty")
     options = Facade.options!(options, @to_be_empty_options, "expect.toBeEmpty")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeEmpty",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_empty/3
       ).([options])
@@ -664,13 +688,13 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `to_be_empty/2`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
   @spec to_be_empty!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_empty_options()) :: :ok
   def to_be_empty!(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toBeEmpty")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toBeEmpty")
     options = Facade.options!(options, @to_be_empty_options, "expect.toBeEmpty")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeEmpty",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_empty/3
       ).([options])
@@ -701,15 +725,16 @@ defmodule PlaywrightEx.Expect do
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
-  @spec not_to_be_empty(PlaywrightEx.Locator.t(), not_to_be_empty_options()) :: :ok | {:error, PlaywrightEx.error()}
+  @spec not_to_be_empty(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), not_to_be_empty_options()) ::
+          :ok | {:error, PlaywrightEx.error()}
   def not_to_be_empty(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToBeEmpty")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeEmpty")
     options = Facade.options!(options, @not_to_be_empty_options, "expect.notToBeEmpty")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeEmpty",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_empty/3
       ).([options])
@@ -717,15 +742,15 @@ defmodule PlaywrightEx.Expect do
   end
 
   @doc "Like `not_to_be_empty/2`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
-  @spec not_to_be_empty!(PlaywrightEx.Locator.t(), not_to_be_empty_options()) :: :ok
+  @spec not_to_be_empty!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), not_to_be_empty_options()) :: :ok
   def not_to_be_empty!(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToBeEmpty")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeEmpty")
     options = Facade.options!(options, @not_to_be_empty_options, "expect.notToBeEmpty")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeEmpty",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_empty/3
       ).([options])
@@ -771,13 +796,13 @@ defmodule PlaywrightEx.Expect do
   @spec to_be_enabled(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_enabled_options()) ::
           :ok | {:error, PlaywrightEx.error()}
   def to_be_enabled(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toBeEnabled")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toBeEnabled")
     options = Facade.options!(options, @to_be_enabled_options, "expect.toBeEnabled")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeEnabled",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_enabled/3
       ).([options])
@@ -787,13 +812,13 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `to_be_enabled/2`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
   @spec to_be_enabled!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_enabled_options()) :: :ok
   def to_be_enabled!(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toBeEnabled")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toBeEnabled")
     options = Facade.options!(options, @to_be_enabled_options, "expect.toBeEnabled")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeEnabled",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_enabled/3
       ).([options])
@@ -829,15 +854,16 @@ defmodule PlaywrightEx.Expect do
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
-  @spec not_to_be_enabled(PlaywrightEx.Locator.t(), not_to_be_enabled_options()) :: :ok | {:error, PlaywrightEx.error()}
+  @spec not_to_be_enabled(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), not_to_be_enabled_options()) ::
+          :ok | {:error, PlaywrightEx.error()}
   def not_to_be_enabled(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToBeEnabled")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeEnabled")
     options = Facade.options!(options, @not_to_be_enabled_options, "expect.notToBeEnabled")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeEnabled",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_enabled/3
       ).([options])
@@ -845,15 +871,15 @@ defmodule PlaywrightEx.Expect do
   end
 
   @doc "Like `not_to_be_enabled/2`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
-  @spec not_to_be_enabled!(PlaywrightEx.Locator.t(), not_to_be_enabled_options()) :: :ok
+  @spec not_to_be_enabled!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), not_to_be_enabled_options()) :: :ok
   def not_to_be_enabled!(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToBeEnabled")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeEnabled")
     options = Facade.options!(options, @not_to_be_enabled_options, "expect.notToBeEnabled")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeEnabled",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_enabled/3
       ).([options])
@@ -894,13 +920,13 @@ defmodule PlaywrightEx.Expect do
   @spec to_be_focused(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_focused_options()) ::
           :ok | {:error, PlaywrightEx.error()}
   def to_be_focused(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toBeFocused")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toBeFocused")
     options = Facade.options!(options, @to_be_focused_options, "expect.toBeFocused")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeFocused",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_focused/3
       ).([options])
@@ -910,13 +936,13 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `to_be_focused/2`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
   @spec to_be_focused!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_focused_options()) :: :ok
   def to_be_focused!(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toBeFocused")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toBeFocused")
     options = Facade.options!(options, @to_be_focused_options, "expect.toBeFocused")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeFocused",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_focused/3
       ).([options])
@@ -947,15 +973,16 @@ defmodule PlaywrightEx.Expect do
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
-  @spec not_to_be_focused(PlaywrightEx.Locator.t(), not_to_be_focused_options()) :: :ok | {:error, PlaywrightEx.error()}
+  @spec not_to_be_focused(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), not_to_be_focused_options()) ::
+          :ok | {:error, PlaywrightEx.error()}
   def not_to_be_focused(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToBeFocused")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeFocused")
     options = Facade.options!(options, @not_to_be_focused_options, "expect.notToBeFocused")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeFocused",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_focused/3
       ).([options])
@@ -963,15 +990,15 @@ defmodule PlaywrightEx.Expect do
   end
 
   @doc "Like `not_to_be_focused/2`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
-  @spec not_to_be_focused!(PlaywrightEx.Locator.t(), not_to_be_focused_options()) :: :ok
+  @spec not_to_be_focused!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), not_to_be_focused_options()) :: :ok
   def not_to_be_focused!(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToBeFocused")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeFocused")
     options = Facade.options!(options, @not_to_be_focused_options, "expect.notToBeFocused")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeFocused",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_focused/3
       ).([options])
@@ -1012,13 +1039,13 @@ defmodule PlaywrightEx.Expect do
   @spec to_be_hidden(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_hidden_options()) ::
           :ok | {:error, PlaywrightEx.error()}
   def to_be_hidden(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toBeHidden")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toBeHidden")
     options = Facade.options!(options, @to_be_hidden_options, "expect.toBeHidden")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeHidden",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_hidden/3
       ).([options])
@@ -1028,13 +1055,13 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `to_be_hidden/2`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
   @spec to_be_hidden!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_hidden_options()) :: :ok
   def to_be_hidden!(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toBeHidden")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toBeHidden")
     options = Facade.options!(options, @to_be_hidden_options, "expect.toBeHidden")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeHidden",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_hidden/3
       ).([options])
@@ -1065,15 +1092,16 @@ defmodule PlaywrightEx.Expect do
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
-  @spec not_to_be_hidden(PlaywrightEx.Locator.t(), not_to_be_hidden_options()) :: :ok | {:error, PlaywrightEx.error()}
+  @spec not_to_be_hidden(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), not_to_be_hidden_options()) ::
+          :ok | {:error, PlaywrightEx.error()}
   def not_to_be_hidden(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToBeHidden")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeHidden")
     options = Facade.options!(options, @not_to_be_hidden_options, "expect.notToBeHidden")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeHidden",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_hidden/3
       ).([options])
@@ -1081,15 +1109,15 @@ defmodule PlaywrightEx.Expect do
   end
 
   @doc "Like `not_to_be_hidden/2`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
-  @spec not_to_be_hidden!(PlaywrightEx.Locator.t(), not_to_be_hidden_options()) :: :ok
+  @spec not_to_be_hidden!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), not_to_be_hidden_options()) :: :ok
   def not_to_be_hidden!(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToBeHidden")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeHidden")
     options = Facade.options!(options, @not_to_be_hidden_options, "expect.notToBeHidden")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeHidden",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_hidden/3
       ).([options])
@@ -1141,13 +1169,13 @@ defmodule PlaywrightEx.Expect do
   @spec to_be_in_viewport(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_in_viewport_options()) ::
           :ok | {:error, PlaywrightEx.error()}
   def to_be_in_viewport(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toBeInViewport")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toBeInViewport")
     options = Facade.options!(options, @to_be_in_viewport_options, "expect.toBeInViewport")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeInViewport",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_in_viewport/3
       ).([options])
@@ -1157,13 +1185,13 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `to_be_in_viewport/2`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
   @spec to_be_in_viewport!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_in_viewport_options()) :: :ok
   def to_be_in_viewport!(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toBeInViewport")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toBeInViewport")
     options = Facade.options!(options, @to_be_in_viewport_options, "expect.toBeInViewport")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeInViewport",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_in_viewport/3
       ).([options])
@@ -1200,16 +1228,16 @@ defmodule PlaywrightEx.Expect do
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
-  @spec not_to_be_in_viewport(PlaywrightEx.Locator.t(), not_to_be_in_viewport_options()) ::
+  @spec not_to_be_in_viewport(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), not_to_be_in_viewport_options()) ::
           :ok | {:error, PlaywrightEx.error()}
   def not_to_be_in_viewport(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToBeInViewport")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeInViewport")
     options = Facade.options!(options, @not_to_be_in_viewport_options, "expect.notToBeInViewport")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeInViewport",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_in_viewport/3
       ).([options])
@@ -1217,15 +1245,16 @@ defmodule PlaywrightEx.Expect do
   end
 
   @doc "Like `not_to_be_in_viewport/2`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
-  @spec not_to_be_in_viewport!(PlaywrightEx.Locator.t(), not_to_be_in_viewport_options()) :: :ok
+  @spec not_to_be_in_viewport!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), not_to_be_in_viewport_options()) ::
+          :ok
   def not_to_be_in_viewport!(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToBeInViewport")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeInViewport")
     options = Facade.options!(options, @not_to_be_in_viewport_options, "expect.notToBeInViewport")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeInViewport",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_in_viewport/3
       ).([options])
@@ -1282,13 +1311,13 @@ defmodule PlaywrightEx.Expect do
   @spec to_be_visible(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_visible_options()) ::
           :ok | {:error, PlaywrightEx.error()}
   def to_be_visible(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toBeVisible")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toBeVisible")
     options = Facade.options!(options, @to_be_visible_options, "expect.toBeVisible")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeVisible",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_visible/3
       ).([options])
@@ -1298,13 +1327,13 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `to_be_visible/2`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
   @spec to_be_visible!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), to_be_visible_options()) :: :ok
   def to_be_visible!(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toBeVisible")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toBeVisible")
     options = Facade.options!(options, @to_be_visible_options, "expect.toBeVisible")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeVisible",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_visible/3
       ).([options])
@@ -1340,15 +1369,16 @@ defmodule PlaywrightEx.Expect do
     In Elixir, `:infinity` is the same as `0`: no timeout.
   * `:visible` (`t:boolean/0`) - *Since Playwright 1.26.*
   """
-  @spec not_to_be_visible(PlaywrightEx.Locator.t(), not_to_be_visible_options()) :: :ok | {:error, PlaywrightEx.error()}
+  @spec not_to_be_visible(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), not_to_be_visible_options()) ::
+          :ok | {:error, PlaywrightEx.error()}
   def not_to_be_visible(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToBeVisible")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeVisible")
     options = Facade.options!(options, @not_to_be_visible_options, "expect.notToBeVisible")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeVisible",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_visible/3
       ).([options])
@@ -1356,15 +1386,15 @@ defmodule PlaywrightEx.Expect do
   end
 
   @doc "Like `not_to_be_visible/2`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
-  @spec not_to_be_visible!(PlaywrightEx.Locator.t(), not_to_be_visible_options()) :: :ok
+  @spec not_to_be_visible!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), not_to_be_visible_options()) :: :ok
   def not_to_be_visible!(locator, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToBeVisible")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeVisible")
     options = Facade.options!(options, @not_to_be_visible_options, "expect.notToBeVisible")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeVisible",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_be_visible/3
       ).([options])
@@ -1433,13 +1463,13 @@ defmodule PlaywrightEx.Expect do
           to_contain_class_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def to_contain_class(locator, expected, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toContainClass")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toContainClass")
     options = Facade.options!(options, @to_contain_class_options, "expect.toContainClass")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toContainClass",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_contain_class/4
       ).([expected, options])
@@ -1453,13 +1483,13 @@ defmodule PlaywrightEx.Expect do
           to_contain_class_options()
         ) :: :ok
   def to_contain_class!(locator, expected, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toContainClass")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toContainClass")
     options = Facade.options!(options, @to_contain_class_options, "expect.toContainClass")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toContainClass",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_contain_class/4
       ).([expected, options])
@@ -1494,16 +1524,19 @@ defmodule PlaywrightEx.Expect do
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
-  @spec not_to_contain_class(PlaywrightEx.Locator.t(), String.t() | [String.t()], not_to_contain_class_options()) ::
-          :ok | {:error, PlaywrightEx.error()}
+  @spec not_to_contain_class(
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
+          String.t() | [String.t()],
+          not_to_contain_class_options()
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_contain_class(locator, expected, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToContainClass")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToContainClass")
     options = Facade.options!(options, @not_to_contain_class_options, "expect.notToContainClass")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toContainClass",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_contain_class/4
       ).([expected, options])
@@ -1511,16 +1544,19 @@ defmodule PlaywrightEx.Expect do
   end
 
   @doc "Like `not_to_contain_class/3`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
-  @spec not_to_contain_class!(PlaywrightEx.Locator.t(), String.t() | [String.t()], not_to_contain_class_options()) ::
-          :ok
+  @spec not_to_contain_class!(
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
+          String.t() | [String.t()],
+          not_to_contain_class_options()
+        ) :: :ok
   def not_to_contain_class!(locator, expected, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToContainClass")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToContainClass")
     options = Facade.options!(options, @not_to_contain_class_options, "expect.notToContainClass")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toContainClass",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_contain_class/4
       ).([expected, options])
@@ -1626,13 +1662,13 @@ defmodule PlaywrightEx.Expect do
           to_contain_text_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def to_contain_text(locator, expected, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toContainText")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toContainText")
     options = Facade.options!(options, @to_contain_text_options, "expect.toContainText")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toContainText",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_contain_text/4
       ).([expected, options])
@@ -1646,13 +1682,13 @@ defmodule PlaywrightEx.Expect do
           to_contain_text_options()
         ) :: :ok
   def to_contain_text!(locator, expected, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toContainText")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toContainText")
     options = Facade.options!(options, @to_contain_text_options, "expect.toContainText")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toContainText",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_contain_text/4
       ).([expected, options])
@@ -1706,18 +1742,18 @@ defmodule PlaywrightEx.Expect do
   * `:use_inner_text` (`t:boolean/0`) - Whether to use `element.innerText` instead of `element.textContent` when retrieving DOM node text.
   """
   @spec not_to_contain_text(
-          PlaywrightEx.Locator.t(),
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
           not_to_contain_text_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_contain_text(locator, expected, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToContainText")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToContainText")
     options = Facade.options!(options, @not_to_contain_text_options, "expect.notToContainText")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toContainText",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_contain_text/4
       ).([expected, options])
@@ -1726,18 +1762,18 @@ defmodule PlaywrightEx.Expect do
 
   @doc "Like `not_to_contain_text/3`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
   @spec not_to_contain_text!(
-          PlaywrightEx.Locator.t(),
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
           not_to_contain_text_options()
         ) :: :ok
   def not_to_contain_text!(locator, expected, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToContainText")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToContainText")
     options = Facade.options!(options, @not_to_contain_text_options, "expect.notToContainText")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toContainText",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_contain_text/4
       ).([expected, options])
@@ -1795,13 +1831,13 @@ defmodule PlaywrightEx.Expect do
           to_have_accessible_description_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def to_have_accessible_description(locator, description, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toHaveAccessibleDescription")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveAccessibleDescription")
     options = Facade.options!(options, @to_have_accessible_description_options, "expect.toHaveAccessibleDescription")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveAccessibleDescription",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_accessible_description/4
       ).([description, options])
@@ -1815,13 +1851,13 @@ defmodule PlaywrightEx.Expect do
           to_have_accessible_description_options()
         ) :: :ok
   def to_have_accessible_description!(locator, description, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toHaveAccessibleDescription")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveAccessibleDescription")
     options = Facade.options!(options, @to_have_accessible_description_options, "expect.toHaveAccessibleDescription")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveAccessibleDescription",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_accessible_description/4
       ).([description, options])
@@ -1867,12 +1903,12 @@ defmodule PlaywrightEx.Expect do
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec not_to_have_accessible_description(
-          PlaywrightEx.Locator.t(),
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           not_to_have_accessible_description_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_have_accessible_description(locator, description, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveAccessibleDescription")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveAccessibleDescription")
 
     options =
       Facade.options!(options, @not_to_have_accessible_description_options, "expect.notToHaveAccessibleDescription")
@@ -1880,7 +1916,7 @@ defmodule PlaywrightEx.Expect do
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveAccessibleDescription",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_accessible_description/4
       ).([description, options])
@@ -1889,12 +1925,12 @@ defmodule PlaywrightEx.Expect do
 
   @doc "Like `not_to_have_accessible_description/3`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
   @spec not_to_have_accessible_description!(
-          PlaywrightEx.Locator.t(),
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           not_to_have_accessible_description_options()
         ) :: :ok
   def not_to_have_accessible_description!(locator, description, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveAccessibleDescription")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveAccessibleDescription")
 
     options =
       Facade.options!(options, @not_to_have_accessible_description_options, "expect.notToHaveAccessibleDescription")
@@ -1902,7 +1938,7 @@ defmodule PlaywrightEx.Expect do
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveAccessibleDescription",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_accessible_description/4
       ).([description, options])
@@ -1960,13 +1996,13 @@ defmodule PlaywrightEx.Expect do
           to_have_accessible_error_message_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def to_have_accessible_error_message(locator, error_message, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toHaveAccessibleErrorMessage")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveAccessibleErrorMessage")
     options = Facade.options!(options, @to_have_accessible_error_message_options, "expect.toHaveAccessibleErrorMessage")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveAccessibleErrorMessage",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_accessible_error_message/4
       ).([error_message, options])
@@ -1980,13 +2016,13 @@ defmodule PlaywrightEx.Expect do
           to_have_accessible_error_message_options()
         ) :: :ok
   def to_have_accessible_error_message!(locator, error_message, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toHaveAccessibleErrorMessage")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveAccessibleErrorMessage")
     options = Facade.options!(options, @to_have_accessible_error_message_options, "expect.toHaveAccessibleErrorMessage")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveAccessibleErrorMessage",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_accessible_error_message/4
       ).([error_message, options])
@@ -2032,12 +2068,12 @@ defmodule PlaywrightEx.Expect do
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec not_to_have_accessible_error_message(
-          PlaywrightEx.Locator.t(),
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           not_to_have_accessible_error_message_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_have_accessible_error_message(locator, error_message, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveAccessibleErrorMessage")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveAccessibleErrorMessage")
 
     options =
       Facade.options!(options, @not_to_have_accessible_error_message_options, "expect.notToHaveAccessibleErrorMessage")
@@ -2045,7 +2081,7 @@ defmodule PlaywrightEx.Expect do
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveAccessibleErrorMessage",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_accessible_error_message/4
       ).([error_message, options])
@@ -2054,12 +2090,12 @@ defmodule PlaywrightEx.Expect do
 
   @doc "Like `not_to_have_accessible_error_message/3`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
   @spec not_to_have_accessible_error_message!(
-          PlaywrightEx.Locator.t(),
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           not_to_have_accessible_error_message_options()
         ) :: :ok
   def not_to_have_accessible_error_message!(locator, error_message, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveAccessibleErrorMessage")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveAccessibleErrorMessage")
 
     options =
       Facade.options!(options, @not_to_have_accessible_error_message_options, "expect.notToHaveAccessibleErrorMessage")
@@ -2067,7 +2103,7 @@ defmodule PlaywrightEx.Expect do
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveAccessibleErrorMessage",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_accessible_error_message/4
       ).([error_message, options])
@@ -2121,13 +2157,13 @@ defmodule PlaywrightEx.Expect do
           to_have_accessible_name_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def to_have_accessible_name(locator, name, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toHaveAccessibleName")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveAccessibleName")
     options = Facade.options!(options, @to_have_accessible_name_options, "expect.toHaveAccessibleName")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveAccessibleName",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_accessible_name/4
       ).([name, options])
@@ -2141,13 +2177,13 @@ defmodule PlaywrightEx.Expect do
           to_have_accessible_name_options()
         ) :: :ok
   def to_have_accessible_name!(locator, name, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toHaveAccessibleName")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveAccessibleName")
     options = Facade.options!(options, @to_have_accessible_name_options, "expect.toHaveAccessibleName")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveAccessibleName",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_accessible_name/4
       ).([name, options])
@@ -2193,18 +2229,18 @@ defmodule PlaywrightEx.Expect do
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec not_to_have_accessible_name(
-          PlaywrightEx.Locator.t(),
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           not_to_have_accessible_name_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_have_accessible_name(locator, name, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveAccessibleName")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveAccessibleName")
     options = Facade.options!(options, @not_to_have_accessible_name_options, "expect.notToHaveAccessibleName")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveAccessibleName",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_accessible_name/4
       ).([name, options])
@@ -2213,18 +2249,18 @@ defmodule PlaywrightEx.Expect do
 
   @doc "Like `not_to_have_accessible_name/3`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
   @spec not_to_have_accessible_name!(
-          PlaywrightEx.Locator.t(),
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           not_to_have_accessible_name_options()
         ) :: :ok
   def not_to_have_accessible_name!(locator, name, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveAccessibleName")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveAccessibleName")
     options = Facade.options!(options, @not_to_have_accessible_name_options, "expect.notToHaveAccessibleName")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveAccessibleName",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_accessible_name/4
       ).([name, options])
@@ -2300,13 +2336,13 @@ defmodule PlaywrightEx.Expect do
       do: to_have_attribute(locator, name, nil, options)
 
   def to_have_attribute(locator, name, value, options) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toHaveAttribute")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveAttribute")
     options = Facade.options!(options, @to_have_attribute_options, "expect.toHaveAttribute")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveAttribute",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_attribute/5
       ).([name, value, options])
@@ -2332,13 +2368,13 @@ defmodule PlaywrightEx.Expect do
       do: to_have_attribute!(locator, name, nil, options)
 
   def to_have_attribute!(locator, name, value, options) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toHaveAttribute")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveAttribute")
     options = Facade.options!(options, @to_have_attribute_options, "expect.toHaveAttribute")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveAttribute",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_attribute/5
       ).([name, value, options])
@@ -2383,13 +2419,13 @@ defmodule PlaywrightEx.Expect do
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec not_to_have_attribute(
-          PlaywrightEx.Locator.t(),
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | nil,
           not_to_have_attribute_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   @spec not_to_have_attribute(
-          PlaywrightEx.Locator.t(),
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | nil | not_to_have_attribute_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
@@ -2400,13 +2436,13 @@ defmodule PlaywrightEx.Expect do
       do: not_to_have_attribute(locator, name, nil, options)
 
   def not_to_have_attribute(locator, name, value, options) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveAttribute")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveAttribute")
     options = Facade.options!(options, @not_to_have_attribute_options, "expect.notToHaveAttribute")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveAttribute",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_attribute/5
       ).([name, value, options])
@@ -2415,13 +2451,13 @@ defmodule PlaywrightEx.Expect do
 
   @doc "Like `not_to_have_attribute/4`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
   @spec not_to_have_attribute!(
-          PlaywrightEx.Locator.t(),
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | nil,
           not_to_have_attribute_options()
         ) :: :ok
   @spec not_to_have_attribute!(
-          PlaywrightEx.Locator.t(),
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | nil | not_to_have_attribute_options()
         ) :: :ok
@@ -2432,13 +2468,13 @@ defmodule PlaywrightEx.Expect do
       do: not_to_have_attribute!(locator, name, nil, options)
 
   def not_to_have_attribute!(locator, name, value, options) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveAttribute")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveAttribute")
     options = Facade.options!(options, @not_to_have_attribute_options, "expect.notToHaveAttribute")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveAttribute",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_attribute/5
       ).([name, value, options])
@@ -2498,13 +2534,13 @@ defmodule PlaywrightEx.Expect do
           to_have_class_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def to_have_class(locator, expected, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toHaveClass")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveClass")
     options = Facade.options!(options, @to_have_class_options, "expect.toHaveClass")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveClass",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_class/4
       ).([expected, options])
@@ -2518,13 +2554,13 @@ defmodule PlaywrightEx.Expect do
           to_have_class_options()
         ) :: :ok
   def to_have_class!(locator, expected, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toHaveClass")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveClass")
     options = Facade.options!(options, @to_have_class_options, "expect.toHaveClass")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveClass",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_class/4
       ).([expected, options])
@@ -2560,18 +2596,18 @@ defmodule PlaywrightEx.Expect do
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec not_to_have_class(
-          PlaywrightEx.Locator.t(),
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
           not_to_have_class_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_have_class(locator, expected, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveClass")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveClass")
     options = Facade.options!(options, @not_to_have_class_options, "expect.notToHaveClass")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveClass",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_class/4
       ).([expected, options])
@@ -2580,18 +2616,18 @@ defmodule PlaywrightEx.Expect do
 
   @doc "Like `not_to_have_class/3`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
   @spec not_to_have_class!(
-          PlaywrightEx.Locator.t(),
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
           not_to_have_class_options()
         ) :: :ok
   def not_to_have_class!(locator, expected, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveClass")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveClass")
     options = Facade.options!(options, @not_to_have_class_options, "expect.notToHaveClass")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveClass",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_class/4
       ).([expected, options])
@@ -2636,13 +2672,13 @@ defmodule PlaywrightEx.Expect do
   @spec to_have_count(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), integer(), to_have_count_options()) ::
           :ok | {:error, PlaywrightEx.error()}
   def to_have_count(locator, count, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toHaveCount")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveCount")
     options = Facade.options!(options, @to_have_count_options, "expect.toHaveCount")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveCount",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_count/4
       ).([count, options])
@@ -2653,13 +2689,13 @@ defmodule PlaywrightEx.Expect do
   @spec to_have_count!(PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()), integer(), to_have_count_options()) ::
           :ok
   def to_have_count!(locator, count, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toHaveCount")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveCount")
     options = Facade.options!(options, @to_have_count_options, "expect.toHaveCount")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveCount",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_count/4
       ).([count, options])
@@ -2694,16 +2730,19 @@ defmodule PlaywrightEx.Expect do
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
-  @spec not_to_have_count(PlaywrightEx.Locator.t(), integer(), not_to_have_count_options()) ::
-          :ok | {:error, PlaywrightEx.error()}
+  @spec not_to_have_count(
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
+          integer(),
+          not_to_have_count_options()
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_have_count(locator, count, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveCount")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveCount")
     options = Facade.options!(options, @not_to_have_count_options, "expect.notToHaveCount")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveCount",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_count/4
       ).([count, options])
@@ -2711,15 +2750,19 @@ defmodule PlaywrightEx.Expect do
   end
 
   @doc "Like `not_to_have_count/3`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
-  @spec not_to_have_count!(PlaywrightEx.Locator.t(), integer(), not_to_have_count_options()) :: :ok
+  @spec not_to_have_count!(
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
+          integer(),
+          not_to_have_count_options()
+        ) :: :ok
   def not_to_have_count!(locator, count, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveCount")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveCount")
     options = Facade.options!(options, @not_to_have_count_options, "expect.notToHaveCount")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveCount",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_count/4
       ).([count, options])
@@ -2779,13 +2822,13 @@ defmodule PlaywrightEx.Expect do
           to_have_css_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def to_have_css(locator, name, value, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toHaveCSS")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveCSS")
     options = Facade.options!(options, @to_have_css_options, "expect.toHaveCSS")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveCSS",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_css/5
       ).([name, value, options])
@@ -2800,13 +2843,13 @@ defmodule PlaywrightEx.Expect do
           to_have_css_options()
         ) :: :ok
   def to_have_css!(locator, name, value, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toHaveCSS")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveCSS")
     options = Facade.options!(options, @to_have_css_options, "expect.toHaveCSS")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveCSS",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_css/5
       ).([name, value, options])
@@ -2853,19 +2896,19 @@ defmodule PlaywrightEx.Expect do
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec not_to_have_css(
-          PlaywrightEx.Locator.t(),
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           not_to_have_css_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_have_css(locator, name, value, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveCSS")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveCSS")
     options = Facade.options!(options, @not_to_have_css_options, "expect.notToHaveCSS")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveCSS",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_css/5
       ).([name, value, options])
@@ -2874,19 +2917,19 @@ defmodule PlaywrightEx.Expect do
 
   @doc "Like `not_to_have_css/4`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
   @spec not_to_have_css!(
-          PlaywrightEx.Locator.t(),
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t(),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           not_to_have_css_options()
         ) :: :ok
   def not_to_have_css!(locator, name, value, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveCSS")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveCSS")
     options = Facade.options!(options, @not_to_have_css_options, "expect.notToHaveCSS")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveCSS",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_css/5
       ).([name, value, options])
@@ -2934,13 +2977,13 @@ defmodule PlaywrightEx.Expect do
           to_have_id_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def to_have_id(locator, id, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toHaveId")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveId")
     options = Facade.options!(options, @to_have_id_options, "expect.toHaveId")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveId",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_id/4
       ).([id, options])
@@ -2954,13 +2997,13 @@ defmodule PlaywrightEx.Expect do
           to_have_id_options()
         ) :: :ok
   def to_have_id!(locator, id, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toHaveId")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveId")
     options = Facade.options!(options, @to_have_id_options, "expect.toHaveId")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveId",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_id/4
       ).([id, options])
@@ -2996,18 +3039,18 @@ defmodule PlaywrightEx.Expect do
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec not_to_have_id(
-          PlaywrightEx.Locator.t(),
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           not_to_have_id_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_have_id(locator, id, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveId")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveId")
     options = Facade.options!(options, @not_to_have_id_options, "expect.notToHaveId")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveId",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_id/4
       ).([id, options])
@@ -3016,18 +3059,18 @@ defmodule PlaywrightEx.Expect do
 
   @doc "Like `not_to_have_id/3`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
   @spec not_to_have_id!(
-          PlaywrightEx.Locator.t(),
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           not_to_have_id_options()
         ) :: :ok
   def not_to_have_id!(locator, id, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveId")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveId")
     options = Facade.options!(options, @not_to_have_id_options, "expect.notToHaveId")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveId",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_id/4
       ).([id, options])
@@ -3078,13 +3121,13 @@ defmodule PlaywrightEx.Expect do
           to_have_js_property_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def to_have_js_property(locator, name, value, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toHaveJSProperty")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveJSProperty")
     options = Facade.options!(options, @to_have_js_property_options, "expect.toHaveJSProperty")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveJSProperty",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_js_property/5
       ).([name, value, options])
@@ -3099,13 +3142,13 @@ defmodule PlaywrightEx.Expect do
           to_have_js_property_options()
         ) :: :ok
   def to_have_js_property!(locator, name, value, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toHaveJSProperty")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveJSProperty")
     options = Facade.options!(options, @to_have_js_property_options, "expect.toHaveJSProperty")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveJSProperty",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_js_property/5
       ).([name, value, options])
@@ -3141,16 +3184,20 @@ defmodule PlaywrightEx.Expect do
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
-  @spec not_to_have_js_property(PlaywrightEx.Locator.t(), String.t(), term(), not_to_have_js_property_options()) ::
-          :ok | {:error, PlaywrightEx.error()}
+  @spec not_to_have_js_property(
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
+          String.t(),
+          term(),
+          not_to_have_js_property_options()
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_have_js_property(locator, name, value, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveJSProperty")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveJSProperty")
     options = Facade.options!(options, @not_to_have_js_property_options, "expect.notToHaveJSProperty")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveJSProperty",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_js_property/5
       ).([name, value, options])
@@ -3158,15 +3205,20 @@ defmodule PlaywrightEx.Expect do
   end
 
   @doc "Like `not_to_have_js_property/4`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
-  @spec not_to_have_js_property!(PlaywrightEx.Locator.t(), String.t(), term(), not_to_have_js_property_options()) :: :ok
+  @spec not_to_have_js_property!(
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
+          String.t(),
+          term(),
+          not_to_have_js_property_options()
+        ) :: :ok
   def not_to_have_js_property!(locator, name, value, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveJSProperty")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveJSProperty")
     options = Facade.options!(options, @not_to_have_js_property_options, "expect.notToHaveJSProperty")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveJSProperty",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_js_property/5
       ).([name, value, options])
@@ -3382,14 +3434,14 @@ defmodule PlaywrightEx.Expect do
           to_have_role_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def to_have_role(locator, role, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toHaveRole")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveRole")
     role = Facade.arg!(role, @to_have_role_role, "expect.toHaveRole")
     options = Facade.options!(options, @to_have_role_options, "expect.toHaveRole")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveRole",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_role/4
       ).([role, options])
@@ -3484,14 +3536,14 @@ defmodule PlaywrightEx.Expect do
           to_have_role_options()
         ) :: :ok
   def to_have_role!(locator, role, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toHaveRole")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveRole")
     role = Facade.arg!(role, @to_have_role_role, "expect.toHaveRole")
     options = Facade.options!(options, @to_have_role_options, "expect.toHaveRole")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveRole",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_role/4
       ).([role, options])
@@ -3612,7 +3664,7 @@ defmodule PlaywrightEx.Expect do
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec not_to_have_role(
-          PlaywrightEx.Locator.t(),
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           :alert
           | :alertdialog
           | :application
@@ -3698,14 +3750,14 @@ defmodule PlaywrightEx.Expect do
           not_to_have_role_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_have_role(locator, role, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveRole")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveRole")
     role = Facade.arg!(role, @not_to_have_role_role, "expect.notToHaveRole")
     options = Facade.options!(options, @not_to_have_role_options, "expect.notToHaveRole")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveRole",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_role/4
       ).([role, options])
@@ -3714,7 +3766,7 @@ defmodule PlaywrightEx.Expect do
 
   @doc "Like `not_to_have_role/3`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
   @spec not_to_have_role!(
-          PlaywrightEx.Locator.t(),
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           :alert
           | :alertdialog
           | :application
@@ -3800,14 +3852,14 @@ defmodule PlaywrightEx.Expect do
           not_to_have_role_options()
         ) :: :ok
   def not_to_have_role!(locator, role, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveRole")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveRole")
     role = Facade.arg!(role, @not_to_have_role_role, "expect.notToHaveRole")
     options = Facade.options!(options, @not_to_have_role_options, "expect.notToHaveRole")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveRole",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_role/4
       ).([role, options])
@@ -3938,13 +3990,13 @@ defmodule PlaywrightEx.Expect do
           to_have_screenshot_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def to_have_screenshot(locator_or_page, options \\ []) do
-    {locator_or_page, is_not} = Facade.negated(locator_or_page, false, "expect.toHaveScreenshot")
+    {locator_or_page, info} = Facade.matcher_info(locator_or_page, false, "expect.toHaveScreenshot")
     options = Facade.options!(options, @to_have_screenshot_options, "expect.toHaveScreenshot")
 
     Facade.matcher(locator_or_page, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveScreenshot",
-        %{isNot: is_not},
+        info,
         locator_or_page,
         &PlaywrightEx.Matchers.ToMatchSnapshot.to_have_screenshot/3
       ).([options])
@@ -3957,13 +4009,13 @@ defmodule PlaywrightEx.Expect do
           to_have_screenshot_options()
         ) :: :ok
   def to_have_screenshot!(locator_or_page, options \\ []) do
-    {locator_or_page, is_not} = Facade.negated(locator_or_page, false, "expect.toHaveScreenshot")
+    {locator_or_page, info} = Facade.matcher_info(locator_or_page, false, "expect.toHaveScreenshot")
     options = Facade.options!(options, @to_have_screenshot_options, "expect.toHaveScreenshot")
 
     Facade.matcher!(locator_or_page, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveScreenshot",
-        %{isNot: is_not},
+        info,
         locator_or_page,
         &PlaywrightEx.Matchers.ToMatchSnapshot.to_have_screenshot/3
       ).([options])
@@ -4079,16 +4131,18 @@ defmodule PlaywrightEx.Expect do
   * `:full_page` (`t:boolean/0`) - When true, takes a screenshot of the full scrollable page, instead of the currently visible viewport. Defaults to
     `false`.
   """
-  @spec not_to_have_screenshot(PlaywrightEx.Locator.t() | PlaywrightEx.Page.t(), not_to_have_screenshot_options()) ::
-          :ok | {:error, PlaywrightEx.error()}
+  @spec not_to_have_screenshot(
+          PlaywrightEx.Locator.t() | PlaywrightEx.Page.t() | t(PlaywrightEx.Locator.t() | PlaywrightEx.Page.t()),
+          not_to_have_screenshot_options()
+        ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_have_screenshot(locator_or_page, options \\ []) do
-    {locator_or_page, is_not} = Facade.negated(locator_or_page, true, "expect.notToHaveScreenshot")
+    {locator_or_page, info} = Facade.matcher_info(locator_or_page, true, "expect.notToHaveScreenshot")
     options = Facade.options!(options, @not_to_have_screenshot_options, "expect.notToHaveScreenshot")
 
     Facade.matcher(locator_or_page, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveScreenshot",
-        %{isNot: is_not},
+        info,
         locator_or_page,
         &PlaywrightEx.Matchers.ToMatchSnapshot.to_have_screenshot/3
       ).([options])
@@ -4096,16 +4150,18 @@ defmodule PlaywrightEx.Expect do
   end
 
   @doc "Like `not_to_have_screenshot/2`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
-  @spec not_to_have_screenshot!(PlaywrightEx.Locator.t() | PlaywrightEx.Page.t(), not_to_have_screenshot_options()) ::
-          :ok
+  @spec not_to_have_screenshot!(
+          PlaywrightEx.Locator.t() | PlaywrightEx.Page.t() | t(PlaywrightEx.Locator.t() | PlaywrightEx.Page.t()),
+          not_to_have_screenshot_options()
+        ) :: :ok
   def not_to_have_screenshot!(locator_or_page, options \\ []) do
-    {locator_or_page, is_not} = Facade.negated(locator_or_page, true, "expect.notToHaveScreenshot")
+    {locator_or_page, info} = Facade.matcher_info(locator_or_page, true, "expect.notToHaveScreenshot")
     options = Facade.options!(options, @not_to_have_screenshot_options, "expect.notToHaveScreenshot")
 
     Facade.matcher!(locator_or_page, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveScreenshot",
-        %{isNot: is_not},
+        info,
         locator_or_page,
         &PlaywrightEx.Matchers.ToMatchSnapshot.to_have_screenshot/3
       ).([options])
@@ -4209,13 +4265,13 @@ defmodule PlaywrightEx.Expect do
           to_have_text_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def to_have_text(locator, expected, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toHaveText")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveText")
     options = Facade.options!(options, @to_have_text_options, "expect.toHaveText")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveText",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_text/4
       ).([expected, options])
@@ -4229,13 +4285,13 @@ defmodule PlaywrightEx.Expect do
           to_have_text_options()
         ) :: :ok
   def to_have_text!(locator, expected, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toHaveText")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveText")
     options = Facade.options!(options, @to_have_text_options, "expect.toHaveText")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveText",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_text/4
       ).([expected, options])
@@ -4289,18 +4345,18 @@ defmodule PlaywrightEx.Expect do
   * `:use_inner_text` (`t:boolean/0`) - Whether to use `element.innerText` instead of `element.textContent` when retrieving DOM node text.
   """
   @spec not_to_have_text(
-          PlaywrightEx.Locator.t(),
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
           not_to_have_text_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_have_text(locator, expected, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveText")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveText")
     options = Facade.options!(options, @not_to_have_text_options, "expect.notToHaveText")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveText",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_text/4
       ).([expected, options])
@@ -4309,18 +4365,18 @@ defmodule PlaywrightEx.Expect do
 
   @doc "Like `not_to_have_text/3`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
   @spec not_to_have_text!(
-          PlaywrightEx.Locator.t(),
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
           not_to_have_text_options()
         ) :: :ok
   def not_to_have_text!(locator, expected, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveText")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveText")
     options = Facade.options!(options, @not_to_have_text_options, "expect.notToHaveText")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveText",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_text/4
       ).([expected, options])
@@ -4368,13 +4424,13 @@ defmodule PlaywrightEx.Expect do
           to_have_value_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def to_have_value(locator, value, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toHaveValue")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveValue")
     options = Facade.options!(options, @to_have_value_options, "expect.toHaveValue")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveValue",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_value/4
       ).([value, options])
@@ -4388,13 +4444,13 @@ defmodule PlaywrightEx.Expect do
           to_have_value_options()
         ) :: :ok
   def to_have_value!(locator, value, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toHaveValue")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveValue")
     options = Facade.options!(options, @to_have_value_options, "expect.toHaveValue")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveValue",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_value/4
       ).([value, options])
@@ -4430,18 +4486,18 @@ defmodule PlaywrightEx.Expect do
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec not_to_have_value(
-          PlaywrightEx.Locator.t(),
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           not_to_have_value_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_have_value(locator, value, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveValue")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveValue")
     options = Facade.options!(options, @not_to_have_value_options, "expect.notToHaveValue")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveValue",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_value/4
       ).([value, options])
@@ -4450,18 +4506,18 @@ defmodule PlaywrightEx.Expect do
 
   @doc "Like `not_to_have_value/3`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
   @spec not_to_have_value!(
-          PlaywrightEx.Locator.t(),
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           not_to_have_value_options()
         ) :: :ok
   def not_to_have_value!(locator, value, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveValue")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveValue")
     options = Facade.options!(options, @not_to_have_value_options, "expect.notToHaveValue")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveValue",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_value/4
       ).([value, options])
@@ -4520,13 +4576,13 @@ defmodule PlaywrightEx.Expect do
           to_have_values_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def to_have_values(locator, values, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toHaveValues")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveValues")
     options = Facade.options!(options, @to_have_values_options, "expect.toHaveValues")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveValues",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_values/4
       ).([values, options])
@@ -4540,13 +4596,13 @@ defmodule PlaywrightEx.Expect do
           to_have_values_options()
         ) :: :ok
   def to_have_values!(locator, values, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, false, "expect.toHaveValues")
+    {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveValues")
     options = Facade.options!(options, @to_have_values_options, "expect.toHaveValues")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveValues",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_values/4
       ).([values, options])
@@ -4582,18 +4638,18 @@ defmodule PlaywrightEx.Expect do
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec not_to_have_values(
-          PlaywrightEx.Locator.t(),
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
           not_to_have_values_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_have_values(locator, values, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveValues")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveValues")
     options = Facade.options!(options, @not_to_have_values_options, "expect.notToHaveValues")
 
     Facade.matcher(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveValues",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_values/4
       ).([values, options])
@@ -4602,18 +4658,18 @@ defmodule PlaywrightEx.Expect do
 
   @doc "Like `not_to_have_values/3`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
   @spec not_to_have_values!(
-          PlaywrightEx.Locator.t(),
+          PlaywrightEx.Locator.t() | t(PlaywrightEx.Locator.t()),
           [String.t() | Regex.t() | PlaywrightEx.RegExp.t()],
           not_to_have_values_options()
         ) :: :ok
   def not_to_have_values!(locator, values, options \\ []) do
-    {locator, is_not} = Facade.negated(locator, true, "expect.notToHaveValues")
+    {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveValues")
     options = Facade.options!(options, @not_to_have_values_options, "expect.notToHaveValues")
 
     Facade.matcher!(locator, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveValues",
-        %{isNot: is_not},
+        info,
         locator,
         &PlaywrightEx.Matchers.Matchers.to_have_values/4
       ).([values, options])
@@ -4655,13 +4711,13 @@ defmodule PlaywrightEx.Expect do
       do: to_match_aria_snapshot(locator_or_page, nil, options)
 
   def to_match_aria_snapshot(locator_or_page, expected, options) do
-    {locator_or_page, is_not} = Facade.negated(locator_or_page, false, "expect.toMatchAriaSnapshot")
+    {locator_or_page, info} = Facade.matcher_info(locator_or_page, false, "expect.toMatchAriaSnapshot")
     options = Facade.options!(options, @to_match_aria_snapshot_options, "expect.toMatchAriaSnapshot")
 
     Facade.matcher(locator_or_page, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toMatchAriaSnapshot",
-        %{isNot: is_not},
+        info,
         locator_or_page,
         &PlaywrightEx.Matchers.ToMatchAriaSnapshot.to_match_aria_snapshot/4
       ).([expected, options])
@@ -4685,13 +4741,13 @@ defmodule PlaywrightEx.Expect do
       do: to_match_aria_snapshot!(locator_or_page, nil, options)
 
   def to_match_aria_snapshot!(locator_or_page, expected, options) do
-    {locator_or_page, is_not} = Facade.negated(locator_or_page, false, "expect.toMatchAriaSnapshot")
+    {locator_or_page, info} = Facade.matcher_info(locator_or_page, false, "expect.toMatchAriaSnapshot")
     options = Facade.options!(options, @to_match_aria_snapshot_options, "expect.toMatchAriaSnapshot")
 
     Facade.matcher!(locator_or_page, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toMatchAriaSnapshot",
-        %{isNot: is_not},
+        info,
         locator_or_page,
         &PlaywrightEx.Matchers.ToMatchAriaSnapshot.to_match_aria_snapshot/4
       ).([expected, options])
@@ -4740,12 +4796,12 @@ defmodule PlaywrightEx.Expect do
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec not_to_match_aria_snapshot(
-          PlaywrightEx.Locator.t() | PlaywrightEx.Page.t(),
+          PlaywrightEx.Locator.t() | PlaywrightEx.Page.t() | t(PlaywrightEx.Locator.t() | PlaywrightEx.Page.t()),
           String.t() | nil,
           not_to_match_aria_snapshot_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   @spec not_to_match_aria_snapshot(
-          PlaywrightEx.Locator.t() | PlaywrightEx.Page.t(),
+          PlaywrightEx.Locator.t() | PlaywrightEx.Page.t() | t(PlaywrightEx.Locator.t() | PlaywrightEx.Page.t()),
           String.t() | nil | not_to_match_aria_snapshot_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_match_aria_snapshot(locator_or_page, expected \\ nil, options \\ [])
@@ -4755,13 +4811,13 @@ defmodule PlaywrightEx.Expect do
       do: not_to_match_aria_snapshot(locator_or_page, nil, options)
 
   def not_to_match_aria_snapshot(locator_or_page, expected, options) do
-    {locator_or_page, is_not} = Facade.negated(locator_or_page, true, "expect.notToMatchAriaSnapshot")
+    {locator_or_page, info} = Facade.matcher_info(locator_or_page, true, "expect.notToMatchAriaSnapshot")
     options = Facade.options!(options, @not_to_match_aria_snapshot_options, "expect.notToMatchAriaSnapshot")
 
     Facade.matcher(locator_or_page, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toMatchAriaSnapshot",
-        %{isNot: is_not},
+        info,
         locator_or_page,
         &PlaywrightEx.Matchers.ToMatchAriaSnapshot.to_match_aria_snapshot/4
       ).([expected, options])
@@ -4770,12 +4826,12 @@ defmodule PlaywrightEx.Expect do
 
   @doc "Like `not_to_match_aria_snapshot/3`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
   @spec not_to_match_aria_snapshot!(
-          PlaywrightEx.Locator.t() | PlaywrightEx.Page.t(),
+          PlaywrightEx.Locator.t() | PlaywrightEx.Page.t() | t(PlaywrightEx.Locator.t() | PlaywrightEx.Page.t()),
           String.t() | nil,
           not_to_match_aria_snapshot_options()
         ) :: :ok
   @spec not_to_match_aria_snapshot!(
-          PlaywrightEx.Locator.t() | PlaywrightEx.Page.t(),
+          PlaywrightEx.Locator.t() | PlaywrightEx.Page.t() | t(PlaywrightEx.Locator.t() | PlaywrightEx.Page.t()),
           String.t() | nil | not_to_match_aria_snapshot_options()
         ) :: :ok
   def not_to_match_aria_snapshot!(locator_or_page, expected \\ nil, options \\ [])
@@ -4785,13 +4841,13 @@ defmodule PlaywrightEx.Expect do
       do: not_to_match_aria_snapshot!(locator_or_page, nil, options)
 
   def not_to_match_aria_snapshot!(locator_or_page, expected, options) do
-    {locator_or_page, is_not} = Facade.negated(locator_or_page, true, "expect.notToMatchAriaSnapshot")
+    {locator_or_page, info} = Facade.matcher_info(locator_or_page, true, "expect.notToMatchAriaSnapshot")
     options = Facade.options!(options, @not_to_match_aria_snapshot_options, "expect.notToMatchAriaSnapshot")
 
     Facade.matcher!(locator_or_page, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toMatchAriaSnapshot",
-        %{isNot: is_not},
+        info,
         locator_or_page,
         &PlaywrightEx.Matchers.ToMatchAriaSnapshot.to_match_aria_snapshot/4
       ).([expected, options])
@@ -4811,12 +4867,12 @@ defmodule PlaywrightEx.Expect do
   """
   @spec to_be_ok(PlaywrightEx.APIResponse.t() | t(PlaywrightEx.APIResponse.t())) :: :ok | {:error, PlaywrightEx.error()}
   def to_be_ok(api_response) do
-    {api_response, is_not} = Facade.negated(api_response, false, "expect.toBeOK")
+    {api_response, info} = Facade.matcher_info(api_response, false, "expect.toBeOK")
 
     Facade.matcher(api_response, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeOK",
-        %{isNot: is_not},
+        info,
         api_response,
         &PlaywrightEx.Matchers.Matchers.to_be_ok/2
       ).([])
@@ -4826,12 +4882,12 @@ defmodule PlaywrightEx.Expect do
   @doc "Like `to_be_ok/1`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
   @spec to_be_ok!(PlaywrightEx.APIResponse.t() | t(PlaywrightEx.APIResponse.t())) :: :ok
   def to_be_ok!(api_response) do
-    {api_response, is_not} = Facade.negated(api_response, false, "expect.toBeOK")
+    {api_response, info} = Facade.matcher_info(api_response, false, "expect.toBeOK")
 
     Facade.matcher!(api_response, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeOK",
-        %{isNot: is_not},
+        info,
         api_response,
         &PlaywrightEx.Matchers.Matchers.to_be_ok/2
       ).([])
@@ -4843,14 +4899,15 @@ defmodule PlaywrightEx.Expect do
 
   *Since Playwright 1.18.*
   """
-  @spec not_to_be_ok(PlaywrightEx.APIResponse.t()) :: :ok | {:error, PlaywrightEx.error()}
+  @spec not_to_be_ok(PlaywrightEx.APIResponse.t() | t(PlaywrightEx.APIResponse.t())) ::
+          :ok | {:error, PlaywrightEx.error()}
   def not_to_be_ok(api_response) do
-    {api_response, is_not} = Facade.negated(api_response, true, "expect.notToBeOK")
+    {api_response, info} = Facade.matcher_info(api_response, true, "expect.notToBeOK")
 
     Facade.matcher(api_response, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeOK",
-        %{isNot: is_not},
+        info,
         api_response,
         &PlaywrightEx.Matchers.Matchers.to_be_ok/2
       ).([])
@@ -4858,14 +4915,14 @@ defmodule PlaywrightEx.Expect do
   end
 
   @doc "Like `not_to_be_ok/1`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
-  @spec not_to_be_ok!(PlaywrightEx.APIResponse.t()) :: :ok
+  @spec not_to_be_ok!(PlaywrightEx.APIResponse.t() | t(PlaywrightEx.APIResponse.t())) :: :ok
   def not_to_be_ok!(api_response) do
-    {api_response, is_not} = Facade.negated(api_response, true, "expect.notToBeOK")
+    {api_response, info} = Facade.matcher_info(api_response, true, "expect.notToBeOK")
 
     Facade.matcher!(api_response, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toBeOK",
-        %{isNot: is_not},
+        info,
         api_response,
         &PlaywrightEx.Matchers.Matchers.to_be_ok/2
       ).([])
@@ -4912,13 +4969,13 @@ defmodule PlaywrightEx.Expect do
           to_have_title_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def to_have_title(page, title_or_reg_exp, options \\ []) do
-    {page, is_not} = Facade.negated(page, false, "expect.toHaveTitle")
+    {page, info} = Facade.matcher_info(page, false, "expect.toHaveTitle")
     options = Facade.options!(options, @to_have_title_options, "expect.toHaveTitle")
 
     Facade.matcher(page, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveTitle",
-        %{isNot: is_not},
+        info,
         page,
         &PlaywrightEx.Matchers.Matchers.to_have_title/4
       ).([title_or_reg_exp, options])
@@ -4932,13 +4989,13 @@ defmodule PlaywrightEx.Expect do
           to_have_title_options()
         ) :: :ok
   def to_have_title!(page, title_or_reg_exp, options \\ []) do
-    {page, is_not} = Facade.negated(page, false, "expect.toHaveTitle")
+    {page, info} = Facade.matcher_info(page, false, "expect.toHaveTitle")
     options = Facade.options!(options, @to_have_title_options, "expect.toHaveTitle")
 
     Facade.matcher!(page, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveTitle",
-        %{isNot: is_not},
+        info,
         page,
         &PlaywrightEx.Matchers.Matchers.to_have_title/4
       ).([title_or_reg_exp, options])
@@ -4974,18 +5031,18 @@ defmodule PlaywrightEx.Expect do
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec not_to_have_title(
-          PlaywrightEx.Page.t(),
+          PlaywrightEx.Page.t() | t(PlaywrightEx.Page.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           not_to_have_title_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_have_title(page, title_or_reg_exp, options \\ []) do
-    {page, is_not} = Facade.negated(page, true, "expect.notToHaveTitle")
+    {page, info} = Facade.matcher_info(page, true, "expect.notToHaveTitle")
     options = Facade.options!(options, @not_to_have_title_options, "expect.notToHaveTitle")
 
     Facade.matcher(page, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveTitle",
-        %{isNot: is_not},
+        info,
         page,
         &PlaywrightEx.Matchers.Matchers.to_have_title/4
       ).([title_or_reg_exp, options])
@@ -4994,18 +5051,18 @@ defmodule PlaywrightEx.Expect do
 
   @doc "Like `not_to_have_title/3`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
   @spec not_to_have_title!(
-          PlaywrightEx.Page.t(),
+          PlaywrightEx.Page.t() | t(PlaywrightEx.Page.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t(),
           not_to_have_title_options()
         ) :: :ok
   def not_to_have_title!(page, title_or_reg_exp, options \\ []) do
-    {page, is_not} = Facade.negated(page, true, "expect.notToHaveTitle")
+    {page, info} = Facade.matcher_info(page, true, "expect.notToHaveTitle")
     options = Facade.options!(options, @not_to_have_title_options, "expect.notToHaveTitle")
 
     Facade.matcher!(page, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveTitle",
-        %{isNot: is_not},
+        info,
         page,
         &PlaywrightEx.Matchers.Matchers.to_have_title/4
       ).([title_or_reg_exp, options])
@@ -5072,13 +5129,13 @@ defmodule PlaywrightEx.Expect do
           to_have_url_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def to_have_url(page, url, options \\ []) do
-    {page, is_not} = Facade.negated(page, false, "expect.toHaveURL")
+    {page, info} = Facade.matcher_info(page, false, "expect.toHaveURL")
     options = Facade.options!(options, @to_have_url_options, "expect.toHaveURL")
 
     Facade.matcher(page, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveURL",
-        %{isNot: is_not},
+        info,
         page,
         &PlaywrightEx.Matchers.Matchers.to_have_url/4
       ).([url, options])
@@ -5092,13 +5149,13 @@ defmodule PlaywrightEx.Expect do
           to_have_url_options()
         ) :: :ok
   def to_have_url!(page, url, options \\ []) do
-    {page, is_not} = Facade.negated(page, false, "expect.toHaveURL")
+    {page, info} = Facade.matcher_info(page, false, "expect.toHaveURL")
     options = Facade.options!(options, @to_have_url_options, "expect.toHaveURL")
 
     Facade.matcher!(page, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveURL",
-        %{isNot: is_not},
+        info,
         page,
         &PlaywrightEx.Matchers.Matchers.to_have_url/4
       ).([url, options])
@@ -5141,18 +5198,18 @@ defmodule PlaywrightEx.Expect do
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec not_to_have_url(
-          PlaywrightEx.Page.t(),
+          PlaywrightEx.Page.t() | t(PlaywrightEx.Page.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
           not_to_have_url_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def not_to_have_url(page, url, options \\ []) do
-    {page, is_not} = Facade.negated(page, true, "expect.notToHaveURL")
+    {page, info} = Facade.matcher_info(page, true, "expect.notToHaveURL")
     options = Facade.options!(options, @not_to_have_url_options, "expect.notToHaveURL")
 
     Facade.matcher(page, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveURL",
-        %{isNot: is_not},
+        info,
         page,
         &PlaywrightEx.Matchers.Matchers.to_have_url/4
       ).([url, options])
@@ -5161,18 +5218,18 @@ defmodule PlaywrightEx.Expect do
 
   @doc "Like `not_to_have_url/3`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
   @spec not_to_have_url!(
-          PlaywrightEx.Page.t(),
+          PlaywrightEx.Page.t() | t(PlaywrightEx.Page.t()),
           String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
           not_to_have_url_options()
         ) :: :ok
   def not_to_have_url!(page, url, options \\ []) do
-    {page, is_not} = Facade.negated(page, true, "expect.notToHaveURL")
+    {page, info} = Facade.matcher_info(page, true, "expect.notToHaveURL")
     options = Facade.options!(options, @not_to_have_url_options, "expect.notToHaveURL")
 
     Facade.matcher!(page, fn ->
       PlaywrightEx.Matchers.Expect.create_matcher(
         "toHaveURL",
-        %{isNot: is_not},
+        info,
         page,
         &PlaywrightEx.Matchers.Matchers.to_have_url/4
       ).([url, options])

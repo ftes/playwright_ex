@@ -208,6 +208,8 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.LoggedInTest do
     Expect.to_be_visible!(Page.get_by_text(page, "Saved"))
     Page.get_by_role(page, :listitem) |> Expect.to_have_count!(3)
     Page.locator(page, ".error") |> Expect.not_() |> Expect.to_be_visible!()
+    Page.get_by_text(page, "Saved") |> Expect.soft() |> Expect.to_be_visible!()
+    Page.get_by_role(page, :listitem) |> Expect.soft() |> Expect.to_have_count!(3)
     assert Page.evaluate!(page, "localStorage.getItem('theme')") == "dark"
   end
 

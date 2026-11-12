@@ -9,6 +9,7 @@ defmodule PlaywrightEx.Test.StepsTest do
   alias PlaywrightEx.Expect
   alias PlaywrightEx.Page
   alias PlaywrightEx.Test.Recorder
+  alias PlaywrightEx.Test.TestInfo
 
   setup_all :browser
 
@@ -206,5 +207,63 @@ defmodule PlaywrightEx.Test.StepsTest do
     end
 
     assert {:error, _} = Expect.to_be_visible(Page.locator(page, "h2"), timeout: 1)
+  end
+
+  test "a soft matcher: a soft step, its failure recorded as the test's error, the body continues", ctx do
+    on_trace(ctx, fn events, _files ->
+      refute Map.has_key?(after_of(events, before(events, ~s(Expect "soft toHaveText"))), "error")
+      around = before(events, "around")
+      failed = Enum.find(events, &(&1["type"] == "before" and &1["parentId"] == around["callId"]))
+      assert failed["title"] == ~s(Expect "soft not toHaveText")
+      failed = after_of(events, failed)
+      assert failed["error"]["message"] =~ ~r/^PlaywrightEx.ExpectError: expect\(locator\).not.toHaveText/
+      assert after_of(events, around)["error"] == failed["error"]
+
+      assert [%{"message" => "PlaywrightEx.ExpectError: " <> _}] =
+               for(%{"type" => "error"} = event <- events, do: event)
+    end)
+
+    %{context: context} = new_context(ctx)
+    %{page: page} = new_page(%{context: context})
+    Page.set_content!(page, "<h1>Soft</h1>")
+    heading = Page.locator(page, "h1")
+
+    assert :ok = heading |> Expect.soft() |> Expect.to_have_text!("Soft")
+    assert :ok = heading |> Expect.soft() |> Expect.not_() |> Expect.to_have_text("Hard")
+    assert :ok = heading |> Expect.not_() |> Expect.soft() |> Expect.to_have_text("Hard")
+    assert :ok = heading |> Expect.soft() |> Expect.not_to_have_text!("Hard")
+
+    step "around" do
+      assert :ok = heading |> Expect.soft() |> Expect.not_() |> Expect.to_have_text!("Soft", timeout: 1)
+    end
+
+    # The test's error, taken so that it passes; the end-to-end test fails one.
+    assert [{:error, %PlaywrightEx.ExpectError{} = error, [{PlaywrightEx.Matchers.Expect, _, _, _} | _]}] =
+             TestInfo.take_errors(self())
+
+    assert Exception.message(error) =~ "expect(locator).not.toHaveText(expected) failed"
+  end
+
+  test "a soft matcher outside a test fails as any matcher (no step)", %{browser: browser} do
+    context = PlaywrightEx.Browser.new_context!(browser)
+    on_exit(fn -> PlaywrightEx.BrowserContext.close(context) end)
+    page = PlaywrightEx.BrowserContext.new_page!(context)
+    Page.set_content!(page, "<h1>Outside</h1>")
+    heading = Page.locator(page, "h1")
+
+    Task.async(fn ->
+      Process.delete(:"$callers")
+      assert TestInfo.current() == nil
+      assert {:error, %PlaywrightEx.ExpectError{}} = heading |> Expect.soft() |> Expect.to_have_text("x", timeout: 1)
+
+      assert_raise PlaywrightEx.ExpectError, ~r/not.toHaveText/, fn ->
+        heading |> Expect.soft() |> Expect.not_() |> Expect.to_have_text!("Outside", timeout: 1)
+      end
+
+      assert :ok = heading |> Expect.soft() |> Expect.to_have_text("Outside")
+    end)
+    |> Task.await(:infinity)
+
+    assert TestInfo.take_errors(self()) == []
   end
 end

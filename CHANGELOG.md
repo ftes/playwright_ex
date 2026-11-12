@@ -26,6 +26,8 @@ those of the release candidates below. From an earlier release, also read the se
   body, with all its errors reported. `step` is Playwright Test's `test.step` (`box`,
   `location`, `timeout`, `params`, `subtitle`), `step_skip` its `test.step.skip`, and each
   matcher call is a step: the trace's `test.trace` has the test's steps, nested, and its errors.
+  `Expect.soft/1` is `expect.soft`: in a test, a failed soft matcher returns and fails the test
+  at the end of its body.
   `use PlaywrightEx.Test` imports `step/2,3` and `step_skip/2,3`, so a module with a `step` of
   its own narrows the import. See the
   [Testing with ExUnit](guides/testing-with-exunit.md) guide.

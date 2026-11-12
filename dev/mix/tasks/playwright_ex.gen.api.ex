@@ -344,24 +344,39 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
   # --- members -----------------------------------------------------------------
 
-  # `expect(x).not` (`"negate"`, see `Mix.PlaywrightEx.ApiRules`): the struct of a negated receiver.
+  # `expect(x).not` (`"negate"`, see `Mix.PlaywrightEx.ApiRules`): the struct of a negated or soft
+  # receiver, upstream's `ExpectMetaInfo` `isNot` and `isSoft`.
   defp member_source(ctx, _class, %{"negate" => receivers} = member, _receiver) do
     receiver_spec = Enum.map_join(receivers, " | ", &"#{inspect(facade(&1))}.t()")
 
     """
-    @typedoc "A negated receiver (`not_/1`): `expect(actual).not` in JS."
-    @type t(actual) :: %__MODULE__{actual: actual, isNot: true}
-    @typedoc "A negated receiver of any matcher."
+    @typedoc "A negated (`not_/1`) or soft (`soft/1`) receiver: `expect(actual).not`, `expect.soft(actual)` in JS."
+    @type t(actual) :: %__MODULE__{actual: actual, isNot: boolean(), isSoft: boolean()}
+    @typedoc "A negated or soft receiver of any matcher."
     @type t :: t(#{receiver_spec})
 
-    defstruct [:actual, isNot: true]
+    defstruct [:actual, isNot: false, isSoft: false]
 
     @doc #{doc(member_doc(ctx, member, []))}
-    @spec not_(actual) :: t(actual) when actual: #{receiver_spec}
-    def not_(%__MODULE__{}),
+    @spec not_(actual | t(actual)) :: t(actual) when actual: #{receiver_spec}
+    def not_(%__MODULE__{isNot: true}),
       do: raise(ArgumentError, "expect.not: the receiver is negated already (JS has no expect(x).not.not)")
 
-    def not_(actual), do: %__MODULE__{actual: actual}
+    def not_(%__MODULE__{} = expect), do: %{expect | isNot: true}
+    def not_(actual), do: %__MODULE__{actual: actual, isNot: true}
+    """
+  end
+
+  # `expect.soft(x)` (`"soften"`, see `Mix.PlaywrightEx.ApiRules`): a soft receiver. Upstream's
+  # getter returns a soft `expect` as it is.
+  defp member_source(ctx, _class, %{"soften" => receivers} = member, _receiver) do
+    receiver_spec = Enum.map_join(receivers, " | ", &"#{inspect(facade(&1))}.t()")
+
+    """
+    @doc #{doc(member_doc(ctx, member, []))}
+    @spec soft(actual | t(actual)) :: t(actual) when actual: #{receiver_spec}
+    def soft(%__MODULE__{} = expect), do: %{expect | isSoft: true}
+    def soft(actual), do: %__MODULE__{actual: actual, isSoft: true}
     """
   end
 
@@ -378,19 +393,20 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     capture = "&#{inspect(info[:module])}.#{info[:name]}/#{info[:arity]}"
 
     call =
-      "#{inspect(impl(class["name"]))}.create_matcher(#{inspect(matcher["name"])}, %{isNot: is_not}, " <>
+      "#{inspect(impl(class["name"]))}.create_matcher(#{inspect(matcher["name"])}, info, " <>
         "#{receiver}, #{capture}).([#{Enum.join(vars, ", ")}])"
 
     m = %{params: params, function: nil, or_options: or_options(member["args"], vars)}
     receiver_spec = Enum.map_join(matcher["receivers"], " | ", &"#{inspect(facade(&1))}.t()")
-    # A negated receiver (`not_/1`) takes the place of the receiver, not of a negated one.
-    receiver_spec = if matcher["isNot"], do: receiver_spec, else: "#{receiver_spec} | t(#{receiver_spec})"
+    # A negated or soft receiver (`not_/1`, `soft/1`) takes the place of the receiver (a `not_to_*`
+    # matcher raises for a negated one).
+    receiver_spec = "#{receiver_spec} | t(#{receiver_spec})"
     m = Map.put(m, :spec_args, [receiver_spec | Enum.map(member["args"], &arg_spec(ctx, &1, name))])
 
     conversions =
       Enum.join(
         [
-          "{#{receiver}, is_not} = Facade.negated(#{receiver}, #{matcher["isNot"]}, #{inspect(api_name)})"
+          "{#{receiver}, info} = Facade.matcher_info(#{receiver}, #{matcher["isNot"]}, #{inspect(api_name)})"
           | Enum.map(attrs, &conversion(name, api_name, &1))
         ],
         "\n"

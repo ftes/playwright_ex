@@ -3,8 +3,8 @@ defmodule PlaywrightEx.Test.EndToEndTest do
   # failing test keeps its artifacts and gets `error-context.md`, no driver outlives the halted
   # VM (`after_suite`), each module's isolated drivers are checked in at its end (discarded
   # after a failure), also when `max_failures` stops the run, a test fails with the
-  # snapshots its matchers wrote, and a failing step's error as ExUnit reports it and in the
-  # trace.
+  # snapshots its matchers wrote and with its soft matchers' failures, and a failing step's error
+  # as ExUnit reports it and in the trace.
   use ExUnit.Case, async: true
 
   alias PlaywrightEx.RemoteServer.ChildProcess
@@ -131,6 +131,31 @@ defmodule PlaywrightEx.Test.EndToEndTest do
 
     assert error_context =~
              ~r"RuntimeError: A snapshot doesn't exist at .*is-killed-after-writing-one-1.aria.yml.*killed"s
+  end
+
+  test "a soft matcher's failure: the body continues, the test fails at its end with all its errors",
+       %{tmp_dir: tmp_dir} do
+    child = start("soft", tmp_dir)
+    assert ChildProcess.exit_code(child, 60_000) == 0
+    output = ChildProcess.output(child)
+    assert output =~ ~r"3 tests, 2 failures|Result: 1/3 passed"
+    assert output =~ "(continued=>true)"
+
+    # The matcher's line, as a hard failure's.
+    [_, one] = Regex.run(~r/test continues after a soft failure \(SoftTest\)\n(.*?)\n\n\n/s, output)
+    assert one =~ ~r"\*\* \(PlaywrightEx.ExpectError\) expect\(locator\).toHaveText\(expected\) failed"
+    assert one =~ ~s(Expected: "Uno")
+    assert one =~ ~r"code: assert :ok = heading \|> Expect.soft\(\) \|> Expect.to_have_text!\(\"Uno\", timeout: 100\)"
+    refute one =~ "Failure #"
+
+    [_, two] = Regex.run(~r/test soft failures, then a hard one \(SoftTest\)\n(.*?)\n\n\n/s, output)
+    assert two =~ ~r"Failure #1\n +\*\* \(PlaywrightEx.ExpectError\) expect\(locator\).toHaveText\(expected\) failed"
+
+    assert two =~
+             ~r"Failure #2\n +\*\* \(PlaywrightEx.ExpectError\) expect\(locator\).not.toHaveText\(expected\) failed"
+
+    assert two =~ ~r"Failure #3\n +\*\* \(PlaywrightEx.ExpectError\) expect\(locator\).toHaveText\(expected\) failed"
+    assert two =~ ~s(Expected: "Deux")
   end
 
   test "a boxed step fails at its call site, a step past its timeout fails, both traced", %{tmp_dir: tmp_dir} do

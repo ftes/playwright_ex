@@ -123,6 +123,14 @@ Their timeout is 5 seconds; set it for the suite in `config/test.exs`:
 config :playwright_ex, :expect, timeout: 10_000
 ```
 
+A soft assertion (Playwright Test's `expect.soft`) doesn't stop the test: it fails the test once
+its body has run, and ExUnit reports all of the test's errors:
+
+```elixir
+Page.get_by_text(page, "Saved") |> Expect.soft() |> Expect.to_be_visible!()
+Page.get_by_role(page, :listitem) |> Expect.soft() |> Expect.to_have_count!(3)
+```
+
 Where an `ExUnit.AssertionError` is needed (a helper that rescues only that), wrap the matcher:
 
 ```elixir

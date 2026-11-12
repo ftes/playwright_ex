@@ -203,8 +203,8 @@ defmodule PlaywrightEx.Test.TestInfo do
 
   @doc """
   The step's `complete(result)`: `result` may have `error` (`{kind, reason, stacktrace}`) and
-  `softError` (an exception, added to the test's errors with the caller's stacktrace, upstream's
-  step stack).
+  `softError`, added to the test's errors: a soft matcher's `{kind, reason, stacktrace}`, or an
+  exception (a snapshot matcher's), with the caller's stacktrace (upstream's step stack).
   """
   def step_complete(step, result) do
     this = step.testInfo
@@ -214,7 +214,7 @@ defmodule PlaywrightEx.Test.TestInfo do
     # Elixir only: the test ended, its rows are gone. Its soft error is printed (see
     # `_fail_with_error/2`).
     if row == nil and result[:softError],
-      do: _fail_with_error(this, {:error, result.softError, caller_stacktrace()})
+      do: _fail_with_error(this, soft_error(result.softError))
 
     with %{endWallTime: nil} = row <- row do
       row = %{row | endWallTime: System.os_time(:millisecond)}
@@ -246,7 +246,7 @@ defmodule PlaywrightEx.Test.TestInfo do
 
       row =
         if result[:softError] do
-          _fail_with_error(this, {:error, result.softError, caller_stacktrace()})
+          _fail_with_error(this, soft_error(result.softError))
           # Elixir only: a step completes with an infected child only after one of these.
           put_row(this, {:test_info, this.test_pid, :soft_errors}, true)
           %{row | infectParentStepsWithError: true}
@@ -310,6 +310,9 @@ defmodule PlaywrightEx.Test.TestInfo do
       body.()
     end
   end
+
+  defp soft_error({_kind, _reason, _stacktrace} = error), do: error
+  defp soft_error(exception), do: {:error, exception, caller_stacktrace()}
 
   # The frames from the first one outside this application (the test's matcher call).
   defp caller_stacktrace do
