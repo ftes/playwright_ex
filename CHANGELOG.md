@@ -45,6 +45,8 @@ those of the release candidates below. From an earlier release, also read the se
   sets it changes `get_by_test_id` for concurrent tests: set it suite-wide.
 - `PlaywrightEx.Test` traces each context's `request` and the test's own request contexts
   (`APIRequest.new_context/2`), and disposes those left at the test's end.
+- `PlaywrightEx.Test.info/1` takes the test's pid and works in `on_exit`, where it also has
+  Playwright Test's `testInfo.status`, `errors`, `expectedStatus` and `duration`.
 
 ### Changed
 - `%PlaywrightEx.Expect{}` also carries `isSoft`, and `isNot` defaults to `false`: build a

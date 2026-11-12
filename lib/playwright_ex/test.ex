@@ -59,8 +59,8 @@ defmodule PlaywrightEx.Test do
   context created outside a test (in `setup_all`, in a module without `use PlaywrightEx.Test`,
   on a driver you started yourself) gets no defaults and no recording.
 
-  The rest is called qualified, as upstream's `test.info()` and `test.step()`: `info/0`,
-  `output_path/1`, `snapshot_path/2`, `step/2,3` and `step_skip/2,3`. They work in the test's
+  The rest is called qualified, as upstream's `test.info()` and `test.step()`: `info/0`
+  (`info/1` in `on_exit`, with the test's result), `output_path/1`, `snapshot_path/2`, `step/2,3` and `step_skip/2,3`. They work in the test's
   process and in processes with it in `$callers` (a `Task`, and the client's callback
   processes, see "Route handlers and listeners" in the Testing with ExUnit guide); outside a
   test they raise.
@@ -217,6 +217,8 @@ defmodule PlaywrightEx.Test do
 
   # Set while `__passed__/0` raises the errors `TestInfo` recorded (and traced) already.
   @reraised {__MODULE__, :reraised}
+  # `info/0`'s fields of the registration.
+  @info_keys [:test_pid, :file, :test_name, :output_dir]
 
   defmacro __using__(opts) do
     if opts != [] do
@@ -458,6 +460,8 @@ defmodule PlaywrightEx.Test do
   def __finish__(test_pid, budget) do
     {verdict, failures} = result = Pool.result(test_pid, budget)
     {test, recorder} = Pool.take(test_pid)
+    # For `info/1` in the `on_exit` callbacks that run after this one.
+    Pool.keep_info(test_pid, Map.merge(Map.take(test, @info_keys), result_info(test_pid, result, recorder)))
 
     trace =
       cond do
@@ -491,7 +495,7 @@ defmodule PlaywrightEx.Test do
   upstream's `test.info()`: `test_pid`, `file` (absolute), `test_name` (without the macro's
   `test ` prefix) and `output_dir` (absolute, see "Artifacts" in the moduledoc), from the
   test's setup to the end of its body. Raises outside a test, and in `on_exit` callbacks (ExUnit
-  runs them in a process of their own).
+  runs them in a process of their own): there, use `info/1`.
 
       PlaywrightEx.Test.info().test_pid
   """
@@ -503,8 +507,63 @@ defmodule PlaywrightEx.Test do
                 "`use PlaywrightEx.Test` (its process, or one with it in $callers)"
 
       test ->
-        Map.take(test, [:test_pid, :file, :test_name, :output_dir])
+        Map.take(test, @info_keys)
     end
+  end
+
+  @doc """
+  `info/0` of the test `test_pid` (the context's `test_pid`), from any process, from its setup to
+  the end of its `on_exit` callbacks. Once the test's process has exited, so in `on_exit`, it has
+  upstream's result fields too, as `testInfo` has in teardown:
+
+    * `status` - `:passed`, `:failed`, `:timed_out` (past ExUnit's timeout), or `nil`
+      for a test of another macro (a doctest).
+    * `errors` - upstream's `TestInfoError`s: `%{message: _, stack: _}` of an exception,
+      `%{value: _}` of an exit or throw.
+    * `expected_status` - `:passed` (there is no `test.fail()`).
+    * `duration` - ms from the test's setup to its process's exit.
+
+  A failure in an `on_exit` callback doesn't change them.
+
+      setup %{test_pid: test_pid} do
+        on_exit(fn ->
+          if PlaywrightEx.Test.info(test_pid).status != :passed, do: ...
+        end)
+      end
+  """
+  @spec info(pid()) :: map()
+  def info(test_pid) when is_pid(test_pid) do
+    case Recorder.registration(test_pid) do
+      nil ->
+        case Pool.started?() && :ets.lookup(Pool.table(), {:info, test_pid}) do
+          [{_key, info}] -> info
+          _ -> raise ArgumentError, "PlaywrightEx.Test.info/1: no test #{inspect(test_pid)} running or in its on_exit"
+        end
+
+      test ->
+        info = Map.take(test, @info_keys)
+
+        if Process.alive?(test_pid),
+          do: info,
+          else: Map.merge(info, result_info(test_pid, Pool.result(test_pid, 5000), Recorder.lookup(test_pid)))
+    end
+  end
+
+  # `testInfo.status`, `errors`, `expectedStatus`, `duration` of a result (`Pool.result/2`).
+  # Past the timeout: killed, or failed after the recorder closed its contexts.
+  defp result_info(test_pid, {verdict, failures}, recorder) do
+    status =
+      if verdict == :failed and (Pool.killed() in failures or Recorder.timed_out?(recorder)),
+        do: :timed_out,
+        else: verdict
+
+    errors =
+      Enum.map(failures, fn
+        message when is_binary(message) -> %{message: message}
+        error -> TestInfo.test_info_error(error)
+      end)
+
+    %{status: status, errors: errors, expected_status: :passed, duration: Pool.duration(test_pid)}
   end
 
   @doc """

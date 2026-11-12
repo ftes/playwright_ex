@@ -74,6 +74,10 @@ defmodule PlaywrightEx.Test.Recorder do
     end
   end
 
+  @doc "Whether the recorder `recorder` (or `nil`) closed its test's contexts at the test timeout."
+  def timed_out?(nil), do: false
+  def timed_out?(recorder), do: match?(%{timed_out: true}, call(recorder, :state))
+
   @doc """
   The registration of the running test (`PlaywrightEx.Test`'s per-test setup) of the calling
   process or a process in its `$callers`, or `nil`.

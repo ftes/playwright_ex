@@ -351,6 +351,31 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.SnapshotsTest do
   end
 end
 
+defmodule PlaywrightEx.Guides.TestingWithExUnit.ResultInOnExitTest do
+  # "Traces, screenshots and videos": the result in an `on_exit` that runs after the recording.
+  # Deviation: it asserts where the guide uploads a failure's trace.
+  use ExUnit.Case, async: true
+
+  @moduletag trace: :retain_on_failure
+
+  setup %{test_pid: test_pid} do
+    on_exit(fn ->
+      %{status: status, output_dir: dir} = PlaywrightEx.Test.info(test_pid)
+      assert status == :passed
+      refute File.exists?(Path.join(dir, "trace.zip"))
+    end)
+  end
+
+  use PlaywrightEx.Test
+
+  test "passes" do
+    page =
+      PlaywrightEx.BrowserContext.new_page!(PlaywrightEx.Browser.new_context!(PlaywrightEx.Test.BrowserPool.shared()))
+
+    PlaywrightEx.Page.set_content!(page, "<h1>Hi</h1>")
+  end
+end
+
 defmodule PlaywrightEx.Guides.TestingWithExUnit.ExclusiveTest do
   # "Exclusive browsers".
   use ExUnit.Case, async: true

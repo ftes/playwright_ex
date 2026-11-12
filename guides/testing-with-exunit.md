@@ -328,7 +328,20 @@ passes on the rerun leaves no trace; for those, `:retain_on_failure`.
 The files are written in the test's `on_exit`, which ExUnit runs in reverse order of
 registration. An `on_exit` that reads them (to check a `trace.zip`, say) must therefore be
 registered before the recording's: in a `setup` above `use PlaywrightEx.Test`. `info/0` raises in
-`on_exit`, so give it the path from the test, through an `Agent` for example.
+`on_exit`, which runs in a process of its own; `PlaywrightEx.Test.info(test_pid)` works there, with
+the test's result as Playwright Test's `testInfo` has it in teardown (`status`, `errors`,
+`duration`):
+
+```elixir
+setup %{test_pid: test_pid} do
+  on_exit(fn ->
+    %{status: status, output_dir: dir} = PlaywrightEx.Test.info(test_pid)
+    if status != :passed, do: MyApp.CI.upload(Path.join(dir, "trace.zip"))
+  end)
+end
+
+use PlaywrightEx.Test
+```
 
 A trace you start yourself (`Tracing.start!(tracing, sources: true)`) on a shared driver also
 gets the stacks and sources of concurrent tests, as the driver adds every call's stack to each
