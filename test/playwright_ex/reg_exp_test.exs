@@ -148,8 +148,8 @@ defmodule PlaywrightEx.RegExpTest do
       end
 
       assert match?.("^\\s*a\\s+b\\s*$", flags, "\u00a0a\u2003b\ufeff")
-      # \\w stays ASCII, as in JS.
-      refute match?.("^\\w$", flags, "é")
+      # \\w stays ASCII, as in JS, from OTP 28 (OTP 27's PCRE has Latin-1 tables; see the moduledoc).
+      if String.to_integer(System.otp_release()) >= 28, do: refute(match?.("^\\w$", flags, "é"))
     end
 
     # Without u, `-` after a class escape is literal.

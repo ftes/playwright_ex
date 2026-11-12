@@ -21,10 +21,11 @@ defmodule PlaywrightEx.RegExp do
   The source is not validated here: the browser or driver reports JS syntax errors. Matching in
   Elixir (`wait_for_url`, `Page.frame(url:)`, routes, `wait_for_request`) compiles a `RegExp` to
   a `Regex`: `[^]`, `\\s`/`\\S` (JS's Unicode whitespace), `\\uXXXX` and identity escapes are
-  translated, the `y` flag anchors, `g` and `d` do not matter; a pattern PCRE cannot run (the `v` flag, unbounded lookbehind) raises
-  `ArgumentError`. JS regexes returned by the driver (`evaluate`) are always a
-  `PlaywrightEx.RegExp` (lossless); `to_regex/1` or `compile!/1` gives a `Regex` when PCRE can run
-  it.
+  translated, the `y` flag anchors, `g` and `d` do not matter; a pattern PCRE cannot run (the `v`
+  flag, unbounded lookbehind) raises `ArgumentError`. On OTP 27, whose PCRE has Latin-1 character
+  tables, `\\w` and `\\b` also take Latin-1 letters (`é`); from OTP 28 they are ASCII, as in JS.
+  JS regexes returned by the driver (`evaluate`) are always a `PlaywrightEx.RegExp` (lossless);
+  `to_regex/1` or `compile!/1` gives a `Regex` when PCRE can run it.
   """
 
   import Kernel, except: [to_string: 1]
