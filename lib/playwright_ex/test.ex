@@ -63,12 +63,11 @@ defmodule PlaywrightEx.Test do
 
   ## Artifacts
 
-  `record_artifacts/2` records every context the test creates: with `new_context/2`, with
-  `PlaywrightEx.Browser.new_context/2` in the test or in a `Task` of it, and with
-  `new_context/2` from any other process given the test's context map (a GenServer that
-  creates contexts for the test). Each test writes to its own dir under `output_dir`, named as
-  upstream's `testInfo.outputDir` (`checkout-pays-1a2b3` for the test "pays" in
-  `test/checkout_test.exs`, the suffix a hash of the module and its `parameterize:` parameters):
+  `record_artifacts/2` records every context the test creates, with `new_context/2` or
+  `PlaywrightEx.Browser.new_context/2`, in the test or in a process with it in `$callers` (a
+  `Task` of it). Each test writes to its own dir under `output_dir`, named as upstream's
+  `testInfo.outputDir` (`checkout-pays-1a2b3` for the test "pays" in `test/checkout_test.exs`,
+  the suffix a hash of the module and its `parameterize:` parameters):
 
     * `trace.zip` - one trace of all its contexts (`mix playwright_ex.cli show-trace <path>`),
       recorded with screenshots, snapshots and sources unless the trace's options say otherwise.
@@ -477,10 +476,10 @@ defmodule PlaywrightEx.Test do
   `record_artifacts/2` with the config if the test hasn't, which closes the context after the
   test.
 
-  The context map needs `browser`. Its `test_pid` picks the recording, so a process that creates
-  contexts for a test (a GenServer) passes the test's whole context map, once the test's `setup`
-  has called `record_artifacts/2`. Without `test_pid` (in `setup_all`, as upstream's `newContext`
-  in `beforeAll`) nothing records or closes the context: close it yourself.
+  The context map needs `browser`. Called from a process with the test in `$callers` (a `Task`),
+  it records the context if the test called `record_artifacts/2`; from any other process it
+  raises. Without `test_pid` (in `setup_all`, as upstream's `newContext` in `beforeAll`) nothing
+  records or closes the context: close it yourself.
   """
   @spec new_context(map(), keyword()) :: %{context: BrowserContext.t()}
   def new_context(context, options \\ []) when is_map(context) do
@@ -494,11 +493,18 @@ defmodule PlaywrightEx.Test do
 
       test_pid ->
         token!(context, "new_context/2")
+
+        if test_pid != self() and test_pid not in List.wrap(Process.get(:"$callers")) do
+          raise ArgumentError,
+                "new_context/2 got a test's context map outside the test (its process or one with it " <>
+                  "in $callers): drop :test_pid for a context of your own"
+        end
+
         Options.ensure_context_defaults(Heap.get(browser, :_instrumentation))
         if test_pid == self() and Process.get(@recording) == nil, do: record_artifacts(context)
         recorder = Recorder.lookup(test_pid)
         if recorder, do: Recorder.ensure_listener(recorder, Heap.get(browser, :_instrumentation))
-        %{context: Recorder.with_identity(test_pid, fn -> Browser.new_context!(browser, opts.context_options) end)}
+        %{context: Browser.new_context!(browser, opts.context_options)}
     end
   end
 

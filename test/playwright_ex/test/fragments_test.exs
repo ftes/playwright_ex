@@ -122,6 +122,24 @@ defmodule PlaywrightEx.Test.FragmentsTest do
     assert Map.take(options_of(ctx.playwright, outside), Map.keys(@context_defaults)) == %{}
   end
 
+  test "new_context with the test's context map raises outside the test", ctx do
+    test_pid = self()
+
+    spawn(fn ->
+      result =
+        try do
+          new_context(ctx)
+        rescue
+          e in ArgumentError -> e.message
+        end
+
+      send(test_pid, {:result, result})
+    end)
+
+    assert_receive {:result, message}
+    assert message =~ "new_context/2 got a test's context map outside the test"
+  end
+
   test "a second browser/1 with other options is another browser", %{browser: browser} do
     %{browser: other} = browser(launch_options: [timeout: 30_001])
     assert other != browser

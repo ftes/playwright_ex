@@ -269,10 +269,6 @@ of a run, so delete `test-results/` yourself. Files of your own go in the test's
 `output_path(ctx, "export.csv")`; they stay when the test passes. A flaky test that passes on the rerun leaves no
 trace; for those, `:retain_on_failure`.
 
-A context created for the test by another process (a GenServer that runs a user session) is
-recorded too when that process gets the test's context map: `new_context(%{ctx | browser:
-browser})`, with `record_artifacts/2` in the test's own `setup`.
-
 A trace you start yourself (`Tracing.start!(tracing, sources: true)`) on a shared driver also
 gets the stacks and sources of concurrent tests, as the driver adds every call's stack to each
 trace on the connection. `record_artifacts/2` filters them out of its `trace.zip`; for your own

@@ -61,7 +61,15 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
       pid: pid,
       recorder: recorder,
       dir: dir,
-      context: fn -> Recorder.with_identity(pid, fn -> Browser.new_context!(ctx.browser) end) end
+      # A context of the fake test: made in a process with it in `$callers`.
+      context: fn ->
+        Task.await(
+          Task.async(fn ->
+            Process.put(:"$callers", [pid])
+            Browser.new_context!(ctx.browser)
+          end)
+        )
+      end
     }
   end
 
@@ -81,15 +89,15 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
       files = File.ls!(dir)
 
       assert Enum.sort(Enum.filter(files, &(&1 =~ ~r/\.webm$/))) ==
-               ~w(video-1.webm video-2.webm video-3.webm video.webm)
+               ~w(video-1.webm video-2.webm video-3.webm video-4.webm video.webm)
 
-      assert Enum.sort(Enum.filter(files, &(&1 =~ ~r/\.png$/))) == for(n <- 1..4, do: "test-finished-#{n}.png")
+      assert Enum.sort(Enum.filter(files, &(&1 =~ ~r/\.png$/))) == for(n <- 1..5, do: "test-finished-#{n}.png")
       assert [_] = File.ls!(own_videos)
 
       trace = trace(dir, browser)
-      assert trace.resources |> Map.keys() |> Enum.count(&(&1 =~ ~r/^\d-trace\.trace$/)) == 4
+      assert trace.resources |> Map.keys() |> Enum.count(&(&1 =~ ~r/^\d-trace\.trace$/)) == 5
 
-      for marker <- ~w(ALICE BOB PLAIN TASK), do: assert(traced?(trace, marker), "#{marker} not in the trace")
+      for marker <- ~w(ALICE BOB PLAIN TASK TASK-NEW), do: assert(traced?(trace, marker), "#{marker} not in the trace")
       refute traced?(trace, "OTHER")
       File.rm_rf!(dir)
     end)
@@ -114,24 +122,14 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
       context = Browser.new_context!(browser)
       page(context, "TASK")
       BrowserContext.close!(context)
+      %{context: context} = new_context(ctx)
+      page(context, "TASK-NEW")
+      BrowserContext.close!(context)
     end)
     |> Task.await()
 
     assert_receive {:other, other}
     BrowserContext.close!(other)
-  end
-
-  test "a context a GenServer creates for the test is recorded", ctx do
-    dir = dir(ctx)
-
-    on_exit(fn ->
-      assert traced?(trace(dir, ctx.browser), "SERVER")
-      File.rm_rf!(dir)
-    end)
-
-    record_artifacts(ctx, trace: :on)
-    {:ok, server} = GenServer.start_link(PlaywrightEx.Test.ArtifactsTest.Server, ctx)
-    assert GenServer.call(server, :visit) == :ok
   end
 
   test "a failing artifact step is logged and the test's result stands", ctx do
@@ -401,25 +399,5 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     record_artifacts(ctx, trace: :on)
     %{context: context} = new_context(ctx)
     page(context, "RERUN")
-  end
-end
-
-defmodule PlaywrightEx.Test.ArtifactsTest.Server do
-  # A GenServer that creates contexts for a test (a session process): started with `start_link`,
-  # so it has `$ancestors` but no `$callers`.
-  use GenServer
-
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Page
-
-  def init(identity), do: {:ok, identity}
-
-  def handle_call(:visit, _from, identity) do
-    nil = Process.get(:"$callers")
-    %{context: context} = PlaywrightEx.Test.new_context(identity)
-    page = BrowserContext.new_page!(context)
-    Page.set_content!(page, "<h1>SERVER</h1>")
-    BrowserContext.close!(context)
-    {:reply, :ok, identity}
   end
 end

@@ -28,21 +28,6 @@ defmodule PlaywrightEx.Test.Recorder do
 
   require Logger
 
-  # The `test_pid` `PlaywrightEx.Test.new_context/2` puts while it creates a context, so the
-  # listener records a context made in a process with no `$callers` (a GenServer).
-  @identity {PlaywrightEx.Test, :identity}
-
-  @doc "Runs `fun` as the test `test_pid`: the contexts it creates are the test's."
-  def with_identity(test_pid, fun) do
-    previous = Process.put(@identity, test_pid)
-
-    try do
-      fun.()
-    after
-      if previous, do: Process.put(@identity, previous), else: Process.delete(@identity)
-    end
-  end
-
   @doc """
   The parameters of `context` in `module` (`%{}` for a module without `parameterize:`), for its
   output dir: a guess, the module's parameter map whose keys have the context's values.
@@ -202,7 +187,7 @@ defmodule PlaywrightEx.Test.Recorder do
   # The listener. It runs in the process that creates or closes a context, for every context of
   # the driver: only the test's own count.
   defp ours?(test_pid) do
-    self() == test_pid or test_pid in List.wrap(Process.get(:"$callers")) or Process.get(@identity) == test_pid
+    self() == test_pid or test_pid in List.wrap(Process.get(:"$callers"))
   end
 
   # `_contextFactory`: `browser.newContext({ ...videoOptions, ...options })`.
