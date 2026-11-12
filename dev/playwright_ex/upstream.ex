@@ -4,8 +4,8 @@ defmodule PlaywrightEx.Upstream do
   dev tasks (`mix playwright_ex.gen.protocol`, `mix playwright_ex.parity`), the tests (test server
   assets) and reading (`mix playwright_ex.upstream`).
 
-  Downloads the release tarball once into `PlaywrightEx.Driver.cache_dir/1` and extracts only
-  `@paths` (again when a path is missing, e.g. after one was added). `PLAYWRIGHT_EX_UPSTREAM` (or the `:dir` option) points at a checkout instead.
+  Downloads the release tarball once into `PlaywrightEx.Driver.cache_dir/0` and extracts only
+  `@paths` (again when a path is missing, e.g. after one was added). `PLAYWRIGHT_EX_UPSTREAM` points at a checkout instead.
   """
   alias PlaywrightEx.Driver
 
@@ -15,16 +15,14 @@ defmodule PlaywrightEx.Upstream do
     packages/injected/src utils docs/src/api tests/page tests/library tests/config tests/assets
   )
 
-  def dir(opts \\ []) do
-    opts[:dir] || env() || Path.join([Driver.cache_dir(opts), Driver.version(), "upstream"])
-  end
+  def dir, do: env() || Path.join([Driver.cache_dir(), Driver.version(), "upstream"])
 
-  @doc "Returns `dir/1`, downloading and extracting the sources first if needed."
-  def ensure!(opts \\ []) do
-    dir = dir(opts)
+  @doc "Returns `dir/0`, downloading and extracting the sources first if needed."
+  def ensure! do
+    dir = dir()
 
     cond do
-      opts[:dir] || env() ->
+      env() ->
         if not File.dir?(dir), do: raise("upstream checkout not found: #{dir}")
 
       complete?(dir) ->
