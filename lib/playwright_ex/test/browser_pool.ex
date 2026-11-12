@@ -16,6 +16,11 @@ defmodule PlaywrightEx.Test.BrowserPool do
 
     * `:browser_name` - `:chromium` (default), `:firefox` or `:webkit`.
     * `:launch_options` - for `PlaywrightEx.BrowserType.launch/2`, as is.
+    * `:connect_options` - Playwright Test's `connectOptions`: `:ws_endpoint` (required) and
+      the options of `PlaywrightEx.BrowserType.connect/3` (`:headers`, `:expose_network`,
+      `:timeout`, `:slow_mo`). The browser is then connected to that Playwright server instead
+      of launched, with `launch_options` sent in the `x-playwright-launch-options` header (the
+      call's `headers` win). `nil` (default) launches.
     * `:driver` - options of the driver's `PlaywrightEx.Supervisor`: `:env`, `:executable`,
       `:node`, `:cache_dir`.
     * `:on_start` - a function of the Playwright (`PlaywrightEx.Playwright`) or `{m, f, args}`
@@ -23,15 +28,17 @@ defmodule PlaywrightEx.Test.BrowserPool do
       launches: `&MyApp.Selectors.register/1`. Part of the driver's key, so pass a capture, not
       a closure.
 
-  A driver hosts a browser per `browser_name` and `launch_options`, so the browser's key is all
-  of the options and the driver's key `driver` and `on_start`. Unknown options and bad values
+  A driver hosts a browser per `browser_name`, `launch_options` and `connect_options`, so the
+  browser's key is all of the options and the driver's key `driver` and `on_start`. A connected
+  browser runs on the server, its driver here: `on_start` runs on the driver before the connect,
+  and its contexts get the defaults and are recorded, as a launched browser's. Unknown options and bad values
   raise `ArgumentError`.
 
   ## Shared and exclusive
 
   `shared/1` returns the browser of its key, used by every caller at once, as the one
   connection serves any number of processes: contexts isolate tests. It is never evicted and
-  never waits, and a lost browser is launched again by the next call.
+  never waits, and a lost browser is launched (or connected) again by the next call.
 
   > #### Firefox: use `exclusive` {: .warning}
   >
@@ -56,9 +63,12 @@ defmodule PlaywrightEx.Test.BrowserPool do
   takes its further driver keys over `workers`, so it never waits while others wait for it. At
   the cap, a key with no free driver stops the longest idle free driver of another key.
 
+  With `connect_options`, `shared/1` connects once per key; `exclusive/1` once per driver, and the
+  server launches a browser per connection, so each lease has a browser of its own.
+
   A driver you start yourself (`start_supervised!({PlaywrightEx.Supervisor, name: MyDriver})`,
-  then `PlaywrightEx.Playwright.chromium/1` and `PlaywrightEx.BrowserType.launch!/2`) has no cap,
-  no reuse, no context defaults and no recording.
+  then `PlaywrightEx.Playwright.chromium/1` and `PlaywrightEx.BrowserType.launch!/2` or
+  `connect!/3`) has no cap, no reuse, no context defaults and no recording.
   """
 
   alias PlaywrightEx.Browser

@@ -144,7 +144,9 @@ browser =
 ```
 
 The local driver still runs; only the browser is remote. `expose_network: "<loopback>"` lets the
-remote browser reach `localhost` on your machine, where the app under test runs.
+remote browser reach `localhost` on your machine, where the app under test runs. For the pooled
+browsers of `PlaywrightEx.Test`, set `connect_options`
+([Remote browsers](testing-with-exunit.md#remote-browsers)).
 
 More: [trace viewer](https://playwright.dev/python/docs/trace-viewer-intro),
 [debugging](https://playwright.dev/python/docs/debug), [CI](https://playwright.dev/python/docs/ci),

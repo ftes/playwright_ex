@@ -88,8 +88,9 @@ then the config's `context_options`; the options the call gives win. A context c
 test (in `setup_all`, or a process of no test), or on a driver you started yourself, gets no
 defaults and no recording.
 
-With `base_url`, `goto` and the URL matchers take paths. Actions and navigations wait 30 seconds
-by default, and ExUnit's test timeout is 60 seconds; `set_default_timeout/2` makes a stuck action
+With `base_url`, `goto` and the URL matchers take paths. To set it from the shell, read an env
+var in the config: `context_options: [base_url: System.get_env("BASE_URL", "http://localhost:4000")]`.
+Actions and navigations wait 30 seconds by default, and ExUnit's test timeout is 60 seconds; `set_default_timeout/2` makes a stuck action
 fail sooner, with a message saying what it waited for. `set_default_navigation_timeout/2` sets
 navigations apart.
 
@@ -146,8 +147,7 @@ end
 
 `use PlaywrightEx.Test` imports only `test`; the rest is called qualified, as Playwright Test's
 `test.info()` and `test.step()`: `PlaywrightEx.Test.info/0`, `output_path/1`, `snapshot_path/2`,
-`step/3`. So a wrapper library's own `step` doesn't clash. A browser you connect to
-(`PlaywrightEx.BrowserType.connect/3`) is yours to manage, without defaults or recording.
+`step/3`. So a wrapper library's own `step` doesn't clash.
 
 ## Assertions
 
@@ -323,6 +323,11 @@ of a run, so delete `test-results/` yourself. Files of your own go in the test's
 `PlaywrightEx.Test.output_path("export.csv")`; they stay when the test passes. A flaky test that
 passes on the rerun leaves no trace; for those, `:retain_on_failure`.
 
+The files are written in the test's `on_exit`, which ExUnit runs in reverse order of
+registration. An `on_exit` that reads them (to check a `trace.zip`, say) must therefore be
+registered before the recording's: in a `setup` above `use PlaywrightEx.Test`. `info/0` raises in
+`on_exit`, so give it the path from the test, through an `Agent` for example.
+
 A trace you start yourself (`Tracing.start!(tracing, sources: true)`) on a shared driver also
 gets the stacks and sources of concurrent tests, as the driver adds every call's stack to each
 trace on the connection. The recording filters them out of its `trace.zip`; for your own traces,
@@ -421,6 +426,70 @@ setup do
   %{page: BrowserContext.new_page!(context)}
 end
 ```
+
+## Debugging one test
+
+To watch one module run headed, slowed down, give it an exclusive browser with those launch
+options:
+
+```elixir
+@moduletag :debug
+
+setup_all do
+  %{browser: BrowserPool.exclusive(launch_options: [headless: false, slow_mo: 500])}
+end
+
+setup %{browser: browser} do
+  context = Browser.new_context!(browser)
+  %{context: context, page: BrowserContext.new_page!(context)}
+end
+```
+
+and run it alone: `mix test test/my_app/sign_up_test.exs`, or `mix test --only debug`. The
+`launch_options` merge over the config's one key at a time, so its other launch options stay.
+`exclusive` rather than `shared`: the browser is the module's alone, and its driver stops when
+the module fails or another key needs the room; a shared browser serves every caller of its
+options and stays open until the suite ends.
+The driver counts toward `workers`, and may stop an idle driver of other options to start.
+
+## Remote browsers
+
+To run the browsers elsewhere (Playwright's Docker image, a grid), pass `connect_options`,
+Playwright Test's `connectOptions`: the pool then connects to a Playwright server instead of
+launching. It takes `ws_endpoint` and the options of `PlaywrightEx.BrowserType.connect/3`:
+
+```elixir
+# config/test.exs
+config :playwright_ex, :test,
+  connect_options: [ws_endpoint: "ws://localhost:3000/", expose_network: "<loopback>"]
+```
+
+Start the server as in [Remote browsers](debugging-and-ci.md#remote-browsers). The local driver
+still runs `on_start`, and contexts on the connected browser get Playwright Test's defaults and
+are recorded, as on a launched one. `launch_options` go to the server in the
+`x-playwright-launch-options` header, as Playwright Test sends them; the server applies those
+it allows (`headless`, `channel`, `slow_mo`, ...). A connected browser and a launched one are
+different browsers, also of one `browser_name`, and a lost connection is made again by the next
+call.
+
+`shared` connects once per set of options. `exclusive` connects once per driver, and the server
+launches a browser per connection, so each lease has a browser of its own, as each Playwright
+Test worker does.
+
+A call's `connect_options` win over the config's, and `connect_options: nil` launches. To switch
+a suite from the shell, read an env var in the config:
+
+```elixir
+# config/test.exs
+config :playwright_ex, :test,
+  connect_options: if(url = System.get_env("PW_TEST_CONNECT_WS_ENDPOINT"), do: [ws_endpoint: url])
+```
+
+`PW_TEST_CONNECT_WS_ENDPOINT=ws://localhost:3000/ mix test` then runs on remote browsers.
+
+The remote browser must reach your app: set `base_url` to a host the container resolves
+(`http://host.docker.internal:4000` on Docker Desktop), or pass `expose_network: "<loopback>"`
+so the server tunnels `localhost` to your machine.
 
 ## The running test
 

@@ -369,6 +369,66 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.ExclusiveTest do
   end
 end
 
+defmodule PlaywrightEx.Guides.TestingWithExUnit.DebugTest do
+  # "Debugging one test". Deviation: `BROWSER`'s.
+  use ExUnit.Case, async: true
+  use PlaywrightEx.Test
+
+  alias PlaywrightEx.Browser
+  alias PlaywrightEx.BrowserContext
+  alias PlaywrightEx.Page
+  alias PlaywrightEx.Test.BrowserPool
+
+  @moduletag :debug
+  @moduletag :headed
+
+  setup_all do
+    %{browser: BrowserPool.exclusive(launch_options: [headless: false, slow_mo: 500])}
+  end
+
+  setup %{browser: browser} do
+    context = Browser.new_context!(browser)
+    %{context: context, page: BrowserContext.new_page!(context)}
+  end
+
+  test "a headed, slowed-down browser of the module's own", %{page: page} do
+    Page.set_content!(page, "<p>Debug</p>")
+    assert Page.text_content!(page, "p") == "Debug"
+  end
+end
+
+defmodule PlaywrightEx.Guides.TestingWithExUnit.RemoteTest do
+  # "Remote browsers": the config's `connect_options` (its env var line) as the call's, on a
+  # `run-server`.
+  use ExUnit.Case, async: true
+  use PlaywrightEx.Test
+
+  alias PlaywrightEx.Browser
+  alias PlaywrightEx.BrowserContext
+  alias PlaywrightEx.Expect
+  alias PlaywrightEx.Guides.TestingWithExUnit.App
+  alias PlaywrightEx.Page
+  alias PlaywrightEx.RemoteServer.RunServer
+  alias PlaywrightEx.Test.BrowserPool
+
+  setup_all do
+    server = RunServer.start()
+    on_exit(fn -> RunServer.close(server) end)
+    app = App.start!(Path.join(System.tmp_dir!(), "guide-app-#{System.unique_integer([:positive])}"))
+    System.put_env("PW_TEST_CONNECT_WS_ENDPOINT", RunServer.ws_endpoint(server))
+    connect_options = if(url = System.get_env("PW_TEST_CONNECT_WS_ENDPOINT"), do: [ws_endpoint: url])
+    System.delete_env("PW_TEST_CONNECT_WS_ENDPOINT")
+    browser = BrowserPool.shared(connect_options: connect_options ++ [expose_network: "<loopback>"])
+    %{browser: browser, base_url: app.prefix}
+  end
+
+  test "a page of the remote browser reaches the app on localhost", %{browser: browser, base_url: base_url} do
+    page = BrowserContext.new_page!(Browser.new_context!(browser, base_url: base_url))
+    Page.goto!(page, "/sign-up")
+    Expect.to_have_text!(Page.get_by_role(page, :button), "Sign up")
+  end
+end
+
 defmodule PlaywrightEx.Guides.TestingWithExUnit.GroupTest do
   # "Exclusive browsers": a group's modules share a browser. Deviation: `BROWSER`'s.
   use ExUnit.Case, async: true, group: :firefox
