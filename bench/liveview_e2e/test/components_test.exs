@@ -26,8 +26,8 @@ defmodule LiveViewE2E.ComponentsTest do
 
     # afterEach
     on_exit(fn ->
+      # Not stopped: the listeners fire until the context closes, after this on_exit.
       %{console_errors: console_errors, js_errors: js_errors} = Agent.get(errors, & &1)
-      Agent.stop(errors)
       # Assert no JavaScript errors occurred during the test
       assert js_errors == []
       assert console_errors == []

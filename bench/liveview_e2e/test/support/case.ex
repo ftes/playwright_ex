@@ -82,11 +82,15 @@ defmodule LiveViewE2E.Case do
     page = BrowserContext.new_page!(context)
 
     # pageChecks: the errors outlive the test process, for the teardown in on_exit.
+    # Listeners fire until the context closes, last in PlaywrightEx.Test's on_exit, so this one
+    # is removed before the Agent stops.
     {:ok, errors} = Agent.start(fn -> [] end)
-    Page.on(page, :page_error, fn error -> Agent.update(errors, &(&1 ++ [error])) end)
+    listener = fn error -> Agent.update(errors, &(&1 ++ [error])) end
+    Page.on(page, :page_error, listener)
     ignore_js_errors = Map.get(ctx, :ignore_js_errors, false)
 
     ExUnit.Callbacks.on_exit(fn ->
+      Page.off(page, :page_error, listener)
       unhandled_errors = Agent.get(errors, & &1)
       Agent.stop(errors)
 
