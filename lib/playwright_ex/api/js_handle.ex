@@ -229,10 +229,17 @@ defmodule PlaywrightEx.JSHandle do
     Facade.async!("jsHandle.jsonValue", js_handle, fn -> PlaywrightEx.Client.JSHandle.json_value(js_handle) end)
   end
 
-  @doc false
+  @doc """
+  The options of `function`, an atom such as `:evaluate`, as
+  `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, for tools that build on the facade at
+  compile time; a function without options raises `FunctionClauseError`. Unstable: the shape
+  may change between releases.
+  """
   @spec __options__(atom()) :: [
           {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
         ]
+  def __options__(function)
+
   def __options__(:evaluate) do
     [
       expose_functions: %{

@@ -89,7 +89,8 @@ A wrapper that passes options on can document and check them with `__options__/1
 the options of a function (both forms) in order, as its docs show them: `doc` is the first
 paragraph on one line, `since` the Playwright version that added the option if newer than the function,
 `type_doc` the type as rendered, `spec` the quoted typespec. A function without options has no
-clause, a module without any has no `__options__/1`.
+clause, a module without any has no `__options__/1`. It is unstable: its shape may change
+between releases.
 
 ```elixir
 [{:button, %{doc: "Defaults to `:left`.", since: nil, spec: spec}} | _] = Locator.__options__(:click)

@@ -40,7 +40,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       string too for `"openEvents"` classes (`CDPSession`, see `Mix.PlaywrightEx.ApiRules`). The
       call runs in `PlaywrightEx.Runtime.Facade.listen/1`: the listener is a user listener.
     * Functions with options: `__options__(:click)` lists the options with their doc and type, for
-      wrappers that pass them on.
+      wrappers that pass them on (documented as unstable).
 
   `--check` writes nothing and fails if a file is out of date (`mix playwright_ex.parity` runs it).
   """
@@ -958,19 +958,27 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   # `__options__(:click)`: the options of `click/2` and `click!/2` as their docs show them, for
   # wrappers that pass them on. Only functions with options have a clause.
   defp options_metadata_source(ctx, members) do
-    clauses =
-      for member <- members,
-          %{"name" => "options"} = options <- member["args"],
-          do: options_metadata_clause(ctx, member, options)
+    members = for member <- members, %{"name" => "options"} = options <- member["args"], do: {member, options}
+    clauses = for {member, options} <- members, do: options_metadata_clause(ctx, member, options)
 
-    if clauses != [],
-      do: """
-      @doc false
+    if clauses != [] do
+      name = members |> hd() |> elem(0) |> Map.fetch!("alias") |> snake()
+
+      """
+      @doc \"\"\"
+      The options of `function`, an atom such as `:#{name}`, as
+      `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, for tools that build on the facade at
+      compile time; a function without options raises `FunctionClauseError`. Unstable: the shape
+      may change between releases.
+      \"\"\"
       @spec __options__(atom()) :: [
               {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
             ]
+      def __options__(function)
+
       #{Enum.join(clauses, "\n\n")}
       """
+    end
   end
 
   # `doc` is the first paragraph of the option's bullet (`member_doc/3`) after its admonitions

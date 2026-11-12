@@ -36,6 +36,7 @@ those of the release candidates below. From an earlier release, also read the se
 ### Changed
 - `%PlaywrightEx.Expect{}` also carries `isSoft`, and `isNot` defaults to `false`: build a
   negated receiver with `Expect.not_/1`.
+- The facade's `__options__/1` is documented as unstable: its shape may change between releases.
 
 ### Fixed
 - On Unix, stopping `PlaywrightEx.Supervisor` waits until the driver has exited (at most 31 s).
