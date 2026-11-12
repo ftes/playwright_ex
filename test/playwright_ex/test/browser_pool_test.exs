@@ -361,14 +361,21 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
       for t <- [full, ready], do: finish(t, [], :boom)
     end
 
-    test "a scope's driver goes back only if it passed: unknown (a doctest's, or no result) stops it" do
+    test "a scope with no known result (a doctest's, an unregistered test's) goes back warm; a crash stops it" do
       opts = opts()
-      [unknown, unwatched] = [fake_test(false), spawn(fn -> :ok end)]
+      [unknown, unwatched, crashed] = [fake_test(false), spawn(fn -> :ok end), fake_test(false)]
       a = lease(unknown, opts)
       b = lease(unwatched, opts)
       finish(unknown, [], :shutdown)
       Pool.release(unwatched)
-      assert gone?(a.browser) and gone?(b.browser)
+
+      # Both back, warm: the next scopes get them.
+      next = fake_test()
+      c = lease(crashed, opts)
+      assert MapSet.new([lease(next, opts), c]) == MapSet.new([a, b])
+      finish(crashed, [], :boom)
+      assert gone?(c.browser)
+      finish(next, [], :boom)
     end
 
     test "a waiter that exits, or whose scope was released, is dropped: no driver leaks" do
@@ -425,12 +432,11 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
 
       none = scope.()
       a = Pool.browser(opts, {:process, none}, "setup_all")
-      # No test ran: stopped.
+      # No test ran: no known result, back warm.
       Pool.release(none)
-      assert gone?(a.browser)
 
       passing = scope.()
-      b = Pool.browser(opts, {:process, passing}, "setup_all")
+      assert (b = Pool.browser(opts, {:process, passing}, "setup_all")) == a
       assert run_test([passed()], :shutdown) == {:passed, []}
       assert run_test([passed()], :shutdown) == {:passed, []}
       Pool.release(passing)

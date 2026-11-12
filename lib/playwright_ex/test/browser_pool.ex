@@ -46,11 +46,12 @@ defmodule PlaywrightEx.Test.BrowserPool do
   that holds none (or a `Task` of the test, through `$callers`), the test holds it until it
   ends. The scope's further calls with the same options return the same browser; another
   driver key gets another driver. At the end of the scope (the last step of a registered test's
-  `on_exit`; for another scope, an `on_exit` its first call registers), a scope that passed
-  gives its driver back, warm, to the next caller of its key, and one that failed stops it, as
-  upstream replaces a worker after a failure. A module passes when a test of it ran and all of
-  them passed, which needs `use PlaywrightEx.Test`. A lost browser is launched (or connected)
-  again by the scope's next call.
+  `on_exit`; for another scope, an `on_exit` its first call registers), a scope gives its driver
+  back, warm, to the next caller of its key, unless it failed: then the driver stops, as upstream
+  replaces a worker after a failure. A module fails when a test of it failed. Only registered
+  tests have results: register tests with `use PlaywrightEx.Test` to get Playwright Test's
+  discard-after-failure; a scope with no known result (no registered test, a doctest) counts as
+  passed. A lost browser is launched (or connected) again by the scope's next call.
 
   At most `workers` drivers run at once (config, default half the schedulers, as Playwright
   Test's `workers`); others wait, first come first served, within ExUnit's test timeout

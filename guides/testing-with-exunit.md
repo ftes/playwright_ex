@@ -494,8 +494,10 @@ The scope that calls `BrowserPool.browser/1` holds the driver and its browsers, 
 worker: called in `setup_all`, the module, until it ends; in `setup` or a test of a module that
 holds none (or a `Task` of the test), the test. A test's own calls go to its module's driver, so
 another browser or options there don't take another worker. The scope's further calls with the
-same options return the same browser. At its end, a scope that passed gives the driver back,
-warm, to the next caller of its options, and one that failed stops it. To set up each new driver
+same options return the same browser. At its end, a scope gives the driver back, warm, to the
+next caller of its options, unless it failed: then the driver stops, as Playwright Test replaces
+a worker after a failure. That needs the tests' results, so `use PlaywrightEx.Test`: without it a
+module counts as passed. To set up each new driver
 (register selectors, say), pass `on_start: &MyApp.Selectors.register/1`: the driver's state then
 holds for every scope that gets it.
 

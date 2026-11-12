@@ -7,11 +7,13 @@ defmodule PlaywrightEx.Test.Pool do
   # Upstream's worker model: a scope (a registered test, found through the caller or its
   # `$callers`, else the calling process, `setup_all`'s) leases a slot per key; its further calls
   # of the key get the same slot, and its `release/1`, the last step of its `on_exit`, puts it on
-  # the free list, warm, if the scope passed, else stops it. A test whose module (`setup_all`)
-  # holds a lease calls on its module's, as upstream's tests share their worker's `browser`. A
-  # test scope passed when the test did; another scope when a test of its module ran and all of
-  # them passed: the tests of the ExUnit runner process that spawned the scope (`:parent`; the
-  # runner spawns a module's `setup_all` and its tests, one module after another). At most
+  # the free list, warm, unless the scope failed, else stops it. A test whose module
+  # (`setup_all`) holds a lease calls on its module's, as upstream's tests share their worker's
+  # `browser`. A test scope failed when the test did; another scope when a test of its module
+  # failed: the tests of the ExUnit runner process that spawned the scope (`:parent`; the runner
+  # spawns a module's `setup_all` and its tests, one module after another). A scope with no known
+  # result (no registered test, a doctest) counts as passed: upstream discards a worker after a
+  # failure only, and nothing says this one failed. At most
   # `workers` slots run, as upstream's worker processes (stopping ones count): room is made by
   # stopping free ones of other keys, the longest idle first, and the new one starts once they
   # exited; with none, the caller waits (first come first served, a warning after
@@ -78,7 +80,7 @@ defmodule PlaywrightEx.Test.Pool do
     |> Slot.browser(opts)
   end
 
-  @doc "Ends the leases of `scope`: free and warm if it passed, else stopped."
+  @doc "Ends the leases of `scope`: free and warm unless it failed, else stopped."
   def release(scope) do
     if Process.whereis(__MODULE__), do: GenServer.call(__MODULE__, {:release, scope}, :infinity)
     :ok
@@ -239,7 +241,7 @@ defmodule PlaywrightEx.Test.Pool do
         state = %{state | leases: leases}
 
         state =
-          if lease.outcome == :passed do
+          if lease.outcome != :failed do
             Enum.each(lease.slots, &Slot.check_in/1)
             %{state | free: lease.slots ++ state.free}
           else
@@ -395,7 +397,11 @@ defmodule PlaywrightEx.Test.Pool do
       end
 
     for from <- test.awaiting, do: GenServer.reply(from, {verdict, failures})
-    outcome = fn previous -> if verdict == :passed and previous != :failed, do: :passed, else: :failed end
+    # An unknown verdict (a doctest's) leaves the outcome as it was.
+    outcome = fn
+      previous when verdict == nil -> previous
+      previous -> if verdict == :passed and previous != :failed, do: :passed, else: :failed
+    end
 
     # The test's own leases, and those of its module's scope (its runner's).
     leases =

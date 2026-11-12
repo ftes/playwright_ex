@@ -337,8 +337,10 @@ The pool is upstream's worker model. `browser/1` is held by the scope that calls
 `setup_all`'s module (upstream runs a file in one worker), or the test (a `Task` resolves to it
 through `$callers`); a test of a module that holds one calls on its module's, as upstream's
 tests share their worker's `browser`. A worker is a driver per driver key, reused warm by the
-next scope of its key when the scope passed, else stopped (upstream replaces a worker after a
-failure). At most `workers` of them run (upstream's, default half the cores,
+next scope of its key unless the scope failed, else stopped (upstream replaces a worker after a
+failure). A scope with no known result (no registered test, a doctest) counts as passed: upstream
+always knows, and discarding the unknown would start a driver per module of a plain `ExUnit.Case`
+suite. At most `workers` of them run (upstream's, default half the cores,
 `packages/playwright/src/common/config.ts:111`), stopping ones included (upstream awaits
 `worker.stop()` before starting another, `packages/playwright/src/runner/dispatcher.ts:153`);
 waiters are served first come first served, and at the cap a key with no free driver stops the
@@ -429,8 +431,9 @@ with 1000 and hides the peer's close frame. `TestProxy` is a small `:gen_tcp` HT
 proxy. Snapshot comparison and video decoding use the driver's own comparator and ffmpeg.
 `launchServer` specs run on the driver's `launch-server` CLI or upstream's unmodified
 `remote-server-impl.js`, as Python's and Java's suites do. The suite runs on `PlaywrightEx.Test`:
-each upstream and example module holds `BrowserPool.browser/1`, upstream's worker (the upstream
-one under test, set up as Playwright Test's fixtures by `on_start`). Cleanup closes only what a
+each upstream and example module holds `BrowserPool.browser/1`, upstream's worker, all on one
+driver key (under test, set up as Playwright Test's fixtures by `on_start`), so they reuse each
+other's drivers. Cleanup closes only what a
 test or module created: a passing module's driver goes on to the next. Tests of driver env vars run a second driver with its own env; under test the client keeps `__testHook*` keys per connection. Every long-lived child (servers, the
 `ClientProcess` BEAM) exits on stdin EOF, so a killed test BEAM leaves no orphans
 (`no_orphan_processes_test`). Upstream assets come from the pinned release cache, not vendored.
