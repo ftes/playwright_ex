@@ -21,7 +21,21 @@ mix test
 cd path/to/phoenix_live_view/test/e2e && npx playwright test -c playwright.noteardown.config.js
 ```
 
-## Runtime (2026-11-12)
+## Runtime at quiet load (2026-11-12, 18:47)
+
+One run each, with the display kept awake (`caffeinate -di`: WebKit on macOS stalls while the
+display is off, and a run with it off timed out ~150 WebKit tests in both suites). Pin
+`regexp-new-regex` 47caed19, 699 tests, 3 browsers. Upstream has its coverage off.
+
+| Workers / `max_cases` | Upstream | Port, default pool | Port, `POOL=exclusive` |
+| --- | --- | --- | --- |
+| 9 | 58.0 s | 70.8 s (+22%) | 65.0 s (+12%) |
+| 4 | 97.7 s | 115.6 s (+18%) | |
+
+The gap to upstream is about the same at 4 workers as at 9, so most of it is cost per test.
+The shared browser's extra cost over exclusive ones (~6 s at 9) grows with concurrency.
+
+## Runtime under load (2026-11-12, 16:46)
 
 699 tests, 3 browsers, 9 workers / `max_cases` (half the cores) on both sides, one shared server,
 Playwright 1.65. Full wall time including startup, one run each in interleaved order, under the
