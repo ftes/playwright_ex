@@ -11,15 +11,14 @@ those of the release candidates below. From an earlier release, also read the se
 ## [Unreleased]
 
 ### Added
-- `PlaywrightEx.Case`: a case template giving each test a `context` and a `page` of the shared
-  browser.
-- `PlaywrightEx.Test.BrowserPool`: Playwright Test's worker browser. `shared/1` is one browser
-  per set of options for every test at once; `exclusive/1` one held by the module (`setup_all`)
-  or test that calls it, at most `workers` at once (half the schedulers, as Playwright Test's
-  default), reused after a passing scope. `on_start` runs once per new driver (e.g. to register
-  selectors). On Firefox, use `exclusive/1`. `connect_options` is Playwright Test's
-  `connectOptions`: pooled browsers on a remote Playwright server, with the context defaults
-  and the recording.
+- `PlaywrightEx.Case`: a case template giving each module a `browser` and each test a `context`
+  and a `page` of it.
+- `PlaywrightEx.Test.BrowserPool`: Playwright Test's worker browser and worker model.
+  `browser/1` is held by the module (`setup_all`) or test that calls it, at most `workers` at
+  once (half the schedulers, as Playwright Test's default), reused after a passing scope and
+  replaced after a failing one. `on_start` runs once per new driver (e.g. to register
+  selectors). `connect_options` is Playwright Test's `connectOptions`: pooled browsers on a
+  remote Playwright server, with the context defaults and the recording.
 - `PlaywrightEx.Test`: `use PlaywrightEx.Test` after `use ExUnit.Case` (or first in a case
   template's body) registers each test. Every context it creates on a pooled browser, also in a
   `Task`, gets Playwright Test's context defaults (`locale: "en-US"`, a 1280x720 viewport, ...),
