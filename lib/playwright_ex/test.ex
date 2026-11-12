@@ -18,6 +18,8 @@ defmodule PlaywrightEx.Test do
         end
       end
 
+  `PlaywrightEx.Case` is this as a case template: `use PlaywrightEx.Case, async: true`.
+
   The runner is native, not a port of Playwright Test: it follows the runners of the official
   non-JS clients (pytest-playwright, Playwright.NUnit, Java's `@UsePlaywright`) on ExUnit, with
   Playwright Test's names and defaults where they exist (`packages/playwright/src/index.ts`).

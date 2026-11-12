@@ -19,17 +19,11 @@ config :playwright_ex, :test,
   screenshot: :only_on_failure
 ```
 
-A test module uses `PlaywrightEx.Test` and lists the fragments as setup callbacks:
+A test module uses `PlaywrightEx.Case`, which gives each test a `browser`, `context` and `page`:
 
 ```elixir
 defmodule MyApp.SignUpTest do
-  use ExUnit.Case, async: true
-  use PlaywrightEx.Test
-
-  alias PlaywrightEx.{Expect, Locator, Page}
-
-  setup_all :browser
-  setup [:new_context, :new_page]
+  use PlaywrightEx.Case, async: true
 
   test "signs up", %{page: page} do
     Page.goto!(page, "/sign-up")
@@ -38,6 +32,18 @@ defmodule MyApp.SignUpTest do
     Expect.to_have_text!(Page.get_by_role(page, :status), "Welcome, ada@example.com")
   end
 end
+```
+
+`PlaywrightEx.Case` is a case template made of `PlaywrightEx.Test`'s fragments, the setup
+callbacks below. It is the same as:
+
+```elixir
+use ExUnit.Case, async: true
+use PlaywrightEx.Test
+alias PlaywrightEx.{Browser, BrowserContext, Expect, Locator, Page}
+
+setup_all :browser
+setup [:new_context, :new_page]
 ```
 
 `use PlaywrightEx.Test` goes after `use ExUnit.Case`. It imports the fragments and a `test`
@@ -64,38 +70,38 @@ by default, and ExUnit's test timeout is 60 seconds; `set_default_timeout/2` mak
 fail sooner, with a message saying what it waited for. `set_default_navigation_timeout/2` sets
 navigations apart.
 
-## A case template
+## Your own case template
 
 The fragments read the context map and return new keys (`browser`, then `context`, then
-`page`), so a case template mixes them with your own setup. It is also where your own tags
-become options:
+`page`), so they mix with your own setup. To add setup after the page's, use `PlaywrightEx.Case`
+in your template's `using` and put the setup after it there; a template's own `setup` runs
+before the ones its `using` brings in:
 
 ```elixir
 # test/support/browser_case.ex
 defmodule MyApp.BrowserCase do
   use ExUnit.CaseTemplate
-  import PlaywrightEx.Test
-
-  alias PlaywrightEx.BrowserContext
 
   using do
     quote do
-      use PlaywrightEx.Test
-      alias PlaywrightEx.{Expect, Locator, Page}
+      use PlaywrightEx.Case
+
+      setup %{context: context} do
+        PlaywrightEx.BrowserContext.set_default_timeout(context, 5_000)
+        :ok
+      end
     end
   end
+end
+```
 
-  setup_all :browser
+To change a piece, say context options from your own tags, copy `PlaywrightEx.Case`'s source
+into `test/support` and edit it:
 
-  # `@tag locale: "de-DE"` on a test.
-  setup ctx do
-    new_context(ctx, context_options: [locale: ctx[:locale] || "en-US"])
-  end
-
-  setup %{context: context} = ctx do
-    BrowserContext.set_default_timeout(context, 5_000)
-    new_page(ctx)
-  end
+```elixir
+# `@tag locale: "de-DE"` on a test.
+setup ctx do
+  new_context(ctx, context_options: Enum.to_list(Map.take(ctx, [:locale])))
 end
 ```
 

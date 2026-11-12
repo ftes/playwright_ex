@@ -11,6 +11,8 @@ those of the release candidates below. From an earlier release, also read the se
 ## [Unreleased]
 
 ### Added
+- `PlaywrightEx.Case`: a case template giving each test a `browser`, `context` and `page`, built
+  from `PlaywrightEx.Test`'s fragments.
 - `PlaywrightEx.Test`: ExUnit setup fragments (`browser/1`, `new_context/2`, `new_page/1`), a
   shared browser per set of options or one per module (`isolate: true`, taken on first use, at
   most `workers` at once: half the schedulers, as Playwright Test's default), and

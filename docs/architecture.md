@@ -258,7 +258,9 @@ are for the non-JS clients, whose plugins (pytest-playwright, Playwright.NUnit, 
 Playwright Test's names and defaults (trace, screenshot and video modes, artifact names,
 `testInfo.outputDir`), and upstream's artifact code as the model (`ArtifactsRecorder` hooks on
 `ClientInstrumentation`, `mergeTraceFiles`). Options are arguments plus config, passed to the
-facade as they are.
+facade as they are. `PlaywrightEx.Case` puts the fragments together as upstream's `test`
+fixtures are (`browser`, `context`, `page`). It is a case template with no logic of its own, so it is
+also the recipe a user copies when their template needs another shape.
 
 Browsers are shared by default, unlike those clients' browser per worker thread: their client
 is bound to a thread, ours serves any number of processes, and ExUnit runs twice the schedulers'
@@ -326,8 +328,7 @@ with upstream source references and `-- not ported`/`# deviation:` comments. The
 `@upstream`, as parity tracks the client API, not the runner; the rest of the runner is native.
 
 Rejected: porting the rest of Playwright Test, `toPass`, `expect.poll`, `createExpect`
-(`expect.configure`; `expect.soft` is a receiver, `soft/1`), a CaseTemplate (fragments compose
-with the user's own), options from tags (a template maps its own), a step's `timeout` (a
+(`expect.configure`; `expect.soft` is a receiver, `soft/1`), options from tags (a template maps its own), a step's `timeout` (a
 process can't be interrupted, so the body would run in another process, with another `self()`
 and mailbox, and on past the timeout; the test's timeout bounds it) and a driver per module by
 default.
