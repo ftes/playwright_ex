@@ -20,6 +20,7 @@ defmodule PlaywrightEx.Test.Recorder do
   # reason and its call log, after the close's artifact steps ran (`test_timeout_margin/1`).
   use GenServer
 
+  alias PlaywrightEx.APIRequestContext
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Client.ChannelOwner
   alias PlaywrightEx.Page
@@ -106,7 +107,9 @@ defmodule PlaywrightEx.Test.Recorder do
       runBeforeCreateBrowserContext: &__MODULE__.before_create_browser_context/1,
       runAfterCreateBrowserContext: &__MODULE__.after_create_browser_context/1,
       runBeforeCloseBrowserContext: &__MODULE__.before_close_browser_context/1,
-      runBeforeCreateRequestContext: &__MODULE__.before_create_request_context/1
+      runBeforeCreateRequestContext: &__MODULE__.before_create_request_context/1,
+      runAfterCreateRequestContext: &__MODULE__.after_create_request_context/1,
+      runBeforeCloseRequestContext: &__MODULE__.before_close_request_context/1
     }
   end
 
@@ -119,10 +122,11 @@ defmodule PlaywrightEx.Test.Recorder do
 
   @impl true
   def init(test) do
-    # `contexts` in creation order, `closed` (guids) in close order, `screenshots` (temporary
-    # files) in capture order; `snapshotted` the guids of the pages with a screenshot, `ordinal`
-    # the screenshots named so far (upstream's `SnapshotRecorder`). `timer` the test timeout's,
-    # `timed_out` once it fired, `closing` the process that closes the contexts then.
+    # `contexts` in creation order, `closed` (guids) in close order, `requests` the open request
+    # contexts of `APIRequest.new_context/2`, `screenshots` (temporary files) in capture order;
+    # `snapshotted` the guids of the pages with a screenshot, `ordinal` the screenshots named so
+    # far (upstream's `SnapshotRecorder`). `timer` the test timeout's, `timed_out` once it fired,
+    # `closing` the process that closes the contexts then.
     {:ok,
      %{
        timer: arm(test),
@@ -132,6 +136,7 @@ defmodule PlaywrightEx.Test.Recorder do
        opts: test,
        contexts: [],
        closed: [],
+       requests: [],
        chunks: [],
        screenshots: [],
        snapshotted: MapSet.new(),
@@ -149,6 +154,12 @@ defmodule PlaywrightEx.Test.Recorder do
   end
 
   def handle_call({:closed, guid}, _from, state), do: {:reply, :ok, %{state | closed: state.closed ++ [guid]}}
+
+  def handle_call({:add_request, request}, _from, state),
+    do: {:reply, :ok, %{state | requests: state.requests ++ [request]}}
+
+  def handle_call({:request_closed, guid}, _from, state),
+    do: {:reply, :ok, %{state | requests: Enum.reject(state.requests, &(&1.guid == guid))}}
 
   def handle_call({:add_screenshot, path}, _from, state),
     do: {:reply, :ok, %{state | screenshots: state.screenshots ++ [path]}}
@@ -296,6 +307,7 @@ defmodule PlaywrightEx.Test.Recorder do
     nil
   end
 
+  # `didCreateBrowserContext`: a trace chunk of the context and of its `request`.
   defp record(context, recorder, test) do
     # `_setupContextOptions`'s `playwright._defaultContextTimeout = actionTimeout || 0` (and the
     # navigation's), which `Browser._setupBrowserContext` applies to each context. Per context
@@ -303,18 +315,60 @@ defmodule PlaywrightEx.Test.Recorder do
     BrowserContext.set_default_timeout(context, test.timeouts.action_timeout)
     BrowserContext.set_default_navigation_timeout(context, test.timeouts.navigation_timeout)
     call(recorder, {:add_context, context})
-    if test.trace[:mode] != :off, do: step("start tracing", fn -> start_tracing(context, test) end)
+
+    if test.trace[:mode] != :off do
+      step("start tracing", fn -> start_tracing(BrowserContext.tracing(context), test) end)
+      request = BrowserContext.request(context)
+
+      if :ets.insert_new(Pool.table(), {{:request, request.guid}, recorder}), do: start_request_tracing(request, test)
+    end
+
     if test.video[:mode] != :off, do: step("follow the context's pages", fn -> follow_pages(context, recorder) end)
   end
 
   # `_startTraceChunkOnContextCreation`: `tracing.start({ ...options, title, name })`.
-  defp start_tracing(context, opts) do
+  defp start_tracing(tracing, opts) do
     Tracing.start!(
-      BrowserContext.tracing(context),
+      tracing,
       Keyword.delete(opts.trace, :mode) ++
         [title: opts.title, name: "playwright_ex-#{System.unique_integer([:positive])}"]
     )
   end
+
+  @doc false
+  # `runAfterCreateRequestContext` (`didCreateRequestContext`): a request context of
+  # `APIRequest.new_context/2` in the test, kept to dispose of at its end, and its trace chunk.
+  def after_create_request_context(request) do
+    with %{} = test <- registration(),
+         recorder when is_pid(recorder) <- Pool.recorder(test.test_pid),
+         true <- :ets.insert_new(Pool.table(), {{:request, request.guid}, recorder}) do
+      call(recorder, {:add_request, request})
+
+      if test.trace[:mode] != :off, do: start_request_tracing(request, test)
+    end
+
+    nil
+  end
+
+  @doc false
+  # `runBeforeCloseRequestContext` (`willCloseRequestContext`): the trace chunk of a request
+  # context, also a browser context's `request` (its close disposes it first).
+  def before_close_request_context(request) do
+    with [{_key, recorder}] <- :ets.take(Pool.table(), {:request, request.guid}),
+         %{} = state <- call(recorder, :state) do
+      call(recorder, {:request_closed, request.guid})
+
+      if state.opts.trace[:mode] != :off, do: stop_request_tracing(request, recorder, state.opts)
+    end
+
+    nil
+  end
+
+  defp start_request_tracing(request, test),
+    do: step("start tracing", fn -> start_tracing(APIRequestContext.tracing(request), test) end)
+
+  defp stop_request_tracing(request, recorder, opts),
+    do: step("save the trace", fn -> stop_tracing(APIRequestContext.tracing(request), recorder, opts) end)
 
   defp follow_pages(context, recorder) do
     BrowserContext.on(context, :page, &GenServer.cast(recorder, {:add_page, context.guid, &1}))
@@ -336,7 +390,9 @@ defmodule PlaywrightEx.Test.Recorder do
   end
 
   defp collect(context, recorder, %{opts: opts} = state) do
-    if opts.trace[:mode] != :off, do: step("save the trace", fn -> stop_tracing(context, recorder, opts) end)
+    if opts.trace[:mode] != :off,
+      do: step("save the trace", fn -> stop_tracing(BrowserContext.tracing(context), recorder, opts) end)
+
     if opts.screenshot[:mode] != :off, do: screenshots(context, recorder, opts)
     step("take a page snapshot", fn -> page_snapshot(context, recorder, state) end)
   end
@@ -362,10 +418,10 @@ defmodule PlaywrightEx.Test.Recorder do
     end
   end
 
-  defp stop_tracing(context, recorder, opts) do
+  defp stop_tracing(tracing, recorder, opts) do
     File.mkdir_p!(opts.tmp)
     path = Path.join(opts.tmp, "#{System.unique_integer([:positive])}.zip")
-    Tracing.stop_chunk!(BrowserContext.tracing(context), path: path)
+    Tracing.stop_chunk!(tracing, path: path)
     call(recorder, {:add_chunk, path})
   end
 
@@ -432,6 +488,7 @@ defmodule PlaywrightEx.Test.Recorder do
     end
   after
     :ets.match_delete(Pool.table(), {{:context, :_}, pid})
+    :ets.match_delete(Pool.table(), {{:request, :_}, pid})
     step("stop the recorder", fn -> GenServer.stop(pid) end)
   end
 
@@ -449,6 +506,10 @@ defmodule PlaywrightEx.Test.Recorder do
     for %{guid: guid, context: context} <- state.contexts,
         guid not in state.closed,
         do: step("close a context", fn -> BrowserContext.close!(context, reason: "Test ended.") end)
+
+    # The leftover request contexts too, as upstream's `request` fixture is disposed.
+    for request <- state.requests,
+        do: step("dispose a request context", fn -> APIRequestContext.dispose!(request, reason: "Test ended.") end)
 
     state = GenServer.call(pid, :state, :infinity)
     save_videos(state, failed?)
@@ -474,7 +535,9 @@ defmodule PlaywrightEx.Test.Recorder do
   # Past the budget: the contexts still open are closed in the background, so they don't pile up
   # in a pooled browser. The task anchors them before the recorder stops.
   defp close_leftovers(state) do
-    leftovers = for %{guid: guid, context: context} <- state.contexts, guid not in state.closed, do: context
+    leftovers =
+      for(%{guid: guid, context: context} <- state.contexts, guid not in state.closed, do: context) ++ state.requests
+
     {parent, ref} = {self(), make_ref()}
 
     if leftovers != [] do
@@ -491,6 +554,9 @@ defmodule PlaywrightEx.Test.Recorder do
       end
     end
   end
+
+  defp close_leftover(%PlaywrightEx.APIRequestContext{} = request),
+    do: step("dispose a request context", fn -> APIRequestContext.dispose(request, reason: "Test ended.") end)
 
   defp close_leftover(context),
     do: step("close a context", fn -> BrowserContext.close(context, reason: "Test ended.") end)

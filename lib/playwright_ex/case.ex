@@ -28,6 +28,11 @@ defmodule PlaywrightEx.Case do
 
   To change a piece (another browser, context options from a tag, other aliases), copy this
   module's source into `test/support` and edit it there.
+
+  Playwright Test's `request` fixture is not here, as every test would pay for it: create one in
+  the test, with the context defaults and recorded, and disposed at its end:
+
+      request = APIRequest.new_context!(Playwright.request(BrowserPool.playwright(BrowserPool.shared())))
   """
   use ExUnit.CaseTemplate
   use PlaywrightEx.Test

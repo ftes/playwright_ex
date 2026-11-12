@@ -70,12 +70,14 @@ defmodule PlaywrightEx.Test do
   Every context the test creates on a `BrowserPool` browser, in the test or a process with it
   in `$callers`, is recorded. The recording starts with the test's first context (or at its
   registration when it traces, for its steps); a test without contexts records nothing.
-  Contexts left open are closed after the test, last in its `on_exit`; a context closed earlier
-  keeps its artifacts. Each test writes to its own dir under `output_dir`, named as upstream's
+  Contexts left open are closed after the test, last in its `on_exit`, and request contexts of
+  `PlaywrightEx.APIRequest.new_context/2` left are disposed; a context closed earlier keeps its
+  artifacts. Each test writes to its own dir under `output_dir`, named as upstream's
   `testInfo.outputDir` (`checkout-pays-1a2b3` for the test "pays" in `test/checkout_test.exs`,
   the suffix a hash of the module and its `parameterize:` parameters):
 
-    * `trace.zip` - one trace of all its contexts, recorded with screenshots, snapshots and
+    * `trace.zip` - one trace of all its contexts, their `request`s and its request contexts
+      (`PlaywrightEx.APIRequest.new_context/2`), recorded with screenshots, snapshots and
       sources unless the trace's options say otherwise. A failed test that keeps one prints
       `mix playwright_ex.cli show-trace <path>`.
     * `test-finished-N.png`, or `test-failed-N.png` for a failed test - a screenshot of every

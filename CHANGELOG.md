@@ -43,6 +43,8 @@ those of the release candidates below. From an earlier release, also read the se
 - `test_id_attribute` in `config :playwright_ex, :test` is Playwright Test's `testIdAttribute`,
   set on each pooled driver. The client's test id attribute is global to the VM, so a module that
   sets it changes `get_by_test_id` for concurrent tests: set it suite-wide.
+- `PlaywrightEx.Test` traces each context's `request` and the test's own request contexts
+  (`APIRequest.new_context/2`), and disposes those left at the test's end.
 
 ### Changed
 - `%PlaywrightEx.Expect{}` also carries `isSoft`, and `isNot` defaults to `false`: build a

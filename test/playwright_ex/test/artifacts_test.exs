@@ -126,7 +126,8 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     assert [_] = File.ls!(own_videos)
 
     trace = trace(test.dir, browser)
-    assert trace.resources |> Map.keys() |> Enum.count(&(&1 =~ ~r/^\d-trace\.trace$/)) == 4
+    # A chunk per context and one per context's `request`.
+    assert trace.resources |> Map.keys() |> Enum.count(&(&1 =~ ~r/^\d-trace\.trace$/)) == 8
 
     for marker <- ~w(ALICE BOB TASK TASK-NEW), do: assert(traced?(trace, marker), "#{marker} not in the trace")
     refute traced?(trace, "OTHER")
@@ -266,8 +267,9 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
 
     {:ok, files} = :zip.unzip(String.to_charlist(Path.join(test.dir, "trace.zip")), [:memory])
     files = Map.new(files, fn {name, data} -> {to_string(name), data} end)
-    # The context's chunk is the first of two, `test.trace`'s the second.
-    %{"files" => paths, "stacks" => stacks} = JSON.decode!(files["0-trace.stacks"])
+    # The context's chunk is the second of three: its `request`'s is first (disposed as the
+    # context closes), `test.trace`'s last.
+    %{"files" => paths, "stacks" => stacks} = JSON.decode!(files["1-trace.stacks"])
     call_ids = for %{"type" => "before", "callId" => id} <- trace(test.dir, browser).events, do: id
 
     # Every stack is one of the trace's actions', every frame's file is in `files`.

@@ -284,6 +284,7 @@ no call site (the recording modes) are config plus ExUnit tags; the rest are arg
 | (none) | `BrowserPool.shared/1` |
 | `playwright` fixture | `BrowserPool.playwright/1` |
 | `context`/`page` fixtures, `browser.newContext()` | `Browser.new_context!/2`, `BrowserContext.new_page!/1`; `PlaywrightEx.Case` puts them together |
+| `request` fixture | `APIRequest.new_context!/2` in the test (disposed at its end); not in `PlaywrightEx.Case`, where each test would pay for it |
 | auto `_setupArtifacts` | the recording of every registered test (`error-context.md` whatever the modes) |
 | `_combinedContextOptions` (`{...contextOptions, ...options}`) | Playwright Test's defaults, then config `context_options`, then the call's (`key in options`) |
 | `actionTimeout`, `navigationTimeout` (default 0) | config `action_timeout`, `navigation_timeout` (default `:infinity`), set on each context |
@@ -316,7 +317,8 @@ Deviations the port requires:
   shared Firefox, and still on 4. So Firefox suites use `exclusive` (our suite does), not a `pool_size` of shared
   browsers per key: Firefox needs about a browser per module.
 - Closing the test's leftover contexts, last in its `on_exit`: a pooled browser outlives the test,
-  where upstream's worker browser closes them later.
+  where upstream's worker browser closes them later. Its request contexts left are disposed, as
+  upstream's `request` fixture is.
 - A video of every context the test creates, not only the fixtures' (there are no context
   fixtures).
 - `actionTimeout`/`navigationTimeout` per context, in the listener's after-create hook (and a
@@ -334,7 +336,7 @@ Deviations the port requires:
 
 A driver hosts every browser type, as upstream's one Playwright does. Each pooled driver gets one
 static listener when it starts (`runBeforeCreateBrowserContext`, `runAfterCreateBrowserContext`,
-`runBeforeCloseBrowserContext`, `runBeforeCreateRequestContext`), which finds the creating
+`runBeforeCloseBrowserContext` and their request context counterparts), which finds the creating
 process's test (an ETS lookup of it and its `$callers`) and hands the context to that test's
 recorder, so a test's recording sees the contexts of all its browsers. The recorder process
 starts at the test's first context (at its registration when it traces, for its steps): a test
