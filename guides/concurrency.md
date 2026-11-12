@@ -73,6 +73,32 @@ Locator.click!(Page.get_by_text(page, "Export"))
 task = Task.async(fn -> Download.path!(Promise.await!(download)) end)
 ```
 
+## Calls you await later
+
+JS starts a call and awaits it later: `const p = locator.evaluate(...); ...; await p`. Which
+Elixir form fits depends on when the call completes:
+
+- `PlaywrightEx.Promise.async/1` when the call must be sent before your next action, say an
+  `evaluate` that resolves on a click. It returns once the call is sent; a `Task` may send it
+  after the click.
+
+  ```elixir
+  clicked = Promise.async(fn -> Page.evaluate!(page, "() => new Promise(r => onclick = () => r(true))") end)
+  Locator.click!(Page.get_by_role(page, :button))
+  true = Promise.await!(clicked)
+  ```
+
+- `Task.async/1` when the call only completes after a later action of yours, such as a `click`
+  that opens a dialog you then handle: awaiting it in line would deadlock, and the order of the
+  sends doesn't matter, as you wait for the event the call causes.
+
+  ```elixir
+  dialog = Page.wait_for_event(page, :dialog)
+  click = Task.async(fn -> Locator.click!(Page.get_by_role(page, :button)) end)
+  Dialog.accept!(Promise.await!(dialog))
+  Task.await(click)
+  ```
+
 ## Lifetimes after close
 
 As in JS, a closed page or context stays readable: [`Page.url/1`](`PlaywrightEx.Page.url/1`) and
