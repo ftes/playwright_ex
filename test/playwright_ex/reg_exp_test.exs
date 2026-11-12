@@ -111,6 +111,40 @@ defmodule PlaywrightEx.RegExpTest do
     assert RegExp.new(~r"^/users/\d+$") |> RegExp.compile!() |> Regex.match?("/users/12")
   end
 
+  test "compile!: \\s and \\S are JS's whitespace, also in classes, with or without u (as node)" do
+    js_space =
+      [" ", "\t", "\n", "\v", "\f", "\r", "\u00a0", "\u1680", "\u2000", "\u200a", "\u2028", "\u2029"] ++
+        ["\u202f", "\u205f", "\u3000", "\ufeff"]
+
+    not_space = ["a", "-", "\u200b", "\u180e", "\u0085"]
+    match? = fn source, flags, string -> Regex.match?(RegExp.compile!(RegExp.new(source, flags)), string) end
+
+    for flags <- ["", "u", "i"] do
+      for c <- js_space do
+        assert match?.("^\\s$", flags, c) and match?.("^[\\s]$", flags, c) and match?.("^[a\\s]$", flags, c)
+        refute match?.("^\\S$", flags, c) or match?.("^[^\\s]$", flags, c) or match?.("^[a\\S]$", flags, c)
+        assert match?.("^[^a\\S]$", flags, c)
+      end
+
+      for c <- not_space do
+        refute match?.("^\\s$", flags, c) or match?.("^[\\s]$", flags, c)
+        assert match?.("^\\S$", flags, c) and match?.("^[^\\s]$", flags, c) and match?.("^[\\S]$", flags, c)
+      end
+
+      assert match?.("^\\s*a\\s+b\\s*$", flags, "\u00a0a\u2003b\ufeff")
+      # \\w stays ASCII, as in JS.
+      refute match?.("^\\w$", flags, "é")
+    end
+
+    # Without u, `-` after a class escape is literal.
+    assert match?.("^[\\s-a]$", "", "-") and match?.("^[\\s-a]$", "", "a") and match?.("^[\\s-a]$", "", "\u00a0")
+    refute match?.("^[\\s-a]$", "", "b")
+  end
+
+  test "inspect shows the JS form" do
+    assert inspect(RegExp.new("a/b", "iv")) == "#PlaywrightEx.RegExp</a\\/b/iv>"
+  end
+
   test "new/2 raises for a Regex JS cannot run, flags given or not" do
     for re <- [~r/a/x, ~r/\Aa\z/, ~r/(?>a)/, ~r/(?i)a/] do
       assert_raise ArgumentError, fn -> RegExp.new(re) end

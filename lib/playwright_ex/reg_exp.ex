@@ -20,8 +20,8 @@ defmodule PlaywrightEx.RegExp do
 
   The source is not validated here: the browser or driver reports JS syntax errors. Matching in
   Elixir (`wait_for_url`, `Page.frame(url:)`, routes, `wait_for_request`) compiles a `RegExp` to
-  a `Regex`: `[^]`, `\\uXXXX` and identity escapes are translated, the `y` flag anchors, `g` and
-  `d` do not matter; a pattern PCRE cannot run (the `v` flag, unbounded lookbehind) raises
+  a `Regex`: `[^]`, `\\s`/`\\S` (JS's Unicode whitespace), `\\uXXXX` and identity escapes are
+  translated, the `y` flag anchors, `g` and `d` do not matter; a pattern PCRE cannot run (the `v` flag, unbounded lookbehind) raises
   `ArgumentError`. JS regexes returned by the driver (`evaluate`) are always a
   `PlaywrightEx.RegExp` (lossless); `to_regex/1` or `compile!/1` gives a `Regex` when PCRE can run
   it.
@@ -41,7 +41,7 @@ defmodule PlaywrightEx.RegExp do
   `dgimsuvy`), and on `u` with `v`. `/` is escaped in the source, an empty one is `(?:)`.
 
       iex> PlaywrightEx.RegExp.new("a/b", "iv")
-      %PlaywrightEx.RegExp{source: "a\\\\/b", flags: "iv"}
+      #PlaywrightEx.RegExp</a\\/b/iv>
 
   `pattern` may be a regex, as in JS (`new RegExp(re)`): its source, with its flags unless
   `flags` is given. A `Regex` is converted as wherever Playwright takes one: its options `i`, `m`,
@@ -49,7 +49,7 @@ defmodule PlaywrightEx.RegExp do
   moduledoc). With `compile!/1`, Elixir matches it as the browser does.
 
       iex> PlaywrightEx.RegExp.new(~r"a/b"i)
-      %PlaywrightEx.RegExp{source: "a\\\\/b", flags: "i"}
+      #PlaywrightEx.RegExp</a\\/b/i>
   """
   @spec new(String.t() | Regex.t() | t(), String.t() | nil) :: t()
   def new(pattern, flags \\ nil)
@@ -178,6 +178,40 @@ defmodule PlaywrightEx.RegExp do
     {:ok, js_to_pcre(source, unicode, false, "")}
   catch
     {:error, reason} -> {:error, reason}
+  end
+
+  # JS `\s` is WhiteSpace and LineTerminator (TAB, VT, FF, ZWNBSP, the Zs spaces, LF, CR, LS, PS)
+  # with or without `u`; PCRE's is ASCII, and `:ucp` would widen `\w`, `\d` and `\b` too. So
+  # `\s` and `\S` become JS's code points, as class items (`\S` as the complement's ranges).
+  @js_space [{0x9, 0xD}, {0x20, 0x20}, {0xA0, 0xA0}, {0x1680, 0x1680}, {0x2000, 0x200A}] ++
+              [{0x2028, 0x2029}, {0x202F, 0x202F}, {0x205F, 0x205F}, {0x3000, 0x3000}, {0xFEFF, 0xFEFF}]
+  @js_non_space (fn ->
+                   {ranges, from} =
+                     Enum.reduce(@js_space, {[], 0}, fn {a, b}, {acc, from} ->
+                       {if(a > from, do: [{from, a - 1} | acc], else: acc), b + 1}
+                     end)
+
+                   Enum.reverse([{from, 0x10FFFF} | ranges])
+                 end).()
+
+  defp class_items(ranges) do
+    item = fn
+      cp when cp < 0x100 -> "\\x" <> String.pad_leading(Integer.to_string(cp, 16), 2, "0")
+      cp -> <<cp::utf8>>
+    end
+
+    for {a, b} <- ranges, into: "", do: if(a == b, do: item.(a), else: item.(a) <> "-" <> item.(b))
+  end
+
+  defp js_to_pcre(<<?\\, c, rest::binary>>, unicode, in_class, acc) when c in ~c"sS" do
+    items = class_items(if c == ?s, do: @js_space, else: @js_non_space)
+
+    case {in_class, rest} do
+      # `[\s-a]`: the `-` after a class escape is literal.
+      {true, <<?-, rest::binary>>} -> js_to_pcre(rest, unicode, true, acc <> items <> "\\-")
+      {true, _} -> js_to_pcre(rest, unicode, true, acc <> items)
+      {false, _} -> js_to_pcre(rest, unicode, false, acc <> "[" <> items <> "]")
+    end
   end
 
   defp js_to_pcre(<<"[^]", rest::binary>>, unicode, false, acc), do: js_to_pcre(rest, unicode, false, acc <> "[\\s\\S]")
@@ -335,6 +369,11 @@ defmodule PlaywrightEx.RegExp do
 
   defp escape_pattern(<<c, rest::binary>>, in_class, acc), do: escape_pattern(rest, in_class, <<acc::binary, c>>)
   defp escape_pattern(<<>>, _in_class, acc), do: acc
+
+  # `/source/flags`, as JS shows a regex, in the client's `#Name<...>` form.
+  defimpl Inspect do
+    def inspect(re, _opts), do: "#PlaywrightEx.RegExp<" <> PlaywrightEx.RegExp.to_string(re) <> ">"
+  end
 
   defimpl String.Chars do
     def to_string(re), do: PlaywrightEx.RegExp.to_string(re)

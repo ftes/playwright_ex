@@ -12,7 +12,8 @@ those of the release candidates below. From an earlier release, also read the se
 
 ### Added
 - `PlaywrightEx.RegExp.new/1,2` takes a `Regex` or `RegExp` as JS's `new RegExp(re, flags)` does,
-  converting a `Regex` as Playwright does (PCRE-only syntax raises `ArgumentError`).
+  converting a `Regex` as Playwright does (PCRE-only syntax raises `ArgumentError`). It inspects as
+  `#PlaywrightEx.RegExp</source/flags>`.
 - `PlaywrightEx.Case`: a case template giving each test a `browser`, `context` and `page`, built
   from `PlaywrightEx.Test`'s fragments.
 - `PlaywrightEx.Test`: ExUnit setup fragments (`browser/1`, `new_context/2`, `new_page/1`), a
@@ -50,6 +51,8 @@ those of the release candidates below. From an earlier release, also read the se
   logged.
 
 ### Fixed
+- Matching a JS regex in Elixir (`RegExp.compile!/1`, `wait_for_url`, routes): `\s` and `\S` follow JS's
+  whitespace (NBSP, U+2003, U+FEFF, …), not PCRE's ASCII one.
 - On Unix, stopping `PlaywrightEx.Supervisor` waits until the driver has exited (at most 31 s).
   When the supervisor is stopped before the VM halts, the driver no longer resets the terminal
   afterwards (↑ printing `OA` in the shell after `mix test`). `mix test` and `mix run` halt
