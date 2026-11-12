@@ -5,6 +5,22 @@ What has no direct equivalent when porting `phoenix_live_view/test/e2e` (Playwri
 matchers, `route_web_socket`, `wait_for_event`, coverage) ports one to one; the gaps are in the
 runner and in JS-the-language.
 
+## Status in PlaywrightEx (2026-11-12, from the #201 stack's session)
+
+- In progress on the #201 stack:
+  - `toPass` / `expect.poll`, ported into the library. Timeout 0 means "until the test's timeout". Contexts now close shortly before ExUnit kills the test, so the call that hung fails with its call log. `to_pass/2` here can switch to it.
+  - "Start now, await later": a public `PlaywrightEx.Promise.async/1` returns once the call is sent, and concurrency.md will say when to use it and when `Task.async` is right instead (a click that opens a dialog).
+- Guide notes, in a new "Porting Playwright Test specs" section:
+  - listener state that outlives the test (send to the test pid, `off` first, or unlinked state)
+  - teardown checks that fail the test, and option fixtures as tags
+  - `projects` with `devices[...]`
+  - a route handler that waits on the test
+  - the porting traps: `:null`, string keys, `RegExp.new`
+- By design: `ElementHandle` extends `JSHandle`, so call `JSHandle` functions on it. No delegates.
+- Later, or not possible:
+  - a per-test listener scope: #209
+  - runtime skip (not possible in ExUnit), retries (rejected, use `--failed`), monocart coverage (third-party, not applicable), nested and duplicate describes, asymmetric matchers, module-level `let`s: #210
+
 ## Runner (Playwright Test vs ExUnit + PlaywrightEx.Test)
 
 | Upstream | Here | Fidelity |
