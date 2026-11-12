@@ -206,6 +206,7 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     on_exit(fn -> Page.close!(page) end)
   end
 
+  @tag skip: PlaywrightEx.TestBrowser.other_skip_reason()
   test "a plain context of another browser type is recorded: one driver hosts them all", ctx do
     dir = dir(ctx)
 

@@ -1,11 +1,43 @@
 defmodule PlaywrightEx.TestBrowser do
   @moduledoc "The browser under test: `BROWSER` env (`chromium`, `firefox` or `webkit`), default `chromium`."
+  alias PlaywrightEx.Driver
   alias PlaywrightEx.Playwright
 
   def name, do: System.get_env("BROWSER", "chromium")
 
   @doc "A browser type other than the one under test."
   def other_name, do: if(name() == "firefox", do: :chromium, else: :firefox)
+
+  @doc """
+  `nil` when `other_name/0` is installed, else a skip reason, for `@tag skip:`: CI installs only
+  the browser under test (`mix playwright_ex.install -- $BROWSER`).
+  """
+  def other_skip_reason do
+    if !installed?(other_name()),
+      do: "env: #{other_name()} not installed (mix playwright_ex.install -- #{other_name()})"
+  end
+
+  # The executable a headless launch runs (chromium.ts `getExecutableName`).
+  defp installed?(:chromium), do: registry_executable("chromium-headless-shell") != nil
+  defp installed?(name), do: registry_executable(to_string(name)) != nil
+
+  @doc """
+  The executable `name` of the driver's own registry
+  (`registry.findExecutable(name).executablePath()`), or `nil` when it isn't installed.
+  """
+  def registry_executable(name) do
+    with {node, [cli]} <- Driver.executable(),
+         core_bundle = Path.join([Path.dirname(cli), "lib", "coreBundle.js"]),
+         true <- File.regular?(node) and File.regular?(core_bundle),
+         script =
+           "process.stdout.write(require(process.argv[1]).registry.registry.findExecutable(process.argv[2])?.executablePath() || '')",
+         {path, 0} <- System.cmd(node, ["-e", script, core_bundle, name]),
+         true <- path != "" and File.regular?(path) do
+      path
+    else
+      _ -> nil
+    end
+  end
 
   @doc """
   Playwright Test's `headless` option (upstream runs headed with `--headed`): `HEADED=1` runs the

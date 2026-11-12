@@ -90,6 +90,7 @@ defmodule PlaywrightEx.Test.PoolTest do
     refute Process.alive?(sup)
   end
 
+  @tag skip: PlaywrightEx.TestBrowser.other_skip_reason()
   test "one driver hosts every browser type" do
     a = browser(opts())
     b = browser(Keyword.put(opts(), :browser_name, PlaywrightEx.TestBrowser.other_name()))
@@ -379,8 +380,9 @@ defmodule PlaywrightEx.Test.PoolTest do
       m = module()
       a = browser(m, opts)
       assert browser(m, opts) == a
-      b = browser(m, Keyword.put(opts, :browser_name, PlaywrightEx.TestBrowser.other_name()))
-      assert a.playwright == b.playwright
+      # Other launch options: the browser under test, so CI's one installed browser runs it.
+      b = browser(m, Keyword.put(opts, :launch_options, opts()[:launch_options]))
+      assert a.playwright == b.playwright and a.browser != b.browser
       c = browser(m, Keyword.put(opts, :on_start, {__MODULE__, :on_start, [self()]}))
       assert c.playwright != a.playwright
       run_test(m, [], :boom)
