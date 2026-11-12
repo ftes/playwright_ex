@@ -40,7 +40,9 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       string too for `"openEvents"` classes (`CDPSession`, see `Mix.PlaywrightEx.ApiRules`). The
       call runs in `PlaywrightEx.Runtime.Facade.listen/1`: the listener is a user listener.
     * Functions with options: `__options__(:click)` lists the options with their doc and type, for
-      wrappers that pass them on (documented as unstable).
+      wrappers that pass them on (documented as unstable). `__options_type__(:click)` (`@doc
+      false`) is their type, as `PlaywrightEx.Runtime.Facade.options!/3` converts them: the
+      config's `context_options` of `PlaywrightEx.Test`.
 
   `--check` writes nothing and fails if a file is out of date (`mix playwright_ex.parity` runs it).
   """
@@ -964,6 +966,12 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     if clauses != [] do
       name = members |> hd() |> elem(0) |> Map.fetch!("alias") |> snake()
 
+      types =
+        for {member, options} <- members do
+          name = snake(member["alias"])
+          "def __options_type__(#{inspect(String.to_atom(name))}), do: @#{name}_#{arg_var(options)}"
+        end
+
       """
       @doc \"\"\"
       The options of `function`, an atom such as `:#{name}`, as
@@ -977,6 +985,12 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       def __options__(function)
 
       #{Enum.join(clauses, "\n\n")}
+
+      @doc false
+      # The type of `function`'s options, as `Facade.options!/3` converts them.
+      def __options_type__(function)
+
+      #{Enum.join(types, "\n")}
       """
     end
   end

@@ -169,4 +169,10 @@ defmodule PlaywrightEx.FileChooser do
       }
     ]
   end
+
+  @doc false
+  # The type of `function`'s options, as `Facade.options!/3` converts them.
+  def __options_type__(function)
+
+  def __options_type__(:set_files), do: @set_files_options
 end

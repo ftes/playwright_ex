@@ -1,64 +1,57 @@
 defmodule PlaywrightEx.Test.OptionsTest do
   use ExUnit.Case, async: true
 
+  alias PlaywrightEx.Test.BrowserPool
   alias PlaywrightEx.Test.Options
   alias PlaywrightEx.Test.Recorder
 
   describe "validation" do
     test "unknown options raise before anything starts" do
-      assert_raise ArgumentError, ~r/unknown options \[:headless\]/, fn -> PlaywrightEx.Test.browser(headless: true) end
-
-      assert_raise ArgumentError, ~r/unknown options \[:locale\]/, fn ->
-        PlaywrightEx.Test.new_context(%{}, locale: "de")
-      end
-
-      assert_raise ArgumentError, ~r/unknown options/, fn -> Options.artifacts(tracing: :on) end
-      assert_raise ArgumentError, ~r/unknown driver options \[:name\]/, fn -> Options.browser(driver: [name: Foo]) end
+      assert_raise ArgumentError, ~r/unknown options \[:headless\]/, fn -> BrowserPool.shared(headless: true) end
+      assert_raise ArgumentError, ~r/unknown options \[:isolate\]/, fn -> BrowserPool.exclusive(isolate: true) end
+      assert_raise ArgumentError, ~r/unknown driver options \[:name\]/, fn -> Options.pool(driver: [name: Foo]) end
     end
 
     test "bad values raise" do
-      assert_raise ArgumentError, ~r/invalid browser_name: :chrome/, fn -> Options.browser(browser_name: :chrome) end
+      assert_raise ArgumentError, ~r/invalid browser_name: :chrome/, fn -> Options.pool(browser_name: :chrome) end
 
       assert_raise ArgumentError, ~r/invalid trace: :on_first_retry, expected one of/, fn ->
-        Options.artifacts(trace: :on_first_retry)
+        Options.artifacts(%{trace: :on_first_retry})
       end
 
       assert_raise ArgumentError, ~r/invalid screenshot: :retain_on_failure/, fn ->
-        Options.artifacts(screenshot: :retain_on_failure)
+        Options.artifacts(%{screenshot: :retain_on_failure})
       end
 
       assert_raise ArgumentError, ~r/invalid video: :only_on_failure/, fn ->
-        Options.artifacts(video: :only_on_failure)
+        Options.artifacts(%{video: :only_on_failure})
       end
 
-      assert_raise ArgumentError, ~r/invalid isolate: 1/, fn -> Options.browser(isolate: 1) end
-      assert_raise ArgumentError, ~r/invalid on_start/, fn -> Options.browser(on_start: fn -> :ok end) end
-      assert_raise ArgumentError, ~r/invalid launch_options: "x"/, fn -> Options.browser(launch_options: "x") end
-      assert_raise ArgumentError, ~r/expected a keyword list/, fn -> Options.browser([:isolate]) end
+      assert_raise ArgumentError, ~r/invalid on_start/, fn -> Options.pool(on_start: fn -> :ok end) end
+      assert_raise ArgumentError, ~r/invalid launch_options: "x"/, fn -> Options.pool(launch_options: "x") end
+      assert_raise ArgumentError, ~r/expected a keyword list/, fn -> Options.pool([:driver]) end
     end
 
-    test "options are as given, keyword lists or maps" do
-      assert %{launch_options: [slow_mo: 50], on_start: {M, :f, []}, isolate: false} =
-               Options.browser(launch_options: %{slow_mo: 50}, on_start: {M, :f, []})
+    test "options are as given, keyword lists or maps; tags true and false are :on and :off" do
+      assert %{launch_options: [slow_mo: 50], on_start: {M, :f, []}} =
+               Options.pool(launch_options: %{slow_mo: 50}, on_start: {M, :f, []})
 
       assert %{trace: [mode: :on] ++ _, screenshot: [mode: :off], video: [mode: :retain_on_failure]} =
-               Options.artifacts(trace: :on, video: :retain_on_failure)
-
-      assert %{context_options: [locale: "de-DE"]} = Options.context(context_options: [locale: "de-DE"])
+               Options.artifacts(%{trace: true, screenshot: false, video: :retain_on_failure})
     end
 
     test "artifact modes are their object forms' mode, with upstream's defaults" do
-      assert Options.artifacts(trace: :on, screenshot: :on, video: :on) == %{
+      assert Options.artifacts(%{trace: :on, screenshot: :on, video: :on}) == %{
                trace: [mode: :on, snapshots: true, screenshots: true, sources: true],
                screenshot: [mode: :on],
                video: [mode: :on]
              }
 
-      assert Options.artifacts(
+      assert Options.artifacts(%{
                trace: [sources: false, mode: :retain_on_failure, snapshots: %{dom: true, aria: false}],
                screenshot: %{mode: :only_on_failure, full_page: true, omit_background: false},
                video: [mode: :on, size: %{width: 320, height: 240}]
-             ) == %{
+             }) == %{
                trace: [
                  mode: :retain_on_failure,
                  snapshots: %{dom: true, aria: false},
@@ -72,53 +65,22 @@ defmodule PlaywrightEx.Test.OptionsTest do
 
     test "unknown keys and bad values of the object forms raise" do
       for {option, message} <- [
-            {[trace: [mode: :on, attachments: false]], ~r/unknown trace options \[:attachments\], expected one of/},
-            {[video: [mode: :on, fps: 30]], ~r/unknown video options \[:fps\]/},
-            {[screenshot: [mode: :on, path: "x.png"]], ~r/unknown screenshot options \[:path\]/},
-            {[trace: [sources: false]], ~r/trace options need :mode/},
-            {[video: %{size: %{width: 320, height: 240}}], ~r/video options need :mode/},
-            {[trace: [mode: :on_first_retry]], ~r/invalid trace: :on_first_retry, expected one of/},
-            {[trace: [mode: :on, snapshots: 1]], ~r/invalid trace snapshots: 1/},
-            {[trace: [mode: :on, snapshots: %{dom: true, network: true}]], ~r/invalid trace snapshots: %{/},
-            {[trace: [mode: :on, sources: nil]], ~r/invalid trace sources: nil/},
-            {[screenshot: [mode: :on, full_page: "yes"]], ~r/invalid screenshot full_page: "yes"/},
-            {[video: [mode: :on, size: [width: 320, height: 240]]], ~r/invalid video size: \[/},
-            {[video: [mode: :on, size: %{width: 320}]], ~r/invalid video size: %{width: 320}/},
-            {[trace: "on"], ~r/invalid trace: "on"/}
+            {%{trace: [mode: :on, attachments: false]}, ~r/unknown trace options \[:attachments\], expected one of/},
+            {%{video: [mode: :on, fps: 30]}, ~r/unknown video options \[:fps\]/},
+            {%{screenshot: [mode: :on, path: "x.png"]}, ~r/unknown screenshot options \[:path\]/},
+            {%{trace: [sources: false]}, ~r/trace options need :mode/},
+            {%{video: %{size: %{width: 320, height: 240}}}, ~r/video options need :mode/},
+            {%{trace: [mode: :on_first_retry]}, ~r/invalid trace: :on_first_retry, expected one of/},
+            {%{trace: [mode: :on, snapshots: 1]}, ~r/invalid trace snapshots: 1/},
+            {%{trace: [mode: :on, snapshots: %{dom: true, network: true}]}, ~r/invalid trace snapshots: %{/},
+            {%{trace: [mode: :on, sources: nil]}, ~r/invalid trace sources: nil/},
+            {%{screenshot: [mode: :on, full_page: "yes"]}, ~r/invalid screenshot full_page: "yes"/},
+            {%{video: [mode: :on, size: [width: 320, height: 240]]}, ~r/invalid video size: \[/},
+            {%{video: [mode: :on, size: %{width: 320}]}, ~r/invalid video size: %{width: 320}/},
+            {%{trace: "on"}, ~r/invalid trace: "on"/},
+            {%{trace: nil}, ~r/invalid trace: nil/}
           ],
           do: assert_raise(ArgumentError, message, fn -> Options.artifacts(option) end)
-    end
-
-    test "isolate needs the context map of a module with use PlaywrightEx.Test" do
-      message = assert_raise(ArgumentError, fn -> PlaywrightEx.Test.browser(isolate: true) end).message
-      assert message =~ "browser(context, isolate: true) needs a test module with `use PlaywrightEx.Test`"
-      assert message =~ "add it after `use ExUnit.Case`"
-    end
-
-    test "fragments given the context map of a module without use PlaywrightEx.Test say to add it", ctx do
-      for {what, fun} <- [
-            {"browser/1", &PlaywrightEx.Test.browser/1},
-            {"record_artifacts/2", &PlaywrightEx.Test.record_artifacts/1}
-          ],
-          do:
-            assert_raise(
-              ArgumentError,
-              ~r/^#{Regex.escape(what)} needs a test module with `use PlaywrightEx.Test`/,
-              fn -> fun.(ctx) end
-            )
-
-      assert_raise ArgumentError, ~r/^new_context\/2 needs a test module/, fn ->
-        PlaywrightEx.Test.new_context(Map.put(ctx, :browser, :a_browser))
-      end
-    end
-
-    test "fragments need their keys" do
-      assert_raise ArgumentError, ~r/expected :browser in the context map/, fn -> PlaywrightEx.Test.new_context(%{}) end
-      assert_raise ArgumentError, ~r/expected :context in the context map/, fn -> PlaywrightEx.Test.new_page(%{}) end
-
-      assert_raise ArgumentError, ~r/expected :file/, fn ->
-        PlaywrightEx.Test.record_artifacts(%{module: M, test: :t})
-      end
     end
   end
 
@@ -240,10 +202,11 @@ defmodule PlaywrightEx.Test.ConfigTest do
   use ExUnit.Case, async: false
   use PlaywrightEx.Test
 
+  alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Test.BrowserPool
   alias PlaywrightEx.Test.Options
-  alias PlaywrightEx.Test.Recorder
 
   setup do
     config = Application.get_env(:playwright_ex, :test)
@@ -251,50 +214,67 @@ defmodule PlaywrightEx.Test.ConfigTest do
     %{config: config}
   end
 
-  test "new_context starts a recording with the config when the test hasn't", ctx do
-    dir = Recorder.output_dir(ctx)
-
-    on_exit(fn ->
-      assert File.ls!(dir) == ["test-finished-1.png"]
-      File.rm_rf!(dir)
-    end)
-
-    Application.put_env(:playwright_ex, :test, Keyword.put(ctx.config, :screenshot, :on))
-    %{browser: browser} = PlaywrightEx.Test.browser(ctx)
-    %{context: context} = PlaywrightEx.Test.new_context(Map.put(ctx, :browser, browser))
-    Page.set_content!(BrowserContext.new_page!(context), "<h1>Defaults</h1>")
-  end
-
-  test "the config's context_options win over Playwright Test's context defaults", ctx do
-    Application.put_env(:playwright_ex, :test, Keyword.put(ctx.config, :context_options, locale: "de-DE"))
-    %{browser: browser} = PlaywrightEx.Test.browser(ctx)
-    %{context: context} = PlaywrightEx.Test.new_context(Map.put(ctx, :browser, browser))
-    page = BrowserContext.new_page!(context)
-    assert Page.evaluate!(page, "navigator.language") == "de-DE"
-  end
-
-  test "options merge over the config, option lists one level deep", %{config: config} do
+  # The config's `context_options` are read at the registration, so `config` here is in effect
+  # for the next test only: `context_options/0` is checked directly.
+  test "the config's context_options win over Playwright Test's context defaults, converted", ctx do
     Application.put_env(
       :playwright_ex,
       :test,
-      config ++ [launch_options: [headless: false, slow_mo: 1], trace: :on, context_options: %{locale: "de-DE"}]
+      Keyword.put(ctx.config, :context_options, locale: "de-DE", color_scheme: :dark, viewport: :null)
     )
 
-    assert %{launch_options: [headless: false, slow_mo: 50]} = Options.browser(launch_options: [slow_mo: 50])
-    assert %{trace: [mode: :on] ++ _, video: [mode: :on]} = Options.artifacts(video: :on)
-    assert %{context_options: [locale: "de-DE", base_url: "/"]} = Options.context(context_options: [base_url: "/"])
+    assert %{locale: "de-DE", colorScheme: "dark", viewport: :null, offline: false} = Options.context_options()
+  end
+
+  test "a registered test's context gets the defaults, then the config's, then its own", ctx do
+    Application.put_env(:playwright_ex, :test, Keyword.put(ctx.config, :context_options, locale: "de-DE"))
+    # The registration of this test read the config before: register a fake one in a process.
+    test_pid = self()
+
+    {pid, ref} =
+      spawn_monitor(fn ->
+        PlaywrightEx.Test.__register__(%{
+          test_pid: self(),
+          module: __MODULE__,
+          test: :"test fake",
+          file: __ENV__.file,
+          line: 1
+        })
+
+        browser = BrowserPool.shared()
+        default = BrowserContext.new_page!(Browser.new_context!(browser))
+        own = BrowserContext.new_page!(Browser.new_context!(browser, locale: "fr-FR"))
+
+        send(
+          test_pid,
+          {:languages, Page.evaluate!(default, "navigator.language"), Page.evaluate!(own, "navigator.language")}
+        )
+      end)
+
+    assert_receive {:languages, "de-DE", "fr-FR"}, 30_000
+    assert_receive {:DOWN, ^ref, :process, _, _}
+    PlaywrightEx.Test.__finish__(pid, 10_000)
+  end
+
+  test "options merge over the config, option lists one level deep; tags over the config", %{config: config} do
+    Application.put_env(:playwright_ex, :test, config ++ [launch_options: [headless: false, slow_mo: 1], trace: :on])
+
+    assert %{launch_options: [headless: false, slow_mo: 50]} = Options.pool(launch_options: [slow_mo: 50])
+    assert %{trace: [mode: :on] ++ _, video: [mode: :on]} = Options.artifacts(%{video: :on})
+    assert %{trace: [mode: :off] ++ _} = Options.artifacts(%{trace: false})
   end
 
   test "the defaults", %{config: config} do
     Application.delete_env(:playwright_ex, :test)
-    assert %{browser_name: :chromium, isolate: false, on_start: nil} = Options.browser([])
+    assert %{browser_name: :chromium, launch_options: [], driver: [], on_start: nil} = Options.pool([])
 
     assert %{
              trace: [mode: :off, snapshots: true, screenshots: true, sources: true],
              screenshot: [mode: :off],
              video: [mode: :off]
-           } = Options.artifacts([])
+           } = Options.artifacts(%{})
 
+    assert Options.context_options() == Options.context_defaults()
     assert Options.output_dir() == "test-results"
     assert Options.workers() == max(div(System.schedulers_online(), 2), 1)
     Application.put_env(:playwright_ex, :test, config)
@@ -304,16 +284,19 @@ defmodule PlaywrightEx.Test.ConfigTest do
     Application.put_env(:playwright_ex, :test, config ++ [tracing: :on])
 
     assert_raise ArgumentError, ~r/unknown keys \[:tracing\] in config :playwright_ex, :test/, fn ->
-      Options.artifacts([])
+      Options.artifacts(%{})
     end
 
-    # `isolate` is an argument only, and error-context.md has no switch, as upstream.
+    # `isolate` is gone, and error-context.md has no switch, as upstream.
     for key <- [:isolate, :error_context] do
       Application.put_env(:playwright_ex, :test, config ++ [{key, true}])
-      assert_raise ArgumentError, ~r/unknown keys \[#{inspect(key)}\]/, fn -> Options.browser([]) end
+      assert_raise ArgumentError, ~r/unknown keys \[#{inspect(key)}\]/, fn -> Options.pool([]) end
     end
 
     Application.put_env(:playwright_ex, :test, config ++ [trace: :sometimes])
-    assert_raise ArgumentError, ~r/invalid trace: :sometimes/, fn -> Options.artifacts([]) end
+    assert_raise ArgumentError, ~r/invalid trace: :sometimes/, fn -> Options.artifacts(%{}) end
+
+    Application.put_env(:playwright_ex, :test, config ++ [context_options: [lokale: "x"]])
+    assert_raise ArgumentError, fn -> Options.context_options() end
   end
 end

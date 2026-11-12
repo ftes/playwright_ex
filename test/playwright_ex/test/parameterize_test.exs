@@ -3,54 +3,58 @@ defmodule PlaywrightEx.Test.ParameterizeTest do
   # module of a file has its own recorder and output dir, also for tests of the same name.
   use ExUnit.Case, async: true, parameterize: [%{n: 1}, %{n: 2}]
 
-  use PlaywrightEx.Test
-
+  alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Test.BrowserPool
   alias PlaywrightEx.Test.Recorder
 
-  setup_all :browser
+  # Before the registration, so its `on_exit` runs after the test's end has saved the trace.
+  setup ctx, do: check(ctx, "PARAM-#{ctx.n}", [%{ctx | n: 3 - ctx.n}, %{ctx | module: __MODULE__.Other}])
 
-  def records(ctx, marker, others) do
+  use PlaywrightEx.Test
+
+  @moduletag trace: :on
+
+  def check(ctx, marker, others) do
     dir = Recorder.output_dir(ctx)
     for other <- others, do: refute(Recorder.output_dir(other) == dir)
 
     on_exit(fn ->
       assert File.ls!(dir) == ["trace.zip"]
-      trace = PlaywrightEx.Utils.parse_trace_raw(Path.join(dir, "trace.zip"), ctx.browser)
+      trace = PlaywrightEx.Utils.parse_trace_raw(Path.join(dir, "trace.zip"), BrowserPool.shared())
       text = JSON.encode!(trace.events)
       assert text =~ marker
       for other <- ["PARAM-1", "PARAM-2", "OTHER-MODULE"] -- [marker], do: refute(text =~ other)
       File.rm_rf!(dir)
     end)
+  end
 
-    record_artifacts(ctx, trace: :on)
-    %{context: context} = new_context(ctx)
-    page = BrowserContext.new_page!(context)
+  def record(marker) do
+    page = BrowserContext.new_page!(Browser.new_context!(BrowserPool.shared()))
     Page.set_content!(page, "<h1>#{marker}</h1>")
     # Long enough for the other parameter set's test to run alongside.
     Process.sleep(200)
   end
 
-  test "records", %{n: n} = ctx do
-    others = [%{ctx | n: 3 - n}, %{ctx | module: __MODULE__.Other}]
-    records(ctx, "PARAM-#{n}", others)
-  end
+  test("records", %{n: n}, do: record("PARAM-#{n}"))
 end
 
 defmodule PlaywrightEx.Test.ParameterizeTest.Other do
   use ExUnit.Case, async: true
 
-  use PlaywrightEx.Test
-
   alias PlaywrightEx.Test.ParameterizeTest
 
-  setup_all :browser
-
-  test "records", ctx do
+  setup ctx do
     others = for n <- [1, 2], do: Map.merge(ctx, %{module: ParameterizeTest, n: n})
-    ParameterizeTest.records(ctx, "OTHER-MODULE", others)
+    ParameterizeTest.check(ctx, "OTHER-MODULE", others)
   end
+
+  use PlaywrightEx.Test
+
+  @moduletag trace: :on
+
+  test "records", do: ParameterizeTest.record("OTHER-MODULE")
 end
 
 defmodule PlaywrightEx.Test.ParameterizeTest.Shapes do

@@ -35,9 +35,8 @@ defmodule PlaywrightEx.Test.TestInfo do
   # `_tracing`: the test's recorder, if it records artifacts.
   defp _tracing(this), do: Recorder.lookup(this.test_pid)
 
-  @doc "Registers the running test of `context` (in its `setup`), once: matchers of its processes find it."
-  def start(context) do
-    this = new(context)
+  @doc "Registers the running test `this` (`new/1`, in its `setup`), once: matchers of its processes find it."
+  def start(this) do
     :ets.insert_new(Pool.table(), {{:test_info, this.test_pid, :info}, this})
     :ok
   end
@@ -147,9 +146,9 @@ defmodule PlaywrightEx.Test.TestInfo do
         boxedStack: boxed_stack,
         stack: stack,
         testInfo: this,
-        # Elixir only: the recorder its `before` went to, which its `after` goes to. The test
-        # may start recording inside the step (`PlaywrightEx.Test.new_context/2`), and an `after`
-        # without its `before` breaks the trace viewer.
+        # Elixir only: the recorder its `before` went to, which its `after` goes to. The test's
+        # first context may start its recorder inside the step, and an `after` without its
+        # `before` breaks the trace viewer.
         _tracing: if(group != "internal", do: _tracing(this))
       })
 

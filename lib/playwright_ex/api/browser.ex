@@ -2112,4 +2112,15 @@ defmodule PlaywrightEx.Browser do
       }
     ]
   end
+
+  @doc false
+  # The type of `function`'s options, as `Facade.options!/3` converts them.
+  def __options_type__(function)
+
+  def __options_type__(:close), do: @close_options
+  def __options_type__(:new_context), do: @new_context_options
+  def __options_type__(:new_page), do: @new_page_options
+  def __options_type__(:bind), do: @bind_options
+  def __options_type__(:remove_all_listeners), do: @remove_all_listeners_options
+  def __options_type__(:start_tracing), do: @start_tracing_options
 end

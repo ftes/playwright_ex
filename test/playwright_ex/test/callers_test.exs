@@ -2,8 +2,7 @@ defmodule PlaywrightEx.Test.CallersTest do
   # User callbacks (route handlers, user listeners) run with the `$callers` of the process that
   # registered them (`PlaywrightEx.Runtime.Callers`): `expect`, `step` and an ownership lookup
   # (Ecto's sandbox, Mox) find the test, and an unhandled error fails it.
-  use ExUnit.Case, async: true
-  use PlaywrightEx.Test
+  use PlaywrightEx.Case, async: true
 
   import ExUnit.CaptureLog
 
@@ -15,9 +14,6 @@ defmodule PlaywrightEx.Test.CallersTest do
   alias PlaywrightEx.Test.Pool
   alias PlaywrightEx.Test.TestInfo
   alias PlaywrightEx.WebSocketRoute
-
-  setup_all :browser
-  setup [:new_context, :new_page]
 
   @url "http://callers.test/"
 
@@ -39,7 +35,7 @@ defmodule PlaywrightEx.Test.CallersTest do
 
     Page.route!(page, "**/*", fn route ->
       send(test_pid, {:owner, owner([test_pid])})
-      send(test_pid, {:step, step("in a route handler", fn -> TestInfo.current().test_pid end)})
+      send(test_pid, {:step, Test.step("in a route handler", fn -> TestInfo.current().test_pid end)})
       Expect.soft(page) |> Expect.to_have_title!("x", timeout: 1)
       Route.fulfill!(route, body: "<title>ok</title>", content_type: "text/html")
     end)

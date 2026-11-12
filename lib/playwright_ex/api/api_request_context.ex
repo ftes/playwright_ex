@@ -2001,4 +2001,19 @@ defmodule PlaywrightEx.APIRequestContext do
       }
     ]
   end
+
+  @doc false
+  # The type of `function`'s options, as `Facade.options!/3` converts them.
+  def __options_type__(function)
+
+  def __options_type__(:clear_cookies), do: @clear_cookies_options
+  def __options_type__(:delete), do: @delete_options
+  def __options_type__(:dispose), do: @dispose_options
+  def __options_type__(:fetch), do: @fetch_options
+  def __options_type__(:get), do: @get_options
+  def __options_type__(:head), do: @head_options
+  def __options_type__(:patch), do: @patch_options
+  def __options_type__(:post), do: @post_options
+  def __options_type__(:put), do: @put_options
+  def __options_type__(:storage_state), do: @storage_state_options
 end

@@ -1,25 +1,23 @@
 defmodule PlaywrightEx.Test.Recorder do
   @moduledoc false
-  # The artifacts of one test (`PlaywrightEx.Test.record_artifacts/2`), after Playwright Test's
+  # The artifacts of one registered test (`use PlaywrightEx.Test`), after Playwright Test's
   # `ArtifactsRecorder`, `SnapshotRecorder` and `_contextFactory`
   # (`packages/playwright/src/index.ts`) and `mergeTraceFiles`
   # (`packages/playwright/src/worker/testTracing.ts`).
   #
-  # A process per test, alive from the test's setup to the end of its `on_exit`: it remembers
-  # the test's contexts and anchors them (so their pages and videos stay readable after the
-  # process that created or closed them exits). Its listener (`ClientInstrumentation`) runs in
-  # the processes that create and close contexts; `finish/2` runs in ExUnit's `on_exit`
-  # process, once the test's result is known (`PlaywrightEx.Test.Pool.result/2`), and keeps or
-  # drops the artifacts by it. Every artifact step rescues and logs: an exception in `on_exit`
-  # would fail the test and hide its own error, and upstream's artifact code swallows its errors
-  # too.
+  # A process per test that creates a context (`PlaywrightEx.Test.Pool.recorder/1`, started on
+  # its first one; on its registration when it traces, for the steps of `test.trace`), alive to
+  # the end of its `on_exit`: it remembers the test's contexts and anchors them (so their pages
+  # and videos stay readable after the process that created or closed them exits). The driver's
+  # listener (`listener/0`) runs in the processes that create and close contexts; `finish/3`
+  # runs in ExUnit's `on_exit` process, once the test's result is known, and keeps or drops the
+  # artifacts by it. Every artifact step rescues and logs: an exception in `on_exit` would fail
+  # the test and hide its own error, and upstream's artifact code swallows its errors too.
   use GenServer
 
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Client.ChannelOwner
-  alias PlaywrightEx.Client.ClientInstrumentation
   alias PlaywrightEx.Page
-  alias PlaywrightEx.Runtime.Heap
   alias PlaywrightEx.Test.ErrorContext
   alias PlaywrightEx.Test.Pool
   alias PlaywrightEx.Test.TestTracing
@@ -62,7 +60,7 @@ defmodule PlaywrightEx.Test.Recorder do
     end
   end
 
-  @doc "The recorder of the test `test_pid`, or `nil`."
+  @doc "The recorder of the test `test_pid`, if it started one, or `nil`."
   def lookup(test_pid) do
     case Pool.started?() && :ets.lookup(Pool.table(), {:recorder, test_pid}) do
       [{_, pid}] -> pid
@@ -70,41 +68,52 @@ defmodule PlaywrightEx.Test.Recorder do
     end
   end
 
-  @doc "Starts the recorder of the test `test_pid`. Not linked: it outlives the test process, until `finish/2`."
-  def start(test_pid, opts) do
-    Pool.ensure_started()
-    {:ok, pid} = GenServer.start(__MODULE__, {test_pid, opts})
-    :ets.insert(Pool.table(), {{:recorder, test_pid}, pid})
-    pid
+  @doc """
+  The registration of the running test (`PlaywrightEx.Test`'s per-test setup) of the calling
+  process or a process in its `$callers`, or `nil`.
+  """
+  def registration do
+    Enum.find_value([self() | List.wrap(Process.get(:"$callers"))], &registration/1)
+  end
+
+  @doc "The registration of the test `test_pid`, or `nil`."
+  def registration(test_pid) do
+    case Pool.started?() && :ets.lookup(Pool.table(), {:test, test_pid}) do
+      [{_key, test}] -> test
+      _ -> nil
+    end
   end
 
   @doc "`TestTracing`'s `_appendTraceEvent`: adds `event` to the test's trace (`PlaywrightEx.Test.TestTracing`)."
   def append_trace_event(pid, event), do: call(pid, {:append_trace_event, event})
 
-  @doc "Adds the recorder's listener to `instrumentation` (once)."
-  def ensure_listener(pid, instrumentation), do: GenServer.call(pid, {:ensure_listener, instrumentation}, :infinity)
+  @doc """
+  The listener each driver of `PlaywrightEx.Test.BrowserPool` gets when it starts (upstream's
+  `_setupArtifacts` `csiListener`, `ArtifactsRecorder`'s and `_contextFactory`'s parts). It runs
+  in the process that creates or closes a context, for every context of the driver: it looks up
+  the creator's test (`registration/0`) and records only the test's contexts. A process that
+  creates one unregistered is noted (`PlaywrightEx.Test.Pool.note_unregistered/1`): the test
+  process of a case template's `setup` that runs before `use PlaywrightEx.Test`'s fails its
+  registration.
+  """
+  def listener do
+    %{
+      runBeforeCreateBrowserContext: &__MODULE__.before_create_browser_context/1,
+      runAfterCreateBrowserContext: &__MODULE__.after_create_browser_context/1,
+      runBeforeCloseBrowserContext: &__MODULE__.before_close_browser_context/1,
+      runBeforeCreateRequestContext: &__MODULE__.before_create_request_context/1
+    }
+  end
 
   @impl true
-  def init({test_pid, opts}) do
-    tmp = Path.join(System.tmp_dir!(), "playwright_ex-test-#{System.unique_integer([:positive])}")
-    opts = Map.put(opts, :tmp, tmp)
-    this = self()
-
-    listener = %{
-      runBeforeCreateBrowserContext: &before_create(&1, test_pid, opts),
-      runAfterCreateBrowserContext: &after_create(&1, this, test_pid, opts),
-      runBeforeCloseBrowserContext: &before_close(&1, this, test_pid, opts)
-    }
-
+  def init(test) do
     # `contexts` in creation order, `closed` (guids) in close order, `screenshots` (temporary
     # files) in capture order; `snapshotted` the guids of the pages with a screenshot, `ordinal`
     # the screenshots named so far (upstream's `SnapshotRecorder`).
     {:ok,
      %{
-       test_pid: test_pid,
-       opts: opts,
-       listener: listener,
-       instrumentations: [],
+       test_pid: test.test_pid,
+       opts: test,
        contexts: [],
        closed: [],
        chunks: [],
@@ -117,15 +126,6 @@ defmodule PlaywrightEx.Test.Recorder do
   end
 
   @impl true
-  def handle_call({:ensure_listener, instrumentation}, _from, state) do
-    if instrumentation in state.instrumentations do
-      {:reply, :ok, state}
-    else
-      ClientInstrumentation.add_listener(instrumentation, state.listener)
-      {:reply, :ok, %{state | instrumentations: [instrumentation | state.instrumentations]}}
-    end
-  end
-
   def handle_call({:add_context, context}, _from, state) do
     # The recorder anchors the context: its videos are saved after its creator may have exited.
     ChannelOwner._set_creator(context)
@@ -184,38 +184,63 @@ defmodule PlaywrightEx.Test.Recorder do
     {:noreply, %{state | contexts: contexts}}
   end
 
-  # The listener. It runs in the process that creates or closes a context, for every context of
-  # the driver: only the test's own count.
-  defp ours?(test_pid) do
-    self() == test_pid or test_pid in List.wrap(Process.get(:"$callers"))
-  end
+  @doc false
+  # `runBeforeCreateBrowserContext`: `_contextFactory`'s `{ ...videoOptions, ...options }`, then
+  # `_combinedContextOptions` for each key not in the options (a key given as `nil` stays).
+  def before_create_browser_context(options) do
+    case registration() do
+      nil ->
+        note_unregistered()
+        options
 
-  # `_contextFactory`: `browser.newContext({ ...videoOptions, ...options })`.
-  defp before_create(options, test_pid, opts) do
-    if opts.video[:mode] != :off and not Map.has_key?(options, :recordVideo) and ours?(test_pid),
-      do:
-        Map.put(
-          options,
-          :recordVideo,
-          Map.new([dir: Path.join(opts.tmp, "videos")] ++ Keyword.take(opts.video, [:size]))
-        ),
-      else: options
-  end
+      test ->
+        options =
+          if test.video[:mode] != :off and not Map.has_key?(options, :recordVideo),
+            do:
+              Map.put(
+                options,
+                :recordVideo,
+                Map.new([dir: Path.join(test.tmp, "videos")] ++ Keyword.take(test.video, [:size]))
+              ),
+            else: options
 
-  # A row `{{:context, guid}, recorder}` per recorded context: `before_close` reads it, no call
-  # into every test's recorder on each close.
-  defp after_create(context, recorder, test_pid, opts) do
-    if ours?(test_pid) and :ets.insert_new(Pool.table(), {{:context, context.guid}, recorder}) do
-      call(recorder, {:add_context, context})
-      record(context, recorder, opts)
+        Map.merge(test.context_options, options)
     end
+  end
+
+  @doc false
+  # `runBeforeCreateRequestContext`: `_combinedContextOptions` for each key not in the options.
+  def before_create_request_context(options) do
+    case registration() do
+      nil ->
+        note_unregistered()
+        options
+
+      test ->
+        Map.merge(test.context_options, options)
+    end
+  end
+
+  # The test process, the root of the `$callers`.
+  defp note_unregistered, do: Pool.note_unregistered(List.last([self() | List.wrap(Process.get(:"$callers"))]))
+
+  @doc false
+  # `runAfterCreateBrowserContext`: `didCreateBrowserContext`, on the test's recorder, started on
+  # its first context. A row `{{:context, guid}, recorder}` per recorded context: `before_close`
+  # reads it, no call into every test's recorder on each close.
+  def after_create_browser_context(context) do
+    with %{} = test <- registration(),
+         recorder when is_pid(recorder) <- Pool.recorder(test.test_pid),
+         true <- :ets.insert_new(Pool.table(), {{:context, context.guid}, recorder}),
+         do: record(context, recorder, test)
 
     nil
   end
 
-  defp record(context, recorder, opts) do
-    if opts.trace[:mode] != :off, do: step("start tracing", fn -> start_tracing(context, opts) end)
-    if opts.video[:mode] != :off, do: step("follow the context's pages", fn -> follow_pages(context, recorder) end)
+  defp record(context, recorder, test) do
+    call(recorder, {:add_context, context})
+    if test.trace[:mode] != :off, do: step("start tracing", fn -> start_tracing(context, test) end)
+    if test.video[:mode] != :off, do: step("follow the context's pages", fn -> follow_pages(context, recorder) end)
   end
 
   # `_startTraceChunkOnContextCreation`: `tracing.start({ ...options, title, name })`.
@@ -232,13 +257,15 @@ defmodule PlaywrightEx.Test.Recorder do
     for page <- BrowserContext.pages(context), do: GenServer.cast(recorder, {:add_page, context.guid, page})
   end
 
-  # `willCloseBrowserContext`: the trace chunk, the screenshots (`captureTemporary`), then the
-  # page snapshot (`_takePageSnapshot`).
-  # Taking the row makes it once per context, also when closes race.
-  defp before_close(context, recorder, test_pid, opts) do
-    if :ets.select_delete(Pool.table(), [{{{:context, context.guid}, recorder}, [], [true]}]) == 1 do
+  @doc false
+  # `runBeforeCloseBrowserContext` (`willCloseBrowserContext`): the trace chunk, the screenshots
+  # (`captureTemporary`), then the page snapshot (`_takePageSnapshot`). Taking the row makes it
+  # once per context, also when closes race.
+  def before_close_browser_context(context) do
+    with [{_key, recorder}] <- :ets.take(Pool.table(), {:context, context.guid}),
+         %{} = state <- call(recorder, :state) do
       call(recorder, {:closed, context.guid})
-      collect(context, recorder, test_pid, opts)
+      collect(context, recorder, state.test_pid, state.opts)
     end
 
     nil
@@ -313,41 +340,36 @@ defmodule PlaywrightEx.Test.Recorder do
   end
 
   @doc """
-  The end of the test (its first `on_exit`, so it runs last): within `budget` ms (ExUnit's
-  `on_exit` shares the test's timeout), waits for the test's result, closes its contexts still
-  open, then keeps the videos, trace and screenshots as the modes and the result say and writes
-  `error-context.md` of a failure. Then, whatever happened, removes the listener and stops the
-  recorder.
+  The end of the test (in its registration's `on_exit`, so it runs last), with its `result`
+  (`PlaywrightEx.Test.Pool.result/2`): within `budget` ms (ExUnit's `on_exit` shares the test's
+  timeout), closes its contexts still open, then keeps the videos, trace and screenshots as the
+  modes and the result say and writes `error-context.md` of a failure. Then, whatever happened,
+  stops the recorder. Returns the path of the trace it kept, or `nil`.
   """
-  def finish(pid, budget) do
-    task = Task.async(fn -> step("finish the recording", fn -> collect_all(pid, budget) end) end)
-    finished? = Task.yield(task, budget) != nil
+  def finish(pid, result, budget) do
+    task = Task.async(fn -> step("finish the recording", fn -> collect_all(pid, result) end) end)
 
-    if !finished? do
-      Task.shutdown(task, :brutal_kill)
-      log("finish the recording", "it took over #{budget} ms")
+    case Task.yield(task, budget) do
+      {:ok, trace} ->
+        trace
+
+      nil ->
+        Task.shutdown(task, :brutal_kill)
+        log("finish the recording", "it took over #{budget} ms")
+        step("close the contexts left", fn -> close_leftovers(GenServer.call(pid, :state, :infinity)) end)
+        nil
     end
-
-    step("remove the listener", fn ->
-      state = GenServer.call(pid, :state, :infinity)
-      for instrumentation <- state.instrumentations, do: remove_listener(instrumentation, state.listener)
-      if !finished?, do: close_leftovers(state)
-    end)
-
-    :ok
   after
-    :ets.match_delete(Pool.table(), {{:recorder, :_}, pid})
     :ets.match_delete(Pool.table(), {{:context, :_}, pid})
     step("stop the recorder", fn -> GenServer.stop(pid) end)
   end
 
-  defp collect_all(pid, budget) do
+  defp collect_all(pid, {verdict, failures}) do
     state = GenServer.call(pid, :state, :infinity)
-    {verdict, failures} = Pool.result(state.test_pid, budget)
     # A test of another macro (a doctest) has no result: kept as a failure's.
     failed? = verdict != :passed
 
-    # `didFinishTest`: the open pages' screenshots, then the leftover contexts. A shared browser
+    # `didFinishTest`: the open pages' screenshots, then the leftover contexts. A pooled browser
     # outlives the test.
     if capture?(state.opts.screenshot[:mode], failed?), do: capture(pid, failed?)
 
@@ -357,17 +379,19 @@ defmodule PlaywrightEx.Test.Recorder do
 
     state = GenServer.call(pid, :state, :infinity)
     save_videos(state, failed?)
-    save_trace(state, failed?)
+    trace = save_trace(state, failed?)
     persist_screenshots(state, failed?)
 
     if verdict == :failed do
       info = Map.merge(Map.take(state.opts, [:dir, :title_path, :location]), %{page_snapshot: state.page_snapshot})
       step("write error-context.md", fn -> ErrorContext.write(info, failures) end)
     end
+
+    trace
   end
 
   # Past the budget: the contexts still open are closed in the background, so they don't pile up
-  # in a shared browser. The task anchors them before the recorder stops.
+  # in a pooled browser. The task anchors them before the recorder stops.
   defp close_leftovers(state) do
     leftovers = for %{guid: guid, context: context} <- state.contexts, guid not in state.closed, do: context
     {parent, ref} = {self(), make_ref()}
@@ -389,15 +413,6 @@ defmodule PlaywrightEx.Test.Recorder do
 
   defp close_leftover(context),
     do: step("close a context", fn -> BrowserContext.close(context, reason: "Test ended.") end)
-
-  # Exactly this listener: the ported `remove_listener` removes the last one for an unknown
-  # listener, on a shared driver another test's. The listeners are rows of the connection's
-  # table, written in its process: after the driver closed, they are gone with it.
-  defp remove_listener(instrumentation, listener) do
-    Heap.update(instrumentation, :listeners, &List.delete(&1, listener))
-  rescue
-    e in PlaywrightEx.TargetClosedError -> if e.message != "Playwright driver closed", do: reraise(e, __STACKTRACE__)
-  end
 
   # `_contextFactory`'s close (`shouldPreserveVideo`): `video.webm`, `video-1.webm`, ... in the
   # order the contexts closed. The artifact options have their `mode` first.
@@ -422,21 +437,25 @@ defmodule PlaywrightEx.Test.Recorder do
     Video.save_as!(video, path)
   end
 
-  # `testTracing`'s `stopIfNeeded`: the test's `test.trace` and its contexts' chunks.
+  # `testTracing`'s `stopIfNeeded`: the test's `test.trace` and its contexts' chunks. The path,
+  # when kept.
   defp save_trace(state, failed?) do
     path = Path.join(state.opts.dir, "trace.zip")
 
-    step("merge the traces", fn ->
-      TestTracing.stop_if_needed(
-        state.tracing,
-        state.opts,
-        state.chunks,
-        failed?,
-        state.opts[:test_timeout],
-        state.opts.tmp,
-        path
-      )
-    end)
+    result =
+      step("merge the traces", fn ->
+        TestTracing.stop_if_needed(
+          state.tracing,
+          state.opts,
+          state.chunks,
+          failed?,
+          state.opts[:test_timeout],
+          state.opts.tmp,
+          path
+        )
+      end)
+
+    if result == :saved, do: path
   end
 
   # `shouldCaptureUponFinish`.

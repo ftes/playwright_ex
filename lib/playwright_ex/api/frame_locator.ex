@@ -918,4 +918,16 @@ defmodule PlaywrightEx.FrameLocator do
       }
     ]
   end
+
+  @doc false
+  # The type of `function`'s options, as `Facade.options!/3` converts them.
+  def __options_type__(function)
+
+  def __options_type__(:get_by_alt_text), do: @get_by_alt_text_options
+  def __options_type__(:get_by_label), do: @get_by_label_options
+  def __options_type__(:get_by_placeholder), do: @get_by_placeholder_options
+  def __options_type__(:get_by_role), do: @get_by_role_options
+  def __options_type__(:get_by_text), do: @get_by_text_options
+  def __options_type__(:get_by_title), do: @get_by_title_options
+  def __options_type__(:locator), do: @locator_options
 end

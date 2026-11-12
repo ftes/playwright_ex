@@ -263,4 +263,11 @@ defmodule PlaywrightEx.JSHandle do
       }
     ]
   end
+
+  @doc false
+  # The type of `function`'s options, as `Facade.options!/3` converts them.
+  def __options_type__(function)
+
+  def __options_type__(:evaluate), do: @evaluate_options
+  def __options_type__(:evaluate_handle), do: @evaluate_handle_options
 end

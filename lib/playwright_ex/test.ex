@@ -1,24 +1,38 @@
 defmodule PlaywrightEx.Test do
   @moduledoc """
-  ExUnit setup fragments for browser tests: a shared browser, a context and page per test, and
-  traces, screenshots and videos of failures.
+  Playwright Test's per-test machinery on ExUnit: each test's result, its artifacts (traces,
+  screenshots, videos, `error-context.md`), Playwright Test's context defaults, soft errors,
+  snapshot and output paths, and steps. The browser comes from `PlaywrightEx.Test.BrowserPool`,
+  contexts and pages from the plain API; `PlaywrightEx.Case` puts them together.
 
       # config/test.exs
-      config :playwright_ex, :test, trace: :retain_on_failure, screenshot: :only_on_failure
+      config :playwright_ex, :test,
+        trace: if(System.get_env("TRACE"), do: :on, else: :off),
+        screenshot: :only_on_failure,
+        context_options: [base_url: "http://localhost:4000"]
 
       defmodule MyApp.CheckoutTest do
         use ExUnit.Case, async: true
         use PlaywrightEx.Test
 
-        setup_all :browser
-        setup [:new_context, :new_page]
+        alias PlaywrightEx.{Browser, BrowserContext, Page}
+
+        setup do
+          context = Browser.new_context!(PlaywrightEx.Test.BrowserPool.shared())
+          %{page: BrowserContext.new_page!(context)}
+        end
 
         test "pays", %{page: page} do
           ...
         end
       end
 
-  `PlaywrightEx.Case` is this as a case template: `use PlaywrightEx.Case, async: true`.
+  > #### Firefox: use `exclusive` {: .warning}
+  >
+  > Firefox dispatches input for all of a browser's pages in one queue, so a shared Firefox
+  > browser slows down as concurrent tests grow, until they time out. On Firefox, use
+  > `PlaywrightEx.Test.BrowserPool.exclusive/1`: one browser per worker, as Playwright Test
+  > always does.
 
   The runner is native, not a port of Playwright Test: it follows the runners of the official
   non-JS clients (pytest-playwright, Playwright.NUnit, Java's `@UsePlaywright`) on ExUnit, with
@@ -27,52 +41,43 @@ defmodule PlaywrightEx.Test do
   snapshot paths and errors (`testInfo.ts`), `step/3` (`test.step`) and the `test.trace` of
   `trace.zip` (`testTracing.ts`).
 
+  ## Registration
+
   `use PlaywrightEx.Test` comes after `use ExUnit.Case` (or in a case template's `using`). It
-  imports the fragments and a `test` macro that hands the test to `ExUnit.Case.test/3` with the
-  body's end marked, so the module's `on_exit` callbacks learn whether the test passed: the
-  artifacts of passing tests are dropped, and a module's isolated driver is checked in only if a
-  test of it ran and all passed. Tests of other macros (doctests, a `property`) count as failed
-  for their artifacts, and a failure only in an `on_exit` callback counts as passed. Its
-  `setup_all` registers the module's end first, so it runs after the module's other `setup_all`
-  `on_exit` callbacks, except those of a case template's `setup_all` before it: clean up what
-  you made on an isolated driver in a test's `on_exit`.
+  imports only a `test` macro, which hands the test to `ExUnit.Case.test/3` with the body's end
+  marked, so the test's `on_exit` learns whether it passed. And it adds a `setup` that
+  registers each test: its recording modes, its output dir and an `on_exit` (the first, so it
+  runs last) that keeps or drops the artifacts by the result, then releases the test's
+  `BrowserPool.exclusive/1` browsers. Tests of other macros (doctests, a `property`) count as
+  failed for their artifacts, and a failure only in an `on_exit` callback counts as passed.
 
-  Each fragment reads the context map and returns new keys, `browser/1` → `%{browser: _}` →
-  `new_context/1` → `%{context: _}` → `new_page/1` → `%{page: _}`, so any of them can be
-  replaced by your own code: a `setup_all` that returns `%{browser: _}` of a browser you
-  connected to works with `new_context/1`. Called with the context map, a fragment takes its
-  options from `config :playwright_ex, :test`; called with options, they are merged over the
-  config (`launch_options`, `context_options` and `driver` one level deep). Unknown options and
-  bad values raise `ArgumentError`. In a `parameterize:` module, call the fragments before any
-  setup that rebinds a parameter key.
+  In a case template, `use PlaywrightEx.Test` may also be the first line of the template's
+  body: a template's own `setup` callbacks run before those its `using` brings in, so the test
+  is registered before them, and their contexts are recorded too. It does nothing more when
+  `using` brings it again. A context that a test process creates before its registration (a
+  template's `setup` with no `use` in the body) makes the registration raise, with that fix. A
+  context created outside a test (in `setup_all`, in a module without `use PlaywrightEx.Test`,
+  on a driver you started yourself) gets no defaults and no recording.
 
-  ## Browsers
-
-  `browser/1` returns a shared browser per `browser_name` and `launch_options`, on a driver
-  shared per `driver` and `on_start`, launched on first use and again if lost. A module that
-  changes the driver or browser for everyone takes `isolate: true`: a driver of its own, taken on
-  the module's first `browser(context, isolate: true)` (in `setup_all`, a test, or a process
-  given the test's context map), as upstream's worker-scoped `browser` fixture is lazy. The
-  module holds it until its end; it is checked in for the next module if a test of it ran and
-  all passed, else discarded. At most `workers` isolated drivers run at once, as upstream's
-  worker processes (all exclusive): with every one in use, a module waits, unless it holds a
-  driver already.
-
-  Firefox serializes input (mouse, keyboard) across all pages of a browser, so concurrent modules
-  on a shared Firefox slow each other down: use `isolate: true` when the run is Firefox, or `use
-  ExUnit.Case, group: :firefox` for a few Firefox modules (a group's modules never run at once).
-  Every driver stops after the suite.
+  The rest is called qualified, as upstream's `test.info()` and `test.step()`: `info/0`,
+  `output_path/1`, `snapshot_path/2`, `step/2,3` and `step_skip/2,3`. They work in the test's
+  process and in processes with it in `$callers` (a `Task`, and the client's callback
+  processes, see "Route handlers and listeners" in the Testing with ExUnit guide); outside a
+  test they raise.
 
   ## Artifacts
 
-  `record_artifacts/2` records every context the test creates, with `new_context/2` or
-  `PlaywrightEx.Browser.new_context/2`, in the test or in a process with it in `$callers` (a
-  `Task` of it). Each test writes to its own dir under `output_dir`, named as upstream's
+  Every context the test creates on a `BrowserPool` browser, in the test or a process with it
+  in `$callers`, is recorded. The recording starts with the test's first context (or at its
+  registration when it traces, for its steps); a test without contexts records nothing.
+  Contexts left open are closed after the test, last in its `on_exit`; a context closed earlier
+  keeps its artifacts. Each test writes to its own dir under `output_dir`, named as upstream's
   `testInfo.outputDir` (`checkout-pays-1a2b3` for the test "pays" in `test/checkout_test.exs`,
   the suffix a hash of the module and its `parameterize:` parameters):
 
-    * `trace.zip` - one trace of all its contexts (`mix playwright_ex.cli show-trace <path>`),
-      recorded with screenshots, snapshots and sources unless the trace's options say otherwise.
+    * `trace.zip` - one trace of all its contexts, recorded with screenshots, snapshots and
+      sources unless the trace's options say otherwise. A failed test that keeps one prints
+      `mix playwright_ex.cli show-trace <path>`.
     * `test-finished-N.png`, or `test-failed-N.png` for a failed test - a screenshot of every
       page open at the end of the test's body (before its `on_exit` callbacks), then of those
       open when their context closes (`timeout: 5000, caret: :initial`, as upstream).
@@ -80,30 +85,46 @@ defmodule PlaywrightEx.Test do
       `record_video` keeps it, and its video is copied here too.
     * `error-context.md` - a failed test's errors, source and an aria snapshot (`mode: :ai`) of
       the first page of the first context closed after the failure (upstream's `didFinishTest`
-      and `buildErrorContext`).
+      and `buildErrorContext`), whatever the modes.
 
-  Each mode is also the `:mode` of a keyword list (or map) of options, as upstream's object
-  forms: `trace: [mode: :on, snapshots: false]`, `screenshot: [mode: :on, full_page: true]`,
-  `video: [mode: :on, size: %{width: 640, height: 480}]`. `:mode` is required. The trace's
-  `:snapshots` (a boolean or `%{dom: _, aria: _, screen: _}`), `:screenshots` and `:sources` are
-  `PlaywrightEx.Tracing.start/2`'s, `true` by default; the screenshot's `:full_page` and
-  `:omit_background` are `PlaywrightEx.Page.screenshot/2`'s; the video's `:size` is
-  `record_video`'s.
+  The modes are config, and tags over it (a test's `@tag` over its `@describetag` over the
+  module's `@moduletag` over the config): `trace` `:off` (default), `:on` or
+  `:retain_on_failure`, `screenshot` `:off`, `:on` or `:only_on_failure`, `video` `:off`, `:on`
+  or `:retain_on_failure`, and `true` (`:on`) or `false` (`:off`). Each is also the `:mode` of a
+  keyword list (or map) of options, as upstream's object forms: `trace: [mode: :on, snapshots:
+  false]`, `screenshot: [mode: :on, full_page: true]`, `video: [mode: :on, size: %{width: 640,
+  height: 480}]`. The trace's `:snapshots` (a boolean or `%{dom: _, aria: _, screen: _}`),
+  `:screenshots` and `:sources` are `PlaywrightEx.Tracing.start/2`'s, `true` by default; the
+  screenshot's `:full_page` and `:omit_background` are `PlaywrightEx.Page.screenshot/2`'s; the
+  video's `:size` is `record_video`'s. So `trace`, `screenshot` and `video` are reserved tags: a
+  `@tag :screenshot` label turns screenshots on, and an invalid value raises at registration.
 
   The `*_on_failure` modes record every test and keep the files of failed ones, as upstream
-  (files you write to `output_path/2` stay). A failing artifact step is logged; the test's
+  (files you write to `output_path/1` stay). A failing artifact step is logged; the test's
   result stands. Nothing is deleted at the start of a run, so `mix test || TRACE=1 mix test
   --failed` (with `trace: :on` under `TRACE`) keeps the first run's files. Delete `output_dir`
-  yourself.
+  yourself. Playwright Test's retry modes (`on-first-retry`, ...) are not supported: ExUnit has
+  no retries.
 
   A trace of your own (`PlaywrightEx.Tracing.start/2` with `sources: true`) on a shared driver
   also gets concurrent tests' stacks and sources: the driver adds every call's stack to each
-  trace on the connection. `record_artifacts/2` filters its own; yours needs `isolate: true`.
+  trace on the connection. The recording filters its own; yours needs `BrowserPool.exclusive/1`.
+
+  ## Context defaults
+
+  Every context and request context a test creates on a `BrowserPool` browser
+  (`PlaywrightEx.Browser.new_context/2`, `PlaywrightEx.BrowserType.launch_persistent_context/3`,
+  `PlaywrightEx.APIRequest.new_context/2`) gets Playwright Test's context defaults (`locale:
+  "en-US"`, a 1280x720 viewport, `color_scheme: :light`, ...), then the config's
+  `context_options` over them, for each option the call doesn't give, as upstream's
+  `_combinedContextOptions`. An option given as `nil` keeps the client's default; `viewport:
+  :null` is none. An option replaces the default as a whole (`extra_http_headers` too, as
+  upstream's shallow spread).
 
   ## Snapshots
 
-  In a test (its process, or a process with it in `$callers`), `PlaywrightEx.Expect.to_have_screenshot/2`
-  and `PlaywrightEx.Expect.to_match_aria_snapshot/3` take upstream's `name:` and resolve it as
+  In a test, `PlaywrightEx.Expect.to_have_screenshot/2` and
+  `PlaywrightEx.Expect.to_match_aria_snapshot/3` take upstream's `name:` and resolve it as
   `testInfo` does, by upstream's default templates:
 
     * screenshots: `{snapshotDir}/{testFileDir}/{testFileName}-snapshots/{arg}{-projectName}{-snapshotSuffix}{ext}`,
@@ -118,9 +139,9 @@ defmodule PlaywrightEx.Test do
   :playwright_ex, :expect`) takes upstream's tokens: `{testDir}`, `{snapshotDir}`,
   `{testFileDir}`, `{testFileName}`, `{testFileBaseName}`, `{testFilePath}`, `{testName}`,
   `{arg}`, `{ext}`, `{platform}`, `{snapshotSuffix}` (the platform, as upstream's) and
-  `{projectName}`, which is empty: there are no projects. `snapshot_path/3` returns a name's path.
-  A failed comparison writes its `-actual`, `-expected`, `-previous` and `-diff` images to the
-  test's output dir.
+  `{projectName}`, which is empty: there are no projects. `snapshot_path/2` returns a name's
+  path. A failed comparison writes its `-actual`, `-expected`, `-previous` and `-diff` images to
+  the test's output dir.
 
   A snapshot the matcher writes (a missing one, under the default `update_snapshots`) fails the
   test at the end of its body, as upstream's soft error: the rest of the body runs, and ExUnit
@@ -129,9 +150,9 @@ defmodule PlaywrightEx.Test do
 
   ## Steps
 
-  `step/3` is upstream's `test.step`: `step "log in" do ... end`, or `step(title, fun,
-  options)` for wrappers, with upstream's `box`, `location`, `params` and `subtitle`
-  (`step_skip/3` is `test.step.skip`). Each matcher call in a test is a step too
+  `step/3` is upstream's `test.step`: `PlaywrightEx.Test.step "log in" do ... end`, or
+  `step(title, fun, options)` for wrappers, with upstream's `box`, `location`, `params` and
+  `subtitle` (`step_skip/3` is `test.step.skip`). Each matcher call in a test is a step too
   (`category: 'expect'`), and a soft one's failure (`PlaywrightEx.Expect.soft/1`, upstream's
   `expect.soft`) fails the test at the end of its body, as a written snapshot does. The trace's
   `test.trace` entry (upstream's `TestTracing`) has the steps, nested by the step they run in,
@@ -144,95 +165,79 @@ defmodule PlaywrightEx.Test do
   ## Config
 
       config :playwright_ex, :test,
-        browser_name: :chromium,      # :chromium | :firefox | :webkit
-        launch_options: [],           # PlaywrightEx.BrowserType.launch/2
-        driver: [],                   # PlaywrightEx.Supervisor: :env, :executable, :node, :cache_dir
-        on_start: nil,
-        context_options: [],          # PlaywrightEx.Browser.new_context/2, over the defaults below
+        browser_name: :chromium,      # BrowserPool: :chromium | :firefox | :webkit
+        launch_options: [],           # BrowserPool: PlaywrightEx.BrowserType.launch/2
+        driver: [],                   # BrowserPool: PlaywrightEx.Supervisor's :env, :executable, :node, :cache_dir
+        on_start: nil,                # BrowserPool
+        workers: max(div(System.schedulers_online(), 2), 1),
+        context_options: [],          # PlaywrightEx.Browser.new_context/2, over the defaults
         trace: :off,                  # :off | :on | :retain_on_failure, or [mode: _, ...]
         screenshot: :off,             # :off | :on | :only_on_failure, or [mode: _, ...]
         video: :off,                  # :off | :on | :retain_on_failure, or [mode: _, size: _]
         output_dir: "test-results",
-        workers: max(div(System.schedulers_online(), 2), 1),
         snapshot_dir: nil,            # upstream's testDir: test/
         snapshot_path_template: nil   # upstream's defaults, see Snapshots
 
   The artifact modes are `off` by default and `output_dir` is `test-results`, as upstream's.
   `workers` is half the schedulers, as upstream's default `workers` is half the cores (`'50%'`).
-
-  In a test, every context the test creates (`new_context/2`, `PlaywrightEx.Browser.new_context/2`,
-  `PlaywrightEx.BrowserType.launch_persistent_context/3`, `PlaywrightEx.APIRequest.new_context/2`)
-  gets Playwright Test's context defaults (`locale: "en-US"`, a 1280x720 viewport,
-  `color_scheme: :light`, ...) for each option it doesn't give, as upstream's, on a driver of
-  `browser/2` or of a browser given to `new_context/2` or `record_artifacts/2`. An option given
-  as `nil` keeps the client's default; `viewport: :null` is none. Unlike upstream's, the config's
-  `context_options` are `new_context/2`'s only, and a `setup_all` context gets no defaults.
   """
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Runtime.Heap
   alias PlaywrightEx.Runtime.Zones
+  alias PlaywrightEx.Test.ErrorContext
   alias PlaywrightEx.Test.Options
   alias PlaywrightEx.Test.Pool
   alias PlaywrightEx.Test.Recorder
   alias PlaywrightEx.Test.TestInfo
 
-  # `{recorder, screenshot mode}`, once the test process called `record_artifacts/2`.
-  @recording {__MODULE__, :recording}
-  # The module's token in its `setup_all` process, for fragments that run before ours.
-  @token {__MODULE__, :module}
+  require Logger
+
   # Set while `__passed__/0` raises the errors `TestInfo` recorded (and traced) already.
   @reraised {__MODULE__, :reraised}
 
   defmacro __using__(opts) do
     if opts != [] do
       raise ArgumentError,
-            "use PlaywrightEx.Test takes no options, got: #{Macro.to_string(opts)}; " <>
-              "pass them to browser/2, new_context/2 or record_artifacts/2"
+            "use PlaywrightEx.Test takes no options, got: #{Macro.to_string(opts)}; the recording modes are " <>
+              "config and tags (`@tag trace: :on`), the browser's options BrowserPool's"
     end
 
-    if __CALLER__.module && Module.has_attribute?(__CALLER__.module, :playwright_ex_test) do
-      :ok
-    else
-      if {:test, 3} not in Keyword.get(__CALLER__.macros, ExUnit.Case, []) do
+    macros = __CALLER__.macros
+
+    cond do
+      # A test module, also when `use PlaywrightEx.Test` came before (from a template's `using`):
+      # its import replaced ExUnit.Case's `test`.
+      {:test, 3} in Keyword.get(macros, ExUnit.Case, []) or {:test, 3} in Keyword.get(macros, __MODULE__, []) ->
+        quote do
+          import ExUnit.Case, only: [describe: 2]
+          import PlaywrightEx.Test, only: [test: 1, test: 2, test: 3]
+          require PlaywrightEx.Test
+
+          if PlaywrightEx.Test.__use__(__MODULE__), do: setup({PlaywrightEx.Test, :__setup__})
+        end
+
+      # The body of a case template: its `setup` callbacks run before those of its `using`.
+      {:using, 1} in Keyword.get(macros, ExUnit.CaseTemplate, []) ->
+        quote do
+          if PlaywrightEx.Test.__use__(__MODULE__), do: setup({PlaywrightEx.Test, :__setup__})
+        end
+
+      true ->
         raise CompileError,
           file: __CALLER__.file,
           line: __CALLER__.line,
-          description: "use PlaywrightEx.Test must come after use ExUnit.Case (or in a case template's using)"
-      end
+          description: "use PlaywrightEx.Test must come after use ExUnit.Case (or in a case template's body or using)"
+    end
+  end
 
-      quote do
-        @playwright_ex_test true
-        import ExUnit.Case, only: [describe: 2]
-
-        import PlaywrightEx.Test,
-          only: [
-            test: 1,
-            test: 2,
-            test: 3,
-            browser: 1,
-            browser: 2,
-            record_artifacts: 1,
-            record_artifacts: 2,
-            new_context: 1,
-            new_context: 2,
-            new_page: 1,
-            output_path: 2,
-            snapshot_path: 2,
-            snapshot_path: 3,
-            step: 2,
-            step: 3,
-            step_skip: 2,
-            step_skip: 3
-          ]
-
-        @doc false
-        def __playwright_ex_test__, do: true
-
-        setup_all {PlaywrightEx.Test, :__setup_all__}
-        setup {PlaywrightEx.Test, :__setup__}
-      end
+  @doc false
+  # `true` on a module's first `use PlaywrightEx.Test`, as `ExUnit.Case.__register__/2` sets up
+  # a module once: a template's `using` and the module itself may both bring it.
+  def __use__(module) do
+    if Module.has_attribute?(module, :playwright_ex_test) do
+      false
+    else
+      Module.put_attribute(module, :playwright_ex_test, true)
+      true
     end
   end
 
@@ -286,16 +291,6 @@ defmodule PlaywrightEx.Test do
       @tag playwright_ex: :marked
       ExUnit.Case.test(unquote(message))
     end
-  end
-
-  @doc false
-  def __setup_all__(context), do: %{playwright_ex_module: token!(context, "use PlaywrightEx.Test")}
-
-  @doc false
-  def __setup__(context) do
-    watch(context)
-    if context[:playwright_ex] == :marked, do: TestInfo.start(context)
-    :ok
   end
 
   # The end of the body: the test fails with the errors its matchers recorded (upstream's
@@ -355,8 +350,9 @@ defmodule PlaywrightEx.Test do
 
   # `didFinishTestFunction`: screenshots of the open pages, before the `on_exit` callbacks.
   defp finished_test_function(failed?) do
-    with {recorder, mode} <- Process.get(@recording),
+    with %{screenshot: [{:mode, mode} | _]} <- Recorder.registration(self()),
          true <- mode == :on or (mode == :only_on_failure and failed?),
+         recorder when is_pid(recorder) <- Recorder.lookup(self()),
          do: Recorder.capture(recorder, failed?)
 
     :ok
@@ -365,163 +361,130 @@ defmodule PlaywrightEx.Test do
     :exit, _ -> :ok
   end
 
-  @doc """
-  A browser for the module, for `setup_all` or a test: returns `playwright`, `browser_name` and
-  `browser`.
+  @doc false
+  # The per-test `setup` of `use PlaywrightEx.Test`: registers the test, once (a case
+  # template's body and its `using` may both bring it).
+  def __setup__(%{test_pid: test_pid} = context) do
+    Pool.ensure_started()
 
-  Takes the context map (`setup_all :browser`, options from the config) or options, also as
-  `browser(context, options)`:
+    cond do
+      Recorder.registration(test_pid) ->
+        :ok
 
-    * `:browser_name` - `:chromium` (default), `:firefox` or `:webkit`.
-    * `:launch_options` - for `PlaywrightEx.BrowserType.launch/2`, as is.
-    * `:driver` - options of the driver's `PlaywrightEx.Supervisor`: `:env`, `:executable`,
-      `:node`, `:cache_dir`.
-    * `:on_start` - a function of the Playwright (`PlaywrightEx.Playwright`) or `{m, f, args}`
-      (called with the Playwright first), run once on each new driver before its browser
-      launches: `&MyApp.Selectors.register/1`. Part of the driver's key, so pass a capture, not
-      a closure.
-    * `:isolate` - `true` gives the module a driver of its own per `driver` and `on_start`, held
-      until the module ends (see the moduledoc); other browsers launch on it. An argument, not
-      config: needs the context map, `browser(context, isolate: true)`.
+      :ets.take(Pool.table(), {:unregistered, test_pid}) != [] ->
+        raise ArgumentError,
+              "this test created a context before `use PlaywrightEx.Test` registered it (a case template's " <>
+                "`setup` runs before the `use` in its `using`), so the context has no defaults and no " <>
+                "recording: add `use PlaywrightEx.Test` as the first line of the case template's body"
 
-  A second call with other options returns another browser: a second user on Firefox is
-  `%{browser: firefox} = browser(browser_name: :firefox)`.
-  """
-  @spec browser(map() | keyword()) :: %{playwright: struct(), browser_name: atom(), browser: Browser.t()}
-  def browser(context_or_options)
-  def browser(context) when is_map(context), do: browser(context, [])
-  def browser(options) when is_list(options), do: browser(%{}, options)
+      true ->
+        test = __register__(context)
+        timeout = test.test_timeout
+        # Each `on_exit` callback gets the test's timeout: half of it for the artifacts.
+        budget = if is_integer(timeout), do: div(timeout, 2), else: :infinity
+        ExUnit.Callbacks.on_exit(fn -> __finish__(test.test_pid, budget) end)
+        :ok
+    end
+  end
 
-  @doc "`browser/1` with the context map and options."
-  @spec browser(map(), keyword()) :: %{playwright: struct(), browser_name: atom(), browser: Browser.t()}
-  def browser(context, options) when is_map(context) and is_list(options) do
-    opts = Options.browser(options)
+  @doc false
+  # The registration of the test of `context` (its `test_pid`), without its `on_exit`.
+  def __register__(context) do
+    modes = Options.artifacts(context)
+    file = context.file
+    marked? = context[:playwright_ex] == :marked
+    timeout = context[:timeout] || ExUnit.configuration()[:timeout]
 
-    token =
+    test =
+      context
+      |> TestInfo.new()
+      |> Map.merge(modes)
+      |> Map.merge(%{
+        dir: Recorder.output_dir(context),
+        title: "#{Path.relative_to_cwd(file)}:#{context[:line]} › #{Recorder.test_name(context)}",
+        title_path: Recorder.title_path(context),
+        location: {file, context[:line]},
+        test_timeout: timeout,
+        context_options: Options.context_options(),
+        tmp: Path.join(System.tmp_dir!(), "playwright_ex-test-#{System.unique_integer([:positive])}")
+      })
+
+    # The failure of a marked test that raised nothing in its body.
+    failure = if context[:not_implemented], do: "Not implemented", else: Pool.outside()
+    Pool.watch(test.test_pid, marked? && failure)
+    :ets.insert(Pool.table(), {{:test, test.test_pid}, test})
+    if marked?, do: TestInfo.start(test)
+    # The steps of `test.trace` go to the recorder.
+    if modes.trace[:mode] != :off, do: Pool.recorder(test.test_pid)
+    test
+  end
+
+  @doc false
+  # The test's end, its first `on_exit`, so it runs last: its artifacts by its result, then the
+  # release of its exclusive browsers.
+  def __finish__(test_pid, budget) do
+    {verdict, failures} = result = Pool.result(test_pid, budget)
+    {test, recorder} = Pool.take(test_pid)
+
+    trace =
       cond do
-        opts.isolate -> token!(context, "browser(context, isolate: true)")
-        context[:module] -> token!(context, "browser/1")
-        true -> nil
+        recorder ->
+          Recorder.finish(recorder, result, budget)
+
+        verdict == :failed ->
+          info = %{dir: test.dir, title_path: test.title_path, location: test.location, page_snapshot: nil}
+          ErrorContext.write(info, failures)
+          nil
+
+        true ->
+          nil
       end
 
-    %{playwright: playwright, browser: browser} = Pool.browser(opts, token)
-    Options.ensure_context_defaults(Heap.get(playwright, :_instrumentation))
-    %{playwright: playwright, browser_name: opts.browser_name, browser: browser}
+    # The list reporter's `npx playwright show-trace <path>`.
+    if verdict == :failed and trace,
+      do:
+        IO.puts(
+          "\nTrace of #{inspect(test.test_name)}: mix playwright_ex.cli show-trace #{Path.relative_to_cwd(trace)}"
+        )
+  rescue
+    exception -> Logger.warning("PlaywrightEx.Test could not finish the test: " <> Exception.message(exception))
+  after
+    Pool.release(test_pid)
+    Pool.forget(test_pid)
   end
 
   @doc """
-  Records the artifacts of every context the test creates, for `setup`; see the moduledoc.
+  The running test of the calling process or a process in its `$callers` (a `Task`), as
+  upstream's `test.info()`: `test_pid`, `file` (absolute), `test_name` (without the macro's
+  `test ` prefix) and `output_dir` (absolute, see "Artifacts" in the moduledoc), from the
+  test's setup to the end of its body. Raises outside a test, and in `on_exit` callbacks (ExUnit
+  runs them in a process of their own).
 
-  Takes the test's context map (`module`, `test`, `file`; `browser` or `playwright` to record
-  plain `PlaywrightEx.Browser.new_context/2` calls) and the options, merged over the config:
-
-    * `:trace` - `:off` (default), `:on` or `:retain_on_failure`, or
-      `[mode: _, snapshots: _, screenshots: _, sources: _]`.
-    * `:screenshot` - `:off` (default), `:on` or `:only_on_failure`, or
-      `[mode: _, full_page: _, omit_background: _]`.
-    * `:video` - `:off` (default), `:on` or `:retain_on_failure`, or `[mode: _, size: _]`.
-
-  Each of them replaces the config's value as a whole (`launch_options` and the other option
-  lists merge one level deep). With all three `:off` it only writes `error-context.md` of a
-  failure. `new_context/2` calls it
-  with the config if the test hasn't.
+      PlaywrightEx.Test.info().test_pid
   """
-  @spec record_artifacts(map(), keyword()) :: :ok
-  def record_artifacts(context, options \\ []) when is_map(context) do
-    opts = Options.artifacts(options)
-    for key <- [:module, :test], do: fetch!(context, key)
-    file = fetch!(context, :file)
-    watch(context)
-    if Process.get(@recording), do: raise(ArgumentError, "record_artifacts was called already for this test")
-    # A case template's `setup` runs before `__setup__/1`: its contexts get the defaults too.
-    if context[:playwright_ex] == :marked, do: TestInfo.start(context)
-
-    # Not emptied: files are overwritten by name, so a rerun keeps the first run's other files.
-    dir = Recorder.output_dir(context)
-    title = "#{Path.relative_to_cwd(file)}:#{context[:line]} › #{Recorder.test_name(context)}"
-
-    recorder =
-      Recorder.start(
-        self(),
-        Map.merge(opts, %{
-          dir: dir,
-          title: title,
-          title_path: Recorder.title_path(context),
-          location: {file, context[:line]},
-          test_timeout: test_timeout(context)
-        })
-      )
-
-    # Each `on_exit` callback gets the test's timeout: half of it for the artifacts.
-    budget =
-      with timeout when is_integer(timeout) <- test_timeout(context),
-           do: div(timeout, 2)
-
-    ExUnit.Callbacks.on_exit(fn -> Recorder.finish(recorder, budget) end)
-    Process.put(@recording, {recorder, opts.screenshot[:mode]})
-
-    channel = context[:browser] || context[:playwright]
-
-    if channel do
-      Recorder.ensure_listener(recorder, Heap.get(channel, :_instrumentation))
-      Options.ensure_context_defaults(Heap.get(channel, :_instrumentation))
-    end
-
-    :ok
-  end
-
-  @doc """
-  A context of `context.browser` for the test, for `setup`: returns `context`.
-
-  Option: `:context_options` for `PlaywrightEx.Browser.new_context/2`, as is (merged over the
-  config's), over Playwright Test's context defaults in a test (see Config). Starts
-  `record_artifacts/2` with the config if the test hasn't, which closes the context after the
-  test.
-
-  The context map needs `browser`. Called from a process with the test in `$callers` (a `Task`),
-  it records the context if the test called `record_artifacts/2`; from any other process it
-  raises. Without `test_pid` (in `setup_all`, as upstream's `newContext` in `beforeAll`) nothing
-  records or closes the context: close it yourself.
-  """
-  @spec new_context(map(), keyword()) :: %{context: BrowserContext.t()}
-  def new_context(context, options \\ []) when is_map(context) do
-    opts = Options.context(options)
-    browser = fetch!(context, :browser)
-
-    case context[:test_pid] do
+  @spec info() :: %{test_pid: pid(), file: Path.t(), test_name: String.t(), output_dir: Path.t()}
+  def info do
+    case Recorder.registration() do
       nil ->
-        Options.ensure_context_defaults(Heap.get(browser, :_instrumentation))
-        %{context: Browser.new_context!(browser, opts.context_options)}
+        raise "PlaywrightEx.Test.info() can only be called while a test is running: in a test of a module with " <>
+                "`use PlaywrightEx.Test` (its process, or one with it in $callers)"
 
-      test_pid ->
-        token!(context, "new_context/2")
-
-        if test_pid != self() and test_pid not in List.wrap(Process.get(:"$callers")) do
-          raise ArgumentError,
-                "new_context/2 got a test's context map outside the test (its process or one with it " <>
-                  "in $callers): drop :test_pid for a context of your own"
-        end
-
-        Options.ensure_context_defaults(Heap.get(browser, :_instrumentation))
-        if test_pid == self() and Process.get(@recording) == nil, do: record_artifacts(context)
-        recorder = Recorder.lookup(test_pid)
-        if recorder, do: Recorder.ensure_listener(recorder, Heap.get(browser, :_instrumentation))
-        %{context: Browser.new_context!(browser, opts.context_options)}
+      test ->
+        Map.take(test, [:test_pid, :file, :test_name, :output_dir])
     end
   end
 
   @doc """
-  The path of `name` in the test's output dir (see the moduledoc), as upstream's
-  `testInfo.outputPath`: creates the dir, and raises for a `name` outside it. The context map
-  needs `module`, `test` and `file`. Files written there stay when the test passes.
+  The path of `name` in the test's output dir (see "Artifacts" in the moduledoc), as upstream's
+  `testInfo.outputPath`: creates the dir, and raises for a `name` outside it. Files written
+  there stay when the test passes.
   """
-  @spec output_path(map(), Path.t()) :: Path.t()
-  def output_path(context, name) when is_map(context) do
-    for key <- [:module, :test, :file], do: fetch!(context, key)
+  @spec output_path(String.t()) :: Path.t()
+  def output_path(name) when is_binary(name) do
+    %{output_dir: dir} = info()
 
     case Path.safe_relative(name) do
       {:ok, relative} ->
-        dir = Recorder.output_dir(context)
         File.mkdir_p!(dir)
         Path.join(dir, relative)
 
@@ -531,24 +494,19 @@ defmodule PlaywrightEx.Test do
   end
 
   @doc """
-  The snapshot path of `name` for the test, as upstream's `testInfo.snapshotPath`: where
-  `PlaywrightEx.Expect.to_have_screenshot/2` (`kind: :screenshot`) and
+  The snapshot path of `name` for the running test, as upstream's `testInfo.snapshotPath`:
+  where `PlaywrightEx.Expect.to_have_screenshot/2` (`kind: :screenshot`) and
   `PlaywrightEx.Expect.to_match_aria_snapshot/3` (`kind: :aria`) with `name:` read and write it
-  (see "Snapshots" in the moduledoc). `name` is a string, or a list of path segments. Option
-  `:kind`: `:snapshot` (default, upstream's), `:screenshot` or `:aria`. The context map needs
-  `module`, `test`, `file` and `test_pid`.
+  (see "Snapshots" in the moduledoc). Option `:kind`: `:snapshot` (default, upstream's),
+  `:screenshot` or `:aria`.
   """
-  @spec snapshot_path(map(), String.t() | [String.t()], keyword()) :: Path.t()
-  def snapshot_path(context, name, options \\ []) when is_map(context) do
-    for key <- [:module, :test, :file, :test_pid], do: fetch!(context, key)
+  @spec snapshot_path(String.t(), keyword()) :: Path.t()
+  def snapshot_path(name, options \\ []) when is_binary(name) do
     {kind, options} = Keyword.pop(options, :kind, :snapshot)
     if options != [], do: raise(ArgumentError, "unknown options #{inspect(Keyword.keys(options))}, expected [:kind]")
-    TestInfo.snapshot_path(TestInfo.new(context), name, to_string(kind))
+    %{test_pid: test_pid} = info()
+    TestInfo.snapshot_path(Recorder.registration(test_pid), name, to_string(kind))
   end
-
-  @doc "A page of `context.context`, for `setup`: returns `page`."
-  @spec new_page(map()) :: %{page: PlaywrightEx.Page.t()}
-  def new_page(context) when is_map(context), do: %{page: BrowserContext.new_page!(fetch!(context, :context))}
 
   @doc """
   Upstream's `test.step(title, body, options)`: runs the body as a step of the running test
@@ -668,51 +626,5 @@ defmodule PlaywrightEx.Test do
 
       # finally { await testInfo._onUserStepEnd?.(); }  -- not ported: UI mode
     end)
-  end
-
-  # The test's ExUnit timeout.
-  defp test_timeout(context), do: context[:timeout] || ExUnit.configuration()[:timeout]
-
-  # The test's result is the pool's: it monitors the test process.
-  defp watch(context) do
-    token = token!(context, "record_artifacts/2")
-    # The failure of a marked test that raised nothing in its body.
-    failure = if context[:not_implemented], do: "Not implemented", else: Pool.outside()
-    marked? = context[:playwright_ex] == :marked
-    Pool.watch(fetch!(context, :test_pid), token, marked? && failure)
-  end
-
-  # The module's token: in the context map from our `setup_all`, or from a fragment that runs in
-  # the `setup_all` process before it, which starts the module (one per `setup_all`, so per
-  # parameter set) and registers its end, the module's last `on_exit`.
-  defp token!(context, what) do
-    cond do
-      token = context[:playwright_ex_module] ->
-        token
-
-      context[:test] == nil and uses?(context[:module]) ->
-        Process.get(@token) || start_module()
-
-      true ->
-        raise ArgumentError,
-              "#{what} needs a test module with `use PlaywrightEx.Test`: add it after `use ExUnit.Case` " <>
-                "(or in your case template's `using`), and pass the test's context map"
-    end
-  end
-
-  defp start_module do
-    token = Pool.start_module()
-    Process.put(@token, token)
-    ExUnit.Callbacks.on_exit(fn -> Pool.module_finished(token) end)
-    token
-  end
-
-  defp uses?(module), do: is_atom(module) and function_exported?(module, :__playwright_ex_test__, 0)
-
-  defp fetch!(context, key) do
-    case context do
-      %{^key => value} when value != nil -> value
-      _ -> raise ArgumentError, "expected #{inspect(key)} in the context map, got keys: #{inspect(Map.keys(context))}"
-    end
   end
 end

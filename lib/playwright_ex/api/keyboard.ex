@@ -307,4 +307,11 @@ defmodule PlaywrightEx.Keyboard do
       }
     ]
   end
+
+  @doc false
+  # The type of `function`'s options, as `Facade.options!/3` converts them.
+  def __options_type__(function)
+
+  def __options_type__(:press), do: @press_options
+  def __options_type__(:type), do: @type_options
 end

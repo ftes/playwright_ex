@@ -344,4 +344,14 @@ defmodule PlaywrightEx.Mouse do
       }
     ]
   end
+
+  @doc false
+  # The type of `function`'s options, as `Facade.options!/3` converts them.
+  def __options_type__(function)
+
+  def __options_type__(:click), do: @click_options
+  def __options_type__(:dblclick), do: @dblclick_options
+  def __options_type__(:down), do: @down_options
+  def __options_type__(:move), do: @move_options
+  def __options_type__(:up), do: @up_options
 end

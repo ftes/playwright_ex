@@ -6754,4 +6754,67 @@ defmodule PlaywrightEx.Expect do
       }
     ]
   end
+
+  @doc false
+  # The type of `function`'s options, as `Facade.options!/3` converts them.
+  def __options_type__(function)
+
+  def __options_type__(:to_be_attached), do: @to_be_attached_options
+  def __options_type__(:not_to_be_attached), do: @not_to_be_attached_options
+  def __options_type__(:to_be_checked), do: @to_be_checked_options
+  def __options_type__(:not_to_be_checked), do: @not_to_be_checked_options
+  def __options_type__(:to_be_disabled), do: @to_be_disabled_options
+  def __options_type__(:not_to_be_disabled), do: @not_to_be_disabled_options
+  def __options_type__(:to_be_editable), do: @to_be_editable_options
+  def __options_type__(:not_to_be_editable), do: @not_to_be_editable_options
+  def __options_type__(:to_be_empty), do: @to_be_empty_options
+  def __options_type__(:not_to_be_empty), do: @not_to_be_empty_options
+  def __options_type__(:to_be_enabled), do: @to_be_enabled_options
+  def __options_type__(:not_to_be_enabled), do: @not_to_be_enabled_options
+  def __options_type__(:to_be_focused), do: @to_be_focused_options
+  def __options_type__(:not_to_be_focused), do: @not_to_be_focused_options
+  def __options_type__(:to_be_hidden), do: @to_be_hidden_options
+  def __options_type__(:not_to_be_hidden), do: @not_to_be_hidden_options
+  def __options_type__(:to_be_in_viewport), do: @to_be_in_viewport_options
+  def __options_type__(:not_to_be_in_viewport), do: @not_to_be_in_viewport_options
+  def __options_type__(:to_be_visible), do: @to_be_visible_options
+  def __options_type__(:not_to_be_visible), do: @not_to_be_visible_options
+  def __options_type__(:to_contain_class), do: @to_contain_class_options
+  def __options_type__(:not_to_contain_class), do: @not_to_contain_class_options
+  def __options_type__(:to_contain_text), do: @to_contain_text_options
+  def __options_type__(:not_to_contain_text), do: @not_to_contain_text_options
+  def __options_type__(:to_have_accessible_description), do: @to_have_accessible_description_options
+  def __options_type__(:not_to_have_accessible_description), do: @not_to_have_accessible_description_options
+  def __options_type__(:to_have_accessible_error_message), do: @to_have_accessible_error_message_options
+  def __options_type__(:not_to_have_accessible_error_message), do: @not_to_have_accessible_error_message_options
+  def __options_type__(:to_have_accessible_name), do: @to_have_accessible_name_options
+  def __options_type__(:not_to_have_accessible_name), do: @not_to_have_accessible_name_options
+  def __options_type__(:to_have_attribute), do: @to_have_attribute_options
+  def __options_type__(:not_to_have_attribute), do: @not_to_have_attribute_options
+  def __options_type__(:to_have_class), do: @to_have_class_options
+  def __options_type__(:not_to_have_class), do: @not_to_have_class_options
+  def __options_type__(:to_have_count), do: @to_have_count_options
+  def __options_type__(:not_to_have_count), do: @not_to_have_count_options
+  def __options_type__(:to_have_css), do: @to_have_css_options
+  def __options_type__(:not_to_have_css), do: @not_to_have_css_options
+  def __options_type__(:to_have_id), do: @to_have_id_options
+  def __options_type__(:not_to_have_id), do: @not_to_have_id_options
+  def __options_type__(:to_have_js_property), do: @to_have_js_property_options
+  def __options_type__(:not_to_have_js_property), do: @not_to_have_js_property_options
+  def __options_type__(:to_have_role), do: @to_have_role_options
+  def __options_type__(:not_to_have_role), do: @not_to_have_role_options
+  def __options_type__(:to_have_screenshot), do: @to_have_screenshot_options
+  def __options_type__(:not_to_have_screenshot), do: @not_to_have_screenshot_options
+  def __options_type__(:to_have_text), do: @to_have_text_options
+  def __options_type__(:not_to_have_text), do: @not_to_have_text_options
+  def __options_type__(:to_have_value), do: @to_have_value_options
+  def __options_type__(:not_to_have_value), do: @not_to_have_value_options
+  def __options_type__(:to_have_values), do: @to_have_values_options
+  def __options_type__(:not_to_have_values), do: @not_to_have_values_options
+  def __options_type__(:to_match_aria_snapshot), do: @to_match_aria_snapshot_options
+  def __options_type__(:not_to_match_aria_snapshot), do: @not_to_match_aria_snapshot_options
+  def __options_type__(:to_have_title), do: @to_have_title_options
+  def __options_type__(:not_to_have_title), do: @not_to_have_title_options
+  def __options_type__(:to_have_url), do: @to_have_url_options
+  def __options_type__(:not_to_have_url), do: @not_to_have_url_options
 end

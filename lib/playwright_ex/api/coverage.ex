@@ -247,4 +247,11 @@ defmodule PlaywrightEx.Coverage do
       }
     ]
   end
+
+  @doc false
+  # The type of `function`'s options, as `Facade.options!/3` converts them.
+  def __options_type__(function)
+
+  def __options_type__(:start_css_coverage), do: @start_css_coverage_options
+  def __options_type__(:start_js_coverage), do: @start_js_coverage_options
 end

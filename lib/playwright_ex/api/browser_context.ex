@@ -2343,4 +2343,22 @@ defmodule PlaywrightEx.BrowserContext do
       }
     ]
   end
+
+  @doc false
+  # The type of `function`'s options, as `Facade.options!/3` converts them.
+  def __options_type__(function)
+
+  def __options_type__(:add_init_script), do: @add_init_script_options
+  def __options_type__(:clear_cookies), do: @clear_cookies_options
+  def __options_type__(:close), do: @close_options
+  def __options_type__(:grant_permissions), do: @grant_permissions_options
+  def __options_type__(:remove_all_listeners), do: @remove_all_listeners_options
+  def __options_type__(:route), do: @route_options
+  def __options_type__(:route_from_har), do: @route_from_har_options
+  def __options_type__(:storage_state), do: @storage_state_options
+  def __options_type__(:unroute_all), do: @unroute_all_options
+  def __options_type__(:wait_for_event), do: @wait_for_event_options
+  def __options_type__(:expect_console_message), do: @expect_console_message_options
+  def __options_type__(:expect_event), do: @expect_event_options
+  def __options_type__(:expect_page), do: @expect_page_options
 end

@@ -6,10 +6,11 @@
 #   * `artifacts` - one passing and one failing test, `trace: :retain_on_failure, screenshot:
 #     :only_on_failure`. It prints "(ready=>true)" in the passing test and waits there until the
 #     go file exists.
-#   * `modules` - isolated modules (ten tests, two driver keys, a failure, `parameterize:`) and
-#     one with no browser; prints the pool after the run: `(report=>%{...})`.
-#   * `max_failures` - `max_failures: 1`, an isolated module running when another fails; prints
-#     the pool after the run.
+#   * `modules` - exclusive browsers (a module's of ten tests, a test's of two driver keys, a
+#     failing module's, `parameterize:`) and a module with none; prints the pool after the run:
+#     `(report=>%{...})`.
+#   * `max_failures` - `max_failures: 1`, a module holding an exclusive browser running when
+#     another fails; prints the pool after the run.
 #   * `soft_errors` - tests whose matchers write missing snapshots (`snapshot_dir` next to the
 #     output dir), one of them failing after that, one killed past its timeout.
 #   * `steps` - a test failing in a boxed step, with no browser.
@@ -40,12 +41,12 @@ Application.put_env(:playwright_ex, :test,
 max_failures = if mode == "max_failures", do: 1, else: :infinity
 ExUnit.start(autorun: false, max_cases: 8, max_failures: max_failures)
 
-# What the modules saw: `{label, token, playwright}`.
+# What the modules saw: `{label, scope, playwright}` (the scope: the pid that holds the lease).
 :ets.new(:report, [:named_table, :public, :bag])
 
 defmodule Report do
-  def put(label, ctx, %{playwright: playwright}),
-    do: :ets.insert(:report, {label, ctx.playwright_ex_module, playwright})
+  def put(label, scope, browser),
+    do: :ets.insert(:report, {label, scope, PlaywrightEx.Test.BrowserPool.playwright(browser)})
 
   # Polls until `label` is in the report.
   def await(label, attempts \\ 100) do
@@ -60,30 +61,24 @@ defmodule Report do
   # newest first, and the pool registers its own when it starts its first driver.
   def after_suite, do: ExUnit.after_suite(&print/1)
 
-  # The labels of the free drivers, how many modules hold drivers, and per label how many
-  # tokens and drivers its tests saw.
+  # The labels of the free drivers, how many scopes hold leases, and per label how many scopes
+  # and drivers its tests saw.
   def print(_stats) do
     state = :sys.get_state(PlaywrightEx.Test.Pool)
     reported = :ets.tab2list(:report)
     # A driver's connection names it (every driver's Playwright has the same guid).
-    label_of = Map.new(reported, fn {label, _token, playwright} -> {playwright.conn, label} end)
+    label_of = Map.new(reported, fn {label, _scope, playwright} -> {playwright.conn, label} end)
     free = for {pid, _key} <- state.free, do: label_of[:sys.get_state(pid).playwright.conn]
+
+    count = fn by ->
+      reported |> Enum.group_by(&elem(&1, 0), by) |> Map.new(fn {l, xs} -> {l, length(Enum.uniq(xs))} end)
+    end
 
     report = %{
       free: Enum.sort(free),
-      busy: map_size(state.busy),
-      tokens:
-        reported |> Enum.group_by(&elem(&1, 0), &elem(&1, 1)) |> Map.new(fn {l, ts} -> {l, length(Enum.uniq(ts))} end),
-      drivers:
-        reported
-        |> Enum.group_by(&elem(&1, 0), &elem(&1, 2).conn)
-        |> Map.new(fn {l, cs} -> {l, length(Enum.uniq(cs))} end),
-      param_tokens:
-        reported
-        |> Enum.filter(&(elem(&1, 0) in [:param_1, :param_2]))
-        |> Enum.map(&elem(&1, 1))
-        |> Enum.uniq()
-        |> length()
+      leases: map_size(state.leases),
+      scopes: count.(&elem(&1, 1)),
+      drivers: count.(&elem(&1, 2).conn)
     }
 
     IO.puts("(report=>#{inspect(report)})")
@@ -93,13 +88,7 @@ end
 case mode do
   "artifacts" ->
     defmodule SampleTest do
-      use ExUnit.Case, async: true
-      use PlaywrightEx.Test
-
-      alias PlaywrightEx.Page
-
-      setup_all :browser
-      setup [:new_context, :new_page]
+      use PlaywrightEx.Case, async: true
 
       test "passes", %{page: page} do
         Page.set_content!(page, "<h1>Passes</h1>")
@@ -116,32 +105,40 @@ case mode do
     end
 
   "modules" ->
-    # A driver key per module (`driver: [env: ...]`), so no module reuses another's driver.
+    # A driver key per label (`driver: [env: ...]`), so no scope reuses another's driver.
     defmodule Key do
-      def opts(label), do: [isolate: true, driver: [env: [{"PW_MODULE", to_string(label)}]]]
+      def opts(label), do: [driver: [env: [{"PW_MODULE", to_string(label)}]]]
     end
 
+    alias PlaywrightEx.Test.BrowserPool
+
     defmodule TenTest do
+      # The module's lease: two browser keys on one driver.
       use ExUnit.Case, async: true
       use PlaywrightEx.Test
 
+      setup_all do
+        browser = BrowserPool.exclusive(Key.opts(:ten))
+        other = BrowserPool.exclusive(Key.opts(:ten) ++ [launch_options: [timeout: 30_001]])
+        %{browser: browser, other: other, scope: self()}
+      end
+
       for i <- 1..10 do
         test "#{i}", ctx do
-          Report.put(:ten, ctx, browser(ctx, Key.opts(:ten)))
-          # Another browser key: on the same driver.
-          other = Key.opts(:ten) ++ [launch_options: [timeout: 30_001]]
-          if unquote(i) == 1, do: Report.put(:ten, ctx, browser(ctx, other))
+          Report.put(:ten, ctx.scope, ctx.browser)
+          if unquote(i) == 1, do: Report.put(:ten, ctx.scope, ctx.other)
         end
       end
     end
 
     defmodule TwoDriversTest do
+      # A test's lease: two driver keys, two drivers.
       use ExUnit.Case, async: true
       use PlaywrightEx.Test
 
-      test "two driver keys", ctx do
-        Report.put(:two_a, ctx, browser(ctx, Key.opts(:two_a)))
-        Report.put(:two_b, ctx, browser(ctx, Key.opts(:two_b)))
+      test "two driver keys" do
+        Report.put(:two_a, self(), BrowserPool.exclusive(Key.opts(:two_a)))
+        Report.put(:two_b, self(), BrowserPool.exclusive(Key.opts(:two_b)))
       end
     end
 
@@ -149,14 +146,14 @@ case mode do
       use ExUnit.Case, async: true
       use PlaywrightEx.Test
 
-      setup_all ctx do
-        browser = browser(ctx, Key.opts(:fails))
+      setup_all do
+        browser = BrowserPool.exclusive(Key.opts(:fails))
         Report.after_suite()
-        browser
+        %{browser: browser, scope: self()}
       end
 
       test "fails", ctx do
-        Report.put(:fails, ctx, ctx)
+        Report.put(:fails, ctx.scope, ctx.browser)
         flunk("on purpose")
       end
     end
@@ -166,10 +163,10 @@ case mode do
       use ExUnit.Case, async: true, parameterize: [%{n: 1}, %{n: 2}]
       use PlaywrightEx.Test
 
-      setup_all ctx, do: browser(ctx, Key.opts(:param))
+      setup_all do: %{browser: BrowserPool.exclusive(Key.opts(:param)), scope: self()}
 
       test "holds", %{n: n} = ctx do
-        Report.put(:"param_#{n}", ctx, ctx)
+        Report.put(:"param_#{n}", ctx.scope, ctx.browser)
         Report.await(:"param_#{3 - n}")
       end
     end
@@ -178,8 +175,8 @@ case mode do
       use ExUnit.Case, async: true
       use PlaywrightEx.Test
 
-      test "asks for none", ctx do
-        assert Map.get(:sys.get_state(PlaywrightEx.Test.Pool).busy, ctx.playwright_ex_module) == nil
+      test "asks for none" do
+        assert Map.get(:sys.get_state(PlaywrightEx.Test.Pool).leases, self()) == nil
       end
     end
 
@@ -188,11 +185,11 @@ case mode do
       use ExUnit.Case, async: true
       use PlaywrightEx.Test
 
-      setup_all ctx do
-        browser = browser(ctx, isolate: true)
-        Report.put(:isolated, ctx, browser)
+      setup_all do
+        browser = PlaywrightEx.Test.BrowserPool.exclusive()
+        Report.put(:isolated, self(), browser)
         Report.after_suite()
-        browser
+        %{browser: browser}
       end
 
       for i <- 1..3, do: test("#{i}", do: Process.sleep(500))
@@ -210,14 +207,7 @@ case mode do
 
   "soft_errors" ->
     defmodule SoftErrorsTest do
-      use ExUnit.Case, async: true
-      use PlaywrightEx.Test
-
-      alias PlaywrightEx.Expect
-      alias PlaywrightEx.Page
-
-      setup_all :browser
-      setup [:new_context, :new_page]
+      use PlaywrightEx.Case, async: true
 
       test "writes a snapshot", %{page: page} do
         Page.set_content!(page, "<h1>One</h1>")
@@ -247,14 +237,7 @@ case mode do
 
   "soft" ->
     defmodule SoftTest do
-      use ExUnit.Case, async: true
-      use PlaywrightEx.Test
-
-      alias PlaywrightEx.Expect
-      alias PlaywrightEx.Page
-
-      setup_all :browser
-      setup [:new_context, :new_page]
+      use PlaywrightEx.Case, async: true
 
       test "continues after a soft failure", %{page: page} do
         Page.set_content!(page, "<h1>One</h1>")
@@ -282,10 +265,10 @@ case mode do
       use ExUnit.Case, async: true
       use PlaywrightEx.Test
 
-      setup :record_artifacts
+      alias PlaywrightEx.Test
 
       test "fails in a boxed step" do
-        step "outer" do
+        Test.step "outer" do
           # (the boxed call)
           log_in()
           :unreachable
@@ -293,7 +276,7 @@ case mode do
       end
 
       defp log_in do
-        step "log in", box: true do
+        Test.step "log in", box: true do
           # (inside the boxed step)
           raise "cannot log in"
         end

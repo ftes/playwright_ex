@@ -14,29 +14,29 @@ those of the release candidates below. From an earlier release, also read the se
 - `PlaywrightEx.RegExp.new/1,2` takes a `Regex` or `RegExp` as JS's `new RegExp(re, flags)` does,
   converting a `Regex` as Playwright does (PCRE-only syntax raises `ArgumentError`). It inspects as
   `#PlaywrightEx.RegExp</source/flags>`.
-- `PlaywrightEx.Case`: a case template giving each test a `browser`, `context` and `page`, built
-  from `PlaywrightEx.Test`'s fragments.
-- `PlaywrightEx.Test`: ExUnit setup fragments (`browser/1`, `new_context/2`, `new_page/1`), a
-  shared browser per set of options or one per module (`isolate: true`, taken on first use, at
-  most `workers` at once: half the schedulers, as Playwright Test's default), and
-  traces, screenshots and videos of every context a test creates (`record_artifacts/2`, with
-  Playwright Test's modes and their options), kept for failures, plus Playwright Test's
-  `error-context.md` of each failed test. `output_path/2` is Playwright Test's
-  `testInfo.outputPath`, and `browser/2`'s `on_start` runs once per new driver (e.g. to register
-  selectors). `use PlaywrightEx.Test` after `use ExUnit.Case` brings
-  a `test` macro that tells the fragments each test's result. In a test, the snapshot matchers
-  take upstream's `name:` (or none), resolved by Playwright Test's path templates
-  (`snapshot_dir`, `snapshot_path_template`, `snapshot_path/3`) with their `-actual`,
-  `-expected`, `-previous` and `-diff` files in the test's output dir, and a snapshot they write fails the test at the end of its
-  body, with all its errors reported. `step` is Playwright Test's `test.step` (`box`,
-  `location`, `params`, `subtitle`; no `timeout`), `step_skip` its `test.step.skip`, and each
-  matcher call is a step: the trace's `test.trace` has the test's steps, nested, and its errors.
-  `Expect.soft/1` is `expect.soft`: in a test, a failed soft matcher returns and fails the test
-  at the end of its body.
-  `use PlaywrightEx.Test` imports `step/2,3` and `step_skip/2,3`, so a module with a `step` of
-  its own narrows the import. Every context a test creates gets Playwright Test's context
-  defaults (`locale: "en-US"`, a 1280x720 viewport, ...) for the options it doesn't give. See the
-  [Testing with ExUnit](guides/testing-with-exunit.md) guide.
+- `PlaywrightEx.Case`: a case template giving each test a `context` and a `page` of the shared
+  browser.
+- `PlaywrightEx.Test.BrowserPool`: Playwright Test's worker browser. `shared/1` is one browser
+  per set of options for every test at once; `exclusive/1` one held by the module (`setup_all`)
+  or test that calls it, at most `workers` at once (half the schedulers, as Playwright Test's
+  default), reused after a passing scope. `on_start` runs once per new driver (e.g. to register
+  selectors). On Firefox, use `exclusive/1`.
+- `PlaywrightEx.Test`: `use PlaywrightEx.Test` after `use ExUnit.Case` (or first in a case
+  template's body) registers each test. Every context it creates on a pooled browser, also in a
+  `Task`, gets Playwright Test's context defaults (`locale: "en-US"`, a 1280x720 viewport, ...),
+  then the config's `context_options`, and is recorded: traces, screenshots and videos with
+  Playwright Test's modes and their options, from config and tags (`@tag trace: :on`), kept for
+  failures, plus Playwright Test's `error-context.md` of each failed test and a `show-trace`
+  hint. `info/0` and `output_path/1` are Playwright Test's `test.info()` and
+  `testInfo.outputPath`. In a test, the snapshot matchers take upstream's `name:` (or none),
+  resolved by Playwright Test's path templates (`snapshot_dir`, `snapshot_path_template`,
+  `snapshot_path/2`) with their `-actual`, `-expected`, `-previous` and `-diff` files in the
+  test's output dir, and a snapshot they write fails the test at the end of its body, with all
+  its errors reported. `step` is Playwright Test's `test.step` (`box`, `location`, `params`,
+  `subtitle`; no `timeout`), `step_skip` its `test.step.skip`, and each matcher call is a step:
+  the trace's `test.trace` has the test's steps, nested, and its errors. `Expect.soft/1` is
+  `expect.soft`: in a test, a failed soft matcher returns and fails the test at the end of its
+  body. See the [Testing with ExUnit](guides/testing-with-exunit.md) guide.
 
 ### Changed
 - `%PlaywrightEx.Expect{}` also carries `isSoft`, and `isNot` defaults to `false`: build a
