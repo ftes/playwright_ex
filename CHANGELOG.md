@@ -47,6 +47,9 @@ those of the release candidates below. From an earlier release, also read the se
   (`APIRequest.new_context/2`), and disposes those left at the test's end.
 - `PlaywrightEx.Test.info/1` takes the test's pid and works in `on_exit`, where it also has
   Playwright Test's `testInfo.status`, `errors`, `expectedStatus` and `duration`.
+- `PlaywrightEx.Test.attach/2` is Playwright Test's `testInfo.attach`: a file (`path:`, copied to
+  the output dir) or a body, as a `test.attach` step in the trace. The trace option `attachments`
+  (default `true`) keeps them in `trace.zip`.
 
 ### Changed
 - `%PlaywrightEx.Expect{}` also carries `isSoft`, and `isNot` defaults to `false`: build a

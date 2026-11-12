@@ -424,7 +424,7 @@ defmodule PlaywrightEx.Test.ArtifactsTest.TagsTest do
 
   test "the module's tags, true as :on; the config for the rest" do
     assert modes() == %{
-             trace: [mode: :off, snapshots: true, screenshots: true, sources: true],
+             trace: [mode: :off, snapshots: true, screenshots: true, sources: true, attachments: true],
              screenshot: [mode: :only_on_failure, full_page: true],
              video: [mode: :on]
            }

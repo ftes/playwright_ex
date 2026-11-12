@@ -57,13 +57,18 @@ defmodule PlaywrightEx.Test.OptionsTest do
 
     test "artifact modes are their object forms' mode, with upstream's defaults" do
       assert Options.artifacts(%{trace: :on, screenshot: :on, video: :on}) == %{
-               trace: [mode: :on, snapshots: true, screenshots: true, sources: true],
+               trace: [mode: :on, snapshots: true, screenshots: true, sources: true, attachments: true],
                screenshot: [mode: :on],
                video: [mode: :on]
              }
 
       assert Options.artifacts(%{
-               trace: [sources: false, mode: :retain_on_failure, snapshots: %{dom: true, aria: false}],
+               trace: [
+                 sources: false,
+                 mode: :retain_on_failure,
+                 snapshots: %{dom: true, aria: false},
+                 attachments: false
+               ],
                screenshot: %{mode: :only_on_failure, full_page: true, omit_background: false},
                video: [mode: :on, size: %{width: 320, height: 240}]
              }) == %{
@@ -71,7 +76,8 @@ defmodule PlaywrightEx.Test.OptionsTest do
                  mode: :retain_on_failure,
                  snapshots: %{dom: true, aria: false},
                  screenshots: true,
-                 sources: false
+                 sources: false,
+                 attachments: false
                ],
                screenshot: [mode: :only_on_failure, full_page: true, omit_background: false],
                video: [mode: :on, size: %{width: 320, height: 240}]
@@ -80,7 +86,8 @@ defmodule PlaywrightEx.Test.OptionsTest do
 
     test "unknown keys and bad values of the object forms raise" do
       for {option, message} <- [
-            {%{trace: [mode: :on, attachments: false]}, ~r/unknown trace options \[:attachments\], expected one of/},
+            {%{trace: [mode: :on, live: true]}, ~r/unknown trace options \[:live\], expected one of/},
+            {%{trace: [mode: :on, attachments: 1]}, ~r/invalid trace attachments: 1/},
             {%{video: [mode: :on, fps: 30]}, ~r/unknown video options \[:fps\]/},
             {%{screenshot: [mode: :on, path: "x.png"]}, ~r/unknown screenshot options \[:path\]/},
             {%{trace: [sources: false]}, ~r/trace options need :mode/},
@@ -339,7 +346,7 @@ defmodule PlaywrightEx.Test.ConfigTest do
              Options.pool([])
 
     assert %{
-             trace: [mode: :off, snapshots: true, screenshots: true, sources: true],
+             trace: [mode: :off, snapshots: true, screenshots: true, sources: true, attachments: true],
              screenshot: [mode: :off],
              video: [mode: :off]
            } = Options.artifacts(%{})

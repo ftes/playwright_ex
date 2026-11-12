@@ -60,7 +60,7 @@ defmodule PlaywrightEx.Test do
   on a driver you started yourself) gets no defaults and no recording.
 
   The rest is called qualified, as upstream's `test.info()` and `test.step()`: `info/0`
-  (`info/1` in `on_exit`, with the test's result), `output_path/1`, `snapshot_path/2`, `step/2,3` and `step_skip/2,3`. They work in the test's
+  (`info/1` in `on_exit`, with the test's result), `output_path/1`, `attach/2`, `snapshot_path/2`, `step/2,3` and `step_skip/2,3`. They work in the test's
   process and in processes with it in `$callers` (a `Task`, and the client's callback
   processes, see "Route handlers and listeners" in the Testing with ExUnit guide); outside a
   test they raise.
@@ -96,7 +96,8 @@ defmodule PlaywrightEx.Test do
   keyword list (or map) of options, as upstream's object forms: `trace: [mode: :on, snapshots:
   false]`, `screenshot: [mode: :on, full_page: true]`, `video: [mode: :on, size: %{width: 640,
   height: 480}]`. The trace's `:snapshots` (a boolean or `%{dom: _, aria: _, screen: _}`),
-  `:screenshots` and `:sources` are `PlaywrightEx.Tracing.start/2`'s, `true` by default; the
+  `:screenshots` and `:sources` are `PlaywrightEx.Tracing.start/2`'s, `true` by default, as is
+  `:attachments` (those of `attach/2` in `trace.zip`); the
   screenshot's `:full_page` and `:omit_background` are `PlaywrightEx.Page.screenshot/2`'s; the
   video's `:size` is `record_video`'s. So `trace`, `screenshot` and `video` are reserved tags: a
   `@tag :screenshot` label turns screenshots on, and an invalid value raises at registration.
@@ -175,10 +176,11 @@ defmodule PlaywrightEx.Test do
   `expect.soft`) fails the test at the end of its body, as a written snapshot does. The trace's
   `test.trace` entry (upstream's `TestTracing`) has the steps, nested by the step they run in,
   and the test's errors, so `trace: :on` gives a `trace.zip` also for a test without contexts.
-  Not ported: the test's stdout and stderr in the trace, steps of the driver calls (`pw:api`:
-  the calls stay top-level in the trace, a matcher's `Frame.expect` call apart from its step),
-  hooks and fixtures as steps, attachments, the step's `TestStepInfo` (the body takes no
-  argument) and its `timeout` (the test's timeout bounds a step).
+  `attach/2` adds a `test.attach` step with the attachment (the trace's `attachments: false`
+  leaves the attachments out). Not ported: the test's stdout and stderr in the trace, steps of
+  the driver calls (`pw:api`: the calls stay top-level in the trace, a matcher's `Frame.expect`
+  call apart from its step), hooks and fixtures as steps, the step's `TestStepInfo` (the body
+  takes no argument, so no `step.attach`) and its `timeout` (the test's timeout bounds a step).
 
   ## Config
 
@@ -583,6 +585,27 @@ defmodule PlaywrightEx.Test do
       :error ->
         raise ArgumentError, "output_path is not allowed outside of the output dir, got: #{inspect(name)}"
     end
+  end
+
+  @doc """
+  Upstream's `testInfo.attach(name, options)`: attaches a file or a binary to the running test,
+  as a `test.attach` step of its trace, which shows it. Options:
+
+    * `:path` - a file, copied to `attachments/<name>-<hash><ext>` in the test's output dir,
+      which keeps it also when the test passes.
+    * `:body` - the content itself.
+    * `:content_type` - by default the path's MIME type, or `text/plain` for a UTF-8 `body`
+      (`application/octet-stream` otherwise).
+
+  One of `path` and `body`, or neither for an attachment of just a name. Raises outside a test.
+
+      PlaywrightEx.Test.attach("screenshot", body: Page.screenshot!(page), content_type: "image/png")
+  """
+  @spec attach(String.t(), keyword()) :: :ok
+  def attach(name, options \\ []) when is_binary(name) do
+    options = Keyword.validate!(options, [:path, :body, :content_type])
+    test_info = TestInfo.current() || raise "PlaywrightEx.Test.attach/2 can only be called while a test is running"
+    TestInfo.attach(test_info, name, %{path: options[:path], body: options[:body], contentType: options[:content_type]})
   end
 
   @doc """

@@ -296,6 +296,7 @@ no call site (the recording modes) are config plus ExUnit tags; the rest are arg
 | `testInfo.status`, `errors`, `expectedStatus`, `duration` in teardown | `info(test_pid)` in `on_exit` (another process), kept until ExUnit's `on_exit` process exits |
 | `testInfo.outputPath`/`snapshotPath` | `output_path(name)`, `snapshot_path(name, opts)`: one string, no segments |
 | `test.step` | `step/2,3` (no timeout) |
+| `testInfo.attach` | `attach/2` (`test.attach` step, `trace.attachments`) |
 | list reporter's `npx playwright show-trace <path>` | a failure prints `mix playwright_ex.cli show-trace <path>` |
 | retry modes (`on-first-retry`, ...) | not supported: ExUnit has no retries; the `TRACE=1 mix test --failed` recipe |
 
@@ -395,7 +396,7 @@ prints the soft error, as before, and a soft matcher there fails as any, as upst
 step.
 
 The matchers and traces need part of Playwright Test's worker, so that part is ported:
-`PlaywrightEx.Test.TestInfo` (`testInfo.ts`: snapshot paths, `_failWithError`, steps),
+`PlaywrightEx.Test.TestInfo` (`testInfo.ts`: snapshot paths, `_failWithError`, steps, `attach`),
 `PlaywrightEx.Test.TestTracing` (`testTracing.ts`: `test.trace`) and `step/3` (`test.step`),
 with upstream source references and `-- not ported`/`# deviation:` comments. They have no
 `@upstream`, as parity tracks the client API, not the runner; the rest of the runner is native.

@@ -262,6 +262,45 @@ defmodule PlaywrightEx.Test.StepsTest do
     assert message =~ "not both"
   end
 
+  @tag :tmp_dir
+  test "attach: a test.attach step with the attachment, its content in the trace", %{tmp_dir: tmp_dir} do
+    file = Path.join(tmp_dir, "report.json")
+    File.write!(file, ~s({"ok": true}))
+
+    on_trace(fn events, files ->
+      attach = before(events, ~s(Attach "report"))
+      assert %{"method" => "test.attach", "parentId" => parent_id} = attach
+      assert parent_id == before(events, "with an attachment")["callId"]
+
+      assert [%{"name" => "report", "contentType" => "application/json", "file" => file}] =
+               after_of(events, attach)["attachments"]
+
+      assert files[file] == ~s({"ok": true})
+
+      assert [%{"name" => "note", "contentType" => "text/plain", "file" => note}] =
+               after_of(events, before(events, ~s(Attach "note")))["attachments"]
+
+      assert files[note] == "hello"
+
+      assert [%{"name" => "bytes", "contentType" => "application/octet-stream"}] =
+               after_of(events, before(events, ~s(Attach "bytes")))["attachments"]
+    end)
+
+    Test.step "with an attachment" do
+      assert Test.attach("report", path: file) == :ok
+    end
+
+    Test.attach("note", body: "hello")
+    Task.await(Task.async(fn -> Test.attach("bytes", body: <<255, 0>>) end))
+
+    %{output_dir: dir} = Test.info()
+    assert [copy] = File.ls!(Path.join(dir, "attachments"))
+    assert copy =~ ~r/^report-[0-9a-f]{40}\.json$/
+
+    assert_raise RuntimeError, ~r/Exactly one of "path" and "body"/, fn -> Test.attach("x", path: file, body: "") end
+    assert_raise ArgumentError, fn -> Test.attach("x", contentType: "text/plain") end
+  end
+
   test "a soft matcher outside a test fails as any matcher (no step)" do
     page = new_page()
     Page.set_content!(page, "<h1>Outside</h1>")

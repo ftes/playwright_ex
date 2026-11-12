@@ -13,6 +13,8 @@ defmodule PlaywrightEx.Test.TestInfo do
   # them when the test's process ends, and fails the test with the errors left.
 
   alias PlaywrightEx.Client.ClientStackTrace
+  alias PlaywrightEx.Isomorphic.MimeType
+  alias PlaywrightEx.Isomorphic.StringUtils
   alias PlaywrightEx.Matchers.Expect
   alias PlaywrightEx.Runtime.Zones
   alias PlaywrightEx.Test.ErrorContext
@@ -160,7 +162,9 @@ defmodule PlaywrightEx.Test.TestInfo do
       endWallTime: nil,
       error: nil,
       infectParentStepsWithError: false,
-      annotations: []
+      annotations: [],
+      # `attachmentIndices`: the attachments themselves (there is no `testInfo.attachments`).
+      attachments: []
     })
 
     # if (!step.group) this._callbacks.onStepBegin(...)  -- not ported: reporters
@@ -217,7 +221,7 @@ defmodule PlaywrightEx.Test.TestInfo do
 
     with %{endWallTime: nil} = row <- row do
       row = %{row | endWallTime: System.os_time(:millisecond)}
-      # if (result.attachments) ...  -- not ported: attachments
+      # if (result.attachments) ...  -- not ported: no matcher attaches
 
       row =
         if error = result[:error] do
@@ -274,7 +278,14 @@ defmodule PlaywrightEx.Test.TestInfo do
 
       if step.group != "internal" and step._tracing do
         error_for_trace = if row.error, do: %{name: "", message: row.error[:message] || "", stack: row.error[:stack]}
-        TestTracing.append_after_action_for_step(step._tracing, step.stepId, error_for_trace, [], row.annotations)
+
+        TestTracing.append_after_action_for_step(
+          step._tracing,
+          step.stepId,
+          error_for_trace,
+          row.attachments,
+          row.annotations
+        )
       end
     end
 
@@ -417,6 +428,79 @@ defmodule PlaywrightEx.Test.TestInfo do
     do: Exception.message(Exception.normalize(:error, reason, stacktrace))
 
   defp error_message({kind, reason, stacktrace}), do: Exception.format_banner(kind, reason, stacktrace)
+
+  @doc """
+  `attach`: the attachment `name` of `options` (`path`, `body`, `contentType`), a `test.attach`
+  step whose `after` event carries it into the trace.
+  """
+  def attach(this, name, options) do
+    step = _add_step(this, %{title: "Attach #{StringUtils.escape_with_quotes(name, "\"")}", category: "test.attach"})
+    _attach(this, normalize_and_save_attachment(output_path(this), name, options), step)
+    step_complete(step, %{})
+  end
+
+  # `_attach(attachment, stepId)`, with the step itself. `_attachmentsPush`, `onAttach`  -- not
+  # ported: reporters
+  defp _attach(this, attachment, step) do
+    step = if step[:group], do: nil, else: step
+
+    with %{} = step <- step,
+         %{} = row <- step_row(step) do
+      put_row(this, step_key(step), %{row | attachments: row.attachments ++ [attachment]})
+    else
+      _ ->
+        step_id = "#{this.step_id_prefix}@#{System.unique_integer([:positive, :monotonic])}"
+        title = "Attach #{StringUtils.escape_with_quotes(attachment.name, "\"")}"
+        tracing = _tracing(this)
+
+        TestTracing.append_before_action_for_step(tracing, %{
+          stepId: step_id,
+          title: title,
+          category: "test.attach",
+          stack: []
+        })
+
+        TestTracing.append_after_action_for_step(tracing, step_id, nil, [attachment])
+    end
+  end
+
+  # util.ts `normalizeAndSaveAttachment`. deviation: a binary `body` is text unless it is not
+  # UTF-8 (JS tells a string from a Buffer).
+  defp normalize_and_save_attachment(output_path, name, options) do
+    case options do
+      %{path: nil, body: nil} ->
+        %{name: name, contentType: "text/plain"}
+
+      %{path: path, body: nil} ->
+        hash = sha1_hex(path)
+        sanitized_name_prefix = Recorder.sanitize_for_file_path(name) <> "-"
+        dest = Path.join([output_path, "attachments", sanitized_name_prefix <> hash <> Path.extname(path)])
+        File.mkdir_p!(Path.dirname(dest))
+        File.cp!(path, dest)
+
+        content_type =
+          options.contentType || MimeType.get_mime_type_for_path(Path.basename(path)) || "application/octet-stream"
+
+        %{name: name, contentType: content_type, path: dest}
+
+      %{path: nil, body: body} ->
+        content_type =
+          options.contentType || if(String.valid?(body), do: "text/plain", else: "application/octet-stream")
+
+        %{name: name, contentType: content_type, body: body}
+
+      _ ->
+        raise ~s(Exactly one of "path" and "body" must be specified)
+    end
+  end
+
+  defp sha1_hex(data), do: :crypto.hash(:sha, data) |> Base.encode16(case: :lower)
+
+  # `outputPath()`: the output dir, created.
+  defp output_path(this) do
+    File.mkdir_p!(this.output_dir)
+    this.output_dir
+  end
 
   @doc "`_getOutputPath`: the path of `path_segments` in the test's output dir, which it must stay in."
   def _get_output_path(this, path_segments) do

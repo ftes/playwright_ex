@@ -322,7 +322,9 @@ mix test || TRACE=1 mix test --failed
 
 Passing runs pay nothing for it, and the first run's files stay: nothing is deleted at the start
 of a run, so delete `test-results/` yourself. Files of your own go in the test's dir with
-`PlaywrightEx.Test.output_path("export.csv")`; they stay when the test passes. A flaky test that
+`PlaywrightEx.Test.output_path("export.csv")`; they stay when the test passes.
+`PlaywrightEx.Test.attach("export", path: path)` (or `body:`) also shows one in the trace, as
+Playwright Test's `testInfo.attach`. A flaky test that
 passes on the rerun leaves no trace; for those, `:retain_on_failure`.
 
 The files are written in the test's `on_exit`, which ExUnit runs in reverse order of

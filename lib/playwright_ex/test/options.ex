@@ -51,10 +51,9 @@ defmodule PlaywrightEx.Test.Options do
   }
 
   # The keys of the object forms, upstream's (`packages/playwright/types/test.d.ts`) but for
-  # trace's `attachments` (of test steps, which our traces have none of) and video's `fps` and
-  # `show`.
+  # video's `fps` and `show`.
   @artifact_options %{
-    trace: [:mode, :snapshots, :screenshots, :sources],
+    trace: [:mode, :snapshots, :screenshots, :sources, :attachments],
     screenshot: [:mode, :full_page, :omit_background],
     video: [:mode, :size]
   }
@@ -262,7 +261,7 @@ defmodule PlaywrightEx.Test.Options do
               "unknown #{key} options #{inspect(unknown)}, expected one of #{inspect(@artifact_options[key])}"
     end
 
-    defaults = if key == :trace, do: [snapshots: true, screenshots: true, sources: true], else: []
+    defaults = if key == :trace, do: [snapshots: true, screenshots: true, sources: true, attachments: true], else: []
     options = Keyword.merge(defaults, options)
 
     for name <- @artifact_options[key],
@@ -273,7 +272,8 @@ defmodule PlaywrightEx.Test.Options do
   defp artifact_option!(key, :mode, mode), do: mode!(key, mode)
 
   defp artifact_option!(_key, name, value)
-       when name in [:snapshots, :screenshots, :sources, :full_page, :omit_background] and is_boolean(value),
+       when name in [:snapshots, :screenshots, :sources, :attachments, :full_page, :omit_background] and
+              is_boolean(value),
        do: value
 
   # `{ dom?, aria?, screen? }`, a map as the facade's nested objects.
