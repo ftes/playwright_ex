@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Test.PoolTest do
 
   alias PlaywrightEx.Browser
   alias PlaywrightEx.Test.Pool
+  alias PlaywrightEx.Test.TestInfo
 
   # A driver of this module's (no other module passes this `env`) and a browser of each test's
   # (`launch_options` no other test passes).
@@ -138,6 +139,25 @@ defmodule PlaywrightEx.Test.PoolTest do
     test "failed: killed (past its timeout), or taken down by a linked process" do
       assert run_test(module(), [], :killed) == {:failed, [Pool.killed()]}
       assert {:failed, [{{:EXIT, _pid}, {:boom, []}, []}]} = run_test(module(), [passed()], {:boom, []})
+    end
+
+    test "killed after a soft error: the error its body's end did not take, then the kill; no rows left" do
+      error = {:error, %RuntimeError{message: "soft"}, []}
+      test_info = TestInfo.current()
+
+      pid =
+        spawn(fn ->
+          this = %{test_info | test_pid: self()}
+          :ets.insert(Pool.table(), {{:test_info, self(), :info}, this})
+          TestInfo._fail_with_error(this, error)
+          Process.sleep(:infinity)
+        end)
+        |> tap(&Pool.watch(&1, module().playwright_ex_module, Pool.outside()))
+
+      wait_until(fn -> :ets.match_object(Pool.table(), {{:test_info, pid, {:error, :_}}, :_}) != [] end)
+      Process.exit(pid, :kill)
+      assert Pool.result(pid, 5000) == {:failed, [error, Pool.killed()]}
+      assert :ets.match_object(Pool.table(), {{:test_info, pid, :_}, :_}) == []
     end
 
     test "unknown for a test of another macro (a doctest), unless its process crashed" do

@@ -565,7 +565,7 @@ defmodule PlaywrightEx.Test.Recorder do
   @doc "Upstream's `testDir`: `test/` of the working directory."
   def test_dir, do: Path.join(File.cwd!(), "test")
 
-  @doc "A test file relative to `test_dir/0` (upstream's `path.relative(testDir, file)`), else to the working directory."
+  @doc "A test file relative to `test_dir/0`, else to the working directory: the output dir's name."
   def relative_test_file(file) do
     file = Path.expand(file)
 

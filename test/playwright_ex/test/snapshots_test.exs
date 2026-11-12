@@ -11,6 +11,7 @@ defmodule PlaywrightEx.Test.SnapshotsTest do
   alias PlaywrightEx.Expect
   alias PlaywrightEx.ExpectError
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Test.Pool
   alias PlaywrightEx.Test.Recorder
   alias PlaywrightEx.Test.TestInfo
 
@@ -80,6 +81,14 @@ defmodule PlaywrightEx.Test.SnapshotsTest do
     )
 
     assert snapshot_path(ctx, "body.aria.yml", kind: :aria) == Path.join(File.cwd!(), "body.aria.yml")
+  end
+
+  test "a test file outside test/ resolves against it, as upstream's path.relative(testDir, file)",
+       %{tmp_dir: tmp_dir, platform: platform} = ctx do
+    ctx = %{ctx | file: Path.join(File.cwd!(), "integration/checkout_test.exs")}
+
+    assert snapshot_path(ctx, "home.png", kind: :screenshot) ==
+             Path.expand("../integration/checkout_test.exs-snapshots/home-#{platform}.png", tmp_dir)
   end
 
   test "anonymous snapshots are numbered per test and kind, named ones per name", %{platform: platform} do
@@ -157,6 +166,36 @@ defmodule PlaywrightEx.Test.SnapshotsTest do
 
     assert File.exists?(path)
     assert TestInfo.take_errors(self()) == []
+  end
+
+  test "an error recorded once the test ended is printed, and leaves no rows" do
+    test_info = TestInfo.current()
+    {pid, ref} = spawn_monitor(fn -> receive(do: (:exit -> exit(:shutdown))) end)
+    this = %{test_info | test_pid: pid}
+    :ets.insert(Pool.table(), {{:test_info, pid, :info}, this})
+    Pool.watch(pid, Pool.start_module(), Pool.outside())
+    error = &{:error, %RuntimeError{message: &1}, []}
+
+    # The end of its body takes the errors; a later one (a Task of the test's) is printed.
+    TestInfo._fail_with_error(this, error.("in the body"))
+    assert TestInfo.finish(pid) == [error.("in the body")]
+    assert capture_io(fn -> TestInfo._fail_with_error(this, error.("after the body")) end) == "after the body\n"
+
+    # Its process ended: the same, also for a matcher's step and snapshot index.
+    send(pid, :exit)
+    assert_receive {:DOWN, ^ref, :process, ^pid, :shutdown}
+    assert Pool.result(pid, 5000) == {:failed, [Pool.outside()]}
+
+    output =
+      capture_io(fn ->
+        TestInfo._fail_with_error(this, error.("after the process"))
+        TestInfo._resolve_snapshot_paths(this, "screenshot", nil, "updateSnapshotIndex")
+        step = TestInfo._add_step(this, %{category: "expect", title: "late"})
+        TestInfo.step_complete(step, %{softError: %RuntimeError{message: "late step"}})
+      end)
+
+    assert output == "after the process\nlate step\n"
+    assert :ets.match_object(Pool.table(), {{:test_info, pid, :_}, :_}) == []
   end
 
   test "the name or the path, not both", %{page: page} do

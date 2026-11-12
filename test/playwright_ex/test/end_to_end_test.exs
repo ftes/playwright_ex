@@ -76,11 +76,11 @@ defmodule PlaywrightEx.Test.EndToEndTest do
     assert report.free == [:isolated]
   end
 
-  test "a test fails at its end with the snapshots it wrote, all errors reported", %{tmp_dir: tmp_dir} do
+  test "a test fails at its end with the snapshots it wrote, all errors reported, also when killed", %{tmp_dir: tmp_dir} do
     child = start("soft_errors", tmp_dir)
     assert ChildProcess.exit_code(child, 60_000) == 0
     output = ChildProcess.output(child)
-    assert output =~ ~r"3 tests, 3 failures|Result: 0/3 passed"
+    assert output =~ ~r"4 tests, 4 failures|Result: 0/4 passed"
 
     snapshots = Path.join(tmp_dir, "snapshots/support/test_runner_impl.exs-snapshots")
     platform = Atom.to_string(elem(:os.type(), 1))
@@ -88,6 +88,7 @@ defmodule PlaywrightEx.Test.EndToEndTest do
     assert Enum.sort(File.ls!(snapshots)) ==
              [
                "fails-after-writing-one-1.aria.yml",
+               "is-killed-after-writing-one-1.aria.yml",
                "two-#{platform}.png",
                "two.aria.yml",
                "writes-a-snapshot-1.aria.yml"
@@ -122,6 +123,14 @@ defmodule PlaywrightEx.Test.EndToEndTest do
 
     assert error_context =~
              ~r"RuntimeError: A snapshot doesn't exist at .*two.aria.yml.*RuntimeError: A snapshot doesn't exist at .*two-#{platform}.png"s
+
+    # Killed past its timeout: ExUnit reported the timeout only, `error-context.md` has the
+    # snapshot it wrote too.
+    [dir] = output_dir |> File.ls!() |> Enum.filter(&(&1 =~ "is-killed"))
+    error_context = File.read!(Path.join([output_dir, dir, "error-context.md"]))
+
+    assert error_context =~
+             ~r"RuntimeError: A snapshot doesn't exist at .*is-killed-after-writing-one-1.aria.yml.*killed"s
   end
 
   test "a boxed step fails at its call site, a step past its timeout fails, both traced", %{tmp_dir: tmp_dir} do

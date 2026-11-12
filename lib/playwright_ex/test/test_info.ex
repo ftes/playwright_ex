@@ -10,7 +10,7 @@ defmodule PlaywrightEx.Test.TestInfo do
   # `this` is a map of the test's static fields. Its mutable state, the snapshot indexes, the
   # errors and the steps, are rows of the pool's public table keyed `{:test_info, test_pid, _}`,
   # as a matcher or step may run in another process of the test (`$callers`). The pool deletes
-  # them when the test's process ends.
+  # them when the test's process ends, and fails the test with the errors left.
 
   alias PlaywrightEx.Client.ClientStackTrace
   alias PlaywrightEx.Matchers.Expect
@@ -70,11 +70,37 @@ defmodule PlaywrightEx.Test.TestInfo do
     end
   end
 
+  @doc """
+  The test's process ended (the pool's `DOWN`): removes its rows and returns the errors the end
+  of its body did not take (it never got there).
+  """
+  def ended(test_pid) do
+    errors = finish(test_pid)
+    # Not the errors: a late `_fail_with_error/2` takes its own back.
+    not_error = {:not, {:andalso, {:is_tuple, :"$1"}, {:==, {:element, 1, :"$1"}, :error}}}
+    :ets.select_delete(Pool.table(), [{{{:test_info, test_pid, :"$1"}, :_}, [not_error], [true]}])
+    errors
+  end
+
   @doc "Takes the errors `_fail_with_error/2` recorded for the test `test_pid`."
   def take_errors(test_pid) do
-    rows = :ets.match_object(Pool.table(), {{:test_info, test_pid, {:error, :_}}, :_})
-    for {key, _error} <- rows, do: :ets.delete(Pool.table(), key)
-    rows |> Enum.sort_by(fn {{_, _, {:error, seq}}, _error} -> seq end) |> Enum.map(&elem(&1, 1))
+    # One by one (`take`): a row `_fail_with_error/2` took back is not counted.
+    Pool.table()
+    |> :ets.match_object({{:test_info, test_pid, {:error, :_}}, :_})
+    |> Enum.flat_map(fn {key, _error} -> :ets.take(Pool.table(), key) end)
+    |> Enum.sort_by(fn {{_, _, {:error, seq}}, _error} -> seq end)
+    |> Enum.map(&elem(&1, 1))
+  end
+
+  # Whether the test runs: the end of its body, and the pool, unregister it before taking its
+  # errors and rows.
+  defp running?(this), do: lookup(this.test_pid) != nil
+
+  # Elixir only: a row of the test. One written once the test ended (by a process of the test
+  # that outlived its body) is removed again, as the pool may have removed its rows.
+  defp put_row(this, key, value) do
+    :ets.insert(Pool.table(), {key, value})
+    if !running?(this), do: :ets.delete(Pool.table(), key)
   end
 
   # _findLastPredefinedStep  -- not ported: hooks and fixtures are ExUnit's (no steps)
@@ -129,18 +155,14 @@ defmodule PlaywrightEx.Test.TestInfo do
 
     # `info: new TestStepInfoImpl(...)`, `steps: []`; `parentStepList.push(step)`,
     # `this._stepMap.set(stepId, step)`: the row, its parent's `steps` by `parentStepId`.
-    :ets.insert(
-      Pool.table(),
-      {step_key(step),
-       %{
-         parentStepId: parent_step && parent_step.stepId,
-         seq: seq,
-         endWallTime: nil,
-         error: nil,
-         infectParentStepsWithError: false,
-         annotations: []
-       }}
-    )
+    put_row(this, step_key(step), %{
+      parentStepId: parent_step && parent_step.stepId,
+      seq: seq,
+      endWallTime: nil,
+      error: nil,
+      infectParentStepsWithError: false,
+      annotations: []
+    })
 
     # if (!step.group) this._callbacks.onStepBegin(...)  -- not ported: reporters
 
@@ -187,8 +209,14 @@ defmodule PlaywrightEx.Test.TestInfo do
   def step_complete(step, result) do
     this = step.testInfo
 
-    # Elixir only: the test ended, its rows are gone.
-    with %{endWallTime: nil} = row <- step_row(step) do
+    row = step_row(step)
+
+    # Elixir only: the test ended, its rows are gone. Its soft error is printed (see
+    # `_fail_with_error/2`).
+    if row == nil and result[:softError],
+      do: _fail_with_error(this, {:error, result.softError, caller_stacktrace()})
+
+    with %{endWallTime: nil} = row <- row do
       row = %{row | endWallTime: System.os_time(:millisecond)}
       # if (result.attachments) ...  -- not ported: attachments
 
@@ -220,7 +248,7 @@ defmodule PlaywrightEx.Test.TestInfo do
         if result[:softError] do
           _fail_with_error(this, {:error, result.softError, caller_stacktrace()})
           # Elixir only: a step completes with an infected child only after one of these.
-          :ets.insert(Pool.table(), {{:test_info, this.test_pid, :soft_errors}, true})
+          put_row(this, {:test_info, this.test_pid, :soft_errors}, true)
           %{row | infectParentStepsWithError: true}
         else
           row
@@ -241,7 +269,7 @@ defmodule PlaywrightEx.Test.TestInfo do
           row
         end
 
-      :ets.insert(Pool.table(), {step_key(step), row})
+      put_row(this, step_key(step), row)
 
       # if (!step.group) this._callbacks.onStepEnd(...)  -- not ported: reporters
 
@@ -271,9 +299,10 @@ defmodule PlaywrightEx.Test.TestInfo do
     if skip do
       with %{} = row <- step_row(step),
            do:
-             :ets.insert(
-               Pool.table(),
-               {step_key(step), %{row | annotations: row.annotations ++ [%{type: "skip", location: location}]}}
+             put_row(
+               step.testInfo,
+               step_key(step),
+               %{row | annotations: row.annotations ++ [%{type: "skip", location: location}]}
              )
 
       nil
@@ -367,13 +396,25 @@ defmodule PlaywrightEx.Test.TestInfo do
 
   @doc """
   `_failWithError`: adds `error` (`{kind, reason, stacktrace}`) to the test's errors. The status
-  is not kept: the test fails with its errors at the end of its body.
+  is not kept: the test fails with its errors at the end of its body. Elixir only: once the test
+  ended (a process of it outlived its body), the error is printed, as outside a test.
   """
   def _fail_with_error(this, error) do
-    :ets.insert(Pool.table(), {{:test_info, this.test_pid, {:error, System.unique_integer([:monotonic])}}, error})
-    TestTracing.append_for_error(_tracing(this), error)
+    key = {:test_info, this.test_pid, {:error, System.unique_integer([:monotonic])}}
+
+    # Taken back if the test ended meanwhile, unless its end took it already (one `take` wins).
+    recorded? =
+      running?(this) and :ets.insert(Pool.table(), {key, error}) and
+        (running?(this) or :ets.take(Pool.table(), key) == [])
+
+    if recorded?, do: TestTracing.append_for_error(_tracing(this), error), else: IO.puts(error_message(error))
     :ok
   end
+
+  defp error_message({:error, reason, stacktrace}),
+    do: Exception.message(Exception.normalize(:error, reason, stacktrace))
+
+  defp error_message({kind, reason, stacktrace}), do: Exception.format_banner(kind, reason, stacktrace)
 
   @doc "`_getOutputPath`: the path of `path_segments` in the test's output dir, which it must stay in."
   def _get_output_path(this, path_segments) do
@@ -493,7 +534,10 @@ defmodule PlaywrightEx.Test.TestInfo do
   # with `"updateSnapshotIndex"`. A counter row: atomic across the test's processes.
   defp next_index(this, name, "updateSnapshotIndex") do
     key = {:test_info, this.test_pid, name}
-    :ets.update_counter(Pool.table(), key, {2, 1}, {key, 0})
+    index = :ets.update_counter(Pool.table(), key, {2, 1}, {key, 0})
+    # Elixir only: the test ended (see `put_row/3`).
+    if !running?(this), do: :ets.delete(Pool.table(), key)
+    index
   end
 
   defp next_index(this, name, "dontUpdateSnapshotIndex") do
@@ -505,7 +549,8 @@ defmodule PlaywrightEx.Test.TestInfo do
 
   @doc "`_applyPathTemplate`. There are no projects: `{projectName}` is empty, as upstream's default project's."
   def _apply_path_template(this, template, name_argument, ext) do
-    relative_test_file_path = Recorder.relative_test_file(this.file)
+    # `path.relative(testDir, file)`: `../integration/...` for a file of another `test_paths` dir.
+    relative_test_file_path = Path.relative_to(this.file, Recorder.test_dir(), force: true)
     parsed_dir = if Path.dirname(relative_test_file_path) == ".", do: "", else: Path.dirname(relative_test_file_path)
     parsed_base = Path.basename(relative_test_file_path)
     parsed_name = Path.rootname(parsed_base)

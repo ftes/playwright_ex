@@ -11,7 +11,7 @@
 #   * `max_failures` - `max_failures: 1`, an isolated module running when another fails; prints
 #     the pool after the run.
 #   * `soft_errors` - tests whose matchers write missing snapshots (`snapshot_dir` next to the
-#     output dir), one of them failing after that.
+#     output dir), one of them failing after that, one killed past its timeout.
 #   * `steps` - tests failing in a boxed step and in a step past its timeout, with no browser.
 
 # credo:disable-for-this-file Credo.Check.Warning.WrongTestFilename
@@ -232,6 +232,14 @@ case mode do
         Page.set_content!(page, "<h1>Three</h1>")
         Expect.to_match_aria_snapshot!(page)
         flunk("on purpose")
+      end
+
+      @tag timeout: 4_000
+      test "is killed after writing one", %{page: page} do
+        Page.set_content!(page, "<h1>Four</h1>")
+        # A missing aria snapshot is written past the matcher's timeout.
+        Expect.to_match_aria_snapshot!(page, timeout: 500)
+        Process.sleep(:infinity)
       end
     end
 

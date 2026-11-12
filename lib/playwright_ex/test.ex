@@ -107,7 +107,8 @@ defmodule PlaywrightEx.Test do
       `test/checkout_test.exs`.
     * aria snapshots: `{snapshotDir}/{testFileDir}/{testFileName}-snapshots/{arg}{ext}`.
 
-  Without a name, a snapshot is named after the test and its count in the test (`pays-1.png`).
+  Without a name, a snapshot is named after the test and its count in the test:
+  `pays-1-<platform>.png` for a screenshot, `pays-1.aria.yml` for an aria snapshot.
   A name is sanitized for the file system, a list of path segments is not. `snapshot_dir` is
   `test/` by default; `snapshot_path_template` (or the matcher's `pathTemplate` in `config
   :playwright_ex, :expect`) takes upstream's tokens: `{testDir}`, `{snapshotDir}`,

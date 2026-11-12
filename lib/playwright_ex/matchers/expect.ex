@@ -218,7 +218,7 @@ defmodule PlaywrightEx.Matchers.Expect do
         error = ExpectError.new(matcher_result, custom_message, stack_frames)
         {:error, error, result}
       else
-        # deviation: no test runner writes a `suggestedRebaseline` into the test source (the
+        # deviation: a `suggestedRebaseline` is not written into the test source (the
         # dispatcher's addSuggestedRebaseline), so a result that carries one fails with it, after
         # its `softError` (in its message). Otherwise an inline aria snapshot would pass without
         # being compared.
@@ -285,7 +285,7 @@ defmodule PlaywrightEx.Matchers.Expect do
 
     soft_error = if result[:softError], do: Exception.message(result.softError) <> "\n"
 
-    "#{soft_error}Inline snapshots are not updated without a test runner. New snapshot:\n\n#{rebaseline}"
+    "#{soft_error}Inline snapshots are not written into the test source. New snapshot:\n\n#{rebaseline}"
   end
 
   # expectLibrary.ts getMessage

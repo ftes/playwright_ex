@@ -27,6 +27,7 @@ defmodule PlaywrightEx.Test.Pool do
 
   alias PlaywrightEx.Test.Options
   alias PlaywrightEx.Test.Pool.Slot
+  alias PlaywrightEx.Test.TestInfo
 
   # ExUnit kills a test's process past its timeout; so can a test. No stacktrace either way.
   @killed "The test process was killed (ExUnit's timeout, or an explicit kill)."
@@ -235,9 +236,18 @@ defmodule PlaywrightEx.Test.Pool do
   def handle_info(_message, state), do: {:noreply, state}
 
   defp test_ended(state, pid, test, reason) do
-    # Its `PlaywrightEx.Test.TestInfo` rows.
-    :ets.match_delete(table(), {{:test_info, pid, :_}, :_})
-    {verdict, failures} = verdict(test, pid, reason)
+    # Its `PlaywrightEx.Test.TestInfo` rows, and the errors its matchers recorded that the end of
+    # its body did not take: killed past its timeout, taken down by a linked process, a later
+    # `setup` failed, or `--breakpoints` and an error. Upstream reports all of `testInfo.errors`
+    # at the test's end: they fail it here, for `error-context.md` and the driver's discard.
+    # ExUnit reported the test already, without them: its output can't change once the process
+    # died.
+    {verdict, failures} =
+      case {TestInfo.ended(pid), verdict(test, pid, reason)} do
+        {[], result} -> result
+        {errors, {_verdict, failures}} -> {:failed, Enum.map(errors, &normalize/1) ++ failures}
+      end
+
     for from <- test.awaiting, do: GenServer.reply(from, {verdict, failures})
     outcome = fn previous -> if verdict == :passed and previous != :failed, do: :passed, else: :failed end
 
@@ -270,6 +280,8 @@ defmodule PlaywrightEx.Test.Pool do
   defp verdict(%{marked: failure}, _pid, :shutdown), do: {:failed, [failure]}
   defp verdict(test, _pid, :killed), do: {:failed, test.failures ++ [@killed]}
   defp verdict(test, pid, reason), do: {:failed, test.failures ++ [{{:EXIT, pid}, reason, []}]}
+
+  defp normalize({kind, reason, stacktrace}), do: {kind, Exception.normalize(kind, reason, stacktrace), stacktrace}
 
   defp update_module(state, token, fun) do
     module = Map.get(state.modules, token, %{live: MapSet.new(), ended: [], outcome: nil})
