@@ -226,7 +226,14 @@ to that PR, the workflow also pushes fixes for its CI failures. The mix tasks be
 1. `mix playwright_ex.checksums <driver> <node>` (Node bumped only if Python's `NODE_VERSION`
    was): writes the repo-root `DRIVER_VERSION` and `NODE_VERSION` and the checksums.
 2. `mix playwright_ex.gen.protocol` and `mix playwright_ex.gen.api`, commit the generated diff.
-3. `git diff vA vB -- packages/playwright-core/src/client tests/page tests/library` in upstream; port the hunks.
+3. `git diff vA vB -- packages/playwright-core/src/client packages/playwright/src/matchers tests/page tests/library`
+   in upstream; port the hunks.
+   - Read the runner's diff as well:
+     `git diff vA vB -- packages/playwright/src/index.ts packages/playwright/src/common/config.ts packages/playwright/src/common/testType.ts packages/playwright/src/worker/testInfo.ts packages/playwright/src/worker/testTracing.ts packages/playwright/types/test.d.ts`.
+     `PlaywrightEx.Test` is watched, not parity-tracked.
+   - Port the hunks that touch what it ports: testInfo's snapshot paths, errors and steps,
+     `test.trace`, `test.step`, error-context and the artifact recording.
+   - List new options, fixtures and defaults as features to adopt or skip.
 4. `mix playwright_ex.parity` until clean, then `mix test`. New upstream client or spec files
    show up as missing, removed or since-ported ones as stale exclusions: port or mirror them, or
    update `@unported_client_files` / `test/upstream_not_ported.txt`. Copy upstream's
