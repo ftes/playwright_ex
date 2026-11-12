@@ -10,12 +10,17 @@ defmodule PlaywrightEx.Protocol.ValidatorTest do
   defp from_wire do
     %{
       binary: "fromBase64",
-      tChannelImpl: fn _names, %{"guid" => guid}, _path, _context -> Map.fetch!(@objects, guid) end
+      tChannelImpl: fn _names, %{"guid" => guid}, _path, _context -> Map.fetch!(@objects, guid) end,
+      isUnderTest: fn -> false end
     }
   end
 
   defp to_wire do
-    %{binary: "toBase64", tChannelImpl: fn _names, arg, _path, _context -> %{guid: arg} end}
+    %{
+      binary: "toBase64",
+      tChannelImpl: fn _names, arg, _path, _context -> %{guid: arg} end,
+      isUnderTest: fn -> false end
+    }
   end
 
   test "from wire: known keys become atoms, channels become objects, undefined is dropped" do

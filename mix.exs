@@ -208,7 +208,7 @@ defmodule PlaywrightEx.MixProject do
 
   defp aliases do
     [
-      setup: ["deps.get", "playwright_ex.install -- chromium"],
+      setup: ["deps.get", "playwright_ex.install -- chromium", "playwright_ex.upstream"],
       check: [
         "format --check-formatted",
         "credo",

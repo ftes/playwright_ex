@@ -6,6 +6,9 @@ Read them before changing ported code.
 
 - Deviate only where the port requires it. For an edge case upstream's client shares, keep
   upstream's behaviour, even when it looks wrong, and don't add a special case.
+- Upstream's sources at the pin (client, server, injected script, specs, API docs) are the
+  reference: `mix playwright_ex.upstream` (part of `mix setup`) downloads them and prints their
+  directory, `<cache_dir>/<version>/upstream`.
 - `PlaywrightEx.Test` (ExUnit fragments, `lib/playwright_ex/test*`) is native Elixir, not
   ported: no `@upstream` or parity markers.
 - `mix check` is the full verification (format, credo, compile, dialyzer, parity, tests).

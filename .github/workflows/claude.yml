@@ -10,13 +10,24 @@ on:
   pull_request_review:
     types: [submitted]
 
+env:
+  # As in elixir.yml.
+  MIX_ENV: test
+  # Steers Claude off the Bash habits (cd, pipes, heredocs) that miss the allowlist. Plain text
+  # only (no quotes, $ or backslashes): claude.yml passes it in a quoted claude_args argument.
+  TOOL_HINT: "Prefer your file tools over Bash to read, search and edit files, and keep any scratch files under tmp/; run each allowed Bash command on its own, without cd, semicolons, &&, pipes or heredocs (you are already in the repository). Give any subagent you start these same rules."
+
 jobs:
   claude:
+    # Maintainers only: the action rejects anyone else, but only after the setup below. A review on
+    # a fork's PR gets no secrets.
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      (
+        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && github.event.pull_request.head.repo.full_name == github.repository) ||
+        (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && github.event.pull_request.head.repo.full_name == github.repository) ||
+        (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      ) && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association || github.event.review.author_association || github.event.issue.author_association)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -28,7 +39,28 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 1
+          # Else checkout's read-only token can override the app token Claude pushes with: from v6
+          # it sits in an includeIf file claude-code-action doesn't clear, so the push gets a 403.
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Setup languages
+        uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
+      # On main for a comment, the PR's merge ref for a review; the action then switches to the PR's
+      # branch. May fail on a branch that doesn't compile; Claude then runs without them.
+      - name: Install dependencies and upstream sources
+        continue-on-error: true
+        run: mkdir -p ~/.cache/playwright_ex && mix "do" deps.get, deps.compile, playwright_ex.upstream
+      # On a fork's PR Claude works in its head, where mix would run the fork's mix.exs with the
+      # tokens in reach. Empty, so no mix tools, there and when the lookup fails.
+      - name: Allow mix tools unless on a fork's PR
+        id: tools
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.issue.pull_request && github.event.issue.number || github.event.pull_request.number }}
+        run: |
+          if [[ -z $PR || $(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json isCrossRepository --jq .isCrossRepository) == false ]]; then
+            echo "mix=,Bash(mix format:*),Bash(mix compile:*),Bash(mix credo:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix playwright_ex.parity:*),Bash(mix playwright_ex.gen.api:*),Bash(mix playwright_ex.gen.protocol:*)" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Run Claude Code
         id: claude
@@ -40,11 +72,23 @@ jobs:
           additional_permissions: |
             actions: read
 
-          # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
-          # prompt: 'Update the pull request description to include a summary of changes.'
-
-          # Optional: Add claude_args to customize behavior and configuration
-          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
-          # claude_args: '--allowed-tools Bash(gh pr *)'
+          # The owner forbids attribution; AGENTS.md says so too.
+          settings: |
+            {"includeCoAuthoredBy": false, "attribution": {"commit": "", "pr": ""}}
+          # No prompt: Claude follows the comment that tagged it, with the action's tools and these.
+          claude_args: |
+            --model claude-opus-5-5
+            --max-turns 100
+            --add-dir /home/runner/.cache/playwright_ex
+            --append-system-prompt "Upstream's sources at the pin are under ~/.cache/playwright_ex/<version>/upstream. Tests can't run here; if your change needs them, say they haven't run. No Claude attribution: leave the Generated with Claude Code signature out of commits, PRs and PR links. ${{ env.TOOL_HINT }}"
+            --allowedTools "Agent,Task,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh issue view:*)${{ steps.tools.outputs.mix }}"
+      - name: Summarize Claude's result
+        if: ${{ !cancelled() && steps.claude.outputs.execution_file != '' }}
+        env:
+          EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+        # .github/claude-summary.jq: only the final message and the denied calls (public repo). From
+        # the run's commit, as Claude may have edited the checkout; a failed `git show` stops the step.
+        run: |
+          filter=$(git show "$GITHUB_SHA:.github/claude-summary.jq")
+          jq -r "$filter" "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
 

@@ -1,17 +1,18 @@
 defmodule PlaywrightEx.Upstream do
   @moduledoc """
   The microsoft/playwright sources at the pinned `PlaywrightEx.Driver.version/0`, for the
-  dev tasks (`mix playwright_ex.gen.protocol`, `mix playwright_ex.parity`) and the tests
-  (test server assets).
+  dev tasks (`mix playwright_ex.gen.protocol`, `mix playwright_ex.parity`), the tests (test server
+  assets) and reading (`mix playwright_ex.upstream`).
 
   Downloads the release tarball once into `PlaywrightEx.Driver.cache_dir/1` and extracts only
   `@paths` (again when a path is missing, e.g. after one was added). `PLAYWRIGHT_EX_UPSTREAM` (or the `:dir` option) points at a checkout instead.
   """
   alias PlaywrightEx.Driver
 
+  # packages/injected/src for reading: the driver bundles the injected script as one escaped string.
   @paths ~w(
-    packages/playwright-core/src packages/playwright/src packages/protocol packages/isomorphic packages/utils utils
-    docs/src/api tests/page tests/library tests/config tests/assets
+    packages/playwright-core/src packages/playwright/src packages/protocol packages/isomorphic packages/utils
+    packages/injected/src utils docs/src/api tests/page tests/library tests/config tests/assets
   )
 
   def dir(opts \\ []) do

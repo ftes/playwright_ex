@@ -19,6 +19,9 @@ env:
   # Runs subagents in the foreground. A headless run ends with Claude's turn, which drops any
   # still running in the background: the survey agents never reported back.
   CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1"
+  # Steers Claude off the Bash habits (cd, pipes, heredocs) that miss the allowlist. Plain text
+  # only (no quotes, $ or backslashes): claude.yml passes it in a quoted claude_args argument.
+  TOOL_HINT: "Prefer your file tools over Bash to read, search and edit files, and keep any scratch files under tmp/; run each allowed Bash command on its own, without cd, semicolons, &&, pipes or heredocs (you are already in the repository). Give any subagent you start these same rules."
 
 jobs:
   # Frees slots before the cap is counted. A job, not an earlier cron: GitHub delays scheduled
@@ -68,6 +71,8 @@ jobs:
             same change or solved the problem another way. A merge conflict, the PR's age or a
             preference for other work is not a reason. When in doubt, keep it.
 
+            ${{ env.TOOL_HINT }}
+
             To close one, run exactly:
               gh pr close N --delete-branch --comment "<one sentence naming what on main made it obsolete>"
           claude_args: |
@@ -78,15 +83,11 @@ jobs:
         if: ${{ !cancelled() && steps.claude.outputs.execution_file != '' }}
         env:
           EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
-        # Only the final message and each denied call's command, path or URL: this repo is public,
-        # and the full transcript can contain secrets.
+        # .github/claude-summary.jq: only the final message and the denied calls (public repo). From
+        # the run's commit, as Claude may have edited the checkout; a failed `git show` stops the step.
         run: |
-          jq -r '.[] | select(.type == "result")
-            | (.result // .subtype),
-              (.permission_denials // [] | select(length > 0) | "\n**Denied tool calls (\(length)):**\n",
-                (.[] | (.tool_input | .command // .file_path // .path // .pattern // .url // "" | gsub("\\s+"; " ") | .[:200]) as $arg
-                  | "- \(.tool_name)" + (if $arg == "" then "" else ": `` \($arg) ``" end)))' \
-            "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
+          filter=$(git show "$GITHUB_SHA:.github/claude-summary.jq")
+          jq -r "$filter" "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
 
   # After triage, so only PRs worth keeping get fixed.
   classify:
@@ -126,7 +127,7 @@ jobs:
           prs=$(list)
           {
             echo "conflicted=$(jq -c 'map(select(.mergeable == "CONFLICTING") | .number)' <<< "$prs")"
-            echo "failing=$(jq -c --argjson max "$MAX_COMMITS" 'map(select(.mergeable != "CONFLICTING" and .failing and .commits < $max) | {number, branch})' <<< "$prs")"
+            echo "failing=$(jq -c --argjson max "$MAX_COMMITS" 'map(select(.mergeable == "MERGEABLE" and .failing and .commits < $max) | {number, branch})' <<< "$prs")"
             echo "exhausted=$(jq -r --argjson max "$MAX_COMMITS" 'map(select(.mergeable == "MERGEABLE" and .failing and .commits >= $max) | .number) | join(" ")' <<< "$prs")"
           } >> "$GITHUB_OUTPUT"
       - name: Close PRs still failing after two fixes
@@ -167,8 +168,10 @@ jobs:
         uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
       - name: Install dependencies
         run: mix "do" deps.get, deps.compile
-      # --add-dir below needs it; `mix playwright_ex.parity` fills it.
-      - run: mkdir -p ~/.cache/playwright_ex
+      # May fail on a branch that doesn't compile; Claude then runs without them.
+      - name: Download upstream sources
+        continue-on-error: true
+        run: mkdir -p ~/.cache/playwright_ex && mix playwright_ex.upstream
       - name: Save the failed CI log
         shell: bash
         env:
@@ -195,9 +198,8 @@ jobs:
             Read it along with `gh pr view ${{ matrix.pr.number }}` and
             `gh pr diff ${{ matrix.pr.number }}` and find the cause. For a failing port or ported
             test, compare with upstream: its sources and specs at the pin are under
-            ~/.cache/playwright_ex/<version>/upstream once `mix playwright_ex.parity` has run.
-            Tests can't run here: CI runs them on your push. Don't merge or rebase on main. End with
-            exactly one of these:
+            ~/.cache/playwright_ex/<version>/upstream. Tests can't run here: CI runs them on your
+            push. Don't merge or rebase on main. End with exactly one of these:
 
             - The PR caused it: fix it, keeping what the PR set out to do and the public behaviour,
               and matching the surrounding code. Follow PORTING.md for ported code. Files marked
@@ -210,6 +212,8 @@ jobs:
               `git commit --allow-empty -m "Re-run CI"`, then the push above.
             - It can't be fixed without redesigning the change: run exactly
               gh pr close ${{ matrix.pr.number }} --delete-branch --comment "<one sentence on why>"
+
+            ${{ env.TOOL_HINT }}
 
             No attribution anywhere: no Co-Authored-By trailers or "Generated with" lines.
           # The owner forbids attribution; the prompt says so too.
@@ -225,13 +229,11 @@ jobs:
         if: ${{ !cancelled() && steps.claude.outputs.execution_file != '' }}
         env:
           EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+        # .github/claude-summary.jq: only the final message and the denied calls (public repo). From
+        # the run's commit, as Claude may have edited the checkout; a failed `git show` stops the step.
         run: |
-          jq -r '.[] | select(.type == "result")
-            | (.result // .subtype),
-              (.permission_denials // [] | select(length > 0) | "\n**Denied tool calls (\(length)):**\n",
-                (.[] | (.tool_input | .command // .file_path // .path // .pattern // .url // "" | gsub("\\s+"; " ") | .[:200]) as $arg
-                  | "- \(.tool_name)" + (if $arg == "" then "" else ": `` \($arg) ``" end)))' \
-            "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
+          filter=$(git show "$GITHUB_SHA:.github/claude-summary.jq")
+          jq -r "$filter" "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
 
   # Replaces each conflicted PR with one on a new branch from main. The Claude app can't push
   # workflow file changes, which a merge or rebase of the old branch would carry from main.
@@ -259,8 +261,8 @@ jobs:
           fetch-depth: 0
       - name: Setup languages
         uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
-      - name: Install dependencies
-        run: mix "do" deps.get, deps.compile
+      - name: Install dependencies and upstream sources
+        run: mix "do" deps.get, deps.compile, playwright_ex.upstream
       - run: git switch -c "$NIGHTLY_BRANCH"
       - name: Run Claude
         id: claude
@@ -278,8 +280,10 @@ jobs:
             to do, then make the same change against the code as it is now, keeping what main has
             changed since. Files marked "do not edit manually" are regenerated with
             `mix playwright_ex.gen.api` or `mix playwright_ex.gen.protocol`, never merged by hand.
-            Run `mix format`, `mix compile --warnings-as-errors` and `mix credo`; they must pass. CI
-            on the new PR runs the test suite.
+            Ported code follows upstream's sources at the pin, under
+            ~/.cache/playwright_ex/<version>/upstream. Run `mix format`,
+            `mix compile --warnings-as-errors` and `mix credo`; they must pass. CI on the new PR
+            runs the test suite.
 
             If the change can't be redone without redesigning it, stop without pushing and say why.
 
@@ -290,6 +294,8 @@ jobs:
               gh pr create --base main --head ${{ env.NIGHTLY_BRANCH }} --title "<subject>" --body-file tmp/nightly-pr.md
               gh pr close ${{ matrix.pr }} --delete-branch --comment "Conflicted with main; replaced by <new PR URL>."
 
+            ${{ env.TOOL_HINT }}
+
             No attribution anywhere: no Co-Authored-By trailers or "Generated with" lines.
           # The owner forbids attribution; the prompt says so too.
           settings: |
@@ -297,18 +303,17 @@ jobs:
           claude_args: |
             --model claude-opus-5-5
             --max-turns 60
+            --add-dir /home/runner/.cache/playwright_ex
             --allowedTools "Read,Grep,Glob,Edit,Write,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix credo:*),Bash(mix playwright_ex.gen.api:*),Bash(mix playwright_ex.gen.protocol:*),Bash(gh pr view ${{ matrix.pr }}:*),Bash(gh pr diff ${{ matrix.pr }}:*),Bash(git push -u origin ${{ env.NIGHTLY_BRANCH }}),Bash(gh pr create --base main --head ${{ env.NIGHTLY_BRANCH }} *),Bash(gh pr close ${{ matrix.pr }} *)"
       - name: Summarize Claude's result
         if: ${{ !cancelled() && steps.claude.outputs.execution_file != '' }}
         env:
           EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+        # .github/claude-summary.jq: only the final message and the denied calls (public repo). From
+        # the run's commit, as Claude may have edited the checkout; a failed `git show` stops the step.
         run: |
-          jq -r '.[] | select(.type == "result")
-            | (.result // .subtype),
-              (.permission_denials // [] | select(length > 0) | "\n**Denied tool calls (\(length)):**\n",
-                (.[] | (.tool_input | .command // .file_path // .path // .pattern // .url // "" | gsub("\\s+"; " ") | .[:200]) as $arg
-                  | "- \(.tool_name)" + (if $arg == "" then "" else ": `` \($arg) ``" end)))' \
-            "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
+          filter=$(git show "$GITHUB_SHA:.github/claude-summary.jq")
+          jq -r "$filter" "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
 
   # Enforces the cap before any toolchain is set up. Runs even if an earlier job failed: the
   # count is still right, it just finds fewer slots.
@@ -374,10 +379,8 @@ jobs:
           fetch-depth: 0
       - name: Setup languages
         uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
-      - name: Install dependencies
-        run: mix "do" deps.get, deps.compile
-      # --add-dir below needs it; `mix playwright_ex.parity` fills it.
-      - run: mkdir -p ~/.cache/playwright_ex
+      - name: Install dependencies and upstream sources
+        run: mix "do" deps.get, deps.compile, playwright_ex.upstream
       - run: git switch -c "$NIGHTLY_BRANCH"
       - name: Pick tonight's focus area
         id: focus
@@ -418,8 +421,7 @@ jobs:
               Change only what brings it closer to upstream or PORTING.md's idioms. Prioritize
               removing a deviation nothing requires (PORTING.md, "Rules"): one no longer needed, or
               a synthetic special case for an edge case upstream doesn't handle. Upstream's sources
-              at the pin are under ~/.cache/playwright_ex/<version>/upstream once
-              `mix playwright_ex.parity` has run.
+              at the pin are under ~/.cache/playwright_ex/<version>/upstream.
             - Generated ("do not edit manually"): change the generator in dev/ and regenerate.
 
             1. Read PORTING.md, docs/architecture.md and enough of the code above to know the
@@ -439,8 +441,8 @@ jobs:
             changes, and no changes that are only formatting, comments or renames to taste.
 
             Run `mix format`, `mix compile --warnings-as-errors` and `mix credo`; they must pass.
-            Don't run the test suite: CI runs it on the PR, and the next nightly run fixes what it
-            finds.
+            Tests can't run here, in place of AGENTS.md's `mix check`: CI runs them on the PR, and
+            a later nightly run fixes any failure.
 
             If nothing is clearly worth a maintainer's time, stop without pushing and say why. No
             PR is a good result; a marginal PR is not.
@@ -451,6 +453,8 @@ jobs:
               gh pr create --base main --head ${{ env.NIGHTLY_BRANCH }} --title "<subject>" --body-file tmp/nightly-pr.md
             Write tmp/nightly-pr.md first (tmp/ is gitignored): a few sentences on what was
             inconsistent or complex and why this is simpler.
+
+            ${{ env.TOOL_HINT }}
 
             No attribution anywhere: no Co-Authored-By trailers or "Generated with" lines.
           # The owner forbids attribution; the prompt says so too.
@@ -466,10 +470,8 @@ jobs:
         if: ${{ !cancelled() && steps.claude.outputs.execution_file != '' }}
         env:
           EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+        # .github/claude-summary.jq: only the final message and the denied calls (public repo). From
+        # the run's commit, as Claude may have edited the checkout; a failed `git show` stops the step.
         run: |
-          jq -r '.[] | select(.type == "result")
-            | (.result // .subtype),
-              (.permission_denials // [] | select(length > 0) | "\n**Denied tool calls (\(length)):**\n",
-                (.[] | (.tool_input | .command // .file_path // .path // .pattern // .url // "" | gsub("\\s+"; " ") | .[:200]) as $arg
-                  | "- \(.tool_name)" + (if $arg == "" then "" else ": `` \($arg) ``" end)))' \
-            "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
+          filter=$(git show "$GITHUB_SHA:.github/claude-summary.jq")
+          jq -r "$filter" "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"

@@ -28,6 +28,11 @@ concurrency:
 # Nothing by default; each job asks for what it needs.
 permissions: {}
 
+env:
+  # Steers Claude off the Bash habits (cd, pipes, heredocs) that miss the allowlist. Plain text
+  # only (no quotes, $ or backslashes): claude.yml passes it in a quoted claude_args argument.
+  TOOL_HINT: "Prefer your file tools over Bash to read, search and edit files, and keep any scratch files under tmp/; run each allowed Bash command on its own, without cd, semicolons, &&, pipes or heredocs (you are already in the repository). Give any subagent you start these same rules."
+
 jobs:
   # Cheap, no Claude: is there a newer stable release without a branch or PR for it?
   check:
@@ -104,6 +109,8 @@ jobs:
             echo "RELEASE: https://github.com/microsoft/playwright/releases/tag/v$TO"
             echo
             cat .github/prompts/upstream-update.md
+            echo
+            echo "$TOOL_HINT"
             echo "PROMPT_EOF"
           } >> "$GITHUB_OUTPUT"
       - name: Port the release
@@ -186,8 +193,10 @@ jobs:
         uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
       - name: Install dependencies
         run: mix "do" deps.get, deps.compile
-      # --add-dir below needs it; `mix playwright_ex.parity` fills it.
-      - run: mkdir -p ~/.cache/playwright_ex
+      # May fail on a branch that doesn't compile; Claude then runs without them.
+      - name: Download upstream sources
+        continue-on-error: true
+        run: mkdir -p ~/.cache/playwright_ex && mix playwright_ex.upstream
       - name: Save the failed CI log
         shell: bash
         env:
@@ -212,9 +221,8 @@ jobs:
 
             Read PORTING.md, the log and `gh pr view ${{ matrix.pr.number }}`, and find the cause.
             Compare a failing port or ported test with upstream: its sources and specs at the new
-            pin are under ~/.cache/playwright_ex/<version>/upstream once
-            `mix playwright_ex.parity` has run. Tests can't run here: CI runs them on your push.
-            Don't merge or rebase on main. End with exactly one of these:
+            pin are under ~/.cache/playwright_ex/<version>/upstream. Tests can't run here: CI runs
+            them on your push. Don't merge or rebase on main. End with exactly one of these:
 
             - The port caused it: fix it 1:1 per PORTING.md. Files marked "do not edit manually" are
               regenerated with `mix playwright_ex.gen.api` or `mix playwright_ex.gen.protocol`.
@@ -227,6 +235,8 @@ jobs:
               `git commit --allow-empty -m "Re-run CI"`, then the push above.
             - It needs a decision, a skip or more than a fix: run exactly
               gh pr comment ${{ matrix.pr.number }} --body "Needs a human: <one sentence on why>"
+
+            ${{ env.TOOL_HINT }}
 
             No attribution anywhere: no Co-Authored-By trailers or "Generated with" lines.
           # The owner forbids attribution; the prompt says so too.
