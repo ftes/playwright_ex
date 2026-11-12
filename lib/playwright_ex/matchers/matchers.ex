@@ -6,7 +6,7 @@ defmodule PlaywrightEx.Matchers.Matchers do
   `PlaywrightEx.RegExp`.
   The public form is the generated `PlaywrightEx.Expect`.
 
-  Deviations: no test runner (`toPass` and the step title suffix are not ported).
+  Deviations: `toPass` is not ported.
   """
 
   alias PlaywrightEx.Client.APIResponse

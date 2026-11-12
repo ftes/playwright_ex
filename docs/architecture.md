@@ -86,7 +86,7 @@ storage state and cookies, `@result_options` for `Credentials.create`).
 - Out of scope: `launchServer`/`BrowserServer` (JS-only), `connectOverCDP(transport)`, function
   serialization, the inspector, Playwright Test (`toPass`, `expect.poll`, `expect.soft`, jest
   matchers); `PlaywrightEx.Test` is an ExUnit layer instead (see Test runner), whose tests give
-  the matchers a `testInfo` for snapshot names and soft errors.
+  the matchers a ported `testInfo` for snapshot names, soft errors and steps.
   `to_have_screenshot(target, path:)` and `to_match_aria_snapshot(target, path:)` stay, with an
   explicit path in place of a `name`, also outside a test.
 - Consumer requests (phoenix_test_playwright, fluffy) were checked against the official
@@ -251,12 +251,13 @@ issues. So driver-rendered text (call logs, errors) stays JS. Text the client re
 
 ## Test runner
 
-`PlaywrightEx.Test` is not a port. ExUnit is the runner, as pytest, NUnit and JUnit are for the
-non-JS clients, whose plugins (pytest-playwright, Playwright.NUnit, Java's `@UsePlaywright`) it
-follows: fixtures as setup fragments that only pass the context map, Playwright Test's names and
-defaults (trace, screenshot and video modes, artifact names, `testInfo.outputDir`), and
-upstream's artifact code as the model (`ArtifactsRecorder` hooks on `ClientInstrumentation`,
-`mergeTraceFiles`). Options are arguments plus config, passed to the facade as they are.
+`PlaywrightEx.Test`'s core is native, not a port. ExUnit is the runner, as pytest, NUnit and JUnit
+are for the non-JS clients, whose plugins (pytest-playwright, Playwright.NUnit, Java's
+`@UsePlaywright`) it follows: fixtures as setup fragments that only pass the context map,
+Playwright Test's names and defaults (trace, screenshot and video modes, artifact names,
+`testInfo.outputDir`), and upstream's artifact code as the model (`ArtifactsRecorder` hooks on
+`ClientInstrumentation`, `mergeTraceFiles`). Options are arguments plus config, passed to the
+facade as they are.
 
 Browsers are shared by default, unlike those clients' browser per worker thread: their client
 is bound to a thread, ours serves any number of processes, and ExUnit runs twice the schedulers'
@@ -305,8 +306,8 @@ its hash.
 Firefox serializes input across the pages of a browser: 20 `Mouse.move`s take 378 ms on one
 page, and 5 s on each of 16 pages at once; Chromium and WebKit stay flat (2026-11-11, macOS).
 Our page specs at 18 modules at once time out by the hundreds on one shared Firefox, and still
-on 4. So `isolate: true` is the fix on Firefox (our suite isolates every module there), and a
-`pool_size` is deferred, as Firefox needs about a browser per module.
+on 4. So `isolate: true` is the fix on Firefox (our suite isolates every module there), not a
+`pool_size` of shared browsers per key: Firefox needs about a browser per module.
 
 The matchers' `testInfo` is the running test, found by the calling process or its `$callers`
 (upstream's worker sets it per test): it resolves snapshot names by upstream's path templates
@@ -316,8 +317,15 @@ macro's mark raises them at the end of the body, one as itself and several as an
 failures; a test without them fails as before. A matcher outside a test (no `testInfo`) prints
 the soft error, as before.
 
-Rejected: porting Playwright Test, `toPass`, `expect.poll`, `expect.soft` (no `createExpect`:
-it would be an Elixir-only receiver wrapper and a change to every generated matcher), a CaseTemplate (fragments compose with the user's own), options from tags (a template
+The matchers and traces need part of Playwright Test's worker, so that part is ported:
+`PlaywrightEx.Test.TestInfo` (`testInfo.ts`: snapshot paths, `_failWithError`, steps),
+`PlaywrightEx.Test.TestTracing` (`testTracing.ts`: `test.trace`) and `step/3` (`test.step`),
+with upstream source references and `-- not ported`/`# deviation:` comments. They have no
+`@upstream`, as parity tracks the client API, not the runner; the rest of the runner is native.
+
+Rejected: porting the rest of Playwright Test, `toPass`, `expect.poll`, `expect.soft` (no
+`createExpect`: it would be an Elixir-only receiver wrapper and a change to every generated
+matcher), a CaseTemplate (fragments compose with the user's own), options from tags (a template
 maps its own), and a driver per module by default.
 
 ## Mirroring upstream specs

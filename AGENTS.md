@@ -9,8 +9,11 @@ Read them before changing ported code.
 - Upstream's sources at the pin (client, server, injected script, specs, API docs) are the
   reference: `mix playwright_ex.upstream` (part of `mix setup`) downloads them and prints their
   directory, `<cache_dir>/<version>/upstream`.
-- `PlaywrightEx.Test` (ExUnit fragments, `lib/playwright_ex/test*`) is native Elixir, not
-  ported: no `@upstream` or parity markers.
+- `PlaywrightEx.Test` (ExUnit fragments, `lib/playwright_ex/test*`) is a native runner, with no
+  port markers. Only what the ported matchers and traces need is ported: testInfo, `test.trace`
+  and `step` (`PlaywrightEx.Test.{TestInfo, TestTracing}`, `test.ex`), with upstream source
+  references and `-- not ported`/`# deviation:` comments, but no `@upstream`: parity covers the
+  client API, not the runner.
 - `mix check` is the full verification (format, credo, compile, dialyzer, parity, tests).
 - Files marked "do not edit manually" are generated: run `mix playwright_ex.gen.api`
   (`mix playwright_ex.gen.protocol` for the protocol) instead of editing them.

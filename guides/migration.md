@@ -384,5 +384,5 @@ Task.start(fn -> Process.sleep(1_000); AbortController.abort(controller, "user c
 
 ## Known gaps
 
-- Not ported: `launchServer`, `connectOverCDP` with a transport, `toPass`, `expect.poll`, soft
-  assertions, `toMatchSnapshot`.
+- Not ported: `launchServer`, `connectOverCDP` with a transport, `toPass`, `expect.poll`,
+  `expect.soft`, `toMatchSnapshot`.

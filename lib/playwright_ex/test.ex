@@ -18,9 +18,12 @@ defmodule PlaywrightEx.Test do
         end
       end
 
-  Not a port of Playwright Test: these follow the runners of the official non-JS clients
-  (pytest-playwright, Playwright.NUnit, Java's `@UsePlaywright`) on ExUnit, with Playwright
-  Test's names and defaults where they exist (`packages/playwright/src/index.ts`).
+  The runner is native, not a port of Playwright Test: it follows the runners of the official
+  non-JS clients (pytest-playwright, Playwright.NUnit, Java's `@UsePlaywright`) on ExUnit, with
+  Playwright Test's names and defaults where they exist (`packages/playwright/src/index.ts`).
+  What the ported matchers and traces need of Playwright Test's worker is ported: testInfo's
+  snapshot paths and errors (`testInfo.ts`), `step/3` (`test.step`) and the `test.trace` of
+  `trace.zip` (`testTracing.ts`).
 
   `use PlaywrightEx.Test` comes after `use ExUnit.Case` (or in a case template's `using`). It
   imports the fragments and a `test` macro that hands the test to `ExUnit.Case.test/3` with the

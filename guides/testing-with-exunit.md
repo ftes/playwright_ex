@@ -54,7 +54,7 @@ The drivers stop after the suite.
 Options go in as arguments, merged over the config: `setup_all do: browser(browser_name:
 :firefox)`, `setup ctx, do: new_context(ctx, context_options: [locale: "de-DE"])`.
 `launch_options` and `context_options` are those of `PlaywrightEx.BrowserType.launch/2` and
-`PlaywrightEx.Browser.new_context/2`. `PlaywrightEx.Test` lists them all.
+`PlaywrightEx.Browser.new_context/2`. `PlaywrightEx.Test` lists the fragments' own options.
 
 With `base_url`, `goto` and the URL matchers take paths. Actions and navigations wait 30 seconds
 by default, and ExUnit's test timeout is 60 seconds; `set_default_timeout/2` makes a stuck action
