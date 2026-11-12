@@ -98,6 +98,26 @@ defmodule PlaywrightEx.RegExpTest do
     assert RegExp.regex_flags(~r/a/imsu) == "imsu"
   end
 
+  test "new/2 takes a regex as JS's constructor does: its source, its flags unless given" do
+    assert RegExp.new(~r"a/b"imsu) == %RegExp{source: "a\\/b", flags: "imsu"}
+    assert RegExp.new(~r"a/b"i, "g") == %RegExp{source: "a\\/b", flags: "g"}
+    assert RegExp.new(~r//) == %RegExp{source: "(?:)", flags: ""}
+
+    re = RegExp.new("a[^]/b", "v")
+    assert RegExp.new(re) == re
+    assert RegExp.new(re, "i") == %RegExp{source: "a[^]\\/b", flags: "i"}
+
+    # As the facade converts one, and Elixir then matches it as the browser does.
+    assert RegExp.new(~r"^/users/\d+$") |> RegExp.compile!() |> Regex.match?("/users/12")
+  end
+
+  test "new/2 raises for a Regex JS cannot run, flags given or not" do
+    for re <- [~r/a/x, ~r/\Aa\z/, ~r/(?>a)/, ~r/(?i)a/] do
+      assert_raise ArgumentError, fn -> RegExp.new(re) end
+      assert_raise ArgumentError, fn -> RegExp.new(re, "i") end
+    end
+  end
+
   test "options JS cannot run raise" do
     for re <- [~r/a b/x, ~r/a+/U, Regex.compile!("a$", [:dollar_endonly])] do
       assert_raise ArgumentError, ~r/no JS RegExp equivalent/, fn -> RegExp.regex_flags(re) end

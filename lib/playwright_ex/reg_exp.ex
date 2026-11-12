@@ -15,6 +15,9 @@ defmodule PlaywrightEx.RegExp do
 
   Strings are always literal text (or globs, for URLs), never patterns.
 
+  `new/1` does that conversion for a `Regex` of your own, raising as Playwright would, and
+  `compile!/1` then matches it in Elixir as the browser does.
+
   The source is not validated here: the browser or driver reports JS syntax errors. Matching in
   Elixir (`wait_for_url`, `Page.frame(url:)`, routes, `wait_for_request`) compiles a `RegExp` to
   a `Regex`: `[^]`, `\\uXXXX` and identity escapes are translated, the `y` flag anchors, `g` and
@@ -34,14 +37,34 @@ defmodule PlaywrightEx.RegExp do
   @flag_order ~c"dgimsuvy"
 
   @doc """
-  `new RegExp(source, flags)`: raises `ArgumentError` on unknown or repeated flags (JS:
+  `new RegExp(pattern, flags)`: raises `ArgumentError` on unknown or repeated flags (JS:
   `dgimsuvy`), and on `u` with `v`. `/` is escaped in the source, an empty one is `(?:)`.
 
       iex> PlaywrightEx.RegExp.new("a/b", "iv")
       %PlaywrightEx.RegExp{source: "a\\\\/b", flags: "iv"}
+
+  `pattern` may be a regex, as in JS (`new RegExp(re)`): its source, with its flags unless
+  `flags` is given. A `Regex` is converted as wherever Playwright takes one: its options `i`, `m`,
+  `s`, `u` become flags, and other options or PCRE-only syntax raise `ArgumentError` (see the
+  moduledoc). With `compile!/1`, Elixir matches it as the browser does.
+
+      iex> PlaywrightEx.RegExp.new(~r"a/b"i)
+      %PlaywrightEx.RegExp{source: "a\\\\/b", flags: "i"}
   """
-  @spec new(String.t(), String.t()) :: t()
-  def new(source, flags \\ "") do
+  @spec new(String.t() | Regex.t() | t(), String.t() | nil) :: t()
+  def new(pattern, flags \\ nil)
+  def new(%Regex{} = regex, nil), do: new(Regex.source(regex), regex_flags(regex))
+
+  def new(%Regex{} = regex, flags) do
+    check_js_compatible!(regex)
+    new(Regex.source(regex), flags)
+  end
+
+  def new(%__MODULE__{} = re, nil), do: re
+  def new(%__MODULE__{source: source}, flags), do: new(source, flags)
+  def new(source, nil), do: new(source, "")
+
+  def new(source, flags) when is_binary(source) and is_binary(flags) do
     chars = String.to_charlist(flags)
 
     if Enum.any?(chars, &(&1 not in @flag_order)) or Enum.uniq(chars) != chars or
@@ -78,7 +101,7 @@ defmodule PlaywrightEx.RegExp do
 
   @doc false
   # The `RegExp` a `Regex` stands for (`/` escaped as `re.source` does).
-  def from_regex(%Regex{} = regex), do: new(Regex.source(regex), regex_flags(regex))
+  def from_regex(%Regex{} = regex), do: new(regex)
   def from_regex(%__MODULE__{} = re), do: re
 
   @doc false

@@ -11,6 +11,8 @@ those of the release candidates below. From an earlier release, also read the se
 ## [Unreleased]
 
 ### Added
+- `PlaywrightEx.RegExp.new/1,2` takes a `Regex` or `RegExp` as JS's `new RegExp(re, flags)` does,
+  converting a `Regex` as Playwright does (PCRE-only syntax raises `ArgumentError`).
 - `PlaywrightEx.Case`: a case template giving each test a `browser`, `context` and `page`, built
   from `PlaywrightEx.Test`'s fragments.
 - `PlaywrightEx.Test`: ExUnit setup fragments (`browser/1`, `new_context/2`, `new_page/1`), a
