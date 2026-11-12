@@ -473,4 +473,13 @@ defmodule PlaywrightEx.Screencast do
       }
     ]
   end
+
+  @doc false
+  # The type of `function`'s options, as `Facade.options!/3` converts them.
+  def __options_type__(function)
+
+  def __options_type__(:start), do: @start_options
+  def __options_type__(:show_overlay), do: @show_overlay_options
+  def __options_type__(:show_chapter), do: @show_chapter_options
+  def __options_type__(:show_actions), do: @show_actions_options
 end

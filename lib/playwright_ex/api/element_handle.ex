@@ -3066,4 +3066,26 @@ defmodule PlaywrightEx.ElementHandle do
       }
     ]
   end
+
+  @doc false
+  # The type of `function`'s options, as `Facade.options!/3` converts them.
+  def __options_type__(function)
+
+  def __options_type__(:check), do: @check_options
+  def __options_type__(:click), do: @click_options
+  def __options_type__(:dblclick), do: @dblclick_options
+  def __options_type__(:fill), do: @fill_options
+  def __options_type__(:hover), do: @hover_options
+  def __options_type__(:press), do: @press_options
+  def __options_type__(:screenshot), do: @screenshot_options
+  def __options_type__(:scroll_into_view_if_needed), do: @scroll_into_view_if_needed_options
+  def __options_type__(:select_option), do: @select_option_options
+  def __options_type__(:select_text), do: @select_text_options
+  def __options_type__(:set_checked), do: @set_checked_options
+  def __options_type__(:set_input_files), do: @set_input_files_options
+  def __options_type__(:tap), do: @tap_options
+  def __options_type__(:type), do: @type_options
+  def __options_type__(:uncheck), do: @uncheck_options
+  def __options_type__(:wait_for_element_state), do: @wait_for_element_state_options
+  def __options_type__(:wait_for_selector), do: @wait_for_selector_options
 end

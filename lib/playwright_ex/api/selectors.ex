@@ -96,4 +96,10 @@ defmodule PlaywrightEx.Selectors do
       }
     ]
   end
+
+  @doc false
+  # The type of `function`'s options, as `Facade.options!/3` converts them.
+  def __options_type__(function)
+
+  def __options_type__(:register), do: @register_options
 end

@@ -351,4 +351,11 @@ defmodule PlaywrightEx.WebSocket do
       }
     ]
   end
+
+  @doc false
+  # The type of `function`'s options, as `Facade.options!/3` converts them.
+  def __options_type__(function)
+
+  def __options_type__(:wait_for_event), do: @wait_for_event_options
+  def __options_type__(:expect_event), do: @expect_event_options
 end

@@ -179,4 +179,11 @@ defmodule PlaywrightEx.WebMCP do
       }
     ]
   end
+
+  @doc false
+  # The type of `function`'s options, as `Facade.options!/3` converts them.
+  def __options_type__(function)
+
+  def __options_type__(:call_tool), do: @call_tool_options
+  def __options_type__(:tools), do: @tools_options
 end

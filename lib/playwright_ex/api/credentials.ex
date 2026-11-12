@@ -357,4 +357,11 @@ defmodule PlaywrightEx.Credentials do
       }
     ]
   end
+
+  @doc false
+  # The type of `function`'s options, as `Facade.options!/3` converts them.
+  def __options_type__(function)
+
+  def __options_type__(:create), do: @create_options
+  def __options_type__(:get), do: @get_options
 end

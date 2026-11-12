@@ -1532,4 +1532,13 @@ defmodule PlaywrightEx.BrowserType do
       }
     ]
   end
+
+  @doc false
+  # The type of `function`'s options, as `Facade.options!/3` converts them.
+  def __options_type__(function)
+
+  def __options_type__(:connect), do: @connect_options
+  def __options_type__(:connect_over_cdp), do: @connect_over_cdp_options
+  def __options_type__(:launch), do: @launch_options
+  def __options_type__(:launch_persistent_context), do: @launch_persistent_context_options
 end

@@ -507,4 +507,15 @@ defmodule PlaywrightEx.Tracing do
       }
     ]
   end
+
+  @doc false
+  # The type of `function`'s options, as `Facade.options!/3` converts them.
+  def __options_type__(function)
+
+  def __options_type__(:start), do: @start_options
+  def __options_type__(:start_chunk), do: @start_chunk_options
+  def __options_type__(:start_har), do: @start_har_options
+  def __options_type__(:group), do: @group_options
+  def __options_type__(:stop), do: @stop_options
+  def __options_type__(:stop_chunk), do: @stop_chunk_options
 end

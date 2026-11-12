@@ -594,4 +594,13 @@ defmodule PlaywrightEx.Route do
       }
     ]
   end
+
+  @doc false
+  # The type of `function`'s options, as `Facade.options!/3` converts them.
+  def __options_type__(function)
+
+  def __options_type__(:continue), do: @continue_options
+  def __options_type__(:fallback), do: @fallback_options
+  def __options_type__(:fetch), do: @fetch_options
+  def __options_type__(:fulfill), do: @fulfill_options
 end
