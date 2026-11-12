@@ -90,23 +90,6 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.BrowserCase do
   end
 end
 
-defmodule PlaywrightEx.Guides.TestingWithExUnit.Eventually do
-  @moduledoc false
-  @doc "Calls `fun` until it doesn't raise, for up to `timeout` ms, then raises its last error."
-  def eventually(fun, timeout \\ 5_000, interval \\ 100) do
-    retry(fun, System.monotonic_time(:millisecond) + timeout, interval)
-  end
-
-  defp retry(fun, deadline, interval) do
-    fun.()
-  rescue
-    error ->
-      if System.monotonic_time(:millisecond) >= deadline, do: reraise(error, __STACKTRACE__)
-      Process.sleep(interval)
-      retry(fun, deadline, interval)
-  end
-end
-
 defmodule PlaywrightEx.Guides.TestingWithExUnit.Assertions do
   @moduledoc false
   @doc "Runs `fun`, re-raising a failed matcher as an `ExUnit.AssertionError`."
@@ -122,7 +105,6 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.SignUpTest do
   use PlaywrightEx.Guides.TestingWithExUnit.BrowserCase, async: true
 
   alias PlaywrightEx.Guides.TestingWithExUnit.Assertions
-  alias PlaywrightEx.Guides.TestingWithExUnit.Eventually
 
   test "signs up", %{page: page} do
     Page.goto!(page, "/sign-up")
@@ -170,17 +152,12 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.SignUpTest do
       Assertions.assert_expect(fn -> Expect.to_have_text!(Page.get_by_role(page, :status), "Saved", timeout: 100) end)
     end
   end
-
-  test "eventually raises the last error after the timeout" do
-    assert_raise ExUnit.AssertionError, fn -> Eventually.eventually(fn -> assert 1 == 2 end, 200) end
-  end
 end
 
 defmodule PlaywrightEx.Guides.TestingWithExUnit.LoggedInTest do
   # "Logging in once", without the case template.
   use ExUnit.Case, async: true
 
-  import PlaywrightEx.Guides.TestingWithExUnit.Eventually
   use PlaywrightEx.Test
 
   alias PlaywrightEx.APIRequestContext
@@ -256,11 +233,16 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.LoggedInTest do
     refute Enum.any?(origins, &Map.has_key?(&1, :indexedDB))
   end
 
-  test "eventually", %{context: context} do
-    eventually(fn ->
+  test "to_pass and poll", %{context: context} do
+    Expect.to_pass!(fn ->
       response = APIRequestContext.get!(BrowserContext.request(context), "/api/exports/1")
       assert APIResponse.json!(response)["status"] == "done"
     end)
+
+    # Deviation: an Agent for the guide's `Repo.aggregate(Export, :count)`.
+    {:ok, exports} = Agent.start_link(fn -> 0 end)
+    count = fn -> Agent.get_and_update(exports, &{&1, &1 + 1}) end
+    Expect.poll!(fn -> count.() end, &assert(&1 == 1), timeout: 10_000)
   end
 
   test "forwarded events need an assert_receive timeout", %{page: page} do

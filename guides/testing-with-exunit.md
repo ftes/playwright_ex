@@ -550,35 +550,23 @@ owner, a session) finds the test from a `Task` with it: `PlaywrightEx.Test.info(
 ## Polling and waiting
 
 When the state shows in the page, assert on the page: `Expect.*` retries. For state elsewhere (an
-email, a background job, a record behind an API), retry the assertion. PlaywrightEx has no
-`expect.poll` or `toPass`, as those belong to Playwright's test runner; this helper is enough:
+email, a background job, a record behind an API), retry the assertion with `Expect.to_pass!/2`
+(`expect(fn).toPass()`), or poll a value with `Expect.poll!/3` (`expect.poll(fn).toBe(x)`), whose
+matcher is an ExUnit assertion:
 
 ```elixir
-defmodule MyApp.Eventually do
-  @doc "Calls `fun` until it doesn't raise, for up to `timeout` ms, then raises its last error."
-  def eventually(fun, timeout \\ 5_000, interval \\ 100) do
-    retry(fun, System.monotonic_time(:millisecond) + timeout, interval)
-  end
-
-  defp retry(fun, deadline, interval) do
-    fun.()
-  rescue
-    error ->
-      if System.monotonic_time(:millisecond) >= deadline, do: reraise(error, __STACKTRACE__)
-      Process.sleep(interval)
-      retry(fun, deadline, interval)
-  end
-end
-```
-
-```elixir
-import MyApp.Eventually
-
-eventually(fn ->
+Expect.to_pass!(fn ->
   response = APIRequestContext.get!(BrowserContext.request(context), "/api/exports/1")
   assert APIResponse.json!(response)["status"] == "done"
 end)
+
+Expect.poll!(fn -> Repo.aggregate(Export, :count) end, &assert(&1 == 1), timeout: 10_000)
 ```
+
+As upstream's, `to_pass` retries until the test's timeout (`timeout:` for less) and `poll` for
+the matchers' `timeout`, both at `[100, 250, 500, 1000]` ms intervals (`intervals:`). The callback
+runs in the test process, so `self()` and its mailbox are the test's; a step or a soft receiver
+(`fun |> Expect.soft() |> Expect.to_pass!()`) works as for any matcher.
 
 Events forwarded to the test process arrive when the browser emits them, which can be well after
 the action that led to them (a request, a timer). `assert_receive` waits only 100 ms by default,

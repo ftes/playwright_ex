@@ -214,8 +214,8 @@ single thread. Use each only where the JS code needs it, with its marker.
 - Assertions in listeners become `send/2` to the test process and `assert_receive` (10 s
   default, `test_helper.exs`); listener state that JS keeps in an array is an `Agent`.
 - JS truthiness (`expect(x).toBeTruthy()`) is `Utils.assert_truthy/1`/`assert_falsy/1`, not a
-  bare `assert` (`:null` is truthy in Elixir). `expect.poll` and `toPass` are `Utils.poll/3` and
-  `Utils.to_pass/2`.
+  bare `assert` (`:null` is truthy in Elixir). `expect.poll(fn).toBe(x)` and `toPass` are
+  `Expect.poll!(fn, &assert(&1 == x))` and `Expect.to_pass!/2`.
 - Local file access: `path.resolve` is `Path.expand/1`, `fs` calls are `File.*!` (raising
   `File.Error`). Don't imitate system or Node error texts: assert the Elixir error and mark it
   `# deviation: Elixir's File error, not Node's text.` Errors the driver sends stay verbatim.

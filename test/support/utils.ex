@@ -258,36 +258,6 @@ defmodule PlaywrightEx.Utils do
   end
 
   @doc """
-  `expect(fn).toPass(options)` (`expect.ts`): calls `fun` until it returns without raising
-  (an `ExUnit.AssertionError` or any other exception), with upstream's default `intervals`
-  (100, 250, 500, 1000 ms) until `timeout` (default: the test timeout of upstream's
-  `tests/library/playwright.config.ts`, `PlaywrightEx.UpstreamCase.timeout/0`). Returns `fun`'s
-  value; re-raises the last error on timeout.
-  """
-  def to_pass(fun, options \\ []) do
-    timeout = Keyword.get_lazy(options, :timeout, &PlaywrightEx.UpstreamCase.timeout/0)
-    intervals = Keyword.get(options, :intervals, [100, 250, 500, 1000])
-    deadline = System.monotonic_time(:millisecond) + timeout
-    do_to_pass(fun, intervals, deadline)
-  end
-
-  @doc """
-  `expect.poll(fn, options).<matcher>`: polls `value_fun` until `assertion` (called with its
-  value) passes, as `to_pass/2` does, until `timeout` (default: the expect timeout, as
-  upstream's). `poll(fn -> received end, &assert(&1 == [1, 2]))`. Returns the last value.
-  """
-  def poll(value_fun, assertion, options \\ []) do
-    to_pass(
-      fn ->
-        value = value_fun.()
-        assertion.(value)
-        value
-      end,
-      Keyword.put_new_lazy(options, :timeout, fn -> Application.fetch_env!(:playwright_ex, :expect)[:timeout] end)
-    )
-  end
-
-  @doc """
   `expect(value).toBeTruthy()` on a value decoded from JS (`PlaywrightEx.Protocol.Serializers`):
   `:null` (`null`) and `:nan` (`NaN`) are truthy in Elixir, falsy in JS, as are `0`, `-0` and `""`.
   """
@@ -304,17 +274,6 @@ defmodule PlaywrightEx.Utils do
 
   @doc "JS truthiness of a decoded value: falsy are `false`, `nil` (`undefined`), `:null`, `:nan`, `0`, `-0` and `\"\"`."
   def js_truthy?(value), do: value not in [false, nil, :null, :nan, ""] and not (is_number(value) and value == 0)
-
-  defp do_to_pass(fun, intervals, deadline) do
-    fun.()
-  rescue
-    error ->
-      [interval | rest] = intervals
-      now = System.monotonic_time(:millisecond)
-      if now >= deadline, do: reraise(error, __STACKTRACE__)
-      Process.sleep(min(interval, deadline - now))
-      do_to_pass(fun, if(rest == [], do: intervals, else: rest), deadline)
-  end
 
   # isomorphic/istanbulCoverage.ts
   defp merge_istanbul_coverage(into, data) do

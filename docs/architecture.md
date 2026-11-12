@@ -84,9 +84,11 @@ storage state and cookies, `@result_options` for `Credentials.create`).
   fixtures, and they would live in generated moduledocs) and a compile-only checker (weaker, as
   the tests give compiling for free).
 - Out of scope: `launchServer`/`BrowserServer` (JS-only), `connectOverCDP(transport)`, function
-  serialization, the inspector, Playwright Test (`toPass`, `expect.poll`, jest matchers);
-  `PlaywrightEx.Test` is an ExUnit layer instead (see Test runner), whose tests give the matchers
-  a ported `testInfo` for snapshot names, soft errors and steps. `expect.soft` is `soft/1`, a
+  serialization, the inspector, Playwright Test (jest matchers); `PlaywrightEx.Test` is an
+  ExUnit layer instead (see Test runner), whose tests give the matchers a ported `testInfo` for
+  snapshot names, soft errors, steps and the test's deadline. `toPass` and `expect.poll` are
+  matchers of a function (`Expect.to_pass/2`, `Expect.poll/3`), `poll`'s jest matcher an ExUnit
+  assertion. `expect.soft` is `soft/1`, a
   receiver as `not_/1` is (`isSoft`), in either order with it.
   `to_have_screenshot(target, path:)` and `to_match_aria_snapshot(target, path:)` stay, with an
   explicit path in place of a `name`, also outside a test.
@@ -401,7 +403,15 @@ The matchers and traces need part of Playwright Test's worker, so that part is p
 with upstream source references and `-- not ported`/`# deviation:` comments. They have no
 `@upstream`, as parity tracks the client API, not the runner; the rest of the runner is native.
 
-Rejected: porting the rest of Playwright Test, `toPass`, `expect.poll`, `createExpect`
+`toPass` and `expect.poll` are ported (`matchers.ts`, `expect.ts`, `pollAgainstDeadline`), as
+upstream's specs and suites ported onto `PlaywrightEx.Test` (LiveView's e2e) use them often
+and a helper per suite drifted from upstream's intervals, deadlines and steps. Being matchers,
+they get `expect.soft`, steps and the expect config for free; `poll`'s matcher is an ExUnit
+assertion (`Expect.poll(fn -> v end, &assert(&1 == 3))`), as the jest matchers are not ported. Their
+callbacks run in the calling process, not raced against the deadline (a running callback overruns
+it), for the reason a step has no timeout.
+
+Rejected: porting the rest of Playwright Test, `createExpect`
 (`expect.configure`; `expect.soft` is a receiver, `soft/1`), a step's `timeout` (a process can't
 be interrupted, so the body would run in another process, with another `self()` and mailbox, and
 on past the timeout; the test's timeout bounds it) and a driver per module by default. For the

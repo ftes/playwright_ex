@@ -11,7 +11,6 @@ defmodule PlaywrightEx.Library.ScreencastOverlayTest do
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Screencast
-  alias PlaywrightEx.Utils
 
   # test.skip(({ mode }) => mode !== 'default', 'Overlay uses an open shadow root only in default mode');  -- always default mode
 
@@ -276,7 +275,7 @@ defmodule PlaywrightEx.Library.ScreencastOverlayTest do
       assert pixel(Page.screenshot!(page), 100, 100) == [255, 0, 0]
 
       page |> Page.get_by_role("button", name: "Open") |> Locator.click!()
-      Utils.poll(fn -> pixel(Page.screenshot!(page), 100, 100) end, &assert(&1 == [255, 0, 0]))
+      Expect.poll!(fn -> pixel(Page.screenshot!(page), 100, 100) end, &assert(&1 == [255, 0, 0]))
 
       BrowserContext.close!(context)
     end

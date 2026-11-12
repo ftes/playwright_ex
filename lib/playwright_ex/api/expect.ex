@@ -35,6 +35,8 @@ defmodule PlaywrightEx.Expect do
       rebaseline (an empty snapshot, or any under `:all` or a mismatch under `:changed`) the
       matcher fails with the new snapshot in its message.
     * `:ignore_snapshots` - Skip the snapshot matchers. Defaults to `false`.
+    * `:to_pass` - Defaults of `PlaywrightEx.Expect.to_pass/2`, `%{timeout: 10_000, intervals: [1000]}`. Its timeout
+      defaults to `0`, the test's timeout, not `:timeout`.
     * `:to_have_screenshot`, `:to_match_aria_snapshot` - Defaults for their options, maps with
       the JS keys (`%{maxDiffPixels: 10}`, `%{children: "equal"}`), as upstream's config, and
       their `pathTemplate` (see "Snapshots" in `PlaywrightEx.Test`).
@@ -50,7 +52,7 @@ defmodule PlaywrightEx.Expect do
   @typedoc "A negated (`not_/1`) or soft (`soft/1`) receiver: `expect(actual).not`, `expect.soft(actual)` in JS."
   @type t(actual) :: %__MODULE__{actual: actual, isNot: boolean(), isSoft: boolean()}
   @typedoc "A negated or soft receiver of any matcher."
-  @type t :: t(PlaywrightEx.Locator.t() | PlaywrightEx.Page.t() | PlaywrightEx.APIResponse.t())
+  @type t :: t(PlaywrightEx.Locator.t() | PlaywrightEx.Page.t() | PlaywrightEx.APIResponse.t() | (-> term()))
 
   defstruct [:actual, isNot: false, isSoft: false]
 
@@ -70,7 +72,7 @@ defmodule PlaywrightEx.Expect do
   *Since Playwright 1.20.*
   """
   @spec not_(actual | t(actual)) :: t(actual)
-        when actual: PlaywrightEx.Locator.t() | PlaywrightEx.Page.t() | PlaywrightEx.APIResponse.t()
+        when actual: PlaywrightEx.Locator.t() | PlaywrightEx.Page.t() | PlaywrightEx.APIResponse.t() | (-> term())
   def not_(%__MODULE__{isNot: true}),
     do: raise(ArgumentError, "expect.not: the receiver is negated already (JS has no expect(x).not.not)")
 
@@ -95,7 +97,7 @@ defmodule PlaywrightEx.Expect do
   In Elixir, `soft/1` wraps the receiver as `not_/1` does, in either order: `locator |> Expect.soft() |> Expect.not_()` is `expect.soft(locator).not`, and the `not_to_*` matchers take a soft receiver too. In a `PlaywrightEx.Test` test, a failed soft matcher returns `:ok` (the bang form too) and the test fails at the end of its body with all its errors. Outside such a test it fails as any matcher.
   """
   @spec soft(actual | t(actual)) :: t(actual)
-        when actual: PlaywrightEx.Locator.t() | PlaywrightEx.Page.t() | PlaywrightEx.APIResponse.t()
+        when actual: PlaywrightEx.Locator.t() | PlaywrightEx.Page.t() | PlaywrightEx.APIResponse.t() | (-> term())
   def soft(%__MODULE__{} = expect), do: %{expect | isSoft: true}
   def soft(actual), do: %__MODULE__{actual: actual, isSoft: true}
 
@@ -5236,6 +5238,208 @@ defmodule PlaywrightEx.Expect do
     end)
   end
 
+  @to_pass_options {:object, %{intervals: {:intervals, nil}, timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `to_pass/2`, see its docs."
+  @type to_pass_options ::
+          [intervals: [integer()], timeout: number() | :infinity]
+          | %{optional(:intervals) => [integer()], optional(:timeout) => number() | :infinity}
+
+  @doc ~S"""
+  You can retry blocks of code until they are passing successfully.
+
+  ```elixir
+  Expect.to_pass!(fn ->
+    response = page |> Page.request() |> APIRequestContext.get!("https://api.example.com")
+    assert APIResponse.status(response) == 200
+  end)
+  ```
+
+  You can also specify custom timeout and retry intervals:
+
+  ```elixir
+  Expect.to_pass!(
+    fn ->
+      response = page |> Page.request() |> APIRequestContext.get!("https://api.example.com")
+      assert APIResponse.status(response) == 200
+    end,
+    # Probe, wait 1s, probe, wait 2s, probe, wait 10s, probe, wait 10s, probe
+    # ... Defaults to [100, 250, 500, 1000].
+    intervals: [1_000, 2_000, 10_000],
+    timeout: 60_000
+  )
+  ```
+
+  Note that by default `toPass` has timeout 0 and does not respect custom expect timeout.
+
+  In Elixir, the callback runs in the calling process and passes once it returns. A failure in it (a raise such as an `ExUnit.AssertionError` or a `PlaywrightEx.ExpectError`, an exit) is retried; the last one is in the timeout's message. A callback still running at the deadline is not interrupted. A soft receiver (`callback |> Expect.soft() |> Expect.to_pass()`) works as for any matcher.
+
+  *Since Playwright 1.29.*
+
+  ## Options
+
+  * `:intervals` (list of `t:integer/0`) - Probe, wait 1s, probe, wait 2s, probe, wait 10s, probe, wait 10s, probe: `[1_000, 2_000, 10_000]`. Defaults to `[100, 250, 500, 1000]`.
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the callback for in milliseconds. Defaults to `0`: until the test's timeout (none outside a `PlaywrightEx.Test` test), not the matchers' `:timeout`. A default other than `0` is `:to_pass` in `config :playwright_ex, :expect` (see the configuration in `PlaywrightEx.Expect`). Within a test, it ends before the test's timeout.
+
+    In Elixir, `:infinity` is the same as `0`: no timeout.
+  """
+  @spec to_pass((-> term()) | t((-> term())), to_pass_options()) :: :ok | {:error, PlaywrightEx.error()}
+  def to_pass(callback, options \\ []) do
+    {callback, info} = Facade.matcher_info(callback, false, "expect.toPass")
+    options = Facade.options!(options, @to_pass_options, "expect.toPass")
+
+    Facade.matcher(callback, fn ->
+      PlaywrightEx.Matchers.Expect.create_matcher("toPass", info, callback, &PlaywrightEx.Matchers.Matchers.to_pass/3).(
+        [options]
+      )
+    end)
+  end
+
+  @doc "Like `to_pass/2`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
+  @spec to_pass!((-> term()) | t((-> term())), to_pass_options()) :: :ok
+  def to_pass!(callback, options \\ []) do
+    {callback, info} = Facade.matcher_info(callback, false, "expect.toPass")
+    options = Facade.options!(options, @to_pass_options, "expect.toPass")
+
+    Facade.matcher!(callback, fn ->
+      PlaywrightEx.Matchers.Expect.create_matcher("toPass", info, callback, &PlaywrightEx.Matchers.Matchers.to_pass/3).(
+        [options]
+      )
+    end)
+  end
+
+  @not_to_pass_options {:object, %{intervals: {:intervals, nil}, timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `not_to_pass/2`, see its docs."
+  @type not_to_pass_options ::
+          [intervals: [integer()], timeout: number() | :infinity]
+          | %{optional(:intervals) => [integer()], optional(:timeout) => number() | :infinity}
+
+  @doc ~S"""
+  The opposite of `to_pass/2`: `expect(x).not.toPass(...)` in JS.
+
+  *Since Playwright 1.29.*
+
+  ## Options
+
+  * `:intervals` (list of `t:integer/0`) - Probe, wait 1s, probe, wait 2s, probe, wait 10s, probe, wait 10s, probe: `[1_000, 2_000, 10_000]`. Defaults to `[100, 250, 500, 1000]`.
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the callback for in milliseconds. Defaults to `0`: until the test's timeout (none outside a `PlaywrightEx.Test` test), not the matchers' `:timeout`. A default other than `0` is `:to_pass` in `config :playwright_ex, :expect` (see the configuration in `PlaywrightEx.Expect`). Within a test, it ends before the test's timeout.
+
+    In Elixir, `:infinity` is the same as `0`: no timeout.
+  """
+  @spec not_to_pass((-> term()) | t((-> term())), not_to_pass_options()) :: :ok | {:error, PlaywrightEx.error()}
+  def not_to_pass(callback, options \\ []) do
+    {callback, info} = Facade.matcher_info(callback, true, "expect.notToPass")
+    options = Facade.options!(options, @not_to_pass_options, "expect.notToPass")
+
+    Facade.matcher(callback, fn ->
+      PlaywrightEx.Matchers.Expect.create_matcher("toPass", info, callback, &PlaywrightEx.Matchers.Matchers.to_pass/3).(
+        [options]
+      )
+    end)
+  end
+
+  @doc "Like `not_to_pass/2`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
+  @spec not_to_pass!((-> term()) | t((-> term())), not_to_pass_options()) :: :ok
+  def not_to_pass!(callback, options \\ []) do
+    {callback, info} = Facade.matcher_info(callback, true, "expect.notToPass")
+    options = Facade.options!(options, @not_to_pass_options, "expect.notToPass")
+
+    Facade.matcher!(callback, fn ->
+      PlaywrightEx.Matchers.Expect.create_matcher("toPass", info, callback, &PlaywrightEx.Matchers.Matchers.to_pass/3).(
+        [options]
+      )
+    end)
+  end
+
+  @poll_options {:object, %{intervals: {:intervals, nil}, message: {:message, nil}, timeout: {:timeout, nil}}}
+
+  @typedoc "Options of `poll/3`, see its docs."
+  @type poll_options ::
+          [intervals: [integer()], message: String.t(), timeout: number() | :infinity]
+          | %{
+              optional(:intervals) => [integer()],
+              optional(:message) => String.t(),
+              optional(:timeout) => number() | :infinity
+            }
+
+  @doc ~S"""
+  You can convert any synchronous `expect` to an asynchronous polling one using `PlaywrightEx.Expect.poll/3`.
+
+  The following method will poll given function until it returns HTTP status 200:
+
+  ```elixir
+  Expect.poll!(
+    fn ->
+      response = page |> Page.request() |> APIRequestContext.get!("https://api.example.com")
+      APIResponse.status(response)
+    end,
+    &assert(&1 == 200),
+    # Custom expect message for reporting, optional.
+    message: "make sure API eventually succeeds",
+    # Poll for 10 seconds; defaults to 5 seconds. Pass 0 to disable timeout.
+    timeout: 10_000
+  )
+  ```
+
+  You can also specify custom polling intervals:
+
+  ```elixir
+  Expect.poll!(
+    fn ->
+      response = page |> Page.request() |> APIRequestContext.get!("https://api.example.com")
+      APIResponse.status(response)
+    end,
+    &assert(&1 == 200),
+    # Probe, wait 1s, probe, wait 2s, probe, wait 10s, probe, wait 10s, probe
+    # ... Defaults to [100, 250, 500, 1000].
+    intervals: [1_000, 2_000, 10_000],
+    timeout: 60_000
+  )
+  ```
+
+  You can combine `PlaywrightEx.Expect.soft/1` with `PlaywrightEx.Expect.poll/3` to perform soft assertions in polling logic. This allows the test to continue even if the assertion inside poll fails.
+
+  ```elixir
+  fn ->
+    response = page |> Page.request() |> APIRequestContext.get!("https://api.example.com")
+    APIResponse.status(response)
+  end
+  |> Expect.soft()
+  |> Expect.poll!(&assert(&1 == 200))
+  ```
+
+  In Elixir, the jest matcher is an `assertion` of the value, as Elixir's generic assertions are ExUnit's. `callback` raising fails the poll at once, as upstream's; the assertion raising is retried, and its last error is in the timeout's message. Both run in the calling process. Negate in the assertion (`&refute(&1 == 200)`): a negated receiver raises `ArgumentError`.
+
+  *Since Playwright 1.21.*
+
+  ## Arguments
+
+  * `assertion` - Called with each value of `callback`, the place of a jest matcher (`.toBe(200)`): an ExUnit assertion (`&assert(&1 == 200)`), which raises until the value is right.
+
+  ## Options
+
+  * `:intervals` (list of `t:integer/0`) - Probe, wait 1s, probe, wait 2s, probe, wait 10s, probe, wait 10s, probe: `[1_000, 2_000, 10_000]`. Defaults to `[100, 250, 500, 1000]`.
+  * `:message` (`t:String.t/0`) - A custom expect message, for the step title and the error.
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).
+
+    In Elixir, `:infinity` is the same as `0`: no timeout.
+  """
+  @spec poll((-> term()) | t((-> term())), (term() -> term()), poll_options()) :: :ok | {:error, PlaywrightEx.error()}
+  def poll(callback, assertion, options \\ []) do
+    {callback, info} = Facade.matcher_info(callback, false, "expect.poll")
+    options = Facade.options!(options, @poll_options, "expect.poll")
+    Facade.matcher(callback, fn -> PlaywrightEx.Matchers.Expect.poll(info, callback, options).([assertion]) end)
+  end
+
+  @doc "Like `poll/3`, but raises `PlaywrightEx.ExpectError` when the expectation is not met."
+  @spec poll!((-> term()) | t((-> term())), (term() -> term()), poll_options()) :: :ok
+  def poll!(callback, assertion, options \\ []) do
+    {callback, info} = Facade.matcher_info(callback, false, "expect.poll")
+    options = Facade.options!(options, @poll_options, "expect.poll")
+    Facade.matcher!(callback, fn -> PlaywrightEx.Matchers.Expect.poll(info, callback, options).([assertion]) end)
+  end
+
   @doc """
   The options of `function`, an atom such as `:to_be_attached`, as
   `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, for tools that build on the facade at
@@ -6755,6 +6959,69 @@ defmodule PlaywrightEx.Expect do
     ]
   end
 
+  def __options__(:to_pass) do
+    [
+      intervals: %{
+        type_doc: "list of `t:integer/0`",
+        doc:
+          "Probe, wait 1s, probe, wait 2s, probe, wait 10s, probe, wait 10s, probe: `[1_000, 2_000, 10_000]`. Defaults to `[100, 250, 500, 1000]`.",
+        since: nil,
+        spec: quote(do: [integer()])
+      },
+      timeout: %{
+        type_doc: "`t:number/0` | `:infinity`",
+        doc:
+          "Time to retry the callback for in milliseconds. Defaults to `0`: until the test's timeout (none outside a `PlaywrightEx.Test` test), not the matchers' `:timeout`. A default other than `0` is `:to_pass` in `config :playwright_ex, :expect` (see the configuration in `PlaywrightEx.Expect`). Within a test, it ends before the test's timeout.",
+        since: nil,
+        spec: quote(do: number() | :infinity)
+      }
+    ]
+  end
+
+  def __options__(:not_to_pass) do
+    [
+      intervals: %{
+        type_doc: "list of `t:integer/0`",
+        doc:
+          "Probe, wait 1s, probe, wait 2s, probe, wait 10s, probe, wait 10s, probe: `[1_000, 2_000, 10_000]`. Defaults to `[100, 250, 500, 1000]`.",
+        since: nil,
+        spec: quote(do: [integer()])
+      },
+      timeout: %{
+        type_doc: "`t:number/0` | `:infinity`",
+        doc:
+          "Time to retry the callback for in milliseconds. Defaults to `0`: until the test's timeout (none outside a `PlaywrightEx.Test` test), not the matchers' `:timeout`. A default other than `0` is `:to_pass` in `config :playwright_ex, :expect` (see the configuration in `PlaywrightEx.Expect`). Within a test, it ends before the test's timeout.",
+        since: nil,
+        spec: quote(do: number() | :infinity)
+      }
+    ]
+  end
+
+  def __options__(:poll) do
+    [
+      intervals: %{
+        type_doc: "list of `t:integer/0`",
+        doc:
+          "Probe, wait 1s, probe, wait 2s, probe, wait 10s, probe, wait 10s, probe: `[1_000, 2_000, 10_000]`. Defaults to `[100, 250, 500, 1000]`.",
+        since: nil,
+        spec: quote(do: [integer()])
+      },
+      message: %{
+        type_doc: "`t:String.t/0`",
+        doc: "A custom expect message, for the step title and the error.",
+        since: nil,
+        spec: quote(do: String.t())
+      },
+      timeout: %{
+        type_doc: "`t:number/0` | `:infinity`",
+        doc:
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`).",
+        since: nil,
+        spec: quote(do: number() | :infinity)
+      }
+    ]
+  end
+
   @doc false
   # The type of `function`'s options, as `Facade.options!/3` converts them.
   def __options_type__(function)
@@ -6817,4 +7084,7 @@ defmodule PlaywrightEx.Expect do
   def __options_type__(:not_to_have_title), do: @not_to_have_title_options
   def __options_type__(:to_have_url), do: @to_have_url_options
   def __options_type__(:not_to_have_url), do: @not_to_have_url_options
+  def __options_type__(:to_pass), do: @to_pass_options
+  def __options_type__(:not_to_pass), do: @not_to_pass_options
+  def __options_type__(:poll), do: @poll_options
 end

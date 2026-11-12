@@ -52,6 +52,9 @@ those of the release candidates below. From an earlier release, also read the se
   (default `true`) keeps them in `trace.zip`.
 - The `video` option takes Playwright Test's `fps` and `show` (`show.actions`, and `show.test`,
   the test's title and steps over each page).
+- `Expect.to_pass/2` and `Expect.poll/3`: `expect(fn).toPass()` and `expect.poll(fn).toBe(x)`
+  (`Expect.poll(fn, &assert(&1 == x))`), with upstream's intervals and timeouts (`toPass`: until
+  the test's timeout), steps, soft receivers and `config :playwright_ex, :expect, to_pass: ...`.
 
 ### Changed
 - `%PlaywrightEx.Expect{}` also carries `isSoft`, and `isNot` defaults to `false`: build a

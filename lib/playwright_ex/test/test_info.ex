@@ -424,10 +424,26 @@ defmodule PlaywrightEx.Test.TestInfo do
     :ok
   end
 
-  defp error_message({:error, reason, stacktrace}),
+  @doc "Elixir only: the `message` of an error `{kind, reason, stacktrace}`."
+  def error_message({:error, reason, stacktrace}),
     do: Exception.message(Exception.normalize(:error, reason, stacktrace))
 
-  defp error_message({kind, reason, stacktrace}), do: Exception.format_banner(kind, reason, stacktrace)
+  def error_message({kind, reason, stacktrace}), do: Exception.format_banner(kind, reason, stacktrace)
+
+  @doc """
+  `_deadline()`: `%{deadline: _, timeout: _}`, the test's deadline (monotonic milliseconds) and
+  timeout. Without a test timeout the deadline is `:infinity` (upstream's `kMaxDeadline`).
+  """
+  def _deadline(this) do
+    # deviation: `:infinity` for `kMaxDeadline`, as BEAM's monotonic clock may be any integer. And
+    # the deadline is when the recorder closes the test's contexts, just before ExUnit kills the
+    # test (`Recorder.test_timeout_margin/1`), where upstream's timeout fails the test: so a
+    # matcher (`toPass`) ends before that, with its own error.
+    case this[:deadline] do
+      nil -> %{deadline: :infinity, timeout: this[:test_timeout]}
+      deadline -> %{deadline: deadline - Recorder.test_timeout_margin(this.test_timeout), timeout: this.test_timeout}
+    end
+  end
 
   @doc """
   `attach`: the attachment `name` of `options` (`path`, `body`, `contentType`), a `test.attach`

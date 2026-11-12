@@ -301,6 +301,29 @@ defmodule PlaywrightEx.Test.StepsTest do
     assert_raise ArgumentError, fn -> Test.attach("x", contentType: "text/plain") end
   end
 
+  test "toPass and expect.poll are steps, with the callback's steps and the poll's tries in them" do
+    on_trace(fn events, _files ->
+      to_pass = before(events, ~s(Expect "toPass"))
+      id = to_pass["callId"]
+      assert [^id, ^id] = for(%{"type" => "before", "title" => "try"} = e <- events, do: e["parentId"])
+      poll = before(events, ~s(Expect "poll assert"))
+      tries = for %{"type" => "before", "parentId" => id} = e <- events, id == poll["callId"], do: e["title"]
+      assert [~s(Expect "assert"), ~s(Expect "assert")] = tries
+      assert after_of(events, poll)["error"] == nil
+    end)
+
+    {:ok, agent} = Agent.start_link(fn -> 0 end)
+    next = fn -> Agent.get_and_update(agent, &{&1, &1 + 1}) end
+
+    Expect.to_pass!(fn ->
+      Test.step "try" do
+        assert next.() >= 1
+      end
+    end)
+
+    Expect.poll!(next, &assert(&1 >= 3))
+  end
+
   test "a soft matcher outside a test fails as any matcher (no step)" do
     page = new_page()
     Page.set_content!(page, "<h1>Outside</h1>")

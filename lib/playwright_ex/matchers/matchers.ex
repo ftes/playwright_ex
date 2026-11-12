@@ -6,7 +6,9 @@ defmodule PlaywrightEx.Matchers.Matchers do
   `PlaywrightEx.RegExp`.
   The public form is the generated `PlaywrightEx.Expect`.
 
-  Deviations: `toPass` is not ported.
+  Deviations: `toPass` calls its callback in the calling process (see
+  `PlaywrightEx.Isomorphic.TimeoutRunner.poll_against_deadline/3`), and catches whatever it
+  raises, exits or throws.
   """
 
   alias PlaywrightEx.Client.APIResponse
@@ -14,7 +16,9 @@ defmodule PlaywrightEx.Matchers.Matchers do
   alias PlaywrightEx.Client.Locator
   alias PlaywrightEx.Client.Page
   alias PlaywrightEx.Isomorphic.MimeType
+  alias PlaywrightEx.Isomorphic.TimeoutRunner
   alias PlaywrightEx.Isomorphic.UrlMatch
+  alias PlaywrightEx.Matchers.Expect
   alias PlaywrightEx.Matchers.MatcherHint
   alias PlaywrightEx.Matchers.ToBeTruthy
   alias PlaywrightEx.Matchers.ToEqual
@@ -23,6 +27,7 @@ defmodule PlaywrightEx.Matchers.Matchers do
   alias PlaywrightEx.RegExp
   alias PlaywrightEx.Runtime.Heap
   alias PlaywrightEx.Runtime.Promise
+  alias PlaywrightEx.Test.TestInfo
 
   defp serialize_expected_text_values(items, options \\ %{}) do
     Enum.map(items, fn i ->
@@ -818,7 +823,49 @@ defmodule PlaywrightEx.Matchers.Matchers do
     %{message: message, pass: pass}
   end
 
-  # toPass  -- not ported: test runner (expectConfig().testInfo, toPass config)
+  def to_pass(this, callback, options \\ %{}) do
+    test_info = Expect.expect_config().testInfo
+    timeout = options[:timeout] || Expect.expect_config()[:toPass][:timeout] || 0
+    intervals = options[:intervals] || Expect.expect_config()[:toPass][:intervals] || [100, 250, 500, 1000]
+
+    %{deadline: deadline, timeoutMessage: timeout_message} = deadline_for_matcher(test_info, timeout)
+
+    result =
+      TimeoutRunner.poll_against_deadline(
+        fn ->
+          if test_info && Expect.expect_config().testInfo != test_info do
+            %{continuePolling: false, result: nil}
+          else
+            try do
+              callback.()
+              %{continuePolling: !!this.isNot, result: nil}
+            catch
+              # `{kind, reason, stacktrace}`: whatever the callback raises, exits or throws.
+              kind, reason -> %{continuePolling: !this.isNot, result: {kind, reason, __STACKTRACE__}}
+            end
+          end
+        end,
+        deadline,
+        intervals
+      )
+
+    if result.timedOut do
+      # Elixir only: the error's message without the blank lines an `ExUnit.AssertionError`'s starts with.
+      message =
+        if result.result,
+          do:
+            Enum.join(
+              [String.trim_leading(TestInfo.error_message(result.result)), "", "Call Log:", "- #{timeout_message}"],
+              "\n"
+            ),
+          else: timeout_message
+
+      %{message: fn -> message end, pass: !!this.isNot}
+    else
+      %{pass: !this.isNot, message: fn -> "" end}
+    end
+  end
+
   def compute_matcher_title_suffix(matcher_name, receiver, args) do
     if matcher_name == "toHaveScreenshot" do
       title = PlaywrightEx.Matchers.ToMatchSnapshot.to_have_screenshot_step_title(Enum.at(args, 0), Enum.at(args, 1))
@@ -836,5 +883,29 @@ defmodule PlaywrightEx.Matchers.Matchers do
     end
   end
 
-  # deadlineForMatcher  -- not ported: toPass, expect.poll
+  # `testInfo._deadline()` is `:infinity` without a test timeout (`kMaxDeadline`), and so is the
+  # result's `deadline` then; without a matcher timeout it is `nil` (JS `0`).
+  def deadline_for_matcher(test_info, timeout) do
+    start_time = System.monotonic_time(:millisecond)
+    matcher_deadline = if timeout not in [nil, 0], do: start_time + timeout
+    matcher_message = "Timeout #{timeout}ms exceeded while waiting on the predicate"
+
+    if !test_info do
+      %{deadline: matcher_deadline, timeoutMessage: matcher_message}
+    else
+      %{deadline: test_deadline, timeout: test_timeout} = TestInfo._deadline(test_info)
+      effective_test_deadline = if test_deadline == :infinity, do: :infinity, else: test_deadline - 250
+      test_message = "Test timeout of #{test_timeout}ms exceeded"
+
+      if !matcher_deadline do
+        %{deadline: effective_test_deadline, timeoutMessage: test_message}
+      else
+        # A number is less than `:infinity` (Erlang's term order).
+        %{
+          deadline: min(effective_test_deadline, matcher_deadline),
+          timeoutMessage: if(effective_test_deadline < matcher_deadline, do: test_message, else: matcher_message)
+        }
+      end
+    end
+  end
 end
