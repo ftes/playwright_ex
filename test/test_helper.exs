@@ -12,8 +12,7 @@ max_cases =
 
 # `PlaywrightEx.Test`, which every case template gets its browser from (`UpstreamCase`,
 # `ExampleCase`, its own tests in test/playwright_ex/test): the browser under test, artifacts
-# outside the checkout, and a driver for each isolated module running at once (every module on
-# Firefox, see `PlaywrightEx.SharedDriver.isolate?/1`).
+# outside the checkout, and a worker for each module running at once.
 Application.put_env(:playwright_ex, :test,
   browser_name: String.to_atom(PlaywrightEx.TestBrowser.name()),
   output_dir: Path.join(System.tmp_dir!(), "playwright_ex-test-results"),

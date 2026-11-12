@@ -41,7 +41,7 @@ defmodule PlaywrightEx.Test.Pool.Slot do
   def browser(:stopped, _opts), do: raise("PlaywrightEx.Test's drivers were stopped (after the suite)")
 
   def browser(:released, _opts),
-    do: raise(ArgumentError, "BrowserPool.exclusive/1 waited past the end of its test or module")
+    do: raise(ArgumentError, "BrowserPool.browser/1 waited past the end of its test or module")
 
   @doc "The Playwright of the driver whose connection is `conn`, `nil` for one the pool didn't start."
   def playwright(conn) do

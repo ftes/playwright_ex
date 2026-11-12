@@ -368,7 +368,7 @@ defmodule PlaywrightEx.Test.Recorder do
   defp record(context, recorder, test) do
     # `_setupContextOptions`'s `playwright._defaultContextTimeout = actionTimeout || 0` (and the
     # navigation's), which `Browser._setupBrowserContext` applies to each context. Per context
-    # here: the Playwright of a shared driver serves concurrent tests.
+    # here: a pooled driver's Playwright outlives the test, and serves any process.
     BrowserContext.set_default_timeout(context, test.timeouts.action_timeout)
     BrowserContext.set_default_navigation_timeout(context, test.timeouts.navigation_timeout)
     call(recorder, {:add_context, context})
@@ -782,7 +782,7 @@ defmodule PlaywrightEx.Test.Recorder do
   end
 
   # The driver adds every call's stack to every trace recording on its connection
-  # (`addStackToTracingNoReply`), on a shared driver concurrent tests' too. Keeps the stacks of
+  # (`addStackToTracingNoReply`), also those of other processes' calls. Keeps the stacks of
   # the chunk's own actions (by `callId`), as `serializeClientSideCallMetadata` writes them, and
   # the `src/<sha1(file)><ext>` sources of their frames.
   defp own_stacks(files, nil), do: files

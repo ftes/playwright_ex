@@ -17,22 +17,18 @@ defmodule PlaywrightEx.Test do
 
         alias PlaywrightEx.{Browser, BrowserContext, Page}
 
-        setup do
-          context = Browser.new_context!(PlaywrightEx.Test.BrowserPool.shared())
-          %{page: BrowserContext.new_page!(context)}
+        setup_all do
+          %{browser: PlaywrightEx.Test.BrowserPool.browser()}
+        end
+
+        setup %{browser: browser} do
+          %{page: BrowserContext.new_page!(Browser.new_context!(browser))}
         end
 
         test "pays", %{page: page} do
           ...
         end
       end
-
-  > #### Firefox: use `exclusive` {: .warning}
-  >
-  > Firefox dispatches input for all of a browser's pages in one queue, so a shared Firefox
-  > browser slows down as concurrent tests grow, until they time out. On Firefox, use
-  > `PlaywrightEx.Test.BrowserPool.exclusive/1`: one browser per worker, as Playwright Test
-  > always does.
 
   The runner is native, not a port of Playwright Test: it follows the runners of the official
   non-JS clients (pytest-playwright, Playwright.NUnit, Java's `@UsePlaywright`) on ExUnit, with
@@ -48,7 +44,7 @@ defmodule PlaywrightEx.Test do
   marked, so the test's `on_exit` learns whether it passed. And it adds a `setup` that
   registers each test: its recording modes, its output dir and an `on_exit` (the first, so it
   runs last) that keeps or drops the artifacts by the result, then releases the test's
-  `BrowserPool.exclusive/1` browsers. Tests of other macros (doctests, a `property`) count as
+  `BrowserPool.browser/1` drivers. Tests of other macros (doctests, a `property`) count as
   failed for their artifacts, and a failure only in an `on_exit` callback counts as passed.
 
   In a case template, `use PlaywrightEx.Test` may also be the first line of the template's
@@ -111,10 +107,6 @@ defmodule PlaywrightEx.Test do
   --failed` (with `trace: :on` under `TRACE`) keeps the first run's files. Delete `output_dir`
   yourself. Playwright Test's retry modes (`on-first-retry`, ...) are not supported: ExUnit has
   no retries.
-
-  A trace of your own (`PlaywrightEx.Tracing.start/2` with `sources: true`) on a shared driver
-  also gets concurrent tests' stacks and sources: the driver adds every call's stack to each
-  trace on the connection. The recording filters its own; yours needs `BrowserPool.exclusive/1`.
 
   ## Context defaults
 
@@ -461,7 +453,7 @@ defmodule PlaywrightEx.Test do
 
   @doc false
   # The test's end, its first `on_exit`, so it runs last: its artifacts by its result, then the
-  # release of its exclusive browsers.
+  # release of its pooled drivers.
   def __finish__(test_pid, budget) do
     {verdict, failures} = result = Pool.result(test_pid, budget)
     {test, recorder} = Pool.take(test_pid)

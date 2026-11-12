@@ -19,6 +19,7 @@ defmodule PlaywrightEx.Test.StepsTest do
   # The checks of `on_trace/1`, by test pid, in a table of the module's.
   setup_all do
     :ets.new(__MODULE__, [:public, :named_table])
+    BrowserPool.browser()
     :ok
   end
 
@@ -43,8 +44,9 @@ defmodule PlaywrightEx.Test.StepsTest do
   # `fun` gets the `test.trace` events of the test's `trace.zip`, once its recording finished.
   defp on_trace(fun), do: :ets.insert(__MODULE__, {self(), fun})
 
+  # The module's browser (`setup_all`).
   defp new_page do
-    BrowserPool.shared() |> Browser.new_context!() |> BrowserContext.new_page!()
+    BrowserPool.browser() |> Browser.new_context!() |> BrowserContext.new_page!()
   end
 
   # The source line `line` of this file.

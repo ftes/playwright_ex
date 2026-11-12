@@ -78,13 +78,13 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.BrowserCase do
 
   setup_all do
     server = App.start!(Path.join(System.tmp_dir!(), "guide-app-#{System.unique_integer([:positive])}"))
-    %{base_url: server.prefix}
+    %{base_url: server.prefix, browser: BrowserPool.browser()}
   end
 
   # `@tag locale: "de-DE"` on a test.
-  setup ctx do
+  setup %{browser: browser} = ctx do
     options = [base_url: ctx.base_url] ++ Enum.to_list(Map.take(ctx, [:locale]))
-    context = Browser.new_context!(BrowserPool.shared(), options)
+    context = Browser.new_context!(browser, options)
     BrowserContext.set_default_timeout(context, 5_000)
     %{context: context, page: BrowserContext.new_page!(context)}
   end
@@ -120,24 +120,25 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.SignUpTest do
 
   # Deviation: the second browser is `BROWSER`'s too (CI installs one browser per job), launched
   # with other options.
-  test "two users edit one document" do
-    browser = BrowserPool.shared()
+  test "two users edit one document", %{browser: browser} do
     ada = Browser.new_context!(browser)
     bob = Browser.new_context!(browser)
-    other = BrowserPool.shared(launch_options: [slow_mo: 1])
+    other = BrowserPool.browser(launch_options: [slow_mo: 1])
     eve = Browser.new_context!(other)
 
     ada_page = BrowserContext.new_page!(ada)
     bob_page = BrowserContext.new_page!(bob)
     eve_page = BrowserContext.new_page!(eve)
     assert BrowserContext.browser(eve) == other
+    # On the module's driver.
+    assert BrowserPool.playwright(other) == BrowserPool.playwright(browser)
     for page <- [ada_page, bob_page, eve_page], do: Page.set_content!(page, "<p>Doc</p>")
   end
 
   # "Devices". Deviation: the browser is `BROWSER`'s.
   test "on a phone" do
     alias PlaywrightEx.Playwright
-    browser = BrowserPool.shared()
+    browser = BrowserPool.browser()
     iphone = Playwright.devices(BrowserPool.playwright(browser))["iPhone 13"]
     page = BrowserContext.new_page!(Browser.new_context!(browser, Map.put(iphone, :locale, "de-DE")))
     assert iphone.default_browser_type == "webkit"
@@ -173,7 +174,8 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.LoggedInTest do
 
   setup_all do
     server = App.start!(Path.join(System.tmp_dir!(), "guide-app-#{System.unique_integer([:positive])}"))
-    context = Browser.new_context!(BrowserPool.shared(), base_url: server.prefix)
+    browser = BrowserPool.browser()
+    context = Browser.new_context!(browser, base_url: server.prefix)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, "/login")
     Page.get_by_label(page, "Email") |> Locator.fill!("ada@example.com")
@@ -183,11 +185,11 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.LoggedInTest do
 
     storage_state = BrowserContext.storage_state!(context)
     BrowserContext.close!(context)
-    %{storage_state: storage_state, base_url: server.prefix}
+    %{browser: browser, storage_state: storage_state, base_url: server.prefix}
   end
 
-  setup %{storage_state: storage_state, base_url: base_url} do
-    context = Browser.new_context!(BrowserPool.shared(), storage_state: storage_state, base_url: base_url)
+  setup %{browser: browser, storage_state: storage_state, base_url: base_url} do
+    context = Browser.new_context!(browser, storage_state: storage_state, base_url: base_url)
     %{context: context, page: BrowserContext.new_page!(context)}
   end
 
@@ -203,10 +205,10 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.LoggedInTest do
   end
 
   @tag :tmp_dir
-  test "storage_state to a file", %{context: context, base_url: base_url, tmp_dir: tmp_dir} do
+  test "storage_state to a file", %{browser: browser, context: context, base_url: base_url, tmp_dir: tmp_dir} do
     path = Path.join(tmp_dir, "auth.json")
     BrowserContext.storage_state!(context, path: path)
-    other = Browser.new_context!(BrowserPool.shared(), base_url: base_url, storage_state: path)
+    other = Browser.new_context!(browser, base_url: base_url, storage_state: path)
     page = BrowserContext.new_page!(other)
     Page.goto!(page, "/dashboard")
     Expect.to_have_url!(page, ~r"/dashboard$")
@@ -363,14 +365,14 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.ResultInOnExitTest do
 
   test "passes" do
     page =
-      PlaywrightEx.BrowserContext.new_page!(PlaywrightEx.Browser.new_context!(PlaywrightEx.Test.BrowserPool.shared()))
+      PlaywrightEx.BrowserContext.new_page!(PlaywrightEx.Browser.new_context!(PlaywrightEx.Test.BrowserPool.browser()))
 
     PlaywrightEx.Page.set_content!(page, "<h1>Hi</h1>")
   end
 end
 
-defmodule PlaywrightEx.Guides.TestingWithExUnit.ExclusiveTest do
-  # "Exclusive browsers".
+defmodule PlaywrightEx.Guides.TestingWithExUnit.WorkersTest do
+  # "Workers".
   use ExUnit.Case, async: true
   use PlaywrightEx.Test
 
@@ -378,12 +380,12 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.ExclusiveTest do
   alias PlaywrightEx.Test.BrowserPool
 
   setup_all do
-    %{browser: BrowserPool.exclusive()}
+    %{browser: BrowserPool.browser()}
   end
 
-  test "a browser of the module's own", %{browser: browser} do
+  test "a browser of the module's, also for the test's own call", %{browser: browser} do
     assert Browser.is_connected(browser)
-    refute browser == BrowserPool.shared()
+    assert BrowserPool.browser() == browser
   end
 end
 
@@ -401,7 +403,7 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.DebugTest do
   @moduletag :headed
 
   setup_all do
-    %{browser: BrowserPool.exclusive(launch_options: [headless: false, slow_mo: 500])}
+    %{browser: BrowserPool.browser(launch_options: [headless: false, slow_mo: 500])}
   end
 
   setup %{browser: browser} do
@@ -436,7 +438,7 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.RemoteTest do
     System.put_env("PW_TEST_CONNECT_WS_ENDPOINT", RunServer.ws_endpoint(server))
     connect_options = if(url = System.get_env("PW_TEST_CONNECT_WS_ENDPOINT"), do: [ws_endpoint: url])
     System.delete_env("PW_TEST_CONNECT_WS_ENDPOINT")
-    browser = BrowserPool.shared(connect_options: connect_options ++ [expose_network: "<loopback>"])
+    browser = BrowserPool.browser(connect_options: connect_options ++ [expose_network: "<loopback>"])
     %{browser: browser, base_url: app.prefix}
   end
 
@@ -444,27 +446,6 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.RemoteTest do
     page = BrowserContext.new_page!(Browser.new_context!(browser, base_url: base_url))
     Page.goto!(page, "/sign-up")
     Expect.to_have_text!(Page.get_by_role(page, :button), "Sign up")
-  end
-end
-
-defmodule PlaywrightEx.Guides.TestingWithExUnit.GroupTest do
-  # "Exclusive browsers": a group's modules share a browser. Deviation: `BROWSER`'s.
-  use ExUnit.Case, async: true, group: :firefox
-  use PlaywrightEx.Test
-
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Test.BrowserPool
-
-  setup do
-    context = Browser.new_context!(BrowserPool.shared(browser_name: String.to_atom(PlaywrightEx.TestBrowser.name())))
-    %{page: BrowserContext.new_page!(context)}
-  end
-
-  test "a page of the shared browser", %{page: page} do
-    Page.set_content!(page, "<p>Group</p>")
-    assert PlaywrightEx.Test.info().test_pid == self()
   end
 end
 
@@ -526,10 +507,7 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.ProjectsCase do
   end
 
   setup_all %{browser_name: name} do
-    browser =
-      if name == :firefox, do: BrowserPool.exclusive(browser_name: name), else: BrowserPool.shared(browser_name: name)
-
-    %{browser: browser}
+    %{browser: BrowserPool.browser(browser_name: name)}
   end
 
   setup %{browser: browser, browser_name: name} do

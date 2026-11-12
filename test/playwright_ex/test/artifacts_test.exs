@@ -19,8 +19,8 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
 
   require PlaywrightEx.Test
 
-  setup do
-    %{browser: BrowserPool.shared()}
+  setup_all do
+    %{browser: BrowserPool.browser()}
   end
 
   defp trace(dir, handle), do: PlaywrightEx.Utils.parse_trace_raw(Path.join(dir, "trace.zip"), handle)
@@ -137,7 +137,7 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
 
   test "a context of another browser on the driver is recorded", %{browser: browser} do
     test = fake_test(%{trace: :on})
-    other = BrowserPool.shared(launch_options: [slow_mo: 1])
+    other = BrowserPool.browser(launch_options: [slow_mo: 1])
     assert BrowserPool.playwright(other) == BrowserPool.playwright(browser) and other != browser
 
     test.run.(fn ->

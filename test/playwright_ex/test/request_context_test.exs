@@ -15,10 +15,14 @@ defmodule PlaywrightEx.Test.RequestContextTest do
   alias PlaywrightEx.Test.Pool
   alias PlaywrightEx.TestServer
 
+  setup_all do
+    %{browser: BrowserPool.browser()}
+  end
+
   setup do
     server = TestServer.server(start_supervised!({TestServer, dir_path: System.tmp_dir!()}))
     TestServer.set_content(server, "/api", ~s({"ok": true}), "application/json")
-    %{browser: BrowserPool.shared(), server: server}
+    %{server: server}
   end
 
   defp fake_test(tags) do

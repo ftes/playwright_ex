@@ -14,8 +14,8 @@ defmodule PlaywrightEx.Test.TimeoutsTest do
   alias PlaywrightEx.Test.BrowserPool
   alias PlaywrightEx.Test.Recorder
 
-  setup do
-    browser = BrowserPool.shared()
+  setup_all do
+    browser = BrowserPool.browser()
     %{browser: browser, playwright: BrowserPool.playwright(browser)}
   end
 
@@ -32,7 +32,7 @@ defmodule PlaywrightEx.Test.TimeoutsTest do
     assert {0, nil} = defaults(request)
     APIRequestContext.dispose!(request)
 
-    # The Playwright's defaults stay as they were: the shared driver serves other tests.
+    # The Playwright's defaults stay as they were: the driver outlives the test.
     assert Heap.get(ctx.playwright, :_defaultContextTimeout) == nil
 
     # A context's own setting wins.

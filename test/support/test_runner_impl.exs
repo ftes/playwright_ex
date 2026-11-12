@@ -6,11 +6,11 @@
 #   * `artifacts` - one passing and one failing test, `trace: :retain_on_failure, screenshot:
 #     :only_on_failure`. It prints "(ready=>true)" in the passing test and waits there until the
 #     go file exists.
-#   * `modules` - exclusive browsers (a module's of ten tests, a test's of two driver keys, a
+#   * `modules` - pooled browsers (a module's of ten tests, a test's of two driver keys, a
 #     failing module's, `parameterize:`) and a module with none; prints the pool after the run:
 #     `(report=>%{...})`.
-#   * `max_failures` - `max_failures: 1`, a module holding an exclusive browser running when
-#     another fails; prints the pool after the run.
+#   * `max_failures` - `max_failures: 1`, a module holding a browser running when another
+#     fails; prints the pool after the run.
 #   * `soft_errors` - tests whose matchers write missing snapshots (`snapshot_dir` next to the
 #     output dir), one of them failing after that, one killed past its timeout.
 #   * `steps` - a test failing in a boxed step, with no browser.
@@ -120,8 +120,8 @@ case mode do
       use PlaywrightEx.Test
 
       setup_all do
-        browser = BrowserPool.exclusive(Key.opts(:ten))
-        other = BrowserPool.exclusive(Key.opts(:ten) ++ [launch_options: [timeout: 30_001]])
+        browser = BrowserPool.browser(Key.opts(:ten))
+        other = BrowserPool.browser(Key.opts(:ten) ++ [launch_options: [timeout: 30_001]])
         %{browser: browser, other: other, scope: self()}
       end
 
@@ -139,8 +139,8 @@ case mode do
       use PlaywrightEx.Test
 
       test "two driver keys" do
-        Report.put(:two_a, self(), BrowserPool.exclusive(Key.opts(:two_a)))
-        Report.put(:two_b, self(), BrowserPool.exclusive(Key.opts(:two_b)))
+        Report.put(:two_a, self(), BrowserPool.browser(Key.opts(:two_a)))
+        Report.put(:two_b, self(), BrowserPool.browser(Key.opts(:two_b)))
       end
     end
 
@@ -149,7 +149,7 @@ case mode do
       use PlaywrightEx.Test
 
       setup_all do
-        browser = BrowserPool.exclusive(Key.opts(:fails))
+        browser = BrowserPool.browser(Key.opts(:fails))
         Report.after_suite()
         %{browser: browser, scope: self()}
       end
@@ -165,7 +165,7 @@ case mode do
       use ExUnit.Case, async: true, parameterize: [%{n: 1}, %{n: 2}]
       use PlaywrightEx.Test
 
-      setup_all do: %{browser: BrowserPool.exclusive(Key.opts(:param)), scope: self()}
+      setup_all do: %{browser: BrowserPool.browser(Key.opts(:param)), scope: self()}
 
       test "holds", %{n: n} = ctx do
         Report.put(:"param_#{n}", ctx.scope, ctx.browser)
@@ -183,13 +183,13 @@ case mode do
     end
 
   "max_failures" ->
-    defmodule IsolatedTest do
+    defmodule HeldTest do
       use ExUnit.Case, async: true
       use PlaywrightEx.Test
 
       setup_all do
-        browser = PlaywrightEx.Test.BrowserPool.exclusive()
-        Report.put(:isolated, self(), browser)
+        browser = PlaywrightEx.Test.BrowserPool.browser()
+        Report.put(:held, self(), browser)
         Report.after_suite()
         %{browser: browser}
       end
@@ -202,7 +202,7 @@ case mode do
       use PlaywrightEx.Test
 
       test "fails once the other module runs" do
-        Report.await(:isolated)
+        Report.await(:held)
         flunk("on purpose")
       end
     end
