@@ -426,6 +426,31 @@ setup do
 end
 ```
 
+## Debugging one test
+
+To watch one module run headed, slowed down, give it an exclusive browser with those launch
+options:
+
+```elixir
+@moduletag :debug
+
+setup_all do
+  %{browser: BrowserPool.exclusive(launch_options: [headless: false, slow_mo: 500])}
+end
+
+setup %{browser: browser} do
+  context = Browser.new_context!(browser)
+  %{context: context, page: BrowserContext.new_page!(context)}
+end
+```
+
+and run it alone: `mix test test/my_app/sign_up_test.exs`, or `mix test --only debug`. The
+`launch_options` merge over the config's one key at a time, so its other launch options stay.
+`exclusive` rather than `shared`: the browser is the module's alone, and its driver stops when
+the module fails or another key needs the room; a shared browser serves every caller of its
+options and stays open until the suite ends.
+The driver counts toward `workers`, and may stop an idle driver of other options to start.
+
 ## Remote browsers
 
 To run the browsers elsewhere (Playwright's Docker image, a grid), pass `connect_options`,

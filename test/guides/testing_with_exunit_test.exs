@@ -369,6 +369,34 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.ExclusiveTest do
   end
 end
 
+defmodule PlaywrightEx.Guides.TestingWithExUnit.DebugTest do
+  # "Debugging one test". Deviation: `BROWSER`'s.
+  use ExUnit.Case, async: true
+  use PlaywrightEx.Test
+
+  alias PlaywrightEx.Browser
+  alias PlaywrightEx.BrowserContext
+  alias PlaywrightEx.Page
+  alias PlaywrightEx.Test.BrowserPool
+
+  @moduletag :debug
+  @moduletag :headed
+
+  setup_all do
+    %{browser: BrowserPool.exclusive(launch_options: [headless: false, slow_mo: 500])}
+  end
+
+  setup %{browser: browser} do
+    context = Browser.new_context!(browser)
+    %{context: context, page: BrowserContext.new_page!(context)}
+  end
+
+  test "a headed, slowed-down browser of the module's own", %{page: page} do
+    Page.set_content!(page, "<p>Debug</p>")
+    assert Page.text_content!(page, "p") == "Debug"
+  end
+end
+
 defmodule PlaywrightEx.Guides.TestingWithExUnit.RemoteTest do
   # "Remote browsers": the config's `connect_options` as the call's, on a `run-server`.
   use ExUnit.Case, async: true
