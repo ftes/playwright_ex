@@ -30,7 +30,7 @@ defmodule PlaywrightEx.Matchers.Expect do
   `isNot` set (`not_to_have_text`, Python's name for `expect(x).not.toHaveText`). Each calls
   `create_matcher/4` with the matcher of `custom_async_matchers/0`, and the info of its
   receiver: `isNot` of `PlaywrightEx.Expect.not_/1`, `isSoft` of `PlaywrightEx.Expect.soft/1`
-  (`expect.soft`).
+  (`expect.soft`), `message` of `PlaywrightEx.Expect.message/2` (`expect(actual, message)`).
 
   A matcher gets the matcher state `this` (`ExpectMatcherStateInternal`): a map with `isNot`,
   `promise`, `utils` (`PlaywrightEx.Matchers.MatcherUtils`), `timeout` and `title`. It returns a
@@ -171,7 +171,7 @@ defmodule PlaywrightEx.Matchers.Expect do
   end
 
   # allBuiltinMatchers, promiseThrowMatchers  -- not ported: jest generic assertions
-  # createExpect  -- not ported: no expect function object (configure, extend); its `soft` is the generated PlaywrightEx.Expect.soft/1, its `poll` is poll/3
+  # createExpect  -- not ported: no expect function object (configure, extend); its `soft` is the generated PlaywrightEx.Expect.soft/1, its `expectFn(actual, message)` PlaywrightEx.Expect.message/2, its `poll` poll/3
   # createMatchers  -- ported as the generated PlaywrightEx.Expect (see the moduledoc)
 
   @doc false

@@ -265,6 +265,43 @@ defmodule PlaywrightEx.Test.StepsTest do
     assert Exception.message(error) =~ "expect(locator).not.toHaveText(expected) failed"
   end
 
+  test "a custom message: the step's title and the error's first paragraph, with not_ and soft; poll's own wins" do
+    on_trace(fn events, _files ->
+      assert %{"method" => "expect"} = before(events, "should be logged in")
+      failed = after_of(events, before(events, "negated soft"))
+
+      assert failed["error"]["message"] =~
+               ~r/^PlaywrightEx.ExpectError: negated soft\n\nexpect\(locator\).not.toHaveText/
+
+      assert before(events, "the receiver's poll")
+      assert before(events, "poll's own")
+      refute before(events, "overridden")
+    end)
+
+    page = new_page()
+    Page.set_content!(page, "<h1>Name</h1>")
+    heading = Page.locator(page, "h1")
+
+    assert :ok = heading |> Expect.message("should be logged in") |> Expect.to_be_visible!()
+
+    assert {:error, %PlaywrightEx.ExpectError{message: "not visible\n\n" <> rest}} =
+             heading |> Expect.message("not visible") |> Expect.not_() |> Expect.to_be_visible(timeout: 1)
+
+    assert rest =~ "expect(locator).not.toBeVisible"
+
+    assert :ok =
+             heading
+             |> Expect.not_()
+             |> Expect.soft()
+             |> Expect.message("negated soft")
+             |> Expect.to_have_text!("Name", timeout: 1)
+
+    assert [{:error, %PlaywrightEx.ExpectError{message: "negated soft\n\n" <> _}, _}] = TestInfo.take_errors(self())
+
+    assert :ok = fn -> 1 end |> Expect.message("the receiver's poll") |> Expect.poll!(&assert(&1 == 1))
+    assert :ok = fn -> 1 end |> Expect.message("overridden") |> Expect.poll!(&assert(&1 == 1), message: "poll's own")
+  end
+
   test "a soft matcher in a Task of the test, and a soft error other than an ExpectError" do
     page = new_page()
     Page.set_content!(page, "<h1>Task</h1>")

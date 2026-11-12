@@ -49,12 +49,12 @@ defmodule PlaywrightEx.Expect do
 
   alias PlaywrightEx.Runtime.Facade
 
-  @typedoc "A negated (`not_/1`) or soft (`soft/1`) receiver: `expect(actual).not`, `expect.soft(actual)` in JS."
-  @type t(actual) :: %__MODULE__{actual: actual, isNot: boolean(), isSoft: boolean()}
-  @typedoc "A negated or soft receiver of any matcher."
+  @typedoc "A negated (`not_/1`), soft (`soft/1`) or messaged (`message/2`) receiver: `expect(actual).not`, `expect.soft(actual)`, `expect(actual, message)` in JS."
+  @type t(actual) :: %__MODULE__{actual: actual, isNot: boolean(), isSoft: boolean(), message: String.t() | nil}
+  @typedoc "A negated, soft or messaged receiver of any matcher."
   @type t :: t(PlaywrightEx.Locator.t() | PlaywrightEx.Page.t() | PlaywrightEx.APIResponse.t() | (-> term()))
 
-  defstruct [:actual, isNot: false, isSoft: false]
+  defstruct [:actual, isNot: false, isSoft: false, message: nil]
 
   @doc ~S"""
   Makes the assertion check for the opposite condition.
@@ -100,6 +100,22 @@ defmodule PlaywrightEx.Expect do
         when actual: PlaywrightEx.Locator.t() | PlaywrightEx.Page.t() | PlaywrightEx.APIResponse.t() | (-> term())
   def soft(%__MODULE__{} = expect), do: %{expect | isSoft: true}
   def soft(actual), do: %__MODULE__{actual: actual, isSoft: true}
+
+  @doc ~S"""
+  You can specify a custom expect message, for example:
+
+  ```elixir
+  Page.get_by_text(page, "Name") |> Expect.message("should be logged in") |> Expect.to_be_visible!()
+  ```
+
+  This message will be shown in reporters, both for passing and failing expects, providing more context about the assertion.
+
+  In Elixir, `message/2` wraps the receiver as `not_/1` and `soft/1` do, in any order with them: `locator |> Expect.soft() |> Expect.message("my soft assertion")` is a soft assertion with a custom message. The message is the matcher's step title in a `PlaywrightEx.Test` test and the first paragraph of its `PlaywrightEx.ExpectError`. A `:message` option of `poll/3` wins over it.
+  """
+  @spec message(actual | t(actual), String.t()) :: t(actual)
+        when actual: PlaywrightEx.Locator.t() | PlaywrightEx.Page.t() | PlaywrightEx.APIResponse.t() | (-> term())
+  def message(%__MODULE__{} = expect, message) when is_binary(message), do: %{expect | message: message}
+  def message(actual, message) when is_binary(message), do: %__MODULE__{actual: actual, message: message}
 
   @to_be_attached_options {:object, %{attached: {:attached, nil}, signal: {:signal, nil}, timeout: {:timeout, nil}}}
 

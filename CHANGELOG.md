@@ -55,6 +55,8 @@ those of the release candidates below. From an earlier release, also read the se
 - `Expect.to_pass/2` and `Expect.poll/3`: `expect(fn).toPass()` and `expect.poll(fn).toBe(x)`
   (`Expect.poll(fn, &assert(&1 == x))`), with upstream's intervals and timeouts (`toPass`: until
   the test's timeout), steps, soft receivers and `config :playwright_ex, :expect, to_pass: ...`.
+- `Expect.message/2` is `expect(actual, message)`: a receiver with a custom message, which is the
+  matcher's step title and the first paragraph of its error.
 - A matcher's step and its driver call share one `callId`, so a test's trace shows them as one
   action, as Playwright Test's does.
 - `PlaywrightEx.Promise.async/1`: starts calls now, awaited later (JS's
