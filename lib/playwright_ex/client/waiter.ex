@@ -69,11 +69,15 @@ defmodule PlaywrightEx.Client.Waiter do
             # fall back to ours only when the outer zone left it blank.
             api_zone = if !api_zone.title, do: Zones.update(:apiZone, &%{&1 | title: options[:title]}), else: api_zone
 
-            ClientInstrumentation.on_api_call_begin(get(owner, :_instrumentation), api_zone, %{
-              type: get(owner, :_type),
-              method: "__waitInfo__",
-              params: info
-            })
+            # Elixir only: the listeners return what they assign (`data.callId = ...`).
+            assigned =
+              ClientInstrumentation.on_api_call_begin(get(owner, :_instrumentation), api_zone, %{
+                type: get(owner, :_type),
+                method: "__waitInfo__",
+                params: info
+              })
+
+            api_zone = if assigned, do: Zones.update(:apiZone, &Map.merge(&1, assigned)), else: api_zone
 
             Connection.send_message_to_server(
               get(owner, :_connection),

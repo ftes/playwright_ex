@@ -26,9 +26,11 @@ defmodule PlaywrightEx.Test.Recorder do
   alias PlaywrightEx.Disposable
   alias PlaywrightEx.Isomorphic.StringUtils
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime.Zones
   alias PlaywrightEx.Screencast
   alias PlaywrightEx.Test.ErrorContext
   alias PlaywrightEx.Test.Pool
+  alias PlaywrightEx.Test.TestInfo
   alias PlaywrightEx.Test.TestTracing
   alias PlaywrightEx.Tracing
   alias PlaywrightEx.Video
@@ -102,15 +104,16 @@ defmodule PlaywrightEx.Test.Recorder do
 
   @doc """
   The listener each driver of `PlaywrightEx.Test.BrowserPool` gets when it starts (upstream's
-  `_setupArtifacts` `csiListener`, `ArtifactsRecorder`'s and `_contextFactory`'s parts). It runs
-  in the process that creates or closes a context, for every context of the driver: it looks up
-  the creator's test (`registration/0`) and records only the test's contexts. A process that
-  creates one unregistered is noted (`PlaywrightEx.Test.Pool.note_unregistered/1`): the test
-  process of a case template's `setup` that runs before `use PlaywrightEx.Test`'s fails its
-  registration.
+  `_setupArtifacts` `csiListener`, `ArtifactsRecorder`'s and `_contextFactory`'s parts). Its
+  context hooks run in the process that creates or closes a context, for every context of the
+  driver: they look up the creator's test (`registration/0`) and record only the test's
+  contexts. A process that creates one unregistered is noted
+  (`PlaywrightEx.Test.Pool.note_unregistered/1`): the test process of a case template's `setup`
+  that runs before `use PlaywrightEx.Test`'s fails its registration.
   """
   def listener do
     %{
+      onApiCallBegin: &__MODULE__.on_api_call_begin/2,
       runBeforeCreateBrowserContext: &__MODULE__.before_create_browser_context/1,
       runAfterCreateBrowserContext: &__MODULE__.after_create_browser_context/1,
       runBeforeCloseBrowserContext: &__MODULE__.before_close_browser_context/1,
@@ -118,6 +121,22 @@ defmodule PlaywrightEx.Test.Recorder do
       runAfterCreateRequestContext: &__MODULE__.after_create_request_context/1,
       runBeforeCloseRequestContext: &__MODULE__.before_close_request_context/1
     }
+  end
+
+  @doc """
+  `onApiCallBegin`: a matcher's driver call (`Frame.expect`, `Page.expectScreenshot`) in a
+  test's expect step gets the step's id as its `callId`, so a trace shows the two as one action.
+  It runs on every call of the driver, in tests or not: the checks go cheapest first.
+  """
+  # if (channel.type === 'Tracing' && channel.method === 'tracingGroupEnd') { ... }  -- not ported: no step per API call
+  # In the general case, create a step for each api call, use it as a callId.  -- not ported: no step per API call (#211)
+  def on_api_call_begin(_data, %{type: "Frame", method: "expect"}), do: expect_step_call_id()
+  def on_api_call_begin(_data, %{type: "Page", method: "expectScreenshot"}), do: expect_step_call_id()
+  def on_api_call_begin(_data, _channel), do: nil
+
+  defp expect_step_call_id do
+    zone = Zones.data(:stepZone)
+    if zone && zone.category == "expect" && TestInfo.current(), do: %{callId: zone.stepId}
   end
 
   @doc """

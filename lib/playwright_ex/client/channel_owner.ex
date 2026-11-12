@@ -426,11 +426,18 @@ defmodule PlaywrightEx.Client.ChannelOwner do
           # Reporting/tracing/logging this api call for the first time.
           api_zone = Zones.update(:apiZone, &%{&1 | reported: true}) || api_zone
 
-          ClientInstrumentation.on_api_call_begin(get(this, :_instrumentation), api_zone, %{
-            type: type,
-            method: method,
-            params: if(is_function(params, 0), do: params.(), else: params)
-          })
+          # Elixir only: the listeners return what they assign (`data.callId = ...`).
+          assigned =
+            ClientInstrumentation.on_api_call_begin(get(this, :_instrumentation), api_zone, %{
+              type: type,
+              method: method,
+              params: if(is_function(params, 0), do: params.(), else: params)
+            })
+
+          api_zone =
+            if assigned,
+              do: Zones.update(:apiZone, &Map.merge(&1, assigned)) || Map.merge(api_zone, assigned),
+              else: api_zone
 
           log_api_call(get(this, :_logger), "=> #{api_zone.apiName} started")
 

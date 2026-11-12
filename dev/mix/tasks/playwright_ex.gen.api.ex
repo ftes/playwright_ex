@@ -350,18 +350,18 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
   # --- members -----------------------------------------------------------------
 
-  # `expect(x).not` (`"negate"`, see `Mix.PlaywrightEx.ApiRules`): the struct of a negated or soft
-  # receiver, upstream's `ExpectMetaInfo` `isNot` and `isSoft`.
+  # `expect(x).not` (`"negate"`, see `Mix.PlaywrightEx.ApiRules`): the struct of a negated, soft
+  # or messaged receiver, upstream's `ExpectMetaInfo` `isNot`, `isSoft` and `message`.
   defp member_source(ctx, _class, %{"negate" => receivers} = member, _receiver) do
     receiver_spec = Enum.map_join(receivers, " | ", &receiver_type/1)
 
     """
-    @typedoc "A negated (`not_/1`) or soft (`soft/1`) receiver: `expect(actual).not`, `expect.soft(actual)` in JS."
-    @type t(actual) :: %__MODULE__{actual: actual, isNot: boolean(), isSoft: boolean()}
-    @typedoc "A negated or soft receiver of any matcher."
+    @typedoc "A negated (`not_/1`), soft (`soft/1`) or messaged (`message/2`) receiver: `expect(actual).not`, `expect.soft(actual)`, `expect(actual, message)` in JS."
+    @type t(actual) :: %__MODULE__{actual: actual, isNot: boolean(), isSoft: boolean(), message: String.t() | nil}
+    @typedoc "A negated, soft or messaged receiver of any matcher."
     @type t :: t(#{receiver_spec})
 
-    defstruct [:actual, isNot: false, isSoft: false]
+    defstruct [:actual, isNot: false, isSoft: false, message: nil]
 
     @doc #{doc(member_doc(ctx, member, []))}
     @spec not_(actual | t(actual)) :: t(actual) when actual: #{receiver_spec}
@@ -383,6 +383,20 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     @spec soft(actual | t(actual)) :: t(actual) when actual: #{receiver_spec}
     def soft(%__MODULE__{} = expect), do: %{expect | isSoft: true}
     def soft(actual), do: %__MODULE__{actual: actual, isSoft: true}
+    """
+  end
+
+  # `expect(x, message)` (`"customMessage"`, see `Mix.PlaywrightEx.ApiRules`): a receiver with a
+  # custom message. A later message replaces an earlier one, as `expect(x, message)` replaces
+  # `expect.configure({ message })`'s.
+  defp member_source(ctx, _class, %{"customMessage" => receivers} = member, _receiver) do
+    receiver_spec = Enum.map_join(receivers, " | ", &receiver_type/1)
+
+    """
+    @doc #{doc(member_doc(ctx, member, []))}
+    @spec message(actual | t(actual), String.t()) :: t(actual) when actual: #{receiver_spec}
+    def message(%__MODULE__{} = expect, message) when is_binary(message), do: %{expect | message: message}
+    def message(actual, message) when is_binary(message), do: %__MODULE__{actual: actual, message: message}
     """
   end
 

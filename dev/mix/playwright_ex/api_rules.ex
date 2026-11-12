@@ -72,7 +72,9 @@ defmodule Mix.PlaywrightEx.ApiRules do
       receiver, which the matchers take too (`locator |> Expect.not_() |> Expect.to_have_text("x")`).
       `expect.soft` (not in api.json, a property of upstream's `expect` function) is the member
       `soft` (`"soften"`, with the docs of upstream's soft assertions guide): it wraps the receiver
-      too, with `isSoft`, in either order with `not_`. `expect(callback).toPass(options)` and
+      too, with `isSoft`, in either order with `not_`. `expect(x, message)` is the member `message`
+      (`"customMessage"`, with the docs of upstream's assertions guide), a receiver as well.
+      `expect(callback).toPass(options)` and
       `expect.poll(actual, options)` (not in api.json either, the test runner's) are the matchers
       `to_pass` and `poll` of a function receiver (`"Function"`, the variable `callback`), with the
       docs of upstream's assertions guide. `poll` has no `not` form, and its matcher is an argument,
@@ -380,7 +382,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
 
     members = [
       negate(Enum.find(assertions, &(&1["name"] == "LocatorAssertions")), receivers),
-      soften(receivers) | members
+      soften(receivers),
+      custom_message(receivers) | members
     ]
 
     spec =
@@ -664,6 +667,44 @@ defmodule Mix.PlaywrightEx.ApiRules do
         }
       ],
       "soften" => receivers
+    }
+  end
+
+  # `expect(x, message)`: `message(x, message)`, a receiver with a custom message
+  # (`"customMessage"`). Not in api.json: the docs are upstream's assertions guide
+  # (`docs/src/test-assertions-js.md`, "Custom expect message").
+  defp custom_message(receivers) do
+    %{
+      "name" => "message",
+      "alias" => "message",
+      "kind" => "method",
+      "args" => [],
+      "type" => nil,
+      "langs" => %{},
+      "spec" => [
+        %{"type" => "text", "text" => "You can specify a custom expect message, for example:"},
+        %{
+          "type" => "code",
+          "codeLang" => "js",
+          "lines" => ["await expect(page.getByText('Name'), 'should be logged in').toBeVisible();"]
+        },
+        %{
+          "type" => "text",
+          "text" =>
+            "This message will be shown in reporters, both for passing and failing expects, providing more context " <>
+              "about the assertion."
+        },
+        %{
+          "type" => "text",
+          "text" =>
+            "In Elixir, `message/2` wraps the receiver as `not_/1` and `soft/1` do, in any order with them: " <>
+              "`locator |> Expect.soft() |> Expect.message(\"my soft assertion\")` is a soft assertion with a " <>
+              "custom message. The message is the matcher's step title in a " <>
+              "`PlaywrightEx.Test` test and the first paragraph of its `PlaywrightEx.ExpectError`. A `:message` " <>
+              "option of `poll/3` wins over it."
+        }
+      ],
+      "customMessage" => receivers
     }
   end
 

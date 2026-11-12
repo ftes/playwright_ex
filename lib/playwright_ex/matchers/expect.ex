@@ -30,7 +30,7 @@ defmodule PlaywrightEx.Matchers.Expect do
   `isNot` set (`not_to_have_text`, Python's name for `expect(x).not.toHaveText`). Each calls
   `create_matcher/4` with the matcher of `custom_async_matchers/0`, and the info of its
   receiver: `isNot` of `PlaywrightEx.Expect.not_/1`, `isSoft` of `PlaywrightEx.Expect.soft/1`
-  (`expect.soft`).
+  (`expect.soft`), `message` of `PlaywrightEx.Expect.message/2` (`expect(actual, message)`).
 
   A matcher gets the matcher state `this` (`ExpectMatcherStateInternal`): a map with `isNot`,
   `promise`, `utils` (`PlaywrightEx.Matchers.MatcherUtils`), `timeout` and `title`. It returns a
@@ -39,12 +39,11 @@ defmodule PlaywrightEx.Matchers.Expect do
   Deviations: `testInfo` is the running test of `PlaywrightEx.Test` (`PlaywrightEx.Test.TestInfo`,
   found by the calling process, or one in its `$callers`), else `null`. Each matcher call is a
   step of it (`category: 'expect'`), which records a result's `softError`: that fails the test
-  at the end of its body; outside a test it is printed. The step's call is not the driver's
-  `Frame.expect` action (the instrumentation can't set its `callId`), so a trace shows both.
-  A failed soft matcher in a test completes its step with the error as its `softError` and
-  returns. There is no `createExpect` (`expect.configure`), and no jest library: generic matchers
-  (`toBe`, `toEqual`, ...), `expect.extend`, `toMatchSnapshot` and `resolves`/`rejects` are not
-  ported. So `expect.poll(actual, options)` has one matcher, `assert`: an ExUnit assertion,
+  at the end of its body; outside a test it is printed. A failed soft matcher in a test
+  completes its step with the error as its `softError` and returns. There is no `createExpect`
+  (`expect.configure`), and no jest library: generic matchers (`toBe`, `toEqual`, ...),
+  `expect.extend`, `toMatchSnapshot` and `resolves`/`rejects` are not ported. So
+  `expect.poll(actual, options)` has one matcher, `assert`: an ExUnit assertion,
   `fn value -> assert value == 3 end` for `.toBe(3)` (`poll/3`).
 
   ## Configuration
@@ -172,7 +171,7 @@ defmodule PlaywrightEx.Matchers.Expect do
   end
 
   # allBuiltinMatchers, promiseThrowMatchers  -- not ported: jest generic assertions
-  # createExpect  -- not ported: no expect function object (configure, extend); its `soft` is the generated PlaywrightEx.Expect.soft/1, its `poll` is poll/3
+  # createExpect  -- not ported: no expect function object (configure, extend); its `soft` is the generated PlaywrightEx.Expect.soft/1, its `expectFn(actual, message)` PlaywrightEx.Expect.message/2, its `poll` poll/3
   # createMatchers  -- ported as the generated PlaywrightEx.Expect (see the moduledoc)
 
   @doc false

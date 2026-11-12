@@ -88,8 +88,8 @@ storage state and cookies, `@result_options` for `Credentials.create`).
   ExUnit layer instead (see Test runner), whose tests give the matchers a ported `testInfo` for
   snapshot names, soft errors, steps and the test's deadline. `toPass` and `expect.poll` are
   matchers of a function (`Expect.to_pass/2`, `Expect.poll/3`), `poll`'s jest matcher an ExUnit
-  assertion. `expect.soft` is `soft/1`, a
-  receiver as `not_/1` is (`isSoft`), in either order with it.
+  assertion. `expect.soft` is `soft/1`, a receiver as `not_/1` is (`isSoft`), and
+  `expect(x, message)` is `message/2` (`message`), in any order with them.
   `to_have_screenshot(target, path:)` and `to_match_aria_snapshot(target, path:)` stay, with an
   explicit path in place of a `name`, also outside a test.
 - Consumer requests (phoenix_test_playwright, fluffy) were checked against the official
@@ -299,7 +299,7 @@ no call site (the recording modes) are config plus ExUnit tags; the rest are arg
 | `--trace <mode>` | `TRACE` read in `config/test.exs` |
 | `test.info()` | `info/0` (`test_pid`, `file`, `test_name`, `output_dir`), raises outside a test |
 | `testInfo.status`, `errors`, `expectedStatus`, `duration` in teardown | `info(test_pid)` in `on_exit` (another process), kept until ExUnit's `on_exit` process exits |
-| `testInfo.outputPath`/`snapshotPath` | `output_path(name)`, `snapshot_path(name, opts)`: one string, no segments |
+| `testInfo.outputPath`/`snapshotPath` | `output_path(name)` (one string, no segments), `snapshot_path(name, opts)` (a string or a list of segments) |
 | `test.step` | `step/2,3` (no timeout) |
 | `testInfo.attach` | `attach/2` (`test.attach` step, `trace.attachments`) |
 | list reporter's `npx playwright show-trace <path>` | a failure prints `mix playwright_ex.cli show-trace <path>` |
@@ -415,7 +415,8 @@ callbacks run in the calling process, not raced against the deadline (a running 
 it), for the reason a step has no timeout.
 
 Rejected: porting the rest of Playwright Test, `createExpect`
-(`expect.configure`; `expect.soft` is a receiver, `soft/1`), a step's `timeout` (a process can't
+(`expect.configure`; `expect.soft` and `expect(x, message)` are fields of the receiver, `soft/1`
+and `message/2`, not a configured `expect`), a step's `timeout` (a process can't
 be interrupted, so the body would run in another process, with another `self()` and mailbox, and
 on past the timeout; the test's timeout bounds it) and a driver per module by default. For the
 pool and fixtures: ambient fixtures (context keys the runner fills in: the user owns the map), a

@@ -57,6 +57,14 @@ defmodule PlaywrightEx.Examples.ExpectTest do
     Page.get_by_role(page, :heading, name: "Make another order") |> Expect.soft() |> Expect.to_be_visible!()
   end
 
+  example "Expect.message",
+    js: ~S"""
+    await expect(page.getByText('Name'), 'should be logged in').toBeVisible();
+    """,
+    html: "<p>Name</p>" do
+    Page.get_by_text(page, "Name") |> Expect.message("should be logged in") |> Expect.to_be_visible!()
+  end
+
   @api "requests https://api.example.com"
 
   example "Expect.toPass",
