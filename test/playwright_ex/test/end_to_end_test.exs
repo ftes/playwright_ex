@@ -95,7 +95,7 @@ defmodule PlaywrightEx.Test.EndToEndTest do
              ]
 
     # The matcher's line; ExUnit numbers several failures.
-    [_, one] = Regex.run(~r/test writes a snapshot \(SoftErrorsTest\)\n(.*?)\n\n\n/s, output)
+    one = failure(output, "test writes a snapshot (SoftErrorsTest)")
     assert one =~ ~r"\*\* \(RuntimeError\) A snapshot doesn't exist at .*writes-a-snapshot-1.aria.yml, writing actual."
 
     assert one =~
@@ -103,13 +103,13 @@ defmodule PlaywrightEx.Test.EndToEndTest do
 
     refute one =~ "Failure #"
 
-    [_, two] = Regex.run(~r/test writes two \(SoftErrorsTest\)\n(.*?)\n\n\n/s, output)
+    two = failure(output, "test writes two (SoftErrorsTest)")
     assert two =~ ~r"Failure #1\n +\*\* \(RuntimeError\) A snapshot doesn't exist at .*two.aria.yml, writing actual."
 
     assert two =~
              ~r"Failure #2\n +\*\* \(RuntimeError\) A snapshot doesn't exist at .*two-#{platform}.png, writing actual."
 
-    [_, three] = Regex.run(~r/test fails after writing one \(SoftErrorsTest\)\n(.*?)\n\n\n/s, output)
+    three = failure(output, "test fails after writing one (SoftErrorsTest)")
 
     assert three =~
              ~r"Failure #1\n +\*\* \(RuntimeError\) A snapshot doesn't exist at .*fails-after-writing-one-1.aria.yml"
@@ -142,13 +142,13 @@ defmodule PlaywrightEx.Test.EndToEndTest do
     assert output =~ "(continued=>true)"
 
     # The matcher's line, as a hard failure's.
-    [_, one] = Regex.run(~r/test continues after a soft failure \(SoftTest\)\n(.*?)\n\n\n/s, output)
+    one = failure(output, "test continues after a soft failure (SoftTest)")
     assert one =~ ~r"\*\* \(PlaywrightEx.ExpectError\) expect\(locator\).toHaveText\(expected\) failed"
     assert one =~ ~s(Expected: "Uno")
     assert one =~ ~r"code: assert :ok = heading \|> Expect.soft\(\) \|> Expect.to_have_text!\(\"Uno\", timeout: 100\)"
     refute one =~ "Failure #"
 
-    [_, two] = Regex.run(~r/test soft failures, then a hard one \(SoftTest\)\n(.*?)\n\n\n/s, output)
+    two = failure(output, "test soft failures, then a hard one (SoftTest)")
     assert two =~ ~r"Failure #1\n +\*\* \(PlaywrightEx.ExpectError\) expect\(locator\).toHaveText\(expected\) failed"
 
     assert two =~
@@ -167,7 +167,7 @@ defmodule PlaywrightEx.Test.EndToEndTest do
     script = Path.join([__DIR__, "..", "..", "support", "test_runner_impl.exs"]) |> File.read!() |> String.split("\n")
     line = fn marker -> Enum.find_index(script, &(&1 =~ marker)) + 2 end
 
-    [_, boxed] = Regex.run(~r/test fails in a boxed step \(StepsTest\)\n(.*?)\n\n\n/s, output)
+    boxed = failure(output, "test fails in a boxed step (StepsTest)")
     assert boxed =~ "** (RuntimeError) cannot log in"
     # The boxed step's call site, not the frames inside it.
     assert boxed =~ "test/support/test_runner_impl.exs:#{line.("(the boxed call)")}:"
@@ -227,5 +227,14 @@ defmodule PlaywrightEx.Test.EndToEndTest do
 
     Enum.map(kids, fn {kid, _, start, command} -> {kid, command, start} end) ++
       collect(children, Enum.map(kids, &elem(&1, 0)) ++ rest)
+  end
+
+  # A failure's block in ExUnit's output: up to the next failure, the progress dots or the summary
+  # (a passing test's dot may follow it directly).
+  defp failure(output, title) do
+    [_, block] =
+      Regex.run(~r/#{Regex.escape(title)}\n(.*?)(?=\n\n+(?: +\d+\) test |[.*]|Finished |Result: )|\n*\z)/s, output)
+
+    block
   end
 end
