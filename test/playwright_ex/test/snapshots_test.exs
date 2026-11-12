@@ -48,6 +48,8 @@ defmodule PlaywrightEx.Test.SnapshotsTest do
     assert Test.snapshot_path("body.aria.yml", kind: :aria) == Path.join(snapshots, "body.aria.yml")
     # Sanitized, as upstream's single name.
     assert Test.snapshot_path("a b/c?.png", kind: :screenshot) == Path.join(snapshots, "a-b-c--#{platform}.png")
+    # Segments are not sanitized, as upstream's `snapshotPath(...name)`.
+    assert Test.snapshot_path(["a b", "c.png"], kind: :screenshot) == Path.join(snapshots, "a b/c-#{platform}.png")
 
     assert_raise ArgumentError, ~r/unknown kind "other"/, fn -> Test.snapshot_path("a.png", kind: :other) end
     assert_raise ArgumentError, ~r/unknown options \[:path\]/, fn -> Test.snapshot_path("a.png", path: "x") end
@@ -124,6 +126,15 @@ defmodule PlaywrightEx.Test.SnapshotsTest do
 
     assert first == "A snapshot doesn't exist at #{Path.relative_to_cwd(aria)}, writing actual."
     assert second == "A snapshot doesn't exist at #{screenshot}, writing actual."
+  end
+
+  test "a snapshot of segments is written where snapshot_path/2 resolves them", %{page: page} do
+    Page.set_content!(page, "<h1>segments</h1>")
+    assert :ok = Expect.to_have_screenshot(page, name: ["a", "b.png"])
+    assert [{:error, %RuntimeError{message: message}, _}] = TestInfo.take_errors(self())
+    path = Test.snapshot_path(["a", "b.png"], kind: :screenshot)
+    assert message == "A snapshot doesn't exist at #{path}, writing actual."
+    assert File.exists?(path)
   end
 
   test "a snapshot's outputs go to the test's output dir", %{page: page} do

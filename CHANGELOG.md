@@ -57,6 +57,8 @@ those of the release candidates below. From an earlier release, also read the se
   the test's timeout), steps, soft receivers and `config :playwright_ex, :expect, to_pass: ...`.
 - `Expect.message/2` is `expect(actual, message)`: a receiver with a custom message, which is the
   matcher's step title and the first paragraph of its error.
+- `PlaywrightEx.Test.snapshot_path/2` takes a list of path segments too, as Playwright Test's
+  `testInfo.snapshotPath(...name)`.
 - A matcher's step and its driver call share one `callId`, so a test's trace shows them as one
   action, as Playwright Test's does.
 - `PlaywrightEx.Promise.async/1`: starts calls now, awaited later (JS's

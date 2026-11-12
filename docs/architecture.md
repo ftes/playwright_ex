@@ -296,7 +296,7 @@ no call site (the recording modes) are config plus ExUnit tags; the rest are arg
 | `--trace <mode>` | `TRACE` read in `config/test.exs` |
 | `test.info()` | `info/0` (`test_pid`, `file`, `test_name`, `output_dir`), raises outside a test |
 | `testInfo.status`, `errors`, `expectedStatus`, `duration` in teardown | `info(test_pid)` in `on_exit` (another process), kept until ExUnit's `on_exit` process exits |
-| `testInfo.outputPath`/`snapshotPath` | `output_path(name)`, `snapshot_path(name, opts)`: one string, no segments |
+| `testInfo.outputPath`/`snapshotPath` | `output_path(name)` (one string, no segments), `snapshot_path(name, opts)` (a string or a list of segments) |
 | `test.step` | `step/2,3` (no timeout) |
 | `testInfo.attach` | `attach/2` (`test.attach` step, `trace.attachments`) |
 | list reporter's `npx playwright show-trace <path>` | a failure prints `mix playwright_ex.cli show-trace <path>` |

@@ -615,11 +615,12 @@ defmodule PlaywrightEx.Test do
   The snapshot path of `name` for the running test, as upstream's `testInfo.snapshotPath`:
   where `PlaywrightEx.Expect.to_have_screenshot/2` (`kind: :screenshot`) and
   `PlaywrightEx.Expect.to_match_aria_snapshot/3` (`kind: :aria`) with `name:` read and write it
-  (see "Snapshots" in the moduledoc). Option `:kind`: `:snapshot` (default, upstream's),
-  `:screenshot` or `:aria`.
+  (see "Snapshots" in the moduledoc). `name` is a string or a list of path segments
+  (`["home", "hero.png"]`, upstream's `snapshotPath(...name)`), which are not sanitized. Option
+  `:kind`: `:snapshot` (default, upstream's), `:screenshot` or `:aria`.
   """
-  @spec snapshot_path(String.t(), keyword()) :: Path.t()
-  def snapshot_path(name, options \\ []) when is_binary(name) do
+  @spec snapshot_path(String.t() | [String.t()], keyword()) :: Path.t()
+  def snapshot_path(name, options \\ []) when is_binary(name) or is_list(name) do
     {kind, options} = Keyword.pop(options, :kind, :snapshot)
     if options != [], do: raise(ArgumentError, "unknown options #{inspect(Keyword.keys(options))}, expected [:kind]")
     %{test_pid: test_pid} = info()
