@@ -35,6 +35,13 @@ display is off, and a run with it off timed out ~150 WebKit tests in both suites
 The gap to upstream is about the same at 4 workers as at 9, so most of it is cost per test.
 The shared browser's extra cost over exclusive ones (~6 s at 9) grows with concurrency.
 
+Follow-up in [ftes/playwright_ex#213](https://github.com/ftes/playwright_ex/issues/213#issuecomment-6832051624):
+- The order isn't the cause. ExUnit queues async modules in the order their files finish
+  compiling (the seed only shuffles tests within a module), so the longest modules start last;
+  requiring the 8 longest files first gives 63.1 s. Upstream loses a similar 10-14 s to its tail.
+- The gap is per test: about +210-290 ms with the shared pool and about +110 ms with exclusive
+  browsers. The `on_exit` teardown alone takes 107-192 ms per test.
+
 ## Runtime under load (2026-11-12, 16:46)
 
 699 tests, 3 browsers, 9 workers / `max_cases` (half the cores) on both sides, one shared server,
