@@ -30,6 +30,7 @@ defmodule PlaywrightEx.Test.Pool do
   # that stops the drivers.
   use GenServer
 
+  alias PlaywrightEx.Client.ClientStackTrace
   alias PlaywrightEx.Test.Options
   alias PlaywrightEx.Test.Pool.Slot
   alias PlaywrightEx.Test.TestInfo
@@ -181,10 +182,26 @@ defmodule PlaywrightEx.Test.Pool do
     ArgumentError -> nil
   end
 
+  # ExUnit's modules, the runner here, and this layer's (`PlaywrightEx.Test`, `PlaywrightEx.Case`),
+  # Playwright Test's fixtures and artifacts.
+  defp runner_modules do
+    own =
+      for module <- Application.spec(:playwright_ex, :modules) || [],
+          name = Atom.to_string(module),
+          name in ["Elixir.PlaywrightEx.Test", "Elixir.PlaywrightEx.Case"] or
+            String.starts_with?(name, "Elixir.PlaywrightEx.Test."),
+          do: module
+
+    (Application.spec(:ex_unit, :modules) || []) ++ own
+  end
+
   @impl true
   def init(nil) do
     Process.flag(:trap_exit, true)
     :ets.new(table(), [:named_table, :public, :set])
+    # The runner's frames stay out of the client's stacks, as upstream's process sets
+    # `setBoxedStackPrefixes([packageRoot])` (`packages/playwright/src/common/process.ts`).
+    ClientStackTrace.set_boxed_stack_prefixes(runner_modules())
 
     # `free` newest first; `leases` by scope: `%{slots, runner, outcome, holder}` (`runner` a
     # `setup_all` scope's, else `nil`; `outcome` `nil` while no test of it ended, `:passed` while

@@ -83,6 +83,10 @@ those of the release candidates below. From an earlier release, also read the se
   logged.
 
 ### Fixed
+- The stack an API call records (its trace stack and location) leaves out OTP's and Elixir's
+  frames, as upstream's leaves out Node's, and in a `PlaywrightEx.Test` test ExUnit's and the
+  runner's, as Playwright Test leaves out its own. Their sources are the build machine's paths,
+  which the driver looked up for every frame when saving a trace (about 12 ms each on macOS).
 - On Unix, stopping `PlaywrightEx.Supervisor` waits until the driver has exited (at most 31 s).
   When the supervisor is stopped before the VM halts, the driver no longer resets the terminal
   afterwards (↑ printing `OA` in the shell after `mix test`). `mix test` and `mix run` halt
