@@ -16,11 +16,13 @@ those of the release candidates below. From an earlier release, also read the se
   most `workers` at once: half the schedulers, as Playwright Test's default), and
   traces, screenshots and videos of every context a test creates (`record_artifacts/2`, with
   Playwright Test's modes and their options), kept for failures, plus Playwright Test's
-  `error-context.md` of each failed test. `use PlaywrightEx.Test` after `use ExUnit.Case` brings
+  `error-context.md` of each failed test. `output_path/2` is Playwright Test's
+  `testInfo.outputPath`, and `browser/2`'s `on_start` runs once per new driver (e.g. to register
+  selectors). `use PlaywrightEx.Test` after `use ExUnit.Case` brings
   a `test` macro that tells the fragments each test's result. In a test, the snapshot matchers
   take upstream's `name:` (or none), resolved by Playwright Test's path templates
-  (`snapshot_dir`, `snapshot_path_template`, `snapshot_path/3`) with their `-actual` and `-diff`
-  files in the test's output dir, and a snapshot they write fails the test at the end of its
+  (`snapshot_dir`, `snapshot_path_template`, `snapshot_path/3`) with their `-actual`,
+  `-expected`, `-previous` and `-diff` files in the test's output dir, and a snapshot they write fails the test at the end of its
   body, with all its errors reported. `step` is Playwright Test's `test.step` (`box`,
   `location`, `timeout`, `params`, `subtitle`), `step_skip` its `test.step.skip`, and each
   matcher call is a step: the trace's `test.trace` has the test's steps, nested, and its errors.

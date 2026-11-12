@@ -158,7 +158,8 @@ snapshot nobody committed; ExUnit reports all of the test's errors. `snapshot_di
 `snapshot_path_template` (Playwright Test's `snapshotDir`, `snapshotPathTemplate`) move them,
 `snapshot_path(ctx, "home.png", kind: :screenshot)` returns a path, and `update_snapshots` in
 `config :playwright_ex, :expect` (`:all`, `:changed`, `:missing`, `:none`) rewrites them. A
-failed comparison leaves `-actual` and `-diff` images in the test's dir under `test-results/`.
+failed comparison leaves `-actual`, `-expected`, `-previous` and `-diff` images in the test's dir
+under `test-results/`.
 
 ## Logging in once
 

@@ -3892,8 +3892,8 @@ defmodule PlaywrightEx.Expect do
 
   * `:name` (`t:String.t/0` | list of `t:String.t/0`) - Snapshot name. Must have a `.png` or `.webp` extension, the screenshot is captured in the corresponding format. Both formats are lossless.
 
-    In Elixir, a test of `PlaywrightEx.Test` resolves it to a file (see "Snapshots" in its docs), and with neither `:name` nor `:path` names the snapshot after the test. On failure the `-actual`, `-diff` and `-previous` images are written to the test's output dir.
-  * `:path` (`t:String.t/0`) - The snapshot file, in place of `:name`, required outside a `PlaywrightEx.Test` test. Must have a `.png` or `.webp` extension. A missing snapshot is written (see `:update_snapshots` in the configuration of `PlaywrightEx.Expect`); on failure the `-actual`, `-diff` and `-previous` images are written next to it.
+    In Elixir, a test of `PlaywrightEx.Test` resolves it to a file (see "Snapshots" in its docs), and with neither `:name` nor `:path` names the snapshot after the test. On failure the `-actual`, `-expected`, `-previous` and `-diff` images are written to the test's output dir.
+  * `:path` (`t:String.t/0`) - The snapshot file, in place of `:name`, required outside a `PlaywrightEx.Test` test. Must have a `.png` or `.webp` extension. A missing snapshot is written (see `:update_snapshots` in the configuration of `PlaywrightEx.Expect`); on failure the `-actual`, `-expected`, `-previous` and `-diff` images are written next to it.
   * `:animations` (`:disabled` | `:allow`) - When set to `:disabled`, stops CSS animations, CSS transitions and Web Animations. Animations get different treatment depending on their duration:
 
     * finite animations are fast-forwarded to completion, so they'll fire `transitionend` event.
@@ -4038,8 +4038,8 @@ defmodule PlaywrightEx.Expect do
 
   * `:name` (`t:String.t/0` | list of `t:String.t/0`) - Snapshot name. Must have a `.png` or `.webp` extension, the screenshot is captured in the corresponding format. Both formats are lossless.
 
-    In Elixir, a test of `PlaywrightEx.Test` resolves it to a file (see "Snapshots" in its docs), and with neither `:name` nor `:path` names the snapshot after the test. On failure the `-actual`, `-diff` and `-previous` images are written to the test's output dir.
-  * `:path` (`t:String.t/0`) - The snapshot file, in place of `:name`, required outside a `PlaywrightEx.Test` test. Must have a `.png` or `.webp` extension. A missing snapshot is written (see `:update_snapshots` in the configuration of `PlaywrightEx.Expect`); on failure the `-actual`, `-diff` and `-previous` images are written next to it.
+    In Elixir, a test of `PlaywrightEx.Test` resolves it to a file (see "Snapshots" in its docs), and with neither `:name` nor `:path` names the snapshot after the test. On failure the `-actual`, `-expected`, `-previous` and `-diff` images are written to the test's output dir.
+  * `:path` (`t:String.t/0`) - The snapshot file, in place of `:name`, required outside a `PlaywrightEx.Test` test. Must have a `.png` or `.webp` extension. A missing snapshot is written (see `:update_snapshots` in the configuration of `PlaywrightEx.Expect`); on failure the `-actual`, `-expected`, `-previous` and `-diff` images are written next to it.
   * `:animations` (`:disabled` | `:allow`) - When set to `:disabled`, stops CSS animations, CSS transitions and Web Animations. Animations get different treatment depending on their duration:
 
     * finite animations are fast-forwarded to completion, so they'll fire `transitionend` event.
@@ -6175,7 +6175,7 @@ defmodule PlaywrightEx.Expect do
       path: %{
         type_doc: "`t:String.t/0`",
         doc:
-          "The snapshot file, in place of `:name`, required outside a `PlaywrightEx.Test` test. Must have a `.png` or `.webp` extension. A missing snapshot is written (see `:update_snapshots` in the configuration of `PlaywrightEx.Expect`); on failure the `-actual`, `-diff` and `-previous` images are written next to it.",
+          "The snapshot file, in place of `:name`, required outside a `PlaywrightEx.Test` test. Must have a `.png` or `.webp` extension. A missing snapshot is written (see `:update_snapshots` in the configuration of `PlaywrightEx.Expect`); on failure the `-actual`, `-expected`, `-previous` and `-diff` images are written next to it.",
         since: nil,
         spec: quote(do: String.t())
       },
@@ -6291,7 +6291,7 @@ defmodule PlaywrightEx.Expect do
       path: %{
         type_doc: "`t:String.t/0`",
         doc:
-          "The snapshot file, in place of `:name`, required outside a `PlaywrightEx.Test` test. Must have a `.png` or `.webp` extension. A missing snapshot is written (see `:update_snapshots` in the configuration of `PlaywrightEx.Expect`); on failure the `-actual`, `-diff` and `-previous` images are written next to it.",
+          "The snapshot file, in place of `:name`, required outside a `PlaywrightEx.Test` test. Must have a `.png` or `.webp` extension. A missing snapshot is written (see `:update_snapshots` in the configuration of `PlaywrightEx.Expect`); on failure the `-actual`, `-expected`, `-previous` and `-diff` images are written next to it.",
         since: nil,
         spec: quote(do: String.t())
       },

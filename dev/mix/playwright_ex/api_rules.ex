@@ -474,7 +474,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
                 "text" =>
                   "In Elixir, a test of `PlaywrightEx.Test` resolves it to a file (see \"Snapshots\" in its " <>
                     "docs), and with neither `:name` nor `:path` names the snapshot after the test. On failure the " <>
-                    "`-actual`, `-diff` and `-previous` images are written to the test's output dir."
+                    "`-actual`, `-expected`, `-previous` and `-diff` images are written to the test's output dir."
               }
             ]
       })
@@ -484,7 +484,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
         name,
         "The snapshot file, in place of `:name`, required outside a `PlaywrightEx.Test` test. Must have a `.png` " <>
           "or `.webp` extension. A missing snapshot is written (see `:update_snapshots` in the configuration of " <>
-          "`PlaywrightEx.Expect`); on failure the `-actual`, `-diff` and `-previous` images are written next to it."
+          "`PlaywrightEx.Expect`); on failure the `-actual`, `-expected`, `-previous` and `-diff` images are written next to it."
       )
 
     options = update_in(options, ["type", "properties"], &[name_option, path | &1])

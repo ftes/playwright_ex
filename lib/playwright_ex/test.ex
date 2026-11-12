@@ -118,8 +118,8 @@ defmodule PlaywrightEx.Test do
   `{testFileDir}`, `{testFileName}`, `{testFileBaseName}`, `{testFilePath}`, `{testName}`,
   `{arg}`, `{ext}`, `{platform}`, `{snapshotSuffix}` (the platform, as upstream's) and
   `{projectName}`, which is empty: there are no projects. `snapshot_path/3` returns a name's path.
-  A failed comparison writes its `-actual`, `-diff` and `-expected` images to the test's output
-  dir.
+  A failed comparison writes its `-actual`, `-expected`, `-previous` and `-diff` images to the
+  test's output dir.
 
   A snapshot the matcher writes (a missing one, under the default `update_snapshots`) fails the
   test at the end of its body, as upstream's soft error: the rest of the body runs, and ExUnit
@@ -151,7 +151,7 @@ defmodule PlaywrightEx.Test do
         video: :off,                  # :off | :on | :retain_on_failure, or [mode: _, size: _]
         output_dir: "test-results",
         workers: max(div(System.schedulers_online(), 2), 1),
-        snapshot_dir: "test",
+        snapshot_dir: nil,            # upstream's testDir: test/
         snapshot_path_template: nil   # upstream's defaults, see Snapshots
 
   The artifact modes are `off` by default and `output_dir` is `test-results`, as upstream's.
@@ -174,7 +174,13 @@ defmodule PlaywrightEx.Test do
   # Set while `__passed__/0` raises the errors `TestInfo` recorded (and traced) already.
   @reraised {__MODULE__, :reraised}
 
-  defmacro __using__(_opts) do
+  defmacro __using__(opts) do
+    if opts != [] do
+      raise ArgumentError,
+            "use PlaywrightEx.Test takes no options, got: #{Macro.to_string(opts)}; " <>
+              "pass them to browser/2, new_context/2 or record_artifacts/2"
+    end
+
     if __CALLER__.module && Module.has_attribute?(__CALLER__.module, :playwright_ex_test) do
       :ok
     else
@@ -282,7 +288,8 @@ defmodule PlaywrightEx.Test do
   end
 
   # The end of the body: the test fails with the errors its matchers recorded (upstream's
-  # `testInfo.errors`), raised as ExUnit reports them, so they reach `__failed__/3`.
+  # `testInfo.errors`), raised as ExUnit reports them. They are reported here, not by
+  # `__failed__/3`, which `--breakpoints` leaves out.
   @doc false
   def __passed__ do
     case TestInfo.finish(self()) do
@@ -290,13 +297,15 @@ defmodule PlaywrightEx.Test do
         Pool.notify({:passed, self()})
         finished_test_function(false)
 
-      [{kind, reason, stacktrace}] ->
-        Process.put(@reraised, true)
-        :erlang.raise(kind, reason, stacktrace)
-
       errors ->
+        notify_failed(errors)
+        finished_test_function(true)
         Process.put(@reraised, true)
-        raise ExUnit.MultiError, errors: errors
+
+        case errors do
+          [{kind, reason, stacktrace}] -> :erlang.raise(kind, reason, stacktrace)
+          errors -> raise ExUnit.MultiError, errors: errors
+        end
     end
   end
 
@@ -304,20 +313,28 @@ defmodule PlaywrightEx.Test do
   # this one as it is.
   @doc false
   def __failed__(kind, reason, stacktrace) do
-    # The worker's `_failWithError` of the body's error: its trace event (`appendForError`).
-    if !Process.delete(@reraised), do: TestInfo.trace_errors(self(), errors(kind, reason, stacktrace))
+    # `__passed__/0` raised the recorded errors and reported them already.
+    if Process.delete(@reraised) do
+      {kind, reason, stacktrace}
+    else
+      # The worker's `_failWithError` of the body's error: its trace event (`appendForError`).
+      TestInfo.trace_errors(self(), errors(kind, reason, stacktrace))
 
-    error =
-      case TestInfo.finish(self()) do
-        [] -> {kind, reason, stacktrace}
-        errors -> {:error, %ExUnit.MultiError{errors: errors ++ errors(kind, reason, stacktrace)}, stacktrace}
-      end
+      error =
+        case TestInfo.finish(self()) do
+          [] -> {kind, reason, stacktrace}
+          errors -> {:error, %ExUnit.MultiError{errors: errors ++ errors(kind, reason, stacktrace)}, stacktrace}
+        end
 
-    for {kind, reason, stacktrace} <- errors(error),
+      notify_failed(errors(error))
+      finished_test_function(true)
+      error
+    end
+  end
+
+  defp notify_failed(errors) do
+    for {kind, reason, stacktrace} <- errors,
         do: Pool.notify({:failed, self(), {kind, Exception.normalize(kind, reason, stacktrace), stacktrace}})
-
-    finished_test_function(true)
-    error
   end
 
   # Each error of an `ExUnit.MultiError` (upstream's `_failWithError` visits an error's `errors`).
