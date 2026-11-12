@@ -36,6 +36,29 @@ Playwright (`Process.sleep/1`, `receive`, an HTTP request, a `GenServer.call` to
 stalls every page on that connection, as blocking the event loop does in JS. Hand slow work to
 another process with `send/2` or `Task.start/1`.
 
+A handler that waits for the test (JS awaits a promise the test resolves later) hands the work to
+a process that waits instead, and returns:
+
+```elixir
+test_pid = self()
+
+Page.route(page, "**/api/data", fn route ->
+  # JS: `await released; await route.continue()`.
+  spawn(fn ->
+    send(test_pid, {:held, self()})
+
+    receive do
+      :release -> Route.continue!(route)
+    end
+  end)
+end)
+
+# ... the page requests /api/data ...
+assert_receive {:held, held}
+Expect.to_be_visible!(Page.get_by_text(page, "Loading"))
+send(held, :release)
+```
+
 ## Subscribe before you check
 
 In JS, nothing runs between two lines without an `await`, so "read state, then wait for the event

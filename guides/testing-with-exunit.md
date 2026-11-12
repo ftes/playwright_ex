@@ -287,6 +287,52 @@ end
 The device's options are the call's, so they win over Playwright Test's defaults (its viewport
 over the 1280x720 one), and `default_browser_type` (`"webkit"`) says which browser to pass.
 
+### Projects
+
+Playwright Test's `projects`, one run per browser and device, are ExUnit's `parameterize:` over
+`browser_name`, with each project's device as above:
+
+```elixir
+defmodule MyApp.BrowserCase do
+  use ExUnit.CaseTemplate
+  use PlaywrightEx.Test
+
+  alias PlaywrightEx.{Browser, BrowserContext, Playwright}
+  alias PlaywrightEx.Test.BrowserPool
+
+  @devices %{chromium: "Desktop Chrome", firefox: "Desktop Firefox", webkit: "Desktop Safari"}
+
+  def projects, do: for(name <- [:chromium, :firefox, :webkit], do: %{browser_name: name})
+
+  using do
+    quote do
+      use PlaywrightEx.Test
+      alias PlaywrightEx.{Browser, BrowserContext, Expect, Locator, Page}
+    end
+  end
+
+  setup_all %{browser_name: name} do
+    browser = if name == :firefox, do: BrowserPool.exclusive(browser_name: name), else: BrowserPool.shared(browser_name: name)
+    %{browser: browser}
+  end
+
+  setup %{browser: browser, browser_name: name} do
+    device = Map.fetch!(Playwright.devices(BrowserPool.playwright(browser)), @devices[name])
+    context = Browser.new_context!(browser, device)
+    %{context: context, page: BrowserContext.new_page!(context)}
+  end
+end
+
+defmodule MyApp.SignUpTest do
+  use MyApp.BrowserCase, async: true, parameterize: MyApp.BrowserCase.projects()
+  # ...
+end
+```
+
+A test sees its project as `browser_name` in the context. ExUnit's filters don't see
+`parameterize:` values, so to run one project, have `projects/0` read an env var
+(`BROWSERS=chromium mix test`).
+
 ## Traces, screenshots and videos
 
 Every context a test creates on a pooled browser is recorded, also in a `Task` of the test or a
@@ -418,6 +464,38 @@ get its `$callers`, as a `Task` does. So the Ecto sandbox, Mox and `Req.Test` fi
 them without an explicit allowance, and matchers and `step` count for the test. An error a route
 handler, listener or locator handler raises fails the test at the end of its body, as in
 Playwright Test (outside a test, and once the test has ended, it is logged).
+
+Listeners fire until their page or context closes. The test's contexts close last in its
+`on_exit`: after your `on_exit` callbacks, as Playwright Test runs `afterEach` hooks before the
+`context` fixture's teardown, and after the test process has exited. So state linked to the test
+(an `Agent.start_link/1` of the test, a `start_supervised!/1` child) can be gone while a listener
+still uses it, which logs "Uncaught in event listener: ... no process". Send to the test process
+(a late message is dropped with it), remove the listener with `off/3` first in your `on_exit`, or
+keep the state unlinked (`Agent.start/1`).
+
+### A check after the test
+
+A fixture teardown that fails the test, such as LiveView's `page` fixture checking for page
+errors, is an `on_exit`: an assertion there fails the test, reported by ExUnit as an `on_exit`
+failure. Its state must outlive the test process. An option fixture (`test.use({ ignoreJSErrors:
+true })`) becomes a tag the `setup` reads (`@tag`, `@describetag` or `@moduletag`):
+
+```elixir
+setup %{page: page} = ctx do
+  {:ok, errors} = Agent.start(fn -> [] end)
+  listener = fn error -> Agent.update(errors, &(&1 ++ [error])) end
+  Page.on(page, :page_error, listener)
+
+  on_exit(fn ->
+    Page.off(page, :page_error, listener)
+    page_errors = Agent.get(errors, & &1)
+    Agent.stop(errors)
+    if !ctx[:ignore_js_errors], do: assert(page_errors == [], "unhandled page errors")
+  end)
+end
+```
+
+The recording counts such a failure as a pass (see `PlaywrightEx.Test`).
 
 ## Exclusive browsers
 
@@ -580,3 +658,28 @@ assert_receive {:console, "saved"}, 5_000
 ```
 
 See [Events and waiting](events-and-waiting.md) for one-off events (downloads, popups, dialogs).
+
+## Porting Playwright Test specs
+
+Most of a spec ports call for call. What differs:
+
+- JS `null` is `:null` (`undefined` is `nil`), and objects from `evaluate` are maps with string
+  keys (`result["entry"]["foo"]`).
+- A JS regex literal PCRE rejects (`/\patched/`: `\p` is `p` in JS without `u`) needs
+  `PlaywrightEx.RegExp.new/1`, which sends the JS source as it is.
+- `test.skip(condition)` at runtime has no ExUnit equivalent: ExUnit can't skip a running test,
+  and its filters don't see `parameterize:` values. Use a tag known before the run
+  (`@tag skip: ...`, `--exclude`), or an `if` around the body (reported as passed).
+- `describe` blocks don't nest, and their names must be unique in a module: the outer one becomes
+  the module (its `beforeEach` a module `setup`), and a `describe` repeated in a loop becomes one
+  `describe` with the loop inside.
+- `elementHandle.evaluate(...)` is `JSHandle.evaluate!(element_handle, ...)`: an `ElementHandle`
+  takes the `JSHandle` functions.
+- Asymmetric matchers (`expect.objectContaining`, `expect.any(String)`) become patterns:
+  `assert [%{"id" => id} | _] = list`, then `assert is_binary(id)`.
+- Module-level `let` state reset in `beforeEach` becomes per-test state, returned from `setup` or
+  kept in an `Agent` (unlinked when an `on_exit` reads it, see "A check after the test").
+- `expect(fn).toPass()` is `Expect.to_pass!/2`, `expect.poll(fn).toBe(x)` is
+  `Expect.poll!(fn, &assert(&1 == x))`, and a call started now and awaited later
+  (`const p = locator.evaluate(...)`) is `PlaywrightEx.Promise.async/1` (see
+  [Concurrency](concurrency.md)).

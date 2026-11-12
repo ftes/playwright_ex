@@ -4,6 +4,7 @@ defmodule PlaywrightEx.Guides.ConcurrencyTest do
 
   alias PlaywrightEx.Dialog
   alias PlaywrightEx.Promise
+  alias PlaywrightEx.Route
 
   test "calls you await later: Promise.async before the action", %{page: page} do
     Page.set_content!(page, "<button>Go</button>")
@@ -22,5 +23,36 @@ defmodule PlaywrightEx.Guides.ConcurrencyTest do
     Task.await(click)
 
     assert Page.title!(page) == "true"
+  end
+
+  test "a route handler that waits for the test hands off to a process", %{page: page} do
+    Page.route(
+      page,
+      "**/empty.html",
+      &Route.fulfill!(&1,
+        body:
+          "<p>Loading</p><script>fetch('/api/data').then(r => r.text()).then(t => document.querySelector('p').textContent = t)</script>",
+        content_type: "text/html"
+      )
+    )
+
+    test_pid = self()
+
+    Page.route(page, "**/api/data", fn route ->
+      # JS: `await released; await route.continue()`. Deviation: fulfilled, with no server.
+      spawn(fn ->
+        send(test_pid, {:held, self()})
+
+        receive do
+          :release -> Route.fulfill!(route, body: "Done")
+        end
+      end)
+    end)
+
+    Page.goto!(page, "https://example.com/empty.html")
+    assert_receive {:held, held}, 5_000
+    Expect.to_be_visible!(Page.get_by_text(page, "Loading"))
+    send(held, :release)
+    Expect.to_have_text!(Page.locator(page, "p"), "Done")
   end
 end

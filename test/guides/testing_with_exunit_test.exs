@@ -467,3 +467,105 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.GroupTest do
     assert PlaywrightEx.Test.info().test_pid == self()
   end
 end
+
+defmodule PlaywrightEx.Guides.TestingWithExUnit.PageChecksTest do
+  # "A check after the test" and the listener lifetimes of "Route handlers and listeners".
+  use PlaywrightEx.Case, async: true
+
+  setup %{page: page} = ctx do
+    {:ok, errors} = Agent.start(fn -> [] end)
+    listener = fn error -> Agent.update(errors, &(&1 ++ [error])) end
+    Page.on(page, :page_error, listener)
+
+    on_exit(fn ->
+      Page.off(page, :page_error, listener)
+      page_errors = Agent.get(errors, & &1)
+      Agent.stop(errors)
+      if !ctx[:ignore_js_errors], do: assert(page_errors == [], "unhandled page errors")
+    end)
+  end
+
+  test "no page errors: the check passes", %{page: page} do
+    Page.set_content!(page, "<p>Fine</p>")
+  end
+
+  @tag ignore_js_errors: true
+  test "a page error, ignored by the tag", %{page: page} do
+    Page.set_content!(page, "<button onclick='throw new Error(`boom`)'>Go</button>")
+    Page.get_by_role(page, :button) |> Locator.click!()
+  end
+
+  test "a listener sends to the test process: a late event is dropped with it", %{page: page} do
+    test_pid = self()
+    Page.on(page, :console, &send(test_pid, {:console, PlaywrightEx.ConsoleMessage.text(&1)}))
+    Page.evaluate!(page, "console.log('now')")
+    assert_receive {:console, "now"}
+    # Fires after the test process exited, as the context closes in the test's last `on_exit`.
+    Page.evaluate!(page, "setTimeout(() => console.log('late'), 0)")
+  end
+end
+
+defmodule PlaywrightEx.Guides.TestingWithExUnit.ProjectsCase do
+  @moduledoc false
+  # "Projects". Deviation: `BROWSER`'s browser only.
+  use ExUnit.CaseTemplate
+  use PlaywrightEx.Test
+
+  alias PlaywrightEx.{Browser, BrowserContext, Playwright}
+  alias PlaywrightEx.Test.BrowserPool
+
+  @devices %{chromium: "Desktop Chrome", firefox: "Desktop Firefox", webkit: "Desktop Safari"}
+
+  def projects, do: for(name <- [String.to_atom(PlaywrightEx.TestBrowser.name())], do: %{browser_name: name})
+
+  using do
+    quote do
+      use PlaywrightEx.Test
+      alias PlaywrightEx.{Browser, BrowserContext, Expect, Locator, Page}
+    end
+  end
+
+  setup_all %{browser_name: name} do
+    browser =
+      if name == :firefox, do: BrowserPool.exclusive(browser_name: name), else: BrowserPool.shared(browser_name: name)
+
+    %{browser: browser}
+  end
+
+  setup %{browser: browser, browser_name: name} do
+    device = Map.fetch!(Playwright.devices(BrowserPool.playwright(browser)), @devices[name])
+    context = Browser.new_context!(browser, device)
+    %{context: context, page: BrowserContext.new_page!(context)}
+  end
+end
+
+defmodule PlaywrightEx.Guides.TestingWithExUnit.ProjectsTest do
+  use PlaywrightEx.Guides.TestingWithExUnit.ProjectsCase,
+    async: true,
+    parameterize: PlaywrightEx.Guides.TestingWithExUnit.ProjectsCase.projects()
+
+  @user_agents %{chromium: "Chrome", firefox: "Firefox", webkit: "Safari"}
+
+  test "a page of the project's browser, with its device", %{page: page, browser_name: name} do
+    assert Page.evaluate!(page, "navigator.userAgent") =~ @user_agents[name]
+    assert Page.viewport_size(page) == %{width: 1280, height: 720}
+  end
+end
+
+defmodule PlaywrightEx.Guides.TestingWithExUnit.PortingTest do
+  # "Porting Playwright Test specs".
+  use PlaywrightEx.Case, async: true
+
+  alias PlaywrightEx.JSHandle
+
+  test "null, objects, regexes and element handles", %{page: page} do
+    assert Page.evaluate!(page, "() => ({ entry: { foo: null }, gone: undefined })") ==
+             %{"entry" => %{"foo" => :null}, "gone" => nil}
+
+    Page.set_content!(page, "<p>patched=true</p>")
+    Expect.to_have_text!(Page.locator(page, "p"), PlaywrightEx.RegExp.new("\\patched=true"))
+
+    element_handle = Page.query_selector!(page, "p")
+    assert JSHandle.evaluate!(element_handle, "e => e.textContent") == "patched=true"
+  end
+end
