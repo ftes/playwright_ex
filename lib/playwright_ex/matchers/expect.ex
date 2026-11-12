@@ -39,12 +39,11 @@ defmodule PlaywrightEx.Matchers.Expect do
   Deviations: `testInfo` is the running test of `PlaywrightEx.Test` (`PlaywrightEx.Test.TestInfo`,
   found by the calling process, or one in its `$callers`), else `null`. Each matcher call is a
   step of it (`category: 'expect'`), which records a result's `softError`: that fails the test
-  at the end of its body; outside a test it is printed. The step's call is not the driver's
-  `Frame.expect` action (the instrumentation can't set its `callId`), so a trace shows both.
-  A failed soft matcher in a test completes its step with the error as its `softError` and
-  returns. There is no `createExpect` (`expect.configure`), and no jest library: generic matchers
-  (`toBe`, `toEqual`, ...), `expect.extend`, `toMatchSnapshot` and `resolves`/`rejects` are not
-  ported. So `expect.poll(actual, options)` has one matcher, `assert`: an ExUnit assertion,
+  at the end of its body; outside a test it is printed. A failed soft matcher in a test
+  completes its step with the error as its `softError` and returns. There is no `createExpect`
+  (`expect.configure`), and no jest library: generic matchers (`toBe`, `toEqual`, ...),
+  `expect.extend`, `toMatchSnapshot` and `resolves`/`rejects` are not ported. So
+  `expect.poll(actual, options)` has one matcher, `assert`: an ExUnit assertion,
   `fn value -> assert value == 3 end` for `.toBe(3)` (`poll/3`).
 
   ## Configuration

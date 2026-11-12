@@ -211,6 +211,26 @@ defmodule PlaywrightEx.Test.StepsTest do
     assert {:error, _} = Expect.to_be_visible(Page.locator(page, "h2"), timeout: 1)
   end
 
+  test "a matcher's driver call shares its step's callId" do
+    on_trace(fn events, files ->
+      matcher = before(events, ~s(Expect "toHaveText"))
+
+      driver_ids =
+        for {name, trace} <- files,
+            name != "test.trace" and Path.extname(name) == ".trace",
+            line <- String.split(trace, "\n", trim: true),
+            event = JSON.decode!(line),
+            match?(%{"type" => "before", "class" => "Frame", "method" => "expect"}, event),
+            do: event["callId"]
+
+      assert driver_ids == [matcher["callId"]]
+    end)
+
+    page = new_page()
+    Page.set_content!(page, "<h1>One</h1>")
+    Expect.to_have_text!(Page.locator(page, "h1"), "One")
+  end
+
   test "a soft matcher: a soft step, its failure recorded as the test's error, the body continues" do
     on_trace(fn events, _files ->
       refute Map.has_key?(after_of(events, before(events, ~s(Expect "soft toHaveText"))), "error")
