@@ -2,18 +2,21 @@ defmodule PlaywrightEx.Test.Pool.Slot do
   @moduledoc false
   # One driver and its browsers, in a process of its own: starting the driver and launching
   # block this slot and its callers only, and the slot stays alive as the browsers' creator,
-  # which anchors their rows. Lazy: the driver starts with the first `browser/2`, which runs
-  # `on_start` on each new driver's Playwright before any launch.
+  # which anchors their rows. Lazy: the driver starts with the first `browser/2`, which adds the
+  # recording listener (`PlaywrightEx.Test.Recorder.listener/0`) and runs `on_start` on each new
+  # driver's Playwright before any launch.
   # It hosts a browser per `{browser_name, launch_options}`, as upstream runs every browser type
-  # on one Playwright: a listener on the driver's instrumentation sees all of their contexts. A
+  # on one Playwright: the listener on the driver's instrumentation sees all of their contexts. A
   # lost browser (closed, or its driver gone) is launched again by the next `browser/2`.
   use GenServer
 
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserType
+  alias PlaywrightEx.Client.ClientInstrumentation
   alias PlaywrightEx.Playwright
   alias PlaywrightEx.Runtime.Api
   alias PlaywrightEx.Runtime.Heap
+  alias PlaywrightEx.Test.Recorder
 
   require Logger
 
@@ -28,9 +31,19 @@ defmodule PlaywrightEx.Test.Pool.Slot do
   end
 
   def browser(:stopped, _opts), do: raise("PlaywrightEx.Test's drivers were stopped (after the suite)")
-  def browser(:finished, _opts), do: raise(ArgumentError, "browser/1 after the end of its module")
 
-  @doc "Closes the browsers a module launched on this driver and left open."
+  def browser(:released, _opts),
+    do: raise(ArgumentError, "BrowserPool.exclusive/1 waited past the end of its test or module")
+
+  @doc "The Playwright of the driver whose connection is `conn`, `nil` for one the pool didn't start."
+  def playwright(conn) do
+    case PlaywrightEx.Test.Pool.started?() && :ets.lookup(PlaywrightEx.Test.Pool.table(), {:driver, conn}) do
+      [{_key, playwright}] -> playwright
+      _ -> nil
+    end
+  end
+
+  @doc "Closes the browsers a lease's holder launched on this driver and left open."
   def check_in({pid, _key}), do: GenServer.cast(pid, :check_in)
 
   @doc "Stops the driver (waiting for it to exit) and the slot."
@@ -63,8 +76,10 @@ defmodule PlaywrightEx.Test.Pool.Slot do
   end
 
   @impl true
-  def handle_info({:EXIT, sup, _reason}, %{sup: sup} = state),
-    do: {:noreply, %{state | sup: nil, name: nil, playwright: nil, browsers: %{}}}
+  def handle_info({:EXIT, sup, _reason}, %{sup: sup} = state) do
+    forget_driver(state)
+    {:noreply, %{state | sup: nil, name: nil, playwright: nil, browsers: %{}}}
+  end
 
   def handle_info(_message, state), do: {:noreply, state}
 
@@ -95,8 +110,12 @@ defmodule PlaywrightEx.Test.Pool.Slot do
     if playwright == state.playwright do
       {:ok, state}
     else
+      forget_driver(state)
+      ClientInstrumentation.add_listener(Heap.get(playwright, :_instrumentation), Recorder.listener())
+      :ets.insert(PlaywrightEx.Test.Pool.table(), {{:driver, playwright.conn}, playwright})
+      state = %{state | playwright: playwright, browsers: %{}}
       on_start(state.opts.on_start, playwright)
-      {:ok, %{state | playwright: playwright, browsers: %{}}}
+      {:ok, state}
     end
   rescue
     exception -> {:error, {:error, exception, __STACKTRACE__}, stop_driver(state)}
@@ -136,11 +155,15 @@ defmodule PlaywrightEx.Test.Pool.Slot do
   defp stop_driver(%{sup: nil} = state), do: state
 
   defp stop_driver(state) do
+    forget_driver(state)
     Supervisor.stop(state.sup, :normal, :infinity)
     %{state | sup: nil, name: nil, playwright: nil, browsers: %{}}
   catch
     :exit, _ -> %{state | sup: nil, name: nil, playwright: nil, browsers: %{}}
   end
+
+  defp forget_driver(%{playwright: nil}), do: :ok
+  defp forget_driver(state), do: :ets.delete(PlaywrightEx.Test.Pool.table(), {:driver, state.playwright.conn})
 
   # Browsers launched on this driver other than the slot's, still open.
   defp close_others(%{playwright: nil}), do: :ok

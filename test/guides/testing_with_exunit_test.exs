@@ -58,21 +58,23 @@ end
 
 defmodule PlaywrightEx.Guides.TestingWithExUnit.BrowserCase do
   @moduledoc false
-  # The guide's case template. Deviation: `base_url` is the module's own app, not the config's.
+  # The guide's case template from the pieces. Deviation: `base_url` is the module's own app,
+  # not the config's.
   use ExUnit.CaseTemplate
-  import PlaywrightEx.Test
+  use PlaywrightEx.Test
 
+  alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Guides.TestingWithExUnit.App
+  alias PlaywrightEx.Test.BrowserPool
 
   using do
     quote do
       use PlaywrightEx.Test
-      alias PlaywrightEx.{Expect, Locator, Page}
+      alias PlaywrightEx.{Browser, BrowserContext, Expect, Locator, Page, Test}
+      alias PlaywrightEx.Test.BrowserPool
     end
   end
-
-  setup_all :browser
 
   setup_all do
     server = App.start!(Path.join(System.tmp_dir!(), "guide-app-#{System.unique_integer([:positive])}"))
@@ -81,12 +83,10 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.BrowserCase do
 
   # `@tag locale: "de-DE"` on a test.
   setup ctx do
-    new_context(ctx, context_options: [base_url: ctx.base_url, locale: ctx[:locale] || "en-US"])
-  end
-
-  setup %{context: context} = ctx do
+    options = [base_url: ctx.base_url] ++ Enum.to_list(Map.take(ctx, [:locale]))
+    context = Browser.new_context!(BrowserPool.shared(), options)
     BrowserContext.set_default_timeout(context, 5_000)
-    new_page(ctx)
+    %{context: context, page: BrowserContext.new_page!(context)}
   end
 end
 
@@ -121,7 +121,6 @@ end
 defmodule PlaywrightEx.Guides.TestingWithExUnit.SignUpTest do
   use PlaywrightEx.Guides.TestingWithExUnit.BrowserCase, async: true
 
-  alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Guides.TestingWithExUnit.Assertions
   alias PlaywrightEx.Guides.TestingWithExUnit.Eventually
 
@@ -139,11 +138,12 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.SignUpTest do
 
   # Deviation: the second browser is `BROWSER`'s too (CI installs one browser per job), launched
   # with other options.
-  test "two users edit one document", ctx do
-    %{context: ada} = new_context(ctx)
-    %{context: bob} = new_context(ctx)
-    %{browser: other} = browser(browser_name: ctx.browser_name, launch_options: [slow_mo: 1])
-    %{context: eve} = new_context(%{ctx | browser: other})
+  test "two users edit one document" do
+    browser = BrowserPool.shared()
+    ada = Browser.new_context!(browser)
+    bob = Browser.new_context!(browser)
+    other = BrowserPool.shared(launch_options: [slow_mo: 1])
+    eve = Browser.new_context!(other)
 
     ada_page = BrowserContext.new_page!(ada)
     bob_page = BrowserContext.new_page!(bob)
@@ -181,12 +181,11 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.LoggedInTest do
   alias PlaywrightEx.Guides.TestingWithExUnit.App
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Test.BrowserPool
 
-  setup_all :browser
-
-  setup_all %{browser: browser} do
+  setup_all do
     server = App.start!(Path.join(System.tmp_dir!(), "guide-app-#{System.unique_integer([:positive])}"))
-    context = Browser.new_context!(browser, base_url: server.prefix)
+    context = Browser.new_context!(BrowserPool.shared(), base_url: server.prefix)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, "/login")
     Page.get_by_label(page, "Email") |> Locator.fill!("ada@example.com")
@@ -199,8 +198,10 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.LoggedInTest do
     %{storage_state: storage_state, base_url: server.prefix}
   end
 
-  setup ctx, do: new_context(ctx, context_options: [storage_state: ctx.storage_state, base_url: ctx.base_url])
-  setup :new_page
+  setup %{storage_state: storage_state, base_url: base_url} do
+    context = Browser.new_context!(BrowserPool.shared(), storage_state: storage_state, base_url: base_url)
+    %{context: context, page: BrowserContext.new_page!(context)}
+  end
 
   test "assertions on a logged-in page", %{page: page} do
     Page.goto!(page, "/dashboard")
@@ -214,10 +215,10 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.LoggedInTest do
   end
 
   @tag :tmp_dir
-  test "storage_state to a file", %{context: context, browser: browser, base_url: base_url, tmp_dir: tmp_dir} do
+  test "storage_state to a file", %{context: context, base_url: base_url, tmp_dir: tmp_dir} do
     path = Path.join(tmp_dir, "auth.json")
     BrowserContext.storage_state!(context, path: path)
-    other = Browser.new_context!(browser, base_url: base_url, storage_state: path)
+    other = Browser.new_context!(BrowserPool.shared(), base_url: base_url, storage_state: path)
     page = BrowserContext.new_page!(other)
     Page.goto!(page, "/dashboard")
     Expect.to_have_url!(page, ~r"/dashboard$")
@@ -293,13 +294,13 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.StepsTest do
   use PlaywrightEx.Guides.TestingWithExUnit.BrowserCase, async: true
 
   test "signs up in steps", %{page: page} do
-    step "fill in the form" do
+    Test.step "fill in the form" do
       Page.goto!(page, "/sign-up")
       Page.get_by_label(page, "Email") |> Locator.fill!("ada@example.com")
     end
 
     status =
-      step("submit", fn ->
+      Test.step("submit", fn ->
         Page.get_by_role(page, :button, name: "Sign up") |> Locator.click!()
         Page.get_by_role(page, :status)
       end)
@@ -313,7 +314,7 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.StepsTest do
   end
 
   defp sign_up(page, email) do
-    step "sign up", box: true do
+    Test.step "sign up", box: true do
       Page.goto!(page, "/sign-up")
       Page.get_by_label(page, "Email") |> Locator.fill!(email)
       Page.get_by_role(page, :button, name: "Sign up") |> Locator.click!()
@@ -335,14 +336,14 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.SnapshotsTest do
     on_exit(fn -> Application.put_env(:playwright_ex, :test, config) end)
   end
 
-  test "signs up", %{page: page, tmp_dir: tmp_dir} = ctx do
+  test "signs up", %{page: page, tmp_dir: tmp_dir} do
     Page.goto!(page, "/sign-up")
     Expect.to_have_screenshot!(page, name: "home.png")
     Expect.to_match_aria_snapshot!(Page.locator(page, "body"))
 
     platform = Atom.to_string(elem(:os.type(), 1))
     dir = Path.join(tmp_dir, "guides/testing_with_exunit_test.exs-snapshots")
-    assert snapshot_path(ctx, "home.png", kind: :screenshot) == Path.join(dir, "home-#{platform}.png")
+    assert Test.snapshot_path("home.png", kind: :screenshot) == Path.join(dir, "home-#{platform}.png")
     assert File.exists?(Path.join(dir, "home-#{platform}.png"))
     assert File.exists?(Path.join(dir, "signs-up-1.aria.yml"))
     # Both written snapshots would fail the test at its end: taken here.
@@ -350,21 +351,41 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.SnapshotsTest do
   end
 end
 
-defmodule PlaywrightEx.Guides.TestingWithExUnit.IsolatedTest do
-  # "Isolated modules".
+defmodule PlaywrightEx.Guides.TestingWithExUnit.ExclusiveTest do
+  # "Exclusive browsers".
   use ExUnit.Case, async: true
-
   use PlaywrightEx.Test
 
   alias PlaywrightEx.Browser
+  alias PlaywrightEx.Test.BrowserPool
 
-  setup_all ctx, do: browser(ctx, isolate: true)
+  setup_all do
+    %{browser: BrowserPool.exclusive()}
+  end
 
   test "a browser of the module's own", %{browser: browser} do
     assert Browser.is_connected(browser)
+    refute browser == BrowserPool.shared()
+  end
+end
+
+defmodule PlaywrightEx.Guides.TestingWithExUnit.GroupTest do
+  # "Exclusive browsers": a group's modules share a browser. Deviation: `BROWSER`'s.
+  use ExUnit.Case, async: true, group: :firefox
+  use PlaywrightEx.Test
+
+  alias PlaywrightEx.Browser
+  alias PlaywrightEx.BrowserContext
+  alias PlaywrightEx.Page
+  alias PlaywrightEx.Test.BrowserPool
+
+  setup do
+    context = Browser.new_context!(BrowserPool.shared(browser_name: String.to_atom(PlaywrightEx.TestBrowser.name())))
+    %{page: BrowserContext.new_page!(context)}
   end
 
-  test "called in a test, the same driver for the module", ctx do
-    assert browser(ctx, isolate: true) == Map.take(ctx, [:playwright, :browser_name, :browser])
+  test "a page of the shared browser", %{page: page} do
+    Page.set_content!(page, "<p>Group</p>")
+    assert PlaywrightEx.Test.info().test_pid == self()
   end
 end

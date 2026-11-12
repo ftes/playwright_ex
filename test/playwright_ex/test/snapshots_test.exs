@@ -3,8 +3,7 @@ defmodule PlaywrightEx.Test.SnapshotsTest do
   # their outputs in the test's output dir, and a written snapshot as the test's error. How the
   # errors fail a test: `PlaywrightEx.Test.EndToEndTest`.
   # `config :playwright_ex, :test` is global.
-  use ExUnit.Case, async: false
-  use PlaywrightEx.Test
+  use PlaywrightEx.Case, async: false
 
   import ExUnit.CaptureIO
 
@@ -12,13 +11,9 @@ defmodule PlaywrightEx.Test.SnapshotsTest do
   alias PlaywrightEx.ExpectError
   alias PlaywrightEx.Page
   alias PlaywrightEx.Test.Pool
-  alias PlaywrightEx.Test.Recorder
   alias PlaywrightEx.Test.TestInfo
 
   @moduletag :tmp_dir
-
-  setup_all :browser
-  setup [:new_context, :new_page]
 
   setup %{tmp_dir: tmp_dir} do
     put_config(snapshot_dir: tmp_dir)
@@ -47,26 +42,25 @@ defmodule PlaywrightEx.Test.SnapshotsTest do
     |> Task.await(:infinity)
   end
 
-  test "upstream's default templates", %{snapshots: snapshots, platform: platform} = ctx do
-    assert snapshot_path(ctx, "home.png", kind: :screenshot) == Path.join(snapshots, "home-#{platform}.png")
-    assert snapshot_path(ctx, "home.png") == Path.join(snapshots, "home-#{platform}.png")
-    assert snapshot_path(ctx, "body.aria.yml", kind: :aria) == Path.join(snapshots, "body.aria.yml")
-    # A list is a path, not sanitized; a string is.
-    assert snapshot_path(ctx, ["a b", "c.png"], kind: :screenshot) == Path.join(snapshots, "a b/c-#{platform}.png")
-    assert snapshot_path(ctx, "a b/c?.png", kind: :screenshot) == Path.join(snapshots, "a-b-c--#{platform}.png")
-    assert snapshot_path(ctx, ["one.png"], kind: :screenshot) == snapshot_path(ctx, "one.png", kind: :screenshot)
+  test "upstream's default templates", %{snapshots: snapshots, platform: platform} do
+    assert Test.snapshot_path("home.png", kind: :screenshot) == Path.join(snapshots, "home-#{platform}.png")
+    assert Test.snapshot_path("home.png") == Path.join(snapshots, "home-#{platform}.png")
+    assert Test.snapshot_path("body.aria.yml", kind: :aria) == Path.join(snapshots, "body.aria.yml")
+    # Sanitized, as upstream's single name.
+    assert Test.snapshot_path("a b/c?.png", kind: :screenshot) == Path.join(snapshots, "a-b-c--#{platform}.png")
 
-    assert_raise ArgumentError, ~r/unknown kind "other"/, fn -> snapshot_path(ctx, "a.png", kind: :other) end
+    assert_raise ArgumentError, ~r/unknown kind "other"/, fn -> Test.snapshot_path("a.png", kind: :other) end
+    assert_raise ArgumentError, ~r/unknown options \[:path\]/, fn -> Test.snapshot_path("a.png", path: "x") end
   end
 
-  test "the template's tokens", %{tmp_dir: tmp_dir, platform: platform} = ctx do
+  test "the template's tokens", %{tmp_dir: tmp_dir, platform: platform} do
     put_config(
       snapshot_path_template:
         "{snapshotDir}/{testFileDir}/{testFileBaseName}/{testName}/{arg}{-projectName}{-platform}{ext}|" <>
           "{testDir}|{testFilePath}|{testFileName}"
     )
 
-    assert snapshot_path(ctx, "home.png") ==
+    assert Test.snapshot_path("home.png") ==
              Path.join(tmp_dir, "playwright_ex/test/snapshots_test/the-template-s-tokens/home-#{platform}.png") <>
                "|#{File.cwd!()}/test|playwright_ex/test/snapshots_test.exs|snapshots_test.exs"
 
@@ -80,14 +74,14 @@ defmodule PlaywrightEx.Test.SnapshotsTest do
       Keyword.put(previous, :to_match_aria_snapshot, %{pathTemplate: "{arg}{ext}"})
     )
 
-    assert snapshot_path(ctx, "body.aria.yml", kind: :aria) == Path.join(File.cwd!(), "body.aria.yml")
+    assert Test.snapshot_path("body.aria.yml", kind: :aria) == Path.join(File.cwd!(), "body.aria.yml")
   end
 
   test "a test file outside test/ resolves against it, as upstream's path.relative(testDir, file)",
-       %{tmp_dir: tmp_dir, platform: platform} = ctx do
-    ctx = %{ctx | file: Path.join(File.cwd!(), "integration/checkout_test.exs")}
+       %{tmp_dir: tmp_dir, platform: platform} do
+    this = %{TestInfo.current() | file: Path.join(File.cwd!(), "integration/checkout_test.exs")}
 
-    assert snapshot_path(ctx, "home.png", kind: :screenshot) ==
+    assert TestInfo.snapshot_path(this, "home.png", "screenshot") ==
              Path.expand("../integration/checkout_test.exs-snapshots/home-#{platform}.png", tmp_dir)
   end
 
@@ -111,7 +105,7 @@ defmodule PlaywrightEx.Test.SnapshotsTest do
   end
 
   test "a missing snapshot is written where its name resolves, as the test's error",
-       %{page: page, snapshots: snapshots} = ctx do
+       %{page: page, snapshots: snapshots} do
     Page.set_content!(page, "<h1>title</h1>")
 
     assert :ok = Expect.to_match_aria_snapshot(page)
@@ -119,7 +113,7 @@ defmodule PlaywrightEx.Test.SnapshotsTest do
 
     aria = Path.join(snapshots, "a-missing-snapshot-is-written-where-its-name-resolves-as-the-test-s-error-1.aria.yml")
     assert File.read!(aria) == ~s(- heading "title" [level=1])
-    screenshot = snapshot_path(ctx, "home.png", kind: :screenshot)
+    screenshot = Test.snapshot_path("home.png", kind: :screenshot)
     assert File.exists?(screenshot)
 
     assert [
@@ -132,9 +126,9 @@ defmodule PlaywrightEx.Test.SnapshotsTest do
     assert second == "A snapshot doesn't exist at #{screenshot}, writing actual."
   end
 
-  test "a snapshot's outputs go to the test's output dir", %{page: page} = ctx do
+  test "a snapshot's outputs go to the test's output dir", %{page: page} do
     Page.set_content!(page, "<h1>expected</h1>")
-    path = snapshot_path(ctx, "home.png", kind: :screenshot)
+    path = Test.snapshot_path("home.png", kind: :screenshot)
     File.mkdir_p!(Path.dirname(path))
     File.write!(path, Page.screenshot!(page))
     Page.set_content!(page, "<h1>actual</h1>")
@@ -142,7 +136,7 @@ defmodule PlaywrightEx.Test.SnapshotsTest do
     assert {:error, %ExpectError{matcherResult: result}} =
              Expect.to_have_screenshot(page, name: "home.png", timeout: 1000)
 
-    dir = Path.expand(Recorder.output_dir(ctx))
+    dir = Test.info().output_dir
     assert result.expected == path
     assert result.actual == Path.join(dir, "home-actual.png")
     assert result.diff == Path.join(dir, "home-diff.png")
@@ -173,7 +167,7 @@ defmodule PlaywrightEx.Test.SnapshotsTest do
     {pid, ref} = spawn_monitor(fn -> receive(do: (:exit -> exit(:shutdown))) end)
     this = %{test_info | test_pid: pid}
     :ets.insert(Pool.table(), {{:test_info, pid, :info}, this})
-    Pool.watch(pid, Pool.start_module(), Pool.outside())
+    Pool.watch(pid, Pool.outside())
     error = &{:error, %RuntimeError{message: &1}, []}
 
     # The end of its body takes the errors; a later one (a Task of the test's) is printed.

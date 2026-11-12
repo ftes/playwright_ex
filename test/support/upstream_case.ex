@@ -3,14 +3,16 @@ defmodule PlaywrightEx.UpstreamCase do
   Case template for tests mirrored from upstream `tests/` (see `PORTING.md`).
 
   Fixtures, as upstream's `tests/config/{baseTest,serverFixtures,browserTest}.ts` provide them.
-  Upstream's worker-scoped `playwright` and `browser` come from `PlaywrightEx.Test.browser/2`:
-  shared by the modules running at once (a driver under test, `PWTEST_UNDER_TEST`). A module that
-  changes the driver or its browser for others (registers selectors, closes or traces `browser`,
-  counts its contexts, edits the Playwright's defaults) declares `use PlaywrightEx.UpstreamCase,
-  isolate: true` and gets upstream's worker: a driver and browser of its own while it runs, reused
-  by the next isolated module (a fresh one after a failure). `PlaywrightEx.SharedDriver` closes
-  what a test or module created and fails a shared module's test that changed the driver.
-  `@moduletag :own_worker` starts a driver for the module alone:
+  Upstream's worker-scoped `playwright` and `browser` come from
+  `PlaywrightEx.Test.BrowserPool.shared/1`, in `setup` (`setup_all`'s for the module's own
+  fixtures): shared by the modules running at once (a driver under test, `PWTEST_UNDER_TEST`). A
+  module that changes the driver or its browser for others (registers selectors, closes or traces
+  `browser`, counts its contexts, edits the Playwright's defaults) declares `use
+  PlaywrightEx.UpstreamCase, isolate: true` and gets upstream's worker,
+  `PlaywrightEx.Test.BrowserPool.exclusive/1` in `setup_all`: a driver and browser of its own
+  while it runs, reused by the next isolated module (a fresh one after a failure).
+  `PlaywrightEx.SharedDriver` closes what a test or module created and fails a shared module's
+  test that changed the driver. `@moduletag :own_worker` starts a driver for the module alone:
 
     * `playwright`, `browser_name` (`BROWSER` env, default `"chromium"`), `headless` (`HEADED`
       env, see `PlaywrightEx.TestBrowser.headless/0`), `browser_type`, `browser` (the worker's,
@@ -46,6 +48,8 @@ defmodule PlaywrightEx.UpstreamCase do
   test, `--include skip` neither): `PW_UNSKIP=env,flaky mix test <files>` re-checks them on a bump.
   """
   use ExUnit.CaseTemplate
+  # First: the template's own `setup` callbacks create contexts.
+  use PlaywrightEx.Test
 
   alias Mix.PlaywrightEx.TestRegistry
   alias PlaywrightEx.APIRequest
@@ -59,14 +63,15 @@ defmodule PlaywrightEx.UpstreamCase do
   alias PlaywrightEx.Runtime.Api
   alias PlaywrightEx.Runtime.Heap
   alias PlaywrightEx.Selectors
+  alias PlaywrightEx.Test.BrowserPool
   alias PlaywrightEx.TestBrowser
   alias PlaywrightEx.TestServer
 
   using opts do
     quote do
-      # The fixtures stand in for the fragments; `test` is ours, on `PlaywrightEx.Test.test/3`.
-      use PlaywrightEx.Test
-      import PlaywrightEx.Test, only: []
+      # Registered by the template's body; `test` is ours, on `PlaywrightEx.Test.test/3`.
+      import ExUnit.Case, only: [describe: 2]
+      require PlaywrightEx.Test
 
       if unquote(opts[:isolate]), do: @moduletag(isolate: true)
 
@@ -219,8 +224,11 @@ defmodule PlaywrightEx.UpstreamCase do
     playwright
   end
 
+  # The module's driver: under test, set up as Playwright Test's fixtures.
+  defp pool_options, do: [driver: [env: [{"PWTEST_UNDER_TEST", "1"}]], on_start: {__MODULE__, :on_start, []}]
+
   @doc """
-  The `on_start` of the module's driver (`PlaywrightEx.Test.browser/2`), on each new driver:
+  The `on_start` of the module's driver (`PlaywrightEx.Test.BrowserPool`), on each new driver:
   `setup_playwright/2` with an artifacts dir of the driver's, removed when its connection goes
   (a driver stopped or restarted). `test_helper.exs` removes `artifacts_root/0` after the suite.
   """
@@ -297,14 +305,12 @@ defmodule PlaywrightEx.UpstreamCase do
         setup_playwright(playwright, artifacts_dir)
         {playwright, BrowserType.launch!(TestBrowser.browser_type(playwright))}
       else
-        %{playwright: playwright, browser: browser} =
-          PlaywrightEx.Test.browser(tags,
-            driver: [env: [{"PWTEST_UNDER_TEST", "1"}]],
-            on_start: {__MODULE__, :on_start, []},
-            isolate: PlaywrightEx.SharedDriver.isolate?(tags)
-          )
+        browser =
+          if PlaywrightEx.SharedDriver.isolate?(tags),
+            do: BrowserPool.exclusive(pool_options()),
+            else: BrowserPool.shared(pool_options())
 
-        {playwright, browser}
+        {BrowserPool.playwright(browser), browser}
       end
 
     # The browsers and contexts the module's own `setup_all` creates (a `browser` of its own).
@@ -339,11 +345,31 @@ defmodule PlaywrightEx.UpstreamCase do
       headless: TestBrowser.headless(),
       browser_type: browser_type,
       browser: browser,
+      pooled_browser: browser,
       server: server,
       https_server: https_server,
       asset: fn path -> Path.join([assets | String.split(path, "/")]) end,
       shared_driver: [shared: [browser], guard: not (tags[:own_worker] || PlaywrightEx.SharedDriver.isolate?(tags))]
     }
+  end
+
+  # A shared module's tests get the shared browser in `setup`: launched again if lost. Not when
+  # the module's own `setup_all` gave it a `browser` of its own.
+  setup %{shared_driver: shared_driver, browser: browser, pooled_browser: pooled} do
+    with true <- shared_driver[:guard] && browser == pooled,
+         fresh when fresh != browser <- BrowserPool.shared(pool_options()) do
+      playwright = BrowserPool.playwright(fresh)
+
+      %{
+        playwright: playwright,
+        browser: fresh,
+        pooled_browser: fresh,
+        browser_type: TestBrowser.browser_type(playwright),
+        shared_driver: Keyword.put(shared_driver, :shared, [fresh])
+      }
+    else
+      _ -> :ok
+    end
   end
 
   setup %{server: server, https_server: https_server} do

@@ -1,23 +1,25 @@
 defmodule PlaywrightEx.Test.ArtifactsTest do
+  # The recording of a registered test, on fake tests: a process of its own registered as
+  # `use PlaywrightEx.Test`'s setup does (`__register__/1`), whose contexts are made in processes
+  # with it in `$callers`, and whose end (`__finish__/2`, its `on_exit`) runs here.
   use ExUnit.Case, async: true
 
+  import ExUnit.CaptureIO
   import ExUnit.CaptureLog
-  use PlaywrightEx.Test
 
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Page
-  alias PlaywrightEx.Runtime.Heap
+  alias PlaywrightEx.Test.BrowserPool
   alias PlaywrightEx.Test.ErrorContext
-  alias PlaywrightEx.Test.Options
   alias PlaywrightEx.Test.Pool
   alias PlaywrightEx.Test.Recorder
   alias PlaywrightEx.Tracing
   alias PlaywrightEx.VideoPlayer
 
-  setup_all :browser
-
-  defp dir(ctx), do: Recorder.output_dir(ctx)
+  setup do
+    %{browser: BrowserPool.shared()}
+  end
 
   defp trace(dir, handle), do: PlaywrightEx.Utils.parse_trace_raw(Path.join(dir, "trace.zip"), handle)
 
@@ -29,14 +31,27 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     page
   end
 
-  # A recorder of a test process of its own (watched as the `test` macro's), which ends when sent
+  # A registered test with `tags` (the modes), in a process of its own, which ends when sent
   # `{:end, messages, reason}`: `messages` of its pid (`&{:passed, &1}`), then exit `reason`.
-  defp fake_test(ctx, modes, marked \\ Pool.outside()) do
-    token = Pool.start_module()
-    on_exit(fn -> Pool.module_finished(token) end)
+  # Its `run.(fun)` runs `fun` in a process with it in `$callers`.
+  defp fake_test(tags, marked? \\ true) do
+    parent = self()
+    name = "t#{System.unique_integer([:positive])}"
 
     pid =
       spawn(fn ->
+        context =
+          Map.merge(tags, %{
+            test_pid: self(),
+            module: __MODULE__,
+            test: :"test #{name}",
+            file: __ENV__.file,
+            line: 1,
+            playwright_ex: if(marked?, do: :marked)
+          })
+
+        send(parent, {:registered, PlaywrightEx.Test.__register__(context)})
+
         receive do
           {:end, messages, reason} ->
             for message <- messages, do: Pool.notify(message.(self()))
@@ -44,187 +59,183 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
         end
       end)
 
-    Pool.watch(pid, token, marked)
-    dir = Path.join(System.tmp_dir!(), "playwright_ex-artifacts-test-#{System.unique_integer([:positive])}")
-    on_exit(fn -> File.rm_rf!(dir) end)
+    assert_receive {:registered, test}
+    on_exit(fn -> File.rm_rf!(test.dir) end)
 
-    recorder =
-      Recorder.start(
-        pid,
-        Options.artifacts(Map.to_list(modes))
-        |> Map.merge(%{dir: dir, title: "t", title_path: ["x_test.exs", "t"], location: {__ENV__.file, 1}})
+    run = fn fun ->
+      Task.await(
+        Task.async(fn ->
+          Process.put(:"$callers", [pid])
+          fun.()
+        end),
+        30_000
       )
+    end
 
-    Recorder.ensure_listener(recorder, Heap.get(ctx.browser, :_instrumentation))
-
-    %{
-      pid: pid,
-      recorder: recorder,
-      dir: dir,
-      # A context of the fake test: made in a process with it in `$callers`.
-      context: fn ->
-        Task.await(
-          Task.async(fn ->
-            Process.put(:"$callers", [pid])
-            Browser.new_context!(ctx.browser)
-          end)
-        )
-      end
-    }
+    %{pid: pid, dir: test.dir, run: run}
   end
 
-  defp end_test(%{pid: pid}, messages, reason) do
-    ref = Process.monitor(pid)
-    send(pid, {:end, messages, reason})
+  # Ends the fake test, then runs its `on_exit`: what it printed.
+  defp finish(test, messages, reason, budget \\ 10_000) do
+    ref = Process.monitor(test.pid)
+    send(test.pid, {:end, messages, reason})
     assert_receive {:DOWN, ^ref, :process, _, _}
+    capture_io(fn -> PlaywrightEx.Test.__finish__(test.pid, budget) end)
   end
+
+  defp passed, do: &{:passed, &1}
+  defp failed, do: &{:failed, &1, {:error, %RuntimeError{message: "on purpose"}, []}}
 
   @tag :tmp_dir
-  test "records every context of the test, and no other", %{browser: browser, tmp_dir: own_videos} = ctx do
-    dir = dir(ctx)
+  test "records every context of the test, and no other", %{browser: browser, tmp_dir: own_videos} do
+    test = fake_test(%{trace: :on, screenshot: :on, video: :on})
     test_pid = self()
 
-    # Registered first: runs after the recording's `on_exit`.
-    on_exit(fn ->
-      files = File.ls!(dir)
-
-      assert Enum.sort(Enum.filter(files, &(&1 =~ ~r/\.webm$/))) ==
-               ~w(video-1.webm video-2.webm video-3.webm video-4.webm video.webm)
-
-      assert Enum.sort(Enum.filter(files, &(&1 =~ ~r/\.png$/))) == for(n <- 1..5, do: "test-finished-#{n}.png")
-      assert [_] = File.ls!(own_videos)
-
-      trace = trace(dir, browser)
-      assert trace.resources |> Map.keys() |> Enum.count(&(&1 =~ ~r/^\d-trace\.trace$/)) == 5
-
-      for marker <- ~w(ALICE BOB PLAIN TASK TASK-NEW), do: assert(traced?(trace, marker), "#{marker} not in the trace")
-      refute traced?(trace, "OTHER")
-      File.rm_rf!(dir)
-    end)
-
-    record_artifacts(ctx, trace: :on, screenshot: :on, video: :on)
-
-    # Another module's context: a process that is not the test's.
+    # Another test's context: a process that is not the test's.
     spawn(fn ->
       context = Browser.new_context!(browser)
       page(context, "OTHER")
       send(test_pid, {:other, context})
     end)
 
-    %{context: alice} = new_context(ctx)
-    %{context: bob} = new_context(ctx, context_options: [record_video: %{dir: own_videos}])
-    plain = Browser.new_context!(browser)
-    page(alice, "ALICE")
-    page(bob, "BOB")
-    page(plain, "PLAIN")
+    test.run.(fn ->
+      alice = Browser.new_context!(browser)
+      bob = Browser.new_context!(browser, record_video: %{dir: own_videos})
+      page(alice, "ALICE")
+      page(bob, "BOB")
 
-    Task.async(fn ->
-      context = Browser.new_context!(browser)
-      page(context, "TASK")
-      BrowserContext.close!(context)
-      %{context: context} = new_context(ctx)
-      page(context, "TASK-NEW")
-      BrowserContext.close!(context)
+      Task.async(fn ->
+        context = Browser.new_context!(browser)
+        page(context, "TASK")
+        BrowserContext.close!(context)
+        context = Browser.new_context!(browser)
+        page(context, "TASK-NEW")
+        BrowserContext.close!(context)
+      end)
+      |> Task.await()
     end)
-    |> Task.await()
 
     assert_receive {:other, other}
     BrowserContext.close!(other)
+    finish(test, [passed()], :shutdown)
+
+    files = File.ls!(test.dir)
+    assert Enum.sort(Enum.filter(files, &(&1 =~ ~r/\.webm$/))) == ~w(video-1.webm video-2.webm video-3.webm video.webm)
+    # The pages of the contexts closed in the body (taken at their close; no body end here).
+    assert Enum.sort(Enum.filter(files, &(&1 =~ ~r/\.png$/))) == for(n <- 1..4, do: "test-finished-#{n}.png")
+    assert [_] = File.ls!(own_videos)
+
+    trace = trace(test.dir, browser)
+    assert trace.resources |> Map.keys() |> Enum.count(&(&1 =~ ~r/^\d-trace\.trace$/)) == 4
+
+    for marker <- ~w(ALICE BOB TASK TASK-NEW), do: assert(traced?(trace, marker), "#{marker} not in the trace")
+    refute traced?(trace, "OTHER")
   end
 
-  test "a failing artifact step is logged and the test's result stands", ctx do
-    on_exit(fn -> File.rm_rf!(dir(ctx)) end)
-    record_artifacts(ctx, trace: :on)
-    %{context: context} = new_context(ctx)
-    page(context, "STOPPED")
-    # The test stops the trace the recorder started: its `stop_chunk` fails.
-    Tracing.stop!(BrowserContext.tracing(context))
-    log = capture_log(fn -> assert BrowserContext.close(context) == :ok end)
+  test "a context of another browser on the driver is recorded", %{browser: browser} do
+    test = fake_test(%{trace: :on})
+    other = BrowserPool.shared(launch_options: [slow_mo: 1])
+    assert BrowserPool.playwright(other) == BrowserPool.playwright(browser) and other != browser
+
+    test.run.(fn ->
+      page(Browser.new_context!(browser), "OWN")
+      page(Browser.new_context!(other), "OTHER-BROWSER")
+    end)
+
+    finish(test, [passed()], :shutdown)
+    trace = trace(test.dir, browser)
+    assert traced?(trace, "OWN") and traced?(trace, "OTHER-BROWSER")
+  end
+
+  test "a context closed early keeps its artifacts; the ones left are closed at the end", %{browser: browser} do
+    test = fake_test(%{trace: :on})
+
+    {early, left} =
+      test.run.(fn ->
+        early = Browser.new_context!(browser)
+        page(early, "EARLY")
+        left = Browser.new_context!(browser)
+        page(left, "LEFT")
+        {early, left}
+      end)
+
+    BrowserContext.close!(early)
+    test_pid = self()
+    BrowserContext.on(left, :close, fn _ -> send(test_pid, :closed) end)
+    finish(test, [passed()], :shutdown)
+    assert_received :closed
+    trace = trace(test.dir, browser)
+    assert traced?(trace, "EARLY") and traced?(trace, "LEFT")
+  end
+
+  test "a failing artifact step is logged and the test's result stands", %{browser: browser} do
+    test = fake_test(%{trace: :on})
+
+    log =
+      capture_log(fn ->
+        test.run.(fn ->
+          context = Browser.new_context!(browser)
+          page(context, "STOPPED")
+          # The test stops the trace the recorder started: its `stop_chunk` fails.
+          Tracing.stop!(BrowserContext.tracing(context))
+          assert BrowserContext.close(context) == :ok
+        end)
+      end)
+
     assert log =~ "PlaywrightEx.Test could not save the trace"
+    finish(test, [passed()], :shutdown)
   end
 
-  test "finish is bounded: past its budget it logs, closes the contexts left and stops the recorder", ctx do
-    opts = Map.merge(Options.artifacts(trace: :on), %{dir: dir(ctx), title: "bounded"})
-    recorder = Recorder.start(self(), opts)
-    Recorder.ensure_listener(recorder, PlaywrightEx.Runtime.Heap.get(ctx.browser, :_instrumentation))
-    context = Browser.new_context!(ctx.browser)
+  test "finish is bounded: past its budget it logs, closes the contexts left and stops the recorder", %{
+    browser: browser
+  } do
+    test = fake_test(%{trace: :on})
+    context = test.run.(fn -> Browser.new_context!(browser) end)
     test_pid = self()
     BrowserContext.on(context, :close, fn _ -> send(test_pid, :closed) end)
+    recorder = Recorder.lookup(test.pid)
     tmp = :sys.get_state(recorder).opts.tmp
 
     # Its artifact work blocks on the suspended recorder past the 50 ms budget.
     :sys.suspend(recorder)
     spawn(fn -> Process.sleep(500) && :sys.resume(recorder) end)
 
-    log = capture_log(fn -> assert Recorder.finish(recorder, 50) == :ok end)
+    log = capture_log(fn -> finish(test, [passed()], :shutdown, 50) end)
     assert log =~ "PlaywrightEx.Test could not finish the recording: it took over 50 ms"
     refute Process.alive?(recorder)
-    assert Recorder.lookup(self()) == nil
+    assert Recorder.lookup(test.pid) == nil
     refute File.exists?(tmp)
     assert_receive :closed, 10_000
   end
 
+  @tag screenshot: :on
   test "the end of the body with a recorder gone leaves the test's result as is" do
-    Process.put({PlaywrightEx.Test, :recording}, {spawn(fn -> :ok end), :on})
+    :ets.insert(Pool.table(), {{:recorder, self()}, spawn(fn -> :ok end)})
     assert PlaywrightEx.Test.__passed__() == :ok
-    Process.delete({PlaywrightEx.Test, :recording})
-  end
-
-  test "finish logs nothing for a listener whose driver closed", ctx do
-    name = :"#{inspect(__MODULE__)}.closed"
-    start_supervised!({PlaywrightEx.Supervisor, name: name})
-    instrumentation = PlaywrightEx.Runtime.Heap.get(PlaywrightEx.playwright(name), :_instrumentation)
-
-    # A test that ended unwatched: no result to wait for.
-    test_pid = spawn(fn -> :ok end)
-    recorder = Recorder.start(test_pid, Map.merge(Options.artifacts(trace: :on), %{dir: dir(ctx), title: "closed"}))
-    Recorder.ensure_listener(recorder, instrumentation)
-    stop_supervised!(name)
-
-    # Other tests log meanwhile.
-    refute capture_log(fn -> assert Recorder.finish(recorder, 5000) == :ok end) =~ "could not remove the listener"
+    :ets.delete(Pool.table(), {:recorder, self()})
   end
 
   # `didFinishTestFunction`: the open pages at the end of the body, before `on_exit` closes them;
   # then (`persistTemporary`) those of the contexts closed in the body.
-  test "screenshots at the end of the body, then of the contexts closed in it", ctx do
-    dir = dir(ctx)
+  test "screenshots at the end of the body, then of the contexts closed in it", %{browser: browser} do
+    test = fake_test(%{screenshot: :on})
 
-    on_exit(fn ->
-      assert Enum.sort(File.ls!(dir)) == ["test-finished-1.png", "test-finished-2.png"]
-      File.rm_rf!(dir)
+    test.run.(fn ->
+      closed = Browser.new_context!(browser)
+      page(closed, "CLOSED")
+      BrowserContext.close!(closed)
+      page(Browser.new_context!(browser), "OPEN")
     end)
 
-    record_artifacts(ctx, screenshot: :on)
-    %{context: closed} = new_context(ctx)
-    page(closed, "CLOSED")
-    BrowserContext.close!(closed)
-    %{context: open} = new_context(ctx)
-    page = page(open, "OPEN")
-    on_exit(fn -> Page.close!(page) end)
-  end
-
-  test "a plain context of another browser on the driver is recorded", ctx do
-    dir = dir(ctx)
-
-    on_exit(fn ->
-      trace = trace(dir, ctx.browser)
-      assert traced?(trace, "OWN") and traced?(trace, "OTHER-BROWSER")
-      File.rm_rf!(dir)
-    end)
-
-    record_artifacts(ctx, trace: :on)
-    # Other launch options: another browser, the same driver.
-    %{playwright: playwright, browser: browser} = browser(launch_options: [slow_mo: 1])
-    assert playwright == ctx.playwright and browser != ctx.browser
-    page(Browser.new_context!(ctx.browser), "OWN")
-    page(Browser.new_context!(browser), "OTHER-BROWSER")
+    Recorder.capture(Recorder.lookup(test.pid), false)
+    finish(test, [passed()], :shutdown)
+    assert Enum.sort(File.ls!(test.dir)) == ["test-finished-1.png", "test-finished-2.png"]
   end
 
   @tag :tmp_dir
   test "a trace keeps only its own stacks and sources while another test traces on the driver",
-       %{browser: browser, tmp_dir: tmp} = ctx do
-    dir = dir(ctx)
+       %{browser: browser, tmp_dir: tmp} do
+    test = fake_test(%{trace: :on})
     # The other test's calls come from a file of their own.
     other_file = Path.join(tmp, "other_calls.ex")
 
@@ -235,30 +246,7 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
 
     [{other, _}] = Code.compile_file(other_file)
     source = &"src/#{:crypto.hash(:sha, &1) |> Base.encode16(case: :lower)}#{Path.extname(&1)}"
-
-    on_exit(fn ->
-      {:ok, files} = :zip.unzip(String.to_charlist(Path.join(dir, "trace.zip")), [:memory])
-      files = Map.new(files, fn {name, data} -> {to_string(name), data} end)
-      # The context's chunk is the first of two, `test.trace`'s the second.
-      %{"files" => paths, "stacks" => stacks} = JSON.decode!(files["0-trace.stacks"])
-      call_ids = for %{"type" => "before", "callId" => id} <- trace(dir, browser).events, do: id
-
-      # Every stack is one of the trace's actions', every frame's file is in `files`.
-      assert stacks != []
-      for [id, frames] <- stacks, do: assert(id in call_ids and Enum.all?(frames, &(hd(&1) < length(paths))))
-      assert Enum.uniq(paths) == paths
-      assert __ENV__.file in paths
-      refute other_file in paths
-
-      sources = for "src/" <> _ = name <- Map.keys(files), do: name
-      assert source.(__ENV__.file) in sources
-      assert sources -- Enum.map(paths, source) == []
-      File.rm_rf!(dir)
-    end)
-
-    record_artifacts(ctx, trace: :on)
-    %{context: context} = new_context(ctx)
-    page = page(context, "OWN")
+    page = test.run.(fn -> page(Browser.new_context!(browser), "OWN") end)
     test_pid = self()
 
     # Another test (a process that is not this test's) traces with sources meanwhile.
@@ -273,87 +261,111 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     end)
 
     assert_receive :other_done, 10_000
-    Page.set_content!(page, "<h1>AFTER</h1>")
+    test.run.(fn -> Page.set_content!(page, "<h1>AFTER</h1>") end)
+    finish(test, [passed()], :shutdown)
+
+    {:ok, files} = :zip.unzip(String.to_charlist(Path.join(test.dir, "trace.zip")), [:memory])
+    files = Map.new(files, fn {name, data} -> {to_string(name), data} end)
+    # The context's chunk is the first of two, `test.trace`'s the second.
+    %{"files" => paths, "stacks" => stacks} = JSON.decode!(files["0-trace.stacks"])
+    call_ids = for %{"type" => "before", "callId" => id} <- trace(test.dir, browser).events, do: id
+
+    # Every stack is one of the trace's actions', every frame's file is in `files`.
+    assert stacks != []
+    for [id, frames] <- stacks, do: assert(id in call_ids and Enum.all?(frames, &(hd(&1) < length(paths))))
+    assert Enum.uniq(paths) == paths
+    assert __ENV__.file in paths
+    refute other_file in paths
+
+    sources = for "src/" <> _ = name <- Map.keys(files), do: name
+    assert source.(__ENV__.file) in sources
+    assert sources -- Enum.map(paths, source) == []
   end
 
-  test "the trace's options go to Tracing.start", ctx do
-    dir = dir(ctx)
+  test "the trace's options go to Tracing.start", %{browser: browser} do
+    test = fake_test(%{trace: [mode: :on, snapshots: false, screenshots: false, sources: false]})
+    test.run.(fn -> page(Browser.new_context!(browser), "UNSNAPSHOTTED") end)
+    finish(test, [passed()], :shutdown)
 
-    on_exit(fn ->
-      trace = trace(dir, ctx.browser)
-      assert traced?(trace, "UNSNAPSHOTTED")
-      refute Enum.any?(trace.events, &(&1["type"] in ["frame-snapshot", "screencast-frame"]))
-      refute Enum.any?(Map.keys(trace.resources), &String.starts_with?(&1, "src/"))
-      File.rm_rf!(dir)
-    end)
-
-    record_artifacts(ctx, trace: [mode: :on, snapshots: false, screenshots: false, sources: false])
-    %{context: context} = new_context(ctx)
-    page(context, "UNSNAPSHOTTED")
+    trace = trace(test.dir, browser)
+    assert traced?(trace, "UNSNAPSHOTTED")
+    refute Enum.any?(trace.events, &(&1["type"] in ["frame-snapshot", "screencast-frame"]))
+    refute Enum.any?(Map.keys(trace.resources), &String.starts_with?(&1, "src/"))
   end
 
-  test "the screenshot's options go to Page.screenshot", ctx do
-    dir = dir(ctx)
+  test "the screenshot's options go to Page.screenshot", %{browser: browser} do
+    test = fake_test(%{screenshot: [mode: :on, full_page: true]})
 
-    on_exit(fn ->
-      # The PNG's IHDR: the full page, past the 720 px viewport.
-      <<_::binary-size(16), _width::32, height::32, _::binary>> = File.read!(Path.join(dir, "test-finished-1.png"))
-      assert height > 2000
-      File.rm_rf!(dir)
+    test.run.(fn ->
+      Page.set_content!(
+        BrowserContext.new_page!(Browser.new_context!(browser)),
+        ~s(<div style="height: 2000px">TALL</div>)
+      )
     end)
 
-    record_artifacts(ctx, screenshot: [mode: :on, full_page: true])
-    %{context: context} = new_context(ctx)
-    Page.set_content!(BrowserContext.new_page!(context), ~s(<div style="height: 2000px">TALL</div>))
+    finish(test, [passed()], :shutdown)
+    # The PNG's IHDR: the full page, past the 720 px viewport.
+    <<_::binary-size(16), _width::32, height::32, _::binary>> = File.read!(Path.join(test.dir, "test-finished-1.png"))
+    assert height > 2000
   end
 
   @tag skip: VideoPlayer.skip_reason()
-  test "the video's size goes to record_video", ctx do
-    dir = dir(ctx)
-
-    on_exit(fn ->
-      player = VideoPlayer.new(Path.join(dir, "video.webm"))
-      assert {player.videoWidth, player.videoHeight} == {320, 240}
-      File.rm_rf!(dir)
-    end)
-
-    record_artifacts(ctx, video: [mode: :on, size: %{width: 320, height: 240}])
-    %{context: context} = new_context(ctx)
-    page(context, "SMALL")
+  test "the video's size goes to record_video", %{browser: browser} do
+    test = fake_test(%{video: [mode: :on, size: %{width: 320, height: 240}]})
+    test.run.(fn -> page(Browser.new_context!(browser), "SMALL") end)
+    finish(test, [passed()], :shutdown)
+    player = VideoPlayer.new(Path.join(test.dir, "video.webm"))
+    assert {player.videoWidth, player.videoHeight} == {320, 240}
   end
 
-  test "a failed test keeps its screenshots and gets error-context.md, with a snapshot of a page closed after it failed",
-       ctx do
-    test = fake_test(ctx, %{screenshot: :only_on_failure})
-    [running, first, second] = for marker <- ~w(RUNNING FIRST SECOND), do: tap(test.context.(), &page(&1, marker))
+  test "a failed test keeps its screenshots and gets error-context.md, with a snapshot of a page closed after it failed, and the trace hint",
+       %{browser: browser} do
+    test = fake_test(%{screenshot: :only_on_failure, trace: :retain_on_failure})
+
+    [running, first, second] =
+      test.run.(fn ->
+        for marker <- ~w(RUNNING FIRST SECOND), do: tap(Browser.new_context!(browser), &page(&1, marker))
+      end)
 
     # Closed while the test runs: no errors yet, as upstream.
     BrowserContext.close!(running)
-    end_test(test, [&{:failed, &1, {:error, %RuntimeError{message: "on purpose"}, []}}], :shutdown)
+    ref = Process.monitor(test.pid)
+    send(test.pid, {:end, [failed()], :shutdown})
+    assert_receive {:DOWN, ^ref, :process, _, _}
     BrowserContext.close!(first)
     BrowserContext.close!(second)
-    Recorder.finish(test.recorder, 5000)
+    output = capture_io(fn -> PlaywrightEx.Test.__finish__(test.pid, 10_000) end)
 
-    assert Enum.sort(File.ls!(test.dir)) == ~w(error-context.md test-failed-1.png test-failed-2.png test-failed-3.png)
+    assert Enum.sort(File.ls!(test.dir)) ==
+             ~w(error-context.md test-failed-1.png test-failed-2.png test-failed-3.png trace.zip)
+
     error_context = File.read!(Path.join(test.dir, "error-context.md"))
     assert error_context =~ "```\nRuntimeError: on purpose\n```"
     assert error_context =~ ~s(heading "FIRST")
     refute error_context =~ "RUNNING" or error_context =~ "SECOND"
+    assert output =~ "mix playwright_ex.cli show-trace #{Path.relative_to_cwd(Path.join(test.dir, "trace.zip"))}"
+    assert length(String.split(output, "show-trace")) == 2
   end
 
-  test "a passed test keeps nothing of the on_failure modes", ctx do
-    test = fake_test(ctx, %{trace: :retain_on_failure, screenshot: :only_on_failure, video: :retain_on_failure})
-    page(test.context.(), "PASSED")
-    end_test(test, [&{:passed, &1}], :shutdown)
-    Recorder.finish(test.recorder, 5000)
+  test "a failed test without a context gets error-context.md, with no recorder" do
+    test = fake_test(%{})
+    assert Recorder.lookup(test.pid) == nil
+    assert finish(test, [failed()], :shutdown) == ""
+    assert File.ls!(test.dir) == ["error-context.md"]
+    assert File.read!(Path.join(test.dir, "error-context.md")) =~ "```\nRuntimeError: on purpose\n```"
+  end
+
+  test "a passed test keeps nothing of the on_failure modes", %{browser: browser} do
+    test = fake_test(%{trace: :retain_on_failure, screenshot: :only_on_failure, video: :retain_on_failure})
+    test.run.(fn -> page(Browser.new_context!(browser), "PASSED") end)
+    assert finish(test, [passed()], :shutdown) == ""
     refute File.exists?(test.dir)
   end
 
-  test "a test of another macro (a doctest) keeps them, as a failure's, without error-context.md", ctx do
-    test = fake_test(ctx, %{trace: :retain_on_failure, screenshot: :only_on_failure, video: :retain_on_failure}, false)
-    page(test.context.(), "UNKNOWN")
-    end_test(test, [], :shutdown)
-    Recorder.finish(test.recorder, 5000)
+  test "a test of another macro (a doctest) keeps them, as a failure's, without error-context.md", %{browser: browser} do
+    test = fake_test(%{trace: :retain_on_failure, screenshot: :only_on_failure, video: :retain_on_failure}, false)
+    test.run.(fn -> page(Browser.new_context!(browser), "UNKNOWN") end)
+    finish(test, [], :shutdown)
     assert Enum.sort(File.ls!(test.dir)) == ~w(test-failed-1.png trace.zip video.webm)
   end
 
@@ -386,18 +398,52 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     refute read.() =~ "# Page snapshot"
   end
 
-  test "a test's dir is not emptied: a rerun keeps the first run's other files", ctx do
-    dir = dir(ctx)
-    File.mkdir_p!(dir)
-    File.write!(Path.join(dir, "test-failed-2.png"), "first run")
+  test "a test's dir is not emptied: a rerun keeps the first run's other files", %{browser: browser} do
+    test = fake_test(%{trace: :on})
+    File.mkdir_p!(test.dir)
+    File.write!(Path.join(test.dir, "test-failed-2.png"), "first run")
+    test.run.(fn -> page(Browser.new_context!(browser), "RERUN") end)
+    finish(test, [passed()], :shutdown)
+    assert Enum.sort(File.ls!(test.dir)) == ["test-failed-2.png", "trace.zip"]
+  end
+end
 
-    on_exit(fn ->
-      assert Enum.sort(File.ls!(dir)) == ["test-failed-2.png", "trace.zip"]
-      File.rm_rf!(dir)
-    end)
+defmodule PlaywrightEx.Test.ArtifactsTest.TagsTest do
+  # The modes from tags, over the config: a test's `@tag` over its `@describetag` over the
+  # module's `@moduletag`.
+  use ExUnit.Case, async: true
+  use PlaywrightEx.Test
 
-    record_artifacts(ctx, trace: :on)
-    %{context: context} = new_context(ctx)
-    page(context, "RERUN")
+  alias PlaywrightEx.Test.Recorder
+
+  @moduletag video: true, screenshot: [mode: :only_on_failure, full_page: true]
+
+  defp modes, do: Map.take(Recorder.registration(self()), [:trace, :screenshot, :video])
+
+  test "the module's tags, true as :on; the config for the rest" do
+    assert modes() == %{
+             trace: [mode: :off, snapshots: true, screenshots: true, sources: true],
+             screenshot: [mode: :only_on_failure, full_page: true],
+             video: [mode: :on]
+           }
+  end
+
+  describe "a describe block" do
+    @describetag video: false, trace: :on
+
+    # Kept on failure only, so the passing test leaves no files.
+    @tag trace: :retain_on_failure
+    test "the test's over the describe's over the module's" do
+      assert %{trace: [mode: :retain_on_failure] ++ _, video: [mode: :off], screenshot: [mode: :only_on_failure] ++ _} =
+               modes()
+    end
+  end
+
+  test "an invalid tag raises at registration, with the accepted values" do
+    for {key, value} <- [trace: :on_first_retry, screenshot: :retain_on_failure, video: "on"] do
+      message = assert_raise(ArgumentError, fn -> PlaywrightEx.Test.Options.artifacts(%{key => value}) end).message
+      assert message =~ "invalid #{key}: #{inspect(value)}, expected one of"
+      assert message =~ "true, false"
+    end
   end
 end

@@ -1,15 +1,15 @@
 # Testing with ExUnit
 
-PlaywrightEx is the library, ExUnit is the test runner. `PlaywrightEx.Test` adds what the
-official clients' test plugins (pytest-playwright, Playwright.NUnit) have: a shared browser, a
-context and page per test, and traces, screenshots and videos of failures. This guide tests an
-app that runs somewhere and is reached through a base URL, whatever it is written in. For Phoenix
-feature tests (with the Ecto sandbox), see [Fluffy](https://hex.pm/packages/fluffy). Snippets
-alias `PlaywrightEx.{Page, Locator, ...}`.
+PlaywrightEx is the library, ExUnit is the test runner. `PlaywrightEx.Test` adds what Playwright
+Test's worker gives each test: a browser, a fresh context with Playwright Test's defaults, and
+traces, screenshots and videos of failures. This guide tests an app that runs somewhere and is
+reached through a base URL, whatever it is written in. For Phoenix feature tests (with the Ecto
+sandbox), see [Fluffy](https://hex.pm/packages/fluffy). Snippets alias `PlaywrightEx.{Page,
+Locator, ...}`.
 
 ## Setup
 
-Configure the fragments in `config/test.exs`:
+Configure the runner in `config/test.exs`:
 
 ```elixir
 # config/test.exs
@@ -19,7 +19,7 @@ config :playwright_ex, :test,
   screenshot: :only_on_failure
 ```
 
-A test module uses `PlaywrightEx.Case`, which gives each test a `browser`, `context` and `page`:
+A test module uses `PlaywrightEx.Case`, which gives each test a `context` and a `page`:
 
 ```elixir
 defmodule MyApp.SignUpTest do
@@ -34,36 +34,59 @@ defmodule MyApp.SignUpTest do
 end
 ```
 
-`PlaywrightEx.Case` is a case template made of `PlaywrightEx.Test`'s fragments, the setup
-callbacks below. It is the same as:
+`PlaywrightEx.Case` is a case template of three pieces, the same as:
 
 ```elixir
 use ExUnit.Case, async: true
 use PlaywrightEx.Test
 alias PlaywrightEx.{Browser, BrowserContext, Expect, Locator, Page}
+alias PlaywrightEx.Test.BrowserPool
 
-setup_all :browser
-setup [:new_context, :new_page]
+setup do
+  context = Browser.new_context!(BrowserPool.shared())
+  %{context: context, page: BrowserContext.new_page!(context)}
+end
 ```
 
-`use PlaywrightEx.Test` goes after `use ExUnit.Case`. It imports the fragments and a `test`
-macro that marks the end of each test's body, so `on_exit` knows whether the test passed (ExUnit
-reports failures as before). Doctests and other macros' tests count as failed for their
-artifacts, and a failure only in an `on_exit` callback counts as passed.
+`use PlaywrightEx.Test` goes after `use ExUnit.Case`. It registers each test, so the contexts it
+creates get Playwright Test's defaults and are recorded, and imports a `test` macro that marks
+the end of each test's body, so the recording knows whether the test passed (ExUnit reports
+failures as before). Doctests and other macros' tests count as failed for their artifacts, and a
+failure only in an `on_exit` callback counts as passed.
 
-`browser/1` starts the driver and launches the browser on first use; modules with the same
-options share it (and one driver hosts every browser type), also with `async: true` (ExUnit
-runs those concurrently with each other; a module's own tests run one after another). A context
-is a fresh browser profile with its own cookies, storage and cache, so tests don't share state.
-The drivers stop after the suite.
+`PlaywrightEx.Test.BrowserPool.shared/1` starts a driver and launches the browser on first use;
+every caller with the same options gets the same browser, also with `async: true` (ExUnit runs
+those modules concurrently with each other; a module's own tests run one after another). A
+context is a fresh browser profile with its own cookies, storage and cache, so tests don't share
+state. The drivers stop after the suite.
 
-Options go in as arguments, merged over the config: `setup_all do: browser(browser_name:
-:firefox)`, `setup ctx, do: new_context(ctx, context_options: [locale: "de-DE"])`.
-`launch_options` and `context_options` are those of `PlaywrightEx.BrowserType.launch/2` and
-`PlaywrightEx.Browser.new_context/2`. `PlaywrightEx.Test` lists the fragments' own options.
-Every context a test creates starts from Playwright Test's defaults (`locale: "en-US"`, a
-1280x720 viewport, `color_scheme: :light`, ...); the options you give win. The config's
-`context_options` apply to `new_context/2` only.
+The browser is shared by default because ExUnit's unit of concurrency is a cheap process, and
+its default `max_cases` (twice the schedulers) is much higher than Playwright Test's default
+`workers` (half the cores): a browser per concurrent test would be many browsers. Sharing lets
+concurrency grow with one browser and a context per test, Playwright's own isolation model. It
+suits mixed suites too: browser tests, plain ExUnit tests and tests that use PlaywrightEx
+through a library all run in ExUnit's one pool, no worker holds an idle browser, and a test
+that needs none never pays for a launch. Per test the work is Playwright Test's, so at the
+default parallelism a run takes about as long, with a fraction of the memory and driver CPU.
+Wall time differs mostly by scheduling: ExUnit balances whole modules, running a module's tests
+one after another, where Playwright Test's `fullyParallel` balances single tests. So many small
+`async: true` modules parallelise better than a few big ones.
+
+> #### Firefox: use `exclusive` {: .warning}
+>
+> Firefox dispatches input for all of a browser's pages in one queue, so a shared Firefox
+> browser slows down as concurrent tests grow, until they time out. On Firefox, use
+> `BrowserPool.exclusive/1`: one browser per worker, as Playwright Test always does (see
+> [Exclusive browsers](#exclusive-browsers)).
+
+Options go in as arguments, merged over the config: `BrowserPool.shared(browser_name: :webkit)`,
+`Browser.new_context!(browser, locale: "de-DE")`. `launch_options` are those of
+`PlaywrightEx.BrowserType.launch/2`, `context_options` those of
+`PlaywrightEx.Browser.new_context/2`. Every context a test creates on a pooled browser starts from
+Playwright Test's defaults (`locale: "en-US"`, a 1280x720 viewport, `color_scheme: :light`, ...),
+then the config's `context_options`; the options the call gives win. A context created outside a
+test (in `setup_all`, or a process of no test), or on a driver you started yourself, gets no
+defaults and no recording.
 
 With `base_url`, `goto` and the URL matchers take paths. Actions and navigations wait 30 seconds
 by default, and ExUnit's test timeout is 60 seconds; `set_default_timeout/2` makes a stuck action
@@ -72,10 +95,8 @@ navigations apart.
 
 ## Your own case template
 
-The fragments read the context map and return new keys (`browser`, then `context`, then
-`page`), so they mix with your own setup. To add setup after the page's, use `PlaywrightEx.Case`
-in your template's `using` and put the setup after it there; a template's own `setup` runs
-before the ones its `using` brings in:
+To add setup after the page's, use `PlaywrightEx.Case` in your template's `using` and put the
+setup after it there; a template's own `setup` runs before the ones its `using` brings in:
 
 ```elixir
 # test/support/browser_case.ex
@@ -95,22 +116,38 @@ defmodule MyApp.BrowserCase do
 end
 ```
 
-To change a piece, say context options from your own tags, copy `PlaywrightEx.Case`'s source
-into `test/support` and edit it:
+To change a piece, say context options from your own tags, write the template from the pieces.
+Its own `setup` runs before those of its `using`, so make `use PlaywrightEx.Test` the first line
+of its body: the test is then registered before the template's `setup` creates a context (a
+context created before the registration makes it raise, saying so):
 
 ```elixir
-# `@tag locale: "de-DE"` on a test.
-setup ctx do
-  new_context(ctx, context_options: Enum.to_list(Map.take(ctx, [:locale])))
+defmodule MyApp.BrowserCase do
+  use ExUnit.CaseTemplate
+  use PlaywrightEx.Test
+
+  alias PlaywrightEx.{Browser, BrowserContext}
+  alias PlaywrightEx.Test.BrowserPool
+
+  using do
+    quote do
+      use PlaywrightEx.Test
+      alias PlaywrightEx.{Browser, BrowserContext, Expect, Locator, Page}
+    end
+  end
+
+  # `@tag locale: "de-DE"` on a test.
+  setup ctx do
+    context = Browser.new_context!(BrowserPool.shared(), Enum.to_list(Map.take(ctx, [:locale])))
+    %{context: context, page: BrowserContext.new_page!(context)}
+  end
 end
 ```
 
-A `setup_all` of your own that returns `%{browser: _}` replaces `browser/1`, say for a browser
-you connect to (`PlaywrightEx.BrowserType.connect/3`). A wrapper library whose own functions
-clash with the imported fragments (`browser`, `new_context`, `new_page`) or steps (`step`,
-`step_skip`) narrows the import after
-the `use` with `import PlaywrightEx.Test, only: [test: 1, test: 2, test: 3]` and calls the
-fragments qualified.
+`use PlaywrightEx.Test` imports only `test`; the rest is called qualified, as Playwright Test's
+`test.info()` and `test.step()`: `PlaywrightEx.Test.info/0`, `output_path/1`, `snapshot_path/2`,
+`step/3`. So a wrapper library's own `step` doesn't clash. A browser you connect to
+(`PlaywrightEx.BrowserType.connect/3`) is yours to manage, without defaults or recording.
 
 ## Assertions
 
@@ -173,22 +210,21 @@ Expect.to_match_aria_snapshot!(Page.locator(page, "body"))
 A missing snapshot is written, and fails the test once its body has run, so CI catches a
 snapshot nobody committed; ExUnit reports all of the test's errors. `snapshot_dir` and
 `snapshot_path_template` (Playwright Test's `snapshotDir`, `snapshotPathTemplate`) move them,
-`snapshot_path(ctx, "home.png", kind: :screenshot)` returns a path, and `update_snapshots` in
+`PlaywrightEx.Test.snapshot_path("home.png", kind: :screenshot)` returns a path, and `update_snapshots` in
 `config :playwright_ex, :expect` (`:all`, `:changed`, `:missing`, `:none`) rewrites them. A
 failed comparison leaves `-actual`, `-expected`, `-previous` and `-diff` images in the test's dir
 under `test-results/`.
 
 ## Logging in once
 
-Log in once per module and start each context from the saved cookies and local storage:
+Log in once per module and start each context from the saved cookies and local storage. A
+context in `setup_all` belongs to no test, so it gets neither the defaults nor a recording:
 
 ```elixir
-setup_all :browser
-
-setup_all %{browser: browser} do
-  context = Browser.new_context!(browser, base_url: "http://localhost:4000")
+setup_all do
+  context = Browser.new_context!(BrowserPool.shared())
   page = BrowserContext.new_page!(context)
-  Page.goto!(page, "/login")
+  Page.goto!(page, "http://localhost:4000/login")
   Page.get_by_label(page, "Email") |> Locator.fill!("ada@example.com")
   Page.get_by_label(page, "Password") |> Locator.fill!("secret")
   Page.get_by_role(page, :button, name: "Log in") |> Locator.click!()
@@ -199,8 +235,10 @@ setup_all %{browser: browser} do
   %{storage_state: storage_state}
 end
 
-setup ctx, do: new_context(ctx, context_options: [storage_state: ctx.storage_state])
-setup :new_page
+setup %{storage_state: storage_state} do
+  context = Browser.new_context!(BrowserPool.shared(), storage_state: storage_state)
+  %{context: context, page: BrowserContext.new_page!(context)}
+end
 ```
 
 To share the login between modules, `BrowserContext.storage_state!(context, path:
@@ -211,15 +249,14 @@ true)`: IndexedDB is not in the state by default. See
 
 ## Several users
 
-Each user is a context. A fragment returns plain keys, so a second user is another call,
-matched and renamed; a user on another browser gets it from a second `browser/1`:
+Each user is a context, and a user on another browser takes it from another `shared/1` call:
 
 ```elixir
-test "two users edit one document", ctx do
-  %{context: ada} = new_context(ctx)
-  %{context: bob} = new_context(ctx)
-  %{browser: firefox} = browser(browser_name: :firefox)
-  %{context: eve} = new_context(%{ctx | browser: firefox})
+test "two users edit one document" do
+  browser = BrowserPool.shared()
+  ada = Browser.new_context!(browser)
+  bob = Browser.new_context!(browser)
+  eve = Browser.new_context!(BrowserPool.shared(browser_name: :webkit))
 
   ada_page = BrowserContext.new_page!(ada)
   bob_page = BrowserContext.new_page!(bob)
@@ -232,10 +269,9 @@ All three contexts are recorded into the test's one trace, and each gets its own
 
 ## Traces, screenshots and videos
 
-`record_artifacts/2` (started by `new_context/2` with the config, or called in a `setup` with
-options) records every context the test creates, also with a plain `Browser.new_context!/2` or in
-a `Task`. Each test writes to a dir of its own under `test-results/`, named after the test file
-and name, as Playwright Test's `testInfo.outputDir`, and a short hash of the module (and its
+Every context a test creates on a pooled browser is recorded, also in a `Task` of the test or a
+route handler. Each test writes to a dir of its own under `test-results/`, named after the test
+file and name, as Playwright Test's `testInfo.outputDir`, and a short hash of the module (and its
 `parameterize:` parameters) that tells same-named tests apart:
 
 ```
@@ -244,17 +280,29 @@ test-results/sign_up-signs-up-5d41a/test-failed-1.png
 ```
 
 A failed test also gets Playwright Test's `error-context.md`: its errors, its source and an aria
-snapshot of its page, for you or an agent to read.
+snapshot of its page, for you or an agent to read. A failed test that keeps a trace prints how
+to open it: `mix playwright_ex.cli show-trace test-results/.../trace.zip`. More in the
+[Debugging and CI](debugging-and-ci.md) guide.
 
 `trace`, `screenshot` and `video` are `:off` by default, as in Playwright Test.
 `:retain_on_failure` (trace, video) and `:only_on_failure` (screenshot) record every test and
-keep the files of failures; a passing test's are dropped in its `on_exit`. Open a trace with `mix playwright_ex.cli show-trace
-test-results/.../trace.zip`. More in the [Debugging and CI](debugging-and-ci.md) guide.
+keep the files of failures; a passing test's are dropped at its end. The config sets them for
+the suite, and tags for a module, a describe block or a test, as `true`, `false` or a mode:
 
-As in Playwright Test, each takes options too, with the mode as `:mode`: `trace: [mode: :on,
-snapshots: false]`, `screenshot: [mode: :only_on_failure, full_page: true]`, `video: [mode: :on,
-size: %{width: 640, height: 480}]`. An option given to `record_artifacts/2` replaces the config's
-value as a whole.
+```elixir
+@moduletag video: :retain_on_failure
+
+@tag trace: :on
+test "checks out", %{page: page} do
+  # ...
+end
+```
+
+So `trace`, `screenshot` and `video` are reserved tags: a `@tag :screenshot` label turns
+screenshots on, and an invalid value raises. As in Playwright Test, each takes options too, with
+the mode as `:mode`: `trace: [mode: :on, snapshots: false]`, `screenshot: [mode: :only_on_failure,
+full_page: true]`, `video: [mode: :on, size: %{width: 640, height: 480}]`. A tag replaces the
+config's value as a whole.
 
 Tracing slows every test. Playwright Test's answer is to trace only the retry of a failure
 (`on-first-retry`); with ExUnit, trace when asked:
@@ -272,29 +320,29 @@ mix test || TRACE=1 mix test --failed
 
 Passing runs pay nothing for it, and the first run's files stay: nothing is deleted at the start
 of a run, so delete `test-results/` yourself. Files of your own go in the test's dir with
-`output_path(ctx, "export.csv")`; they stay when the test passes. A flaky test that passes on the rerun leaves no
-trace; for those, `:retain_on_failure`.
+`PlaywrightEx.Test.output_path("export.csv")`; they stay when the test passes. A flaky test that
+passes on the rerun leaves no trace; for those, `:retain_on_failure`.
 
 A trace you start yourself (`Tracing.start!(tracing, sources: true)`) on a shared driver also
 gets the stacks and sources of concurrent tests, as the driver adds every call's stack to each
-trace on the connection. `record_artifacts/2` filters them out of its `trace.zip`; for your own
-traces, use `isolate: true`.
+trace on the connection. The recording filters them out of its `trace.zip`; for your own traces,
+use `BrowserPool.exclusive/1`.
 
 ## Steps
 
-`step` groups a test's actions under a title, as Playwright Test's `test.step`: the trace
+`PlaywrightEx.Test.step/3` groups a test's actions under a title, as Playwright Test's `test.step`: the trace
 (`test.trace` in `trace.zip`) shows the steps, nested, with each matcher call as a step of its own
 and the test's errors. A step returns its body's value and works in a `Task` of the test too:
 
 ```elixir
 test "signs up in steps", %{page: page} do
-  step "fill in the form" do
+  Test.step "fill in the form" do
     Page.goto!(page, "/sign-up")
     Page.get_by_label(page, "Email") |> Locator.fill!("ada@example.com")
   end
 
   status =
-    step("submit", fn ->
+    Test.step("submit", fn ->
       Page.get_by_role(page, :button, name: "Sign up") |> Locator.click!()
       Page.get_by_role(page, :status)
     end)
@@ -308,7 +356,7 @@ inside the step, which suits helpers:
 
 ```elixir
 defp sign_up(page, email) do
-  step "sign up", box: true do
+  Test.step "sign up", box: true do
     Page.goto!(page, "/sign-up")
     Page.get_by_label(page, "Email") |> Locator.fill!(email)
     Page.get_by_role(page, :button, name: "Sign up") |> Locator.click!()
@@ -318,7 +366,7 @@ end
 
 A step runs in the calling process, so `assert_receive` works in it. It takes no `timeout:`, as a
 running body can't be interrupted: the test's timeout bounds it. `step_skip` declares a step
-without running it. A wrapper library that narrows the import adds `step: 2, step: 3`.
+without running it. `Test` is `PlaywrightEx.Test`, which `PlaywrightEx.Case` aliases.
 
 ## Route handlers and listeners
 
@@ -330,45 +378,56 @@ them without an explicit allowance, and matchers and `step` count for the test. 
 handler, listener or locator handler raises fails the test at the end of its body, as in
 Playwright Test (outside a test, and once the test has ended, it is logged).
 
-## Isolated modules
+## Exclusive browsers
 
 A shared browser suits tests that only use contexts. A module that changes the driver or the
-browser for everyone (registers selectors, sets the test id attribute, closes or reconnects
-the browser) takes one of its own:
+browser for others (registers selectors, sets the test id attribute, closes or traces the
+browser) takes one of its own, as Playwright Test's worker gives one:
 
 ```elixir
-setup_all ctx, do: browser(ctx, isolate: true)
+setup_all do
+  %{browser: BrowserPool.exclusive()}
+end
 ```
 
-The driver is taken on the module's first `browser(ctx, isolate: true)`, as Playwright Test's
-worker-scoped `browser` fixture is lazy, and the module's later calls (in a test, or by a process
-given the test's context map) get the same one. A first call in a test or `setup` waits for a free
-driver within ExUnit's test timeout, so a mixed module calls it in only the tests that need it
-unless isolated modules can outnumber `workers`: then in `setup_all`, which has no timeout. The
-module holds the driver until its end; it goes to the next module if a test ran and all passed,
-else it is discarded. Clean up on it in a test's `on_exit`: a case template's own `setup_all`
-`on_exit` runs after the module's end, and a failure in the template's own `setup` (it runs
-before ours) goes unseen, so it doesn't discard the driver.
+The scope that calls `BrowserPool.exclusive/1` holds the browser: called in `setup_all`, the
+module, until it ends; in `setup` or a test (or a `Task` of the test), the test. A test's own
+`exclusive()` call is a separate lease from its module's, so a module that holds one in
+`setup_all` uses it from the context. The scope's further calls with the same options return the
+same browser. At its end, a scope that passed gives the driver back, warm, to the next caller of
+its options, and one that failed stops it. To set up each new driver (register selectors, say),
+pass `on_start: &MyApp.Selectors.register/1`: the driver's state then holds for every scope that
+gets it.
 
-Firefox serializes input (mouse, keyboard) across all pages of a browser, so concurrent modules
-on a shared Firefox slow each other down. When the whole run is Firefox, use `isolate: true` (up
-to `workers` drivers at once). For a few Firefox modules in a mixed suite, put them in one ExUnit
-group: modules of a group never run at once, so one shared Firefox serves one module at a time
-while the others run in parallel. It covers a second user on Firefox inside a test too
-(`browser(browser_name: :firefox)`):
+At most `workers` exclusive drivers run at once (config, default half the schedulers, as
+Playwright Test's `workers`); the others wait, first come first served, within ExUnit's test
+timeout (`setup_all` has none), and a wait of 10 s logs the holders. Shared browsers run outside
+that limit. A call with other options takes another driver: prefer `shared`; mark a rare
+exclusive module with unusual options `async: false`, so it doesn't wait for a driver of its own
+behind the others; raise `workers`; or split the run by options, with tags and `--only` /
+`--exclude`.
+
+On Firefox, use `exclusive` for every module (for a whole Firefox run, in your case template's
+`setup_all`). For a few Firefox modules in a mixed suite, ExUnit's `group:` works too: modules of
+a group never run at once, so they share one Firefox browser one module at a time while the
+others run in parallel:
 
 ```elixir
 use ExUnit.Case, async: true, group: :firefox
+use PlaywrightEx.Test
 
-setup_all do: browser(browser_name: :firefox)
+setup do
+  context = Browser.new_context!(BrowserPool.shared(browser_name: :firefox))
+  %{page: BrowserContext.new_page!(context)}
+end
 ```
 
-That is Playwright Test's model: a driver and its browsers per worker, used by one module at a time
-and replaced after a failure. At most `workers` such drivers run at once, a module with two
-`driver` keys holding two (config, default half the schedulers, as Playwright Test's `workers`);
-the others wait. Shared browsers run on one driver per
-`driver` and `on_start`, outside that limit. To set up each new driver (register selectors, say),
-pass `on_start: &MyApp.Selectors.register/1`.
+## The running test
+
+`PlaywrightEx.Test.info/0` is Playwright Test's `test.info()`: the running test's `test_pid`,
+`file`, `test_name` and `output_dir`, in the test's process and in processes with it in
+`$callers` (a `Task`, a route handler). A library that owns resources per test (an Ecto sandbox
+owner, a session) finds the test from a `Task` with it: `PlaywrightEx.Test.info().test_pid`.
 
 ## Polling and waiting
 

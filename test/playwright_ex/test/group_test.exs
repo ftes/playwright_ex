@@ -2,16 +2,10 @@
 # and never run at once (here on the browser under test).
 for name <- [PlaywrightEx.Test.GroupTest.A, PlaywrightEx.Test.GroupTest.B] do
   defmodule name do
-    use ExUnit.Case, async: true, group: :playwright_ex_group_test
+    use PlaywrightEx.Case, async: true, group: :playwright_ex_group_test
 
-    use PlaywrightEx.Test
-
-    alias PlaywrightEx.Page
-
-    setup_all :browser
-    setup [:new_context, :new_page]
-
-    test "shares the browser and runs alone", %{browser: browser, page: page} do
+    test "shares the browser and runs alone", %{page: page} do
+      browser = BrowserPool.shared()
       # A table of the group's (owned by the first module's test that makes it).
       table =
         try do

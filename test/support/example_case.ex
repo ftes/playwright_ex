@@ -30,11 +30,14 @@ defmodule PlaywrightEx.ExampleCase do
   A body that is one `test "name", %{page: page} do ... end` (upstream's test-runner examples)
   runs that block, its pattern matched against those four. Output (`IO.puts`) is captured.
 
-  `playwright` and `browser` are `PlaywrightEx.Test.browser/2`'s, a plain driver shared by the
-  modules running at once; `use PlaywrightEx.ExampleCase, isolate: true` for a module whose
-  examples change the driver or its browser for others (see `PlaywrightEx.SharedDriver`).
+  `browser` is `PlaywrightEx.Test.BrowserPool.shared/1`'s, a plain driver shared by the modules
+  running at once, and `playwright` its driver's; `use PlaywrightEx.ExampleCase, isolate: true`
+  for a module whose examples change the driver or its browser for others
+  (`PlaywrightEx.Test.BrowserPool.exclusive/1`, see `PlaywrightEx.SharedDriver`).
   """
   use ExUnit.CaseTemplate
+  # First: the template's own `setup` creates the context.
+  use PlaywrightEx.Test
 
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
@@ -42,14 +45,14 @@ defmodule PlaywrightEx.ExampleCase do
   alias PlaywrightEx.Page
   alias PlaywrightEx.Route
   alias PlaywrightEx.Runtime.Heap
+  alias PlaywrightEx.Test.BrowserPool
 
   @html "<!doctype html><title>Example</title>"
 
   using opts do
     quote do
+      # `example` is a `test`.
       use PlaywrightEx.Test
-      # `example` is a `test`; the bodies name no fragment.
-      import PlaywrightEx.Test, only: [test: 1, test: 2, test: 3]
       import PlaywrightEx.ExampleCase, only: [example: 3]
 
       if unquote(opts[:isolate]), do: @moduletag(isolate: true)
@@ -62,9 +65,13 @@ defmodule PlaywrightEx.ExampleCase do
 
   setup_all context do
     isolate? = PlaywrightEx.SharedDriver.isolate?(context)
-    %{playwright: playwright, browser: browser} = PlaywrightEx.Test.browser(context, isolate: isolate?)
+    browser = if isolate?, do: BrowserPool.exclusive(), else: BrowserPool.shared()
 
-    %{playwright: playwright, browser: browser, shared_driver: [shared: [browser], guard: not isolate?]}
+    %{
+      playwright: BrowserPool.playwright(browser),
+      browser: browser,
+      shared_driver: [shared: [browser], guard: not isolate?]
+    }
   end
 
   setup %{playwright: playwright, shared_driver: opts}, do: PlaywrightEx.SharedDriver.track_test(playwright, opts)

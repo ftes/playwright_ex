@@ -7,7 +7,8 @@ defmodule PlaywrightEx.Test.TestTracing do
   # holds the rest of the class: the trace mode (`_options`) and the context chunks
   # (`_temporaryTraceFiles`). The `append_*` functions build an event in the calling process (a
   # step's, its time) and add it through the recorder, the test's `_tracing`, `nil` without one
-  # (a test that records no artifacts, whose events upstream drops with the mode `off`).
+  # (a test with the trace `off` starts its recorder on its first context: upstream drops the
+  # events with the mode `off`).
 
   alias PlaywrightEx.Test.Recorder
   alias PlaywrightEx.Test.TestInfo
@@ -54,7 +55,8 @@ defmodule PlaywrightEx.Test.TestTracing do
   @doc """
   `stopIfNeeded`, in the recorder's `finish`: with the `trace` options (`mode` first) and the
   test's result, adds `test.trace` (with the sources of its steps) to the context `chunks` and
-  merges them into `path`, or drops the chunks. `test_timeout` is the test's ExUnit timeout.
+  merges them into `path` (`:saved`), or drops the chunks. `test_timeout` is the test's ExUnit
+  timeout.
   """
   def stop_if_needed(this, %{trace: [{:mode, mode} | options]}, chunks, failed?, test_timeout, tmp, path) do
     [context_created_event | events] = Enum.reverse(this.trace_events)
@@ -98,7 +100,7 @@ defmodule PlaywrightEx.Test.TestTracing do
 
         Recorder.merge_traces(path, chunks ++ [file])
         # this._testInfo.attachments.push({ name: 'trace', ... });  -- not ported: attachments
-        :ok
+        :saved
     end
   end
 

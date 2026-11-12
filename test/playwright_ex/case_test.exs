@@ -18,9 +18,10 @@ end
 defmodule PlaywrightEx.CaseTest do
   use PlaywrightEx.Case, async: true
 
-  test "a test gets a browser, a context of it and a page of that", %{browser: browser, context: context, page: page} do
+  test "a test gets a context of the shared browser and a page of it, recorded", %{context: context, page: page} do
     assert Page.context(page) == context
-    assert BrowserContext.browser(context) == browser
+    assert BrowserContext.browser(context) == BrowserPool.shared()
+    assert is_pid(PlaywrightEx.Test.Recorder.lookup(self()))
     Page.set_content!(page, "<h1>Hi</h1>")
     Page.get_by_role(page, :heading) |> Expect.to_have_text!("Hi")
   end

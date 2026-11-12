@@ -1,8 +1,8 @@
 defmodule PlaywrightEx.Test.EndToEndTest do
   # Suites on `PlaywrightEx.Test` in a child BEAM (`test/support/test_runner_impl.exs`): only the
   # failing test keeps its artifacts and gets `error-context.md`, no driver outlives the halted
-  # VM (`after_suite`), each module's isolated drivers are checked in at its end (discarded
-  # after a failure), also when `max_failures` stops the run, a test fails with the
+  # VM (`after_suite`), each scope's exclusive drivers are checked in at its end (stopped after
+  # a failure), also when `max_failures` stops the run, a test fails with the
   # snapshots its matchers wrote and with its soft matchers' failures, and a failing step's error
   # as ExUnit reports it and in the trace.
   use ExUnit.Case, async: true
@@ -55,24 +55,23 @@ defmodule PlaywrightEx.Test.EndToEndTest do
     assert error_context =~ ~r/^> \d+ +\| +flunk\("on purpose"\)$/m
   end
 
-  test "a module's isolated drivers: one per driver key, checked in at its end, discarded after a failure",
+  test "exclusive drivers: one per driver key and scope, checked in at its end, stopped after a failure",
        %{tmp_dir: tmp_dir} do
     {output, report} = report(start("modules", tmp_dir))
     assert output =~ ~r"15 tests, 1 failure|Result: 14/15 passed"
 
-    assert report.busy == 0
-    # Not the failed module's.
+    assert report.leases == 0
+    # Not the failed module's; each parameter set's own (a driver has one label).
     assert report.free == [:param_1, :param_2, :ten, :two_a, :two_b]
-    # Ten tests and two browser keys on one driver; a token per parameter set, each its own driver.
+    # Ten tests and two browser keys of one module on one driver.
     assert report.drivers.ten == 1
-    assert report.tokens.ten == 1
-    assert report.param_tokens == 2
+    assert report.scopes.ten == 1
   end
 
   test "max_failures: a module still running is checked in", %{tmp_dir: tmp_dir} do
     {output, report} = report(start("max_failures", tmp_dir))
     assert output =~ "--max-failures reached, aborting test suite"
-    assert report.busy == 0
+    assert report.leases == 0
     assert report.free == [:isolated]
   end
 

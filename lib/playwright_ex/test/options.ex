@@ -1,25 +1,21 @@
 defmodule PlaywrightEx.Test.Options do
   @moduledoc false
-  # The options of `PlaywrightEx.Test`'s fragments: defaults, the merge over
-  # `config :playwright_ex, :test`, and validation. Unknown keys and bad values raise
-  # `ArgumentError`, as the facade's do.
+  # The options of `PlaywrightEx.Test` and `PlaywrightEx.Test.BrowserPool`: defaults, the merge
+  # over `config :playwright_ex, :test`, the recording modes from tags over the config, and
+  # validation. Unknown keys and bad values raise `ArgumentError`, as the facade's do.
 
-  alias PlaywrightEx.Runtime.Heap
-  alias PlaywrightEx.Test.TestInfo
+  alias PlaywrightEx.Runtime.Facade
 
-  # `isolate` is an argument only: as config it would isolate an in-test second `browser/1` too.
-  @browser_keys [:browser_name, :launch_options, :driver, :on_start, :isolate]
+  @pool_keys [:browser_name, :launch_options, :driver, :on_start]
   @artifact_keys [:trace, :screenshot, :video]
-  @context_keys [:context_options]
-  @config_only_keys [:output_dir, :workers, :snapshot_dir, :snapshot_path_template]
-  @config_keys (@browser_keys -- [:isolate]) ++ @artifact_keys ++ @context_keys ++ @config_only_keys
+  @config_only_keys [:context_options, :output_dir, :workers, :snapshot_dir, :snapshot_path_template]
+  @config_keys @pool_keys ++ @artifact_keys ++ @config_only_keys
 
   @driver_keys [:executable, :node, :cache_dir, :env]
 
   # Playwright Test's context option fixtures with no value given (`playwrightFixtures` in
   # `packages/playwright/src/index.ts`, as `_combinedContextOptions` collects them), as the client
-  # takes them. Deviation: without `...contextOptions`, the config's `context_options` are
-  # `new_context/2`'s only (facade options, converted by its call).
+  # takes them.
   @context_defaults %{
     acceptDownloads: true,
     bypassCSP: false,
@@ -52,49 +48,61 @@ defmodule PlaywrightEx.Test.Options do
     video: [:mode, :size]
   }
 
-  @doc "The browser options: the config merged with `opts` (a keyword list)."
-  def browser(opts), do: merge(@browser_keys, opts)
+  @doc "The pool options (`BrowserPool.shared/1`, `exclusive/1`): the config merged with `opts`."
+  def pool(opts) do
+    if !Keyword.keyword?(opts), do: raise(ArgumentError, "expected a keyword list of options, got: #{inspect(opts)}")
 
-  @doc "The artifact options: the config merged with `opts`."
-  def artifacts(opts), do: merge(@artifact_keys, opts)
-
-  @doc "The context options: the config merged with `opts`."
-  def context(opts), do: merge(@context_keys, opts)
-
-  @doc """
-  Adds the listener of `_setupArtifacts`' `runBeforeCreateBrowserContext` and
-  `runBeforeCreateRequestContext` to `instrumentation`, once: in a marked test (or a process with
-  it in `$callers`), each context gets the context defaults it does not give.
-  """
-  def ensure_context_defaults(instrumentation) do
-    listener = %{
-      runBeforeCreateBrowserContext: &__MODULE__.with_context_defaults/1,
-      runBeforeCreateRequestContext: &__MODULE__.with_context_defaults/1
-    }
-
-    Heap.update(instrumentation, :listeners, &if(listener in &1, do: &1, else: &1 ++ [listener]))
-  end
-
-  @doc """
-  Playwright Test's context option defaults, with the client's keys and values; `baseURL` is
-  `process.env.PLAYWRIGHT_TEST_BASE_URL`.
-  """
-  def context_defaults do
-    case System.get_env("PLAYWRIGHT_TEST_BASE_URL") do
-      nil -> @context_defaults
-      base_url -> Map.put(@context_defaults, :baseURL, base_url)
+    case Keyword.keys(opts) -- @pool_keys do
+      [] -> :ok
+      unknown -> raise ArgumentError, "unknown options #{inspect(unknown)}, expected one of #{inspect(@pool_keys)}"
     end
+
+    config = config()
+
+    @pool_keys
+    |> Map.new(&{&1, config[&1]})
+    |> Map.merge(Map.new(opts), &merge_value/3)
+    |> validate!()
   end
 
-  @doc false
-  # `if (!(key in options)) options[key] = value;`: a key given as `nil` (`undefined`) stays.
-  def with_context_defaults(options),
-    do: if(TestInfo.current(), do: Map.merge(context_defaults(), options), else: options)
+  @doc """
+  The recording modes of a test: its tags (`@moduletag`, `@describetag`, `@tag`, which ExUnit
+  merges in that order) over the config. `true` is `:on`, `false` is `:off`.
+  """
+  def artifacts(tags) do
+    config = config()
+
+    Map.new(@artifact_keys, fn key ->
+      case tags do
+        %{^key => value} -> {key, validate!(key, value)}
+        _ -> {key, config[key]}
+      end
+    end)
+  end
+
+  @doc """
+  `_combinedContextOptions`, as the client takes them: Playwright Test's context defaults, then
+  the config's `context_options` (facade options, converted as `PlaywrightEx.Browser.new_context/2`
+  converts them). `baseURL` defaults to `process.env.PLAYWRIGHT_TEST_BASE_URL`.
+  """
+  def context_options do
+    defaults =
+      case System.get_env("PLAYWRIGHT_TEST_BASE_URL") do
+        nil -> @context_defaults
+        base_url -> Map.put(@context_defaults, :baseURL, base_url)
+      end
+
+    type = PlaywrightEx.Browser.__options_type__(:new_context)
+    Map.merge(defaults, Facade.options!(config()[:context_options], type, "browser.newContext"))
+  end
+
+  @doc "Playwright Test's context option defaults, with the client's keys and values."
+  def context_defaults, do: @context_defaults
 
   @doc "The root of the output dirs (config `output_dir`, default `test-results`)."
   def output_dir, do: config()[:output_dir]
 
-  @doc "How many isolated drivers may run at once (config `workers`)."
+  @doc "How many exclusive drivers may run at once (config `workers`)."
   def workers, do: config()[:workers]
 
   @doc "The snapshot dir (config `snapshot_dir`, default `nil`: upstream's `testDir`)."
@@ -103,25 +111,9 @@ defmodule PlaywrightEx.Test.Options do
   @doc "The snapshots' path template (config `snapshot_path_template`, default `nil`)."
   def snapshot_path_template, do: config()[:snapshot_path_template]
 
-  defp merge(keys, opts) do
-    if !Keyword.keyword?(opts), do: raise(ArgumentError, "expected a keyword list of options, got: #{inspect(opts)}")
-
-    case Keyword.keys(opts) -- keys do
-      [] -> :ok
-      unknown -> raise ArgumentError, "unknown options #{inspect(unknown)}, expected one of #{inspect(keys)}"
-    end
-
-    config = config()
-
-    keys
-    |> Map.new(&{&1, config[&1]})
-    |> Map.merge(Map.new(opts), &merge_value/3)
-    |> validate!()
-  end
-
   # Option lists merge one level deep (`launch_options: [slow_mo: 50]` keeps the config's
   # `headless`).
-  defp merge_value(key, config, value) when key in [:launch_options, :context_options, :driver],
+  defp merge_value(key, config, value) when key in [:launch_options, :driver],
     do: Keyword.merge(to_keyword(key, config), to_keyword(key, value))
 
   defp merge_value(_key, _config, value), do: value
@@ -148,7 +140,6 @@ defmodule PlaywrightEx.Test.Options do
       launch_options: [],
       driver: [],
       on_start: nil,
-      isolate: false,
       trace: :off,
       screenshot: :off,
       video: :off,
@@ -182,7 +173,9 @@ defmodule PlaywrightEx.Test.Options do
   defp validate!(:on_start, nil), do: nil
   defp validate!(:on_start, fun) when is_function(fun, 1), do: fun
   defp validate!(:on_start, {m, f, a} = mfa) when is_atom(m) and is_atom(f) and is_list(a), do: mfa
-  defp validate!(:isolate, value) when is_boolean(value), do: value
+
+  defp validate!(key, true) when is_map_key(@modes, key), do: artifact!(key, mode: :on)
+  defp validate!(key, false) when is_map_key(@modes, key), do: artifact!(key, mode: :off)
 
   defp validate!(key, mode) when is_map_key(@modes, key) and is_atom(mode) and mode != nil,
     do: artifact!(key, mode: mode)
@@ -197,7 +190,14 @@ defmodule PlaywrightEx.Test.Options do
        do: value
 
   defp validate!(:workers, workers) when is_integer(workers) and workers > 0, do: workers
+
+  defp validate!(key, value) when is_map_key(@modes, key),
+    do: raise(ArgumentError, "invalid #{key}: #{inspect(value)}, expected one of #{inspect(accepted(key))}")
+
   defp validate!(key, value), do: raise(ArgumentError, "invalid #{key}: #{inspect(value)}")
+
+  # What a mode option accepts, for the error.
+  defp accepted(key), do: @modes[key] ++ [true, false, "[mode: _, ...]"]
 
   # An artifact option as a keyword list in `@artifact_options` order (an atom is its `mode`),
   # the trace's options defaulting to upstream's (`defaultTraceOptions` in
@@ -248,7 +248,7 @@ defmodule PlaywrightEx.Test.Options do
   defp mode!(key, mode) do
     if mode in @modes[key],
       do: mode,
-      else: raise(ArgumentError, "invalid #{key}: #{inspect(mode)}, expected one of #{inspect(@modes[key])}")
+      else: raise(ArgumentError, "invalid #{key}: #{inspect(mode)}, expected one of #{inspect(accepted(key))}")
   end
 
   defp to_keyword(key, value) do

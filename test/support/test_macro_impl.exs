@@ -99,7 +99,11 @@ defmodule TestMacroSample do
 end
 """
 
+# A failed test's `error-context.md` goes to a dir of the run's own.
+output_dir = Path.join(System.tmp_dir!(), "playwright_ex-test_macro-#{System.unique_integer([:positive])}")
+Application.put_env(:playwright_ex, :test, output_dir: output_dir)
 ExUnit.start(autorun: false, seed: 0, colors: [enabled: false])
+ExUnit.after_suite(fn _ -> File.rm_rf!(output_dir) end)
 
 case mode do
   "run" ->
