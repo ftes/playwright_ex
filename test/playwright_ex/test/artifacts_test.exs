@@ -452,6 +452,25 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     refute Enum.any?(stacks, &(&1.params.callData.id in ids))
   end
 
+  # Upstream's screenshot recorder and `_takePageSnapshot` run as internal calls too.
+  test "the end-of-body screenshot is internal: no stack, no action in the trace", %{browser: browser} do
+    test = fake_test(%{trace: :on, screenshot: :on})
+    sent = record_sent(browser, &(to_string(&1.method) in ~w(screenshot addStackToTracingNoReply)))
+    page = test.run.(fn -> page(Browser.new_context!(browser), "SHOT") end)
+    finish(test, [passed()], :shutdown)
+
+    assert [screenshot] = Enum.filter(sent.(), &(&1.guid == page.guid))
+    assert screenshot.metadata.internal
+
+    refute Enum.any?(
+             sent.(),
+             &(to_string(&1.method) == "addStackToTracingNoReply" and &1.params.callData.id == screenshot.id)
+           )
+
+    assert File.exists?(Path.join(test.dir, "test-finished-1.png"))
+    refute Enum.any?(trace(test.dir, browser).events, &(&1["type"] == "before" and &1["method"] == "screenshot"))
+  end
+
   # The `localUtils.zip` calls of chunks under `tmp` (the test's), on the shared connection.
   defp record_zips(browser, tmp),
     do: record_sent(browser, &(to_string(&1.method) == "zip" and String.starts_with?(&1.params.zipFile, tmp)))

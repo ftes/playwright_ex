@@ -541,8 +541,11 @@ defmodule PlaywrightEx.Test.Recorder do
     with true <- state.timed_out or failed_without_snapshot?(state.test_pid),
          %{page_snapshot: nil} <- call(recorder, :state),
          [page | _] <- BrowserContext.pages(context),
-         # The snapshot may fail: ignored, as upstream's.
-         {:ok, snapshot} <- Page.aria_snapshot(page, mode: :ai, timeout: 5000),
+         # The snapshot may fail: ignored, as upstream's. An internal call of the page.
+         {:ok, snapshot} <-
+           ChannelOwner._wrap_api_call(page, fn _api_zone -> Page.aria_snapshot(page, mode: :ai, timeout: 5000) end, %{
+             internal: true
+           }),
          do: call(recorder, {:page_snapshot, snapshot})
   end
 
@@ -579,10 +582,18 @@ defmodule PlaywrightEx.Test.Recorder do
         do: call(recorder, {:add_screenshot, path})
   end
 
-  # `page.screenshot({ ...screenshotOptions, timeout: 5000, path, caret: 'initial' })`.
+  # `page.screenshot({ ...screenshotOptions, timeout: 5000, path, caret: 'initial' })`, an internal
+  # call of the page (`ArtifactsRecorder`'s screenshot recorder).
   defp screenshot(page, path, opts) do
     File.mkdir_p!(Path.dirname(path))
-    Page.screenshot!(page, Keyword.delete(opts.screenshot, :mode) ++ [timeout: 5000, path: path, caret: :initial])
+
+    ChannelOwner._wrap_api_call(
+      page,
+      fn _api_zone ->
+        Page.screenshot!(page, Keyword.delete(opts.screenshot, :mode) ++ [timeout: 5000, path: path, caret: :initial])
+      end,
+      %{internal: true}
+    )
   end
 
   defp attachment_path(dir, failed?, ordinal),
