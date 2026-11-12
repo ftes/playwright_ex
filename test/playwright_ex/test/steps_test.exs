@@ -120,6 +120,52 @@ defmodule PlaywrightEx.Test.StepsTest do
     end
   end
 
+  test "a boxed step's stack starts at its function's call, also when the step isn't its tail call", ctx do
+    on_trace(ctx, fn events, _files ->
+      assert after_of(events, before(events, "boxed exit"))["error"]["stack"] =~
+               ~r"^undefined\n    at .*steps_test\.exs:\d+"
+    end)
+
+    stacktrace =
+      try do
+        non_tail_boxed_helper(:arg)
+      rescue
+        _ -> __STACKTRACE__
+      end
+
+    assert [{__MODULE__, _, _, location} | _] = stacktrace
+    assert source(location[:line]) =~ "non_tail_boxed_helper(:arg)"
+
+    assert catch_exit(boxed_exit_helper()) == :boom
+    assert catch_throw(step("boxed throw", fn -> throw(:boom) end, box: true)) == :boom
+  end
+
+  defp boxed_exit_helper, do: step("boxed exit", fn -> exit(:boom) end, box: true)
+
+  defp non_tail_boxed_helper(arg) do
+    step "non-tail", box: true do
+      raise "boxed"
+    end
+
+    arg
+  end
+
+  test "a step the recording starts in has no events, its nested steps have", ctx do
+    on_trace_in_step = fn ->
+      on_trace(ctx, fn events, _files ->
+        refute before(events, "untraced")
+        assert after_of(events, before(events, "traced"))
+        befores = for %{"type" => "before", "callId" => id} <- events, do: id
+        assert for(%{"type" => "after", "callId" => id} <- events, do: id) -- befores == []
+      end)
+    end
+
+    step "untraced" do
+      on_trace_in_step.()
+      step("traced", fn -> :ok end)
+    end
+  end
+
   test "a step times out", ctx do
     on_trace(ctx, fn events, _files ->
       assert after_of(events, before(events, "slow"))["error"]["message"] ==
@@ -127,6 +173,8 @@ defmodule PlaywrightEx.Test.StepsTest do
     end)
 
     assert step("quick", fn -> :value end, timeout: 5000) == :value
+    test_pid = self()
+    assert step("in the test's process", fn -> self() end, timeout: :infinity) == test_pid
 
     assert_raise PlaywrightEx.TimeoutError, "Step timeout of 50ms exceeded.", fn ->
       step("slow", fn -> Process.sleep(5000) end, timeout: 50)

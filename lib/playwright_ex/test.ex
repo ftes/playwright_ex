@@ -517,13 +517,14 @@ defmodule PlaywrightEx.Test do
 
   Options:
 
-    * `:box` - an error inside the step is reported at the step: its stacktrace is the step's
-      call site's instead of the frames inside it.
+    * `:box` - an error inside the step is reported outside it: its stacktrace starts at the
+      call of the function the step is in (a helper's caller), instead of the frames inside it.
     * `:location` - `%{file: _, line: _, column: _}` of the step in the trace. The `do` form
       passes its own.
-    * `:timeout` - fails the step after this many milliseconds with a `PlaywrightEx.TimeoutError`.
-      The body then runs in a process of its own (with the test in its `$callers`), as a
-      `Task`, so `assert_receive` and `ExUnit.Callbacks` don't work in it.
+    * `:timeout` - fails the step after this many milliseconds with a `PlaywrightEx.TimeoutError`
+      (`:infinity`, the default, or `0` for none). The body then runs in a process of its own
+      (with the test in its `$callers`), as a `Task`, so `assert_receive` and `ExUnit.Callbacks`
+      don't work in it. After the timeout it keeps running, as upstream's, until the test ends.
     * `:params`, `:subtitle` - shown with the step in the trace.
 
   The step, the matchers in it and the test's errors are in the test's trace (`test.trace` in
@@ -541,6 +542,7 @@ defmodule PlaywrightEx.Test do
   # `step "title" do ... end` (with options before the `do`), or `step(title, fun, options)`.
   defp step_ast(expectation, title, body_or_options, options, caller) do
     location = Macro.escape(%{file: caller.file, line: caller.line, column: 0})
+    call_site = Macro.escape(%{file: caller.file, line: caller.line})
 
     {body, options} =
       cond do
@@ -554,7 +556,9 @@ defmodule PlaywrightEx.Test do
           {body_or_options, options}
       end
 
-    quote do: PlaywrightEx.Test._step(unquote(expectation), unquote(title), unquote(body), unquote(options))
+    quote do
+      PlaywrightEx.Test._step(unquote(expectation), unquote(title), unquote(body), unquote(options), unquote(call_site))
+    end
   end
 
   defp do_block?(ast), do: is_list(ast) and Keyword.keyword?(ast) and Keyword.has_key?(ast, :do)
@@ -565,8 +569,11 @@ defmodule PlaywrightEx.Test do
 
   @doc false
   # `TestTypeImpl._step`: `expectation` is `:pass` (`test.step`) or `:skip` (`test.step.skip`).
-  def _step(expectation, title, body, options \\ []) when is_function(body, 0) do
+  # Elixir only: `call_site` (`%{file: _, line: _}`, the macros pass it, else `location`'s) is
+  # where the step is called, for the boxed stack to start after it.
+  def _step(expectation, title, body, options \\ [], call_site \\ nil) when is_function(body, 0) do
     options = Map.new(Keyword.validate!(options, [:box, :location, :timeout, :params, :subtitle]))
+    call_site = call_site || (options[:location] && Map.take(options.location, [:file, :line]))
     test_info = TestInfo.current()
     if !test_info, do: raise("test.step() can only be called from a test")
     # await testInfo._onUserStepBegin?.(title);  -- not ported: UI mode
@@ -578,15 +585,19 @@ defmodule PlaywrightEx.Test do
         subtitle: options[:subtitle],
         stack: if(options[:location], do: [options.location]),
         box: options[:box],
-        params: options[:params]
+        params: options[:params],
+        callSite: call_site
       })
 
     Zones.with(:stepZone, step, fn ->
       try do
         deadline =
-          if options[:timeout] in [nil, 0], do: 0, else: System.monotonic_time(:millisecond) + options.timeout
+          if options[:timeout] in [nil, 0, :infinity],
+            do: 0,
+            else: System.monotonic_time(:millisecond) + options.timeout
 
-        result = race_against_deadline(&run_step_body(test_info, step, expectation, body, &1), deadline)
+        result =
+          race_against_deadline(&run_step_body(test_info, step, expectation, body, &1), deadline, test_info.test_pid)
 
         if result.timedOut,
           do: raise(PlaywrightEx.TimeoutError, message: "Step timeout of #{options.timeout}ms exceeded.")
@@ -619,12 +630,13 @@ defmodule PlaywrightEx.Test do
 
   # isomorphic/timeoutRunner.ts `raceAgainstDeadline`; `cb` gets whether the race timed out.
   # deviation: without a deadline the body runs in the calling process. With one it runs in a
-  # linked process of its own (with the zone and the test in its `$callers`), as a process
-  # can't be interrupted: past the deadline the race returns and the body runs on, as
-  # upstream's, until the test's process exits.
-  defp race_against_deadline(cb, 0), do: %{result: cb.(fn -> false end), timedOut: false}
+  # process of its own (with the zone and the test in its `$callers`), as a process can't be
+  # interrupted: past the deadline the race returns and the body runs on, as upstream's. It is
+  # linked to the caller and to the test's process, so it ends with the test even when the
+  # caller is a `Task` that outlives it.
+  defp race_against_deadline(cb, 0, _test_pid), do: %{result: cb.(fn -> false end), timedOut: false}
 
-  defp race_against_deadline(cb, deadline) do
+  defp race_against_deadline(cb, deadline, test_pid) do
     zone = Zones.current_zone()
     callers = [self() | List.wrap(Process.get(:"$callers"))]
     timed_out = :atomics.new(1, [])
@@ -632,6 +644,7 @@ defmodule PlaywrightEx.Test do
     reply = :erlang.alias([:reply])
 
     spawn_link(fn ->
+      Process.link(test_pid)
       Process.put(:"$callers", callers)
       Zones.restore(zone)
 

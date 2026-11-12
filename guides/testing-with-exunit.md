@@ -98,7 +98,8 @@ end
 
 A `setup_all` of your own that returns `%{browser: _}` replaces `browser/1`, say for a browser
 you connect to (`PlaywrightEx.BrowserType.connect/3`). A wrapper library whose own functions
-clash with the imported fragments (`browser`, `new_context`, `new_page`) narrows the import after
+clash with the imported fragments (`browser`, `new_context`, `new_page`) or steps (`step`,
+`step_skip`) narrows the import after
 the `use` with `import PlaywrightEx.Test, only: [test: 1, test: 2, test: 3]` and calls the
 fragments qualified.
 
@@ -288,7 +289,8 @@ test "signs up in steps", %{page: page} do
 end
 ```
 
-With `box: true`, an error inside the step is reported at its call site, which suits helpers:
+With `box: true`, an error inside the step is reported where the helper is called, instead of
+inside the step, which suits helpers:
 
 ```elixir
 defp sign_up(page, email) do
@@ -301,7 +303,7 @@ end
 ```
 
 `timeout:` fails a step that takes longer (its body then runs in a process of its own, so no
-`assert_receive` in it), and `step_skip` declares a step without running it. A wrapper library
+`assert_receive` in it, and keeps running after the timeout), and `step_skip` declares a step without running it. A wrapper library
 that narrows the import adds `step: 2, step: 3`.
 
 ## Isolated modules

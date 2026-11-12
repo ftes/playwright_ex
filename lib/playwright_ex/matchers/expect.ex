@@ -184,9 +184,7 @@ defmodule PlaywrightEx.Matchers.Expect do
 
     # This looks like it is unnecessary, but it isn't - we need to filter
     # out all the frames that belong to the test runner from caught runtime errors.
-    # (Elixir: the raw stack is the stacktrace a failure raises with, the filtered one the step's.)
-    raw_stack = TestInfo.capture_raw_stack()
-    stack_frames = TestInfo.stack_frames(TestInfo.filtered_stack_trace(raw_stack))
+    stack_frames = TestInfo.stack_frames(TestInfo.filtered_stack_trace(TestInfo.capture_raw_stack()))
     params = suffixes[:params] || %{}
     # Elixir only: the facade passes the options it got, `%{}` for none (JS `undefined`).
     params =
@@ -218,7 +216,7 @@ defmodule PlaywrightEx.Matchers.Expect do
           |> Map.reject(fn {_key, value} -> value == nil end)
 
         error = ExpectError.new(matcher_result, custom_message, stack_frames)
-        handle_error.({:error, error, raw_stack}, result)
+        {:error, error, result}
       else
         # deviation: no test runner writes a `suggestedRebaseline` into the test source (the
         # dispatcher's addSuggestedRebaseline), so a result that carries one fails with it, after
@@ -232,32 +230,44 @@ defmodule PlaywrightEx.Matchers.Expect do
             |> Map.merge(%{name: matcher_name, message: message})
             |> Map.reject(fn {_key, value} -> value == nil end)
 
-          handle_error.(
-            {:error, ExpectError.new(matcher_result, custom_message, stack_frames), raw_stack},
-            Map.delete(result, :softError)
-          )
-        end
-
-        if step do
-          TestInfo.step_complete(step, result)
+          {:error, ExpectError.new(matcher_result, custom_message, stack_frames), Map.delete(result, :softError)}
         else
-          # deviation: outside a `PlaywrightEx.Test` test nothing records a `softError`, so a
-          # snapshot the matcher wrote is announced.
-          if result[:softError], do: IO.puts(Exception.message(result.softError))
-        end
+          if step do
+            TestInfo.step_complete(step, result)
+          else
+            # deviation: outside a `PlaywrightEx.Test` test nothing records a `softError`, so a
+            # snapshot the matcher wrote is announced.
+            if result[:softError], do: IO.puts(Exception.message(result.softError))
+          end
 
-        :ok
+          :ok
+        end
       end
     end
 
-    try do
-      invoke = fn -> invoke_matcher(matcher_name, info, matcher, actual, args, promise, title) end
-      result = if step, do: Zones.with(:stepZone, step, invoke), else: invoke.()
+    # deviation: the finalizer's error is raised here, with Elixir's stacktrace of the raise
+    # (`stackFrames` are only the step's). It runs after the `try`, as a second `handleError` of
+    # its error would do nothing.
+    result =
+      try do
+        invoke = fn -> invoke_matcher(matcher_name, info, matcher, actual, args, promise, title) end
 
-      # if (result instanceof Promise) return result.then(finalizer, handleError);  -- not ported: matchers return their result
-      finalizer.(result)
-    catch
-      kind, reason -> handle_error.({kind, reason, __STACKTRACE__}, nil)
+        # if (result instanceof Promise) return result.then(finalizer, handleError);  -- not ported: matchers return their result
+        if step, do: Zones.with(:stepZone, step, invoke), else: invoke.()
+      catch
+        kind, reason -> handle_error.({kind, reason, __STACKTRACE__}, nil)
+      end
+
+    case finalizer.(result) do
+      {:error, error, result} ->
+        try do
+          raise error
+        rescue
+          error -> handle_error.({:error, error, __STACKTRACE__}, result)
+        end
+
+      :ok ->
+        :ok
     end
   end
 

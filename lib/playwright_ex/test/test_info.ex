@@ -89,8 +89,9 @@ defmodule PlaywrightEx.Test.TestInfo do
 
   @doc """
   `_addStep`: a step of `data` (`category`, `title`, `subtitle`, `stack`, `params`, `box`,
-  `group`), as a map with `stepId`, `boxedStack` (an Elixir stacktrace, or `nil`), `stack`
-  (frames) and `testInfo`. Its mutable fields are a row of the pool's table.
+  `group`; Elixir only: `callSite`, `%{file: _, line: _}` of the step's call), as a map with
+  `stepId`, `boxedStack` (an Elixir stacktrace, or `nil`), `stack` (frames) and `testInfo`. Its
+  mutable fields are a row of the pool's table.
   """
   def _add_step(this, data, parent_step \\ nil) do
     seq = System.unique_integer([:positive, :monotonic])
@@ -104,24 +105,26 @@ defmodule PlaywrightEx.Test.TestInfo do
 
     {boxed_stack, stack} =
       if !boxed_stack and data[:box] do
-        # deviation: no `.slice(1)`. BEAM drops a frame that tail-calls, so the step's caller
-        # may not be on the stack: the boxed stack starts at the first frame outside the
-        # library, the step's call site (or, for a tail call, its caller's).
-        boxed_stack = filtered_stack_trace(capture_raw_stack())
+        boxed_stack = slice_call_site(filtered_stack_trace(capture_raw_stack()), data[:callSite])
         {boxed_stack, stack || stack_frames(boxed_stack)}
       else
         {boxed_stack, stack}
       end
 
     stack = stack || stack_frames(filtered_stack_trace(capture_raw_stack()))
+    group = if(parent_step[:group] != nil, do: parent_step.group, else: data[:group])
 
     step =
       Map.merge(data, %{
         stepId: step_id,
-        group: if(parent_step[:group] != nil, do: parent_step.group, else: data[:group]),
+        group: group,
         boxedStack: boxed_stack,
         stack: stack,
-        testInfo: this
+        testInfo: this,
+        # Elixir only: the recorder its `before` went to, which its `after` goes to. The test
+        # may start recording inside the step (`PlaywrightEx.Test.new_context/2`), and an `after`
+        # without its `before` breaks the trace viewer.
+        _tracing: if(group != "internal", do: _tracing(this))
       })
 
     # `info: new TestStepInfoImpl(...)`, `steps: []`; `parentStepList.push(step)`,
@@ -142,7 +145,7 @@ defmodule PlaywrightEx.Test.TestInfo do
     # if (!step.group) this._callbacks.onStepBegin(...)  -- not ported: reporters
 
     if step.group != "internal" do
-      TestTracing.append_before_action_for_step(_tracing(this), %{
+      TestTracing.append_before_action_for_step(step._tracing, %{
         stepId: step_id,
         parentId: parent_step && parent_step.stepId,
         title: step.title,
@@ -156,6 +159,16 @@ defmodule PlaywrightEx.Test.TestInfo do
 
     step
   end
+
+  # deviation: `.slice(1)` drops the step's own frame only when it is on the stack: BEAM drops
+  # a frame that tail-calls. It is when the first frame is at the step's call (`callSite`).
+  defp slice_call_site([{module, _fun, _arity, location} | rest] = frames, %{file: file, line: line}) do
+    frame_file = to_string(location[:file])
+    files = [ClientStackTrace.source_file(module, frame_file), Path.expand(frame_file)]
+    if location[:line] == line and Path.expand(file) in files, do: rest, else: frames
+  end
+
+  defp slice_call_site(frames, _call_site), do: frames
 
   defp step_key(step), do: {:test_info, step.testInfo.test_pid, {:step, step.stepId}}
 
@@ -184,12 +197,18 @@ defmodule PlaywrightEx.Test.TestInfo do
           # `result.error[stepSymbol] = step`  -- see the deviation in `PlaywrightEx.Test._step/4`
           error = test_info_error(error)
 
+          # `${error.message}`: "undefined" for an exit or throw (a `value`).
           error =
             if step.boxedStack,
-              do: %{
-                error
-                | stack: Enum.join([error.message | stringify_stack_frames(stack_frames(step.boxedStack))], "\n")
-              },
+              do:
+                Map.put(
+                  error,
+                  :stack,
+                  Enum.join(
+                    [error[:message] || "undefined" | stringify_stack_frames(stack_frames(step.boxedStack))],
+                    "\n"
+                  )
+                ),
               else: error
 
           %{row | error: error}
@@ -200,6 +219,8 @@ defmodule PlaywrightEx.Test.TestInfo do
       row =
         if result[:softError] do
           _fail_with_error(this, {:error, result.softError, caller_stacktrace()})
+          # Elixir only: a step completes with an infected child only after one of these.
+          :ets.insert(Pool.table(), {{:test_info, this.test_pid, :soft_errors}, true})
           %{row | infectParentStepsWithError: true}
         else
           row
@@ -211,7 +232,7 @@ defmodule PlaywrightEx.Test.TestInfo do
       # In order to locate the failing step, we are marking all the parent
       # steps as failing unconditionally.
       row =
-        if !row.error do
+        if !row.error and :ets.member(Pool.table(), {:test_info, this.test_pid, :soft_errors}) do
           child_step =
             Enum.find(child_steps(step), fn child_step -> child_step.error && child_step.infectParentStepsWithError end)
 
@@ -224,9 +245,9 @@ defmodule PlaywrightEx.Test.TestInfo do
 
       # if (!step.group) this._callbacks.onStepEnd(...)  -- not ported: reporters
 
-      if step.group != "internal" do
+      if step.group != "internal" and step._tracing do
         error_for_trace = if row.error, do: %{name: "", message: row.error[:message] || "", stack: row.error[:stack]}
-        TestTracing.append_after_action_for_step(_tracing(this), step.stepId, error_for_trace, [], row.annotations)
+        TestTracing.append_after_action_for_step(step._tracing, step.stepId, error_for_trace, [], row.annotations)
       end
     end
 
