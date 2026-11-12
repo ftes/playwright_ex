@@ -388,8 +388,8 @@ Playwright Test (outside a test, and once the test has ended, it is logged).
 ## Exclusive browsers
 
 A shared browser suits tests that only use contexts. A module that changes the driver or the
-browser for others (registers selectors, sets the test id attribute, closes or traces the
-browser) takes one of its own, as Playwright Test's worker gives one:
+browser for others (registers selectors, closes or traces the browser) takes one of its own, as
+Playwright Test's worker gives one:
 
 ```elixir
 setup_all do
@@ -405,6 +405,16 @@ same browser. At its end, a scope that passed gives the driver back, warm, to th
 its options, and one that failed stops it. To set up each new driver (register selectors, say),
 pass `on_start: &MyApp.Selectors.register/1`: the driver's state then holds for every scope that
 gets it.
+
+The test id attribute of `get_by_test_id` is global to the VM, as Playwright's is to a worker
+process, so an exclusive browser doesn't isolate it: a module that sets it changes it for every
+test running at once. Set it for the suite, as Playwright Test's `testIdAttribute`; each pooled
+driver gets it:
+
+```elixir
+# config/test.exs
+config :playwright_ex, :test, test_id_attribute: "data-pw"
+```
 
 At most `workers` exclusive drivers run at once (config, default half the schedulers, as
 Playwright Test's `workers`); the others wait, first come first served, within ExUnit's test

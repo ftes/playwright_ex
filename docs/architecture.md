@@ -289,6 +289,7 @@ no call site (the recording modes) are config plus ExUnit tags; the rest are arg
 | `actionTimeout`, `navigationTimeout` (default 0) | config `action_timeout`, `navigation_timeout` (default `:infinity`), set on each context |
 | test timeout, `closeReason` "Test timeout of Nms exceeded." | ExUnit's timeout; the recorder closes the test's contexts with that reason just before it |
 | `test.use({ trace, screenshot, video })` | `@moduletag`/`@describetag`/`@tag` over config |
+| `testIdAttribute` (per test) | config `test_id_attribute`, set on each pooled driver: the client's value is global to the VM, not to a worker |
 | `--trace <mode>` | `TRACE` read in `config/test.exs` |
 | `test.info()` | `info/0` (`test_pid`, `file`, `test_name`, `output_dir`), raises outside a test |
 | `testInfo.outputPath`/`snapshotPath` | `output_path(name)`, `snapshot_path(name, opts)`: one string, no segments |

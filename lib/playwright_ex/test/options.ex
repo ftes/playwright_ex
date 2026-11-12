@@ -15,7 +15,8 @@ defmodule PlaywrightEx.Test.Options do
     :output_dir,
     :workers,
     :snapshot_dir,
-    :snapshot_path_template
+    :snapshot_path_template,
+    :test_id_attribute
   ]
   @config_keys @pool_keys ++ @artifact_keys ++ @config_only_keys
 
@@ -122,6 +123,9 @@ defmodule PlaywrightEx.Test.Options do
   @doc "The snapshots' path template (config `snapshot_path_template`, default `nil`)."
   def snapshot_path_template, do: config()[:snapshot_path_template]
 
+  @doc "Playwright Test's `testIdAttribute` (config `test_id_attribute`, default `data-testid`)."
+  def test_id_attribute, do: config()[:test_id_attribute]
+
   # Option lists merge one level deep (`launch_options: [slow_mo: 50]` keeps the config's
   # `headless`).
   defp merge_value(key, config, value) when key in [:launch_options, :driver],
@@ -161,7 +165,8 @@ defmodule PlaywrightEx.Test.Options do
       output_dir: "test-results",
       workers: max(div(System.schedulers_online(), 2), 1),
       snapshot_dir: nil,
-      snapshot_path_template: nil
+      snapshot_path_template: nil,
+      test_id_attribute: "data-testid"
     }
   end
 
@@ -222,6 +227,7 @@ defmodule PlaywrightEx.Test.Options do
        when key in [:snapshot_dir, :snapshot_path_template] and (value == nil or is_binary(value)),
        do: value
 
+  defp validate!(:test_id_attribute, name) when is_binary(name) and name != "", do: name
   defp validate!(:workers, workers) when is_integer(workers) and workers > 0, do: workers
 
   # Milliseconds, `0` or `:infinity` for none (`BrowserContext.set_default_timeout/2`'s).

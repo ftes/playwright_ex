@@ -195,10 +195,13 @@ defmodule PlaywrightEx.Test do
         video: :off,                  # :off | :on | :retain_on_failure, or [mode: _, size: _]
         output_dir: "test-results",
         snapshot_dir: nil,            # upstream's testDir: test/
-        snapshot_path_template: nil   # upstream's defaults, see Snapshots
+        snapshot_path_template: nil,  # upstream's defaults, see Snapshots
+        test_id_attribute: "data-testid"
 
   The artifact modes are `off` by default and `output_dir` is `test-results`, as upstream's.
   `workers` is half the schedulers, as upstream's default `workers` is half the cores (`'50%'`).
+  `test_id_attribute` is upstream's `testIdAttribute`, set on each pooled driver: the client's
+  value is global to the VM, so set it here, not per module.
   """
 
   alias PlaywrightEx.Runtime.Zones

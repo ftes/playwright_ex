@@ -221,9 +221,12 @@ defmodule PlaywrightEx.Test.ConfigTest do
   alias PlaywrightEx.APIRequestContext
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
+  alias PlaywrightEx.Client.Locator, as: ClientLocator
+  alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Playwright
   alias PlaywrightEx.Runtime.Heap
+  alias PlaywrightEx.Selectors
   alias PlaywrightEx.Test.BrowserPool
   alias PlaywrightEx.Test.Options
 
@@ -315,6 +318,20 @@ defmodule PlaywrightEx.Test.ConfigTest do
     assert %{connect_options: nil} = Options.pool(connect_options: nil)
   end
 
+  # Playwright Test's `testIdAttribute`: the client's value is the VM's, so this module is not
+  # async, and resets it.
+  test "test_id_attribute: each new pooled driver gets it, as the client does", %{config: config} do
+    Application.put_env(:playwright_ex, :test, config ++ [test_id_attribute: "data-pw"])
+    browser = BrowserPool.shared(driver: [env: [{"PW_TEST_ID_ATTRIBUTE_TEST", "1"}]])
+    selectors = Playwright.selectors(BrowserPool.playwright(browser))
+    on_exit(fn -> Selectors.set_test_id_attribute(selectors, "data-testid") end)
+
+    assert ClientLocator.test_id_attribute_name() == "data-pw"
+    page = BrowserContext.new_page!(Browser.new_context!(browser))
+    Page.set_content!(page, ~s(<div data-pw="a">A</div><div data-testid="a">B</div>))
+    assert Locator.text_content!(Page.get_by_test_id(page, "a")) == "A"
+  end
+
   test "the defaults", %{config: config} do
     Application.delete_env(:playwright_ex, :test)
 
@@ -331,6 +348,7 @@ defmodule PlaywrightEx.Test.ConfigTest do
     assert Options.timeouts() == %{action_timeout: :infinity, navigation_timeout: :infinity}
     assert Options.output_dir() == "test-results"
     assert Options.workers() == max(div(System.schedulers_online(), 2), 1)
+    assert Options.test_id_attribute() == "data-testid"
     Application.put_env(:playwright_ex, :test, config)
   end
 
@@ -346,6 +364,9 @@ defmodule PlaywrightEx.Test.ConfigTest do
       Application.put_env(:playwright_ex, :test, config ++ [{key, true}])
       assert_raise ArgumentError, ~r/unknown keys \[#{inspect(key)}\]/, fn -> Options.pool([]) end
     end
+
+    Application.put_env(:playwright_ex, :test, config ++ [test_id_attribute: ""])
+    assert_raise ArgumentError, ~r/invalid test_id_attribute: ""/, fn -> Options.test_id_attribute() end
 
     Application.put_env(:playwright_ex, :test, config ++ [trace: :sometimes])
     assert_raise ArgumentError, ~r/invalid trace: :sometimes/, fn -> Options.artifacts(%{}) end

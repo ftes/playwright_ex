@@ -40,6 +40,9 @@ those of the release candidates below. From an earlier release, also read the se
   test timeout the test's contexts are closed, so a hanging call fails with "Test timeout of
   Nms exceeded." and its call log, its artifacts kept. See the
   [Testing with ExUnit](guides/testing-with-exunit.md) guide.
+- `test_id_attribute` in `config :playwright_ex, :test` is Playwright Test's `testIdAttribute`,
+  set on each pooled driver. The client's test id attribute is global to the VM, so a module that
+  sets it changes `get_by_test_id` for concurrent tests: set it suite-wide.
 
 ### Changed
 - `%PlaywrightEx.Expect{}` also carries `isSoft`, and `isNot` defaults to `false`: build a
