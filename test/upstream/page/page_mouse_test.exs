@@ -4,6 +4,8 @@ defmodule PlaywrightEx.Page.PageMouseTest do
 
   @browser_name System.get_env("BROWSER", "chromium")
 
+  alias PlaywrightEx.Expect
+
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Keyboard
   alias PlaywrightEx.Locator
@@ -401,14 +403,14 @@ defmodule PlaywrightEx.Page.PageMouseTest do
     child_center = %{x: iframe_box.x + 90, y: iframe_box.y + 90}
 
     Mouse.move!(Page.mouse(page), parent_center.x, parent_center.y)
-    Utils.poll(log, &assert(&1 == ["parent:enter"]))
+    Expect.poll!(log, &assert(&1 == ["parent:enter"]))
 
     # Crossing into the iframe leaves the parent element and enters the child.
     Mouse.move!(Page.mouse(page), child_center.x, child_center.y)
-    Utils.poll(log, &assert(&1 == ["parent:enter", "parent:leave", "child:enter"]))
+    Expect.poll!(log, &assert(&1 == ["parent:enter", "parent:leave", "child:enter"]))
 
     # Crossing back out leaves the child element and re-enters the parent.
     Mouse.move!(Page.mouse(page), parent_center.x, parent_center.y)
-    Utils.poll(log, &assert(&1 == ["parent:enter", "parent:leave", "child:enter", "child:leave", "parent:enter"]))
+    Expect.poll!(log, &assert(&1 == ["parent:enter", "parent:leave", "child:enter", "child:leave", "parent:enter"]))
   end
 end

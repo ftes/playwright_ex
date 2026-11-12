@@ -72,7 +72,11 @@ defmodule Mix.PlaywrightEx.ApiRules do
       receiver, which the matchers take too (`locator |> Expect.not_() |> Expect.to_have_text("x")`).
       `expect.soft` (not in api.json, a property of upstream's `expect` function) is the member
       `soft` (`"soften"`, with the docs of upstream's soft assertions guide): it wraps the receiver
-      too, with `isSoft`, in either order with `not_`.
+      too, with `isSoft`, in either order with `not_`. `expect(callback).toPass(options)` and
+      `expect.poll(actual, options)` (not in api.json either, the test runner's) are the matchers
+      `to_pass` and `poll` of a function receiver (`"Function"`, the variable `callback`), with the
+      docs of upstream's assertions guide. `poll` has no `not` form, and its matcher is an argument,
+      `assertion` (`"poll"`: `PlaywrightEx.Matchers.Expect.poll/3`), as the jest matchers are ExUnit's.
       Overloads are dropped, except that `toHaveAttribute(name, options)` makes `value` optional.
       `toHaveScreenshot` takes `name` as an option, which a `PlaywrightEx.Test` test resolves, or
       the snapshot file as a `path` option (`to_have_screenshot(page, path: "home.png")`), as does
@@ -371,6 +375,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
       |> Enum.map(&merge_receivers/1)
       |> Enum.flat_map(&[&1, not_matcher(&1)])
 
+    members = members ++ [to_pass(), not_matcher(to_pass()), poll()]
     receivers = members |> Enum.flat_map(& &1["matcher"]["receivers"]) |> Enum.uniq()
 
     members = [
@@ -661,6 +666,171 @@ defmodule Mix.PlaywrightEx.ApiRules do
       "soften" => receivers
     }
   end
+
+  # `expect(callback).toPass(options)`: not in api.json (the test runner's). The docs are upstream's
+  # assertions guide (`docs/src/test-assertions-js.md`, `expect.toPass`).
+  defp to_pass do
+    %{
+      "name" => "toPass",
+      "alias" => "toPass",
+      "kind" => "method",
+      "since" => "v1.29",
+      "langs" => %{},
+      "type" => %{"name" => "void"},
+      "args" => [
+        retry_options([
+          intervals_option(),
+          %{
+            "name" => "timeout",
+            "required" => false,
+            "type" => %{"name" => "float"},
+            "spec" => [
+              text(
+                "Time to retry the callback for in milliseconds. Defaults to `0`: until the test's timeout (none outside " <>
+                  "a `PlaywrightEx.Test` test), not the matchers' `timeout`. A default other than `0` is `:to_pass` in " <>
+                  "`config :playwright_ex, :expect` (see the configuration in `PlaywrightEx.Expect`). Within a test, it " <>
+                  "ends before the test's timeout."
+              )
+            ]
+          }
+        ])
+      ],
+      "spec" => [
+        text("You can retry blocks of code until they are passing successfully."),
+        js([
+          "await expect(async () => {",
+          "  const response = await page.request.get('https://api.example.com');",
+          "  expect(response.status()).toBe(200);",
+          "}).toPass();"
+        ]),
+        text("You can also specify custom timeout and retry intervals:"),
+        js([
+          "await expect(async () => {",
+          "  const response = await page.request.get('https://api.example.com');",
+          "  expect(response.status()).toBe(200);",
+          "}).toPass({",
+          "  // Probe, wait 1s, probe, wait 2s, probe, wait 10s, probe, wait 10s, probe",
+          "  // ... Defaults to [100, 250, 500, 1000].",
+          "  intervals: [1_000, 2_000, 10_000],",
+          "  timeout: 60_000",
+          "});"
+        ]),
+        text("Note that by default `toPass` has timeout 0 and does not respect custom expect timeout."),
+        text(
+          "In Elixir, the callback runs in the calling process and passes once it returns. A failure in it (a raise " <>
+            "such as an `ExUnit.AssertionError` or a `PlaywrightEx.ExpectError`, an exit) is retried; the last one is " <>
+            "in the timeout's message. A callback still running at the deadline is not interrupted. A soft receiver " <>
+            "(`callback |> Expect.soft() |> Expect.to_pass()`) works as for any matcher."
+        )
+      ],
+      "matcher" => %{"name" => "toPass", "isNot" => false, "receivers" => ["Function"]}
+    }
+  end
+
+  # `expect.poll(actual, options).toBe(expected)`: not in api.json (the test runner's). The docs
+  # are upstream's assertions guide (`expect.poll`).
+  defp poll do
+    %{
+      "name" => "poll",
+      "alias" => "poll",
+      "kind" => "method",
+      "since" => "v1.21",
+      "langs" => %{},
+      "type" => %{"name" => "void"},
+      "args" => [
+        %{
+          "name" => "assertion",
+          "required" => true,
+          "type" => %{"name" => "function", "args" => [%{"name" => "any"}]},
+          "spec" => [
+            text(
+              "Called with each value of `callback`, the place of a jest matcher (`.toBe(200)`): an ExUnit " <>
+                "assertion (`&assert(&1 == 200)`), which raises until the value is right."
+            )
+          ]
+        },
+        retry_options([
+          intervals_option(),
+          %{
+            "name" => "message",
+            "required" => false,
+            "type" => %{"name" => "string"},
+            "spec" => [text("A custom expect message, for the step title and the error.")]
+          },
+          %{
+            "name" => "timeout",
+            "required" => false,
+            "type" => %{"name" => "float"},
+            "spec" => [text(@expect_timeout_doc)]
+          }
+        ])
+      ],
+      "spec" => [
+        text("You can convert any synchronous `expect` to an asynchronous polling one using `expect.poll`."),
+        text("The following method will poll given function until it returns HTTP status 200:"),
+        js([
+          "await expect.poll(async () => {",
+          "  const response = await page.request.get('https://api.example.com');",
+          "  return response.status();",
+          "}, {",
+          "  // Custom expect message for reporting, optional.",
+          "  message: 'make sure API eventually succeeds',",
+          "  // Poll for 10 seconds; defaults to 5 seconds. Pass 0 to disable timeout.",
+          "  timeout: 10000,",
+          "}).toBe(200);"
+        ]),
+        text("You can also specify custom polling intervals:"),
+        js([
+          "await expect.poll(async () => {",
+          "  const response = await page.request.get('https://api.example.com');",
+          "  return response.status();",
+          "}, {",
+          "  // Probe, wait 1s, probe, wait 2s, probe, wait 10s, probe, wait 10s, probe",
+          "  // ... Defaults to [100, 250, 500, 1000].",
+          "  intervals: [1_000, 2_000, 10_000],",
+          "  timeout: 60_000",
+          "}).toBe(200);"
+        ]),
+        text(
+          "You can combine `expect.soft` with `expect.poll` to perform soft assertions in polling logic. This allows " <>
+            "the test to continue even if the assertion inside poll fails."
+        ),
+        js([
+          "await expect.soft.poll(async () => {",
+          "  const response = await page.request.get('https://api.example.com');",
+          "  return response.status();",
+          "}).toBe(200);"
+        ]),
+        text(
+          "In Elixir, the jest matcher is an `assertion` of the value, as Elixir's generic assertions are ExUnit's. " <>
+            "`callback` raising fails the poll at once, as upstream's; the assertion raising is retried, and its last " <>
+            "error is in the timeout's message. Both run in the calling process. Negate in the assertion " <>
+            "(`&refute(&1 == 200)`): a negated receiver raises `ArgumentError`."
+        )
+      ],
+      "matcher" => %{"name" => "poll", "isNot" => false, "receivers" => ["Function"], "poll" => true}
+    }
+  end
+
+  defp retry_options(props),
+    do: %{"name" => "options", "required" => false, "type" => %{"name" => "Object", "properties" => props}}
+
+  defp intervals_option do
+    %{
+      "name" => "intervals",
+      "required" => false,
+      "type" => %{"name" => "Array", "templates" => [%{"name" => "int"}]},
+      "spec" => [
+        text(
+          "Probe, wait 1s, probe, wait 2s, probe, wait 10s, probe, wait 10s, probe: `[1_000, 2_000, 10_000]`. " <>
+            "Defaults to `[100, 250, 500, 1000]`."
+        )
+      ]
+    }
+  end
+
+  defp text(text), do: %{"type" => "text", "text" => text}
+  defp js(lines), do: %{"type" => "code", "codeLang" => "js", "lines" => lines}
 
   # `expect(x).not.toHaveText(...)`: Python's `not_to_have_text`.
   defp not_matcher(member) do

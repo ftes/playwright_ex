@@ -84,9 +84,11 @@ storage state and cookies, `@result_options` for `Credentials.create`).
   fixtures, and they would live in generated moduledocs) and a compile-only checker (weaker, as
   the tests give compiling for free).
 - Out of scope: `launchServer`/`BrowserServer` (JS-only), `connectOverCDP(transport)`, function
-  serialization, the inspector, Playwright Test (`toPass`, `expect.poll`, jest matchers);
-  `PlaywrightEx.Test` is an ExUnit layer instead (see Test runner), whose tests give the matchers
-  a ported `testInfo` for snapshot names, soft errors and steps. `expect.soft` is `soft/1`, a
+  serialization, the inspector, Playwright Test (jest matchers); `PlaywrightEx.Test` is an
+  ExUnit layer instead (see Test runner), whose tests give the matchers a ported `testInfo` for
+  snapshot names, soft errors, steps and the test's deadline. `toPass` and `expect.poll` are
+  matchers of a function (`Expect.to_pass/2`, `Expect.poll/3`), `poll`'s jest matcher an ExUnit
+  assertion. `expect.soft` is `soft/1`, a
   receiver as `not_/1` is (`isSoft`), in either order with it.
   `to_have_screenshot(target, path:)` and `to_match_aria_snapshot(target, path:)` stay, with an
   explicit path in place of a `name`, also outside a test.
@@ -287,13 +289,19 @@ no call site (the recording modes) are config plus ExUnit tags; the rest are arg
 | (none) | `BrowserPool.shared/1` |
 | `playwright` fixture | `BrowserPool.playwright/1` |
 | `context`/`page` fixtures, `browser.newContext()` | `Browser.new_context!/2`, `BrowserContext.new_page!/1`; `PlaywrightEx.Case` puts them together |
+| `request` fixture | `APIRequest.new_context!/2` in the test (disposed at its end); not in `PlaywrightEx.Case`, where each test would pay for it |
 | auto `_setupArtifacts` | the recording of every registered test (`error-context.md` whatever the modes) |
 | `_combinedContextOptions` (`{...contextOptions, ...options}`) | Playwright Test's defaults, then config `context_options`, then the call's (`key in options`) |
+| `actionTimeout`, `navigationTimeout` (default 0) | config `action_timeout`, `navigation_timeout` (default `:infinity`), set on each context |
+| test timeout, `closeReason` "Test timeout of Nms exceeded." | ExUnit's timeout; the recorder closes the test's contexts with that reason just before it |
 | `test.use({ trace, screenshot, video })` | `@moduletag`/`@describetag`/`@tag` over config |
+| `testIdAttribute` (per test) | config `test_id_attribute`, set on each pooled driver: the client's value is global to the VM, not to a worker |
 | `--trace <mode>` | `TRACE` read in `config/test.exs` |
 | `test.info()` | `info/0` (`test_pid`, `file`, `test_name`, `output_dir`), raises outside a test |
+| `testInfo.status`, `errors`, `expectedStatus`, `duration` in teardown | `info(test_pid)` in `on_exit` (another process), kept until ExUnit's `on_exit` process exits |
 | `testInfo.outputPath`/`snapshotPath` | `output_path(name)`, `snapshot_path(name, opts)`: one string, no segments |
 | `test.step` | `step/2,3` (no timeout) |
+| `testInfo.attach` | `attach/2` (`test.attach` step, `trace.attachments`) |
 | list reporter's `npx playwright show-trace <path>` | a failure prints `mix playwright_ex.cli show-trace <path>` |
 | retry modes (`on-first-retry`, ...) | not supported: ExUnit has no retries; the `TRACE=1 mix test --failed` recipe |
 
@@ -316,15 +324,26 @@ Deviations the port requires:
   shared Firefox, and still on 4. So Firefox suites use `exclusive` (our suite does), not a `pool_size` of shared
   browsers per key: Firefox needs about a browser per module.
 - Closing the test's leftover contexts, last in its `on_exit`: a pooled browser outlives the test,
-  where upstream's worker browser closes them later.
+  where upstream's worker browser closes them later. Its request contexts left are disposed, as
+  upstream's `request` fixture is.
 - A video of every context the test creates, not only the fixtures' (there are no context
-  fixtures).
+  fixtures), and `video.show.test`'s title overlay on all of them.
+- `actionTimeout`/`navigationTimeout` per context, in the listener's after-create hook (and a
+  request context's `timeout`), not on the Playwright (`_setupContextOptions`): a shared driver's
+  one Playwright serves concurrent tests.
+- The test timeout's close before the timeout. Upstream fails the test, then closes its contexts
+  with the reason; ExUnit kills the test process, which nothing can follow. So the test's
+  recorder closes them `min(1 s, 5%)` before ExUnit's timeout (`--trace` and `:infinity` have
+  none): the close's artifact steps and the failing call's reply fit in it (about 50 ms with a
+  trace and a screenshot), and a test stuck outside Playwright still gets ExUnit's
+  `TimeoutError`. ExUnit's clock starts at the test process's spawn, ours at the registration
+  just after. A test that ends earlier cancels it.
 - `use PlaywrightEx.Test` as the first line of a case template's body: a template's own `setup`
   callbacks run before those its `using` brings in, so the test is registered before them.
 
 A driver hosts every browser type, as upstream's one Playwright does. Each pooled driver gets one
 static listener when it starts (`runBeforeCreateBrowserContext`, `runAfterCreateBrowserContext`,
-`runBeforeCloseBrowserContext`, `runBeforeCreateRequestContext`), which finds the creating
+`runBeforeCloseBrowserContext` and their request context counterparts), which finds the creating
 process's test (an ETS lookup of it and its `$callers`) and hands the context to that test's
 recorder, so a test's recording sees the contexts of all its browsers. The recorder process
 starts at the test's first context (at its registration when it traces, for its steps): a test
@@ -382,12 +401,20 @@ prints the soft error, as before, and a soft matcher there fails as any, as upst
 step.
 
 The matchers and traces need part of Playwright Test's worker, so that part is ported:
-`PlaywrightEx.Test.TestInfo` (`testInfo.ts`: snapshot paths, `_failWithError`, steps),
+`PlaywrightEx.Test.TestInfo` (`testInfo.ts`: snapshot paths, `_failWithError`, steps, `attach`),
 `PlaywrightEx.Test.TestTracing` (`testTracing.ts`: `test.trace`) and `step/3` (`test.step`),
 with upstream source references and `-- not ported`/`# deviation:` comments. They have no
 `@upstream`, as parity tracks the client API, not the runner; the rest of the runner is native.
 
-Rejected: porting the rest of Playwright Test, `toPass`, `expect.poll`, `createExpect`
+`toPass` and `expect.poll` are ported (`matchers.ts`, `expect.ts`, `pollAgainstDeadline`), as
+upstream's specs and suites ported onto `PlaywrightEx.Test` (LiveView's e2e) use them often
+and a helper per suite drifted from upstream's intervals, deadlines and steps. Being matchers,
+they get `expect.soft`, steps and the expect config for free; `poll`'s matcher is an ExUnit
+assertion (`Expect.poll(fn -> v end, &assert(&1 == 3))`), as the jest matchers are not ported. Their
+callbacks run in the calling process, not raced against the deadline (a running callback overruns
+it), for the reason a step has no timeout.
+
+Rejected: porting the rest of Playwright Test, `createExpect`
 (`expect.configure`; `expect.soft` is a receiver, `soft/1`), a step's `timeout` (a process can't
 be interrupted, so the body would run in another process, with another `self()` and mailbox, and
 on past the timeout; the test's timeout bounds it) and a driver per module by default. For the

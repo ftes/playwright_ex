@@ -17,14 +17,16 @@ defmodule PlaywrightEx.Matchers.ExpectTest do
              update_snapshots: :missing,
              ignore_snapshots: true,
              to_have_screenshot: %{maxDiffPixels: 10},
-             to_match_aria_snapshot: %{children: "equal"}
+             to_match_aria_snapshot: %{children: "equal"},
+             to_pass: [timeout: 1_000, intervals: [50]]
            ) == %{
              testInfo: nil,
              timeout: 0,
              updateSnapshots: "missing",
              ignoreSnapshots: true,
              toHaveScreenshot: %{maxDiffPixels: 10},
-             toMatchAriaSnapshot: %{children: "equal"}
+             toMatchAriaSnapshot: %{children: "equal"},
+             toPass: %{timeout: 1_000, intervals: [50]}
            }
   end
 

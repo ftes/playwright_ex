@@ -8,7 +8,16 @@ defmodule PlaywrightEx.Test.Options do
 
   @pool_keys [:browser_name, :launch_options, :connect_options, :driver, :on_start]
   @artifact_keys [:trace, :screenshot, :video]
-  @config_only_keys [:context_options, :output_dir, :workers, :snapshot_dir, :snapshot_path_template]
+  @config_only_keys [
+    :context_options,
+    :action_timeout,
+    :navigation_timeout,
+    :output_dir,
+    :workers,
+    :snapshot_dir,
+    :snapshot_path_template,
+    :test_id_attribute
+  ]
   @config_keys @pool_keys ++ @artifact_keys ++ @config_only_keys
 
   @driver_keys [:executable, :node, :cache_dir, :env]
@@ -41,13 +50,11 @@ defmodule PlaywrightEx.Test.Options do
     video: [:off, :on, :retain_on_failure]
   }
 
-  # The keys of the object forms, upstream's (`packages/playwright/types/test.d.ts`) but for
-  # trace's `attachments` (of test steps, which our traces have none of) and video's `fps` and
-  # `show`.
+  # The keys of the object forms, upstream's (`packages/playwright/types/test.d.ts`).
   @artifact_options %{
-    trace: [:mode, :snapshots, :screenshots, :sources],
+    trace: [:mode, :snapshots, :screenshots, :sources, :attachments],
     screenshot: [:mode, :full_page, :omit_background],
-    video: [:mode, :size]
+    video: [:mode, :size, :fps, :show]
   }
 
   @doc "The pool options (`BrowserPool.shared/1`, `exclusive/1`): the config merged with `opts`."
@@ -92,6 +99,13 @@ defmodule PlaywrightEx.Test.Options do
     Map.merge(@context_defaults, Facade.options!(config()[:context_options], type, "browser.newContext"))
   end
 
+  @doc """
+  Playwright Test's `actionTimeout` and `navigationTimeout` (config `action_timeout`,
+  `navigation_timeout`): `%{action_timeout: _, navigation_timeout: _}`, each `:infinity` by
+  default (upstream's `0`, no timeout).
+  """
+  def timeouts, do: Map.take(config(), [:action_timeout, :navigation_timeout])
+
   @doc "Playwright Test's context option defaults, with the client's keys and values."
   def context_defaults, do: @context_defaults
 
@@ -106,6 +120,9 @@ defmodule PlaywrightEx.Test.Options do
 
   @doc "The snapshots' path template (config `snapshot_path_template`, default `nil`)."
   def snapshot_path_template, do: config()[:snapshot_path_template]
+
+  @doc "Playwright Test's `testIdAttribute` (config `test_id_attribute`, default `data-testid`)."
+  def test_id_attribute, do: config()[:test_id_attribute]
 
   # Option lists merge one level deep (`launch_options: [slow_mo: 50]` keeps the config's
   # `headless`).
@@ -141,10 +158,13 @@ defmodule PlaywrightEx.Test.Options do
       screenshot: :off,
       video: :off,
       context_options: [],
+      action_timeout: :infinity,
+      navigation_timeout: :infinity,
       output_dir: "test-results",
       workers: max(div(System.schedulers_online(), 2), 1),
       snapshot_dir: nil,
-      snapshot_path_template: nil
+      snapshot_path_template: nil,
+      test_id_attribute: "data-testid"
     }
   end
 
@@ -205,7 +225,14 @@ defmodule PlaywrightEx.Test.Options do
        when key in [:snapshot_dir, :snapshot_path_template] and (value == nil or is_binary(value)),
        do: value
 
+  defp validate!(:test_id_attribute, name) when is_binary(name) and name != "", do: name
   defp validate!(:workers, workers) when is_integer(workers) and workers > 0, do: workers
+
+  # Milliseconds, `0` or `:infinity` for none (`BrowserContext.set_default_timeout/2`'s).
+  defp validate!(key, timeout)
+       when key in [:action_timeout, :navigation_timeout] and
+              (timeout == :infinity or (is_integer(timeout) and timeout >= 0)),
+       do: timeout
 
   defp validate!(key, value) when is_map_key(@modes, key),
     do: raise(ArgumentError, "invalid #{key}: #{inspect(value)}, expected one of #{inspect(accepted(key))}")
@@ -233,7 +260,7 @@ defmodule PlaywrightEx.Test.Options do
               "unknown #{key} options #{inspect(unknown)}, expected one of #{inspect(@artifact_options[key])}"
     end
 
-    defaults = if key == :trace, do: [snapshots: true, screenshots: true, sources: true], else: []
+    defaults = if key == :trace, do: [snapshots: true, screenshots: true, sources: true, attachments: true], else: []
     options = Keyword.merge(defaults, options)
 
     for name <- @artifact_options[key],
@@ -244,7 +271,8 @@ defmodule PlaywrightEx.Test.Options do
   defp artifact_option!(key, :mode, mode), do: mode!(key, mode)
 
   defp artifact_option!(_key, name, value)
-       when name in [:snapshots, :screenshots, :sources, :full_page, :omit_background] and is_boolean(value),
+       when name in [:snapshots, :screenshots, :sources, :attachments, :full_page, :omit_background] and
+              is_boolean(value),
        do: value
 
   # `{ dom?, aria?, screen? }`, a map as the facade's nested objects.
@@ -258,6 +286,26 @@ defmodule PlaywrightEx.Test.Options do
   defp artifact_option!(:video, :size, %{width: width, height: height} = size)
        when map_size(size) == 2 and is_integer(width) and is_integer(height),
        do: size
+
+  defp artifact_option!(:video, :fps, fps) when is_integer(fps) and fps > 0, do: fps
+
+  # `{ actions?: recordVideo.showActions, test?: { level?, position?, fontSize? } }`, maps with
+  # upstream's keys and values; `actions` goes to the context's `recordVideo` as is.
+  defp artifact_option!(:video, :show, %{} = show) when not is_struct(show) do
+    valid? =
+      Enum.all?(show, fn
+        {:actions, %{} = actions} ->
+          Map.keys(actions) -- [:duration, :position, :fontSize, :cursor, :style] == []
+
+        {:test, %{} = test} ->
+          Map.keys(test) -- [:level, :position, :fontSize] == [] and test[:level] in [nil, "file", "title", "step"]
+
+        _ ->
+          false
+      end)
+
+    if valid?, do: show, else: raise(ArgumentError, "invalid video show: #{inspect(show)}")
+  end
 
   defp artifact_option!(key, name, value), do: raise(ArgumentError, "invalid #{key} #{name}: #{inspect(value)}")
 

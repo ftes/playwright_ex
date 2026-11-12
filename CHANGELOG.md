@@ -38,7 +38,32 @@ those of the release candidates below. From an earlier release, also read the se
   `subtitle`; no `timeout`), `step_skip` its `test.step.skip`, and each matcher call is a step:
   the trace's `test.trace` has the test's steps, nested, and its errors. `Expect.soft/1` is
   `expect.soft`: in a test, a failed soft matcher returns and fails the test at the end of its
-  body. See the [Testing with ExUnit](guides/testing-with-exunit.md) guide.
+  body. As in Playwright Test, a test's contexts have no action or navigation timeout unless
+  the config's `action_timeout` and `navigation_timeout` set one, and just before ExUnit's
+  test timeout the test's contexts are closed, so a hanging call fails with "Test timeout of
+  Nms exceeded." and its call log, its artifacts kept. See the
+  [Testing with ExUnit](guides/testing-with-exunit.md) guide.
+- `test_id_attribute` in `config :playwright_ex, :test` is Playwright Test's `testIdAttribute`,
+  set on each pooled driver. The client's test id attribute is global to the VM, so a module that
+  sets it changes `get_by_test_id` for concurrent tests: set it suite-wide.
+- `PlaywrightEx.Test` traces each context's `request` and the test's own request contexts
+  (`APIRequest.new_context/2`), and disposes those left at the test's end.
+- `PlaywrightEx.Test.info/1` takes the test's pid and works in `on_exit`, where it also has
+  Playwright Test's `testInfo.status`, `errors`, `expectedStatus` and `duration`.
+- `PlaywrightEx.Test.attach/2` is Playwright Test's `testInfo.attach`: a file (`path:`, copied to
+  the output dir) or a body, as a `test.attach` step in the trace. The trace option `attachments`
+  (default `true`) keeps them in `trace.zip`.
+- The `video` option takes Playwright Test's `fps` and `show` (`show.actions`, and `show.test`,
+  the test's title and steps over each page).
+- `Expect.to_pass/2` and `Expect.poll/3`: `expect(fn).toPass()` and `expect.poll(fn).toBe(x)`
+  (`Expect.poll(fn, &assert(&1 == x))`), with upstream's intervals and timeouts (`toPass`: until
+  the test's timeout), steps, soft receivers and `config :playwright_ex, :expect, to_pass: ...`.
+- `PlaywrightEx.Promise.async/1`: starts calls now, awaited later (JS's
+  `const p = locator.evaluate(...); ...; await p`). It returns once the calls are sent, so they
+  come before your next action, which a `Task` doesn't ensure.
+- The ExUnit guide covers porting Playwright Test specs, `projects` as `parameterize:` with
+  devices, teardown checks that fail the test, and listener lifetimes; the concurrency guide,
+  route handlers that wait for the test.
 
 ### Changed
 - `%PlaywrightEx.Expect{}` also carries `isSoft`, and `isNot` defaults to `false`: build a

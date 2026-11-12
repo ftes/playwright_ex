@@ -505,7 +505,7 @@ defmodule PlaywrightEx.Library.CapabilitiesTest do
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, ~s(<img src="#{server.prefix}/rgb.avif" onerror="window.error = true">))
 
-    Utils.poll(
+    Expect.poll!(
       fn -> Locator.bounding_box!(Page.locator(page, "img")) end,
       &assert(match?(%{width: 128, height: 128}, &1))
     )

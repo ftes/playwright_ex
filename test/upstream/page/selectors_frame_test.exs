@@ -9,7 +9,6 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
   alias PlaywrightEx.Page
   alias PlaywrightEx.Route
   alias PlaywrightEx.Runtime
-  alias PlaywrightEx.Utils
 
   @moduletag :page
 
@@ -463,7 +462,7 @@ defmodule PlaywrightEx.Page.SelectorsFrameTest do
 
     # Make sure both child frames have their <div> before matching, otherwise resolution
     # may transiently collapse to a single frame.
-    Utils.poll(fn -> length(Page.frames(page)) end, &assert(&1 == 3))
+    Expect.poll!(fn -> length(Page.frames(page)) end, &assert(&1 == 3))
 
     for frame <- Page.frames(page), frame != Page.main_frame(page) do
       Frame.wait_for_selector!(frame, "div")

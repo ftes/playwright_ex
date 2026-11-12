@@ -326,15 +326,20 @@ defmodule PlaywrightEx.Page.PageDragTest do
 
         drag(unquote(title), page, 4)
 
-        assert poll(fn -> JSHandle.json_value!(events_handle) end, [
-                 %{"type" => "mousemove", "x" => 50, "y" => 50},
-                 %{"type" => "mousedown", "x" => 50, "y" => 50},
-                 %{"type" => "mousemove", "x" => 75, "y" => 75},
-                 %{"type" => "mousemove", "x" => 100, "y" => 100},
-                 %{"type" => "mousemove", "x" => 125, "y" => 125},
-                 %{"type" => "mousemove", "x" => 150, "y" => 150},
-                 %{"type" => "mouseup", "x" => 150, "y" => 150}
-               ])
+        Expect.poll!(
+          fn -> JSHandle.json_value!(events_handle) end,
+          &assert(
+            &1 == [
+              %{"type" => "mousemove", "x" => 50, "y" => 50},
+              %{"type" => "mousedown", "x" => 50, "y" => 50},
+              %{"type" => "mousemove", "x" => 75, "y" => 75},
+              %{"type" => "mousemove", "x" => 100, "y" => 100},
+              %{"type" => "mousemove", "x" => 125, "y" => 125},
+              %{"type" => "mousemove", "x" => 150, "y" => 150},
+              %{"type" => "mouseup", "x" => 150, "y" => 150}
+            ]
+          )
+        )
       end
     end
 
@@ -563,14 +568,5 @@ defmodule PlaywrightEx.Page.PageDragTest do
       return events;
     }
     """)
-  end
-
-  # `expect.poll(fun).toEqual(expected)`: polls until equal (the 10 s expect timeout).
-  defp poll(fun, expected, tries \\ 100) do
-    cond do
-      fun.() == expected -> true
-      tries == 0 -> false
-      true -> Process.sleep(100) && poll(fun, expected, tries - 1)
-    end
   end
 end

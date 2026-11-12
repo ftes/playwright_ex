@@ -116,6 +116,21 @@ defmodule PlaywrightEx.Test.Pool do
     :exit, _ -> {nil, []}
   end
 
+  @doc "How long the ended test `pid` ran, in ms, from its `watch/2` to its exit; `nil` if unknown."
+  def duration(pid) do
+    if Process.whereis(__MODULE__), do: GenServer.call(__MODULE__, {:duration, pid}, :infinity)
+  end
+
+  @doc """
+  Keeps `info` (`PlaywrightEx.Test.info/1`'s, of the ended test `test_pid`) until the calling
+  process, ExUnit's `on_exit` runner, exits: for the test's `on_exit` callbacks that run after
+  its registration's.
+  """
+  def keep_info(test_pid, info) do
+    :ets.insert(table(), {{:info, test_pid}, info})
+    GenServer.cast(__MODULE__, {:keep_info, test_pid, self()})
+  end
+
   @doc "Forgets the result of the test `pid`."
   def forget(pid) do
     if Process.whereis(__MODULE__), do: GenServer.cast(__MODULE__, {:forget, pid})
@@ -189,7 +204,9 @@ defmodule PlaywrightEx.Test.Pool do
        waiting: [],
        after_suite?: false,
        tests: %{},
-       results: %{}
+       results: %{},
+       durations: %{},
+       kept: %{}
      }}
   end
 
@@ -263,7 +280,8 @@ defmodule PlaywrightEx.Test.Pool do
       {:reply, :ok, state}
     else
       Process.monitor(pid)
-      test = %{runner: runner, marked: marked, passed?: false, failures: [], awaiting: []}
+      started = System.monotonic_time(:millisecond)
+      test = %{runner: runner, marked: marked, passed?: false, failures: [], awaiting: [], started: started}
       {:reply, :ok, %{state | tests: Map.put(state.tests, pid, test)}}
     end
   end
@@ -275,6 +293,8 @@ defmodule PlaywrightEx.Test.Pool do
       _ -> {:reply, {nil, []}, state}
     end
   end
+
+  def handle_call({:duration, pid}, _from, state), do: {:reply, state.durations[pid], state}
 
   # One recorder per test, started here so that two processes of the test can't start two, and
   # none starts after the test's `take/1`.
@@ -306,7 +326,13 @@ defmodule PlaywrightEx.Test.Pool do
   end
 
   @impl true
-  def handle_cast({:forget, pid}, state), do: {:noreply, %{state | results: Map.delete(state.results, pid)}}
+  def handle_cast({:forget, pid}, state),
+    do: {:noreply, %{state | results: Map.delete(state.results, pid), durations: Map.delete(state.durations, pid)}}
+
+  def handle_cast({:keep_info, test_pid, keeper}, state) do
+    Process.monitor(keeper)
+    {:noreply, %{state | kept: Map.update(state.kept, keeper, [test_pid], &[test_pid | &1])}}
+  end
 
   def handle_cast({:monitor, pid}, state) do
     Process.monitor(pid)
@@ -352,6 +378,8 @@ defmodule PlaywrightEx.Test.Pool do
   # test process that waits has two monitors, and the first `DOWN` does both.
   def handle_info({:DOWN, _ref, :process, pid, reason}, state) do
     :ets.delete(table(), {:unregistered, pid})
+    {kept, state} = pop_in(state.kept[pid])
+    for test_pid <- kept || [], do: :ets.delete(table(), {:info, test_pid})
     state = %{state | waiting: Enum.reject(state.waiting, &match?(%{from: {^pid, _}}, &1))}
 
     case Map.pop(state.tests, pid) do
@@ -396,7 +424,14 @@ defmodule PlaywrightEx.Test.Pool do
           else: {scope, lease}
       end)
 
-    %{state | results: Map.put(state.results, pid, {verdict, failures}), leases: leases}
+    duration = System.monotonic_time(:millisecond) - test.started
+
+    %{
+      state
+      | results: Map.put(state.results, pid, {verdict, failures}),
+        durations: Map.put(state.durations, pid, duration),
+        leases: leases
+    }
   end
 
   # ExUnit's runner exits a test's process `:shutdown` after the test and its setup, kills it

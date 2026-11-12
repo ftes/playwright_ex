@@ -18,6 +18,8 @@ defmodule PlaywrightEx.Matchers.Expect do
       rebaseline (an empty snapshot, or any under `:all` or a mismatch under `:changed`) the
       matcher fails with the new snapshot in its message.
     * `:ignore_snapshots` - Skip the snapshot matchers. Defaults to `false`.
+    * `:to_pass` - Defaults of `PlaywrightEx.Expect.to_pass/2`, `%{timeout: 10_000, intervals: [1000]}`. Its timeout
+      defaults to `0`, the test's timeout, not `:timeout`.
     * `:to_have_screenshot`, `:to_match_aria_snapshot` - Defaults for their options, maps with
       the JS keys (`%{maxDiffPixels: 10}`, `%{children: "equal"}`), as upstream's config, and
       their `pathTemplate` (see "Snapshots" in `PlaywrightEx.Test`).
@@ -40,9 +42,10 @@ defmodule PlaywrightEx.Matchers.Expect do
   at the end of its body; outside a test it is printed. The step's call is not the driver's
   `Frame.expect` action (the instrumentation can't set its `callId`), so a trace shows both.
   A failed soft matcher in a test completes its step with the error as its `softError` and
-  returns. There are no test deadlines or `createExpect` (`expect.configure`), and no jest
-  library: generic matchers (`toBe`, `toEqual`, ...), `expect.poll`, `expect.extend`, `toPass`,
-  `toMatchSnapshot` and `resolves`/`rejects` are not ported.
+  returns. There is no `createExpect` (`expect.configure`), and no jest library: generic matchers
+  (`toBe`, `toEqual`, ...), `expect.extend`, `toMatchSnapshot` and `resolves`/`rejects` are not
+  ported. So `expect.poll(actual, options)` has one matcher, `assert`: an ExUnit assertion,
+  `fn value -> assert value == 3 end` for `.toBe(3)` (`poll/3`).
 
   ## Configuration
 
@@ -55,6 +58,7 @@ defmodule PlaywrightEx.Matchers.Expect do
 
   alias PlaywrightEx.ExpectError
   alias PlaywrightEx.Isomorphic.StringUtils
+  alias PlaywrightEx.Isomorphic.TimeoutRunner
   alias PlaywrightEx.Matchers.MatcherUtils
   alias PlaywrightEx.Matchers.Matchers
   alias PlaywrightEx.Matchers.ToMatchAriaSnapshot
@@ -98,7 +102,7 @@ defmodule PlaywrightEx.Matchers.Expect do
     end
   end
 
-  @config_keys [:timeout, :update_snapshots, :ignore_snapshots, :to_have_screenshot, :to_match_aria_snapshot]
+  @config_keys [:timeout, :update_snapshots, :ignore_snapshots, :to_have_screenshot, :to_match_aria_snapshot, :to_pass]
 
   # Elixir only: `config :playwright_ex, :expect, ...` as an `ExpectConfig`.
   @doc false
@@ -118,7 +122,8 @@ defmodule PlaywrightEx.Matchers.Expect do
       updateSnapshots: if(env[:update_snapshots] != nil, do: to_string(env[:update_snapshots])),
       ignoreSnapshots: env[:ignore_snapshots],
       toHaveScreenshot: env[:to_have_screenshot],
-      toMatchAriaSnapshot: env[:to_match_aria_snapshot]
+      toMatchAriaSnapshot: env[:to_match_aria_snapshot],
+      toPass: if(env[:to_pass] != nil, do: Map.new(env[:to_pass]))
     }
 
     Map.merge(@default_expect_config, Map.reject(config, fn {_key, value} -> value == nil end))
@@ -129,7 +134,7 @@ defmodule PlaywrightEx.Matchers.Expect do
   # throwUnsupportedExpectMatcherError  -- not ported: custom matchers (expect.extend)
 
   @doc false
-  # `customAsyncMatchers`, by JS name. `toPass` is not ported.
+  # `customAsyncMatchers`, by JS name.
   def custom_async_matchers do
     %{
       "toBeAttached" => &Matchers.to_be_attached/3,
@@ -161,13 +166,43 @@ defmodule PlaywrightEx.Matchers.Expect do
       "toHaveValue" => &Matchers.to_have_value/4,
       "toHaveValues" => &Matchers.to_have_values/4,
       "toHaveScreenshot" => &ToMatchSnapshot.to_have_screenshot/3,
-      "toMatchAriaSnapshot" => &ToMatchAriaSnapshot.to_match_aria_snapshot/4
+      "toMatchAriaSnapshot" => &ToMatchAriaSnapshot.to_match_aria_snapshot/4,
+      "toPass" => &Matchers.to_pass/3
     }
   end
 
   # allBuiltinMatchers, promiseThrowMatchers  -- not ported: jest generic assertions
-  # createExpect  -- not ported: no expect function object (configure, poll, extend); its `soft` is the generated PlaywrightEx.Expect.soft/1
+  # createExpect  -- not ported: no expect function object (configure, extend); its `soft` is the generated PlaywrightEx.Expect.soft/1, its `poll` is poll/3
   # createMatchers  -- ported as the generated PlaywrightEx.Expect (see the moduledoc)
+
+  @doc false
+  # `expectFn.poll(actual, messageOrOptions)` of `createExpect(info)`, with `createMatchers`' message:
+  # the matcher of the poll. Elixir only: its one matcher is `assert` (see the moduledoc), whose
+  # argument is the assertion. JS's `expect.poll(fn).not` is an assertion that refutes.
+  def poll(info, actual, message_or_options) do
+    if info[:isNot],
+      do: raise(ArgumentError, "expect.poll: a negated receiver; refute in the assertion instead")
+
+    poll = if is_binary(message_or_options), do: %{}, else: message_or_options || %{}
+    info = Map.put(info, :poll, %{timeout: poll[:timeout], intervals: poll[:intervals]})
+
+    message =
+      if is_binary(message_or_options),
+        do: message_or_options,
+        else: truthy_or(message_or_options[:message], info[:message])
+
+    create_matcher("assert", Map.put(info, :message, message), actual, &assert_matcher/3)
+  end
+
+  # Elixir only: the `assert` matcher of `expect.poll`, a jest matcher's place (`toBe`): the
+  # assertion raises when it fails.
+  defp assert_matcher(_this, actual, assertion) do
+    assertion.(actual)
+    %{pass: true, message: fn -> "" end}
+  end
+
+  # JS `a || b`.
+  defp truthy_or(a, b), do: if(truthy?(a), do: a, else: b)
 
   # Elixir has no rest parameters: the matcher function takes the argument list.
   def create_matcher(matcher_name, info, actual, matcher, promise \\ nil) do
@@ -257,7 +292,11 @@ defmodule PlaywrightEx.Matchers.Expect do
     # its error would do nothing. A soft error returns from `handleError`, so does the matcher.
     result =
       try do
-        invoke = fn -> invoke_matcher(matcher_name, info, matcher, actual, args, promise, title) end
+        invoke = fn ->
+          if info[:poll],
+            do: invoke_poll_matcher(matcher_name, info, matcher, actual, args, promise),
+            else: invoke_matcher(matcher_name, info, matcher, actual, args, promise, title)
+        end
 
         # if (result instanceof Promise) return result.then(finalizer, handleError);  -- not ported: matchers return their result
         {:ok, if(step, do: Zones.with(:stepZone, step, invoke), else: invoke.())}
@@ -319,6 +358,53 @@ defmodule PlaywrightEx.Matchers.Expect do
     apply(matcher, [matcher_context, actual | args])
   end
 
-  # invokePollMatcher  -- not ported: expect.poll (jest generic assertions)
+  defp invoke_poll_matcher(matcher_name, info, matcher, actual, args, promise) do
+    if !is_function(actual, 0), do: raise("`expect.poll()` accepts only function as a first argument")
+
+    if promise || custom_async_matchers()[matcher_name],
+      do: raise("`expect.poll()` does not support \"#{promise || matcher_name}\" matcher.")
+
+    test_info = expect_config().testInfo
+    poll = info.poll
+    timeout = poll[:timeout] || info[:timeout] || expect_config()[:timeout] || @default_expect_timeout
+    %{deadline: deadline, timeoutMessage: timeout_message} = Matchers.deadline_for_matcher(test_info, timeout)
+
+    result =
+      TimeoutRunner.poll_against_deadline(
+        fn ->
+          if test_info && expect_config().testInfo != test_info do
+            %{continuePolling: false, result: nil}
+          else
+            value = actual.()
+
+            try do
+              call_matcher_as_step(matcher_name, %{info | poll: nil, isSoft: false}, value, matcher, args)
+              %{continuePolling: false, result: nil}
+            catch
+              kind, reason -> %{continuePolling: true, result: {kind, reason, __STACKTRACE__}}
+            end
+          end
+        end,
+        deadline,
+        poll[:intervals] || [100, 250, 500, 1000]
+      )
+
+    if result.timedOut do
+      # Elixir only: the error's message without the blank lines an `ExUnit.AssertionError`'s starts with.
+      message =
+        if result.result,
+          do:
+            Enum.join(
+              [String.trim_leading(TestInfo.error_message(result.result)), "", "Call Log:", "- #{timeout_message}"],
+              "\n"
+            ),
+          else: timeout_message
+
+      %{pass: !!info[:isNot], message: fn -> message end}
+    else
+      %{pass: !info[:isNot], message: fn -> "" end}
+    end
+  end
+
   # mergeExpects  -- not ported: expect.extend
 end

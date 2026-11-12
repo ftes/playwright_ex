@@ -47,9 +47,11 @@ defmodule PlaywrightEx.Test.BrowserPool do
   > `exclusive/1`: one browser per worker, as Playwright Test always does.
 
   `exclusive/1` is upstream's worker: a driver and browser held by the scope that calls it, for
-  a module that changes the driver or browser for others (registers selectors, sets the test id
-  attribute, closes or traces the browser). Called in `setup_all`, the module holds it until it
-  ends; in `setup` or a test (or a `Task` of the test, through `$callers`), the test holds it
+  a module that changes the driver or browser for others (registers selectors, closes or traces
+  the browser). Not for the test id attribute: `get_by_test_id` reads a value global to the VM
+  (upstream's to the worker process), so only a suite-wide one is safe, config
+  `test_id_attribute`, which each pooled driver gets. Called in `setup_all`, the module holds it
+  until it ends; in `setup` or a test (or a `Task` of the test, through `$callers`), the test holds it
   until it ends. A test's own call is a separate lease from its module's. The scope's further
   calls with the same options return the same browser; another driver key gets another driver.
   At the end of the scope (the last step of a registered test's `on_exit`; for another scope,

@@ -17,7 +17,6 @@ defmodule PlaywrightEx.Library.BrowsercontextReuseTest do
   alias PlaywrightEx.Runtime.Api
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.Tracing
-  alias PlaywrightEx.Utils
   alias PlaywrightEx.WebSocketRoute
 
   # class LaunchScenario: `browser._disconnectFromReusedContext` / `_newContextForReuse` are
@@ -443,12 +442,12 @@ defmodule PlaywrightEx.Library.BrowsercontextReuseTest do
         setup.(page, "before")
         ws = Task.await(ws_promise, :infinity)
         Page.evaluate!(page, "() => window.ws1.send('request')")
-        Utils.poll(fn -> log(page) end, &assert(&1 == ["ws1:page-mock-before"]))
+        Expect.poll!(fn -> log(page) end, &assert(&1 == ["ws1:page-mock-before"]))
         Page.evaluate!(page, "() => window.ws.send('request')")
-        Utils.poll(fn -> log(page) end, &assert(&1 == ["ws1:page-mock-before", "ws:context-mock-before"]))
+        Expect.poll!(fn -> log(page) end, &assert(&1 == ["ws1:page-mock-before", "ws:context-mock-before"]))
         TestServer.WebSocket.send(ws, "hi")
 
-        Utils.poll(
+        Expect.poll!(
           fn -> log(page) end,
           &assert(&1 == ["ws1:page-mock-before", "ws:context-mock-before", "ws:hi"])
         )
@@ -459,12 +458,12 @@ defmodule PlaywrightEx.Library.BrowsercontextReuseTest do
         setup.(page, "after")
         new_ws = Task.await(new_ws_promise, :infinity)
         Page.evaluate!(page, "() => window.ws1.send('request')")
-        Utils.poll(fn -> log(page) end, &assert(&1 == ["ws1:page-mock-after"]))
+        Expect.poll!(fn -> log(page) end, &assert(&1 == ["ws1:page-mock-after"]))
         Page.evaluate!(page, "() => window.ws.send('request')")
-        Utils.poll(fn -> log(page) end, &assert(&1 == ["ws1:page-mock-after", "ws:context-mock-after"]))
+        Expect.poll!(fn -> log(page) end, &assert(&1 == ["ws1:page-mock-after", "ws:context-mock-after"]))
         TestServer.WebSocket.send(new_ws, "hello")
 
-        Utils.poll(
+        Expect.poll!(
           fn -> log(page) end,
           &assert(&1 == ["ws1:page-mock-after", "ws:context-mock-after", "ws:hello"])
         )

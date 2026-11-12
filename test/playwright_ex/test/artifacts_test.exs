@@ -17,6 +17,8 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
   alias PlaywrightEx.Tracing
   alias PlaywrightEx.VideoPlayer
 
+  require PlaywrightEx.Test
+
   setup do
     %{browser: BrowserPool.shared()}
   end
@@ -126,7 +128,8 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     assert [_] = File.ls!(own_videos)
 
     trace = trace(test.dir, browser)
-    assert trace.resources |> Map.keys() |> Enum.count(&(&1 =~ ~r/^\d-trace\.trace$/)) == 4
+    # A chunk per context and one per context's `request`.
+    assert trace.resources |> Map.keys() |> Enum.count(&(&1 =~ ~r/^\d-trace\.trace$/)) == 8
 
     for marker <- ~w(ALICE BOB TASK TASK-NEW), do: assert(traced?(trace, marker), "#{marker} not in the trace")
     refute traced?(trace, "OTHER")
@@ -266,8 +269,9 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
 
     {:ok, files} = :zip.unzip(String.to_charlist(Path.join(test.dir, "trace.zip")), [:memory])
     files = Map.new(files, fn {name, data} -> {to_string(name), data} end)
-    # The context's chunk is the first of two, `test.trace`'s the second.
-    %{"files" => paths, "stacks" => stacks} = JSON.decode!(files["0-trace.stacks"])
+    # The context's chunk is the second of three: its `request`'s is first (disposed as the
+    # context closes), `test.trace`'s last.
+    %{"files" => paths, "stacks" => stacks} = JSON.decode!(files["1-trace.stacks"])
     call_ids = for %{"type" => "before", "callId" => id} <- trace(test.dir, browser).events, do: id
 
     # Every stack is one of the trace's actions', every frame's file is in `files`.
@@ -316,6 +320,45 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     finish(test, [passed()], :shutdown)
     player = VideoPlayer.new(Path.join(test.dir, "video.webm"))
     assert {player.videoWidth, player.videoHeight} == {320, 240}
+  end
+
+  test "the video's fps and show.actions go to record_video" do
+    show = %{actions: %{position: "top-left"}, test: %{level: "title"}}
+    test = fake_test(%{video: [mode: :on, fps: 5, show: show]})
+
+    assert %{recordVideo: %{fps: 5, showActions: %{position: "top-left"}, dir: _}} =
+             test.run.(fn -> Recorder.before_create_browser_context(%{}) end)
+
+    finish(test, [passed()], :shutdown)
+  end
+
+  # The overlay's shadow root is closed outside upstream's test mode: its calls are in the trace.
+  test "the video's show.test: the test's title and its steps over each page", %{browser: browser} do
+    test = fake_test(%{trace: :on, video: [mode: :on, show: %{test: %{position: "bottom"}}]})
+
+    test.run.(fn ->
+      page = page(Browser.new_context!(browser), "TITLED")
+
+      PlaywrightEx.Test.step "outer <step>" do
+        BrowserContext.new_page!(Page.context(page))
+        PlaywrightEx.Test.step("inner", fn -> :ok end)
+      end
+    end)
+
+    finish(test, [passed()], :shutdown)
+
+    htmls =
+      for %{"method" => "screencastShowOverlay", "params" => %{"html" => html}} <- trace(test.dir, browser).events,
+          do: html
+
+    assert hd(htmls) =~ "bottom: 6px; left: 50%"
+    overlays = for html <- htmls, do: html |> String.split(~r/<[^>]+>|\s+/, trim: true) |> Enum.join("|")
+
+    assert [title | _] = overlays
+    assert title =~ ~r/^test\/playwright_ex\/test\/artifacts_test\.exs\|t\d+$/
+    # Each step's begin and end, on each page (the second opens in the step).
+    assert overlays |> Enum.map(&String.replace_prefix(&1, title, "")) |> Enum.dedup() ==
+             ["", "|outer|&lt;step>", "|outer|&lt;step>|inner", "|outer|&lt;step>", ""]
   end
 
   test "a failed test keeps its screenshots and gets error-context.md, with a snapshot of a page closed after it failed, and the trace hint",
@@ -422,7 +465,7 @@ defmodule PlaywrightEx.Test.ArtifactsTest.TagsTest do
 
   test "the module's tags, true as :on; the config for the rest" do
     assert modes() == %{
-             trace: [mode: :off, snapshots: true, screenshots: true, sources: true],
+             trace: [mode: :off, snapshots: true, screenshots: true, sources: true, attachments: true],
              screenshot: [mode: :only_on_failure, full_page: true],
              video: [mode: :on]
            }

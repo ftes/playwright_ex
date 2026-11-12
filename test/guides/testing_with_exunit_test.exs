@@ -90,23 +90,6 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.BrowserCase do
   end
 end
 
-defmodule PlaywrightEx.Guides.TestingWithExUnit.Eventually do
-  @moduledoc false
-  @doc "Calls `fun` until it doesn't raise, for up to `timeout` ms, then raises its last error."
-  def eventually(fun, timeout \\ 5_000, interval \\ 100) do
-    retry(fun, System.monotonic_time(:millisecond) + timeout, interval)
-  end
-
-  defp retry(fun, deadline, interval) do
-    fun.()
-  rescue
-    error ->
-      if System.monotonic_time(:millisecond) >= deadline, do: reraise(error, __STACKTRACE__)
-      Process.sleep(interval)
-      retry(fun, deadline, interval)
-  end
-end
-
 defmodule PlaywrightEx.Guides.TestingWithExUnit.Assertions do
   @moduledoc false
   @doc "Runs `fun`, re-raising a failed matcher as an `ExUnit.AssertionError`."
@@ -122,7 +105,6 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.SignUpTest do
   use PlaywrightEx.Guides.TestingWithExUnit.BrowserCase, async: true
 
   alias PlaywrightEx.Guides.TestingWithExUnit.Assertions
-  alias PlaywrightEx.Guides.TestingWithExUnit.Eventually
 
   test "signs up", %{page: page} do
     Page.goto!(page, "/sign-up")
@@ -152,6 +134,17 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.SignUpTest do
     for page <- [ada_page, bob_page, eve_page], do: Page.set_content!(page, "<p>Doc</p>")
   end
 
+  # "Devices". Deviation: the browser is `BROWSER`'s.
+  test "on a phone" do
+    alias PlaywrightEx.Playwright
+    browser = BrowserPool.shared()
+    iphone = Playwright.devices(BrowserPool.playwright(browser))["iPhone 13"]
+    page = BrowserContext.new_page!(Browser.new_context!(browser, Map.put(iphone, :locale, "de-DE")))
+    assert iphone.default_browser_type == "webkit"
+    assert Page.viewport_size(page) == %{width: 390, height: 664}
+    assert Page.evaluate!(page, "[navigator.language, navigator.userAgent]") == ["de-DE", iphone.user_agent]
+  end
+
   test "assert_expect raises a failed matcher as an ExUnit.AssertionError", %{page: page} do
     Page.goto!(page, "/sign-up")
 
@@ -159,17 +152,12 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.SignUpTest do
       Assertions.assert_expect(fn -> Expect.to_have_text!(Page.get_by_role(page, :status), "Saved", timeout: 100) end)
     end
   end
-
-  test "eventually raises the last error after the timeout" do
-    assert_raise ExUnit.AssertionError, fn -> Eventually.eventually(fn -> assert 1 == 2 end, 200) end
-  end
 end
 
 defmodule PlaywrightEx.Guides.TestingWithExUnit.LoggedInTest do
   # "Logging in once", without the case template.
   use ExUnit.Case, async: true
 
-  import PlaywrightEx.Guides.TestingWithExUnit.Eventually
   use PlaywrightEx.Test
 
   alias PlaywrightEx.APIRequestContext
@@ -245,11 +233,16 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.LoggedInTest do
     refute Enum.any?(origins, &Map.has_key?(&1, :indexedDB))
   end
 
-  test "eventually", %{context: context} do
-    eventually(fn ->
+  test "to_pass and poll", %{context: context} do
+    Expect.to_pass!(fn ->
       response = APIRequestContext.get!(BrowserContext.request(context), "/api/exports/1")
       assert APIResponse.json!(response)["status"] == "done"
     end)
+
+    # Deviation: an Agent for the guide's `Repo.aggregate(Export, :count)`.
+    {:ok, exports} = Agent.start_link(fn -> 0 end)
+    count = fn -> Agent.get_and_update(exports, &{&1, &1 + 1}) end
+    Expect.poll!(fn -> count.() end, &assert(&1 == 1), timeout: 10_000)
   end
 
   test "forwarded events need an assert_receive timeout", %{page: page} do
@@ -351,6 +344,31 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.SnapshotsTest do
   end
 end
 
+defmodule PlaywrightEx.Guides.TestingWithExUnit.ResultInOnExitTest do
+  # "Traces, screenshots and videos": the result in an `on_exit` that runs after the recording.
+  # Deviation: it asserts where the guide uploads a failure's trace.
+  use ExUnit.Case, async: true
+
+  @moduletag trace: :retain_on_failure
+
+  setup %{test_pid: test_pid} do
+    on_exit(fn ->
+      %{status: status, output_dir: dir} = PlaywrightEx.Test.info(test_pid)
+      assert status == :passed
+      refute File.exists?(Path.join(dir, "trace.zip"))
+    end)
+  end
+
+  use PlaywrightEx.Test
+
+  test "passes" do
+    page =
+      PlaywrightEx.BrowserContext.new_page!(PlaywrightEx.Browser.new_context!(PlaywrightEx.Test.BrowserPool.shared()))
+
+    PlaywrightEx.Page.set_content!(page, "<h1>Hi</h1>")
+  end
+end
+
 defmodule PlaywrightEx.Guides.TestingWithExUnit.ExclusiveTest do
   # "Exclusive browsers".
   use ExUnit.Case, async: true
@@ -447,5 +465,107 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.GroupTest do
   test "a page of the shared browser", %{page: page} do
     Page.set_content!(page, "<p>Group</p>")
     assert PlaywrightEx.Test.info().test_pid == self()
+  end
+end
+
+defmodule PlaywrightEx.Guides.TestingWithExUnit.PageChecksTest do
+  # "A check after the test" and the listener lifetimes of "Route handlers and listeners".
+  use PlaywrightEx.Case, async: true
+
+  setup %{page: page} = ctx do
+    {:ok, errors} = Agent.start(fn -> [] end)
+    listener = fn error -> Agent.update(errors, &(&1 ++ [error])) end
+    Page.on(page, :page_error, listener)
+
+    on_exit(fn ->
+      Page.off(page, :page_error, listener)
+      page_errors = Agent.get(errors, & &1)
+      Agent.stop(errors)
+      if !ctx[:ignore_js_errors], do: assert(page_errors == [], "unhandled page errors")
+    end)
+  end
+
+  test "no page errors: the check passes", %{page: page} do
+    Page.set_content!(page, "<p>Fine</p>")
+  end
+
+  @tag ignore_js_errors: true
+  test "a page error, ignored by the tag", %{page: page} do
+    Page.set_content!(page, "<button onclick='throw new Error(`boom`)'>Go</button>")
+    Page.get_by_role(page, :button) |> Locator.click!()
+  end
+
+  test "a listener sends to the test process: a late event is dropped with it", %{page: page} do
+    test_pid = self()
+    Page.on(page, :console, &send(test_pid, {:console, PlaywrightEx.ConsoleMessage.text(&1)}))
+    Page.evaluate!(page, "console.log('now')")
+    assert_receive {:console, "now"}
+    # Fires after the test process exited, as the context closes in the test's last `on_exit`.
+    Page.evaluate!(page, "setTimeout(() => console.log('late'), 0)")
+  end
+end
+
+defmodule PlaywrightEx.Guides.TestingWithExUnit.ProjectsCase do
+  @moduledoc false
+  # "Projects". Deviation: `BROWSER`'s browser only.
+  use ExUnit.CaseTemplate
+  use PlaywrightEx.Test
+
+  alias PlaywrightEx.{Browser, BrowserContext, Playwright}
+  alias PlaywrightEx.Test.BrowserPool
+
+  @devices %{chromium: "Desktop Chrome", firefox: "Desktop Firefox", webkit: "Desktop Safari"}
+
+  def projects, do: for(name <- [String.to_atom(PlaywrightEx.TestBrowser.name())], do: %{browser_name: name})
+
+  using do
+    quote do
+      use PlaywrightEx.Test
+      alias PlaywrightEx.{Browser, BrowserContext, Expect, Locator, Page}
+    end
+  end
+
+  setup_all %{browser_name: name} do
+    browser =
+      if name == :firefox, do: BrowserPool.exclusive(browser_name: name), else: BrowserPool.shared(browser_name: name)
+
+    %{browser: browser}
+  end
+
+  setup %{browser: browser, browser_name: name} do
+    device = Map.fetch!(Playwright.devices(BrowserPool.playwright(browser)), @devices[name])
+    context = Browser.new_context!(browser, device)
+    %{context: context, page: BrowserContext.new_page!(context)}
+  end
+end
+
+defmodule PlaywrightEx.Guides.TestingWithExUnit.ProjectsTest do
+  use PlaywrightEx.Guides.TestingWithExUnit.ProjectsCase,
+    async: true,
+    parameterize: PlaywrightEx.Guides.TestingWithExUnit.ProjectsCase.projects()
+
+  @user_agents %{chromium: "Chrome", firefox: "Firefox", webkit: "Safari"}
+
+  test "a page of the project's browser, with its device", %{page: page, browser_name: name} do
+    assert Page.evaluate!(page, "navigator.userAgent") =~ @user_agents[name]
+    assert Page.viewport_size(page) == %{width: 1280, height: 720}
+  end
+end
+
+defmodule PlaywrightEx.Guides.TestingWithExUnit.PortingTest do
+  # "Porting Playwright Test specs".
+  use PlaywrightEx.Case, async: true
+
+  alias PlaywrightEx.JSHandle
+
+  test "null, objects, regexes and element handles", %{page: page} do
+    assert Page.evaluate!(page, "() => ({ entry: { foo: null }, gone: undefined })") ==
+             %{"entry" => %{"foo" => :null}, "gone" => nil}
+
+    Page.set_content!(page, "<p>patched=true</p>")
+    Expect.to_have_text!(Page.locator(page, "p"), PlaywrightEx.RegExp.new("\\patched=true"))
+
+    element_handle = Page.query_selector!(page, "p")
+    assert JSHandle.evaluate!(element_handle, "e => e.textContent") == "patched=true"
   end
 end
