@@ -30,8 +30,9 @@ defmodule PlaywrightEx.ExampleCase do
   A body that is one `test "name", %{page: page} do ... end` (upstream's test-runner examples)
   runs that block, its pattern matched against those four. Output (`IO.puts`) is captured.
 
-  `browser` is the module's `PlaywrightEx.Test.BrowserPool.browser/1` (a plain driver, see
-  `PlaywrightEx.DriverCleanup`), and `playwright` its driver's.
+  `browser` is the module's `PlaywrightEx.Test.BrowserPool.browser/1`, on `UpstreamCase`'s
+  driver (`PlaywrightEx.UpstreamCase.pool_options/0`, see `PlaywrightEx.DriverCleanup`), and
+  `playwright` its driver's.
   """
   use ExUnit.CaseTemplate
   # First: the template's own `setup` creates the context.
@@ -60,7 +61,7 @@ defmodule PlaywrightEx.ExampleCase do
   end
 
   setup_all do
-    browser = BrowserPool.browser()
+    browser = BrowserPool.browser(PlaywrightEx.UpstreamCase.pool_options())
     %{playwright: BrowserPool.playwright(browser), browser: browser}
   end
 

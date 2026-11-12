@@ -217,8 +217,12 @@ defmodule PlaywrightEx.UpstreamCase do
     playwright
   end
 
-  # The module's driver: under test, set up as Playwright Test's fixtures.
-  defp pool_options, do: [driver: [env: [{"PWTEST_UNDER_TEST", "1"}]], on_start: {__MODULE__, :on_start, []}]
+  @doc """
+  The options of the module's `PlaywrightEx.Test.BrowserPool` driver: under test, set up as
+  Playwright Test's fixtures (`on_start/1`). `ExampleCase` shares them, so both templates' modules
+  reuse each other's drivers.
+  """
+  def pool_options, do: [driver: [env: [{"PWTEST_UNDER_TEST", "1"}]], on_start: {__MODULE__, :on_start, []}]
 
   @doc """
   The `on_start` of the module's driver (`PlaywrightEx.Test.BrowserPool`), on each new driver:
