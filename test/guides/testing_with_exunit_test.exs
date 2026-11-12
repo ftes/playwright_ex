@@ -398,7 +398,8 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.DebugTest do
 end
 
 defmodule PlaywrightEx.Guides.TestingWithExUnit.RemoteTest do
-  # "Remote browsers": the config's `connect_options` as the call's, on a `run-server`.
+  # "Remote browsers": the config's `connect_options` (its env var line) as the call's, on a
+  # `run-server`.
   use ExUnit.Case, async: true
   use PlaywrightEx.Test
 
@@ -414,8 +415,11 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.RemoteTest do
     server = RunServer.start()
     on_exit(fn -> RunServer.close(server) end)
     app = App.start!(Path.join(System.tmp_dir!(), "guide-app-#{System.unique_integer([:positive])}"))
-    connect_options = [ws_endpoint: RunServer.ws_endpoint(server), expose_network: "<loopback>"]
-    %{browser: BrowserPool.shared(connect_options: connect_options), base_url: app.prefix}
+    System.put_env("PW_TEST_CONNECT_WS_ENDPOINT", RunServer.ws_endpoint(server))
+    connect_options = if(url = System.get_env("PW_TEST_CONNECT_WS_ENDPOINT"), do: [ws_endpoint: url])
+    System.delete_env("PW_TEST_CONNECT_WS_ENDPOINT")
+    browser = BrowserPool.shared(connect_options: connect_options ++ [expose_network: "<loopback>"])
+    %{browser: browser, base_url: app.prefix}
   end
 
   test "a page of the remote browser reaches the app on localhost", %{browser: browser, base_url: base_url} do

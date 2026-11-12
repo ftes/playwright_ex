@@ -20,9 +20,7 @@ defmodule PlaywrightEx.Test.BrowserPool do
       the options of `PlaywrightEx.BrowserType.connect/3` (`:headers`, `:expose_network`,
       `:timeout`, `:slow_mo`). The browser is then connected to that Playwright server instead
       of launched, with `launch_options` sent in the `x-playwright-launch-options` header (the
-      call's `headers` win). Defaults to `PW_TEST_CONNECT_WS_ENDPOINT`, `PW_TEST_CONNECT_HEADERS`
-      (JSON) and `PW_TEST_CONNECT_EXPOSE_NETWORK`, as Playwright Test's, else `nil`; `nil`
-      launches.
+      call's `headers` win). `nil` (default) launches.
     * `:driver` - options of the driver's `PlaywrightEx.Supervisor`: `:env`, `:executable`,
       `:node`, `:cache_dir`.
     * `:on_start` - a function of the Playwright (`PlaywrightEx.Playwright`) or `{m, f, args}`

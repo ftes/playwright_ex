@@ -88,8 +88,9 @@ then the config's `context_options`; the options the call gives win. A context c
 test (in `setup_all`, or a process of no test), or on a driver you started yourself, gets no
 defaults and no recording.
 
-With `base_url`, `goto` and the URL matchers take paths. Actions and navigations wait 30 seconds
-by default, and ExUnit's test timeout is 60 seconds; `set_default_timeout/2` makes a stuck action
+With `base_url`, `goto` and the URL matchers take paths. To set it from the shell, read an env
+var in the config: `context_options: [base_url: System.get_env("BASE_URL", "http://localhost:4000")]`.
+Actions and navigations wait 30 seconds by default, and ExUnit's test timeout is 60 seconds; `set_default_timeout/2` makes a stuck action
 fail sooner, with a message saying what it waited for. `set_default_navigation_timeout/2` sets
 navigations apart.
 
@@ -475,11 +476,16 @@ call.
 launches a browser per connection, so each lease has a browser of its own, as each Playwright
 Test worker does.
 
-`PW_TEST_CONNECT_WS_ENDPOINT`, with `PW_TEST_CONNECT_HEADERS` (JSON) and
-`PW_TEST_CONNECT_EXPOSE_NETWORK`, is the default when the config sets no `connect_options`, as
-in Playwright Test. So a config that leaves it unset runs locally, and
-`PW_TEST_CONNECT_WS_ENDPOINT=ws://localhost:3000/ mix test` runs the same suite on remote
-browsers. A call's `connect_options` win too; `connect_options: nil` launches.
+A call's `connect_options` win over the config's, and `connect_options: nil` launches. To switch
+a suite from the shell, read an env var in the config:
+
+```elixir
+# config/test.exs
+config :playwright_ex, :test,
+  connect_options: if(url = System.get_env("PW_TEST_CONNECT_WS_ENDPOINT"), do: [ws_endpoint: url])
+```
+
+`PW_TEST_CONNECT_WS_ENDPOINT=ws://localhost:3000/ mix test` then runs on remote browsers.
 
 The remote browser must reach your app: set `base_url` to a host the container resolves
 (`http://host.docker.internal:4000` on Docker Desktop), or pass `expose_network: "<loopback>"`

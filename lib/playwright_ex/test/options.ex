@@ -85,17 +85,11 @@ defmodule PlaywrightEx.Test.Options do
   @doc """
   `_combinedContextOptions`, as the client takes them: Playwright Test's context defaults, then
   the config's `context_options` (facade options, converted as `PlaywrightEx.Browser.new_context/2`
-  converts them). `baseURL` defaults to `process.env.PLAYWRIGHT_TEST_BASE_URL`.
+  converts them). Upstream's `PLAYWRIGHT_TEST_BASE_URL` default is not read: config only.
   """
   def context_options do
-    defaults =
-      case System.get_env("PLAYWRIGHT_TEST_BASE_URL") do
-        nil -> @context_defaults
-        base_url -> Map.put(@context_defaults, :baseURL, base_url)
-      end
-
     type = PlaywrightEx.Browser.__options_type__(:new_context)
-    Map.merge(defaults, Facade.options!(config()[:context_options], type, "browser.newContext"))
+    Map.merge(@context_defaults, Facade.options!(config()[:context_options], type, "browser.newContext"))
   end
 
   @doc "Playwright Test's context option defaults, with the client's keys and values."
@@ -112,27 +106,6 @@ defmodule PlaywrightEx.Test.Options do
 
   @doc "The snapshots' path template (config `snapshot_path_template`, default `nil`)."
   def snapshot_path_template, do: config()[:snapshot_path_template]
-
-  # `connectOptionsFromEnv`: the `connect_options` default (the `connectOptions` fixture's), which
-  # the config and the call replace, as `use: { connectOptions }` replaces the fixture.
-  defp connect_options_from_env do
-    case System.get_env("PW_TEST_CONNECT_WS_ENDPOINT") do
-      blank when blank in [nil, ""] ->
-        nil
-
-      ws_endpoint ->
-        headers = System.get_env("PW_TEST_CONNECT_HEADERS", "")
-
-        Enum.reject(
-          [
-            ws_endpoint: ws_endpoint,
-            headers: if(headers != "", do: JSON.decode!(headers)),
-            expose_network: System.get_env("PW_TEST_CONNECT_EXPOSE_NETWORK")
-          ],
-          &match?({_key, nil}, &1)
-        )
-    end
-  end
 
   # Option lists merge one level deep (`launch_options: [slow_mo: 50]` keeps the config's
   # `headless`).
@@ -161,7 +134,7 @@ defmodule PlaywrightEx.Test.Options do
     %{
       browser_name: :chromium,
       launch_options: [],
-      connect_options: connect_options_from_env(),
+      connect_options: nil,
       driver: [],
       on_start: nil,
       trace: :off,

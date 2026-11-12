@@ -279,31 +279,14 @@ defmodule PlaywrightEx.Test.ConfigTest do
     assert %{trace: [mode: :off] ++ _} = Options.artifacts(%{trace: false})
   end
 
-  test "PW_TEST_CONNECT_* are the connect_options default, under the config and the call", %{config: config} do
-    env = ~w(PW_TEST_CONNECT_WS_ENDPOINT PW_TEST_CONNECT_HEADERS PW_TEST_CONNECT_EXPOSE_NETWORK)
-    saved = Map.new(env, &{&1, System.get_env(&1)})
-
-    on_exit(fn ->
-      Enum.each(saved, fn {name, value} -> if value, do: System.put_env(name, value), else: System.delete_env(name) end)
-    end)
-
-    System.put_env("PW_TEST_CONNECT_WS_ENDPOINT", "ws://env")
-    System.delete_env("PW_TEST_CONNECT_HEADERS")
-    System.delete_env("PW_TEST_CONNECT_EXPOSE_NETWORK")
-    assert %{connect_options: [ws_endpoint: "ws://env"]} = Options.pool([])
-
-    System.put_env("PW_TEST_CONNECT_HEADERS", ~s({"x-token": "t"}))
-    System.put_env("PW_TEST_CONNECT_EXPOSE_NETWORK", "<loopback>")
-
-    assert %{connect_options: [expose_network: "<loopback>", headers: %{"x-token" => "t"}, ws_endpoint: "ws://env"]} =
-             Options.pool([])
-
-    assert %{connect_options: nil} = Options.pool(connect_options: nil)
-    assert %{connect_options: [ws_endpoint: "ws://call"]} = Options.pool(connect_options: [ws_endpoint: "ws://call"])
+  test "connect_options: the call's over the config's, nil launches", %{config: config} do
     Application.put_env(:playwright_ex, :test, config ++ [connect_options: [ws_endpoint: "ws://config"]])
     assert %{connect_options: [ws_endpoint: "ws://config"]} = Options.pool([])
-    Application.put_env(:playwright_ex, :test, config ++ [connect_options: nil])
-    assert %{connect_options: nil} = Options.pool([])
+
+    assert %{connect_options: [slow_mo: 1, ws_endpoint: "ws://call"]} =
+             Options.pool(connect_options: [ws_endpoint: "ws://call", slow_mo: 1])
+
+    assert %{connect_options: nil} = Options.pool(connect_options: nil)
   end
 
   test "the defaults", %{config: config} do
