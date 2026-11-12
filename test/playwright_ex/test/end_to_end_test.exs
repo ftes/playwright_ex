@@ -158,11 +158,11 @@ defmodule PlaywrightEx.Test.EndToEndTest do
     assert two =~ ~s(Expected: "Deux")
   end
 
-  test "a boxed step fails at its call site, a step past its timeout fails, both traced", %{tmp_dir: tmp_dir} do
+  test "a boxed step fails at its call site, traced", %{tmp_dir: tmp_dir} do
     child = start("steps", tmp_dir)
     assert ChildProcess.exit_code(child, 60_000) == 0
     output = ChildProcess.output(child)
-    assert output =~ ~r"2 tests, 2 failures|Result: 0/2 passed"
+    assert output =~ ~r"1 test, 1 failure|Result: 0/1 passed"
 
     script = Path.join([__DIR__, "..", "..", "support", "test_runner_impl.exs"]) |> File.read!() |> String.split("\n")
     line = fn marker -> Enum.find_index(script, &(&1 =~ marker)) + 2 end
@@ -172,9 +172,6 @@ defmodule PlaywrightEx.Test.EndToEndTest do
     # The boxed step's call site, not the frames inside it.
     assert boxed =~ "test/support/test_runner_impl.exs:#{line.("(the boxed call)")}:"
     refute boxed =~ "test/support/test_runner_impl.exs:#{line.("(inside the boxed step)")}:"
-
-    [_, timed_out] = Regex.run(~r/test a step times out \(StepsTest\)\n(.*?)\n\n\n/s, output)
-    assert timed_out =~ "** (PlaywrightEx.TimeoutError) Step timeout of 100ms exceeded."
 
     trace_events = fn name ->
       output_dir = Path.join(tmp_dir, "test-results")
@@ -202,9 +199,6 @@ defmodule PlaywrightEx.Test.EndToEndTest do
              for(%{"type" => "error"} = event <- events, do: event)
 
     assert frame["line"] == line.("(the boxed call)")
-
-    assert [%{"error" => %{"message" => "PlaywrightEx.TimeoutError: Step timeout of 100ms exceeded."}}] =
-             for(%{"type" => "after"} = event <- trace_events.("a-step-times-out"), do: event)
   end
 
   defp alive(processes) do

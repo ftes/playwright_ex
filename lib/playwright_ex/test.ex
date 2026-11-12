@@ -129,7 +129,7 @@ defmodule PlaywrightEx.Test do
   ## Steps
 
   `step/3` is upstream's `test.step`: `step "log in" do ... end`, or `step(title, fun,
-  options)` for wrappers, with upstream's `box`, `location`, `timeout`, `params` and `subtitle`
+  options)` for wrappers, with upstream's `box`, `location`, `params` and `subtitle`
   (`step_skip/3` is `test.step.skip`). Each matcher call in a test is a step too
   (`category: 'expect'`), and a soft one's failure (`PlaywrightEx.Expect.soft/1`, upstream's
   `expect.soft`) fails the test at the end of its body, as a written snapshot does. The trace's
@@ -137,8 +137,8 @@ defmodule PlaywrightEx.Test do
   and the test's errors, so `trace: :on` gives a `trace.zip` also for a test without contexts.
   Not ported: the test's stdout and stderr in the trace, steps of the driver calls (`pw:api`:
   the calls stay top-level in the trace, a matcher's `Frame.expect` call apart from its step),
-  hooks and fixtures as steps, attachments and the step's `TestStepInfo` (the body takes no
-  argument).
+  hooks and fixtures as steps, attachments, the step's `TestStepInfo` (the body takes no
+  argument) and its `timeout` (the test's timeout bounds a step).
 
   ## Config
 
@@ -544,11 +544,10 @@ defmodule PlaywrightEx.Test do
       call of the function the step is in (a helper's caller), instead of the frames inside it.
     * `:location` - `%{file: _, line: _, column: _}` of the step in the trace. The `do` form
       passes its own.
-    * `:timeout` - fails the step after this many milliseconds with a `PlaywrightEx.TimeoutError`
-      (`:infinity`, the default, or `0` for none). The body then runs in a process of its own
-      (with the test in its `$callers`), as a `Task`, so `assert_receive` and `ExUnit.Callbacks`
-      don't work in it. After the timeout it keeps running, as upstream's, until the test ends.
     * `:params`, `:subtitle` - shown with the step in the trace.
+
+  The body runs in the calling process. Upstream's `timeout` is not supported (it raises an
+  `ArgumentError`): a process can't be interrupted, and the test's timeout bounds the step.
 
   The step, the matchers in it and the test's errors are in the test's trace (`test.trace` in
   `trace.zip`). A step in a `Task` has no parent step: the `Task` doesn't carry the zone.
@@ -595,7 +594,15 @@ defmodule PlaywrightEx.Test do
   # Elixir only: `call_site` (`%{file: _, line: _}`, the macros pass it, else `location`'s) is
   # where the step is called, for the boxed stack to start after it.
   def _step(expectation, title, body, options \\ [], call_site \\ nil) when is_function(body, 0) do
-    options = Map.new(Keyword.validate!(options, [:box, :location, :timeout, :params, :subtitle]))
+    # deviation: no `timeout` (`raceAgainstDeadline` below).
+    if Keyword.has_key?(options, :timeout),
+      do:
+        raise(
+          ArgumentError,
+          "step timeout is not supported: a step body can't be interrupted in its own process; the test's timeout bounds it"
+        )
+
+    options = Map.new(Keyword.validate!(options, [:box, :location, :params, :subtitle]))
     call_site = call_site || (options[:location] && Map.take(options.location, [:file, :line]))
     test_info = TestInfo.current()
     if !test_info, do: raise("test.step() can only be called from a test")
@@ -614,19 +621,15 @@ defmodule PlaywrightEx.Test do
 
     Zones.with(:stepZone, step, fn ->
       try do
-        deadline =
-          if options[:timeout] in [nil, 0, :infinity],
-            do: 0,
-            else: System.monotonic_time(:millisecond) + options.timeout
-
-        result =
-          race_against_deadline(&run_step_body(test_info, step, expectation, body, &1), deadline, test_info.test_pid)
-
-        if result.timedOut,
-          do: raise(PlaywrightEx.TimeoutError, message: "Step timeout of #{options.timeout}ms exceeded.")
-
+        # A process can't be interrupted, so the body runs inline: a race would run it in another
+        # process (its own `self()` and mailbox), on past the timeout.
+        # result = await raceAgainstDeadline(async () => {  -- not ported: step timeout
+        result = TestInfo._run_step_body(step, expectation == :skip, body, List.first(step.stack))
+        # } catch (e) { if (result?.timedOut) testInfo._failWithError(e); throw e; }  -- not ported: step timeout
+        # }, options.timeout ? monotonicTime() + options.timeout : 0);  -- not ported: step timeout
+        # if (result.timedOut) throw new TimeoutError(...);  -- not ported: step timeout
         TestInfo.step_complete(step, %{})
-        result.result
+        result
       catch
         kind, reason ->
           TestInfo.step_complete(step, %{error: {kind, reason, __STACKTRACE__}})
@@ -638,65 +641,6 @@ defmodule PlaywrightEx.Test do
 
       # finally { await testInfo._onUserStepEnd?.(); }  -- not ported: UI mode
     end)
-  end
-
-  # The race's body.
-  defp run_step_body(test_info, step, expectation, body, timed_out?) do
-    TestInfo._run_step_body(step, expectation == :skip, body, List.first(step.stack))
-  catch
-    kind, reason ->
-      # If the step timed out, the test fixtures will tear down, which in turn
-      # will abort unfinished actions in the step body. Record such errors here.
-      if timed_out?.(), do: TestInfo._fail_with_error(test_info, {kind, reason, __STACKTRACE__})
-      :erlang.raise(kind, reason, __STACKTRACE__)
-  end
-
-  # isomorphic/timeoutRunner.ts `raceAgainstDeadline`; `cb` gets whether the race timed out.
-  # deviation: without a deadline the body runs in the calling process. With one it runs in a
-  # process of its own (with the zone and the test in its `$callers`), as a process can't be
-  # interrupted: past the deadline the race returns and the body runs on, as upstream's. It is
-  # linked to the caller and to the test's process, so it ends with the test even when the
-  # caller is a `Task` that outlives it.
-  defp race_against_deadline(cb, 0, _test_pid), do: %{result: cb.(fn -> false end), timedOut: false}
-
-  defp race_against_deadline(cb, deadline, test_pid) do
-    zone = Zones.current_zone()
-    callers = [self() | List.wrap(Process.get(:"$callers"))]
-    timed_out = :atomics.new(1, [])
-    # Dropped once the race is over.
-    reply = :erlang.alias([:reply])
-
-    spawn_link(fn ->
-      Process.link(test_pid)
-      Process.put(:"$callers", callers)
-      Zones.restore(zone)
-
-      result =
-        try do
-          {:ok, cb.(fn -> :atomics.get(timed_out, 1) == 1 end)}
-        catch
-          kind, reason -> {:error, kind, reason, __STACKTRACE__}
-        end
-
-      send(reply, {reply, result})
-    end)
-
-    receive do
-      {^reply, {:ok, result}} -> %{result: result, timedOut: false}
-      {^reply, {:error, kind, reason, stacktrace}} -> :erlang.raise(kind, reason, stacktrace)
-    after
-      max(0, deadline - System.monotonic_time(:millisecond)) ->
-        :atomics.put(timed_out, 1, 1)
-        :erlang.unalias(reply)
-
-        receive do
-          {^reply, _result} -> :ok
-        after
-          0 -> :ok
-        end
-
-        %{timedOut: true}
-    end
   end
 
   # The test's ExUnit timeout.

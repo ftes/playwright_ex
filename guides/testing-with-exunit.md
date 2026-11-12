@@ -311,9 +311,9 @@ defp sign_up(page, email) do
 end
 ```
 
-`timeout:` fails a step that takes longer (its body then runs in a process of its own, so no
-`assert_receive` in it, and keeps running after the timeout), and `step_skip` declares a step without running it. A wrapper library
-that narrows the import adds `step: 2, step: 3`.
+A step runs in the calling process, so `assert_receive` works in it. It takes no `timeout:`, as a
+running body can't be interrupted: the test's timeout bounds it. `step_skip` declares a step
+without running it. A wrapper library that narrows the import adds `step: 2, step: 3`.
 
 ## Isolated modules
 

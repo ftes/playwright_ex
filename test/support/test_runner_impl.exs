@@ -12,7 +12,7 @@
 #     the pool after the run.
 #   * `soft_errors` - tests whose matchers write missing snapshots (`snapshot_dir` next to the
 #     output dir), one of them failing after that, one killed past its timeout.
-#   * `steps` - tests failing in a boxed step and in a step past its timeout, with no browser.
+#   * `steps` - a test failing in a boxed step, with no browser.
 #   * `soft` - soft matchers (`Expect.soft/1`): failing ones, then the rest of the body, then a
 #     hard failure; and a passing one.
 
@@ -290,10 +290,6 @@ case mode do
           log_in()
           :unreachable
         end
-      end
-
-      test "a step times out" do
-        step("slow", fn -> Process.sleep(5_000) end, timeout: 100)
       end
 
       defp log_in do

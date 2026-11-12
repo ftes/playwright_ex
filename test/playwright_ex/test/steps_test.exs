@@ -167,19 +167,19 @@ defmodule PlaywrightEx.Test.StepsTest do
     end
   end
 
-  test "a step times out", ctx do
-    on_trace(ctx, fn events, _files ->
-      assert after_of(events, before(events, "slow"))["error"]["message"] ==
-               "PlaywrightEx.TimeoutError: Step timeout of 50ms exceeded."
-    end)
-
-    assert step("quick", fn -> :value end, timeout: 5000) == :value
-    test_pid = self()
-    assert step("in the test's process", fn -> self() end, timeout: :infinity) == test_pid
-
-    assert_raise PlaywrightEx.TimeoutError, "Step timeout of 50ms exceeded.", fn ->
-      step("slow", fn -> Process.sleep(5000) end, timeout: 50)
+  test "a step rejects timeout and runs in the test's process" do
+    assert_raise ArgumentError, ~r/^step timeout is not supported/, fn ->
+      step("timed", fn -> :value end, timeout: 5000)
     end
+
+    test_pid = self()
+    Process.put(:in_step, :put)
+    send(self(), :sent)
+
+    assert step("in the test's process", fn ->
+             assert_receive :sent
+             {self(), Process.get(:in_step)}
+           end) == {test_pid, :put}
   end
 
   test "a matcher is a step of the step it runs in", ctx do

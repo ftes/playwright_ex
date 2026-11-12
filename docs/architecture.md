@@ -327,7 +327,9 @@ with upstream source references and `-- not ported`/`# deviation:` comments. The
 
 Rejected: porting the rest of Playwright Test, `toPass`, `expect.poll`, `createExpect`
 (`expect.configure`; `expect.soft` is a receiver, `soft/1`), a CaseTemplate (fragments compose
-with the user's own), options from tags (a template maps its own), and a driver per module by
+with the user's own), options from tags (a template maps its own), a step's `timeout` (a
+process can't be interrupted, so the body would run in another process, with another `self()`
+and mailbox, and on past the timeout; the test's timeout bounds it) and a driver per module by
 default.
 
 ## Mirroring upstream specs

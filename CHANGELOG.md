@@ -24,7 +24,7 @@ those of the release candidates below. From an earlier release, also read the se
   (`snapshot_dir`, `snapshot_path_template`, `snapshot_path/3`) with their `-actual`,
   `-expected`, `-previous` and `-diff` files in the test's output dir, and a snapshot they write fails the test at the end of its
   body, with all its errors reported. `step` is Playwright Test's `test.step` (`box`,
-  `location`, `timeout`, `params`, `subtitle`), `step_skip` its `test.step.skip`, and each
+  `location`, `params`, `subtitle`; no `timeout`), `step_skip` its `test.step.skip`, and each
   matcher call is a step: the trace's `test.trace` has the test's steps, nested, and its errors.
   `Expect.soft/1` is `expect.soft`: in a test, a failed soft matcher returns and fails the test
   at the end of its body.
