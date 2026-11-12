@@ -1,0 +1,5 @@
+#!/bin/sh
+# Starts LiveView's e2e server on :4004, as playwright.config.js's webServer
+# (LV_PATH: a phoenix_live_view checkout with `MIX_ENV=e2e mix deps.get` and `mix assets.build` done).
+cd "${LV_PATH:?set LV_PATH to a phoenix_live_view checkout}" || exit 1
+tail -f /dev/null | MIX_ENV=e2e mix run test/e2e/test_helper.exs
