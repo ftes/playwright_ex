@@ -16,6 +16,8 @@
 #   * `steps` - a test failing in a boxed step, with no browser.
 #   * `soft` - soft matchers (`Expect.soft/1`): failing ones, then the rest of the body, then a
 #     hard failure; and a passing one.
+#   * `timeouts` - tests past their timeout: one in a Playwright call, one in `Process.sleep`.
+#   * `trace` - `trace: true` (`mix test --trace`): a test past its `timeout` tag passes.
 
 # credo:disable-for-this-file Credo.Check.Warning.WrongTestFilename
 
@@ -39,7 +41,7 @@ Application.put_env(:playwright_ex, :test,
 {:ok, _} = PlaywrightEx.Application.start(:normal, [])
 
 max_failures = if mode == "max_failures", do: 1, else: :infinity
-ExUnit.start(autorun: false, max_cases: 8, max_failures: max_failures)
+ExUnit.start(autorun: false, max_cases: 8, max_failures: max_failures, trace: mode == "trace")
 
 # What the modules saw: `{label, scope, playwright}` (the scope: the pid that holds the lease).
 :ets.new(:report, [:named_table, :public, :bag])
@@ -280,6 +282,35 @@ case mode do
           # (inside the boxed step)
           raise "cannot log in"
         end
+      end
+    end
+
+  "timeouts" ->
+    defmodule TimeoutsTest do
+      use PlaywrightEx.Case, async: true
+
+      @tag timeout: 3000
+      test "hangs in a Playwright call", %{page: page} do
+        Page.set_content!(page, "<h1>Hangs</h1>")
+        Page.wait_for_selector!(page, "#never")
+      end
+
+      @tag timeout: 3000
+      test "hangs elsewhere", %{page: page} do
+        Page.set_content!(page, "<h1>Sleeps</h1>")
+        Process.sleep(:infinity)
+      end
+    end
+
+  "trace" ->
+    defmodule TraceTest do
+      use PlaywrightEx.Case, async: true
+
+      @tag timeout: 500
+      test "runs past its timeout", %{page: page} do
+        assert :sys.get_state(PlaywrightEx.Test.Recorder.lookup(self())).timer == nil
+        Process.sleep(1000)
+        Page.set_content!(page, "<h1>Open</h1>")
       end
     end
 end

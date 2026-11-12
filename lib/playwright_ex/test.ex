@@ -121,6 +121,22 @@ defmodule PlaywrightEx.Test do
   :null` is none. An option replaces the default as a whole (`extra_http_headers` too, as
   upstream's shallow spread).
 
+  ## Timeouts
+
+  As in Playwright Test, a test's contexts have no action or navigation timeout by default: the
+  test's timeout bounds them. Config `action_timeout` and `navigation_timeout` (upstream's
+  `actionTimeout`, `navigationTimeout`; milliseconds, `:infinity` by default) set each context's
+  `PlaywrightEx.BrowserContext.set_default_timeout/2` and `set_default_navigation_timeout/2`
+  (`navigation_timeout` alone governs navigations), and the action timeout is a request
+  context's `timeout`, when the call gives none.
+
+  Shortly before ExUnit's timeout (1 s before, at most 5% of the timeout), the test's open
+  contexts are closed with upstream's reason, "Test timeout of 60000ms exceeded.": a call that
+  hangs until then fails with that message and its call log, after the close kept the artifacts.
+  A test stuck elsewhere (`Process.sleep/1`, a `receive`) still fails with ExUnit's
+  `ExUnit.TimeoutError`. The timeout is ExUnit's: the `@tag timeout:` (`:infinity` for none) or
+  `mix test --timeout`; `mix test --trace` has none. `setup_all` is not covered.
+
   ## Snapshots
 
   In a test, `PlaywrightEx.Expect.to_have_screenshot/2` and
@@ -172,6 +188,8 @@ defmodule PlaywrightEx.Test do
         on_start: nil,                # BrowserPool
         workers: max(div(System.schedulers_online(), 2), 1),
         context_options: [],          # PlaywrightEx.Browser.new_context/2, over the defaults
+        action_timeout: :infinity,    # ms, each context's default (and navigation_timeout's)
+        navigation_timeout: :infinity,
         trace: :off,                  # :off | :on | :retain_on_failure, or [mode: _, ...]
         screenshot: :off,             # :off | :on | :only_on_failure, or [mode: _, ...]
         video: :off,                  # :off | :on | :retain_on_failure, or [mode: _, size: _]
@@ -394,7 +412,7 @@ defmodule PlaywrightEx.Test do
     modes = Options.artifacts(context)
     file = context.file
     marked? = context[:playwright_ex] == :marked
-    timeout = context[:timeout] || ExUnit.configuration()[:timeout]
+    timeout = test_timeout(context)
 
     test =
       context
@@ -406,7 +424,10 @@ defmodule PlaywrightEx.Test do
         title_path: Recorder.title_path(context),
         location: {file, context[:line]},
         test_timeout: timeout,
+        # ExUnit's clock started at the test process's spawn, just before this setup.
+        deadline: if(is_integer(timeout), do: System.monotonic_time(:millisecond) + timeout),
         context_options: Options.context_options(),
+        timeouts: Options.timeouts(),
         tmp: Path.join(System.tmp_dir!(), "playwright_ex-test-#{System.unique_integer([:positive])}")
       })
 
@@ -418,6 +439,12 @@ defmodule PlaywrightEx.Test do
     # The steps of `test.trace` go to the recorder.
     if modes.trace[:mode] != :off, do: Pool.recorder(test.test_pid)
     test
+  end
+
+  # ExUnit's `get_timeout/2`: none under `--trace`, else the test's `timeout` tag or the config's.
+  defp test_timeout(context) do
+    config = ExUnit.configuration()
+    if config[:trace], do: :infinity, else: Map.get(context, :timeout, config[:timeout])
   end
 
   @doc false

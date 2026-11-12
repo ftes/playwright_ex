@@ -90,9 +90,11 @@ defaults and no recording.
 
 With `base_url`, `goto` and the URL matchers take paths. To set it from the shell, read an env
 var in the config: `context_options: [base_url: System.get_env("BASE_URL", "http://localhost:4000")]`.
-Actions and navigations wait 30 seconds by default, and ExUnit's test timeout is 60 seconds; `set_default_timeout/2` makes a stuck action
-fail sooner, with a message saying what it waited for. `set_default_navigation_timeout/2` sets
-navigations apart.
+As in Playwright Test, actions and navigations have no timeout of their own in a test: ExUnit's
+test timeout (60 seconds) bounds them. Just before it, the test's contexts are closed, so a stuck
+call fails with "Test timeout of 60000ms exceeded." and its call log, and the artifacts are kept.
+To fail sooner, set `action_timeout` and `navigation_timeout` in the config (milliseconds), or
+`set_default_timeout/2` and `set_default_navigation_timeout/2` on a context.
 
 ## Your own case template
 
@@ -451,6 +453,9 @@ and run it alone: `mix test test/my_app/sign_up_test.exs`, or `mix test --only d
 the module fails or another key needs the room; a shared browser serves every caller of its
 options and stays open until the suite ends.
 The driver counts toward `workers`, and may stop an idle driver of other options to start.
+
+To step through a test with `Page.pause/1`, tag it `@tag timeout: :infinity` (or run `mix test
+--trace`): otherwise ExUnit's timeout ends the test mid-pause, closing its contexts.
 
 ## Remote browsers
 

@@ -217,9 +217,13 @@ defmodule PlaywrightEx.Test.ConfigTest do
   use ExUnit.Case, async: false
   use PlaywrightEx.Test
 
+  alias PlaywrightEx.APIRequest
+  alias PlaywrightEx.APIRequestContext
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Playwright
+  alias PlaywrightEx.Runtime.Heap
   alias PlaywrightEx.Test.BrowserPool
   alias PlaywrightEx.Test.Options
 
@@ -271,6 +275,28 @@ defmodule PlaywrightEx.Test.ConfigTest do
     PlaywrightEx.Test.__finish__(pid, 10_000)
   end
 
+  test "a registered test's contexts get the config's action_timeout and navigation_timeout", ctx do
+    Application.put_env(:playwright_ex, :test, ctx.config ++ [action_timeout: 300, navigation_timeout: 200])
+    test_pid = self()
+
+    {pid, ref} =
+      spawn_monitor(fn ->
+        PlaywrightEx.Test.__register__(%{test_pid: self(), module: __MODULE__, test: :"test fake", file: __ENV__.file})
+        browser = BrowserPool.shared()
+        page = BrowserContext.new_page!(Browser.new_context!(browser))
+        request = APIRequest.new_context!(Playwright.request(BrowserPool.playwright(browser)))
+        request_timeout = Heap.get(Heap.get(request, :_timeoutSettings), :_defaultTimeout)
+        APIRequestContext.dispose!(request)
+        send(test_pid, {:errors, Page.wait_for_selector(page, "#x"), Page.wait_for_url(page, "**/x"), request_timeout})
+      end)
+
+    assert_receive {:errors, {:error, action}, {:error, navigation}, 300}, 30_000
+    assert action.message =~ "page.waitForSelector: Timeout 300ms exceeded."
+    assert navigation.message =~ "page.waitForURL: Timeout 200ms exceeded."
+    assert_receive {:DOWN, ^ref, :process, _, _}
+    PlaywrightEx.Test.__finish__(pid, 10_000)
+  end
+
   test "options merge over the config, option lists one level deep; tags over the config", %{config: config} do
     Application.put_env(:playwright_ex, :test, config ++ [launch_options: [headless: false, slow_mo: 1], trace: :on])
 
@@ -302,6 +328,7 @@ defmodule PlaywrightEx.Test.ConfigTest do
            } = Options.artifacts(%{})
 
     assert Options.context_options() == Options.context_defaults()
+    assert Options.timeouts() == %{action_timeout: :infinity, navigation_timeout: :infinity}
     assert Options.output_dir() == "test-results"
     assert Options.workers() == max(div(System.schedulers_online(), 2), 1)
     Application.put_env(:playwright_ex, :test, config)
@@ -325,5 +352,18 @@ defmodule PlaywrightEx.Test.ConfigTest do
 
     Application.put_env(:playwright_ex, :test, config ++ [context_options: [lokale: "x"]])
     assert_raise ArgumentError, fn -> Options.context_options() end
+
+    for value <- [-1, 1.5, nil, "1000"] do
+      Application.put_env(:playwright_ex, :test, config ++ [action_timeout: value])
+
+      assert_raise ArgumentError, ~r/invalid action_timeout: #{Regex.escape(inspect(value))}/, fn ->
+        Options.timeouts()
+      end
+    end
+
+    Application.put_env(:playwright_ex, :test, config ++ [navigation_timeout: :none])
+    assert_raise ArgumentError, ~r/invalid navigation_timeout: :none/, fn -> Options.timeouts() end
+    Application.put_env(:playwright_ex, :test, config ++ [action_timeout: 0, navigation_timeout: 5000])
+    assert Options.timeouts() == %{action_timeout: 0, navigation_timeout: 5000}
   end
 end

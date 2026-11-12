@@ -200,6 +200,37 @@ defmodule PlaywrightEx.Test.EndToEndTest do
     assert frame["line"] == line.("(the boxed call)")
   end
 
+  test "a test past its timeout: a hanging Playwright call fails with the call log, other code as ExUnit's",
+       %{tmp_dir: tmp_dir} do
+    child = start("timeouts", tmp_dir)
+    assert ChildProcess.exit_code(child, 60_000) == 0
+    output = ChildProcess.output(child)
+    assert output =~ ~r"2 tests, 2 failures|Result: 0/2 passed"
+
+    hangs = failure(output, "test hangs in a Playwright call (TimeoutsTest)")
+    assert hangs =~ "Test timeout of 3000ms exceeded."
+    assert hangs =~ ~r"Call log:\n.*waiting for locator\('#never'\)"
+    refute hangs =~ "ExUnit.TimeoutError"
+
+    output_dir = Path.join(tmp_dir, "test-results")
+    [dir] = output_dir |> File.ls!() |> Enum.filter(&(&1 =~ "hangs-in-a-Playwright-call"))
+    files = File.ls!(Path.join(output_dir, dir))
+    assert "trace.zip" in files
+    assert "test-failed-1.png" in files
+    error_context = File.read!(Path.join([output_dir, dir, "error-context.md"]))
+    assert error_context =~ "Test timeout of 3000ms exceeded."
+    assert error_context =~ ~s(heading "Hangs")
+
+    sleeps = failure(output, "test hangs elsewhere (TimeoutsTest)")
+    assert sleeps =~ "** (ExUnit.TimeoutError) test timed out after 3000ms"
+  end
+
+  test "--trace: no test timeout, so no timer", %{tmp_dir: tmp_dir} do
+    child = start("trace", tmp_dir)
+    assert ChildProcess.exit_code(child, 60_000) == 0
+    assert ChildProcess.output(child) =~ ~r"1 test, 0 failures|Result: 1 passed"
+  end
+
   defp alive(processes) do
     {out, 0} = System.cmd("ps", ["-A", "-o", "pid=,lstart="])
     running = MapSet.new(String.split(out, "\n", trim: true), &String.trim/1)

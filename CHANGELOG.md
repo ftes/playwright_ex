@@ -35,7 +35,11 @@ those of the release candidates below. From an earlier release, also read the se
   `subtitle`; no `timeout`), `step_skip` its `test.step.skip`, and each matcher call is a step:
   the trace's `test.trace` has the test's steps, nested, and its errors. `Expect.soft/1` is
   `expect.soft`: in a test, a failed soft matcher returns and fails the test at the end of its
-  body. See the [Testing with ExUnit](guides/testing-with-exunit.md) guide.
+  body. As in Playwright Test, a test's contexts have no action or navigation timeout unless
+  the config's `action_timeout` and `navigation_timeout` set one, and just before ExUnit's
+  test timeout the test's contexts are closed, so a hanging call fails with "Test timeout of
+  Nms exceeded." and its call log, its artifacts kept. See the
+  [Testing with ExUnit](guides/testing-with-exunit.md) guide.
 
 ### Changed
 - `%PlaywrightEx.Expect{}` also carries `isSoft`, and `isNot` defaults to `false`: build a

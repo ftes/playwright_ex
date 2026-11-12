@@ -286,6 +286,8 @@ no call site (the recording modes) are config plus ExUnit tags; the rest are arg
 | `context`/`page` fixtures, `browser.newContext()` | `Browser.new_context!/2`, `BrowserContext.new_page!/1`; `PlaywrightEx.Case` puts them together |
 | auto `_setupArtifacts` | the recording of every registered test (`error-context.md` whatever the modes) |
 | `_combinedContextOptions` (`{...contextOptions, ...options}`) | Playwright Test's defaults, then config `context_options`, then the call's (`key in options`) |
+| `actionTimeout`, `navigationTimeout` (default 0) | config `action_timeout`, `navigation_timeout` (default `:infinity`), set on each context |
+| test timeout, `closeReason` "Test timeout of Nms exceeded." | ExUnit's timeout; the recorder closes the test's contexts with that reason just before it |
 | `test.use({ trace, screenshot, video })` | `@moduletag`/`@describetag`/`@tag` over config |
 | `--trace <mode>` | `TRACE` read in `config/test.exs` |
 | `test.info()` | `info/0` (`test_pid`, `file`, `test_name`, `output_dir`), raises outside a test |
@@ -316,6 +318,16 @@ Deviations the port requires:
   where upstream's worker browser closes them later.
 - A video of every context the test creates, not only the fixtures' (there are no context
   fixtures).
+- `actionTimeout`/`navigationTimeout` per context, in the listener's after-create hook (and a
+  request context's `timeout`), not on the Playwright (`_setupContextOptions`): a shared driver's
+  one Playwright serves concurrent tests.
+- The test timeout's close before the timeout. Upstream fails the test, then closes its contexts
+  with the reason; ExUnit kills the test process, which nothing can follow. So the test's
+  recorder closes them `min(1 s, 5%)` before ExUnit's timeout (`--trace` and `:infinity` have
+  none): the close's artifact steps and the failing call's reply fit in it (about 50 ms with a
+  trace and a screenshot), and a test stuck outside Playwright still gets ExUnit's
+  `TimeoutError`. ExUnit's clock starts at the test process's spawn, ours at the registration
+  just after. A test that ends earlier cancels it.
 - `use PlaywrightEx.Test` as the first line of a case template's body: a template's own `setup`
   callbacks run before those its `using` brings in, so the test is registered before them.
 

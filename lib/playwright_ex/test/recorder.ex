@@ -13,6 +13,11 @@ defmodule PlaywrightEx.Test.Recorder do
   # runs in ExUnit's `on_exit` process, once the test's result is known, and keeps or drops the
   # artifacts by it. Every artifact step rescues and logs: an exception in `on_exit` would fail
   # the test and hide its own error, and upstream's artifact code swallows its errors too.
+  #
+  # The recorder also owns the test's timeout (upstream's `closeReason` of a `timedOut` test):
+  # just before ExUnit kills the test process, it closes the test's open contexts with
+  # "Test timeout of <ms>ms exceeded.", so a Playwright call that hangs until then fails with that
+  # reason and its call log, after the close's artifact steps ran (`test_timeout_margin/1`).
   use GenServer
 
   alias PlaywrightEx.BrowserContext
@@ -105,13 +110,24 @@ defmodule PlaywrightEx.Test.Recorder do
     }
   end
 
+  @doc """
+  How long before the test's ExUnit timeout its contexts are closed: 1 s, at most 5% of the
+  timeout. The close's artifact steps (the trace chunk, screenshots, the page snapshot) and the
+  failing call's reply must fit in it, or ExUnit's kill comes first.
+  """
+  def test_timeout_margin(timeout), do: min(1000, div(timeout, 20))
+
   @impl true
   def init(test) do
     # `contexts` in creation order, `closed` (guids) in close order, `screenshots` (temporary
     # files) in capture order; `snapshotted` the guids of the pages with a screenshot, `ordinal`
-    # the screenshots named so far (upstream's `SnapshotRecorder`).
+    # the screenshots named so far (upstream's `SnapshotRecorder`). `timer` the test timeout's,
+    # `timed_out` once it fired, `closing` the process that closes the contexts then.
     {:ok,
      %{
+       timer: arm(test),
+       timed_out: false,
+       closing: nil,
        test_pid: test.test_pid,
        opts: test,
        contexts: [],
@@ -171,6 +187,47 @@ defmodule PlaywrightEx.Test.Recorder do
     do: {:reply, :ok, %{state | tracing: %{state.tracing | trace_events: [event | state.tracing.trace_events]}}}
 
   @impl true
+  def handle_info(:test_timeout, state) do
+    reason = "Test timeout of #{state.opts.test_timeout}ms exceeded."
+    open = for %{guid: guid, context: context} <- state.contexts, guid not in state.closed, do: context
+
+    # Not in the recorder: the close's hooks call it.
+    {:ok, closing} =
+      Task.start(fn ->
+        open
+        |> Task.async_stream(&step("close a context", fn -> BrowserContext.close(&1, reason: reason) end),
+          timeout: :infinity
+        )
+        |> Stream.run()
+      end)
+
+    {:noreply, %{state | timer: nil, timed_out: true, closing: closing}}
+  end
+
+  # The test process ended before its timeout.
+  def handle_info({:DOWN, _ref, :process, pid, _reason}, %{test_pid: pid} = state) do
+    if state.timer && !Process.cancel_timer(state.timer) do
+      receive do
+        :test_timeout -> :ok
+      after
+        0 -> :ok
+      end
+    end
+
+    {:noreply, %{state | timer: nil}}
+  end
+
+  def handle_info(_message, state), do: {:noreply, state}
+
+  # The test timeout's timer, `nil` without one (`:infinity`, `--trace`).
+  defp arm(%{deadline: deadline, test_timeout: timeout, test_pid: test_pid}) when is_integer(deadline) do
+    Process.monitor(test_pid)
+    Process.send_after(self(), :test_timeout, deadline - test_timeout_margin(timeout), abs: true)
+  end
+
+  defp arm(_test), do: nil
+
+  @impl true
   def terminate(_reason, state), do: File.rm_rf(state.opts.tmp)
 
   @impl true
@@ -217,7 +274,9 @@ defmodule PlaywrightEx.Test.Recorder do
         options
 
       test ->
-        Map.merge(test.context_options, options)
+        # `_defaultContextTimeout` (`actionTimeout || 0`), a default of the request context's own.
+        timeout = if test.timeouts.action_timeout == :infinity, do: 0, else: test.timeouts.action_timeout
+        Map.merge(Map.put(test.context_options, :timeout, timeout), options)
     end
   end
 
@@ -238,6 +297,11 @@ defmodule PlaywrightEx.Test.Recorder do
   end
 
   defp record(context, recorder, test) do
+    # `_setupContextOptions`'s `playwright._defaultContextTimeout = actionTimeout || 0` (and the
+    # navigation's), which `Browser._setupBrowserContext` applies to each context. Per context
+    # here: the Playwright of a shared driver serves concurrent tests.
+    BrowserContext.set_default_timeout(context, test.timeouts.action_timeout)
+    BrowserContext.set_default_navigation_timeout(context, test.timeouts.navigation_timeout)
     call(recorder, {:add_context, context})
     if test.trace[:mode] != :off, do: step("start tracing", fn -> start_tracing(context, test) end)
     if test.video[:mode] != :off, do: step("follow the context's pages", fn -> follow_pages(context, recorder) end)
@@ -265,30 +329,37 @@ defmodule PlaywrightEx.Test.Recorder do
     with [{_key, recorder}] <- :ets.take(Pool.table(), {:context, context.guid}),
          %{} = state <- call(recorder, :state) do
       call(recorder, {:closed, context.guid})
-      collect(context, recorder, state.test_pid, state.opts)
+      collect(context, recorder, state)
     end
 
     nil
   end
 
-  defp collect(context, recorder, test_pid, opts) do
+  defp collect(context, recorder, %{opts: opts} = state) do
     if opts.trace[:mode] != :off, do: step("save the trace", fn -> stop_tracing(context, recorder, opts) end)
     if opts.screenshot[:mode] != :off, do: screenshots(context, recorder, opts)
-    step("take a page snapshot", fn -> page_snapshot(context, recorder, test_pid) end)
+    step("take a page snapshot", fn -> page_snapshot(context, recorder, state) end)
   end
 
   # `_takePageSnapshot`: once per test, of the first page, when the test failed (upstream's
-  # `testInfo.errors`) without a matcher's snapshot. A context closed while the test runs has no
-  # errors yet, as upstream's.
-  defp page_snapshot(context, recorder, test_pid) do
-    with false <- Process.alive?(test_pid),
-         {:failed, failures} <- Pool.result(test_pid, 5000),
-         false <- Enum.any?(failures, &ErrorContext.error(&1).error_context),
+  # `testInfo.errors`) without a matcher's snapshot, or timed out (its close is the timeout's). A
+  # context closed while the test runs has no errors yet, as upstream's.
+  defp page_snapshot(context, recorder, state) do
+    with true <- state.timed_out or failed_without_snapshot?(state.test_pid),
          %{page_snapshot: nil} <- call(recorder, :state),
          [page | _] <- BrowserContext.pages(context),
          # The snapshot may fail: ignored, as upstream's.
          {:ok, snapshot} <- Page.aria_snapshot(page, mode: :ai, timeout: 5000),
          do: call(recorder, {:page_snapshot, snapshot})
+  end
+
+  defp failed_without_snapshot?(test_pid) do
+    with false <- Process.alive?(test_pid),
+         {:failed, failures} <- Pool.result(test_pid, 5000) do
+      not Enum.any?(failures, &ErrorContext.error(&1).error_context)
+    else
+      _ -> false
+    end
   end
 
   defp stop_tracing(context, recorder, opts) do
@@ -366,6 +437,8 @@ defmodule PlaywrightEx.Test.Recorder do
 
   defp collect_all(pid, {verdict, failures}) do
     state = GenServer.call(pid, :state, :infinity)
+    # The test timeout's closes, with their artifact steps.
+    if state.closing, do: await_exit(state.closing)
     # A test of another macro (a doctest) has no result: kept as a failure's.
     failed? = verdict != :passed
 
@@ -388,6 +461,14 @@ defmodule PlaywrightEx.Test.Recorder do
     end
 
     trace
+  end
+
+  defp await_exit(pid) do
+    ref = Process.monitor(pid)
+
+    receive do
+      {:DOWN, ^ref, :process, _pid, _reason} -> :ok
+    end
   end
 
   # Past the budget: the contexts still open are closed in the background, so they don't pile up

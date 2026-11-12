@@ -8,7 +8,15 @@ defmodule PlaywrightEx.Test.Options do
 
   @pool_keys [:browser_name, :launch_options, :connect_options, :driver, :on_start]
   @artifact_keys [:trace, :screenshot, :video]
-  @config_only_keys [:context_options, :output_dir, :workers, :snapshot_dir, :snapshot_path_template]
+  @config_only_keys [
+    :context_options,
+    :action_timeout,
+    :navigation_timeout,
+    :output_dir,
+    :workers,
+    :snapshot_dir,
+    :snapshot_path_template
+  ]
   @config_keys @pool_keys ++ @artifact_keys ++ @config_only_keys
 
   @driver_keys [:executable, :node, :cache_dir, :env]
@@ -92,6 +100,13 @@ defmodule PlaywrightEx.Test.Options do
     Map.merge(@context_defaults, Facade.options!(config()[:context_options], type, "browser.newContext"))
   end
 
+  @doc """
+  Playwright Test's `actionTimeout` and `navigationTimeout` (config `action_timeout`,
+  `navigation_timeout`): `%{action_timeout: _, navigation_timeout: _}`, each `:infinity` by
+  default (upstream's `0`, no timeout).
+  """
+  def timeouts, do: Map.take(config(), [:action_timeout, :navigation_timeout])
+
   @doc "Playwright Test's context option defaults, with the client's keys and values."
   def context_defaults, do: @context_defaults
 
@@ -141,6 +156,8 @@ defmodule PlaywrightEx.Test.Options do
       screenshot: :off,
       video: :off,
       context_options: [],
+      action_timeout: :infinity,
+      navigation_timeout: :infinity,
       output_dir: "test-results",
       workers: max(div(System.schedulers_online(), 2), 1),
       snapshot_dir: nil,
@@ -206,6 +223,12 @@ defmodule PlaywrightEx.Test.Options do
        do: value
 
   defp validate!(:workers, workers) when is_integer(workers) and workers > 0, do: workers
+
+  # Milliseconds, `0` or `:infinity` for none (`BrowserContext.set_default_timeout/2`'s).
+  defp validate!(key, timeout)
+       when key in [:action_timeout, :navigation_timeout] and
+              (timeout == :infinity or (is_integer(timeout) and timeout >= 0)),
+       do: timeout
 
   defp validate!(key, value) when is_map_key(@modes, key),
     do: raise(ArgumentError, "invalid #{key}: #{inspect(value)}, expected one of #{inspect(accepted(key))}")
