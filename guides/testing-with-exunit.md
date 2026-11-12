@@ -66,8 +66,9 @@ its default `max_cases` (twice the schedulers) is much higher than Playwright Te
 concurrency grow with one browser and a context per test, Playwright's own isolation model. It
 suits mixed suites too: browser tests, plain ExUnit tests and tests that use PlaywrightEx
 through a library all run in ExUnit's one pool, no worker holds an idle browser, and a test
-that needs none never pays for a launch. Per test the work is Playwright Test's, so at the
-default parallelism a run takes about as long, with a fraction of the memory and driver CPU.
+that needs none never pays for a launch. It isn't faster: at the default parallelism a run
+takes about as long as Playwright Test's or up to a fifth longer, with a fraction of the memory
+and driver CPU.
 Wall time differs mostly by scheduling: ExUnit balances whole modules, running a module's tests
 one after another, where Playwright Test's `fullyParallel` balances single tests. So many small
 `async: true` modules parallelise better than a few big ones.

@@ -310,9 +310,9 @@ Deviations the port requires:
   so a browser per concurrent test would be many browsers; one browser with a context per test
   is upstream's isolation model all the same. It suits mixed suites: browser tests, plain tests
   and tests on a library built on PlaywrightEx share ExUnit's one pool, no worker holds an idle
-  browser, and browsers launch on first use. It isn't faster: per test the work is upstream's,
-  and on a realistic suite at the default parallelism the totals are about equal, with a
-  fraction of the memory and driver CPU. Wall time differs mostly by scheduling: ExUnit
+  browser, and browsers launch on first use. It isn't faster: at the default parallelism totals
+  measured from about equal to about a fifth slower than upstream (#213), with a fraction of the
+  memory and driver CPU. Wall time differs mostly by scheduling: ExUnit
   balances whole modules (a module's tests run one after another), upstream's `fullyParallel`
   single tests, so many small `async: true` modules parallelise better than a few big ones. Not
   on Firefox, which dispatches the input of all a browser's pages in one queue: 20 `Mouse.move`s
