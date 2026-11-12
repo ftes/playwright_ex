@@ -64,6 +64,7 @@ those of the release candidates below. From an earlier release, also read the se
 - `PlaywrightEx.Promise.async/1`: starts calls now, awaited later (JS's
   `const p = locator.evaluate(...); ...; await p`). It returns once the calls are sent, so they
   come before your next action, which a `Task` doesn't ensure.
+- The debugging guide covers `PWDEBUG=1 mix test --trace`, the Playwright Inspector for one test.
 - The ExUnit guide covers porting Playwright Test specs, `projects` as `parameterize:` with
   devices, teardown checks that fail the test, and listener lifetimes; the concurrency guide,
   route handlers that wait for the test.

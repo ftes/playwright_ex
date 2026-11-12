@@ -578,7 +578,9 @@ options and stays open until the suite ends.
 The driver counts toward `workers`, and may stop an idle driver of other options to start.
 
 To step through a test with `Page.pause/1`, tag it `@tag timeout: :infinity` (or run `mix test
---trace`): otherwise ExUnit's timeout ends the test mid-pause, closing its contexts.
+--trace`): otherwise ExUnit's timeout ends the test mid-pause, closing its contexts. The same goes
+for the Inspector: `PWDEBUG=1 mix test --trace test/my_app/sign_up_test.exs:12` (see the
+[debugging guide](debugging-and-ci.md#watching-it-run)).
 
 ## Remote browsers
 
