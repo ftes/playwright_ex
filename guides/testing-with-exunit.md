@@ -269,6 +269,24 @@ end
 
 All three contexts are recorded into the test's one trace, and each gets its own video.
 
+## Devices
+
+Playwright Test's `test.use({ ...devices['iPhone 13'] })` is a context of the device's options.
+`PlaywrightEx.Playwright.devices/1` takes the pooled browser's Playwright and returns each
+device's options as a map, which `Browser.new_context!/2` takes as they are or with more:
+
+```elixir
+test "on a phone" do
+  browser = BrowserPool.shared(browser_name: :webkit)
+  iphone = Playwright.devices(BrowserPool.playwright(browser))["iPhone 13"]
+  page = BrowserContext.new_page!(Browser.new_context!(browser, Map.put(iphone, :locale, "de-DE")))
+  # ...
+end
+```
+
+The device's options are the call's, so they win over Playwright Test's defaults (its viewport
+over the 1280x720 one), and `default_browser_type` (`"webkit"`) says which browser to pass.
+
 ## Traces, screenshots and videos
 
 Every context a test creates on a pooled browser is recorded, also in a `Task` of the test or a

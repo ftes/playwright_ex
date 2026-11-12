@@ -152,6 +152,17 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.SignUpTest do
     for page <- [ada_page, bob_page, eve_page], do: Page.set_content!(page, "<p>Doc</p>")
   end
 
+  # "Devices". Deviation: the browser is `BROWSER`'s.
+  test "on a phone" do
+    alias PlaywrightEx.Playwright
+    browser = BrowserPool.shared()
+    iphone = Playwright.devices(BrowserPool.playwright(browser))["iPhone 13"]
+    page = BrowserContext.new_page!(Browser.new_context!(browser, Map.put(iphone, :locale, "de-DE")))
+    assert iphone.default_browser_type == "webkit"
+    assert Page.viewport_size(page) == %{width: 390, height: 664}
+    assert Page.evaluate!(page, "[navigator.language, navigator.userAgent]") == ["de-DE", iphone.user_agent]
+  end
+
   test "assert_expect raises a failed matcher as an ExUnit.AssertionError", %{page: page} do
     Page.goto!(page, "/sign-up")
 
