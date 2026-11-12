@@ -32,6 +32,10 @@ those of the release candidates below. From an earlier release, also read the se
   its own narrows the import. See the
   [Testing with ExUnit](guides/testing-with-exunit.md) guide.
 
+### Changed
+- `%PlaywrightEx.Expect{}` also carries `isSoft`, and `isNot` defaults to `false`: build a
+  negated receiver with `Expect.not_/1`.
+
 ### Fixed
 - On Unix, stopping `PlaywrightEx.Supervisor` waits until the driver has exited (at most 31 s).
   When the supervisor is stopped before the VM halts, the driver no longer resets the terminal

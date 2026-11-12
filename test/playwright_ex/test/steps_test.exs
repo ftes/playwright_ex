@@ -244,6 +244,24 @@ defmodule PlaywrightEx.Test.StepsTest do
     assert Exception.message(error) =~ "expect(locator).not.toHaveText(expected) failed"
   end
 
+  test "a soft matcher in a Task of the test, and a soft error other than an ExpectError", ctx do
+    %{context: context} = new_context(ctx)
+    %{page: page} = new_page(%{context: context})
+    Page.set_content!(page, "<h1>Task</h1>")
+    heading = Page.locator(page, "h1")
+
+    assert :ok =
+             Task.await(Task.async(fn -> heading |> Expect.soft() |> Expect.to_have_text!("x", timeout: 1) end))
+
+    # The matcher raises (its `new Error`): soft too.
+    assert :ok = page |> Expect.soft() |> Expect.to_match_aria_snapshot(name: "a.aria.yml", path: "a.aria.yml")
+
+    assert [{:error, %PlaywrightEx.ExpectError{}, _}, {:error, %RuntimeError{message: message}, _}] =
+             TestInfo.take_errors(self())
+
+    assert message =~ "not both"
+  end
+
   test "a soft matcher outside a test fails as any matcher (no step)", %{browser: browser} do
     context = PlaywrightEx.Browser.new_context!(browser)
     on_exit(fn -> PlaywrightEx.BrowserContext.close(context) end)

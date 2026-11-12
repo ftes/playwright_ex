@@ -262,7 +262,10 @@ defmodule PlaywrightEx.Matchers.Expect do
         # if (result instanceof Promise) return result.then(finalizer, handleError);  -- not ported: matchers return their result
         {:ok, if(step, do: Zones.with(:stepZone, step, invoke), else: invoke.())}
       catch
-        kind, reason -> handle_error.({kind, reason, __STACKTRACE__}, nil)
+        kind, reason ->
+          handle_error.({kind, reason, __STACKTRACE__}, nil)
+          # A soft error: `handleError` returned.
+          :soft
       end
 
     with {:ok, result} <- result,

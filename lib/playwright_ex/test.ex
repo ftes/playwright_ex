@@ -134,10 +134,11 @@ defmodule PlaywrightEx.Test do
   (`category: 'expect'`), and a soft one's failure (`PlaywrightEx.Expect.soft/1`, upstream's
   `expect.soft`) fails the test at the end of its body, as a written snapshot does. The trace's
   `test.trace` entry (upstream's `TestTracing`) has the steps, nested by the step they run in,
-  and the test's errors, so `trace: :on` gives a `trace.zip` also for a test without contexts. Not ported: the test's stdout and stderr in
-  the trace, steps of the driver calls (`pw:api`: the calls stay top-level in the trace, a
-  matcher's `Frame.expect` call apart from its step), hooks and fixtures as steps, attachments
-  and the step's `TestStepInfo` (the body takes no argument).
+  and the test's errors, so `trace: :on` gives a `trace.zip` also for a test without contexts.
+  Not ported: the test's stdout and stderr in the trace, steps of the driver calls (`pw:api`:
+  the calls stay top-level in the trace, a matcher's `Frame.expect` call apart from its step),
+  hooks and fixtures as steps, attachments and the step's `TestStepInfo` (the body takes no
+  argument).
 
   ## Config
 
