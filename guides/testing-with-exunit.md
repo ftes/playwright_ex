@@ -303,7 +303,8 @@ end
 So `trace`, `screenshot` and `video` are reserved tags: a `@tag :screenshot` label turns
 screenshots on, and an invalid value raises. As in Playwright Test, each takes options too, with
 the mode as `:mode`: `trace: [mode: :on, snapshots: false]`, `screenshot: [mode: :only_on_failure,
-full_page: true]`, `video: [mode: :on, size: %{width: 640, height: 480}]`. A tag replaces the
+full_page: true]`, `video: [mode: :on, size: %{width: 640, height: 480}, fps: 10, show: %{test:
+%{level: "step"}}]` (`show.test` writes the test's title and steps over the video). A tag replaces the
 config's value as a whole.
 
 Tracing slows every test. Playwright Test's answer is to trace only the retry of a failure

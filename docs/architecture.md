@@ -322,7 +322,7 @@ Deviations the port requires:
   where upstream's worker browser closes them later. Its request contexts left are disposed, as
   upstream's `request` fixture is.
 - A video of every context the test creates, not only the fixtures' (there are no context
-  fixtures).
+  fixtures), and `video.show.test`'s title overlay on all of them.
 - `actionTimeout`/`navigationTimeout` per context, in the listener's after-create hook (and a
   request context's `timeout`), not on the Playwright (`_setupContextOptions`): a shared driver's
   one Playwright serves concurrent tests.

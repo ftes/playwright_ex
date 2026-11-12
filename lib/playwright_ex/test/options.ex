@@ -50,12 +50,11 @@ defmodule PlaywrightEx.Test.Options do
     video: [:off, :on, :retain_on_failure]
   }
 
-  # The keys of the object forms, upstream's (`packages/playwright/types/test.d.ts`) but for
-  # video's `fps` and `show`.
+  # The keys of the object forms, upstream's (`packages/playwright/types/test.d.ts`).
   @artifact_options %{
     trace: [:mode, :snapshots, :screenshots, :sources, :attachments],
     screenshot: [:mode, :full_page, :omit_background],
-    video: [:mode, :size]
+    video: [:mode, :size, :fps, :show]
   }
 
   @doc "The pool options (`BrowserPool.shared/1`, `exclusive/1`): the config merged with `opts`."
@@ -287,6 +286,26 @@ defmodule PlaywrightEx.Test.Options do
   defp artifact_option!(:video, :size, %{width: width, height: height} = size)
        when map_size(size) == 2 and is_integer(width) and is_integer(height),
        do: size
+
+  defp artifact_option!(:video, :fps, fps) when is_integer(fps) and fps > 0, do: fps
+
+  # `{ actions?: recordVideo.showActions, test?: { level?, position?, fontSize? } }`, maps with
+  # upstream's keys and values; `actions` goes to the context's `recordVideo` as is.
+  defp artifact_option!(:video, :show, %{} = show) when not is_struct(show) do
+    valid? =
+      Enum.all?(show, fn
+        {:actions, %{} = actions} ->
+          Map.keys(actions) -- [:duration, :position, :fontSize, :cursor, :style] == []
+
+        {:test, %{} = test} ->
+          Map.keys(test) -- [:level, :position, :fontSize] == [] and test[:level] in [nil, "file", "title", "step"]
+
+        _ ->
+          false
+      end)
+
+    if valid?, do: show, else: raise(ArgumentError, "invalid video show: #{inspect(show)}")
+  end
 
   defp artifact_option!(key, name, value), do: raise(ArgumentError, "invalid #{key} #{name}: #{inspect(value)}")
 

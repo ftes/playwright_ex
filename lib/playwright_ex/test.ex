@@ -99,7 +99,10 @@ defmodule PlaywrightEx.Test do
   `:screenshots` and `:sources` are `PlaywrightEx.Tracing.start/2`'s, `true` by default, as is
   `:attachments` (those of `attach/2` in `trace.zip`); the
   screenshot's `:full_page` and `:omit_background` are `PlaywrightEx.Page.screenshot/2`'s; the
-  video's `:size` is `record_video`'s. So `trace`, `screenshot` and `video` are reserved tags: a
+  video's `:size` and `:fps` are `record_video`'s, and its `:show` is upstream's map:
+  `%{actions: _}` is `record_video`'s `showActions`, `%{test: %{level: _, position: _, fontSize:
+  _}}` overlays the test's title and its steps' (`level` `"file"`, `"title"` or `"step"`) on
+  each page of its contexts. So `trace`, `screenshot` and `video` are reserved tags: a
   `@tag :screenshot` label turns screenshots on, and an invalid value raises at registration.
 
   The `*_on_failure` modes record every test and keep the files of failed ones, as upstream
@@ -706,7 +709,7 @@ defmodule PlaywrightEx.Test do
     call_site = call_site || (options[:location] && Map.take(options.location, [:file, :line]))
     test_info = TestInfo.current()
     if !test_info, do: raise("test.step() can only be called from a test")
-    # await testInfo._onUserStepBegin?.(title);  -- not ported: UI mode
+    Recorder.on_user_step(test_info.test_pid, {:begin, title})
 
     step =
       TestInfo._add_step(test_info, %{
@@ -737,9 +740,10 @@ defmodule PlaywrightEx.Test do
           # `_failWithError` to report a boxed step's stack: the step raises it with that stack,
           # which ExUnit reports.
           :erlang.raise(kind, reason, step.boxedStack || __STACKTRACE__)
+      after
+        # finally { await testInfo._onUserStepEnd?.(); }
+        Recorder.on_user_step(test_info.test_pid, :end)
       end
-
-      # finally { await testInfo._onUserStepEnd?.(); }  -- not ported: UI mode
     end)
   end
 end

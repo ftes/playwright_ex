@@ -70,7 +70,7 @@ defmodule PlaywrightEx.Test.OptionsTest do
                  attachments: false
                ],
                screenshot: %{mode: :only_on_failure, full_page: true, omit_background: false},
-               video: [mode: :on, size: %{width: 320, height: 240}]
+               video: [mode: :on, show: %{test: %{level: "file"}}, fps: 10, size: %{width: 320, height: 240}]
              }) == %{
                trace: [
                  mode: :retain_on_failure,
@@ -80,7 +80,7 @@ defmodule PlaywrightEx.Test.OptionsTest do
                  attachments: false
                ],
                screenshot: [mode: :only_on_failure, full_page: true, omit_background: false],
-               video: [mode: :on, size: %{width: 320, height: 240}]
+               video: [mode: :on, size: %{width: 320, height: 240}, fps: 10, show: %{test: %{level: "file"}}]
              }
     end
 
@@ -88,7 +88,10 @@ defmodule PlaywrightEx.Test.OptionsTest do
       for {option, message} <- [
             {%{trace: [mode: :on, live: true]}, ~r/unknown trace options \[:live\], expected one of/},
             {%{trace: [mode: :on, attachments: 1]}, ~r/invalid trace attachments: 1/},
-            {%{video: [mode: :on, fps: 30]}, ~r/unknown video options \[:fps\]/},
+            {%{video: [mode: :on, audio: true]}, ~r/unknown video options \[:audio\]/},
+            {%{video: [mode: :on, fps: 0]}, ~r/invalid video fps: 0/},
+            {%{video: [mode: :on, show: %{test: %{level: "line"}}]}, ~r/invalid video show: /},
+            {%{video: [mode: :on, show: %{actions: %{color: "red"}}]}, ~r/invalid video show: /},
             {%{screenshot: [mode: :on, path: "x.png"]}, ~r/unknown screenshot options \[:path\]/},
             {%{trace: [sources: false]}, ~r/trace options need :mode/},
             {%{video: %{size: %{width: 320, height: 240}}}, ~r/video options need :mode/},

@@ -113,7 +113,9 @@ defmodule PlaywrightEx.Isomorphic.StringUtils do
     trim_string(input, cap, "\u2026")
   end
 
-  # truncateDataUrl, escapeRegExp, escapeHTMLAttribute, escapeHTML  -- not ported
+  # truncateDataUrl, escapeRegExp, escapeHTMLAttribute  -- not ported
+
+  def escape_html(s), do: String.replace(s, ~r/[&<]/u, &if(&1 == "&", do: "&amp;", else: "&lt;"))
   # longestCommonSubstring, parseRegex, tomlBasicString, tomlArray, tomlMultilineBasicString  -- not ported
 
   def strip_ansi_escapes(str) do

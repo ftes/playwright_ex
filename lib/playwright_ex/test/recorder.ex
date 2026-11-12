@@ -23,7 +23,10 @@ defmodule PlaywrightEx.Test.Recorder do
   alias PlaywrightEx.APIRequestContext
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Client.ChannelOwner
+  alias PlaywrightEx.Disposable
+  alias PlaywrightEx.Isomorphic.StringUtils
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Screencast
   alias PlaywrightEx.Test.ErrorContext
   alias PlaywrightEx.Test.Pool
   alias PlaywrightEx.Test.TestTracing
@@ -146,7 +149,12 @@ defmodule PlaywrightEx.Test.Recorder do
        snapshotted: MapSet.new(),
        ordinal: 0,
        page_snapshot: nil,
-       tracing: TestTracing.new()
+       tracing: TestTracing.new(),
+       # `installScreencastTitleUpdater`'s: the contexts with the title overlay, the steps'
+       # titles, the overlays by page guid.
+       title_contexts: [],
+       step_stack: [],
+       overlays: %{}
      }}
   end
 
@@ -198,6 +206,16 @@ defmodule PlaywrightEx.Test.Recorder do
   def handle_call({:page_snapshot, snapshot}, _from, state), do: {:reply, :ok, %{state | page_snapshot: snapshot}}
   def handle_call(:state, _from, state), do: {:reply, state, state}
 
+  def handle_call({:title_context, context}, _from, state),
+    do: {:reply, :ok, update_overlay(%{state | title_contexts: state.title_contexts ++ [context]})}
+
+  # `testInfo._onUserStepBegin` and `_onUserStepEnd`.
+  def handle_call({:user_step, {:begin, title}}, _from, state),
+    do: {:reply, :ok, update_overlay(%{state | step_stack: state.step_stack ++ [title]})}
+
+  def handle_call({:user_step, :end}, _from, state),
+    do: {:reply, :ok, update_overlay(%{state | step_stack: Enum.drop(state.step_stack, -1)})}
+
   def handle_call({:append_trace_event, event}, _from, state),
     do: {:reply, :ok, %{state | tracing: %{state.tracing | trace_events: [event | state.tracing.trace_events]}}}
 
@@ -246,6 +264,8 @@ defmodule PlaywrightEx.Test.Recorder do
   def terminate(_reason, state), do: File.rm_rf(state.opts.tmp)
 
   @impl true
+  def handle_cast(:update_overlay, state), do: {:noreply, update_overlay(state)}
+
   def handle_cast({:add_page, guid, page}, state) do
     contexts =
       Enum.map(state.contexts, fn
@@ -272,12 +292,26 @@ defmodule PlaywrightEx.Test.Recorder do
               Map.put(
                 options,
                 :recordVideo,
-                Map.new([dir: Path.join(test.tmp, "videos")] ++ Keyword.take(test.video, [:size]))
+                video_options(test)
               ),
             else: options
 
         Map.merge(test.context_options, options)
     end
+  end
+
+  # `videoOptions.recordVideo`.
+  defp video_options(test) do
+    show_actions = test.video[:show][:actions]
+
+    options = [
+      dir: Path.join(test.tmp, "videos"),
+      size: test.video[:size],
+      fps: test.video[:fps],
+      showActions: show_actions
+    ]
+
+    for {key, value} <- options, value != nil, into: %{}, do: {key, value}
   end
 
   @doc false
@@ -328,6 +362,73 @@ defmodule PlaywrightEx.Test.Recorder do
     end
 
     if test.video[:mode] != :off, do: step("follow the context's pages", fn -> follow_pages(context, recorder) end)
+    if test.video[:show][:test], do: step("show the test's title", fn -> install_title_updater(context, recorder) end)
+  end
+
+  # `installScreencastTitleUpdater`, of every context of the test (there are no context
+  # fixtures): the recorder serializes the updates (`lastUpdate`).
+  defp install_title_updater(context, recorder) do
+    BrowserContext.on(context, :page, fn _page -> GenServer.cast(recorder, :update_overlay) end)
+    call(recorder, {:title_context, context})
+  end
+
+  @doc """
+  `testInfo._onUserStepBegin(title)` (`{:begin, title}`) or `_onUserStepEnd()` (`:end`) of the
+  test `test_pid`: the title overlay of its videos' `show.test`, if any.
+  """
+  def on_user_step(test_pid, message) do
+    with %{video: video} <- registration(test_pid),
+         %{} <- video[:show][:test],
+         recorder when is_pid(recorder) <- Pool.recorder(test_pid),
+         do: call(recorder, {:user_step, message})
+
+    :ok
+  end
+
+  # `doUpdateOverlay`: each page's overlay replaced by the test's title and steps.
+  defp update_overlay(state) do
+    show = state.opts.video[:show][:test]
+    level = show[:level] || "step"
+    test_title = if level == "file", do: [hd(state.opts.title_path)], else: state.opts.title_path
+    parts = if level == "step", do: test_title ++ state.step_stack, else: test_title
+    html = create_test_overlay(parts, show[:position] || "top-left", show[:fontSize] || 14)
+
+    pages =
+      for context <- state.title_contexts,
+          context.guid not in state.closed,
+          page <- step("list the pages", fn -> BrowserContext.pages(context) end) || [],
+          do: page
+
+    overlays =
+      Map.new(pages, fn page ->
+        hide_overlay(state.overlays[page.guid])
+        {page.guid, step("show the test's title", fn -> Screencast.show_overlay!(Page.screencast(page), html) end)}
+      end)
+
+    %{state | overlays: overlays}
+  end
+
+  defp hide_overlay(nil), do: nil
+  defp hide_overlay(overlay), do: step("hide the test's title", fn -> Disposable.dispose!(overlay) end)
+
+  @overlay_positions %{
+    "top-left" => "top: 6px; left: 6px;",
+    "top" => "top: 6px; left: 50%; transform: translateX(-50%);",
+    "top-right" => "top: 6px; right: 6px;",
+    "bottom-left" => "bottom: 6px; left: 6px;",
+    "bottom" => "bottom: 6px; left: 50%; transform: translateX(-50%);",
+    "bottom-right" => "bottom: 6px; right: 6px;"
+  }
+
+  # `createTestOverlay`.
+  defp create_test_overlay(parts, position, font_size) do
+    pos_style = @overlay_positions[position] || @overlay_positions["top-left"]
+
+    """
+    <div style="white-space: nowrap; font-size: #{font_size}px; padding: 3px 6px; background: rgba(0,0,0,0.5); color: white; border-radius: 4px; position: absolute; #{pos_style}">
+        #{Enum.map_join(parts, "", &"<div>#{StringUtils.escape_html(&1)}</div>")}
+      </div>\
+    """
   end
 
   # `_startTraceChunkOnContextCreation`: `tracing.start({ ...options, title, name })`.

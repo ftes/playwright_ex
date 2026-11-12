@@ -50,6 +50,8 @@ those of the release candidates below. From an earlier release, also read the se
 - `PlaywrightEx.Test.attach/2` is Playwright Test's `testInfo.attach`: a file (`path:`, copied to
   the output dir) or a body, as a `test.attach` step in the trace. The trace option `attachments`
   (default `true`) keeps them in `trace.zip`.
+- The `video` option takes Playwright Test's `fps` and `show` (`show.actions`, and `show.test`,
+  the test's title and steps over each page).
 
 ### Changed
 - `%PlaywrightEx.Expect{}` also carries `isSoft`, and `isNot` defaults to `false`: build a
