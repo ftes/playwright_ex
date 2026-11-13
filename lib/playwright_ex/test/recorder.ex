@@ -2,8 +2,7 @@ defmodule PlaywrightEx.Test.Recorder do
   @moduledoc false
   # The artifacts of one registered test (`use PlaywrightEx.Test`), after Playwright Test's
   # `ArtifactsRecorder`, `SnapshotRecorder` and `_contextFactory`
-  # (`packages/playwright/src/index.ts`) and `mergeTraceFiles`
-  # (`packages/playwright/src/worker/testTracing.ts`).
+  # (`packages/playwright/src/index.ts`).
   #
   # A process per test that creates a context (`PlaywrightEx.Test.Pool.recorder/1`, started on
   # its first one; on its registration when it traces, for the steps of `test.trace`), alive to
@@ -36,40 +35,6 @@ defmodule PlaywrightEx.Test.Recorder do
   alias PlaywrightEx.Video
 
   require Logger
-
-  @doc """
-  The parameters of `context` in `module` (`%{}` for a module without `parameterize:`), for its
-  output dir: a guess, the module's parameter map whose keys have the context's values.
-  """
-  def parameters(module, context) do
-    case parameterize(module) do
-      list when is_list(list) -> Enum.find(list, %{}, &(is_map(&1) and Map.take(context, Map.keys(&1)) == &1))
-      _ -> %{}
-    end
-  end
-
-  # `__ex_unit__(:config)` is ExUnit's internal API (`@doc false`; a map with `:parameterize`
-  # in 1.18 to 1.20): any other shape is no parameters.
-  defp parameterize(module) do
-    case Code.ensure_loaded?(module) and function_exported?(module, :__ex_unit__, 1) and module.__ex_unit__(:config) do
-      %{parameterize: list} -> list
-      _ -> nil
-    end
-  end
-
-  @doc "A test name without its macro's prefix (`test `, or the context's `test_type`)."
-  def test_name(%{test: test} = context),
-    do: test |> to_string() |> String.replace_prefix("#{context[:test_type] || :test} ", "")
-
-  @doc "Upstream's `testInfo.titlePath`: the file, the describe block, the test."
-  def title_path(%{file: file} = context) do
-    name = test_name(context)
-
-    case context[:describe] do
-      nil -> [Path.relative_to_cwd(file), name]
-      describe -> [Path.relative_to_cwd(file), describe, String.replace_prefix(name, describe <> " ", "")]
-    end
-  end
 
   @doc "The recorder of the test `test_pid`, if it started one, or `nil`."
   def lookup(test_pid) do
@@ -740,24 +705,8 @@ defmodule PlaywrightEx.Test.Recorder do
 
   # `testTracing`'s `stopIfNeeded`: the test's `test.trace` and its contexts' chunks. The path,
   # when kept.
-  defp save_trace(state, failed?) do
-    path = Path.join(state.opts.output_dir, "trace.zip")
-
-    result =
-      step("merge the traces", fn ->
-        TestTracing.stop_if_needed(
-          state.tracing,
-          state.opts,
-          state.chunks,
-          failed?,
-          state.opts[:test_timeout],
-          state.opts.tmp,
-          path
-        )
-      end)
-
-    if result == :saved, do: path
-  end
+  defp save_trace(state, failed?),
+    do: step("merge the traces", fn -> TestTracing.stop_if_needed(state.tracing, state.opts, state.chunks, failed?) end)
 
   # `shouldCaptureUponFinish`.
   defp capture?(mode, failed?), do: mode == :on or (mode == :only_on_failure and failed?)
@@ -775,127 +724,6 @@ defmodule PlaywrightEx.Test.Recorder do
     File.mkdir_p!(Path.dirname(path))
     File.cp!(file, path)
   end
-
-  @doc """
-  Upstream's `mergeTraceFiles`: one trace of all of the test's chunks, each cut to its own stacks
-  (`own_stacks/2`). With several chunks, newest first, `*trace.<ext>` entries get their chunk's
-  index as a prefix, other entries (resources) are kept once. Returns `:none` without chunks.
-  """
-  def merge_traces(path, chunks) do
-    case Enum.filter(chunks, &File.exists?/1) do
-      [] ->
-        :none
-
-      chunks ->
-        {entries, _names} =
-          chunks
-          |> Enum.with_index()
-          |> Enum.reverse()
-          |> Enum.reduce({[], MapSet.new()}, fn {chunk, i}, acc ->
-            Enum.reduce(read_chunk(chunk), acc, &merge_entry(&1, prefix(i, chunks), &2))
-          end)
-
-        File.mkdir_p!(Path.dirname(path))
-        {:ok, _} = :zip.create(String.to_charlist(path), Enum.reverse(entries))
-        Enum.each(chunks, &File.rm/1)
-        :ok
-    end
-  end
-
-  defp prefix(_i, [_chunk]), do: ""
-  defp prefix(i, _chunks), do: "#{i}-"
-
-  defp read_chunk(chunk) do
-    {:ok, files} = :zip.unzip(String.to_charlist(chunk), [:memory])
-    files = Enum.map(files, fn {name, data} -> {to_string(name), data} end)
-    own_stacks(files, List.keyfind(files, "trace.stacks", 0))
-  end
-
-  # The driver adds every call's stack to every trace recording on its connection
-  # (`addStackToTracingNoReply`), also those of other processes' calls. Keeps the stacks of
-  # the chunk's own actions (by `callId`), as `serializeClientSideCallMetadata` writes them, and
-  # the `src/<sha1(file)><ext>` sources of their frames.
-  defp own_stacks(files, nil), do: files
-
-  defp own_stacks(files, {_, data}) do
-    ids =
-      for {name, trace} <- files,
-          Path.extname(name) == ".trace",
-          line <- String.split(trace, "\n", trim: true),
-          into: MapSet.new(),
-          do: JSON.decode!(line)["callId"]
-
-    %{"files" => paths, "stacks" => stacks} = JSON.decode!(data)
-    stacks = Enum.filter(stacks, fn [id, _frames] -> id in ids end)
-    used = stacks |> Enum.flat_map(fn [_id, frames] -> Enum.map(frames, &hd/1) end) |> Enum.uniq()
-    index = used |> Enum.with_index() |> Map.new()
-    stacks = for [id, frames] <- stacks, do: [id, for([file | rest] <- frames, do: [index[file] | rest])]
-    paths = Enum.map(used, &Enum.at(paths, &1))
-    sources = MapSet.new(paths, &"src/#{sha1(&1)}#{Path.extname(&1)}")
-    stacks_data = JSON.encode!(%{files: paths, stacks: stacks})
-
-    for {name, _} = file <- files,
-        not String.starts_with?(name, "src/") or name in sources,
-        do: if(name == "trace.stacks", do: {name, stacks_data}, else: file)
-  end
-
-  defp merge_entry({name, data}, prefix, {entries, names}) do
-    name = if name != "test.trace" and name =~ ~r/trace\.[a-z]*$/, do: prefix <> name, else: name
-
-    if MapSet.member?(names, name),
-      do: {entries, names},
-      else: {[{String.to_charlist(name), data} | entries], MapSet.put(names, name)}
-  end
-
-  @doc "The output dir of the test of `context` (see `output_dir/5`)."
-  def output_dir(%{module: module, file: file} = context),
-    do:
-      output_dir(PlaywrightEx.Test.Options.output_dir(), file, test_name(context), module, parameters(module, context))
-
-  @doc """
-  A test's output dir under `root`, as upstream's `testInfo.outputDir`: the file relative to
-  `test/` without `_test.exs`, `/` as `-`, then `-` and the sanitized test `name`, trimmed to 60
-  characters (`trimLongString`). Then `-` and a hash of the module and parameters, as upstream
-  appends the project: modules of a file, or parameter sets, may share a test name.
-  """
-  def output_dir(root, file, name, module, parameters) do
-    relative =
-      file |> relative_test_file() |> String.replace_suffix("_test.exs", "") |> String.replace_suffix(".exs", "")
-
-    name = trim_long_string(String.replace(relative, "/", "-") <> "-" <> sanitize_for_file_path(name), 60)
-
-    Path.join(root, name <> "-" <> short_hash(:erlang.term_to_binary({module, parameters}, [:deterministic])))
-  end
-
-  @doc "Upstream's `testDir`: `test/` of the working directory."
-  def test_dir, do: Path.join(File.cwd!(), "test")
-
-  @doc "A test file relative to `test_dir/0`, else to the working directory: the output dir's name."
-  def relative_test_file(file) do
-    file = Path.expand(file)
-
-    if String.starts_with?(file, test_dir() <> "/"),
-      do: Path.relative_to(file, test_dir()),
-      else: Path.relative_to(file, File.cwd!())
-  end
-
-  @doc "Upstream's `sanitizeForFilePath`."
-  def sanitize_for_file_path(s), do: Regex.replace(~r/[\x00-\x2C\x2E-\x2F\x3A-\x40\x5B-\x60\x7B-\x7F]+/, s, "-")
-
-  @doc "Upstream's `trimLongString` (`windowsFilesystemFriendlyLength` is 60)."
-  def trim_long_string(s, length \\ 100) do
-    if String.length(s) <= length do
-      s
-    else
-      middle = "-#{short_hash(s)}-"
-      start = div(length - String.length(middle), 2)
-      ending = length - String.length(middle) - start
-      String.slice(s, 0, start) <> middle <> String.slice(s, -ending, ending)
-    end
-  end
-
-  defp sha1(data), do: :crypto.hash(:sha, data) |> Base.encode16(case: :lower)
-  defp short_hash(data), do: binary_part(sha1(data), 0, 5)
 
   defp step(what, fun) do
     fun.()

@@ -96,7 +96,7 @@ defmodule PlaywrightEx.UpstreamSnapshot do
 
     Path.join(
       PlaywrightEx.Upstream.dir(),
-      "#{spec}-snapshots/#{PlaywrightEx.Test.Recorder.sanitize_for_file_path(base)}-#{browser_name}#{ext}"
+      "#{spec}-snapshots/#{PlaywrightEx.Test.TestInfo.sanitize_for_file_path(base)}-#{browser_name}#{ext}"
     )
   end
 

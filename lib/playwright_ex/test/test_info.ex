@@ -1,11 +1,12 @@
 defmodule PlaywrightEx.Test.TestInfo do
   @moduledoc false
-  # What the ported matchers need of upstream's `TestInfoImpl`
+  # What the runner and the ported matchers need of upstream's `TestInfoImpl`
   # (`packages/playwright/src/worker/testInfo.ts`) for a test of `use PlaywrightEx.Test`: its
-  # snapshot paths (`_resolveSnapshotPaths`, `snapshotPath`), output paths (`_getOutputPath`) and
-  # error list (`_failWithError`), which fails the test when its body ends
-  # (`PlaywrightEx.Test.__passed__/0`), and its steps (`_addStep`), traced by its `_tracing`
-  # (`PlaywrightEx.Test.TestTracing`).
+  # names and output dir (`titlePath`, `outputDir`, with util.ts's `sanitizeForFilePath` and
+  # `trimLongString`), snapshot paths (`_resolveSnapshotPaths`, `snapshotPath`), output paths
+  # (`_getOutputPath`) and error list (`_failWithError`), which fails the test when its body
+  # ends (`PlaywrightEx.Test.__passed__/0`), and its steps (`_addStep`), traced by its
+  # `_tracing` (`PlaywrightEx.Test.TestTracing`).
   #
   # `this` is a map of the test's static fields. Its mutable state, the snapshot indexes, the
   # errors and the steps, are rows of the pool's public table keyed `{:test_info, test_pid, _}`,
@@ -27,8 +28,8 @@ defmodule PlaywrightEx.Test.TestInfo do
     %{
       test_pid: context.test_pid,
       file: Path.expand(context.file),
-      test_name: Recorder.test_name(context),
-      output_dir: Path.expand(Recorder.output_dir(context)),
+      test_name: test_name(context),
+      output_dir: Path.expand(output_dir(context)),
       # `nextStepId = createCallIdGenerator()`: its prefix.
       step_id_prefix: for(_ <- 1..4, into: "", do: <<Enum.random(?a..?z)>>)
     }
@@ -36,6 +37,95 @@ defmodule PlaywrightEx.Test.TestInfo do
 
   # `_tracing`: the test's recorder, if it records artifacts.
   defp _tracing(this), do: Recorder.lookup(this.test_pid)
+
+  # The test's names and output dir, from its ExUnit context, as `testInfo`'s constructor
+  # (`titlePath`, `outputDir`) and util.ts (`sanitizeForFilePath`, `trimLongString`) make them.
+
+  @doc "A test name without its macro's prefix (`test `, or the context's `test_type`)."
+  def test_name(%{test: test} = context),
+    do: test |> to_string() |> String.replace_prefix("#{context[:test_type] || :test} ", "")
+
+  @doc "Upstream's `testInfo.titlePath`: the file, the describe block, the test."
+  def title_path(%{file: file} = context) do
+    name = test_name(context)
+
+    case context[:describe] do
+      nil -> [Path.relative_to_cwd(file), name]
+      describe -> [Path.relative_to_cwd(file), describe, String.replace_prefix(name, describe <> " ", "")]
+    end
+  end
+
+  @doc "The output dir of the test of `context` (see `output_dir/5`)."
+  def output_dir(%{module: module, file: file} = context),
+    do:
+      output_dir(PlaywrightEx.Test.Options.output_dir(), file, test_name(context), module, parameters(module, context))
+
+  @doc """
+  A test's output dir under `root`, as upstream's `testInfo.outputDir`: the file relative to
+  `test/` without `_test.exs`, `/` as `-`, then `-` and the sanitized test `name`, trimmed to 60
+  characters (`trimLongString`). Then `-` and a hash of the module and parameters, as upstream
+  appends the project: modules of a file, or parameter sets, may share a test name.
+  """
+  def output_dir(root, file, name, module, parameters) do
+    relative =
+      file |> relative_test_file() |> String.replace_suffix("_test.exs", "") |> String.replace_suffix(".exs", "")
+
+    name = trim_long_string(String.replace(relative, "/", "-") <> "-" <> sanitize_for_file_path(name), 60)
+
+    Path.join(root, name <> "-" <> short_hash(:erlang.term_to_binary({module, parameters}, [:deterministic])))
+  end
+
+  @doc """
+  The parameters of `context` in `module` (`%{}` for a module without `parameterize:`), for its
+  output dir: a guess, the module's parameter map whose keys have the context's values.
+  """
+  def parameters(module, context) do
+    case parameterize(module) do
+      list when is_list(list) -> Enum.find(list, %{}, &(is_map(&1) and Map.take(context, Map.keys(&1)) == &1))
+      _ -> %{}
+    end
+  end
+
+  # `__ex_unit__(:config)` is ExUnit's internal API (`@doc false`; a map with `:parameterize`
+  # in 1.18 to 1.20): any other shape is no parameters.
+  defp parameterize(module) do
+    case Code.ensure_loaded?(module) and function_exported?(module, :__ex_unit__, 1) and module.__ex_unit__(:config) do
+      %{parameterize: list} -> list
+      _ -> nil
+    end
+  end
+
+  @doc "Upstream's `testDir`: `test/` of the working directory."
+  def test_dir, do: Path.join(File.cwd!(), "test")
+
+  @doc "A test file relative to `test_dir/0`, else to the working directory: the output dir's name."
+  def relative_test_file(file) do
+    file = Path.expand(file)
+
+    if String.starts_with?(file, test_dir() <> "/"),
+      do: Path.relative_to(file, test_dir()),
+      else: Path.relative_to(file, File.cwd!())
+  end
+
+  @doc "Upstream's `sanitizeForFilePath`."
+  def sanitize_for_file_path(s), do: Regex.replace(~r/[\x00-\x2C\x2E-\x2F\x3A-\x40\x5B-\x60\x7B-\x7F]+/, s, "-")
+
+  @doc "Upstream's `trimLongString` (`windowsFilesystemFriendlyLength` is 60)."
+  def trim_long_string(s, length \\ 100) do
+    if String.length(s) <= length do
+      s
+    else
+      middle = "-#{short_hash(s)}-"
+      start = div(length - String.length(middle), 2)
+      ending = length - String.length(middle) - start
+      String.slice(s, 0, start) <> middle <> String.slice(s, -ending, ending)
+    end
+  end
+
+  @doc "utils `calculateSha1`: the hex SHA-1 of `data`."
+  def calculate_sha1(data), do: :crypto.hash(:sha, data) |> Base.encode16(case: :lower)
+
+  defp short_hash(data), do: binary_part(calculate_sha1(data), 0, 5)
 
   @doc "Registers the running test `this` (`new/1`, in its `setup`), once: matchers of its processes find it."
   def start(this) do
@@ -488,8 +578,8 @@ defmodule PlaywrightEx.Test.TestInfo do
         %{name: name, contentType: "text/plain"}
 
       %{path: path, body: nil} ->
-        hash = sha1_hex(path)
-        sanitized_name_prefix = Recorder.sanitize_for_file_path(name) <> "-"
+        hash = calculate_sha1(path)
+        sanitized_name_prefix = sanitize_for_file_path(name) <> "-"
         dest = Path.join([output_path, "attachments", sanitized_name_prefix <> hash <> Path.extname(path)])
         File.mkdir_p!(Path.dirname(dest))
         File.cp!(path, dest)
@@ -509,8 +599,6 @@ defmodule PlaywrightEx.Test.TestInfo do
         raise ~s(Exactly one of "path" and "body" must be specified)
     end
   end
-
-  defp sha1_hex(data), do: :crypto.hash(:sha, data) |> Base.encode16(case: :lower)
 
   # `outputPath()`: the output dir, created.
   defp output_path(this) do
@@ -538,7 +626,7 @@ defmodule PlaywrightEx.Test.TestInfo do
   end
 
   @doc "`_fsSanitizedTestName`."
-  def _fs_sanitized_test_name(this), do: Recorder.sanitize_for_file_path(Recorder.trim_long_string(this.test_name))
+  def _fs_sanitized_test_name(this), do: sanitize_for_file_path(trim_long_string(this.test_name))
 
   @doc """
   `_resolveSnapshotPaths`: `%{absoluteSnapshotPath: _, relativeOutputPath: _}` of the snapshot
@@ -585,10 +673,10 @@ defmodule PlaywrightEx.Test.TestInfo do
   #   expect.toMatchSnapshot('a.png')
   defp anonymous_paths(this, index, ext) do
     full_title_without_spec = Enum.join([this.test_name, index], " ")
-    sub_path = sanitize_file_path_before_extension(Recorder.trim_long_string(full_title_without_spec) <> ext, ext)
+    sub_path = sanitize_file_path_before_extension(trim_long_string(full_title_without_spec) <> ext, ext)
     # Trim the output file paths more aggressively to avoid hitting Windows filesystem limits.
     relative_output_path =
-      sanitize_file_path_before_extension(Recorder.trim_long_string(full_title_without_spec, 60) <> ext, ext)
+      sanitize_file_path_before_extension(trim_long_string(full_title_without_spec, 60) <> ext, ext)
 
     {sub_path, ext, relative_output_path}
   end
@@ -605,7 +693,7 @@ defmodule PlaywrightEx.Test.TestInfo do
     ext = aria_aware_extname(kind, name)
     # Trim the output file paths more aggressively to avoid hitting Windows filesystem limits.
     {sanitize_file_path_before_extension(name, ext), ext,
-     sanitize_file_path_before_extension(Recorder.trim_long_string(name, 60), ext)}
+     sanitize_file_path_before_extension(trim_long_string(name, 60), ext)}
   end
 
   defp aria_aware_extname("aria", file_path) do
@@ -652,17 +740,17 @@ defmodule PlaywrightEx.Test.TestInfo do
   @doc "`_applyPathTemplate`. There are no projects: `{projectName}` is empty, as upstream's default project's."
   def _apply_path_template(this, template, name_argument, ext) do
     # `path.relative(testDir, file)`: `../integration/...` for a file of another `test_paths` dir.
-    relative_test_file_path = Path.relative_to(this.file, Recorder.test_dir(), force: true)
+    relative_test_file_path = Path.relative_to(this.file, test_dir(), force: true)
     parsed_dir = if Path.dirname(relative_test_file_path) == ".", do: "", else: Path.dirname(relative_test_file_path)
     parsed_base = Path.basename(relative_test_file_path)
     parsed_name = Path.rootname(parsed_base)
-    project_name_path_segment = Recorder.sanitize_for_file_path("")
+    project_name_path_segment = sanitize_for_file_path("")
     snapshot_suffix = snapshot_suffix()
-    snapshot_dir = Path.expand(PlaywrightEx.Test.Options.snapshot_dir() || Recorder.test_dir())
+    snapshot_dir = Path.expand(PlaywrightEx.Test.Options.snapshot_dir() || test_dir())
 
     snapshot_path =
       template
-      |> replace("testDir", Recorder.test_dir())
+      |> replace("testDir", test_dir())
       |> replace("snapshotDir", snapshot_dir)
       |> replace("snapshotSuffix", snapshot_suffix, snapshot_suffix != "")
       |> replace("testFileDir", parsed_dir)
@@ -723,7 +811,7 @@ defmodule PlaywrightEx.Test.TestInfo do
   # util.ts `sanitizeFilePathBeforeExtension`.
   defp sanitize_file_path_before_extension(file_path, ext) do
     base = String.slice(file_path, 0, String.length(file_path) - String.length(ext))
-    Recorder.sanitize_for_file_path(base) <> ext
+    sanitize_for_file_path(base) <> ext
   end
 
   # Node's `path.join` of a dir and a name: no `./` for the current dir.

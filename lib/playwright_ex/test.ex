@@ -424,8 +424,8 @@ defmodule PlaywrightEx.Test do
       |> TestInfo.new()
       |> Map.merge(modes)
       |> Map.merge(%{
-        title: "#{Path.relative_to_cwd(file)}:#{context[:line]} › #{Recorder.test_name(context)}",
-        title_path: Recorder.title_path(context),
+        title: "#{Path.relative_to_cwd(file)}:#{context[:line]} › #{TestInfo.test_name(context)}",
+        title_path: TestInfo.title_path(context),
         location: {file, context[:line]},
         test_timeout: timeout,
         # ExUnit's clock started at the test process's spawn, just before this setup.

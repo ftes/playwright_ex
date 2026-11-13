@@ -72,24 +72,24 @@ defmodule PlaywrightEx.Test.TestTracing do
   defp should_abandon_trace(mode, failed?), do: !failed? and mode == :retain_on_failure
 
   @doc """
-  `stopIfNeeded`, in the recorder's `finish`: with the `trace` options (`mode` first) and the
-  test's result, adds `test.trace` (with the sources of its steps) to the context `chunks` and
-  merges them into `path` (`:saved`), or drops the chunks. `test_timeout` is the test's ExUnit
-  timeout.
+  `stopIfNeeded`, in the recorder's `finish`: with the test's registration `test` (its `trace`
+  options, `mode` first, `test_timeout`, `tmp` and `output_dir`) and result, adds `test.trace`
+  (with the sources of its steps) to the context `chunks` and merges them into the output dir's
+  `trace.zip`, its path returned, or drops the chunks (`nil`).
   """
-  def stop_if_needed(this, %{trace: [{:mode, mode} | options]}, chunks, failed?, test_timeout, tmp, path) do
+  def stop_if_needed(this, %{trace: [{:mode, mode} | options]} = test, chunks, failed?) do
     [context_created_event | events] = Enum.reverse(this.trace_events)
-    timeout = if is_integer(test_timeout), do: test_timeout, else: 0
+    timeout = if is_integer(test[:test_timeout]), do: test.test_timeout, else: 0
     context_created_event = Map.merge(context_created_event, %{testTimeout: timeout, annotations: []})
     trace_events = [context_created_event | events]
 
     cond do
       mode == :off ->
-        :ok
+        nil
 
       should_abandon_trace(mode, failed?) ->
         for file <- chunks, do: File.rm(file)
-        :ok
+        nil
 
       true ->
         trace_events =
@@ -104,7 +104,7 @@ defmodule PlaywrightEx.Test.TestTracing do
 
             for source_file <- source_files,
                 {:ok, source} <- [File.read(source_file)],
-                do: {~c"src/#{sha1(source_file)}#{Path.extname(source_file)}", source}
+                do: {~c"src/#{TestInfo.calculate_sha1(source_file)}#{Path.extname(source_file)}", source}
           else
             []
           end
@@ -121,7 +121,7 @@ defmodule PlaywrightEx.Test.TestTracing do
           end)
 
         trace_content = Enum.map_join(trace_events, "\n", &JSON.encode!(drop_undefined(&1)))
-        file = generate_next_trace_recording_path(tmp)
+        file = generate_next_trace_recording_path(test.tmp)
 
         {:ok, _} =
           :zip.create(
@@ -129,9 +129,10 @@ defmodule PlaywrightEx.Test.TestTracing do
             sources ++ Enum.reverse(attachment_files) ++ [{String.to_charlist(@test_trace_entry_name), trace_content}]
           )
 
-        Recorder.merge_traces(path, chunks ++ [file])
-        # this._testInfo.attachments.push({ name: 'trace', ... });  -- not ported: attachments
-        :saved
+        path = Path.join(test.output_dir, "trace.zip")
+        merge_trace_files(path, chunks ++ [file])
+        # this._testInfo.attachments.push({ name: 'trace', ... });  -- not ported: attachments; the path is returned
+        path
     end
   end
 
@@ -141,7 +142,7 @@ defmodule PlaywrightEx.Test.TestTracing do
         {attachment, acc}
 
       content ->
-        sha1 = sha1(content)
+        sha1 = TestInfo.calculate_sha1(content)
         attachment = attachment |> Map.drop([:path, :base64]) |> Map.put(:file, "attachments/" <> sha1)
 
         if MapSet.member?(sha1s, sha1),
@@ -260,7 +261,76 @@ defmodule PlaywrightEx.Test.TestTracing do
     end
   end
 
-  # mergeTraceFiles  -- ported as `Recorder.merge_traces/2`
+  @doc """
+  `mergeTraceFiles`: one trace of all of the test's chunks, each cut to its own stacks
+  (`own_stacks/2`). With several chunks, newest first, `*trace.<ext>` entries get their chunk's
+  index as a prefix, other entries (resources) are kept once. Returns `:none` without chunks.
+  """
+  def merge_trace_files(path, chunks) do
+    case Enum.filter(chunks, &File.exists?/1) do
+      [] ->
+        :none
+
+      chunks ->
+        {entries, _names} =
+          chunks
+          |> Enum.with_index()
+          |> Enum.reverse()
+          |> Enum.reduce({[], MapSet.new()}, fn {chunk, i}, acc ->
+            Enum.reduce(read_chunk(chunk), acc, &merge_entry(&1, prefix(i, chunks), &2))
+          end)
+
+        File.mkdir_p!(Path.dirname(path))
+        {:ok, _} = :zip.create(String.to_charlist(path), Enum.reverse(entries))
+        Enum.each(chunks, &File.rm/1)
+        :ok
+    end
+  end
+
+  defp prefix(_i, [_chunk]), do: ""
+  defp prefix(i, _chunks), do: "#{i}-"
+
+  defp read_chunk(chunk) do
+    {:ok, files} = :zip.unzip(String.to_charlist(chunk), [:memory])
+    files = Enum.map(files, fn {name, data} -> {to_string(name), data} end)
+    own_stacks(files, List.keyfind(files, "trace.stacks", 0))
+  end
+
+  # The driver adds every call's stack to every trace recording on its connection
+  # (`addStackToTracingNoReply`), also those of other processes' calls. Keeps the stacks of
+  # the chunk's own actions (by `callId`), as `serializeClientSideCallMetadata` writes them, and
+  # the `src/<sha1(file)><ext>` sources of their frames.
+  defp own_stacks(files, nil), do: files
+
+  defp own_stacks(files, {_, data}) do
+    ids =
+      for {name, trace} <- files,
+          Path.extname(name) == ".trace",
+          line <- String.split(trace, "\n", trim: true),
+          into: MapSet.new(),
+          do: JSON.decode!(line)["callId"]
+
+    %{"files" => paths, "stacks" => stacks} = JSON.decode!(data)
+    stacks = Enum.filter(stacks, fn [id, _frames] -> id in ids end)
+    used = stacks |> Enum.flat_map(fn [_id, frames] -> Enum.map(frames, &hd/1) end) |> Enum.uniq()
+    index = used |> Enum.with_index() |> Map.new()
+    stacks = for [id, frames] <- stacks, do: [id, for([file | rest] <- frames, do: [index[file] | rest])]
+    paths = Enum.map(used, &Enum.at(paths, &1))
+    sources = MapSet.new(paths, &"src/#{TestInfo.calculate_sha1(&1)}#{Path.extname(&1)}")
+    stacks_data = JSON.encode!(%{files: paths, stacks: stacks})
+
+    for {name, _} = file <- files,
+        not String.starts_with?(name, "src/") or name in sources,
+        do: if(name == "trace.stacks", do: {name, stacks_data}, else: file)
+  end
+
+  defp merge_entry({name, data}, prefix, {entries, names}) do
+    name = if name != "test.trace" and name =~ ~r/trace\.[a-z]*$/, do: prefix <> name, else: name
+
+    if MapSet.member?(names, name),
+      do: {entries, names},
+      else: {[{String.to_charlist(name), data} | entries], MapSet.put(names, name)}
+  end
 
   # JSON.stringify leaves out `undefined` values.
   defp drop_undefined(%{} = map) when not is_struct(map),
@@ -268,8 +338,6 @@ defmodule PlaywrightEx.Test.TestTracing do
 
   defp drop_undefined(list) when is_list(list), do: Enum.map(list, &drop_undefined/1)
   defp drop_undefined(value), do: value
-
-  defp sha1(data), do: :crypto.hash(:sha, data) |> Base.encode16(case: :lower)
 
   # isomorphic/time.ts `monotonicTime()`: milliseconds, three decimals, since the VM started (the
   # viewer aligns it with the driver's by `wallTime`).

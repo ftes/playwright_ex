@@ -11,7 +11,6 @@ defmodule PlaywrightEx.Test.StepsTest do
   alias PlaywrightEx.Page
   alias PlaywrightEx.Test
   alias PlaywrightEx.Test.BrowserPool
-  alias PlaywrightEx.Test.Recorder
   alias PlaywrightEx.Test.TestInfo
 
   @moduletag trace: :on
@@ -25,7 +24,7 @@ defmodule PlaywrightEx.Test.StepsTest do
 
   # Before the registration, so its `on_exit` runs after the test's end saved its trace.
   setup ctx do
-    dir = Recorder.output_dir(ctx)
+    dir = TestInfo.output_dir(ctx)
     test_pid = self()
 
     on_exit(fn ->

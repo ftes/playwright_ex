@@ -114,7 +114,7 @@ defmodule PlaywrightEx.Test.ErrorContext do
   defp marker(_number, _line), do: "  "
 
   defp error_location(stack) do
-    test_dir = Path.join(File.cwd!(), "test") <> "/"
+    test_dir = PlaywrightEx.Test.TestInfo.test_dir() <> "/"
 
     Enum.find_value(stack, fn
       {_module, _fun, _arity, location} ->

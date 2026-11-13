@@ -3,7 +3,6 @@ defmodule PlaywrightEx.Test.OptionsTest do
 
   alias PlaywrightEx.Test.BrowserPool
   alias PlaywrightEx.Test.Options
-  alias PlaywrightEx.Test.Recorder
 
   describe "validation" do
     test "unknown options raise before anything starts" do
@@ -105,118 +104,6 @@ defmodule PlaywrightEx.Test.OptionsTest do
             {%{trace: nil}, ~r/invalid trace: nil/}
           ],
           do: assert_raise(ArgumentError, message, fn -> Options.artifacts(option) end)
-    end
-  end
-
-  describe "parameters" do
-    defmodule Weird do
-      def __ex_unit__(:config), do: [parameterize: [%{n: 1}]]
-    end
-
-    defmodule Parameterized do
-      def __ex_unit__(:config), do: %{parameterize: [%{n: 1, m: 1}, %{n: 2, m: 1}]}
-    end
-
-    test "are the parameter map whose values the context has" do
-      assert Recorder.parameters(Parameterized, %{n: 2, m: 1, test: :t}) == %{n: 2, m: 1}
-      assert Recorder.parameters(Parameterized, %{n: 3, m: 1}) == %{}
-      assert Recorder.parameters(__MODULE__, %{n: 1}) == %{}
-    end
-
-    test "are %{} when ExUnit's internal config is missing or of another shape" do
-      assert Recorder.parameters(M, %{n: 1}) == %{}
-      assert Recorder.parameters(Weird, %{n: 1}) == %{}
-    end
-  end
-
-  describe "output dirs" do
-    defp output_dir(file, name, module \\ MyApp.CheckoutTest, parameters \\ %{}) do
-      dir = Recorder.output_dir("out", file, name, module, parameters)
-      assert [_, name] = Regex.run(~r"^out/(.*)-[0-9a-f]{5}$", dir)
-      name
-    end
-
-    test "as upstream's testInfo.outputDir: the file relative to test/, then the sanitized test name" do
-      file = Path.join(File.cwd!(), "test/my_app/checkout_test.exs")
-      assert output_dir(file, "pays by card") == "my_app-checkout-pays-by-card"
-      assert output_dir(file, "cart: add_item/2 (EUR)") == "my_app-checkout-cart-add-item-2-EUR-"
-    end
-
-    test "a file outside test/ is relative to the working directory" do
-      assert output_dir(Path.join(File.cwd!(), "e2e/flow_test.exs"), "a") == "e2e-flow-a"
-    end
-
-    test "long names are trimmed to 60 characters with a hash, as trimLongString" do
-      file = Path.join(File.cwd!(), "test/my_app/checkout_test.exs")
-      name = output_dir(file, String.duplicate("very long name ", 6))
-      assert String.length(name) == 60
-      assert name =~ ~r/^my_app-checkout-very-long--[0-9a-f]{5}-y-long-name-very-long-name-$/
-    end
-
-    test "the suffix tells modules of one file and parameters apart" do
-      file = Path.join(File.cwd!(), "test/my_app/checkout_test.exs")
-
-      dirs =
-        for {module, parameters} <- [
-              {MyApp.ATest, %{}},
-              {MyApp.BTest, %{}},
-              {MyApp.ATest, %{n: 1}},
-              {MyApp.ATest, %{n: 2}}
-            ],
-            do: Recorder.output_dir("out", file, "pays", module, parameters)
-
-      assert length(Enum.uniq(dirs)) == 4
-      assert Recorder.output_dir("out", file, "pays", MyApp.ATest, %{}) == hd(dirs)
-    end
-
-    test "the test name is without its macro's prefix, test_type's" do
-      assert Recorder.test_name(%{test: :"test pays", test_type: :test}) == "pays"
-      assert Recorder.test_name(%{test: :"feature pays", test_type: :feature}) == "pays"
-      assert Recorder.test_name(%{test: :"test pays"}) == "pays"
-    end
-
-    test "sanitizeForFilePath keeps letters, digits, dashes and non-ASCII" do
-      assert Recorder.sanitize_for_file_path("a_b.c/d e:f-ü") == "a-b-c-d-e-f-ü"
-    end
-  end
-
-  describe "trace merge (mergeTraceFiles)" do
-    @describetag :tmp_dir
-
-    test "prefixes each chunk's trace files with its index and keeps resources once", %{tmp_dir: dir} do
-      chunk = fn name, entries ->
-        path = Path.join(dir, name)
-        {:ok, _} = :zip.create(String.to_charlist(path), for({n, d} <- entries, do: {String.to_charlist(n), d}))
-        path
-      end
-
-      a = chunk.("a.zip", [{"trace.trace", "a"}, {"trace.network", "an"}, {"resources/x", "x"}])
-      b = chunk.("b.zip", [{"trace.trace", "b"}, {"trace.network", "bn"}, {"resources/x", "x"}, {"resources/y", "y"}])
-      merged = Path.join(dir, "out/trace.zip")
-
-      assert Recorder.merge_traces(merged, [a, b, Path.join(dir, "missing.zip")]) == :ok
-      {:ok, files} = :zip.unzip(String.to_charlist(merged), [:memory])
-      files = Map.new(files, fn {name, data} -> {to_string(name), data} end)
-
-      assert files == %{
-               "0-trace.trace" => "a",
-               "0-trace.network" => "an",
-               "1-trace.trace" => "b",
-               "1-trace.network" => "bn",
-               "resources/x" => "x",
-               "resources/y" => "y"
-             }
-
-      refute File.exists?(a) or File.exists?(b)
-    end
-
-    test "a single chunk keeps its names, none gives none", %{tmp_dir: dir} do
-      path = Path.join(dir, "a.zip")
-      {:ok, _} = :zip.create(String.to_charlist(path), [{~c"trace.trace", "a"}, {~c"resources/x", "x"}])
-      assert Recorder.merge_traces(Path.join(dir, "t/trace.zip"), [path]) == :ok
-      {:ok, files} = :zip.unzip(String.to_charlist(Path.join(dir, "t/trace.zip")), [:memory])
-      assert Enum.sort(files) == [{~c"resources/x", "x"}, {~c"trace.trace", "a"}]
-      assert Recorder.merge_traces(Path.join(dir, "u/trace.zip"), [path]) == :none
     end
   end
 end

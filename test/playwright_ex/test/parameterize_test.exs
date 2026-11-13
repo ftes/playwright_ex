@@ -7,7 +7,7 @@ defmodule PlaywrightEx.Test.ParameterizeTest do
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Page
   alias PlaywrightEx.Test.BrowserPool
-  alias PlaywrightEx.Test.Recorder
+  alias PlaywrightEx.Test.TestInfo
 
   setup_all do: %{browser: BrowserPool.browser()}
 
@@ -19,8 +19,8 @@ defmodule PlaywrightEx.Test.ParameterizeTest do
   @moduletag trace: :on
 
   def check(ctx, marker, others) do
-    dir = Recorder.output_dir(ctx)
-    for other <- others, do: refute(Recorder.output_dir(other) == dir)
+    dir = TestInfo.output_dir(ctx)
+    for other <- others, do: refute(TestInfo.output_dir(other) == dir)
 
     on_exit(fn ->
       assert File.ls!(dir) == ["trace.zip"]
@@ -66,7 +66,7 @@ defmodule PlaywrightEx.Test.ParameterizeTest.Shapes do
   # `__ex_unit__(:config)` is internal ExUnit API: another shape means no parameters.
   use ExUnit.Case, async: true
 
-  alias PlaywrightEx.Test.Recorder
+  alias PlaywrightEx.Test.TestInfo
 
   for {name, config} <- [missing: [], other: %{parameterize: :none}, keyword: :none] do
     defmodule Module.concat(__MODULE__, name) do
@@ -76,8 +76,8 @@ defmodule PlaywrightEx.Test.ParameterizeTest.Shapes do
 
   test "an unknown shape of ExUnit's module config is no parameters" do
     for name <- [:missing, :other, :keyword],
-        do: assert(Recorder.parameters(Module.concat(__MODULE__, name), %{n: 1}) == %{})
+        do: assert(TestInfo.parameters(Module.concat(__MODULE__, name), %{n: 1}) == %{})
 
-    assert Recorder.parameters(PlaywrightEx.Test.ParameterizeTest, %{n: 2}) == %{n: 2}
+    assert TestInfo.parameters(PlaywrightEx.Test.ParameterizeTest, %{n: 2}) == %{n: 2}
   end
 end

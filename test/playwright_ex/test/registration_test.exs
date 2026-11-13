@@ -15,6 +15,7 @@ defmodule PlaywrightEx.Test.RegistrationTest do
   alias PlaywrightEx.Test.BrowserPool
   alias PlaywrightEx.Test.Pool
   alias PlaywrightEx.Test.Recorder
+  alias PlaywrightEx.Test.TestInfo
 
   setup_all do
     browser = BrowserPool.browser()
@@ -121,7 +122,7 @@ defmodule PlaywrightEx.Test.RegistrationTest do
 
     assert info.output_dir ==
              Path.expand(
-               Recorder.output_dir(%{module: __MODULE__, test: :"test #{info.test_name}", file: __ENV__.file})
+               TestInfo.output_dir(%{module: __MODULE__, test: :"test #{info.test_name}", file: __ENV__.file})
              )
 
     assert Task.await(Task.async(&PlaywrightEx.Test.info/0)) == info
