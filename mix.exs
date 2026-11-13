@@ -112,6 +112,8 @@ defmodule PlaywrightEx.MixProject do
       nest_modules_by_prefix: [PlaywrightEx],
       # The changelog names functions of the API before the restructure.
       skip_undefined_reference_warnings_on: ["CHANGELOG.md"],
+      # ExUnit hides its formatter modules from its docs.
+      skip_code_autolink_to: ["ExUnit.CLIFormatter"],
       # Internals keep their moduledocs (read in the source; docs/architecture.md) but stay out of
       # hexdocs: the user API is the generated facade, the errors and the runtime entry points.
       filter_modules: fn _, metadata -> not internal_source?(to_string(metadata.source_path)) end,

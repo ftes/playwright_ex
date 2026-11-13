@@ -48,13 +48,15 @@ defmodule PlaywrightEx.Test.GitHubFormatter do
 
   # class GitHubLogger
 
-  # newLine
-  defp new_line, do: IO.write("\n")
+  # newLine  -- ported as the newline before each command in `log/3`
 
   # _log; debug, error, notice, warning  -- ported as its `type` argument
   defp log(message, type, options) do
     configs = Enum.map_join(options, ",", fn {key, option} -> "#{key}=#{escape_property(to_string(option))}" end)
-    IO.write(StringUtils.strip_ansi_escapes("::#{type} #{configs}::#{escape_data(message)}\n"))
+    # deviation: one write that starts on a line of its own. GitHub reads a command only at the
+    # start of a line, and ExUnit.CLIFormatter, a process of its own, may have written a `.`
+    # without a newline (Node's one thread has the reporters write in turn).
+    IO.write(StringUtils.strip_ansi_escapes("\n::#{type} #{configs}::#{escape_data(message)}\n"))
   end
 
   # Same escaping as @actions/core, see https://github.com/actions/toolkit/blob/main/packages/core/src/command.ts.
@@ -106,7 +108,7 @@ defmodule PlaywrightEx.Test.GitHubFormatter do
     # if (this.willRetry(test)) return;  -- not ported: ExUnit has no retries
     if should_print_failure_annotations(test) do
       this = %{this | failed_test_count: this.failed_test_count + 1}
-      new_line()
+      # this.githubLogger.newLine();  -- in `log/3`
       # for (const r of test.results): an ExUnit test has one result.
       print_failure_annotation(this, test, this.failed_test_count)
       this
@@ -139,7 +141,8 @@ defmodule PlaywrightEx.Test.GitHubFormatter do
   end
 
   defp print_slow_test_annotations(this) do
-    Enum.each(get_slow_tests(this), fn {file, duration} ->
+    # deviation: the file without its project (upstream joins `[project] › file` to the cwd).
+    Enum.each(get_slow_tests(this), fn {{_project, file}, duration} ->
       file_path = workspace_relative_path(Path.join(File.cwd!(), file))
       log("#{file_path} took #{ms_to_string(duration)}", :warning, title: "Slow Test", file: file_path)
     end)
@@ -175,7 +178,8 @@ defmodule PlaywrightEx.Test.GitHubFormatter do
     # ++this._failureCount  -- not ported: only the line and dot reporters read it
     project_name = project_name(test)
     relative_path = relative_test_path(test)
-    file_and_project = if(project_name, do: "[#{project_name}] › ", else: "") <> relative_path
+    # `(projectName ? `[${projectName}] › ` : '') + relativePath`, as a pair.
+    file_and_project = {project_name, relative_path}
     {duration, workers} = Map.get(this.file_durations, file_and_project, {0, MapSet.new()})
     # A module's tests run one at a time, as a worker's: the module is the worker.
     entry = {duration + test.time / 1000, MapSet.put(workers, test.module)}
@@ -222,7 +226,7 @@ defmodule PlaywrightEx.Test.GitHubFormatter do
       Enum.reduce(tests, %{did_not_run: 0, skipped: 0, expected: 0, unexpected: []}, fn test, summary ->
         case test.state do
           # 'skipped' with expectedStatus 'skipped'
-          {:skip, _} -> %{summary | skipped: summary.skipped + 1}
+          {:skipped, _} -> %{summary | skipped: summary.skipped + 1}
           # 'skipped' with expectedStatus 'passed': not run after a failed `setup_all`, as upstream's
           # after a failed `beforeAll`.
           {:invalid, _} -> %{summary | did_not_run: summary.did_not_run + 1}
@@ -261,30 +265,30 @@ defmodule PlaywrightEx.Test.GitHubFormatter do
   end
 
   # formatResultFailure: ExUnit's failure text (`ExUnit.Formatter.format_test_failure/5`, without
-  # the lines of its header, which upstream's replaces) for formatError's message, already
-  # indented. 'Expected to fail, but passed.', 'Test was interrupted.'  -- never: no `test.fail`,
-  # no interruption.
+  # its header, which upstream's replaces) for formatError's message, already indented.
+  # 'Expected to fail, but passed.', 'Test was interrupted.'  -- never: no `test.fail`, no
+  # interruption.
   defp format_result_failure(this, %ExUnit.Test{state: {:failed, failures}} = test) do
-    header_lines = if test.parameters == %{}, do: 2, else: 3
+    # The header alone: the text of no failures.
+    header = ExUnit.Formatter.format_test_failure(test, [], 1, @width, &formatter/2)
 
     for {_kind, _reason, stack} = failure <- failures do
       text = ExUnit.Formatter.format_test_failure(test, [failure], 1, @width, &formatter/2)
-      message = text |> String.split("\n") |> Enum.drop(header_lines) |> Enum.join("\n") |> String.trim_trailing()
+      message = text |> String.replace_prefix(header, "") |> String.trim_trailing()
       %{message: message, location: location(this.deps, stack)}
     end
   end
 
   # `parsedStack.location` of `filterStackTrace`'s stack: its first frame outside the runner's and
   # the client's code (`filterStackFile`) that is not a dependency's (`parseErrorStack`'s
-  # `belongsToNodeModules`), its file resolved against its app's root (a dependency's paths are
-  # relative to it).
+  # `belongsToNodeModules`).
   defp location(deps, stack) do
     Enum.find_value(stack, fn
       {module, _fun, _arity, location} when is_list(location) ->
         with file when file != nil <- location[:file],
              line when line != nil <- location[:line],
-             {:ok, root} <- user_code_root(deps, module) do
-          %{file: Path.expand(to_string(file), root), line: line}
+             true <- user_code?(deps, module) do
+          %{file: source_file(module, to_string(file)), line: line}
         else
           _ -> nil
         end
@@ -294,26 +298,26 @@ defmodule PlaywrightEx.Test.GitHubFormatter do
     end)
   end
 
-  # The root of a user module's files, or `:error` for the runner's, the client's or a
-  # dependency's module. A module of no app (a test's `.exs`) or of the project is the user's; a
-  # dependency's is when its source is outside the deps path (a path dependency, an umbrella
-  # sibling).
-  defp user_code_root(deps, module) do
+  # A module of no app (a test's `.exs`) or of the project is the user's, not the runner's or the
+  # client's; a dependency's is when its source is outside the deps path (a path dependency, an
+  # umbrella sibling).
+  defp user_code?(deps, module) do
     case :application.get_application(module) do
-      :undefined ->
-        {:ok, File.cwd!()}
-
-      {:ok, app} when app in [:playwright_ex, :ex_unit, :elixir, :stdlib, :kernel] ->
-        :error
-
-      {:ok, app} ->
-        dep_root(deps, deps && deps.paths[app])
+      :undefined -> true
+      {:ok, app} when app in [:playwright_ex, :ex_unit, :elixir, :stdlib, :kernel] -> false
+      {:ok, app} -> !(deps && deps.paths[app] && String.starts_with?(deps.paths[app] <> "/", deps.path <> "/"))
     end
   end
 
-  # The project's app, or no Mix project.
-  defp dep_root(_deps, nil), do: {:ok, File.cwd!()}
-  defp dep_root(deps, path), do: if(String.starts_with?(path <> "/", deps.path <> "/"), do: :error, else: {:ok, path})
+  # A frame's file is relative to its app's root (a path dependency's `lib/x.ex`): the module's
+  # absolute source, when the frame is in it (not in code a macro of another file brought in).
+  defp source_file(module, file) do
+    source = to_string(module.module_info(:compile)[:source])
+
+    if Path.type(file) == :relative and String.ends_with?(source, "/" <> file),
+      do: source,
+      else: Path.expand(file)
+  end
 
   # `%{paths: %{app => dir}, path: deps_dir}` of the Mix project, or `nil` without one (every
   # app's frames are then the user's).

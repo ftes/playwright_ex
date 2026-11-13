@@ -59,14 +59,27 @@ defmodule PlaywrightEx.Test.GitHubFormatterTest do
   end
 
   test "a dependency's frames under the deps path are skipped, a path dependency's are the user's" do
-    for {app, module} <- [ghfmt_dep: GhfmtDep.Expect, ghfmt_sibling: GhfmtSibling.Helper] do
+    # As an app in a subdirectory of the workspace with a path dependency next to it.
+    cwd = File.cwd!()
+    workspace = Path.dirname(cwd)
+    System.put_env("GITHUB_WORKSPACE", workspace)
+
+    [{sibling, _}] =
+      Code.compile_string(
+        "defmodule GhfmtSibling.Expectation do\nend",
+        Path.join(workspace, "ghfmt_sibling/lib/ghfmt_sibling/expectation.ex")
+      )
+
+    for {app, module} <- [ghfmt_dep: GhfmtDep.Expect, ghfmt_sibling: sibling] do
       :ok = :application.load({:application, app, [description: ~c"", vsn: ~c"1", modules: [module], applications: []]})
       on_exit(fn -> :application.unload(app) end)
     end
 
-    root = "/work/repo"
-    System.put_env("GITHUB_WORKSPACE", root)
-    deps = %{paths: %{ghfmt_dep: "#{root}/deps/ghfmt_dep", ghfmt_sibling: "#{root}/apps/sibling"}, path: "#{root}/deps"}
+    deps = %{
+      paths: %{ghfmt_dep: Path.join(cwd, "deps/ghfmt_dep"), ghfmt_sibling: Path.join(workspace, "ghfmt_sibling")},
+      path: Path.join(cwd, "deps")
+    }
+
     frame = fn module, file, line -> {module, :check!, 0, file: String.to_charlist(file), line: line} end
     user = frame.(__MODULE__, @file_path, 7)
 
@@ -76,13 +89,21 @@ defmodule PlaywrightEx.Test.GitHubFormatterTest do
       )
     end
 
-    in_repo = Path.relative_to(Path.expand(@file_path), root, force: true)
+    in_workspace = Path.join(Path.basename(cwd), @file_path)
 
     assert errors.([frame.(GhfmtDep.Expect, "lib/expect.ex", 3), user]) =~
-             "::error file=#{in_repo},title=#{@file_path}%3A10 › fails,line=7::"
+             "::error file=#{in_workspace},title=#{@file_path}%3A10 › fails,line=7::"
 
-    assert errors.([frame.(GhfmtSibling.Helper, "lib/helper.ex", 5), user]) =~
-             "::error file=apps/sibling/lib/helper.ex,title=#{@file_path}%3A10 › fails,line=5::"
+    assert errors.([frame.(sibling, "lib/ghfmt_sibling/expectation.ex", 5), user]) =~
+             "::error file=ghfmt_sibling/lib/ghfmt_sibling/expectation.ex,title=#{@file_path}%3A10 › fails,line=5::"
+  end
+
+  test "a test name with a newline: the header is dropped from the failure text" do
+    test = test_struct("test fails\nbadly", state: {:failed, [failure(fn -> raise "oops" end)]})
+    output = run([{:test_finished, test}])
+    assert output =~ "fails%0Abadly ─"
+    assert output =~ "─%0A     ** (RuntimeError) oops%0A"
+    refute output =~ "%0A     #{@file_path}:10%0A"
   end
 
   test "a parameterized module's parameters are the project" do
@@ -105,14 +126,18 @@ defmodule PlaywrightEx.Test.GitHubFormatterTest do
       {:test_finished, test_struct("test b", line: 20, state: {:failed, [failure]})},
       {:test_finished, test_struct("test a", line: 12, state: {:failed, [failure]})},
       {:test_finished, test_struct("test passes", line: 30)},
-      {:test_finished, test_struct("test skipped", line: 31, state: {:skip, "x"})},
+      {:test_finished, test_struct("test skipped", line: 31, state: {:skipped, "x"})},
       {:test_finished, test_struct("test excluded", line: 32, state: {:excluded, "x"})},
       {:test_finished, test_struct("test invalid", line: 33, state: {:invalid, module})},
       {:module_finished, module},
       {:suite_finished, %{run: 1_500_000, load: 200_000, async: 0}}
     ]
 
-    lines = String.split(run(events), "\n", trim: true)
+    output = run(events)
+    lines = String.split(output, "\n", trim: true)
+    # Each command is on a line of its own, also after a `.` of ExUnit.CLIFormatter's.
+    assert String.starts_with?(output, "\n::")
+    refute output =~ ~r/[^\n]::(error|warning|notice) /
 
     assert "::error ::Some.Module: failure on setup_all callback, all tests have been invalidated%0A" <>
              "     ** (RuntimeError) oops" <> _ = Enum.find(lines, &String.starts_with?(&1, "::error ::"))
@@ -137,7 +162,8 @@ defmodule PlaywrightEx.Test.GitHubFormatterTest do
   end
 
   test "slow files: the slowest over the threshold, of one module each" do
-    Application.put_env(:playwright_ex, GitHubFormatter, report_slow_tests: [max: 1, threshold: 1000])
+    Application.put_env(:playwright_ex, GitHubFormatter, report_slow_tests: [max: 2, threshold: 1000])
+    project_file = Path.join(File.cwd!(), "test/project_test.exs")
 
     events = [
       {:test_finished, test_struct("test a", time: 2_000_000)},
@@ -145,10 +171,12 @@ defmodule PlaywrightEx.Test.GitHubFormatterTest do
       {:test_finished, test_struct("test c", file: "/tmp/other_test.exs", time: 1_200_000)},
       {:test_finished, test_struct("test d", file: "/tmp/two_modules_test.exs", time: 9_000_000)},
       {:test_finished, test_struct("test e", file: "/tmp/two_modules_test.exs", module: Other)},
+      {:test_finished, %{test_struct("test f", file: project_file, time: 3_000_000) | parameters: %{p: 1}}},
       {:suite_finished, %{run: 0, load: nil, async: nil}}
     ]
 
-    assert [warning, "::notice " <> _] = String.split(run(events), "\n", trim: true)
+    assert [project_warning, warning, "::notice " <> _] = String.split(run(events), "\n", trim: true)
+    assert project_warning == "::warning title=Slow Test,file=test/project_test.exs::test/project_test.exs took 3.0s"
     assert warning == "::warning title=Slow Test,file=#{@file_path}::#{@file_path} took 2.5s"
 
     Application.put_env(:playwright_ex, GitHubFormatter, report_slow_tests: nil)
@@ -191,6 +219,7 @@ defmodule PlaywrightEx.Test.GitHubFormatterTest do
 
     %ExUnit.Test{
       name: name,
+      description: String.replace_prefix(to_string(name), "test ", ""),
       module: Keyword.get(opts, :module, __MODULE__),
       state: Keyword.get(opts, :state),
       time: Keyword.get(opts, :time, 0),
