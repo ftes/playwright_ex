@@ -455,11 +455,9 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.PageChecksTest do
 
   setup %{page: page} = ctx do
     {:ok, errors} = Agent.start(fn -> [] end)
-    listener = fn error -> Agent.update(errors, &(&1 ++ [error])) end
-    Page.on(page, :page_error, listener)
+    Page.on(page, :page_error, fn error -> Agent.update(errors, &(&1 ++ [error])) end)
 
     on_exit(fn ->
-      Page.off(page, :page_error, listener)
       page_errors = Agent.get(errors, & &1)
       Agent.stop(errors)
       if !ctx[:ignore_js_errors], do: assert(page_errors == [], "unhandled page errors")

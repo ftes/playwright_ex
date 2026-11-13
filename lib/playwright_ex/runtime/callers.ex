@@ -13,6 +13,7 @@ defmodule PlaywrightEx.Runtime.Callers do
   upstream's worker fails its current test on one (`workerMain.ts` `unhandledError`: "so that you
   can, e.g. expect() from inside an event handler"). Outside a test it is logged, as before.
   """
+  alias PlaywrightEx.Test.Results
   alias PlaywrightEx.Test.TestInfo
 
   require Logger
@@ -43,6 +44,13 @@ defmodule PlaywrightEx.Runtime.Callers do
     callers = capture()
     fn a, b -> run_as(callers, fn -> fun.(a, b) end) end
   end
+
+  @doc """
+  Whether the calling process runs on behalf of a `PlaywrightEx.Test` test past its own
+  `on_exit` callbacks, whose contexts the runner closes: the test's process, and what it linked,
+  are gone (#209), so its listeners no longer run.
+  """
+  def test_finished?, do: Results.finished?(List.wrap(Process.get(:"$callers")))
 
   @doc """
   An error nothing handled (JS: an uncaught exception or unhandled rejection): it fails the

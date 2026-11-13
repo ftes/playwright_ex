@@ -69,6 +69,9 @@ defmodule PlaywrightEx.Test.Results do
     GenServer.cast(Pool, {:keep_info, test_pid, self()})
   end
 
+  @doc "Whether one of `pids` is a test at its registration's `on_exit` (`keep_info/2`), which closes its contexts."
+  def finished?(pids), do: started?() and Enum.any?(pids, &:ets.member(table(), {:info, &1}))
+
   @doc "Forgets the result of the test `pid`."
   def forget(pid) do
     if Process.whereis(Pool), do: GenServer.cast(Pool, {:forget, pid})

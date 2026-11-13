@@ -309,6 +309,8 @@ Deviations the port requires:
 - Closing the test's leftover contexts, last in its `on_exit`: a pooled browser outlives the test,
   where upstream's worker browser closes them later. Its request contexts left are disposed, as
   upstream's `request` fixture is.
+- The test's listeners don't run as the runner closes its contexts, as upstream's do in the
+  `context` fixture's teardown: the test's process, and the state linked to it, have exited (#209).
 - A video of every context the test creates, not only the fixtures' (there are no context
   fixtures), and `video.show.test`'s title overlay on all of them.
 - `actionTimeout`/`navigationTimeout` per context, in the listener's after-create hook (and a

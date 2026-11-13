@@ -456,13 +456,13 @@ them without an explicit allowance, and matchers and `step` count for the test. 
 handler, listener or locator handler raises fails the test at the end of its body, as in
 Playwright Test (outside a test, and once the test has ended, it is logged).
 
-Listeners fire until their page or context closes. The test's contexts close last in its
-`on_exit`: after your `on_exit` callbacks, as Playwright Test runs `afterEach` hooks before the
-`context` fixture's teardown, and after the test process has exited. So state linked to the test
-(an `Agent.start_link/1` of the test, a `start_supervised!/1` child) can be gone while a listener
-still uses it, which logs "Uncaught in event listener: ... no process". Send to the test process
-(a late message is dropped with it), remove the listener with `off/3` first in your `on_exit`, or
-keep the state unlinked (`Agent.start/1`).
+The test's contexts close last in its `on_exit`: after your `on_exit` callbacks, as Playwright
+Test runs `afterEach` hooks before the `context` fixture's teardown, and after the test process
+has exited. The test's listeners (registered in its process, its `setup` or a `Task`) still run
+in your `on_exit` callbacks, but not as its contexts close. State linked to the test (an
+`Agent.start_link/1` of it, a `start_supervised!/1` child) is gone in `on_exit`, so a listener
+that uses it there logs "Uncaught in event listener: ... no process": send to the test process
+(a late message is dropped with it), or keep the state unlinked (`Agent.start/1`).
 
 ### A check after the test
 
@@ -474,11 +474,9 @@ true })`) becomes a tag the `setup` reads (`@tag`, `@describetag` or `@moduletag
 ```elixir
 setup %{page: page} = ctx do
   {:ok, errors} = Agent.start(fn -> [] end)
-  listener = fn error -> Agent.update(errors, &(&1 ++ [error])) end
-  Page.on(page, :page_error, listener)
+  Page.on(page, :page_error, fn error -> Agent.update(errors, &(&1 ++ [error])) end)
 
   on_exit(fn ->
-    Page.off(page, :page_error, listener)
     page_errors = Agent.get(errors, & &1)
     Agent.stop(errors)
     if !ctx[:ignore_js_errors], do: assert(page_errors == [], "unhandled page errors")

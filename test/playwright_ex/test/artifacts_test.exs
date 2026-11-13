@@ -436,6 +436,47 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     assert File.read!(Path.join(test.dir, "error-context.md")) =~ "```\nRuntimeError: on purpose\n```"
   end
 
+  # #209: the test's process, and the state linked to it, are gone when its contexts close.
+  test "the test's listeners run in its on_exit, not while its contexts close at its end", %{browser: browser} do
+    test = fake_test(%{})
+    parent = self()
+    # The test's state (an `Agent.start_link/1` of it, a `start_supervised!/1` child).
+    {:ok, agent} = Agent.start(fn -> 0 end)
+
+    listener = fn event ->
+      send(parent, {:listener, event})
+      Agent.update(agent, &(&1 + 1))
+    end
+
+    page =
+      test.run.(fn ->
+        page = BrowserContext.new_page!(Browser.new_context!(browser))
+        Page.on(page, :console, fn _ -> listener.(:console) end)
+        Page.on(page, :close, fn _ -> listener.(:close) end)
+        page
+      end)
+
+    ref = Process.monitor(test.pid)
+    send(test.pid, {:end, [passed()], :shutdown})
+    assert_receive {:DOWN, ^ref, :process, _, _}
+
+    # An `on_exit` callback (a process without the test in `$callers`): the test's listener runs,
+    # as does one the callback registers when the context closes.
+    Page.evaluate!(page, "() => console.log('in on_exit')")
+    assert_receive {:listener, :console}
+    Page.on(page, :close, fn _ -> send(parent, :on_exit_listener) end)
+    Agent.stop(agent)
+
+    log =
+      capture_log(fn ->
+        capture_io(fn -> PlaywrightEx.Test.__finish__(test.pid, 10_000) end)
+        assert_receive :on_exit_listener
+        refute_receive {:listener, :close}, 200
+      end)
+
+    refute log =~ "Uncaught in event listener"
+  end
+
   test "a passed test keeps nothing of the on_failure modes", %{browser: browser} do
     test = fake_test(%{trace: :retain_on_failure, screenshot: :only_on_failure, video: :retain_on_failure})
     test.run.(fn -> page(Browser.new_context!(browser), "PASSED") end)

@@ -47,7 +47,8 @@ those of the release candidates below. From an earlier release, also read the se
   `timeout`), `step_skip` its `test.step.skip`, and each matcher call is a step: the trace's
   `test.trace` has the test's steps, nested, and its errors. `Expect.soft/1` is `expect.soft`:
   in a test, a failed soft matcher returns and fails the test at the end of its body, as does an
-  error a route handler, listener or locator handler raises. As in Playwright Test, a test's
+  error a route handler, listener or locator handler raises; the test's listeners don't run as
+  its contexts close after its `on_exit` callbacks. As in Playwright Test, a test's
   contexts have no action or navigation timeout unless the config's `action_timeout` and
   `navigation_timeout` set one, and just before ExUnit's test timeout the test's contexts are
   closed, so a hanging call fails with "Test timeout of Nms exceeded." and its call log, its

@@ -594,7 +594,8 @@ defmodule PlaywrightEx.Runtime.Conn do
       {:pw_invoke, inv, fun, arg, emitter, type, zone} ->
         Zones.restore(zone)
         PlaywrightEx.Runtime.Invocation.start(conn, inv, inv)
-        invoke(fun, arg, emitter, type)
+        # Elixir only: not once its test closes its contexts (`Callers.test_finished?/0`).
+        if !Callers.test_finished?(), do: invoke(fun, arg, emitter, type)
         Process.delete(:pw_inv)
         Process.delete(:pw_barrier)
         send(conn, {:pw_done, inv, self()})
