@@ -701,8 +701,10 @@ defmodule PlaywrightEx.Test do
 
   defp do_block?(ast), do: is_list(ast) and Keyword.keyword?(ast) and Keyword.has_key?(ast, :do)
 
-  # `rescue`, `catch`, `after`, `else` as in a `def`.
-  defp step_fn(do: block), do: quote(do: fn -> unquote(block) end)
+  # `rescue`, `catch`, `after`, `else` as in a `def`. Elixir only: the `try` keeps the body's last
+  # call from being a tail call, so the body's frame stays in its calls' stacks (the client's
+  # location of a call, `PlaywrightEx.Client.ClientStackTrace`) as JS keeps every frame.
+  defp step_fn(do: block), do: quote(do: fn -> try(do: unquote(block), after: nil) end)
   defp step_fn(contents), do: quote(do: fn -> try(unquote(contents)) end)
 
   @doc false

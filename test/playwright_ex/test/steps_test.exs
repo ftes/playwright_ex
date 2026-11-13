@@ -5,6 +5,8 @@ defmodule PlaywrightEx.Test.StepsTest do
 
   @this_file __ENV__.file
 
+  import PlaywrightEx.Runtime.Heap, only: [get: 2, put: 3]
+
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Expect
@@ -169,6 +171,61 @@ defmodule PlaywrightEx.Test.StepsTest do
     end
 
     arg
+  end
+
+  # The client's stack (`captureLibraryStackTrace`) of a call in a step's body starts in the body,
+  # as upstream's: the runtime's frames around the body (`Zones.run`) don't hide it. The `do`
+  # form's last call keeps the body's frame too; a fun's tail call doesn't (BEAM drops its frame).
+  test "a call in a step's body is located in the body: the fn and do forms, nested, toPass's, its error" do
+    on_trace(fn events, _files ->
+      %{"error" => %{"stack" => stack}} = after_of(events, before(events, "fails"))
+      [_, line] = Regex.run(~r"\n    at .*steps_test\.exs:(\d+)", stack)
+      assert source(String.to_integer(line)) =~ ~s[Page.click!(page, "#missing", timeout: 1)]
+    end)
+
+    page = new_page()
+    connection = get(BrowserPool.playwright(BrowserPool.browser()), :_connection)
+    onmessage = get(connection, :onmessage)
+    test_pid = self()
+
+    put(connection, :onmessage, fn message ->
+      if to_string(message.method) in ~w(setContent click), do: send(test_pid, {:location, message.metadata.location})
+      onmessage.(message)
+    end)
+
+    on_exit(fn -> put(connection, :onmessage, onmessage) end)
+
+    Test.step("fn", fn ->
+      Page.set_content!(page, "fn")
+      :ok
+    end)
+
+    Test.step "do" do
+      Page.set_content!(page, "do")
+
+      Test.step "nested" do
+        Page.set_content!(page, "nested")
+      end
+    end
+
+    Expect.to_pass!(fn ->
+      Page.set_content!(page, "to_pass")
+      :ok
+    end)
+
+    assert_raise PlaywrightEx.TimeoutError, fn ->
+      Test.step "fails" do
+        Page.click!(page, "#missing", timeout: 1)
+      end
+    end
+
+    for call <-
+          [~s[Page.set_content!(page, "fn")], ~s[Page.set_content!(page, "do")]] ++
+            [~s[Page.set_content!(page, "nested")], ~s[Page.set_content!(page, "to_pass")]] ++
+            [~s[Page.click!(page, "#missing", timeout: 1)]] do
+      assert_receive {:location, %{file: @this_file, line: line}}
+      assert source(line) =~ call
+    end
   end
 
   test "a step rejects timeout and runs in the test's process" do

@@ -1,16 +1,16 @@
 defmodule PlaywrightEx.Client.ClientStackTrace do
   @upstream "packages/playwright-core/src/client/clientStackTrace.ts"
   @moduledoc """
-  Port of `#{@upstream}`. Library frames are those of `PlaywrightEx.*` modules other than
-  `PlaywrightEx.Driver`, instead of files under the core dir.
+  Port of `#{@upstream}`. Library frames are those of the `:playwright_ex` application's modules
+  (the facade's and the matchers' too), instead of files under the core dir; each is left out,
+  so a caller's frames below a library frame (a step's body, a callback's) stay.
 
   Deviations: the API name recorded by `PlaywrightEx.Runtime.Api.call/3` wins over the stack
-  (BEAM drops tail-call frames). Every frame up to the outermost library frame is dropped, so the
-  first frame is the caller's (upstream's `filterStackFile` drops the core dir's frames); in a
-  handed-off listener process, the library frames it starts with don't count. Frames are told
-  apart by module, not by file: Node's internals (`internal/`, `node:`) are the runtime's own
-  library, OTP's `kernel` and `stdlib` and Elixir's `elixir` (by code path,
-  `internal_frame?/1`), and the boxed prefixes are modules (`set_boxed_stack_prefixes/1`).
+  (BEAM drops tail-call frames); without one it comes from the `PlaywrightEx.Client.*` (and
+  runtime) frames. Frames are told apart by module, not by file: Node's internals (`internal/`,
+  `node:`) are the runtime's own library, OTP's `kernel` and `stdlib` and Elixir's `elixir` (by
+  code path, `internal_frame?/1`), and the boxed prefixes are modules
+  (`set_boxed_stack_prefixes/1`).
   """
   @library Enum.map(~w(Client Isomorphic Protocol Runtime Transport), &"Elixir.PlaywrightEx.#{&1}.")
   @internal_apps [:kernel, :stdlib, :elixir]
@@ -52,26 +52,46 @@ defmodule PlaywrightEx.Client.ClientStackTrace do
         end)
 
     # This is for the inspector so that it did not include the test runner stack frames.
-    # (The library frames a listener or async process starts with (`PlaywrightEx.Runtime.Conn`)
-    # are below the caller's: they don't count.)
-    parsed_frames = parsed_frames |> Enum.reverse() |> Enum.drop_while(& &1.isPlaywrightLibrary) |> Enum.reverse()
-    outermost = parsed_frames |> Enum.with_index() |> Enum.filter(&elem(&1, 0).isPlaywrightLibrary) |> List.last()
+    library = library_modules()
 
     parsed_frames =
-      if outermost, do: Enum.drop(parsed_frames, elem(outermost, 1) + 1), else: parsed_frames
-
-    parsed_frames =
-      Enum.filter(parsed_frames, &(&1.frame.file != "" and filter_stack_file(elem(&1.mfa, 0), boxed, show_internal)))
+      Enum.filter(
+        parsed_frames,
+        &(&1.frame.file != "" and filter_stack_file(&1, library, boxed, show_internal))
+      )
 
     frames = Enum.map(parsed_frames, &%{&1.frame | file: source_file(elem(&1.mfa, 0), &1.frame.file)})
 
     %{frames: frames, apiName: api_name}
   end
 
-  # utils/stackTrace.ts `filterStackFile`, of a frame's module (the library's frames are dropped
-  # above).
+  # utils/stackTrace.ts `filterStackFile`, of a parsed frame's module: `_coreDir` is the client's
+  # namespaces and the application's modules.
   # if (isUnderTest() && file.match(...)) return false;  -- not ported: upstream's own repo layout
-  defp filter_stack_file(module, boxed, show_internal), do: show_internal or not Map.has_key?(boxed, module)
+  defp filter_stack_file(%{mfa: {module, _, _}} = parsed, library, boxed, show_internal) do
+    show_internal or
+      not (parsed.isPlaywrightLibrary or Map.has_key?(library, module) or Map.has_key?(boxed, module))
+  end
+
+  # Elixir only: the application's modules (the facade's, between the caller's and the client's
+  # frames, and the matchers'), read once.
+  defp library_modules do
+    case :persistent_term.get({__MODULE__, :library}, nil) do
+      nil ->
+        case Application.spec(:playwright_ex, :modules) do
+          nil ->
+            %{}
+
+          modules ->
+            library = Map.new(modules, &{&1, true})
+            :persistent_term.put({__MODULE__, :library}, library)
+            library
+        end
+
+      library ->
+        library
+    end
+  end
 
   @doc """
   utils/stackTrace.ts `setBoxedStackPrefixes`, with modules in place of file prefixes: captured
