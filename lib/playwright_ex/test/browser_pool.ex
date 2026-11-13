@@ -54,7 +54,7 @@ defmodule PlaywrightEx.Test.BrowserPool do
 
   At most `workers` drivers run at once (config, default half the schedulers, as Playwright
   Test's `workers`); others wait, first come first served, within ExUnit's test timeout
-  (`setup_all` has none), and a wait of 10 s logs the holders. A module that waits costs
+  (`setup_all` has none). A module that waits costs
   nothing, so ExUnit's `max_cases` can stay above `workers`. A scope that holds one takes its
   further keys over `workers`, so it never waits while others wait for it. At the cap, a key
   with no free driver stops the longest idle free driver of another key, as upstream restarts a
@@ -76,7 +76,6 @@ defmodule PlaywrightEx.Test.BrowserPool do
   alias PlaywrightEx.Browser
   alias PlaywrightEx.Test.Options
   alias PlaywrightEx.Test.Pool
-  alias PlaywrightEx.Test.Pool.Slot
   alias PlaywrightEx.Test.Recorder
 
   @doc """
@@ -89,8 +88,8 @@ defmodule PlaywrightEx.Test.BrowserPool do
     opts = Options.pool(opts)
 
     case Recorder.registration() do
-      %{test_pid: test_pid, test_name: name, file: file} ->
-        Pool.browser(opts, {:test, test_pid}, "the test #{inspect(name)} (#{Path.relative_to_cwd(file)})").browser
+      %{test_pid: test_pid} ->
+        Pool.browser(opts, {:test, test_pid}).browser
 
       nil ->
         scope = self()
@@ -106,7 +105,7 @@ defmodule PlaywrightEx.Test.BrowserPool do
                     __STACKTRACE__
         end
 
-        Pool.browser(opts, {:process, scope}, holder()).browser
+        Pool.browser(opts, {:process, scope}).browser
     end
   end
 
@@ -116,16 +115,10 @@ defmodule PlaywrightEx.Test.BrowserPool do
   """
   @spec playwright(Browser.t()) :: PlaywrightEx.Playwright.t()
   def playwright(%Browser{conn: conn} = browser) do
-    Slot.playwright(conn) ||
-      raise ArgumentError, "not a browser of PlaywrightEx.Test.BrowserPool: #{inspect(browser)}"
-  end
-
-  # A `setup_all`'s module, by its callback's frame, for the wait warning.
-  defp holder do
-    {:current_stacktrace, stacktrace} = Process.info(self(), :current_stacktrace)
-
-    Enum.find_value(stacktrace, inspect(self()), fn {module, fun, _arity, _location} ->
-      if String.starts_with?(Atom.to_string(fun), "__ex_unit_setup_all"), do: "setup_all of #{inspect(module)}"
-    end)
+    # The driver's row of the browser's connection (`PlaywrightEx.Test.Pool.Slot`).
+    case Pool.started?() && :ets.lookup(Pool.table(), {:driver, conn}) do
+      [{_key, playwright}] -> playwright
+      _ -> raise ArgumentError, "not a browser of PlaywrightEx.Test.BrowserPool: #{inspect(browser)}"
+    end
   end
 end

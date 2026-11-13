@@ -60,7 +60,7 @@ defmodule Report do
   end
 
   # Prints the pool after the run, before it stops the drivers: `after_suite` callbacks run
-  # newest first, and the pool registers its own when it starts its first driver.
+  # newest first, and the pool registers its own when it starts (on first use).
   def after_suite, do: ExUnit.after_suite(&print/1)
 
   # The labels of the free drivers, how many scopes hold leases, and per label how many scopes

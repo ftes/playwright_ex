@@ -512,7 +512,7 @@ config :playwright_ex, :test, test_id_attribute: "data-pw"
 
 At most `workers` drivers run at once; the others wait, first come first served, inside
 `BrowserPool.browser/1`: in `setup_all` with no timeout, in `setup` or a test within ExUnit's
-test timeout, and a wait of 10 s logs the holders. A worker is a driver and one browser of one
+test timeout. A worker is a driver and one browser of one
 set of options, as Playwright Test's worker runs one project: a call with other options (another
 `browser_name`, `launch_options`, `driver` or `on_start`) takes another worker, which may stop
 an idle one of other options to start. ExUnit runs modules in random order, so in a run that

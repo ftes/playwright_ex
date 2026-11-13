@@ -16,14 +16,11 @@ defmodule PlaywrightEx.Test.Pool.Slot do
   alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Client.ClientInstrumentation
   alias PlaywrightEx.Playwright
-  alias PlaywrightEx.Runtime.Api
   alias PlaywrightEx.Runtime.Facade
   alias PlaywrightEx.Runtime.Heap
   alias PlaywrightEx.Selectors
   alias PlaywrightEx.Test.Options
   alias PlaywrightEx.Test.Recorder
-
-  require Logger
 
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts)
 
@@ -39,17 +36,6 @@ defmodule PlaywrightEx.Test.Pool.Slot do
 
   def browser(:released),
     do: raise(ArgumentError, "BrowserPool.browser/1 waited past the end of its test or module")
-
-  @doc "The Playwright of the driver whose connection is `conn`, `nil` for one the pool didn't start."
-  def playwright(conn) do
-    case PlaywrightEx.Test.Pool.started?() && :ets.lookup(PlaywrightEx.Test.Pool.table(), {:driver, conn}) do
-      [{_key, playwright}] -> playwright
-      _ -> nil
-    end
-  end
-
-  @doc "Closes the browsers a lease's holder launched on this driver and left open."
-  def check_in({pid, _key}), do: GenServer.cast(pid, :check_in)
 
   @doc "Stops the driver (waiting for it to exit) and the slot."
   def stop({pid, _key}) do
@@ -72,12 +58,6 @@ defmodule PlaywrightEx.Test.Pool.Slot do
     else
       {:error, error, state} -> {:reply, error, state}
     end
-  end
-
-  @impl true
-  def handle_cast(:check_in, state) do
-    close_others(state)
-    {:noreply, state}
   end
 
   @impl true
@@ -219,26 +199,5 @@ defmodule PlaywrightEx.Test.Pool.Slot do
   # A connected browser's connection.
   defp forget_browser(state, browser) do
     if browser.conn != state.playwright.conn, do: :ets.delete(PlaywrightEx.Test.Pool.table(), {:driver, browser.conn})
-  end
-
-  # Browsers launched on this driver other than the slot's, still open.
-  defp close_others(%{playwright: nil}), do: :ok
-
-  defp close_others(state) do
-    own = if state.browser, do: [state.browser.guid], else: []
-
-    others =
-      Api.call(nil, state.playwright, fn ->
-        for name <- [:chromium, :firefox, :webkit],
-            type = Heap.get(state.playwright, name),
-            object <- Heap.map_values(type, :_objects),
-            object.type == "Browser" and object.guid not in own,
-            do: object
-      end)
-
-    Enum.each(others, &Browser.close/1)
-  rescue
-    exception ->
-      Logger.warning("PlaywrightEx.Test could not close a module's browsers: " <> Exception.message(exception))
   end
 end

@@ -18,8 +18,8 @@ defmodule PlaywrightEx.Test.Pool do
   # failure only, and nothing says this one failed. At most
   # `workers` slots run, as upstream's worker processes (stopping ones count): room is made by
   # stopping free ones of other keys, the longest idle first, and the new one starts once they
-  # exited; with none, the caller waits (first come first served, a warning after
-  # `@wait_warning` ms), unless its scope holds a slot already (its further keys go over
+  # exited; with none, the caller waits (first come first served), unless its scope holds a slot
+  # already (its further keys go over
   # `workers`, so no scope waits while it holds a slot others wait for). A waiter that exits, or
   # whose scope was released, is dropped.
   #
@@ -28,8 +28,8 @@ defmodule PlaywrightEx.Test.Pool do
   # The messages a test process sends arrive before its `DOWN`.
   #
   # Started unlinked on first use (`ensure_started/0`), never with the application (a release
-  # has no ExUnit): its lifetime is the run. The first slot registers the `ExUnit.after_suite/1`
-  # that stops the drivers.
+  # has no ExUnit): its lifetime is the run. It registers the `ExUnit.after_suite/1` that stops
+  # the drivers.
   use GenServer
 
   alias PlaywrightEx.Client.ClientStackTrace
@@ -37,13 +37,10 @@ defmodule PlaywrightEx.Test.Pool do
   alias PlaywrightEx.Test.Pool.Slot
   alias PlaywrightEx.Test.TestInfo
 
-  require Logger
-
   # ExUnit kills a test's process past its timeout; so can a test. No stacktrace either way.
   @killed "The test process was killed (ExUnit's timeout, or an explicit kill)."
   # A marked test that raised nothing in its body and did not pass.
   @outside "The test failed outside its body (setup, context pattern or a linked process); see ExUnit's output."
-  @wait_warning 10_000
 
   @doc "`PlaywrightEx.Test`'s table (public, owned here): test, recorder, context and test info rows."
   def table, do: __MODULE__
@@ -72,14 +69,13 @@ defmodule PlaywrightEx.Test.Pool do
   @doc """
   `%{playwright: _, browser: _}` of the slot of `opts` leased by `scope`: a registered test
   (`{:test, pid}`, its result is the lease's, unless its module holds a lease), or another
-  process (`{:process, pid}`, a `setup_all`'s: the results of its runner's tests are). `holder`
-  names it in the wait warning.
+  process (`{:process, pid}`, a `setup_all`'s: the results of its runner's tests are).
   """
-  def browser(opts, {kind, pid}, holder) do
+  def browser(opts, {kind, pid}) do
     ensure_started()
 
     __MODULE__
-    |> GenServer.call({:lease, key(opts), opts, {kind, pid}, parent(pid), holder}, :infinity)
+    |> GenServer.call({:lease, key(opts), opts, {kind, pid}, parent(pid)}, :infinity)
     |> Slot.browser()
   end
 
@@ -205,30 +201,21 @@ defmodule PlaywrightEx.Test.Pool do
     # `setBoxedStackPrefixes([packageRoot])` (`packages/playwright/src/common/process.ts`).
     ClientStackTrace.set_boxed_stack_prefixes(runner_modules())
 
-    # `free` newest first; `leases` by scope: `%{slots, runner, outcome, holder}` (`runner` a
-    # `setup_all` scope's, else `nil`; `outcome` `nil` while no test of it ended, `:passed` while
-    # all passed, else `:failed`); `stopping`: slots stopping, still linked; `waiting`: callers
-    # waiting for room, monitored. `tests`: the watched test processes alive; `results` those
-    # ended, until forgotten.
-    {:ok,
-     %{
-       free: [],
-       leases: %{},
-       stopping: [],
-       waiting: [],
-       after_suite?: false,
-       tests: %{},
-       results: %{},
-       durations: %{},
-       kept: %{}
-     }}
+    if Code.ensure_loaded?(ExUnit) and is_list(Application.get_env(:ex_unit, :after_suite)),
+      do: ExUnit.after_suite(&__MODULE__.after_suite/1)
+
+    # `free` newest first; `leases` by scope: `%{slots, runner, failed?}` (`runner` a `setup_all`
+    # scope's, else `nil`; `failed?` once a test of it failed); `stopping`: slots stopping, still
+    # linked; `waiting`: callers waiting for room, monitored. `tests`: the watched test processes
+    # alive; `results` those ended (`{verdict, failures, duration}`), until forgotten.
+    {:ok, %{free: [], leases: %{}, stopping: [], waiting: [], tests: %{}, results: %{}, kept: %{}}}
   end
 
   @impl true
-  def handle_call({:lease, key, opts, {kind, pid}, parent, holder}, {caller, _} = from, state) do
+  def handle_call({:lease, key, opts, {kind, pid}, parent}, {caller, _} = from, state) do
     scope = scope(state, pid, parent)
     runner = if scope == pid and kind == :process, do: parent
-    request = %{key: key, opts: opts, scope: scope, runner: runner, holder: holder}
+    request = %{key: key, opts: opts, scope: scope, runner: runner}
 
     case lease(state, request) do
       {{_pid, _key} = slot, state} ->
@@ -236,7 +223,6 @@ defmodule PlaywrightEx.Test.Pool do
 
       {:full, state} ->
         ref = Process.monitor(caller)
-        Process.send_after(self(), {:waiting, ref}, @wait_warning)
         waiter = Map.merge(request, %{from: from, ref: ref})
         {:noreply, %{state | waiting: state.waiting ++ [waiter]}}
     end
@@ -260,8 +246,7 @@ defmodule PlaywrightEx.Test.Pool do
         state = %{state | leases: leases}
 
         state =
-          if lease.outcome != :failed do
-            Enum.each(lease.slots, &Slot.check_in/1)
+          if !lease.failed? do
             %{state | free: lease.slots ++ state.free}
           else
             Enum.reduce(lease.slots, state, &stop_slot(&2, &1))
@@ -293,13 +278,18 @@ defmodule PlaywrightEx.Test.Pool do
 
   def handle_call({:result, pid}, from, state) do
     case state do
-      %{results: %{^pid => result}} -> {:reply, result, state}
+      %{results: %{^pid => {verdict, failures, _duration}}} -> {:reply, {verdict, failures}, state}
       %{tests: %{^pid => _}} -> {:noreply, update_in(state.tests[pid].awaiting, &[from | &1])}
       _ -> {:reply, {nil, []}, state}
     end
   end
 
-  def handle_call({:duration, pid}, _from, state), do: {:reply, state.durations[pid], state}
+  def handle_call({:duration, pid}, _from, state) do
+    case state.results do
+      %{^pid => {_verdict, _failures, duration}} -> {:reply, duration, state}
+      _ -> {:reply, nil, state}
+    end
+  end
 
   # One recorder per test, started here so that two processes of the test can't start two, and
   # none starts after the test's `take/1`.
@@ -331,8 +321,7 @@ defmodule PlaywrightEx.Test.Pool do
   end
 
   @impl true
-  def handle_cast({:forget, pid}, state),
-    do: {:noreply, %{state | results: Map.delete(state.results, pid), durations: Map.delete(state.durations, pid)}}
+  def handle_cast({:forget, pid}, state), do: {:noreply, %{state | results: Map.delete(state.results, pid)}}
 
   def handle_cast({:keep_info, test_pid, keeper}, state) do
     Process.monitor(keeper)
@@ -357,24 +346,6 @@ defmodule PlaywrightEx.Test.Pool do
       %{^pid => _} -> {:noreply, update_in(state.tests[pid].failures, &(&1 ++ [failure]))}
       _ -> {:noreply, state}
     end
-  end
-
-  # A waiter for over `@wait_warning` ms: the current holders, and the usual cause.
-  def handle_info({:waiting, ref}, state) do
-    with %{} = waiter <- Enum.find(state.waiting, &(&1.ref == ref)) do
-      holders =
-        for {_scope, lease} <- state.leases do
-          "  #{lease.holder}: #{length(lease.slots)} driver(s)"
-        end
-
-      Logger.warning("""
-      PlaywrightEx.Test.BrowserPool.browser/1 has waited #{div(@wait_warning, 1000)} s for one of \
-      `workers` (#{Options.workers()}) drivers, for #{waiter.holder}. The holders:
-      #{Enum.join(holders, "\n")}\
-      """)
-    end
-
-    {:noreply, state}
   end
 
   # A test process (watched), a waiting caller or an unregistered creator of contexts exited: a
@@ -416,28 +387,18 @@ defmodule PlaywrightEx.Test.Pool do
       end
 
     for from <- test.awaiting, do: GenServer.reply(from, {verdict, failures})
-    # An unknown verdict (a doctest's) leaves the outcome as it was.
-    outcome = fn
-      previous when verdict == nil -> previous
-      previous -> if verdict == :passed and previous != :failed, do: :passed, else: :failed
-    end
 
-    # The test's own leases, and those of its module's scope (its runner's).
+    # The test's own leases, and those of its module's scope (its runner's). An unknown verdict
+    # (a doctest's) leaves them as they were.
     leases =
       Map.new(state.leases, fn {scope, lease} ->
-        if scope == pid or (lease.runner != nil and lease.runner == test.runner),
-          do: {scope, %{lease | outcome: outcome.(lease.outcome)}},
+        if verdict == :failed and (scope == pid or (lease.runner != nil and lease.runner == test.runner)),
+          do: {scope, %{lease | failed?: true}},
           else: {scope, lease}
       end)
 
     duration = System.monotonic_time(:millisecond) - test.started
-
-    %{
-      state
-      | results: Map.put(state.results, pid, {verdict, failures}),
-        durations: Map.put(state.durations, pid, duration),
-        leases: leases
-    }
+    %{state | results: Map.put(state.results, pid, {verdict, failures, duration}), leases: leases}
   end
 
   # ExUnit's runner exits a test's process `:shutdown` after the test and its setup, kills it
@@ -515,7 +476,7 @@ defmodule PlaywrightEx.Test.Pool do
 
   defp add_lease(state, request, slot) do
     lease =
-      Map.get(state.leases, request.scope, %{slots: [], runner: request.runner, outcome: nil, holder: request.holder})
+      Map.get(state.leases, request.scope, %{slots: [], runner: request.runner, failed?: false})
 
     %{state | leases: Map.put(state.leases, request.scope, %{lease | slots: [slot | lease.slots]})}
   end
@@ -543,7 +504,7 @@ defmodule PlaywrightEx.Test.Pool do
 
   defp start_slot(state, key, opts) do
     {:ok, pid} = Slot.start_link(opts)
-    {{pid, key}, register_after_suite(state)}
+    {{pid, key}, state}
   end
 
   # A driver's stop waits for it to exit (up to ~31 s): not in the pool's process. The slot
@@ -551,14 +512,5 @@ defmodule PlaywrightEx.Test.Pool do
   defp stop_slot(state, slot) do
     Task.start(fn -> Slot.stop(slot) end)
     %{state | stopping: [slot | state.stopping]}
-  end
-
-  defp register_after_suite(%{after_suite?: true} = state), do: state
-
-  defp register_after_suite(state) do
-    if Code.ensure_loaded?(ExUnit) and is_list(Application.get_env(:ex_unit, :after_suite)),
-      do: ExUnit.after_suite(&__MODULE__.after_suite/1)
-
-    %{state | after_suite?: true}
   end
 end

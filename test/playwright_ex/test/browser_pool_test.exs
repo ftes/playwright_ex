@@ -5,8 +5,6 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
   use ExUnit.Case, async: false
   use PlaywrightEx.Test
 
-  import ExUnit.CaptureLog
-
   alias PlaywrightEx.Browser
   alias PlaywrightEx.Test.BrowserPool
   alias PlaywrightEx.Test.Options
@@ -24,6 +22,7 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
 
   # A test process of its own, watched as the `test` macro's, which ends when sent
   # `{:end, messages, reason}`: `messages` of its pid (`&{:passed, &1}`), then exit `reason`.
+  # Released at the test's end, also when the test fails before its `finish/3`.
   defp fake_test(marked \\ Pool.outside()) do
     pid =
       spawn(fn ->
@@ -35,6 +34,7 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
       end)
 
     Pool.watch(pid, marked)
+    on_exit(fn -> Pool.release(pid) end)
     pid
   end
 
@@ -55,7 +55,7 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
   defp run_test(messages, reason, marked \\ Pool.outside()), do: end_test(fake_test(marked), messages, reason)
 
   # A browser of the fake test `pid`, and its end and release.
-  defp lease(pid, opts), do: Pool.browser(Options.pool(opts), {:test, pid}, "fake #{inspect(pid)}")
+  defp lease(pid, opts), do: Pool.browser(Options.pool(opts), {:test, pid})
 
   defp finish(pid, messages, reason) do
     end_test(pid, messages, reason)
@@ -233,11 +233,7 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
       config = Application.get_env(:playwright_ex, :test)
       put_workers(2)
 
-      on_exit(fn ->
-        Application.put_env(:playwright_ex, :test, config)
-        # The leases a failed test left.
-        for {scope, %{holder: "fake " <> _}} <- :sys.get_state(Pool).leases, do: Pool.release(scope)
-      end)
+      on_exit(fn -> Application.put_env(:playwright_ex, :test, config) end)
     end
 
     test "at most workers drivers at once, waiters first come first served; a passing scope's goes back warm, a failed one's stops" do
@@ -416,64 +412,28 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
       finish(next, [], :boom)
     end
 
-    test "a wait of 10 s logs the holders" do
-      put_workers(1)
-      [holder, waiting] = [fake_test(), fake_test()]
-      lease(holder, opts())
-      waiter = Task.async(fn -> lease(waiting, key("waits")) end)
-      wait_until(fn -> length(:sys.get_state(Pool).waiting) == 1 end)
-      [%{ref: ref}] = :sys.get_state(Pool).waiting
-
-      log =
-        capture_log(fn ->
-          send(Pool, {:waiting, ref})
-          :sys.get_state(Pool)
-        end)
-
-      assert log =~
-               "BrowserPool.browser/1 has waited 10 s for one of `workers` (1) drivers, for fake #{inspect(waiting)}"
-
-      assert log =~ "fake #{inspect(holder)}: 1 driver(s)"
-
-      finish(holder, [], :boom)
-      Task.await(waiter, 30_000)
-      finish(waiting, [], :boom)
-    end
-
     test "another scope (a setup_all's) passes when a test of its runner ran and all passed" do
       opts = Options.pool(opts())
       # A `setup_all` process and tests, all spawned by one runner (this process).
       scope = fn -> spawn(fn -> Process.sleep(:infinity) end) end
 
       none = scope.()
-      a = Pool.browser(opts, {:process, none}, "setup_all")
+      a = Pool.browser(opts, {:process, none})
       # No test ran: no known result, back warm.
       Pool.release(none)
 
       passing = scope.()
-      assert (b = Pool.browser(opts, {:process, passing}, "setup_all")) == a
+      assert (b = Pool.browser(opts, {:process, passing})) == a
       assert run_test([passed()], :shutdown) == {:passed, []}
       assert run_test([passed()], :shutdown) == {:passed, []}
       Pool.release(passing)
 
       failing = scope.()
-      assert Pool.browser(opts, {:process, failing}, "setup_all") == b
+      assert Pool.browser(opts, {:process, failing}) == b
       assert run_test([passed()], :shutdown) == {:passed, []}
       assert {:failed, _} = run_test([], :boom)
       Pool.release(failing)
       assert gone?(b.browser)
-    end
-
-    test "a free driver's extra browsers are closed" do
-      opts = opts()
-      [te, tf] = [fake_test(), fake_test()]
-      a = lease(te, opts)
-      extra = PlaywrightEx.BrowserType.launch!(PlaywrightEx.Browser.browser_type(a.browser))
-      finish(te, [passed()], :shutdown)
-      assert gone?(extra)
-      assert lease(tf, opts) == a
-      assert Browser.is_connected(a.browser)
-      finish(tf, [], :boom)
     end
   end
 
