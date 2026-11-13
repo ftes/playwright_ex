@@ -141,7 +141,7 @@ defmodule PlaywrightEx.Test do
   `PlaywrightEx.Expect.to_match_aria_snapshot/3` take upstream's `name:` and resolve it as
   `testInfo` does, by upstream's default templates:
 
-    * screenshots: `{snapshotDir}/{testFileDir}/{testFileName}-snapshots/{arg}{-projectName}{-snapshotSuffix}{ext}`,
+    * screenshots: `{snapshotDir}/{testFileDir}/{testFileName}-snapshots/{arg}{-snapshotSuffix}{ext}`,
       `test/checkout_test.exs-snapshots/home-darwin.png` for `name: "home.png"` in
       `test/checkout_test.exs`.
     * aria snapshots: `{snapshotDir}/{testFileDir}/{testFileName}-snapshots/{arg}{ext}`.
@@ -152,10 +152,10 @@ defmodule PlaywrightEx.Test do
   `test/` by default; `snapshot_path_template` (or the matcher's `pathTemplate` in `config
   :playwright_ex, :expect`) takes upstream's tokens: `{testDir}`, `{snapshotDir}`,
   `{testFileDir}`, `{testFileName}`, `{testFileBaseName}`, `{testFilePath}`, `{testName}`,
-  `{arg}`, `{ext}`, `{platform}`, `{snapshotSuffix}` (the platform, as upstream's) and
-  `{projectName}`, which is empty: there are no projects. `snapshot_path/2` returns a name's
-  path. A failed comparison writes its `-actual`, `-expected`, `-previous` and `-diff` images to
-  the test's output dir.
+  `{arg}`, `{ext}`, `{platform}` and `{snapshotSuffix}` (the platform, as upstream's);
+  `{projectName}` is accepted for upstream templates and is always empty. `snapshot_path/2`
+  returns a name's path. A failed comparison writes its `-actual`, `-expected`, `-previous` and
+  `-diff` images to the test's output dir.
 
   A snapshot the matcher writes (a missing one, under the default `update_snapshots`) fails the
   test at the end of its body, as upstream's soft error: the rest of the body runs, and ExUnit
