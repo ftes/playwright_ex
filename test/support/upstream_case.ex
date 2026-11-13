@@ -389,11 +389,9 @@ defmodule PlaywrightEx.UpstreamCase do
     %{context_factory: context_factory}
   end
 
-  # `testInfo.status === 'timedOut'`: ExUnit killed the test past its timeout.
+  # `testInfo.status === 'timedOut' ? ... : 'Test ended.'`.
   defp close_reason(tags) do
-    {_verdict, failures} = PlaywrightEx.Test.Pool.result(tags.test_pid, 5000)
-
-    if PlaywrightEx.Test.Pool.killed() in failures,
+    if PlaywrightEx.Test.info(tags.test_pid).status == :timed_out,
       do: "Test timeout of #{tags[:timeout] || ExUnit.configuration()[:timeout]}ms exceeded.",
       else: "Test ended."
   end
