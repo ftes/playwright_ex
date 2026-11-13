@@ -36,8 +36,10 @@ perf lock with `caffeinate`, 9 workers, against upstream's 58.0 s from the quiet
 Module time (summed over the 219 modules) is +7.7% over upstream's, down from +19.4%: chromium
 +8 s, webkit +12 s, firefox +10 s. The median per-test gap is +24-30 ms (it was +88 ms). Module
 time exceeds test time by 15-17 s, mostly in one-test Firefox modules, each 1-4.6 s slower than
-upstream's same file. Probably a browser start per module, where upstream's workers reuse
-one; not measured. Starting the longest modules first would save another ~10 s (an LPT
+upstream's same file. That's worker start-up, not a launch per module: each of the 9 drivers
+launches each browser once, in the first ~7 s, and the modules whose `setup_all` runs then (the
+seed picks which) carry it. Upstream's per-file time probably excludes its worker start-up, so
+this part isn't like for like ([#213](https://github.com/ftes/playwright_ex/issues/213)). Starting the longest modules first would save another ~10 s (an LPT
 schedule: 46.8 s). Failures: `issue 3115` (Chromium, also upstream) every run, 2835 once.
 
 The sections below are history, on pin 47caed19, where `BrowserPool.shared/1` and
