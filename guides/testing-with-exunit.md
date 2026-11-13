@@ -534,6 +534,13 @@ each module with its configuration (`@moduletag browser: :firefox`) and run
 `mix test --only browser:firefox`, or give each CI job one. A rare module with unusual options
 can be `async: false`, so it doesn't wait behind the others.
 
+Or keep each configuration's workers warm, at the cost of memory: with `workers` above
+`max_cases` (up to `max_cases` per configuration), no more than `max_cases` modules hold a worker
+at once. A module then finds an idle worker of its options or starts a new one, rather than
+restarting another configuration's. LiveView's e2e suite on Chromium, Firefox and WebKit in one
+run at `max_cases` 9 took 80 s with 9 workers, 61.8 s with 18 and 57.5 s with 27, at about
+11 GB peak memory.
+
 The defaults: `workers` half the schedulers (Playwright Test's default, half the cores), and
 ExUnit's `max_cases` unchanged, twice the schedulers. So about four times as many modules run as
 Playwright Test's workers: those past `workers` wait inside `browser/1` at no cost, and modules
