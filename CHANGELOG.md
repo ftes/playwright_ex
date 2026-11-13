@@ -22,54 +22,42 @@ those of the release candidates below. From an earlier release, also read the se
   its options (Playwright Test's worker hash), reused after a passing scope and replaced after a
   failing one. `on_start` runs once per new driver (e.g. to register
   selectors). `connect_options` is Playwright Test's `connectOptions`: pooled browsers on a
-  remote Playwright server, with the context defaults and the recording.
+  remote Playwright server, with the context defaults and the recording. `test_id_attribute` in
+  `config :playwright_ex, :test` is Playwright Test's `testIdAttribute`, set on each pooled
+  driver: the client's is global to the VM, so set it suite-wide.
 - `PlaywrightEx.Test`: `use PlaywrightEx.Test` after `use ExUnit.Case` (or first in a case
   template's body) registers each test. Every context it creates on a pooled browser, also in a
   `Task`, gets Playwright Test's context defaults (`locale: "en-US"`, a 1280x720 viewport, ...),
-  then the config's `context_options`, and is recorded: traces, screenshots and videos with
-  Playwright Test's modes and their options, from config and tags (`@tag trace: :on`), kept for
-  failures, plus Playwright Test's `error-context.md` of each failed test and a `show-trace`
-  hint. `info/0` and `output_path/1` are Playwright Test's `test.info()` and
-  `testInfo.outputPath`. In a test, the snapshot matchers take upstream's `name:` (or none),
-  resolved by Playwright Test's path templates (`snapshot_dir`, `snapshot_path_template`,
-  `snapshot_path/2`) with their `-actual`, `-expected`, `-previous` and `-diff` files in the
-  test's output dir, and a snapshot they write fails the test at the end of its body, with all
-  its errors reported. `step` is Playwright Test's `test.step` (`box`, `location`, `params`,
-  `subtitle`; no `timeout`), `step_skip` its `test.step.skip`, and each matcher call is a step:
-  the trace's `test.trace` has the test's steps, nested, and its errors. `Expect.soft/1` is
-  `expect.soft`: in a test, a failed soft matcher returns and fails the test at the end of its
-  body. As in Playwright Test, a test's contexts have no action or navigation timeout unless
-  the config's `action_timeout` and `navigation_timeout` set one, and just before ExUnit's
-  test timeout the test's contexts are closed, so a hanging call fails with "Test timeout of
-  Nms exceeded." and its call log, its artifacts kept. `config/0` returns the resolved config
-  (defaults filled in, validated, the expect timeout), for libraries building on the runner. See
-  the [Testing with ExUnit](guides/testing-with-exunit.md) guide.
-- `test_id_attribute` in `config :playwright_ex, :test` is Playwright Test's `testIdAttribute`,
-  set on each pooled driver. The client's test id attribute is global to the VM, so a module that
-  sets it changes `get_by_test_id` for concurrent tests: set it suite-wide.
-- `PlaywrightEx.Test` traces each context's `request` and the test's own request contexts
-  (`APIRequest.new_context/2`), and disposes those left at the test's end.
-- Under `trace: :retain_on_failure`, the contexts a passed test leaves open discard their trace
-  chunks at its end, as Playwright Test's do, instead of saving and then deleting them.
-- `PlaywrightEx.Test` starts and stops its traces and takes its screenshots and page snapshots
-  with internal calls, as Playwright Test does, so they send the driver no call stacks and the
-  screenshots are no actions in the trace.
-- `PlaywrightEx.Test.info/1` takes the test's pid and works in `on_exit`, where it also has
-  Playwright Test's `testInfo.status`, `errors`, `expectedStatus` and `duration`.
-- `PlaywrightEx.Test.attach/2` is Playwright Test's `testInfo.attach`: a file (`path:`, copied to
-  the output dir) or a body, as a `test.attach` step in the trace. The trace option `attachments`
-  (default `true`) keeps them in `trace.zip`.
-- The `video` option takes Playwright Test's `fps` and `show` (`show.actions`, and `show.test`,
-  the test's title and steps over each page).
+  then the config's `context_options`, and is recorded: traces (of its contexts, their
+  `request`s and the test's request contexts, which are disposed at its end), screenshots and
+  videos (with `fps` and `show`, the test's title and steps over each page), with Playwright
+  Test's modes and their options, from config and tags (`@tag trace: :on`), kept for failures,
+  plus Playwright Test's `error-context.md` of each failed test and a `show-trace` hint. As in
+  Playwright Test, the recording's tracing, screenshots and page snapshots are internal calls,
+  and a matcher's step and its driver call share one `callId`. `info/0` and `output_path/1`
+  are Playwright Test's `test.info()` and `testInfo.outputPath`; `info/1` takes the test's pid
+  and works in `on_exit`, with `testInfo.status`, `errors`, `expectedStatus` and `duration`.
+  `attach/2` is `testInfo.attach` (a `test.attach` step in the trace). In a test, the snapshot
+  matchers take upstream's `name:` (or none), resolved by Playwright Test's path templates
+  (`snapshot_dir`, `snapshot_path_template`, `snapshot_path/2`, which takes path segments too)
+  with their `-actual`, `-expected`, `-previous` and `-diff` files in the test's output dir, and
+  a snapshot they write fails the test at the end of its body, with all its errors reported.
+  `step` is Playwright Test's `test.step` (`box`, `location`, `params`, `subtitle`; no
+  `timeout`), `step_skip` its `test.step.skip`, and each matcher call is a step: the trace's
+  `test.trace` has the test's steps, nested, and its errors. `Expect.soft/1` is `expect.soft`:
+  in a test, a failed soft matcher returns and fails the test at the end of its body, as does an
+  error a route handler, listener or locator handler raises. As in Playwright Test, a test's
+  contexts have no action or navigation timeout unless the config's `action_timeout` and
+  `navigation_timeout` set one, and just before ExUnit's test timeout the test's contexts are
+  closed, so a hanging call fails with "Test timeout of Nms exceeded." and its call log, its
+  artifacts kept. `config/0` returns the resolved config (defaults filled in, validated, the
+  expect timeout), for libraries building on the runner. See the
+  [Testing with ExUnit](guides/testing-with-exunit.md) guide.
 - `Expect.to_pass/2` and `Expect.poll/3`: `expect(fn).toPass()` and `expect.poll(fn).toBe(x)`
   (`Expect.poll(fn, &assert(&1 == x))`), with upstream's intervals and timeouts (`toPass`: until
   the test's timeout), steps, soft receivers and `config :playwright_ex, :expect, to_pass: ...`.
 - `Expect.message/2` is `expect(actual, message)`: a receiver with a custom message, which is the
   matcher's step title and the first paragraph of its error.
-- `PlaywrightEx.Test.snapshot_path/2` takes a list of path segments too, as Playwright Test's
-  `testInfo.snapshotPath(...name)`.
-- A matcher's step and its driver call share one `callId`, so a test's trace shows them as one
-  action, as Playwright Test's does.
 - `PlaywrightEx.Promise.async/1`: starts calls now, awaited later (JS's
   `const p = locator.evaluate(...); ...; await p`). It returns once the calls are sent, so they
   come before your next action, which a `Task` doesn't ensure.
@@ -89,9 +77,7 @@ those of the release candidates below. From an earlier release, also read the se
   `Task` does: route and WebSocket route handlers (and their `on_message`/`on_close`), event
   listeners, exposed functions and bindings, locator handlers, and the processes the client
   starts for a call (wait predicates). So the Ecto sandbox, Mox and `Req.Test` find the test in
-  them. In a `PlaywrightEx.Test` test, an error a route handler, listener or locator handler
-  raises now fails the test at the end of its body, as in Playwright Test, instead of only being
-  logged.
+  them.
 
 ### Fixed
 - Matching a JS regex in Elixir (`RegExp.compile!/1`, `wait_for_url`, routes): `\s` and `\S` follow JS's
