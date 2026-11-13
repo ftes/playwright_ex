@@ -147,7 +147,11 @@ defmodule PlaywrightEx.Test do
   hangs until then fails with that message and its call log, after the close kept the artifacts.
   A test stuck elsewhere (`Process.sleep/1`, a `receive`) still fails with ExUnit's
   `ExUnit.TimeoutError`. The timeout is ExUnit's: the `@tag timeout:` (`:infinity` for none) or
-  `mix test --timeout`; `mix test --trace` has none. `setup_all` is not covered.
+  `mix test --timeout`; `mix test --trace` has none. `setup_all` is not covered. As ExUnit's
+  (and upstream's, which counts `beforeEach` hooks), the timeout counts the test's `setup`
+  callbacks: the clock starts at the module's first one, also one defined before `use
+  PlaywrightEx.Test` or in its case template. What ExUnit does before them (`@tag :tmp_dir`'s
+  cleanup, `capture_log`) is not counted, and comes out of the margin.
 
   ## Snapshots
 
@@ -233,6 +237,8 @@ defmodule PlaywrightEx.Test do
 
   # Set while `__passed__/0` raises the errors `TestInfo` recorded (and traced) already.
   @reraised {__MODULE__, :reraised}
+  # When the test's first `setup` callback ran (`__started__/1`), in its process.
+  @started {__MODULE__, :started}
   # `info/0`'s fields of the registration.
   @info_keys [:test_pid, :file, :test_name, :output_dir, :retry]
 
@@ -254,13 +260,19 @@ defmodule PlaywrightEx.Test do
           import PlaywrightEx.Test, only: [test: 1, test: 2, test: 3]
           require PlaywrightEx.Test
 
-          if PlaywrightEx.Test.__use__(__MODULE__), do: setup({PlaywrightEx.Test, :__setup__})
+          if PlaywrightEx.Test.__use__(__MODULE__) do
+            PlaywrightEx.Test.__clock__(__MODULE__)
+            setup({PlaywrightEx.Test, :__setup__})
+          end
         end
 
       # The body of a case template: its `setup` callbacks run before those of its `using`.
       {:using, 1} in Keyword.get(macros, ExUnit.CaseTemplate, []) ->
         quote do
-          if PlaywrightEx.Test.__use__(__MODULE__), do: setup({PlaywrightEx.Test, :__setup__})
+          if PlaywrightEx.Test.__use__(__MODULE__) do
+            PlaywrightEx.Test.__clock__(__MODULE__)
+            setup({PlaywrightEx.Test, :__setup__})
+          end
         end
 
       true ->
@@ -404,6 +416,27 @@ defmodule PlaywrightEx.Test do
   end
 
   @doc false
+  # Elixir only: `__started__/1` as the module's first `setup` callback, before those defined
+  # before the `use` (and, in a test module, before its case template's), for the test's
+  # deadline (`__register__/1`). ExUnit's timeout counts the setup callbacks, as upstream's test
+  # timeout counts its `beforeEach` hooks and fixtures. ExUnit has no public way in: its
+  # callbacks are `@ex_unit_setup`, newest first, so the last runs first.
+  def __clock__(module) do
+    case Module.get_attribute(module, :ex_unit_setup) do
+      setup when is_list(setup) -> Module.put_attribute(module, :ex_unit_setup, setup ++ [{__MODULE__, :__started__}])
+      _ -> :ok
+    end
+  end
+
+  @doc false
+  # The test's first `setup` callback (`__clock__/1`): when ExUnit's clock started, as near as a
+  # callback gets.
+  def __started__(_context) do
+    if !Process.get(@started), do: Process.put(@started, System.monotonic_time(:millisecond))
+    :ok
+  end
+
+  @doc false
   # The per-test `setup` of `use PlaywrightEx.Test`: registers the test, once (a case
   # template's body and its `using` may both bring it).
   def __setup__(%{test_pid: test_pid} = context) do
@@ -453,8 +486,7 @@ defmodule PlaywrightEx.Test do
         title_path: TestInfo.title_path(context),
         location: {file, context[:line]},
         test_timeout: timeout,
-        # ExUnit's clock started at the test process's spawn, just before this setup.
-        deadline: if(is_integer(timeout), do: System.monotonic_time(:millisecond) + timeout),
+        deadline: if(is_integer(timeout), do: started(context) + timeout),
         context_options: Options.context_options(),
         timeouts: Options.timeouts(),
         preserve_output: Options.preserve_output(),
@@ -470,6 +502,14 @@ defmodule PlaywrightEx.Test do
     # The steps of `test.trace` go to the recorder.
     if modes.trace[:mode] != :off, do: Results.recorder(test.test_pid)
     test
+  end
+
+  # ExUnit's clock starts as it spawns the test process: the test's first `setup` callback
+  # (`__started__/1`) notes the time. What ExUnit runs before the callbacks (`@tag :tmp_dir`'s
+  # cleanup, `capture_log`'s handler) is not counted: it comes out of the margin before the
+  # deadline (`Recorder.test_timeout_margin/1`). Now, for a registration from elsewhere.
+  defp started(context) do
+    (self() == context.test_pid && Process.get(@started)) || System.monotonic_time(:millisecond)
   end
 
   # ExUnit's `get_timeout/2`: none under `--trace`, else the test's `timeout` tag or the config's.

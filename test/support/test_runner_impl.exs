@@ -18,7 +18,8 @@
 #   * `steps` - a test failing in a boxed step, with no browser.
 #   * `soft` - soft matchers (`Expect.soft/1`): failing ones, then the rest of the body, then a
 #     hard failure; and a passing one.
-#   * `timeouts` - tests past their timeout: one in a Playwright call, one in `Process.sleep`.
+#   * `timeouts` - tests past their timeout: one in a Playwright call, one in `Process.sleep`, one
+#     in a Playwright call after a slow `setup` before `use PlaywrightEx.Test`.
 #   * `trace` - `trace: true` (`mix test --trace`): a test past its `timeout` tag passes.
 #   * `rerun` - one failing and one passing test (writing a file of its own), `preserve_output:
 #     :failures_only`; with a further `failed` argument, only the failing one, as `mix test
@@ -332,6 +333,29 @@ case mode do
       test "hangs elsewhere", %{page: page} do
         Page.set_content!(page, "<h1>Sleeps</h1>")
         Process.sleep(:infinity)
+      end
+    end
+
+    # ExUnit's timeout counts the setup callbacks before the registration's too.
+    defmodule SlowSetupTest do
+      use ExUnit.Case, async: true
+
+      alias PlaywrightEx.{Browser, BrowserContext, Page}
+
+      setup_all do
+        %{browser: PlaywrightEx.Test.BrowserPool.browser()}
+      end
+
+      setup do
+        Process.sleep(1500)
+      end
+
+      use PlaywrightEx.Test
+
+      @tag timeout: 3000
+      test "hangs in a Playwright call after a slow setup", %{browser: browser} do
+        page = browser |> Browser.new_context!() |> BrowserContext.new_page!()
+        Page.wait_for_selector!(page, "#never")
       end
     end
 

@@ -57,3 +57,22 @@ defmodule PlaywrightEx.Test.TimeoutsTest do
     assert :sys.get_state(Recorder.lookup(self())).timer == nil
   end
 end
+
+defmodule PlaywrightEx.Test.TimeoutsSlowSetupTest do
+  # The test's deadline counts the setup callbacks before `use PlaywrightEx.Test`'s, as ExUnit's
+  # timeout does.
+  use ExUnit.Case, async: true
+
+  alias PlaywrightEx.Test.Recorder
+
+  setup do
+    Process.sleep(300)
+  end
+
+  use PlaywrightEx.Test
+
+  @tag timeout: 10_000
+  test "the deadline is ExUnit's: from the first setup callback" do
+    assert Recorder.registration(self()).deadline - System.monotonic_time(:millisecond) <= 10_000 - 300
+  end
+end

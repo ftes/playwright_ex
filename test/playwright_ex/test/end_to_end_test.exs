@@ -281,7 +281,7 @@ defmodule PlaywrightEx.Test.EndToEndTest do
     child = start("timeouts", tmp_dir)
     assert ChildProcess.exit_code(child, 60_000) == 0
     output = ChildProcess.output(child)
-    assert output =~ ~r"2 tests, 2 failures|Result: 0/2 passed"
+    assert output =~ ~r"3 tests, 3 failures|Result: 0/3 passed"
 
     hangs = failure(output, "test hangs in a Playwright call (TimeoutsTest)")
     assert hangs =~ "Test timeout of 3000ms exceeded."
@@ -299,6 +299,11 @@ defmodule PlaywrightEx.Test.EndToEndTest do
 
     sleeps = failure(output, "test hangs elsewhere (TimeoutsTest)")
     assert sleeps =~ "** (ExUnit.TimeoutError) test timed out after 3000ms"
+
+    # The deadline counts the slow setup before the registration, as ExUnit's timeout does.
+    slow_setup = failure(output, "test hangs in a Playwright call after a slow setup (SlowSetupTest)")
+    assert slow_setup =~ "Test timeout of 3000ms exceeded."
+    refute slow_setup =~ "ExUnit.TimeoutError"
   end
 
   test "--trace: no test timeout, so no timer", %{tmp_dir: tmp_dir} do
