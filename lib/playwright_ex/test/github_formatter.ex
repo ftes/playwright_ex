@@ -8,8 +8,9 @@ defmodule PlaywrightEx.Test.GitHubFormatter do
       mix test --formatter ExUnit.CLIFormatter --formatter PlaywrightEx.Test.GitHubFormatter
 
   `--formatter` replaces the configured formatters, so name `ExUnit.CLIFormatter` (and any of
-  your own) too. A CI that reruns failures (`mix test || mix test --failed`) passes it to the
-  first run only: on both, a test failing twice gets its annotations twice. A CI without a rerun
+  your own) too. A CI that reruns failed tests (`mix test || { [ $? -eq 2 ] && mix test
+  --failed; }`) passes it to the first run only: on both, a test failing twice gets its
+  annotations twice. A CI without a rerun
   may add it in `test/test_helper.exs` instead:
 
       github = if System.get_env("GITHUB_ACTIONS"), do: [PlaywrightEx.Test.GitHubFormatter], else: []

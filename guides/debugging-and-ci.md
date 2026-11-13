@@ -154,12 +154,13 @@ steps:
 failed tests (at their line), failed `setup_all`s and slow files, and a summary. It prints
 only those, so name `ExUnit.CLIFormatter` next to it (`--formatter` replaces the configured
 formatters). When failures are rerun, pass it to the first run only, or a test failing twice is
-annotated twice:
+annotated twice. Rerun only on exit status 2 (tests failed): any other failure, such as a crash
+or a missed coverage threshold, would otherwise go green on an empty `--failed` run:
 
 ```yaml
 - run: |
     mix test --formatter ExUnit.CLIFormatter --formatter PlaywrightEx.Test.GitHubFormatter ||
-      mix test --failed
+      { [ $? -eq 2 ] && mix test --failed; }
 ```
 
 ## Docker
