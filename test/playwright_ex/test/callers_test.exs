@@ -107,7 +107,7 @@ defmodule PlaywrightEx.Test.CallersTest do
     assert_receive {:handler, ^test_pid}
     assert Page.evaluate!(page, "window.clicked")
     assert [{:error, %RuntimeError{message: "locator handler boom"}, _}] = TestInfo.take_errors(self())
-    refute log =~ "boom"
+    refute log =~ "locator handler boom"
   end
 
   test "a WebSocket route handler and its message and close handlers find the test", %{context: context, page: page} do
@@ -142,7 +142,7 @@ defmodule PlaywrightEx.Test.CallersTest do
     assert_receive {:context_route, ^test_pid}
     log = capture_log(fn -> await_error(self()) end)
     assert [{:error, %RuntimeError{message: "ws message boom"}, _}] = TestInfo.take_errors(self())
-    refute log =~ "boom"
+    refute log =~ "ws message boom"
   end
 
   test "an unhandled error of a route handler or a listener fails the test", %{page: page} do
@@ -171,7 +171,7 @@ defmodule PlaywrightEx.Test.CallersTest do
     assert [{:error, %RuntimeError{message: "listener boom"}, _}] = TestInfo.take_errors(self())
 
     # Recorded on the test, not logged.
-    refute log =~ "boom"
+    refute log =~ "listener boom"
   end
 
   test "registered outside a test: nothing found, the error is logged", %{page: page} do

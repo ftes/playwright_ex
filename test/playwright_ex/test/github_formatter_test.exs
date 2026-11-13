@@ -249,7 +249,6 @@ defmodule PlaywrightEx.Test.GitHubFormatterTest do
 
     %ExUnit.Test{
       name: name,
-      description: String.replace_prefix(to_string(name), "test ", ""),
       module: Keyword.get(opts, :module, __MODULE__),
       state: Keyword.get(opts, :state),
       time: Keyword.get(opts, :time, 0),

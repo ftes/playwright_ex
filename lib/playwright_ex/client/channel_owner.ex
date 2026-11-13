@@ -507,7 +507,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
           e =
             if api_zone.apiName != "" and !String.contains?(api_zone.apiName, "<anonymous>") and
                  Map.has_key?(e, :message),
-               do: %{e | message: api_zone.apiName <> ": " <> Exception.message(e)},
+               do: Map.put(e, :message, api_zone.apiName <> ": " <> Exception.message(e)),
                else: e
 
           # const stackFrames = ...; e.stack = ...  -- not ported: stack rewriting
