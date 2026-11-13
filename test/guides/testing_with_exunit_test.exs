@@ -257,26 +257,22 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.LoggedInTest do
 end
 
 defmodule PlaywrightEx.Guides.TestingWithExUnit.ArtifactsTest do
-  # "Traces, screenshots and videos": the config's `TRACE` line, with `TRACE` set as by
-  # `TRACE=1 mix test --failed`. Not async: it sets an environment variable and the config.
+  # "Traces, screenshots and videos": the config's `trace: :on_first_retry`, which traces the
+  # test under `mix test --failed` only. Not async: it sets the config.
   use PlaywrightEx.Guides.TestingWithExUnit.BrowserCase, async: false
 
   alias PlaywrightEx.Test.TestInfo
 
   setup_all do
     config = Application.get_env(:playwright_ex, :test)
-    System.put_env("TRACE", "1")
-    trace = if(System.get_env("TRACE"), do: :on, else: :off)
-    Application.put_env(:playwright_ex, :test, Keyword.put(config, :trace, trace))
+    Application.put_env(:playwright_ex, :test, Keyword.put(config, :trace, :on_first_retry))
 
     on_exit(fn ->
-      System.delete_env("TRACE")
       Application.put_env(:playwright_ex, :test, config)
       dir = TestInfo.output_dir(%{module: __MODULE__, test: :"test signs up", file: __ENV__.file})
-      # With its `-retryN` dirs under `mix test --failed`.
-      dirs = [dir | Path.wildcard(dir <> "-retry*")]
-      assert Enum.any?(dirs, &File.exists?(Path.join(&1, "trace.zip")))
-      Enum.each(dirs, &File.rm_rf!/1)
+      traced = Path.wildcard(dir <> "*/trace.zip")
+      if ExUnit.configuration()[:only_test_ids], do: assert([_ | _] = traced), else: assert(traced == [])
+      Enum.each([dir | Path.wildcard(dir <> "-retry*")], &File.rm_rf!/1)
     end)
   end
 

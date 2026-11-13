@@ -7,7 +7,7 @@ defmodule PlaywrightEx.Test do
 
       # config/test.exs
       config :playwright_ex, :test,
-        trace: if(System.get_env("TRACE"), do: :on, else: :off),
+        trace: :on_first_retry,       # traced under `mix test --failed`
         screenshot: :only_on_failure,
         context_options: [base_url: "http://localhost:4000"]
 
@@ -86,9 +86,9 @@ defmodule PlaywrightEx.Test do
       and `buildErrorContext`), whatever the modes.
 
   The modes are config, and tags over it (a test's `@tag` over its `@describetag` over the
-  module's `@moduletag` over the config): `trace` `:off` (default), `:on` or
-  `:retain_on_failure`, `screenshot` `:off`, `:on` or `:only_on_failure`, `video` `:off`, `:on`
-  or `:retain_on_failure`, and `true` (`:on`) or `false` (`:off`). Each is also the `:mode` of a
+  module's `@moduletag` over the config): `trace` and `video` `:off` (default), `:on`,
+  `:retain_on_failure` or a retry mode, `screenshot` `:off`, `:on`, `:only_on_failure` or
+  `:on_first_failure`, and `true` (`:on`) or `false` (`:off`). Each is also the `:mode` of a
   keyword list (or map) of options, as upstream's object forms: `trace: [mode: :on, snapshots:
   false]`, `screenshot: [mode: :on, full_page: true]`, `video: [mode: :on, size: %{width: 640,
   height: 480}]`. The trace's `:snapshots` (a boolean or `%{dom: _, aria: _, screen: _}`),
@@ -105,16 +105,22 @@ defmodule PlaywrightEx.Test do
   (files you write to `output_path/1` stay). A failing artifact step is logged; the test's
   result stands.
 
+  The retry modes go by the test's `retry` (see below), as upstream's: `:on_first_retry`
+  records retry 1, `:on_all_retries` every retry, `:retain_on_first_failure` records the first
+  run and keeps a failure's, `:retain_on_failure_and_retries` records every run and keeps a
+  failure's and every retry's; the screenshot's `:on_first_failure` is `:only_on_failure` of
+  the first run.
+
   A test's dir is deleted before it runs, as upstream's, so no file of an earlier run is left
-  in it. ExUnit has no retries: a test under `mix test --failed` is upstream's retry, and writes
-  to `<dir>-retry1` (`-retry2` on the next `--failed`, ...), next to the dirs of its earlier
-  runs, so `mix test || { [ $? -eq 2 ] && TRACE=1 mix test --failed; }` (with `trace: :on`
-  under `TRACE`; exit status 2 means tests failed, anything else isn't retried) keeps the first
-  run's files. A run without `--failed` deletes the test's `-retryN` dirs too, where
+  in it. ExUnit has no retries in a run: a test under `mix test --failed` is upstream's retry
+  (`info/0`'s `retry`, 1 after the first run), and writes to `<dir>-retry1` (`-retry2` on the
+  next `--failed`, ...), next to the dirs of its earlier runs. So with `trace: :on_first_retry`,
+  `mix test || { [ $? -eq 2 ] && mix test --failed; }` traces the failures' rerun and keeps the
+  first run's files (exit status 2 means tests failed; anything else isn't retried). A run
+  without `--failed` deletes the test's `-retryN` dirs too, where
   upstream deletes all of `output_dir` at the start of a run: here the dirs of tests that didn't
   run stay. Config `preserve_output` is upstream's `preserveOutput`: `:always` (default) keeps
   the files at the end of each test, `:failures_only` only a failed test's, `:never` none.
-  Playwright Test's retry modes (`on-first-retry`, ...) are not supported.
 
   ## Context defaults
 
@@ -197,9 +203,9 @@ defmodule PlaywrightEx.Test do
         context_options: [],          # PlaywrightEx.Browser.new_context/2, over the defaults
         action_timeout: :infinity,    # ms, each context's default (and navigation_timeout's)
         navigation_timeout: :infinity,
-        trace: :off,                  # :off | :on | :retain_on_failure, or [mode: _, ...]
-        screenshot: :off,             # :off | :on | :only_on_failure, or [mode: _, ...]
-        video: :off,                  # :off | :on | :retain_on_failure, or [mode: _, size: _]
+        trace: :off,                  # :off | :on | :retain_on_failure | :on_first_retry | ..., or [mode: _, ...]
+        screenshot: :off,             # :off | :on | :only_on_failure | :on_first_failure, or [mode: _, ...]
+        video: :off,                  # as trace, or [mode: _, size: _]
         output_dir: "test-results",
         preserve_output: :always,     # :always | :failures_only | :never, see Artifacts
         snapshot_dir: nil,            # upstream's testDir: test/
@@ -220,13 +226,14 @@ defmodule PlaywrightEx.Test do
   alias PlaywrightEx.Test.Recorder
   alias PlaywrightEx.Test.Results
   alias PlaywrightEx.Test.TestInfo
+  alias PlaywrightEx.Test.TestTracing
 
   require Logger
 
   # Set while `__passed__/0` raises the errors `TestInfo` recorded (and traced) already.
   @reraised {__MODULE__, :reraised}
   # `info/0`'s fields of the registration.
-  @info_keys [:test_pid, :file, :test_name, :output_dir]
+  @info_keys [:test_pid, :file, :test_name, :output_dir, :retry]
 
   defmacro __using__(opts) do
     if opts != [] do
@@ -384,8 +391,8 @@ defmodule PlaywrightEx.Test do
 
   # `didFinishTestFunction`: screenshots of the open pages, before the `on_exit` callbacks.
   defp finished_test_function(failed?) do
-    with %{screenshot: [{:mode, mode} | _]} <- Recorder.registration(self()),
-         true <- mode == :on or (mode == :only_on_failure and failed?),
+    with %{screenshot: [{:mode, mode} | _], retry: retry} <- Recorder.registration(self()),
+         true <- Recorder.should_capture_upon_finish(mode, failed?, retry),
          recorder when is_pid(recorder) <- Recorder.lookup(self()),
          do: Recorder.capture(recorder, failed?)
 
@@ -424,14 +431,21 @@ defmodule PlaywrightEx.Test do
   @doc false
   # The registration of the test of `context` (its `test_pid`), without its `on_exit`.
   def __register__(context) do
+    test_info = TestInfo.new(context)
     modes = Options.artifacts(context)
+    # Upstream's `testTracing.startIfNeeded` and `_contextFactory`'s `captureVideo`, by the retry.
+    modes = %{
+      modes
+      | trace: TestTracing.start_if_needed(modes.trace, test_info.retry),
+        video: Recorder.capture_video(modes.video, test_info.retry)
+    }
+
     file = context.file
     marked? = context[:playwright_ex] == :marked
     timeout = test_timeout(context)
 
     test =
-      context
-      |> TestInfo.new()
+      test_info
       |> Map.merge(modes)
       |> Map.merge(%{
         title: "#{Path.relative_to_cwd(file)}:#{context[:line]} › #{TestInfo.test_name(context)}",
@@ -506,9 +520,10 @@ defmodule PlaywrightEx.Test do
   The running test of the calling process or a process in its `$callers` (a `Task`), as
   upstream's `test.info()`: `test_pid`, `file` (absolute), `test_name` (without the macro's
   `test ` prefix), `output_dir` (absolute, with its `-retryN` suffix under `mix test --failed`,
-  see "Artifacts" in the moduledoc) and `timeout`
-  (upstream's `testInfo.timeout`: ExUnit's timeout of the test in ms, the `@tag timeout:` or
-  `mix test --timeout`, `:infinity` for none, as under `mix test --trace`), from the test's
+  see "Artifacts" in the moduledoc), `retry` (upstream's `testInfo.retry`: 0, or N in a
+  `-retryN` run) and `timeout` (upstream's `testInfo.timeout`: ExUnit's timeout of the test in
+  ms, the `@tag timeout:` or `mix test --timeout`, `:infinity` for none, as under `mix test
+  --trace`), from the test's
   setup to the end of its body. Raises outside a test, and in `on_exit` callbacks (ExUnit runs
   them in a process of their own): there, use `info/1`.
 
@@ -519,6 +534,7 @@ defmodule PlaywrightEx.Test do
           file: Path.t(),
           test_name: String.t(),
           output_dir: Path.t(),
+          retry: non_neg_integer(),
           timeout: timeout()
         }
   def info do

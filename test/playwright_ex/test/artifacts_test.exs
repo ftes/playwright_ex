@@ -640,7 +640,7 @@ defmodule PlaywrightEx.Test.ArtifactsTest.TagsTest do
   end
 
   test "an invalid tag raises at registration, with the accepted values" do
-    for {key, value} <- [trace: :on_first_retry, screenshot: :retain_on_failure, video: "on"] do
+    for {key, value} <- [trace: :retry_with_trace, screenshot: :retain_on_failure, video: "on"] do
       message = assert_raise(ArgumentError, fn -> PlaywrightEx.Test.Options.artifacts(%{key => value}) end).message
       assert message =~ "invalid #{key}: #{inspect(value)}, expected one of"
       assert message =~ "true, false"

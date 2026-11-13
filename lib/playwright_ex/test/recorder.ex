@@ -496,7 +496,7 @@ defmodule PlaywrightEx.Test.Recorder do
     if opts.trace[:mode] != :off,
       do: step("save the trace", fn -> stop_tracing(context, BrowserContext.tracing(context), recorder, state) end)
 
-    if opts.screenshot[:mode] != :off, do: screenshots(context, recorder, opts)
+    if capture_temporary?(opts.screenshot[:mode], opts.retry), do: screenshots(context, recorder, opts)
     step("take a page snapshot", fn -> page_snapshot(context, recorder, state) end)
   end
 
@@ -535,7 +535,9 @@ defmodule PlaywrightEx.Test.Recorder do
     ChannelOwner._wrap_api_call(
       owner,
       fn _api_zone ->
-        path = TestTracing.maybe_generate_next_trace_recording_path(state.tracing, opts.trace[:mode], opts.tmp)
+        path =
+          TestTracing.maybe_generate_next_trace_recording_path(state.tracing, opts.trace[:mode], opts.retry, opts.tmp)
+
         Tracing.stop_chunk!(tracing, path: path)
         if path, do: call(recorder, {:add_chunk, path})
       end,
@@ -628,7 +630,7 @@ defmodule PlaywrightEx.Test.Recorder do
 
     # `didFinishTest`: the open pages' screenshots, then the leftover contexts. A pooled browser
     # outlives the test.
-    if capture?(state.opts.screenshot[:mode], failed?), do: capture(pid, failed?)
+    if should_capture_upon_finish(state.opts.screenshot[:mode], failed?, state.opts.retry), do: capture(pid, failed?)
 
     for %{guid: guid, context: context} <- state.contexts,
         guid not in state.closed,
@@ -686,10 +688,35 @@ defmodule PlaywrightEx.Test.Recorder do
   defp close_leftover(context),
     do: step("close a context", fn -> BrowserContext.close(context, reason: "Test ended.") end)
 
-  # `_contextFactory`'s close (`shouldPreserveVideo`): `video.webm`, `video-1.webm`, ... in the
+  @doc """
+  The video options of a test of `retry` (its registration's): mode `:off` unless upstream's
+  `shouldCaptureVideo` (`captureVideo`, which `preserveVideo` requires too).
+  """
+  def capture_video([{:mode, mode} | options] = video, retry) do
+    capture? =
+      mode in [:on, :retain_on_failure, :retain_on_failure_and_retries] or
+        (mode == :on_first_retry and retry == 1) or (mode == :on_all_retries and retry > 0) or
+        (mode == :retain_on_first_failure and retry == 0)
+
+    if capture?, do: video, else: [{:mode, :off} | options]
+  end
+
+  # `shouldPreserveVideo`.
+  defp should_preserve_video(mode, _failed?, _retry) when mode in [:on, :on_first_retry, :on_all_retries], do: true
+
+  defp should_preserve_video(mode, failed?, _retry) when mode in [:retain_on_failure, :retain_on_first_failure],
+    do: failed?
+
+  defp should_preserve_video(:retain_on_failure_and_retries, failed?, retry), do: failed? or retry > 0
+  defp should_preserve_video(_mode, _failed?, _retry), do: false
+
+  # `_contextFactory`'s close (`preserveVideo`): `video.webm`, `video-1.webm`, ... in the
   # order the contexts closed. The artifact options have their `mode` first.
-  defp save_videos(%{opts: %{video: [{:mode, video} | _]}} = state, failed?)
-       when video == :on or (video == :retain_on_failure and failed?) do
+  defp save_videos(%{opts: %{video: [{:mode, video} | _]} = opts} = state, failed?) do
+    if should_preserve_video(video, failed?, opts.retry), do: do_save_videos(state)
+  end
+
+  defp do_save_videos(state) do
     by_guid = Map.new(state.contexts, &{&1.guid, &1})
     open = for %{guid: guid} <- state.contexts, guid not in state.closed, do: guid
     pages = for guid <- state.closed ++ open, page <- by_guid[guid].pages, do: page
@@ -701,9 +728,6 @@ defmodule PlaywrightEx.Test.Recorder do
     end
   end
 
-  # The recording goes with the recorder's temporary dir.
-  defp save_videos(_state, _failed?), do: :ok
-
   defp save_video(video, path) do
     File.mkdir_p!(Path.dirname(path))
     Video.save_as!(video, path)
@@ -714,14 +738,19 @@ defmodule PlaywrightEx.Test.Recorder do
   defp save_trace(state, failed?),
     do: step("merge the traces", fn -> TestTracing.stop_if_needed(state.tracing, state.opts, state.chunks, failed?) end)
 
-  # `shouldCaptureUponFinish`.
-  defp capture?(mode, failed?), do: mode == :on or (mode == :only_on_failure and failed?)
+  @doc "`SnapshotRecorder.shouldCaptureUponFinish`, by the screenshot `mode` and the test's result and `retry`."
+  def should_capture_upon_finish(mode, failed?, retry),
+    do: mode == :on or (mode == :only_on_failure and failed?) or (mode == :on_first_failure and failed? and retry == 0)
+
+  # `SnapshotRecorder.captureTemporary`'s condition.
+  defp capture_temporary?(mode, retry),
+    do: mode == :on or mode == :only_on_failure or (mode == :on_first_failure and retry == 0)
 
   # `SnapshotRecorder.persistTemporary`: `test-failed-N.png` of a failed test, else
   # `test-finished-N.png` (`on` only), in capture order, numbered after those taken at the end.
   defp persist_screenshots(state, failed?) do
     for {file, ordinal} <- Enum.with_index(state.screenshots, state.ordinal),
-        capture?(state.opts.screenshot[:mode], failed?),
+        should_capture_upon_finish(state.opts.screenshot[:mode], failed?, state.opts.retry),
         path = attachment_path(state.opts.output_dir, failed?, ordinal),
         do: step("save a screenshot", fn -> save_screenshot(file, path) end)
   end

@@ -23,6 +23,8 @@
 #   * `rerun` - one failing and one passing test (writing a file of its own), `preserve_output:
 #     :failures_only`; with a further `failed` argument, only the failing one, as `mix test
 #     --failed` runs it (`only_test_ids`).
+#   * `retry_modes` - a test per retry mode (trace and video), failing on the first run (`retry`
+#     0) or always; with a further `failed` argument, only those, as `mix test --failed` runs them.
 
 # credo:disable-for-this-file Credo.Check.Warning.WrongTestFilename
 
@@ -48,7 +50,19 @@ Application.put_env(:playwright_ex, :test,
 
 max_failures = if mode == "max_failures", do: 1, else: :infinity
 # `mix test --failed`'s filter.
-only_test_ids = if Enum.at(System.argv(), 3) == "failed", do: MapSet.new([{RerunTest, :"test fails"}])
+only_test_ids =
+  if Enum.at(System.argv(), 3) == "failed" do
+    case mode do
+      "rerun" ->
+        MapSet.new([{RerunTest, :"test fails"}])
+
+      "retry_modes" ->
+        MapSet.new(
+          ["first retry", "all retries", "first failure", "failure and retries"],
+          &{RetryModesTest, :"test #{&1}"}
+        )
+    end
+  end
 
 ExUnit.start(
   autorun: false,
@@ -334,6 +348,37 @@ case mode do
         Page.set_content!(page, "<h1>Fails</h1>")
         flunk("on purpose")
       end
+    end
+
+  "retry_modes" ->
+    defmodule RetryModesTest do
+      use PlaywrightEx.Case, async: true
+
+      @moduletag screenshot: :off
+
+      # Fails on the first run only, passes under `--failed`.
+      defp flaky(page) do
+        Page.set_content!(page, "<h1>Retry #{PlaywrightEx.Test.info().retry}</h1>")
+        if PlaywrightEx.Test.info().retry == 0, do: flunk("first run")
+      end
+
+      @tag trace: :on_first_retry, video: :on_first_retry
+      test("first retry", %{page: page}, do: flaky(page))
+
+      @tag trace: :on_all_retries, video: :on_all_retries
+      test("all retries", %{page: page}, do: flaky(page))
+
+      @tag trace: :retain_on_first_failure, video: :retain_on_first_failure, screenshot: :on_first_failure
+      test "first failure", %{page: page} do
+        Page.set_content!(page, "<h1>Fails</h1>")
+        flunk("always")
+      end
+
+      @tag trace: :retain_on_failure_and_retries, video: :retain_on_failure_and_retries
+      test("failure and retries", %{page: page}, do: flaky(page))
+
+      @tag trace: :retain_on_failure_and_retries, video: :retain_on_failure_and_retries
+      test("failure and retries passing", %{page: page}, do: Page.set_content!(page, "<h1>Passes</h1>"))
     end
 
   "pool_start" ->

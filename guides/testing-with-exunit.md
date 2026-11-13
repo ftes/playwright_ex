@@ -368,24 +368,29 @@ full_page: true]`, `video: [mode: :on, size: %{width: 640, height: 480}, fps: 10
 config's value as a whole.
 
 Tracing slows every test. Playwright Test's answer is to trace only the retry of a failure
-(`on-first-retry`); with ExUnit, trace when asked:
+(`on-first-retry`). ExUnit has no retries in a run, but `mix test --failed` is one: under it a
+test is Playwright Test's retry (`PlaywrightEx.Test.info().retry` is 1, then 2 on the next
+`--failed`), and the retry modes go by it. So trace only the rerun:
 
 ```elixir
 # config/test.exs
-config :playwright_ex, :test, trace: if(System.get_env("TRACE"), do: :on, else: :off)
+config :playwright_ex, :test, trace: :on_first_retry
 ```
 
-and rerun the failures with tracing in CI, only on exit status 2 (tests failed; a crash or a
-missed `--cover` threshold isn't retried, and an empty `--failed` run would pass):
+and rerun the failures in CI, only on exit status 2 (tests failed; a crash or a missed
+`--cover` threshold isn't retried, and an empty `--failed` run would pass):
 
 ```sh
-mix test || { [ $? -eq 2 ] && TRACE=1 mix test --failed; }
+mix test || { [ $? -eq 2 ] && mix test --failed; }
 ```
 
+The other retry modes are Playwright Test's too: `:on_all_retries` traces every rerun,
+`:retain_on_first_failure` the first run's failures, `:retain_on_failure_and_retries` both;
+`video` takes them as well, and `screenshot` has `:on_first_failure`.
+
 Passing runs pay nothing for it, and the first run's files stay. A test's dir is emptied before
-it runs, so a test that passes now keeps no `error-context.md` of an earlier failure. Under
-`--failed` a test is Playwright Test's retry: it writes to `<dir>-retry1`, next to the first
-run's dir:
+it runs, so a test that passes now keeps no `error-context.md` of an earlier failure. A rerun
+writes to `<dir>-retry1`, next to the first run's dir:
 
 ```
 test-results/sign_up-signs-up-5d41a/error-context.md
@@ -398,7 +403,8 @@ run stay, where Playwright Test empties `test-results/` at the start of a run. F
 `PlaywrightEx.Test.attach("export", path: path)` (or `body:`) also shows one in the trace, as
 Playwright Test's `testInfo.attach`. Config `preserve_output` is Playwright Test's
 `preserveOutput`: `:failures_only` deletes a passing test's dir at its end, `:never` every
-test's. A flaky test that passes on the rerun leaves no trace; for those, `:retain_on_failure`.
+test's. A flaky test that passes on the rerun keeps that passing run's trace; for the failure's
+own too, `:retain_on_failure_and_retries`.
 
 The files are written in the test's `on_exit`, which ExUnit runs in reverse order of
 registration. An `on_exit` that reads them (to check a `trace.zip`, say) must therefore be
@@ -673,7 +679,7 @@ Playwright Test features ExUnit can't host, or that ExUnit and Elixir already co
 | runtime `test.skip(condition)` | ExUnit can't skip a running test, and its filters don't see `parameterize:` values | a tag known before the run (`@tag skip: ...`, `--exclude`), or an `if` around the body (reported as passed) |
 | `test.fixme`, `test.slow` | ExUnit has tags for both | `@tag :skip`, `@tag timeout: ...` |
 | `test.fail` | ExUnit has no expected-failure mode | none |
-| `retries`, retry modes (`on-first-retry`, ...) | ExUnit has no retries | `mix test --failed` (see "Traces, screenshots and videos") |
+| `retries` | ExUnit has no retries in a run | `mix test --failed` is the retry, and the retry modes (`trace: :on_first_retry`, ...) go by it (see "Traces, screenshots and videos") |
 | nested or duplicate-name `describe` | ExUnit's `describe` doesn't nest, and its names are unique in a module | a module per outer `describe` (its `beforeEach` a module `setup`); a `describe` repeated in a loop becomes one `describe` with the loop inside |
 | asymmetric matchers (`expect.objectContaining`, `expect.any(String)`, ...) | the jest matchers aren't ported | patterns: `assert %{"id" => id} = hd(list)`, then `assert is_binary(id)` |
 | `expect.configure({ timeout, soft })` | the options are the receiver's, not a configured `expect` | the matchers' `timeout:`, `Expect.soft/1` |

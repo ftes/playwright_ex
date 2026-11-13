@@ -45,10 +45,12 @@ defmodule PlaywrightEx.Test.Options do
     serviceWorkers: "allow"
   }
 
+  # Upstream's `TraceMode`, `ScreenshotMode`, `VideoMode` (`overrides-test.d.ts`).
+  @retry_modes [:on_first_retry, :on_all_retries, :retain_on_first_failure, :retain_on_failure_and_retries]
   @modes %{
-    trace: [:off, :on, :retain_on_failure],
-    screenshot: [:off, :on, :only_on_failure],
-    video: [:off, :on, :retain_on_failure]
+    trace: [:off, :on, :retain_on_failure | @retry_modes],
+    screenshot: [:off, :on, :only_on_failure, :on_first_failure],
+    video: [:off, :on, :retain_on_failure | @retry_modes]
   }
 
   # The keys of the object forms, upstream's (`packages/playwright/types/test.d.ts`).

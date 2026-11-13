@@ -296,14 +296,14 @@ no call site (the recording modes) are config plus ExUnit tags; the rest are arg
 | `test.use({ trace, screenshot, video })` | `@moduletag`/`@describetag`/`@tag` over config |
 | `testIdAttribute` (per test) | config `test_id_attribute`, set on each pooled driver: the client's value is global to the VM, not to a worker |
 | `--trace <mode>` | `TRACE` read in `config/test.exs` |
-| `test.info()` | `info/0` (`test_pid`, `file`, `test_name`, `output_dir`), raises outside a test |
+| `test.info()` | `info/0` (`test_pid`, `file`, `test_name`, `output_dir`, `retry`, `timeout`), raises outside a test |
 | `testInfo.status`, `errors`, `expectedStatus`, `duration` in teardown | `info(test_pid)` in `on_exit` (another process), kept until ExUnit's `on_exit` process exits |
 | `testInfo.outputDir` removed before the test, `-retryN`, `preserveOutput` | removed in the test's setup; a test under `mix test --failed` is a retry (the one after its `-retryN` dirs); a run without it removes the test's `-retryN` dirs, not all of `output_dir` (`createRemoveOutputDirsTask`), which `--failed` needs; config `preserve_output` |
 | `testInfo.outputPath`/`snapshotPath` | `output_path(name)` (one string, no segments), `snapshot_path(name, opts)` (a string or a list of segments) |
 | `test.step` | `step/2,3` (no timeout) |
 | `testInfo.attach` | `attach/2` (`test.attach` step, `trace.attachments`) |
 | list reporter's `npx playwright show-trace <path>` | a failure prints `mix playwright_ex.cli show-trace <path>` |
-| retry modes (`on-first-retry`, ...) | not supported, as the rest of the guide's [Not supported](../guides/testing-with-exunit.md#not-supported) |
+| `testInfo.retry`, retry modes (`on-first-retry`, ...) | ExUnit has no retries in a run: `mix test --failed` is the retry (`info/0`'s `retry`), and the modes (`:on_first_retry`, ...) go by it, as upstream's `_shouldCaptureTrace`, `shouldCaptureVideo` and `SnapshotRecorder` |
 
 Deviations the port requires:
 

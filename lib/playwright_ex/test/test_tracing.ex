@@ -39,8 +39,27 @@ defmodule PlaywrightEx.Test.TestTracing do
     %{trace_events: [context_created_event], did_finish_test_function_and_after_each_hooks: false, failed: nil}
   end
 
-  # _shouldCaptureTrace, startIfNeeded  -- ported as `Recorder`'s trace mode: `off`, `on` or
-  # `retain_on_failure` (no retries); a test without the recorder has no trace.
+  @doc """
+  `startIfNeeded`, at the test's registration: its trace options, with mode `:off` (upstream's
+  `this._options = undefined`) unless `_shouldCaptureTrace` for its `retry`. A test without
+  the recorder has no trace.
+  """
+  def start_if_needed([{:mode, mode} | options] = trace, retry) do
+    if should_capture_trace(mode, retry), do: trace, else: [{:mode, :off} | options]
+  end
+
+  # `_shouldCaptureTrace`.
+  defp should_capture_trace(mode, retry) do
+    cond do
+      mode == :on -> true
+      mode == :retain_on_failure -> true
+      mode == :on_first_retry and retry == 1 -> true
+      mode == :on_all_retries and retry > 0 -> true
+      mode == :retain_on_first_failure and retry == 0 -> true
+      mode == :retain_on_failure_and_retries -> true
+      true -> false
+    end
+  end
 
   @doc """
   `didFinishTestFunctionAndAfterEachHooks`, in the recorder's `finish`: after the test's other
@@ -56,20 +75,24 @@ defmodule PlaywrightEx.Test.TestTracing do
   end
 
   @doc """
-  `maybeGenerateNextTraceRecordingPath`, with the trace `mode`: the path of a context's chunk
-  under `tmp`, or `nil` for `Tracing.stopChunk` to discard it.
+  `maybeGenerateNextTraceRecordingPath`, with the trace `mode` and the test's `retry`: the path
+  of a context's chunk under `tmp`, or `nil` for `Tracing.stopChunk` to discard it.
   """
-  def maybe_generate_next_trace_recording_path(this, mode, tmp) do
+  def maybe_generate_next_trace_recording_path(this, mode, retry, tmp) do
     # Forget about traces that should be saved on failure, when no failure happened
     # during the test and beforeEach/afterEach hooks.
     # This avoids downloading traces over the wire when not really needed.
-    if this.did_finish_test_function_and_after_each_hooks and should_abandon_trace(mode, this.failed),
+    if this.did_finish_test_function_and_after_each_hooks and should_abandon_trace(mode, this.failed, retry),
       do: nil,
       else: generate_next_trace_recording_path(tmp)
   end
 
-  # `_shouldAbandonTrace`.
-  defp should_abandon_trace(mode, failed?), do: !failed? and mode == :retain_on_failure
+  # `_shouldAbandonTrace` (mode `:off` is upstream's `!this._options`, which `stopIfNeeded`
+  # returns on before).
+  defp should_abandon_trace(:retain_on_failure_and_retries, failed?, retry), do: !failed? and retry == 0
+
+  defp should_abandon_trace(mode, failed?, _retry),
+    do: !failed? and mode in [:retain_on_failure, :retain_on_first_failure]
 
   @doc """
   `stopIfNeeded`, in the recorder's `finish`: with the test's registration `test` (its `trace`
@@ -87,7 +110,7 @@ defmodule PlaywrightEx.Test.TestTracing do
       mode == :off ->
         nil
 
-      should_abandon_trace(mode, failed?) ->
+      should_abandon_trace(mode, failed?, test.retry) ->
         for file <- chunks, do: File.rm(file)
         nil
 

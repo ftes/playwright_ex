@@ -81,6 +81,50 @@ defmodule PlaywrightEx.Test.EndToEndTest do
     refute File.read!(Path.join([output_dir, dir, "trace.zip"])) == first
   end
 
+  test "retry modes: a test under --failed is a retry, its trace, video and screenshot by its mode",
+       %{tmp_dir: tmp_dir} do
+    output_dir = Path.join(tmp_dir, "test-results")
+
+    # The files of each test's dir of the run, `retry` its suffix.
+    run = fn args, retry ->
+      child = start("retry_modes", tmp_dir, args)
+      assert ChildProcess.exit_code(child, 60_000) == 0
+      suffix = if retry > 0, do: "-retry#{retry}", else: ""
+
+      for name <- ["first-retry", "all-retries", "first-failure", "failure-and-retries", "failure-and-retries-passing"],
+          into: %{} do
+        dir = Enum.find(File.ls!(output_dir), &(&1 =~ ~r/^support-test_runner_impl-#{name}-[0-9a-f]{5}#{suffix}$/))
+        {name, if(dir, do: output_dir |> Path.join(dir) |> File.ls!() |> Enum.sort())}
+      end
+    end
+
+    artifacts = ["trace.zip", "video.webm"]
+
+    assert run.([], 0) == %{
+             "first-retry" => ["error-context.md"],
+             "all-retries" => ["error-context.md"],
+             "first-failure" => ["error-context.md", "test-failed-1.png" | artifacts],
+             "failure-and-retries" => ["error-context.md" | artifacts],
+             "failure-and-retries-passing" => nil
+           }
+
+    assert run.(["failed"], 1) == %{
+             "first-retry" => artifacts,
+             "all-retries" => artifacts,
+             "first-failure" => ["error-context.md"],
+             "failure-and-retries" => artifacts,
+             "failure-and-retries-passing" => nil
+           }
+
+    assert run.(["failed"], 2) == %{
+             "first-retry" => nil,
+             "all-retries" => artifacts,
+             "first-failure" => ["error-context.md"],
+             "failure-and-retries" => artifacts,
+             "failure-and-retries-passing" => nil
+           }
+  end
+
   test "pooled drivers: one per options and scope, back idle at its end, stopped after a failure",
        %{tmp_dir: tmp_dir} do
     {output, report} = report(start("modules", tmp_dir))

@@ -123,6 +123,9 @@ defmodule PlaywrightEx.Test.RegistrationTest do
     dir = Path.expand(TestInfo.output_dir(%{module: __MODULE__, test: :"test #{info.test_name}", file: __ENV__.file}))
     # `-retryN` under `mix test --failed`.
     assert info.output_dir =~ ~r/^#{Regex.escape(dir)}(-retry\d+)?$/
+    # Upstream's `testInfo.retry`: 0 unless under `mix test --failed`.
+    assert info.retry == if(ExUnit.configuration()[:only_test_ids], do: info.retry, else: 0)
+    assert info.output_dir == if(info.retry > 0, do: "#{dir}-retry#{info.retry}", else: dir)
 
     assert Task.await(Task.async(&PlaywrightEx.Test.info/0)) == info
 

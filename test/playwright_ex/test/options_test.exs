@@ -13,8 +13,12 @@ defmodule PlaywrightEx.Test.OptionsTest do
     test "bad values raise" do
       assert_raise ArgumentError, ~r/invalid browser_name: :chrome/, fn -> Options.pool(browser_name: :chrome) end
 
-      assert_raise ArgumentError, ~r/invalid trace: :on_first_retry, expected one of/, fn ->
-        Options.artifacts(%{trace: :on_first_retry})
+      assert_raise ArgumentError, ~r/invalid trace: :retry_with_trace, expected one of/, fn ->
+        Options.artifacts(%{trace: :retry_with_trace})
+      end
+
+      assert_raise ArgumentError, ~r/invalid screenshot: :on_first_retry/, fn ->
+        Options.artifacts(%{screenshot: :on_first_retry})
       end
 
       assert_raise ArgumentError, ~r/invalid screenshot: :retain_on_failure/, fn ->
@@ -51,6 +55,13 @@ defmodule PlaywrightEx.Test.OptionsTest do
 
       assert %{trace: [mode: :on] ++ _, screenshot: [mode: :off], video: [mode: :retain_on_failure]} =
                Options.artifacts(%{trace: true, screenshot: false, video: :retain_on_failure})
+
+      # Upstream's retry modes.
+      for mode <- [:on_first_retry, :on_all_retries, :retain_on_first_failure, :retain_on_failure_and_retries] do
+        assert %{trace: [mode: ^mode] ++ _, video: [mode: ^mode]} = Options.artifacts(%{trace: mode, video: mode})
+      end
+
+      assert %{screenshot: [mode: :on_first_failure]} = Options.artifacts(%{screenshot: :on_first_failure})
     end
 
     test "artifact modes are their object forms' mode, with upstream's defaults" do
@@ -93,7 +104,7 @@ defmodule PlaywrightEx.Test.OptionsTest do
             {%{screenshot: [mode: :on, path: "x.png"]}, ~r/unknown screenshot options \[:path\]/},
             {%{trace: [sources: false]}, ~r/trace options need :mode/},
             {%{video: %{size: %{width: 320, height: 240}}}, ~r/video options need :mode/},
-            {%{trace: [mode: :on_first_retry]}, ~r/invalid trace: :on_first_retry, expected one of/},
+            {%{trace: [mode: :retry_with_trace]}, ~r/invalid trace: :retry_with_trace, expected one of/},
             {%{trace: [mode: :on, snapshots: 1]}, ~r/invalid trace snapshots: 1/},
             {%{trace: [mode: :on, snapshots: %{dom: true, network: true}]}, ~r/invalid trace snapshots: %{/},
             {%{trace: [mode: :on, sources: nil]}, ~r/invalid trace sources: nil/},
