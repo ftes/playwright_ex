@@ -17,6 +17,7 @@ defmodule PlaywrightEx.Test.Pool do
   #     linked ones, waits for it.
   #   * `scopes`: `%{scope => %{runner, failed?}}` of the scopes that hold seats: `runner` is a
   #     `setup_all` scope's ExUnit runner (whose tests' results are the scope's), else `nil`.
+  #   * `workers`: `{env, workers}`, config `workers` and the config it was read from.
   #   * `waiting`: callers whose scope holds no seat while `workers` are held, monitored, first come
   #     first served. A waiter that exits, or whose scope was released, is dropped.
   #
@@ -114,11 +115,12 @@ defmodule PlaywrightEx.Test.Pool do
     if Code.ensure_loaded?(ExUnit) and is_list(Application.get_env(:ex_unit, :after_suite)),
       do: ExUnit.after_suite(&__MODULE__.after_suite/1)
 
-    {:ok, %{seats: %{}, scopes: %{}, waiting: [], results: results}}
+    {:ok, %{seats: %{}, scopes: %{}, waiting: [], results: results, workers: nil}}
   end
 
   @impl true
   def handle_call({:lease, key, {kind, pid}, parent}, {caller, _} = from, state) do
+    state = workers(state)
     scope = scope(state, pid, parent)
     runner = if scope == pid and kind == :process, do: parent
     request = %{key: key, scope: scope, runner: runner, from: from}
@@ -133,7 +135,7 @@ defmodule PlaywrightEx.Test.Pool do
     end
   end
 
-  def handle_call({:release, scope}, _from, state), do: {:reply, :ok, release(state, scope)}
+  def handle_call({:release, scope}, _from, state), do: {:reply, :ok, release(workers(state), scope)}
 
   def handle_call(:started, _from, state), do: {:reply, :ok, state}
 
@@ -174,7 +176,7 @@ defmodule PlaywrightEx.Test.Pool do
           end)
 
         state = %{state | results: results, scopes: scopes}
-        {:noreply, Enum.reduce(test_pids, state, &release(&2, &1))}
+        {:noreply, Enum.reduce(test_pids, workers(state), &release(&2, &1))}
 
       {_ended, results} ->
         {:noreply, %{state | results: results}}
@@ -185,7 +187,7 @@ defmodule PlaywrightEx.Test.Pool do
   def handle_info({:EXIT, pid, _reason}, state) do
     case Map.pop(state.seats, pid) do
       {nil, _seats} -> {:noreply, state}
-      {_seat, seats} -> {:noreply, serve_waiting(%{state | seats: seats})}
+      {_seat, seats} -> {:noreply, serve_waiting(workers(%{state | seats: seats}))}
     end
   end
 
@@ -247,7 +249,7 @@ defmodule PlaywrightEx.Test.Pool do
   end
 
   defp claim(state, request, over?) do
-    workers = Options.workers()
+    {_env, workers} = state.workers
     idle = for {_pid, %{scope: nil}} = seat <- state.seats, do: seat
 
     cond do
@@ -274,6 +276,16 @@ defmodule PlaywrightEx.Test.Pool do
     %{state | seats: seats, scopes: scopes}
   end
 
+  # `workers` of the config, validated when the config changed (a test may put it): `{env, workers}`.
+  defp workers(state) do
+    env = Application.get_env(:playwright_ex, :test)
+
+    case state.workers do
+      {^env, _workers} -> state
+      _ -> %{state | workers: {env, Options.workers()}}
+    end
+  end
+
   # Reset seats first (their drivers stopped already), then the longest idle.
   defp restart_order({_pid, seat}), do: {seat.key != nil, seat.used}
 
@@ -282,7 +294,8 @@ defmodule PlaywrightEx.Test.Pool do
   # Idle seats over `workers` (taken over it by a scope, or `workers` lowered) are stopped.
   defp trim(state) do
     idle = for {_pid, %{scope: nil}} = seat <- state.seats, do: seat
-    excess = min(map_size(state.seats) - Options.workers(), length(idle))
+    {_env, workers} = state.workers
+    excess = min(map_size(state.seats) - workers, length(idle))
 
     if excess > 0 do
       trimmed = idle |> Enum.sort_by(&restart_order/1) |> Enum.take(excess) |> Enum.map(&elem(&1, 0))

@@ -57,6 +57,13 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
 
   defp passed, do: &{:passed, &1}
 
+  # A fake test that leases a browser of `opts` and passes.
+  defp finish_leased(opts) do
+    t = fake_test()
+    lease(t, opts)
+    finish(t, [passed()], :shutdown)
+  end
+
   def on_start(playwright, test_pid) do
     send(test_pid, {:on_start, playwright})
     :ok
@@ -245,6 +252,24 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
       put_workers(2)
 
       on_exit(fn -> Application.put_env(:playwright_ex, :test, config) end)
+    end
+
+    test "read once per config, not on each lease and release" do
+      opts = opts()
+      # `call_count` counts the calls of the processes with the `call` flag: the pool's.
+      :erlang.trace(Process.whereis(Pool), true, [:call, tracer: self()])
+      :erlang.trace_pattern({Options, :workers, 0}, true, [:call_count])
+
+      try do
+        for _ <- 1..3, do: finish_leased(opts)
+        assert {:call_count, 1} = :erlang.trace_info({Options, :workers, 0}, :call_count)
+        put_workers(1)
+        finish_leased(opts)
+        assert {:call_count, 2} = :erlang.trace_info({Options, :workers, 0}, :call_count)
+      after
+        :erlang.trace_pattern({Options, :workers, 0}, false, [:call_count])
+        :erlang.trace(Process.whereis(Pool), false, [:call])
+      end
     end
 
     test "at most workers drivers at once, waiters first come first served; a passing scope's goes back warm, a failed one's stops" do
