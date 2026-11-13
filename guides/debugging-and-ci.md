@@ -100,16 +100,9 @@ The driver's own logs go to stderr with `DEBUG=pw:api` in its environment:
 
 ## GitHub Actions
 
-Install the browsers with their system packages (`--with-deps` runs `apt-get`), and cache the
-driver and the browsers. Both are versioned by `playwright_ex` in `mix.lock`:
+Install the browsers with their system packages (`--with-deps` runs `apt-get`):
 
 ```yaml
-- uses: actions/cache@v6
-  with:
-    path: |
-      ~/.cache/playwright_ex
-      ~/.cache/ms-playwright
-    key: playwright-${{ runner.os }}-${{ hashFiles('mix.lock') }}
 - run: mix playwright_ex.install -- chromium --with-deps
 - run: mix test
 - uses: actions/upload-artifact@v7
@@ -119,9 +112,43 @@ driver and the browsers. Both are versioned by `playwright_ex` in `mix.lock`:
     path: tmp/test-results
 ```
 
-With a cache hit, only the system packages are installed. If the runner's apt mirror
-stalls, this repository's [workflow](https://github.com/ftes/playwright_ex/blob/main/.github/workflows/elixir.yml)
-retries and caches the `.deb` files.
+As upstream advises, don't cache the browsers: restoring takes about as long as downloading,
+and the system packages can't be cached. To cache them anyway, cache `~/.cache/playwright_ex`
+and `~/.cache/ms-playwright` against `hashFiles('mix.lock')`, which pins the driver version. If
+the runner's apt mirror stalls, this repository's
+[workflow](https://github.com/ftes/playwright_ex/blob/main/.github/workflows/elixir.yml) retries
+and caches the `.deb` files.
+
+### In Playwright's image
+
+Or run the job in Playwright's image, which has every browser (at `PLAYWRIGHT_BROWSERS_PATH`)
+and its system packages, so only the driver is installed. The image's version must match the
+driver's (`PlaywrightEx.Driver.version/0`). `erlef/setup-beam` needs `unzip`, `ImageOS` and
+`HOME` there. It pays off with WebKit or many browser jobs. The image is about 2 GB, pulled per
+job on hosted runners, and it is Ubuntu 24.04: a `_build` (with NIFs) or a cached OTP from a job
+on `ubuntu-latest` may not run in it, so build in the image too. Services are reached by name,
+not `localhost`.
+
+```yaml
+runs-on: ubuntu-24.04
+container:
+  image: mcr.microsoft.com/playwright:v1.65.0-noble
+env:
+  ImageOS: ubuntu22
+  HOME: /root
+steps:
+  - uses: actions/checkout@v6
+  - run: apt-get update && apt-get -y install unzip
+  - uses: erlef/setup-beam@v1
+    with:
+      elixir-version: "1.20"
+      otp-version: "29"
+  - run: mix deps.get
+  - run: mix playwright_ex.install --no-browsers
+  - run: mix test
+```
+
+### Annotations
 
 `PlaywrightEx.Test.GitHubFormatter` is Playwright Test's `github` reporter: annotations for the
 failed tests (at their line), failed `setup_all`s and slow files, and a summary. It prints
@@ -151,8 +178,9 @@ CMD ["mix", "test"]
 
 ## Remote browsers
 
-Or run the browsers in Playwright's own image and connect to them. The image's version must
-match the driver's (`PlaywrightEx.Driver.version/0`):
+When the tests can't run in Playwright's image (local development on macOS, or an app's own
+image), run only the browsers there and connect to them. The image's version must match the
+driver's (`PlaywrightEx.Driver.version/0`):
 
 ```sh
 docker run -p 3000:3000 --rm --init -it mcr.microsoft.com/playwright:v1.65.0-noble \
