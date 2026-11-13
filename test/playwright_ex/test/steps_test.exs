@@ -14,6 +14,7 @@ defmodule PlaywrightEx.Test.StepsTest do
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Route
+  alias PlaywrightEx.Runtime.ProcessOwner
   alias PlaywrightEx.Runtime.Promise
   alias PlaywrightEx.Test
   alias PlaywrightEx.Test.BrowserPool
@@ -376,6 +377,70 @@ defmodule PlaywrightEx.Test.StepsTest do
              Promise.await(Promise.async(fn -> Page.title!(page) end))
            end) ==
              ""
+  end
+
+  test "a call that exits or throws ends its step, also when another process of it reported it" do
+    on_trace(fn events, _files ->
+      for title <- ["Evaluate", "Get page title"],
+          do: assert(%{"endTime" => _, "error" => %{"message" => ""}} = after_of(events, before(events, title)))
+    end)
+
+    page = new_page()
+
+    for {kind, report} <- [
+          throw: &Page.evaluate!(&1, "1"),
+          exit: &Promise.await(Promise.async(fn -> Page.title!(&1) end))
+        ] do
+      me = self()
+
+      assert {^kind, :done} =
+               catch_kind(fn ->
+                 ChannelOwner._wrap_api_call(page, fn api_zone ->
+                   send(me, {:cell, api_zone._reportedCell})
+                   report.(page)
+                   if kind == :throw, do: throw(:done), else: exit(:done)
+                 end)
+               end)
+
+      assert_received {:cell, cell}
+      assert Process.get({ChannelOwner, cell}) == nil
+      assert :ets.lookup(ProcessOwner.zones(), {self(), cell}) == []
+    end
+  end
+
+  test "the zone fields another process assigned go when the call's process is killed" do
+    page = new_page()
+    me = self()
+
+    owner =
+      spawn(fn ->
+        Process.put(:"$callers", [me])
+
+        ChannelOwner._wrap_api_call(page, fn api_zone ->
+          Promise.await(Promise.async(fn -> Page.title!(page) end))
+          send(me, {:cell, api_zone._reportedCell})
+          Process.sleep(:infinity)
+        end)
+      end)
+
+    assert_receive {:cell, cell}
+    assert [_] = :ets.lookup(ProcessOwner.zones(), {owner, cell})
+    Process.exit(owner, :kill)
+    wait_until(fn -> :ets.lookup(ProcessOwner.zones(), {owner, cell}) == [] end)
+  end
+
+  defp catch_kind(fun) do
+    fun.()
+  catch
+    kind, reason -> {kind, reason}
+  end
+
+  defp wait_until(fun, attempts \\ 100) do
+    cond do
+      fun.() -> :ok
+      attempts == 0 -> flunk("timed out waiting")
+      true -> Process.sleep(20) && wait_until(fun, attempts - 1)
+    end
   end
 
   @tag screenshot: :on

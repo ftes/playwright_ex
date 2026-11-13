@@ -519,6 +519,17 @@ defmodule PlaywrightEx.Client.ChannelOwner do
           end
 
           reraise e, __STACKTRACE__
+      catch
+        # Elixir only: an exit or throw, as JS's `catch` gets any thrown value: `error` is
+        # `{kind, reason}`.
+        kind, reason ->
+          if !options[:internal] do
+            api_zone = Map.put(_assigned(api_zone), :error, {kind, reason})
+            log_api_call(logger, "<= #{api_zone.apiName} failed")
+            ClientInstrumentation.on_api_call_end(instrumentation, api_zone)
+          end
+
+          :erlang.raise(kind, reason, __STACKTRACE__)
       end
     end
   end
@@ -536,9 +547,11 @@ defmodule PlaywrightEx.Client.ChannelOwner do
   # JS, where the call's message and `onApiCallEnd` read it. Here it goes into the calling
   # process's copy of the zone, and for `_wrapApiCall`'s `onApiCallEnd` (`_assigned/1`) into the
   # zone's process dictionary, or into the `PlaywrightEx.Runtime.ProcessOwner.zones/0` table
-  # when another process reported the call (`_report/1`). The `_reportedCell`'s second slot is 1
-  # once it is in the table, 2 once the call ended: a call reported after it ended (not awaited)
-  # drops it, as JS's `onApiCallEnd` came first.
+  # when another process reported the call (`_report/1`), keyed `{zone's pid, cell}`. The
+  # `_reportedCell`'s second slot is 1 once it is in the table, 2 once the call ended: a call
+  # reported after it ended (not awaited) drops it, as JS's `onApiCallEnd` came first. The table
+  # drops the rows of a zone's process that exits before its call ends (killed): its call never
+  # ends, as a JS call that never settles, whose step stays open.
   def _assign(api_zone, nil), do: api_zone
 
   def _assign(api_zone, assigned) do
@@ -548,9 +561,10 @@ defmodule PlaywrightEx.Client.ChannelOwner do
       %{_reportedCell: cell, _pid: pid} when pid == self() ->
         Process.put({__MODULE__, cell}, assigned)
 
-      %{_reportedCell: cell, _pid: _pid} ->
-        :ets.insert(ProcessOwner.zones(), {cell, assigned})
-        if :atomics.compare_exchange(cell, 2, 0, 1) != :ok, do: :ets.delete(ProcessOwner.zones(), cell)
+      %{_reportedCell: cell, _pid: pid} ->
+        :ets.insert(ProcessOwner.zones(), {{pid, cell}, assigned})
+        ProcessOwner.monitor_zones(pid)
+        if :atomics.compare_exchange(cell, 2, 0, 1) != :ok, do: :ets.delete(ProcessOwner.zones(), {pid, cell})
 
       _api_zone ->
         nil
@@ -565,7 +579,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
 
     case Process.delete({__MODULE__, cell}) do
       nil when in_table? ->
-        case :ets.take(ProcessOwner.zones(), cell) do
+        case :ets.take(ProcessOwner.zones(), {self(), cell}) do
           [{_cell, assigned}] -> Map.merge(api_zone, assigned)
           [] -> api_zone
         end

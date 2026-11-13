@@ -168,8 +168,13 @@ defmodule PlaywrightEx.Test.Recorder do
     if complete_step = data.userData, do: complete_step.(data[:error])
   end
 
-  # `step.complete({ error })`: `error` the call's exception, or `nil`.
+  # `step.complete({ error })`: `error` the call's exception, `{kind, reason}` of an exit or throw
+  # (JS's thrown non-Error), or `nil`.
   defp complete(step, nil), do: TestInfo.step_complete(step, %{})
+
+  defp complete(step, {kind, reason}) when kind in [:exit, :throw],
+    do: TestInfo.step_complete(step, %{error: {kind, reason, []}})
+
   defp complete(step, error), do: TestInfo.step_complete(step, %{error: {:error, error, []}})
 
   # `tracingGroupSteps`, newest first: a row of the test (`PlaywrightEx.Test.TestInfo`), as a
