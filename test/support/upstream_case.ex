@@ -4,8 +4,7 @@ defmodule PlaywrightEx.UpstreamCase do
 
   Fixtures, as upstream's `tests/config/{baseTest,serverFixtures,browserTest}.ts` provide them.
   Upstream's worker-scoped fixtures are a worker's (`PlaywrightEx.TestWorkers`): the module has it
-  to itself while it runs, and the next module gets it after (a fresh one after a failure).
-  `@moduletag :own_worker` gives a module a driver and browser of its own instead:
+  to itself while it runs, and the next module gets it after (a fresh one after a failure):
 
     * `playwright`, `browser_name` (`BROWSER` env, default `"chromium"`), `headless` (`HEADED`
       env, see `PlaywrightEx.TestBrowser.headless/0`), `browser_type`, `browser` (the worker's,
@@ -280,21 +279,10 @@ defmodule PlaywrightEx.UpstreamCase do
     if reason, do: Module.put_attribute(module, :tag, skip: "not ported: " <> reason)
   end
 
-  setup_all %{module: module} = tags do
+  setup_all %{module: module} do
     # Upstream runs its tests with the driver "under test" (`window.builtins`, ...). A worker's
-    # (`PlaywrightEx.TestWorkers`), unless the module is tagged `:own_worker`.
-    {playwright, browser} =
-      if tags[:own_worker] do
-        start_supervised!({PlaywrightEx.Supervisor, name: module, env: [{"PWTEST_UNDER_TEST", "1"}]})
-        playwright = PlaywrightEx.playwright(module)
-        artifacts_dir = artifacts_dir()
-        on_exit(fn -> File.rm_rf(artifacts_dir) end)
-        setup_playwright(playwright, artifacts_dir)
-        {playwright, BrowserType.launch!(TestBrowser.browser_type(playwright))}
-      else
-        %{playwright: playwright, browser: browser} = PlaywrightEx.TestWorkers.checkout(:upstream, module)
-        {playwright, browser}
-      end
+    # (`PlaywrightEx.TestWorkers`).
+    %{playwright: playwright, browser: browser} = PlaywrightEx.TestWorkers.checkout(:upstream, module)
 
     browser_name = TestBrowser.name()
     browser_type = TestBrowser.browser_type(playwright)
