@@ -375,18 +375,30 @@ Tracing slows every test. Playwright Test's answer is to trace only the retry of
 config :playwright_ex, :test, trace: if(System.get_env("TRACE"), do: :on, else: :off)
 ```
 
-and rerun the failures with tracing in CI:
+and rerun the failures with tracing in CI, only on exit status 2 (tests failed; a crash or a
+missed `--cover` threshold isn't retried, and an empty `--failed` run would pass):
 
 ```sh
-mix test || TRACE=1 mix test --failed
+mix test || { [ $? -eq 2 ] && TRACE=1 mix test --failed; }
 ```
 
-Passing runs pay nothing for it, and the first run's files stay: nothing is deleted at the start
-of a run, so delete `test-results/` yourself. Files of your own go in the test's dir with
+Passing runs pay nothing for it, and the first run's files stay. A test's dir is emptied before
+it runs, so a test that passes now keeps no `error-context.md` of an earlier failure. Under
+`--failed` a test is Playwright Test's retry: it writes to `<dir>-retry1`, next to the first
+run's dir:
+
+```
+test-results/sign_up-signs-up-5d41a/error-context.md
+test-results/sign_up-signs-up-5d41a-retry1/trace.zip
+```
+
+A run without `--failed` deletes the test's `-retryN` dirs too. The dirs of tests that don't
+run stay, where Playwright Test empties `test-results/` at the start of a run. Files of your own go in the test's dir with
 `PlaywrightEx.Test.output_path("export.csv")`; they stay when the test passes.
 `PlaywrightEx.Test.attach("export", path: path)` (or `body:`) also shows one in the trace, as
-Playwright Test's `testInfo.attach`. A flaky test that
-passes on the rerun leaves no trace; for those, `:retain_on_failure`.
+Playwright Test's `testInfo.attach`. Config `preserve_output` is Playwright Test's
+`preserveOutput`: `:failures_only` deletes a passing test's dir at its end, `:never` every
+test's. A flaky test that passes on the rerun leaves no trace; for those, `:retain_on_failure`.
 
 The files are written in the test's `on_exit`, which ExUnit runs in reverse order of
 registration. An `on_exit` that reads them (to check a `trace.zip`, say) must therefore be

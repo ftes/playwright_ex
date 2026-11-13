@@ -273,8 +273,10 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.ArtifactsTest do
       System.delete_env("TRACE")
       Application.put_env(:playwright_ex, :test, config)
       dir = TestInfo.output_dir(%{module: __MODULE__, test: :"test signs up", file: __ENV__.file})
-      assert File.exists?(Path.join(dir, "trace.zip"))
-      File.rm_rf!(dir)
+      # With its `-retryN` dirs under `mix test --failed`.
+      dirs = [dir | Path.wildcard(dir <> "-retry*")]
+      assert Enum.any?(dirs, &File.exists?(Path.join(&1, "trace.zip")))
+      Enum.each(dirs, &File.rm_rf!/1)
     end)
   end
 

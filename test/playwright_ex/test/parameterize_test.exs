@@ -23,6 +23,8 @@ defmodule PlaywrightEx.Test.ParameterizeTest do
     for other <- others, do: refute(TestInfo.output_dir(other) == dir)
 
     on_exit(fn ->
+      # With its `-retryN` suffix under `mix test --failed`.
+      dir = PlaywrightEx.Test.info(ctx.test_pid).output_dir
       assert File.ls!(dir) == ["trace.zip"]
       trace = PlaywrightEx.Utils.parse_trace_raw(Path.join(dir, "trace.zip"), ctx.browser)
       text = JSON.encode!(trace.events)

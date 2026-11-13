@@ -103,10 +103,18 @@ defmodule PlaywrightEx.Test do
 
   The `*_on_failure` modes record every test and keep the files of failed ones, as upstream
   (files you write to `output_path/1` stay). A failing artifact step is logged; the test's
-  result stands. Nothing is deleted at the start of a run, so `mix test || TRACE=1 mix test
-  --failed` (with `trace: :on` under `TRACE`) keeps the first run's files. Delete `output_dir`
-  yourself. Playwright Test's retry modes (`on-first-retry`, ...) are not supported: ExUnit has
-  no retries.
+  result stands.
+
+  A test's dir is deleted before it runs, as upstream's, so no file of an earlier run is left
+  in it. ExUnit has no retries: a test under `mix test --failed` is upstream's retry, and writes
+  to `<dir>-retry1` (`-retry2` on the next `--failed`, ...), next to the dirs of its earlier
+  runs, so `mix test || { [ $? -eq 2 ] && TRACE=1 mix test --failed; }` (with `trace: :on`
+  under `TRACE`; exit status 2 means tests failed, anything else isn't retried) keeps the first
+  run's files. A run without `--failed` deletes the test's `-retryN` dirs too, where
+  upstream deletes all of `output_dir` at the start of a run: here the dirs of tests that didn't
+  run stay. Config `preserve_output` is upstream's `preserveOutput`: `:always` (default) keeps
+  the files at the end of each test, `:failures_only` only a failed test's, `:never` none.
+  Playwright Test's retry modes (`on-first-retry`, ...) are not supported.
 
   ## Context defaults
 
@@ -193,6 +201,7 @@ defmodule PlaywrightEx.Test do
         screenshot: :off,             # :off | :on | :only_on_failure, or [mode: _, ...]
         video: :off,                  # :off | :on | :retain_on_failure, or [mode: _, size: _]
         output_dir: "test-results",
+        preserve_output: :always,     # :always | :failures_only | :never, see Artifacts
         snapshot_dir: nil,            # upstream's testDir: test/
         snapshot_path_template: nil,  # upstream's defaults, see Snapshots
         test_id_attribute: "data-testid"
@@ -433,9 +442,11 @@ defmodule PlaywrightEx.Test do
         deadline: if(is_integer(timeout), do: System.monotonic_time(:millisecond) + timeout),
         context_options: Options.context_options(),
         timeouts: Options.timeouts(),
+        preserve_output: Options.preserve_output(),
         tmp: Path.join(System.tmp_dir!(), "playwright_ex-test-#{System.unique_integer([:positive])}")
       })
 
+    TestInfo.remove_output_dirs(test)
     # The failure of a marked test that raised nothing in its body.
     failure = if context[:not_implemented], do: "Not implemented", else: Results.outside()
     Results.watch(test.test_pid, marked? && failure)
@@ -480,6 +491,10 @@ defmodule PlaywrightEx.Test do
         IO.puts(
           "\nTrace of #{inspect(test.test_name)}: mix playwright_ex.cli show-trace #{Path.relative_to_cwd(trace)}"
         )
+
+    # workerMain.ts's `preserveOutput`, by the result the artifacts went by (a doctest's is a failure).
+    preserve? = test.preserve_output == :always or (test.preserve_output == :failures_only and verdict != :passed)
+    if !preserve?, do: File.rm_rf(test.output_dir)
   rescue
     exception -> Logger.warning("PlaywrightEx.Test could not finish the test: " <> Exception.message(exception))
   after
@@ -490,7 +505,8 @@ defmodule PlaywrightEx.Test do
   @doc """
   The running test of the calling process or a process in its `$callers` (a `Task`), as
   upstream's `test.info()`: `test_pid`, `file` (absolute), `test_name` (without the macro's
-  `test ` prefix), `output_dir` (absolute, see "Artifacts" in the moduledoc) and `timeout`
+  `test ` prefix), `output_dir` (absolute, with its `-retryN` suffix under `mix test --failed`,
+  see "Artifacts" in the moduledoc) and `timeout`
   (upstream's `testInfo.timeout`: ExUnit's timeout of the test in ms, the `@tag timeout:` or
   `mix test --timeout`, `:infinity` for none, as under `mix test --trace`), from the test's
   setup to the end of its body. Raises outside a test, and in `on_exit` callbacks (ExUnit runs
@@ -597,7 +613,7 @@ defmodule PlaywrightEx.Test do
   @doc """
   The path of `name` in the test's output dir (see "Artifacts" in the moduledoc), as upstream's
   `testInfo.outputPath`: creates the dir, and raises for a `name` outside it. Files written
-  there stay when the test passes.
+  there stay when the test passes, under the default `preserve_output`.
   """
   @spec output_path(String.t()) :: Path.t()
   def output_path(name) when is_binary(name) do

@@ -243,6 +243,7 @@ defmodule PlaywrightEx.Test.ConfigTest do
     assert Options.context_options() == Options.context_defaults()
     assert Options.timeouts() == %{action_timeout: :infinity, navigation_timeout: :infinity}
     assert Options.output_dir() == "test-results"
+    assert Options.preserve_output() == :always
     assert Options.workers() == max(div(System.schedulers_online(), 2), 1)
     assert Options.test_id_attribute() == "data-testid"
     Application.put_env(:playwright_ex, :test, config)
@@ -270,6 +271,7 @@ defmodule PlaywrightEx.Test.ConfigTest do
              action_timeout: :infinity,
              navigation_timeout: :infinity,
              output_dir: "test-results",
+             preserve_output: :always,
              workers: max(div(System.schedulers_online(), 2), 1),
              snapshot_dir: nil,
              snapshot_path_template: nil,
@@ -302,6 +304,9 @@ defmodule PlaywrightEx.Test.ConfigTest do
 
     Application.put_env(:playwright_ex, :test, config ++ [test_id_attribute: ""])
     assert_raise ArgumentError, ~r/invalid test_id_attribute: ""/, fn -> Options.test_id_attribute() end
+
+    Application.put_env(:playwright_ex, :test, config ++ [preserve_output: :on_failure])
+    assert_raise ArgumentError, ~r/invalid preserve_output: :on_failure/, fn -> Options.preserve_output() end
 
     Application.put_env(:playwright_ex, :test, config ++ [trace: :sometimes])
     assert_raise ArgumentError, ~r/invalid trace: :sometimes/, fn -> Options.artifacts(%{}) end

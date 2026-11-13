@@ -32,7 +32,9 @@ those of the release candidates below. From an earlier release, also read the se
   `request`s and the test's request contexts, which are disposed at its end), screenshots and
   videos (with `fps` and `show`, the test's title and steps over each page), with Playwright
   Test's modes and their options, from config and tags (`@tag trace: :on`), kept for failures,
-  plus Playwright Test's `error-context.md` of each failed test and a `show-trace` hint. As in
+  plus Playwright Test's `error-context.md` of each failed test and a `show-trace` hint. Each
+  test's output dir is emptied before it runs, a test under `mix test --failed` writes to
+  Playwright Test's `-retryN` dirs, and `preserve_output` is `preserveOutput`. As in
   Playwright Test, the recording's tracing, screenshots and page snapshots are internal calls,
   and a matcher's step and its driver call share one `callId`. `info/0` and `output_path/1`
   are Playwright Test's `test.info()` (with `testInfo.timeout`) and `testInfo.outputPath`;

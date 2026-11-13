@@ -74,4 +74,71 @@ defmodule PlaywrightEx.Test.TestInfoTest do
       assert TestInfo.sanitize_for_file_path("a_b.c/d e:f-ü") == "a-b-c-d-e-f-ü"
     end
   end
+
+  describe "retries" do
+    @describetag :tmp_dir
+
+    # The dirs of a test `pays-1a2b3`, and of others: none ends in `-retryN` after its hash.
+    defp dirs(tmp_dir, names) do
+      for name <- names, do: File.mkdir_p!(Path.join([tmp_dir, name, "x"]))
+      Path.join(tmp_dir, "pays-1a2b3")
+    end
+
+    defp ls(tmp_dir), do: tmp_dir |> File.ls!() |> Enum.sort()
+
+    test "a test under --failed (only_test_ids) is the retry after its -retryN dirs; else 0", %{tmp_dir: tmp_dir} do
+      dir = dirs(tmp_dir, [])
+      assert TestInfo.retry(dir, MapSet.new()) == 1
+      assert TestInfo.retry(dir, nil) == 0
+
+      dirs(tmp_dir, ["pays-1a2b3", "pays-1a2b3-retry1", "pays-1a2b3-retry3", "pays-1a2b3-retry0", "pays-1a2b3-retryx"])
+      assert TestInfo.retry(dir, MapSet.new()) == 4
+      assert TestInfo.retry(dir, nil) == 0
+      assert TestInfo.retry(Path.join([tmp_dir, "missing", "pays-1a2b3"]), MapSet.new()) == 1
+    end
+
+    test "a first run removes the test's dir and its -retryN dirs, a retry only its own", %{tmp_dir: tmp_dir} do
+      others = ["pays-1a2b3-retryx", "pays-4d5e6", "pays-4d5e6-retry1"]
+      dir = dirs(tmp_dir, ["pays-1a2b3", "pays-1a2b3-retry1", "pays-1a2b3-retry2" | others])
+
+      assert TestInfo.remove_output_dirs(%{output_dir: dir <> "-retry2", retry: 2}) == :ok
+      assert ls(tmp_dir) == Enum.sort(["pays-1a2b3", "pays-1a2b3-retry1" | others])
+
+      assert TestInfo.remove_output_dirs(%{output_dir: dir, retry: 0}) == :ok
+      assert ls(tmp_dir) == Enum.sort(others)
+    end
+  end
+end
+
+defmodule PlaywrightEx.Test.TestInfoTest.RemoveOutputDirTest do
+  # A test's dir and its `-retryN` dirs of an earlier run, removed before it runs (or, under
+  # `mix test --failed`, its next `-retryN` dir written).
+  use ExUnit.Case, async: true
+  use PlaywrightEx.Test
+
+  alias PlaywrightEx.Test.TestInfo
+
+  setup_all do
+    dir =
+      TestInfo.output_dir(%{module: __MODULE__, test: :"test runs with no files of an earlier run", file: __ENV__.file})
+
+    for dir <- [dir, dir <> "-retry1"] do
+      File.mkdir_p!(dir)
+      File.write!(Path.join(dir, "error-context.md"), "")
+    end
+
+    on_exit(fn -> for dir <- [dir, dir <> "-retry1", dir <> "-retry2"], do: File.rm_rf!(dir) end)
+    %{dir: Path.expand(dir)}
+  end
+
+  test "runs with no files of an earlier run", %{dir: dir} do
+    if ExUnit.configuration()[:only_test_ids] do
+      assert PlaywrightEx.Test.info().output_dir == dir <> "-retry2"
+      assert File.exists?(Path.join(dir, "error-context.md"))
+    else
+      assert PlaywrightEx.Test.info().output_dir == dir
+      refute File.exists?(dir)
+      refute File.exists?(dir <> "-retry1")
+    end
+  end
 end

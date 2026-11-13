@@ -4,7 +4,7 @@ defmodule PlaywrightEx.Test.EndToEndTest do
   # VM (`after_suite`), each scope's seats go back idle at its end (their drivers stopped
   # after a failure), also when `max_failures` stops the run, a test fails with the
   # snapshots its matchers wrote and with its soft matchers' failures, and a failing step's error
-  # as ExUnit reports it and in the trace.
+  # as ExUnit reports it and in the trace, and a rerun under `--failed` writes a `-retry1` dir.
   use ExUnit.Case, async: true
 
   alias PlaywrightEx.RemoteServer.ChildProcess
@@ -53,6 +53,32 @@ defmodule PlaywrightEx.Test.EndToEndTest do
     assert error_context =~ "ExUnit.AssertionError: on purpose"
     assert error_context =~ ~s(heading "Fails")
     assert error_context =~ ~r/^> \d+ +\| +flunk\("on purpose"\)$/m
+  end
+
+  test "a rerun under --failed writes -retry1 next to the first run's dir, a run without it removes both",
+       %{tmp_dir: tmp_dir} do
+    output_dir = Path.join(tmp_dir, "test-results")
+    files = ["error-context.md", "test-failed-1.png", "trace.zip"]
+
+    run = fn args ->
+      child = start("rerun", tmp_dir, args)
+      assert ChildProcess.exit_code(child, 60_000) == 0
+      output_dir |> File.ls!() |> Enum.sort()
+    end
+
+    # `preserve_output: :failures_only`: the passing test's file is gone with its dir.
+    assert [dir] = run.([])
+    assert dir =~ ~r/^support-test_runner_impl-fails-[0-9a-f]{5}$/
+    assert Enum.sort(File.ls!(Path.join(output_dir, dir))) == files
+    first = File.read!(Path.join([output_dir, dir, "trace.zip"]))
+
+    assert run.(["failed"]) == [dir, dir <> "-retry1"]
+    assert File.read!(Path.join([output_dir, dir, "trace.zip"])) == first
+    assert Enum.sort(File.ls!(Path.join(output_dir, dir <> "-retry1"))) == files
+    assert File.read!(Path.join([output_dir, dir <> "-retry1", "error-context.md"])) =~ "on purpose"
+
+    assert run.([]) == [dir]
+    refute File.read!(Path.join([output_dir, dir, "trace.zip"])) == first
   end
 
   test "pooled drivers: one per options and scope, back idle at its end, stopped after a failure",

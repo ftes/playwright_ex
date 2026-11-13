@@ -20,6 +20,9 @@
 #     hard failure; and a passing one.
 #   * `timeouts` - tests past their timeout: one in a Playwright call, one in `Process.sleep`.
 #   * `trace` - `trace: true` (`mix test --trace`): a test past its `timeout` tag passes.
+#   * `rerun` - one failing and one passing test (writing a file of its own), `preserve_output:
+#     :failures_only`; with a further `failed` argument, only the failing one, as `mix test
+#     --failed` runs it (`only_test_ids`).
 
 # credo:disable-for-this-file Credo.Check.Warning.WrongTestFilename
 
@@ -34,6 +37,7 @@ Application.put_env(:playwright_ex, :test,
   snapshot_dir: Path.join(Path.dirname(output_dir), "snapshots"),
   trace: :retain_on_failure,
   screenshot: :only_on_failure,
+  preserve_output: if(mode == "rerun", do: :failures_only, else: :always),
   workers: 8
 )
 
@@ -43,7 +47,16 @@ Application.put_env(:playwright_ex, :test,
 {:ok, _} = PlaywrightEx.Application.start(:normal, [])
 
 max_failures = if mode == "max_failures", do: 1, else: :infinity
-ExUnit.start(autorun: false, max_cases: 8, max_failures: max_failures, trace: mode == "trace")
+# `mix test --failed`'s filter.
+only_test_ids = if Enum.at(System.argv(), 3) == "failed", do: MapSet.new([{RerunTest, :"test fails"}])
+
+ExUnit.start(
+  autorun: false,
+  max_cases: 8,
+  max_failures: max_failures,
+  trace: mode == "trace",
+  only_test_ids: only_test_ids
+)
 
 # What the modules saw: `{label, scope, playwright}` (the scope: the pid that holds the lease).
 :ets.new(:report, [:named_table, :public, :bag])
@@ -305,6 +318,21 @@ case mode do
       test "hangs elsewhere", %{page: page} do
         Page.set_content!(page, "<h1>Sleeps</h1>")
         Process.sleep(:infinity)
+      end
+    end
+
+  "rerun" ->
+    defmodule RerunTest do
+      use PlaywrightEx.Case, async: true
+
+      test "passes", %{page: page} do
+        Page.set_content!(page, "<h1>Passes</h1>")
+        File.write!(PlaywrightEx.Test.output_path("note.txt"), "")
+      end
+
+      test "fails", %{page: page} do
+        Page.set_content!(page, "<h1>Fails</h1>")
+        flunk("on purpose")
       end
     end
 

@@ -13,6 +13,7 @@ defmodule PlaywrightEx.Test.Options do
     :action_timeout,
     :navigation_timeout,
     :output_dir,
+    :preserve_output,
     :workers,
     :snapshot_dir,
     :snapshot_path_template,
@@ -112,6 +113,9 @@ defmodule PlaywrightEx.Test.Options do
   @doc "The root of the output dirs (config `output_dir`, default `test-results`)."
   def output_dir, do: config()[:output_dir]
 
+  @doc "Upstream's `preserveOutput` (config `preserve_output`, default `:always`)."
+  def preserve_output, do: config()[:preserve_output]
+
   @doc "How many pooled drivers may run at once (config `workers`)."
   def workers, do: config()[:workers]
 
@@ -162,6 +166,7 @@ defmodule PlaywrightEx.Test.Options do
       action_timeout: :infinity,
       navigation_timeout: :infinity,
       output_dir: "test-results",
+      preserve_output: :always,
       workers: max(div(System.schedulers_online(), 2), 1),
       snapshot_dir: nil,
       snapshot_path_template: nil,
@@ -221,6 +226,7 @@ defmodule PlaywrightEx.Test.Options do
     do: artifact!(key, to_keyword(key, options))
 
   defp validate!(:output_dir, dir) when is_binary(dir), do: dir
+  defp validate!(:preserve_output, value) when value in [:always, :never, :failures_only], do: value
 
   defp validate!(key, value)
        when key in [:snapshot_dir, :snapshot_path_template] and (value == nil or is_binary(value)),

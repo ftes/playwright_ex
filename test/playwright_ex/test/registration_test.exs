@@ -120,10 +120,9 @@ defmodule PlaywrightEx.Test.RegistrationTest do
     assert info.file == Path.expand(__ENV__.file)
     assert info.test_name == "info: the running test, also in a Task; outside a test it raises"
 
-    assert info.output_dir ==
-             Path.expand(
-               TestInfo.output_dir(%{module: __MODULE__, test: :"test #{info.test_name}", file: __ENV__.file})
-             )
+    dir = Path.expand(TestInfo.output_dir(%{module: __MODULE__, test: :"test #{info.test_name}", file: __ENV__.file}))
+    # `-retryN` under `mix test --failed`.
+    assert info.output_dir =~ ~r/^#{Regex.escape(dir)}(-retry\d+)?$/
 
     assert Task.await(Task.async(&PlaywrightEx.Test.info/0)) == info
 

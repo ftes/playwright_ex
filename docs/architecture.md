@@ -298,6 +298,7 @@ no call site (the recording modes) are config plus ExUnit tags; the rest are arg
 | `--trace <mode>` | `TRACE` read in `config/test.exs` |
 | `test.info()` | `info/0` (`test_pid`, `file`, `test_name`, `output_dir`), raises outside a test |
 | `testInfo.status`, `errors`, `expectedStatus`, `duration` in teardown | `info(test_pid)` in `on_exit` (another process), kept until ExUnit's `on_exit` process exits |
+| `testInfo.outputDir` removed before the test, `-retryN`, `preserveOutput` | removed in the test's setup; a test under `mix test --failed` is a retry (the one after its `-retryN` dirs); a run without it removes the test's `-retryN` dirs, not all of `output_dir` (`createRemoveOutputDirsTask`), which `--failed` needs; config `preserve_output` |
 | `testInfo.outputPath`/`snapshotPath` | `output_path(name)` (one string, no segments), `snapshot_path(name, opts)` (a string or a list of segments) |
 | `test.step` | `step/2,3` (no timeout) |
 | `testInfo.attach` | `attach/2` (`test.attach` step, `trace.attachments`) |

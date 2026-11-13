@@ -23,13 +23,21 @@ defmodule PlaywrightEx.Test.TestInfo do
   alias PlaywrightEx.Test.Results
   alias PlaywrightEx.Test.TestTracing
 
-  @doc "The test's fields: `test_pid`, `file`, `test_name` (`titlePath.slice(1).join(' ')`), `output_dir`."
+  @doc """
+  The test's fields: `test_pid`, `file`, `test_name` (`titlePath.slice(1).join(' ')`), `retry`
+  (`retry/2`) and `output_dir` (with the retry's suffix).
+  """
   def new(context) do
+    dir = Path.expand(output_dir(context))
+    retry = retry(dir)
+
     %{
       test_pid: context.test_pid,
       file: Path.expand(context.file),
       test_name: test_name(context),
-      output_dir: Path.expand(output_dir(context)),
+      retry: retry,
+      # `if (this.retry) testOutputDir += '-retry' + this.retry`.
+      output_dir: if(retry > 0, do: "#{dir}-retry#{retry}", else: dir),
       # `nextStepId = createCallIdGenerator()`: its prefix.
       step_id_prefix: for(_ <- 1..4, into: "", do: <<Enum.random(?a..?z)>>)
     }
@@ -97,6 +105,49 @@ defmodule PlaywrightEx.Test.TestInfo do
 
   @doc "Upstream's `testDir`: `test/` of the working directory."
   def test_dir, do: Path.join(File.cwd!(), "test")
+
+  @doc """
+  Upstream's `testInfo.retry` of the test whose output dir is `dir` (`output_dir/1`'s). ExUnit
+  has no retries, so a test under `mix test --failed` (ExUnit's `only_test_ids`) is the retry
+  after the ones it has dirs of, `<dir>-retry1` for none; any other run's is 0.
+  """
+  # deviation: upstream's retries run in the run of the failure, after its outputDir was cleared.
+  def retry(dir, only_test_ids \\ ExUnit.configuration()[:only_test_ids])
+  def retry(_dir, nil), do: 0
+  def retry(dir, _only_test_ids), do: Enum.max(Map.keys(retry_dirs(dir)), fn -> 0 end) + 1
+
+  @doc """
+  Deletes the test's output dir before it runs (workerMain.ts's `removeFolders([testInfo.outputDir])`),
+  and a first run's (retry 0) `-retryN` dirs too: upstream deletes all of `outputDir` at the
+  start of a run (`createRemoveOutputDirsTask`), here the dirs of the tests that run.
+  """
+  def remove_output_dirs(this) do
+    # deviation: the dirs of tests not run stay, for `mix test --failed`, which needs the
+    # failures' dirs of the run before.
+    if this.retry == 0, do: for({_retry, dir} <- retry_dirs(this.output_dir), do: File.rm_rf(dir))
+    # `removeFolders` ignores errors.
+    File.rm_rf(this.output_dir)
+    :ok
+  end
+
+  # `%{retry => dir}` of the `<dir>-retryN` dirs: a test's dirs, as no other test's ends so
+  # (its dir ends in a hash).
+  defp retry_dirs(dir) do
+    prefix = Path.basename(dir) <> "-retry"
+
+    case File.ls(Path.dirname(dir)) do
+      {:ok, names} ->
+        for name <- names,
+            String.starts_with?(name, prefix),
+            retry = String.replace_prefix(name, prefix, ""),
+            retry =~ ~r/^[1-9][0-9]*$/,
+            into: %{},
+            do: {String.to_integer(retry), Path.join(Path.dirname(dir), name)}
+
+      {:error, _} ->
+        %{}
+    end
+  end
 
   @doc "A test file relative to `test_dir/0`, else to the working directory: the output dir's name."
   def relative_test_file(file) do

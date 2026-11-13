@@ -25,11 +25,12 @@ defmodule PlaywrightEx.Test.StepsTest do
   end
 
   # Before the registration, so its `on_exit` runs after the test's end saved its trace.
-  setup ctx do
-    dir = TestInfo.output_dir(ctx)
+  setup _ctx do
     test_pid = self()
 
     on_exit(fn ->
+      dir = PlaywrightEx.Test.info(test_pid).output_dir
+
       with [{_, fun}] <- :ets.take(__MODULE__, test_pid) do
         {:ok, files} = :zip.unzip(String.to_charlist(Path.join(dir, "trace.zip")), [:memory])
         files = Map.new(files, fn {name, data} -> {to_string(name), data} end)
