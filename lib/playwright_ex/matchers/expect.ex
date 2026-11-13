@@ -130,6 +130,11 @@ defmodule PlaywrightEx.Matchers.Expect do
 
   @default_expect_timeout 5000
 
+  @doc false
+  # Elixir only: the matchers' timeout of `config :playwright_ex, :expect`, as `invoke_matcher`
+  # resolves it for a receiver without one (`PlaywrightEx.Test.config/0`).
+  def config_timeout, do: app_env_expect_config()[:timeout] || @default_expect_timeout
+
   # throwUnsupportedExpectMatcherError  -- not ported: custom matchers (expect.extend)
 
   @doc false

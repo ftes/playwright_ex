@@ -361,6 +361,47 @@ defmodule PlaywrightEx.Test.ConfigTest do
     Application.put_env(:playwright_ex, :test, config)
   end
 
+  test "config/0: the resolved config, also outside a test", %{config: config} do
+    expect = Application.get_env(:playwright_ex, :expect)
+    on_exit(fn -> Application.put_env(:playwright_ex, :expect, expect) end)
+    Application.delete_env(:playwright_ex, :test)
+    Application.delete_env(:playwright_ex, :expect)
+    test_pid = self()
+    spawn(fn -> send(test_pid, {:config, PlaywrightEx.Test.config()}) end)
+    assert_receive {:config, resolved}
+
+    assert resolved == %{
+             browser_name: :chromium,
+             launch_options: [],
+             connect_options: nil,
+             driver: [],
+             on_start: nil,
+             trace: [mode: :off, snapshots: true, screenshots: true, sources: true, attachments: true],
+             screenshot: [mode: :off],
+             video: [mode: :off],
+             context_options: [],
+             action_timeout: :infinity,
+             navigation_timeout: :infinity,
+             output_dir: "test-results",
+             workers: max(div(System.schedulers_online(), 2), 1),
+             snapshot_dir: nil,
+             snapshot_path_template: nil,
+             test_id_attribute: "data-testid",
+             expect: %{timeout: 5000}
+           }
+
+    Application.put_env(:playwright_ex, :test, config ++ [action_timeout: 0, context_options: [locale: "de-DE"]])
+    Application.put_env(:playwright_ex, :expect, timeout: 0)
+
+    assert %{action_timeout: 0, context_options: [locale: "de-DE"], expect: %{timeout: 0}} =
+             PlaywrightEx.Test.config()
+
+    Application.put_env(:playwright_ex, :test, config ++ [context_options: [lokale: "x"]])
+    assert_raise ArgumentError, fn -> PlaywrightEx.Test.config() end
+    Application.put_env(:playwright_ex, :test, Keyword.put(config, :workers, 0))
+    assert_raise ArgumentError, ~r/invalid workers: 0/, fn -> PlaywrightEx.Test.config() end
+  end
+
   test "a bad config raises", %{config: config} do
     Application.put_env(:playwright_ex, :test, config ++ [tracing: :on])
 

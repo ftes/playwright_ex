@@ -200,7 +200,8 @@ defmodule PlaywrightEx.Test do
   The artifact modes are `off` by default and `output_dir` is `test-results`, as upstream's.
   `workers` is half the schedulers, as upstream's default `workers` is half the cores (`'50%'`).
   `test_id_attribute` is upstream's `testIdAttribute`, set on each pooled driver: the client's
-  value is global to the VM, so set it here, not per module.
+  value is global to the VM, so set it here, not per module. `config/0` returns the config
+  resolved.
   """
 
   alias PlaywrightEx.Runtime.Zones
@@ -561,6 +562,26 @@ defmodule PlaywrightEx.Test do
       end)
 
     %{status: status, errors: errors, expected_status: :passed, duration: Pool.duration(test_pid)}
+  end
+
+  @doc """
+  The resolved `config :playwright_ex, :test` (see "Config" in the moduledoc), for libraries
+  that build on the runner: a map of every key, with its default filled in and its value
+  validated, as the runner reads it. The recording modes are keyword lists with `:mode` first
+  (`trace: [mode: :off, snapshots: true, ...]`), `context_options` are as configured (without
+  Playwright Test's context defaults), and an unset `action_timeout` or `navigation_timeout` is
+  `:infinity`. `expect: %{timeout: ms}` is the matchers' timeout of `config :playwright_ex,
+  :expect` (5000 by default, `0` for none). Works outside a test too (at startup, in a module
+  without `use PlaywrightEx.Test`); raises `ArgumentError` for an invalid config.
+
+      PlaywrightEx.Test.config().workers
+  """
+  @spec config() :: map()
+  def config do
+    config = Options.config()
+    # Validated as the registration converts them for `PlaywrightEx.Browser.new_context/2`.
+    Options.context_options()
+    Map.put(config, :expect, %{timeout: PlaywrightEx.Matchers.Expect.config_timeout()})
   end
 
   @doc """

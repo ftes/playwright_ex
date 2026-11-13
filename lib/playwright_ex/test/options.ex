@@ -131,7 +131,8 @@ defmodule PlaywrightEx.Test.Options do
 
   defp merge_value(_key, _config, value), do: value
 
-  defp config do
+  @doc "`config :playwright_ex, :test`, validated, with each key's default (`PlaywrightEx.Test.config/0`)."
+  def config do
     config = Application.get_env(:playwright_ex, :test, [])
 
     if !Keyword.keyword?(config),
