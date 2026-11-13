@@ -132,7 +132,7 @@ defmodule PlaywrightEx.Test.ConnectTest do
 
     request = TestServer.wait_for_web_socket_connection_request(server)
     connect_options = [ws_endpoint: ws_endpoint, timeout: 100, headers: %{"foo" => "bar"}]
-    assert_raise RuntimeError, ~r/Timeout 100ms exceeded/, fn -> browser(launch_options, connect_options) end
+    assert_connect_timeout(fn -> browser(launch_options, connect_options) end)
     request = Task.await(request, :infinity)
     [header] = Plug.Conn.get_req_header(request, "x-playwright-launch-options")
     assert Plug.Conn.get_req_header(request, "foo") == ["bar"]
@@ -142,12 +142,13 @@ defmodule PlaywrightEx.Test.ConnectTest do
     request = TestServer.wait_for_web_socket_connection_request(server)
     headers = %{"x-playwright-launch-options" => "{}"}
 
-    assert_raise RuntimeError, ~r/Timeout 100ms exceeded/, fn ->
-      browser(launch_options, Keyword.put(connect_options, :headers, headers))
-    end
+    assert_connect_timeout(fn -> browser(launch_options, Keyword.put(connect_options, :headers, headers)) end)
 
     assert Plug.Conn.get_req_header(Task.await(request, :infinity), "x-playwright-launch-options") == ["{}"]
   end
+
+  # The client's deadline (an Error) races the driver's own connect timeout (a TimeoutError), as upstream's.
+  defp assert_connect_timeout(fun), do: assert(Exception.message(catch_error(fun.())) =~ "Timeout 100ms exceeded")
 
   defp browser(launch_options, connect_options),
     do: BrowserPool.browser(launch_options: launch_options, connect_options: connect_options)
