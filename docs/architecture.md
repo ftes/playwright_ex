@@ -401,9 +401,11 @@ and `expect(x, message)` are fields of the receiver, `soft/1` and `message/2`, n
 `expect`), a step's `timeout` (a process can't be interrupted, so the body would run in another
 process, with another `self()` and mailbox, and on past the timeout; the test's timeout bounds
 it). For the pool and fixtures: a browser shared by every test at once (one connection serves
-any process), slower than a worker per module and failing under load, its one driver or browser
-the bottleneck, for about half the memory
-([#213](https://github.com/ftes/playwright_ex/issues/213)), ambient fixtures (context keys the
+any process), its one driver and browser the bottleneck. On LiveView's e2e suite it was slower
+than a worker per module and failed under load, for about half the memory
+([#213](https://github.com/ftes/playwright_ex/issues/213)); on an app's full e2e suite (18 cores,
+`max_cases` 18) it took 106.8 s at 4.5 GB, against 93.8 s at 6.5 GB for 16 workers. Also
+rejected: ambient fixtures (context keys the
 runner fills in: the user owns the map), a lazy module lease (a module's first test taking the
 browser for the module; a scope holds what it calls), serving waiters LIFO (first come first
 served bounds every wait), an `:open` lease that outlives its scope, `fresh: true` for a cold
