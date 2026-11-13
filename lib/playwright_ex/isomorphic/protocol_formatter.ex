@@ -95,13 +95,14 @@ defmodule PlaywrightEx.Isomorphic.ProtocolFormatter do
 
   defp new_url(_url), do: nil
 
-  # `url.host`: lowercase, with the port unless it is the scheme's default.
+  # `url.host`: lowercase, an IPv6 address in brackets (which `URI` drops), with the port unless
+  # it is the scheme's default.
   defp url_host(%URI{host: nil}), do: ""
 
   defp url_host(%URI{host: host, port: port, scheme: scheme}) do
-    if port == nil or port == URI.default_port(scheme),
-      do: String.downcase(host),
-      else: "#{String.downcase(host)}:#{port}"
+    host = String.downcase(host)
+    host = if String.contains?(host, ":"), do: "[#{host}]", else: host
+    if port == nil or port == URI.default_port(scheme), do: host, else: "#{host}:#{port}"
   end
 
   # `url.pathname`: "/" for the empty path of a URL with a host.
@@ -207,10 +208,28 @@ defmodule PlaywrightEx.Isomorphic.ProtocolFormatter do
 
   defp render_locator(_selector, _sdk_language), do: nil
 
+  # `value.length` and `substring` count UTF-16 code units. A UTF-8 string has at least as many
+  # bytes as units: most are short enough to return as they are.
+  def truncate_param(value) when byte_size(value) <= @k_max_param_length, do: value
+
   def truncate_param(value) do
-    if String.length(value) > @k_max_param_length,
-      do: String.slice(value, 0, @k_max_param_length) <> "…",
-      else: value
+    case :unicode.characters_to_binary(value, :utf8, :utf16) do
+      utf16 when byte_size(utf16) > 2 * @k_max_param_length ->
+        <<head::binary-size(2 * @k_max_param_length), _rest::binary>> = utf16
+        # deviation: a surrogate pair cut in half loses its first half, which a string of
+        # Elixir's (UTF-8) can't hold.
+        head = with {:incomplete, converted, _half} <- :unicode.characters_to_binary(head, :utf16), do: converted
+        head <> "…"
+
+      utf16 when is_binary(utf16) ->
+        value
+
+      # Not UTF-8: by code points.
+      _error ->
+        if String.length(value) > @k_max_param_length,
+          do: String.slice(value, 0, @k_max_param_length) <> "…",
+          else: value
+    end
   end
 
   # deviation: the last description is kept in the process: a call's subtitle and params render
@@ -231,9 +250,22 @@ defmodule PlaywrightEx.Isomorphic.ProtocolFormatter do
 
   defp get_metainfo(metadata), do: Metainfo.get_metainfo(metadata) || %{}
 
-  # `params[name]`: the params' keys are atoms (the names are protocol.yml's, a bounded set), or
-  # strings.
-  defp param(params, name), do: Map.get(params, String.to_atom(name), Map.get(params, name))
+  # `params[name]`: the params' keys are atoms (protocol.yml's names), or strings. `name` may be
+  # any text in braces of a call's own title, so it is no new atom: a key that is not an atom yet
+  # is in no params.
+  defp param(params, name) do
+    case Map.fetch(params, name) do
+      {:ok, value} ->
+        value
+
+      :error ->
+        try do
+          Map.get(params, String.to_existing_atom(name))
+        rescue
+          ArgumentError -> nil
+        end
+    end
+  end
 
   # `String(value)`.
   defp js_string(value) when is_list(value),

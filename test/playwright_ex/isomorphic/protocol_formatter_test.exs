@@ -43,6 +43,13 @@ defmodule PlaywrightEx.Isomorphic.ProtocolFormatterTest do
     assert ProtocolFormatter.render_title_for_call(call("Page", "noSuchMethod")) == "noSuchMethod"
   end
 
+  test "a placeholder in a call's own title makes no atom" do
+    name = "not_an_atom_#{System.unique_integer([:positive])}"
+    title = ~s(Wait for event "{#{name}}")
+    assert ProtocolFormatter.render_title_for_call(call("Page", "__waitInfo__", %{}, %{title: title})) == title
+    assert_raise ArgumentError, fn -> String.to_existing_atom(name) end
+  end
+
   test "urls: host, path and query; data: and about: URLs; a relative one as is" do
     goto = &ProtocolFormatter.render_subtitle_for_call(call("Frame", "goto", %{url: &1}))
     assert goto.("https://Example.com:443/a/b?q=1#h") == "example.com/a/b?q=1"
@@ -50,6 +57,7 @@ defmodule PlaywrightEx.Isomorphic.ProtocolFormatterTest do
     assert goto.("data:text/html,<p>x</p>") == "data:"
     assert goto.("about:blank") == "about:blank"
     assert goto.("/relative") == "/relative"
+    assert goto.("http://[::1]:8080/a") == "[::1]:8080/a"
   end
 
   test "params: renamed, nested, selectors as locators, long strings truncated, none is nil" do
@@ -61,6 +69,14 @@ defmodule PlaywrightEx.Isomorphic.ProtocolFormatterTest do
     long = String.duplicate("x", 250)
     assert %{"url" => url} = ProtocolFormatter.render_params_for_call(call("Frame", "addScriptTag", %{url: long}))
     assert url == String.duplicate("x", 200) <> "…"
+    # JS counts UTF-16 code units: two for an emoji, one for each code point of "é" as e and ´.
+    assert ProtocolFormatter.truncate_param(String.duplicate("😀", 150)) == String.duplicate("😀", 100) <> "…"
+    assert ProtocolFormatter.truncate_param(String.duplicate("e\u0301", 150)) == String.duplicate("e\u0301", 100) <> "…"
+    assert ProtocolFormatter.truncate_param(String.duplicate("😀", 100)) == String.duplicate("😀", 100)
+    # The emoji cut in half is left out.
+    assert ProtocolFormatter.truncate_param("x" <> String.duplicate("😀", 150)) ==
+             "x" <> String.duplicate("😀", 99) <> "…"
+
     assert ProtocolFormatter.render_params_for_call(call("Frame", "click")) == nil
     assert ProtocolFormatter.render_params_for_call(%{type: "Frame", method: "click"}) == nil
   end
