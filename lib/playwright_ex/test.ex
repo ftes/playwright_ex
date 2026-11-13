@@ -529,23 +529,12 @@ defmodule PlaywrightEx.Test do
   def __finish__(test_pid, budget) do
     deadline = if is_integer(budget), do: System.monotonic_time(:millisecond) + budget, else: :infinity
     Results.finishing(test_pid)
-    {verdict, failures} = result = Results.result(test_pid, budget)
+    {verdict, _failures} = result = Results.result(test_pid, budget)
     {test, recorder} = Results.take(test_pid)
     # For `info/1` in the `on_exit` callbacks that run after this one.
     Results.keep_info(test_pid, Map.merge(info_of(test), result_info(test_pid, result, recorder)))
 
-    trace =
-      cond do
-        recorder ->
-          Recorder.finish(recorder, result, remaining(deadline))
-
-        verdict == :failed ->
-          ErrorContext.write(test, failures)
-          nil
-
-        true ->
-          nil
-      end
+    trace = finish_artifacts(test, recorder, result, deadline)
 
     # The list reporter's `npx playwright show-trace <path>`.
     if verdict == :failed and trace,
@@ -554,15 +543,29 @@ defmodule PlaywrightEx.Test do
           "\nTrace of #{inspect(test.test_name)}: mix playwright_ex.cli show-trace #{Path.relative_to_cwd(trace)}"
         )
 
-    # workerMain.ts's `preserveOutput`, by the result the artifacts went by (a doctest's is a failure).
-    preserve? = test.preserve_output == :always or (test.preserve_output == :failures_only and verdict != :passed)
-    if !preserve?, do: File.rm_rf(test.output_dir)
+    if !preserve_output?(test.preserve_output, verdict), do: File.rm_rf(test.output_dir)
   rescue
     exception -> Logger.warning("PlaywrightEx.Test could not finish the test: " <> Exception.message(exception))
   after
     Pool.release(test_pid)
     Results.forget(test_pid)
   end
+
+  # The trace, if the test recorded one.
+  defp finish_artifacts(_test, recorder, result, deadline) when recorder != nil,
+    do: Recorder.finish(recorder, result, remaining(deadline))
+
+  defp finish_artifacts(test, nil, {:failed, failures}, _deadline) do
+    ErrorContext.write(test, failures)
+    nil
+  end
+
+  defp finish_artifacts(_test, nil, _result, _deadline), do: nil
+
+  # workerMain.ts's `preserveOutput`, by the result the artifacts went by (a doctest's is a failure).
+  defp preserve_output?(:always, _verdict), do: true
+  defp preserve_output?(:failures_only, verdict), do: verdict != :passed
+  defp preserve_output?(:never, _verdict), do: false
 
   defp remaining(:infinity), do: :infinity
   defp remaining(deadline), do: max(deadline - System.monotonic_time(:millisecond), 0)
