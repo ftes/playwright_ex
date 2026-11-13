@@ -13,6 +13,7 @@ defmodule PlaywrightEx.Test.StepsTest do
   alias PlaywrightEx.Expect
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Route
   alias PlaywrightEx.Runtime.Promise
   alias PlaywrightEx.Test
   alias PlaywrightEx.Test.BrowserPool
@@ -394,6 +395,25 @@ defmodule PlaywrightEx.Test.StepsTest do
     page = BrowserContext.new_page!(context)
     Page.set_content!(page, "<p>x</p>")
     BrowserContext.close!(context)
+  end
+
+  # Each step updates the title overlay (`show.test`) while route handlers, which the dispatch
+  # waits for, report their calls as steps: the overlay's calls must not hold up those reports.
+  @tag video: [mode: :on, show: %{test: %{level: "step"}}], timeout: 10_000
+  test "the title overlay's updates don't block the steps of route handlers" do
+    on_trace(fn events, _files ->
+      assert after_of(events, before(events, "s300"))
+      # The overlay's calls are steps of the step they update it for, as upstream's: a step's end
+      # updates it in the step's zone (`finally { await testInfo._onUserStepEnd?.() }`).
+      s1 = before(events, "s1")
+      assert Enum.any?(events, &(&1["title"] == "Show overlay" and &1["parentId"] == s1["callId"]))
+    end)
+
+    page = new_page()
+    html = "<script>setInterval(() => fetch('/ping'), 1)</script>"
+    Page.route!(page, "**/*", &Route.fulfill!(&1, body: html, content_type: "text/html"))
+    Page.goto!(page, "http://localhost/")
+    for i <- 1..300, do: Test.step("s#{i}", fn -> :ok end)
   end
 
   test "a soft matcher: a soft step, its failure recorded as the test's error, the body continues" do

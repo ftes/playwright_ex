@@ -17,17 +17,24 @@ defmodule PlaywrightEx.Test.Recorder do
   # just before ExUnit kills the test process, it closes the test's open contexts with
   # "Test timeout of <ms>ms exceeded.", so a Playwright call that hangs until then fails with that
   # reason and its call log, after the close's artifact steps ran (`test_timeout_margin/1`).
+  #
+  # The recorder makes no driver call and awaits nothing, so its calls return at once: every
+  # driver call of a traced test reports its step to it synchronously (`append_trace_event/2`),
+  # also from a listener the connection's dispatch waits for (a route handler), as upstream's
+  # in-memory `_appendTraceEvent`. The driver calls of the title overlay run in the processes
+  # that ask for an update (`update_overlay/2`), as upstream's in its async functions.
   use GenServer
 
   alias PlaywrightEx.APIRequestContext
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Client.ChannelOwner
-  alias PlaywrightEx.Disposable
+  alias PlaywrightEx.Client.TimeoutSettings
   alias PlaywrightEx.Isomorphic.ProtocolFormatter
   alias PlaywrightEx.Isomorphic.StringUtils
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime.ProcessOwner
+  alias PlaywrightEx.Runtime.Promise
   alias PlaywrightEx.Runtime.Zones
-  alias PlaywrightEx.Screencast
   alias PlaywrightEx.Test.ErrorContext
   alias PlaywrightEx.Test.Results
   alias PlaywrightEx.Test.TestInfo
@@ -232,10 +239,11 @@ defmodule PlaywrightEx.Test.Recorder do
        page_snapshot: nil,
        tracing: TestTracing.new(),
        # `installScreencastTitleUpdater`'s: the contexts with the title overlay, the steps'
-       # titles, the overlays by page guid.
+       # titles, the overlays' ids by page guid, `lastUpdate` (a latch, `nil` before the first).
        title_contexts: [],
        step_stack: [],
-       overlays: %{}
+       overlays: %{},
+       last_update: nil
      }}
   end
 
@@ -291,15 +299,35 @@ defmodule PlaywrightEx.Test.Recorder do
   # `TestTracing`'s flags, without its events.
   def handle_call(:tracing_flags, _from, state), do: {:reply, %{state.tracing | trace_events: []}, state}
 
-  def handle_call({:title_context, context}, _from, state),
-    do: {:reply, :ok, update_overlay(%{state | title_contexts: state.title_contexts ++ [context]})}
+  # `installScreencastTitleUpdater`, `_onUserStepBegin` (`stepStack.push(title)`) and
+  # `_onUserStepEnd` (`stepStack.pop()`), then `updateOverlay`'s `lastUpdate = ...`: the
+  # previous update, which the caller awaits before its own (`update_overlay/2`).
+  def handle_call({:update_overlay, change, next}, _from, state) do
+    state =
+      case change do
+        {:title_context, context} -> %{state | title_contexts: state.title_contexts ++ [context]}
+        {:begin, title} -> %{state | step_stack: state.step_stack ++ [title]}
+        :end -> %{state | step_stack: Enum.drop(state.step_stack, -1)}
+        nil -> state
+      end
 
-  # `testInfo._onUserStepBegin` and `_onUserStepEnd`.
-  def handle_call({:user_step, {:begin, title}}, _from, state),
-    do: {:reply, :ok, update_overlay(%{state | step_stack: state.step_stack ++ [title]})}
+    {:reply, {:ok, state.last_update}, %{state | last_update: next}}
+  end
 
-  def handle_call({:user_step, :end}, _from, state),
-    do: {:reply, :ok, update_overlay(%{state | step_stack: Enum.drop(state.step_stack, -1)})}
+  # `doUpdateOverlay`'s reads: the overlay's html, the open contexts with the title, the overlays.
+  def handle_call(:overlay, _from, state) do
+    show = state.opts.video[:show][:test]
+    level = show[:level] || "step"
+    test_title = if level == "file", do: [hd(state.opts.title_path)], else: state.opts.title_path
+    parts = if level == "step", do: test_title ++ state.step_stack, else: test_title
+    html = create_test_overlay(parts, show[:position] || "top-left", show[:fontSize] || 14)
+    contexts = for context <- state.title_contexts, context.guid not in state.closed, do: context
+    {:reply, %{html: html, contexts: contexts, overlays: state.overlays}, state}
+  end
+
+  # `overlays.delete(page)`, then `overlays.set(page, disposable)`: `nil` if the show failed.
+  def handle_call({:overlay, guid, overlay}, _from, state),
+    do: {:reply, :ok, %{state | overlays: Map.put(state.overlays, guid, overlay)}}
 
   def handle_call({:did_finish_test_function_and_after_each_hooks, failed?}, _from, state),
     do:
@@ -362,8 +390,6 @@ defmodule PlaywrightEx.Test.Recorder do
   end
 
   @impl true
-  def handle_cast(:update_overlay, state), do: {:noreply, update_overlay(state)}
-
   def handle_cast({:finisher, pid}, state) do
     Process.monitor(pid)
     {:noreply, %{state | finisher: pid}}
@@ -470,10 +496,11 @@ defmodule PlaywrightEx.Test.Recorder do
   end
 
   # `installScreencastTitleUpdater`, of every context of the test (there are no context
-  # fixtures): the recorder serializes the updates (`lastUpdate`).
+  # fixtures), with one `stepStack` and `lastUpdate` for all of them.
   defp install_title_updater(context, recorder) do
-    BrowserContext.on(context, :page, fn _page -> GenServer.cast(recorder, :update_overlay) end)
-    call(recorder, {:title_context, context})
+    # context.on('page', async () => { void updateOverlay(); });
+    BrowserContext.on(context, :page, fn _page -> Promise.void(fn -> update_overlay(recorder, nil) end) end)
+    update_overlay(recorder, {:title_context, context})
   end
 
   @doc """
@@ -484,36 +511,61 @@ defmodule PlaywrightEx.Test.Recorder do
     with %{video: video} <- registration(test_pid),
          %{} <- video[:show][:test],
          recorder when is_pid(recorder) <- Results.recorder(test_pid),
-         do: call(recorder, {:user_step, message})
+         do: update_overlay(recorder, message)
 
     :ok
   end
 
-  # `doUpdateOverlay`: each page's overlay replaced by the test's title and steps.
-  defp update_overlay(state) do
-    show = state.opts.video[:show][:test]
-    level = show[:level] || "step"
-    test_title = if level == "file", do: [hd(state.opts.title_path)], else: state.opts.title_path
-    parts = if level == "step", do: test_title ++ state.step_stack, else: test_title
-    html = create_test_overlay(parts, show[:position] || "top-left", show[:fontSize] || 14)
+  # `updateOverlay`: `lastUpdate.then(doUpdateOverlay)`, after `change` to the recorder's
+  # `stepStack` or contexts. In the calling process, as upstream's runs in its caller's async
+  # context: its calls are steps of the caller's step, and awaiting them (and the previous
+  # update) lets the dispatch go on. `lastUpdate` is a latch of the caller's, rejected if it exits
+  # first, so the chain goes on (`lastUpdate = result.catch(() => {})`).
+  defp update_overlay(recorder, change) do
+    next = Promise.new(ProcessOwner.owner())
 
-    pages =
-      for context <- state.title_contexts,
-          context.guid not in state.closed,
-          page <- step("list the pages", fn -> BrowserContext.pages(context) end) || [],
-          do: page
-
-    overlays =
-      Map.new(pages, fn page ->
-        hide_overlay(state.overlays[page.guid])
-        {page.guid, step("show the test's title", fn -> Screencast.show_overlay!(Page.screencast(page), html) end)}
-      end)
-
-    %{state | overlays: overlays}
+    with {:ok, last_update} <- call(recorder, {:update_overlay, change, next}) do
+      try do
+        if last_update, do: await_settled(last_update)
+        step("show the test's title", fn -> do_update_overlay(recorder) end)
+      after
+        Promise.resolve(next, nil)
+      end
+    end
   end
 
-  defp hide_overlay(nil), do: nil
-  defp hide_overlay(overlay), do: step("hide the test's title", fn -> Disposable.dispose!(overlay) end)
+  # `lastUpdate`'s `.catch(() => {})`: also rejected once its process exited (its rows went).
+  defp await_settled(promise) do
+    Promise.await(promise)
+  rescue
+    _ -> nil
+  end
+
+  # `doUpdateOverlay`: each page's overlay replaced by the test's title and steps.
+  defp do_update_overlay(recorder) do
+    with %{html: html, contexts: contexts, overlays: overlays} <- call(recorder, :overlay) do
+      for page <- Enum.flat_map(contexts, &list_pages/1), do: replace_overlay(recorder, page, overlays[page.guid], html)
+    end
+  end
+
+  defp list_pages(context), do: step("list the pages", fn -> BrowserContext.pages(context) end) || []
+
+  defp replace_overlay(recorder, page, old_id, html) do
+    if old_id, do: step("hide the test's title", fn -> remove_overlay(page, old_id) end)
+    id = step("show the test's title", fn -> show_overlay(page, html) end)
+    call(recorder, {:overlay, page.guid, id})
+  end
+
+  # `page.screencast.showOverlay(html)`, and `dispose()` of what it returns, by their protocol
+  # calls. deviation: the overlay's id, not its `DisposableStub`, which only the process that
+  # created it can dispose, while it lives: the updates run in any process of the test.
+  defp show_overlay(page, html) do
+    %{id: id} = ChannelOwner.channel_call(page, :screencastShowOverlay, %{html: html}, TimeoutSettings.k_no_timeout())
+    id
+  end
+
+  defp remove_overlay(page, id),
+    do: ChannelOwner.channel_call(page, :screencastRemoveOverlay, %{id: id}, TimeoutSettings.k_no_timeout())
 
   @overlay_positions %{
     "top-left" => "top: 6px; left: 6px;",

@@ -381,9 +381,11 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
 
     finish(test, [passed()], :shutdown)
 
-    htmls =
-      for %{"method" => "screencastShowOverlay", "params" => %{"html" => html}} <- trace(test.dir, browser).events,
-          do: html
+    events = trace(test.dir, browser).events
+    htmls = for %{"method" => "screencastShowOverlay", "params" => %{"html" => html}} <- events, do: html
+    # Each update removes the page's overlay before (also one a process of the page listener showed).
+    removed = for %{"method" => "screencastRemoveOverlay"} <- events, do: true
+    assert length(removed) == length(htmls) - 2
 
     assert hd(htmls) =~ "bottom: 6px; left: 50%"
     overlays = for html <- htmls, do: html |> String.split(~r/<[^>]+>|\s+/, trim: true) |> Enum.join("|")
