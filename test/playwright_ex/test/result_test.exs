@@ -5,6 +5,7 @@ defmodule PlaywrightEx.Test.ResultTest do
   use ExUnit.Case, async: true
 
   alias PlaywrightEx.Test.Pool
+  alias PlaywrightEx.Test.Results
 
   defp fake_test(marked? \\ true) do
     parent = self()
@@ -25,7 +26,7 @@ defmodule PlaywrightEx.Test.ResultTest do
         receive do
           {:end, messages, reason} ->
             Process.sleep(20)
-            for message <- messages, do: Pool.notify(message.(self()))
+            for message <- messages, do: Results.notify(message.(self()))
             exit(reason)
         end
       end)
@@ -104,11 +105,11 @@ defmodule PlaywrightEx.Test.ResultTest do
     killed = fake_test()
     end_test(killed, [], :killed)
     assert %{status: :timed_out, errors: [%{message: message}]} = PlaywrightEx.Test.info(killed)
-    assert message == Pool.killed()
+    assert message == Results.killed()
 
     # Failed after the recorder closed its contexts at the test timeout.
     closed = fake_test()
-    recorder = Pool.recorder(closed)
+    recorder = Results.recorder(closed)
     send(recorder, :test_timeout)
     :sys.get_state(recorder)
 

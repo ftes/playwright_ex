@@ -2,7 +2,7 @@ defmodule PlaywrightEx.Test.ErrorContext do
   @moduledoc false
   # Upstream's `buildErrorContext` (`packages/playwright/src/errorContext.ts`): the
   # `error-context.md` of a failed test, from its failures (`{kind, reason, stacktrace}` as
-  # ExUnit's, or a message: `PlaywrightEx.Test.Pool.result/2`) in place of `testInfo.errors`.
+  # ExUnit's, or a message: `PlaywrightEx.Test.Results.result/2`) in place of `testInfo.errors`.
 
   alias PlaywrightEx.Isomorphic.StringUtils
 

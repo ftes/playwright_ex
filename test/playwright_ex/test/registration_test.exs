@@ -13,7 +13,7 @@ defmodule PlaywrightEx.Test.RegistrationTest do
   alias PlaywrightEx.Playwright
   alias PlaywrightEx.Runtime.Heap
   alias PlaywrightEx.Test.BrowserPool
-  alias PlaywrightEx.Test.Pool
+  alias PlaywrightEx.Test.Results
   alias PlaywrightEx.Test.Recorder
   alias PlaywrightEx.Test.TestInfo
 
@@ -161,7 +161,7 @@ defmodule PlaywrightEx.Test.RegistrationTest do
 
   test "registration is once per test" do
     assert PlaywrightEx.Test.__setup__(%{test_pid: self()}) == :ok
-    assert [_] = :ets.lookup(Pool.table(), {:test, self()})
+    assert [_] = :ets.lookup(Results.table(), {:test, self()})
   end
 end
 
@@ -248,7 +248,7 @@ defmodule PlaywrightEx.Test.RegistrationTest.TwiceTest do
 
   test "a second use is a no-op" do
     assert_received {:options, %{locale: "en-US"}}
-    assert [_] = :ets.lookup(PlaywrightEx.Test.Pool.table(), {:test, self()})
+    assert [_] = :ets.lookup(PlaywrightEx.Test.Results.table(), {:test, self()})
   end
 end
 

@@ -1,8 +1,8 @@
 defmodule PlaywrightEx.Test.EndToEndTest do
   # Suites on `PlaywrightEx.Test` in a child BEAM (`test/support/test_runner_impl.exs`): only the
   # failing test keeps its artifacts and gets `error-context.md`, no driver outlives the halted
-  # VM (`after_suite`), each scope's drivers are checked in at its end (stopped after
-  # a failure), also when `max_failures` stops the run, a test fails with the
+  # VM (`after_suite`), each scope's seats go back idle at its end (their drivers stopped
+  # after a failure), also when `max_failures` stops the run, a test fails with the
   # snapshots its matchers wrote and with its soft matchers' failures, and a failing step's error
   # as ExUnit reports it and in the trace.
   use ExUnit.Case, async: true
@@ -55,7 +55,7 @@ defmodule PlaywrightEx.Test.EndToEndTest do
     assert error_context =~ ~r/^> \d+ +\| +flunk\("on purpose"\)$/m
   end
 
-  test "pooled drivers: one per driver key and scope, checked in at its end, stopped after a failure",
+  test "pooled drivers: one per options and scope, back idle at its end, stopped after a failure",
        %{tmp_dir: tmp_dir} do
     {output, report} = report(start("modules", tmp_dir))
     assert output =~ ~r"15 tests, 1 failure|Result: 14/15 passed"
@@ -68,7 +68,7 @@ defmodule PlaywrightEx.Test.EndToEndTest do
     assert report.scopes.ten == 1
   end
 
-  test "max_failures: a module still running is checked in", %{tmp_dir: tmp_dir} do
+  test "max_failures: a module still running is released", %{tmp_dir: tmp_dir} do
     {output, report} = report(start("max_failures", tmp_dir))
     assert output =~ "--max-failures reached, aborting test suite"
     assert report.leases == 0

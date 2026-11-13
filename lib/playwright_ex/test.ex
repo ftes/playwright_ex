@@ -209,6 +209,7 @@ defmodule PlaywrightEx.Test do
   alias PlaywrightEx.Test.Options
   alias PlaywrightEx.Test.Pool
   alias PlaywrightEx.Test.Recorder
+  alias PlaywrightEx.Test.Results
   alias PlaywrightEx.Test.TestInfo
 
   require Logger
@@ -324,7 +325,7 @@ defmodule PlaywrightEx.Test do
   def __passed__ do
     case TestInfo.finish(self()) do
       [] ->
-        Pool.notify({:passed, self()})
+        Results.notify({:passed, self()})
         finished_test_function(false)
 
       errors ->
@@ -364,7 +365,7 @@ defmodule PlaywrightEx.Test do
 
   defp notify_failed(errors) do
     for {kind, reason, stacktrace} <- errors,
-        do: Pool.notify({:failed, self(), {kind, Exception.normalize(kind, reason, stacktrace), stacktrace}})
+        do: Results.notify({:failed, self(), {kind, Exception.normalize(kind, reason, stacktrace), stacktrace}})
   end
 
   # Each error of an `ExUnit.MultiError` (upstream's `_failWithError` visits an error's `errors`).
@@ -395,7 +396,7 @@ defmodule PlaywrightEx.Test do
       Recorder.registration(test_pid) ->
         :ok
 
-      :ets.take(Pool.table(), {:unregistered, test_pid}) != [] ->
+      :ets.take(Results.table(), {:unregistered, test_pid}) != [] ->
         raise ArgumentError,
               "this test created a context before `use PlaywrightEx.Test` registered it (a case template's " <>
                 "`setup` runs before the `use` in its `using`), so the context has no defaults and no " <>
@@ -436,12 +437,12 @@ defmodule PlaywrightEx.Test do
       })
 
     # The failure of a marked test that raised nothing in its body.
-    failure = if context[:not_implemented], do: "Not implemented", else: Pool.outside()
-    Pool.watch(test.test_pid, marked? && failure)
-    :ets.insert(Pool.table(), {{:test, test.test_pid}, test})
+    failure = if context[:not_implemented], do: "Not implemented", else: Results.outside()
+    Results.watch(test.test_pid, marked? && failure)
+    :ets.insert(Results.table(), {{:test, test.test_pid}, test})
     if marked?, do: TestInfo.start(test)
     # The steps of `test.trace` go to the recorder.
-    if modes.trace[:mode] != :off, do: Pool.recorder(test.test_pid)
+    if modes.trace[:mode] != :off, do: Results.recorder(test.test_pid)
     test
   end
 
@@ -455,10 +456,10 @@ defmodule PlaywrightEx.Test do
   # The test's end, its first `on_exit`, so it runs last: its artifacts by its result, then the
   # release of its pooled drivers.
   def __finish__(test_pid, budget) do
-    {verdict, failures} = result = Pool.result(test_pid, budget)
-    {test, recorder} = Pool.take(test_pid)
+    {verdict, failures} = result = Results.result(test_pid, budget)
+    {test, recorder} = Results.take(test_pid)
     # For `info/1` in the `on_exit` callbacks that run after this one.
-    Pool.keep_info(test_pid, Map.merge(Map.take(test, @info_keys), result_info(test_pid, result, recorder)))
+    Results.keep_info(test_pid, Map.merge(Map.take(test, @info_keys), result_info(test_pid, result, recorder)))
 
     trace =
       cond do
@@ -483,7 +484,7 @@ defmodule PlaywrightEx.Test do
     exception -> Logger.warning("PlaywrightEx.Test could not finish the test: " <> Exception.message(exception))
   after
     Pool.release(test_pid)
-    Pool.forget(test_pid)
+    Results.forget(test_pid)
   end
 
   @doc """
@@ -531,7 +532,7 @@ defmodule PlaywrightEx.Test do
   def info(test_pid) when is_pid(test_pid) do
     case Recorder.registration(test_pid) do
       nil ->
-        case Pool.started?() && :ets.lookup(Pool.table(), {:info, test_pid}) do
+        case Results.started?() && :ets.lookup(Results.table(), {:info, test_pid}) do
           [{_key, info}] -> info
           _ -> raise ArgumentError, "PlaywrightEx.Test.info/1: no test #{inspect(test_pid)} running or in its on_exit"
         end
@@ -541,15 +542,15 @@ defmodule PlaywrightEx.Test do
 
         if Process.alive?(test_pid),
           do: info,
-          else: Map.merge(info, result_info(test_pid, Pool.result(test_pid, 5000), Recorder.lookup(test_pid)))
+          else: Map.merge(info, result_info(test_pid, Results.result(test_pid, 5000), Recorder.lookup(test_pid)))
     end
   end
 
-  # `testInfo.status`, `errors`, `expectedStatus`, `duration` of a result (`Pool.result/2`).
+  # `testInfo.status`, `errors`, `expectedStatus`, `duration` of a result (`Results.result/2`).
   # Past the timeout: killed, or failed after the recorder closed its contexts.
   defp result_info(test_pid, {verdict, failures}, recorder) do
     status =
-      if verdict == :failed and (Pool.killed() in failures or Recorder.timed_out?(recorder)),
+      if verdict == :failed and (Results.killed() in failures or Recorder.timed_out?(recorder)),
         do: :timed_out,
         else: verdict
 
@@ -559,7 +560,7 @@ defmodule PlaywrightEx.Test do
         error -> TestInfo.test_info_error(error)
       end)
 
-    %{status: status, errors: errors, expected_status: :passed, duration: Pool.duration(test_pid)}
+    %{status: status, errors: errors, expected_status: :passed, duration: Results.duration(test_pid)}
   end
 
   @doc """

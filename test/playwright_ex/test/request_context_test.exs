@@ -13,6 +13,7 @@ defmodule PlaywrightEx.Test.RequestContextTest do
   alias PlaywrightEx.Playwright
   alias PlaywrightEx.Test.BrowserPool
   alias PlaywrightEx.Test.Pool
+  alias PlaywrightEx.Test.Results
   alias PlaywrightEx.TestServer
 
   setup_all do
@@ -45,7 +46,7 @@ defmodule PlaywrightEx.Test.RequestContextTest do
 
         receive do
           {:end, reason} ->
-            Pool.notify({:passed, self()})
+            Results.notify({:passed, self()})
             exit(reason)
         end
       end)

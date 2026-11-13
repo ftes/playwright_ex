@@ -15,6 +15,7 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
   alias PlaywrightEx.Test.ErrorContext
   alias PlaywrightEx.Test.Pool
   alias PlaywrightEx.Test.Recorder
+  alias PlaywrightEx.Test.Results
   alias PlaywrightEx.Tracing
   alias PlaywrightEx.VideoPlayer
 
@@ -59,7 +60,7 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
 
         receive do
           {:end, messages, reason} ->
-            for message <- messages, do: Pool.notify(message.(self()))
+            for message <- messages, do: Results.notify(message.(self()))
             exit(reason)
         end
       end)
@@ -222,9 +223,9 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
 
   @tag screenshot: :on
   test "the end of the body with a recorder gone leaves the test's result as is" do
-    :ets.insert(Pool.table(), {{:recorder, self()}, spawn(fn -> :ok end)})
+    :ets.insert(Results.table(), {{:recorder, self()}, spawn(fn -> :ok end)})
     assert PlaywrightEx.Test.__passed__() == :ok
-    :ets.delete(Pool.table(), {:recorder, self()})
+    :ets.delete(Results.table(), {:recorder, self()})
   end
 
   # `didFinishTestFunction`: the open pages at the end of the body, before `on_exit` closes them;

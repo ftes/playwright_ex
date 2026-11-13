@@ -10,7 +10,7 @@ defmodule PlaywrightEx.Test.SnapshotsTest do
   alias PlaywrightEx.Expect
   alias PlaywrightEx.ExpectError
   alias PlaywrightEx.Page
-  alias PlaywrightEx.Test.Pool
+  alias PlaywrightEx.Test.Results
   alias PlaywrightEx.Test.TestInfo
 
   @moduletag :tmp_dir
@@ -177,8 +177,8 @@ defmodule PlaywrightEx.Test.SnapshotsTest do
     test_info = TestInfo.current()
     {pid, ref} = spawn_monitor(fn -> receive(do: (:exit -> exit(:shutdown))) end)
     this = %{test_info | test_pid: pid}
-    :ets.insert(Pool.table(), {{:test_info, pid, :info}, this})
-    Pool.watch(pid, Pool.outside())
+    :ets.insert(Results.table(), {{:test_info, pid, :info}, this})
+    Results.watch(pid, Results.outside())
     error = &{:error, %RuntimeError{message: &1}, []}
 
     # The end of its body takes the errors; a later one (a Task of the test's) is printed.
@@ -189,7 +189,7 @@ defmodule PlaywrightEx.Test.SnapshotsTest do
     # Its process ended: the same, also for a matcher's step and snapshot index.
     send(pid, :exit)
     assert_receive {:DOWN, ^ref, :process, ^pid, :shutdown}
-    assert Pool.result(pid, 5000) == {:failed, [Pool.outside()]}
+    assert Results.result(pid, 5000) == {:failed, [Results.outside()]}
 
     output =
       capture_io(fn ->
@@ -200,7 +200,7 @@ defmodule PlaywrightEx.Test.SnapshotsTest do
       end)
 
     assert output == "after the process\nlate step\n"
-    assert :ets.match_object(Pool.table(), {{:test_info, pid, :_}, :_}) == []
+    assert :ets.match_object(Results.table(), {{:test_info, pid, :_}, :_}) == []
   end
 
   test "the name or the path, not both", %{page: page} do

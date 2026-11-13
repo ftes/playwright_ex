@@ -19,8 +19,8 @@ defmodule PlaywrightEx.Test.TestInfo do
   alias PlaywrightEx.Matchers.Expect
   alias PlaywrightEx.Runtime.Zones
   alias PlaywrightEx.Test.ErrorContext
-  alias PlaywrightEx.Test.Pool
   alias PlaywrightEx.Test.Recorder
+  alias PlaywrightEx.Test.Results
   alias PlaywrightEx.Test.TestTracing
 
   @doc "The test's fields: `test_pid`, `file`, `test_name` (`titlePath.slice(1).join(' ')`), `output_dir`."
@@ -129,7 +129,7 @@ defmodule PlaywrightEx.Test.TestInfo do
 
   @doc "Registers the running test `this` (`new/1`, in its `setup`), once: matchers of its processes find it."
   def start(this) do
-    :ets.insert_new(Pool.table(), {{:test_info, this.test_pid, :info}, this})
+    :ets.insert_new(Results.table(), {{:test_info, this.test_pid, :info}, this})
     :ok
   end
 
@@ -138,11 +138,11 @@ defmodule PlaywrightEx.Test.TestInfo do
   `$callers` (a `Task` of the test), else `nil`.
   """
   def current do
-    if Pool.started?(), do: Enum.find_value([self() | List.wrap(Process.get(:"$callers"))], &lookup/1)
+    if Results.started?(), do: Enum.find_value([self() | List.wrap(Process.get(:"$callers"))], &lookup/1)
   end
 
   defp lookup(pid) do
-    case :ets.lookup(Pool.table(), {:test_info, pid, :info}) do
+    case :ets.lookup(Results.table(), {:test_info, pid, :info}) do
       [{_key, this}] -> this
       [] -> nil
     end
@@ -153,8 +153,8 @@ defmodule PlaywrightEx.Test.TestInfo do
   its errors (`{kind, reason, stacktrace}`), in the order they were recorded.
   """
   def finish(test_pid) do
-    if Pool.started?() do
-      :ets.delete(Pool.table(), {:test_info, test_pid, :info})
+    if Results.started?() do
+      :ets.delete(Results.table(), {:test_info, test_pid, :info})
       take_errors(test_pid)
     else
       []
@@ -169,16 +169,16 @@ defmodule PlaywrightEx.Test.TestInfo do
     errors = finish(test_pid)
     # Not the errors: a late `_fail_with_error/2` takes its own back.
     not_error = {:not, {:andalso, {:is_tuple, :"$1"}, {:==, {:element, 1, :"$1"}, :error}}}
-    :ets.select_delete(Pool.table(), [{{{:test_info, test_pid, :"$1"}, :_}, [not_error], [true]}])
+    :ets.select_delete(Results.table(), [{{{:test_info, test_pid, :"$1"}, :_}, [not_error], [true]}])
     errors
   end
 
   @doc "Takes the errors `_fail_with_error/2` recorded for the test `test_pid`."
   def take_errors(test_pid) do
     # One by one (`take`): a row `_fail_with_error/2` took back is not counted.
-    Pool.table()
+    Results.table()
     |> :ets.match_object({{:test_info, test_pid, {:error, :_}}, :_})
-    |> Enum.flat_map(fn {key, _error} -> :ets.take(Pool.table(), key) end)
+    |> Enum.flat_map(fn {key, _error} -> :ets.take(Results.table(), key) end)
     |> Enum.sort_by(fn {{_, _, {:error, seq}}, _error} -> seq end)
     |> Enum.map(&elem(&1, 1))
   end
@@ -190,8 +190,8 @@ defmodule PlaywrightEx.Test.TestInfo do
   # Elixir only: a row of the test. One written once the test ended (by a process of the test
   # that outlived its body) is removed again, as the pool may have removed its rows.
   defp put_row(this, key, value) do
-    :ets.insert(Pool.table(), {key, value})
-    if !running?(this), do: :ets.delete(Pool.table(), key)
+    :ets.insert(Results.table(), {key, value})
+    if !running?(this), do: :ets.delete(Results.table(), key)
   end
 
   # _findLastPredefinedStep  -- not ported: hooks and fixtures are ExUnit's (no steps)
@@ -288,7 +288,7 @@ defmodule PlaywrightEx.Test.TestInfo do
   defp step_key(step), do: {:test_info, step.testInfo.test_pid, {:step, step.stepId}}
 
   defp step_row(step) do
-    case :ets.lookup(Pool.table(), step_key(step)) do
+    case :ets.lookup(Results.table(), step_key(step)) do
       [{_key, row}] -> row
       [] -> nil
     end
@@ -353,7 +353,7 @@ defmodule PlaywrightEx.Test.TestInfo do
       # In order to locate the failing step, we are marking all the parent
       # steps as failing unconditionally.
       row =
-        if !row.error and :ets.member(Pool.table(), {:test_info, this.test_pid, :soft_errors}) do
+        if !row.error and :ets.member(Results.table(), {:test_info, this.test_pid, :soft_errors}) do
           child_step =
             Enum.find(child_steps(step), fn child_step -> child_step.error && child_step.infectParentStepsWithError end)
 
@@ -384,7 +384,7 @@ defmodule PlaywrightEx.Test.TestInfo do
 
   # `step.steps`, in the order they were added.
   defp child_steps(step) do
-    Pool.table()
+    Results.table()
     |> :ets.match_object({{:test_info, step.testInfo.test_pid, {:step, :_}}, :_})
     |> Enum.map(&elem(&1, 1))
     |> Enum.filter(&(&1.parentStepId == step.stepId))
@@ -507,8 +507,8 @@ defmodule PlaywrightEx.Test.TestInfo do
 
     # Taken back if the test ended meanwhile, unless its end took it already (one `take` wins).
     recorded? =
-      running?(this) and :ets.insert(Pool.table(), {key, error}) and
-        (running?(this) or :ets.take(Pool.table(), key) == [])
+      running?(this) and :ets.insert(Results.table(), {key, error}) and
+        (running?(this) or :ets.take(Results.table(), key) == [])
 
     if recorded?, do: TestTracing.append_for_error(_tracing(this), error), else: IO.puts(error_message(error))
     :ok
@@ -724,14 +724,14 @@ defmodule PlaywrightEx.Test.TestInfo do
   # with `"updateSnapshotIndex"`. A counter row: atomic across the test's processes.
   defp next_index(this, name, "updateSnapshotIndex") do
     key = {:test_info, this.test_pid, name}
-    index = :ets.update_counter(Pool.table(), key, {2, 1}, {key, 0})
+    index = :ets.update_counter(Results.table(), key, {2, 1}, {key, 0})
     # Elixir only: the test ended (see `put_row/3`).
-    if !running?(this), do: :ets.delete(Pool.table(), key)
+    if !running?(this), do: :ets.delete(Results.table(), key)
     index
   end
 
   defp next_index(this, name, "dontUpdateSnapshotIndex") do
-    case :ets.lookup(Pool.table(), {:test_info, this.test_pid, name}) do
+    case :ets.lookup(Results.table(), {:test_info, this.test_pid, name}) do
       [{_key, index}] -> index + 1
       [] -> 1
     end

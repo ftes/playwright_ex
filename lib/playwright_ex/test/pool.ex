@@ -1,31 +1,24 @@
 defmodule PlaywrightEx.Test.Pool do
   @moduledoc false
-  # The drivers of `PlaywrightEx.Test.BrowserPool`, each in a `PlaywrightEx.Test.Pool.Slot`, the
-  # results of the registered tests (`use PlaywrightEx.Test`), and their recorders. A slot is
-  # `{pid, key}`, the key all of its options (`driver`, `on_start`, and the browser's
-  # `browser_name`, `launch_options`, `connect_options`), as upstream's worker hash covers the
-  # project's options: one driver and one browser per worker.
+  # The dispatcher of `PlaywrightEx.Test.BrowserPool` (whose moduledoc is the contract), after
+  # upstream's `Dispatcher` (`packages/playwright/src/runner/dispatcher.ts`): its seats are the
+  # `_workerSlots`, each a `PlaywrightEx.Test.Pool.Slot`, and a scope is a job. It runs the test
+  # registry (`PlaywrightEx.Test.Results`) in the same process, so a test's end reaches it before
+  # its scope's release (one mailbox).
   #
-  # Upstream's worker model: a scope (a registered test, found through the caller or its
-  # `$callers`, else the calling process, `setup_all`'s) leases a slot per key; its further calls
-  # of the key get the same slot, and its `release/1`, the last step of its `on_exit`, puts it on
-  # the free list, warm, unless the scope failed, else stops it. A test whose module
-  # (`setup_all`) holds a lease calls on its module's, as upstream's tests share their worker's
-  # `browser`. A test scope failed when the test did; another scope when a test of its module
-  # failed: the tests of the ExUnit runner process that spawned the scope (`:parent`; the runner
-  # spawns a module's `setup_all` and its tests, one module after another). A scope with no known
-  # result (no registered test, a doctest) counts as passed: upstream discards a worker after a
-  # failure only, and nothing says this one failed. At most
-  # `workers` slots run, as upstream's worker processes (stopping ones count): room is made by
-  # stopping free ones of other keys, the longest idle first, and the new one starts once they
-  # exited; with none, the caller waits (first come first served), unless its scope holds a slot
-  # already (its further keys go over
-  # `workers`, so no scope waits while it holds a slot others wait for). A waiter that exits, or
-  # whose scope was released, is dropped.
+  # The state:
   #
-  # A test's result (`watch/2`, `result/2`): passed when the `test` macro marked the end of its
-  # body (`{:passed, pid}`) and its process then exited `:shutdown`, as ExUnit's runner ends it.
-  # The messages a test process sends arrive before its `DOWN`.
+  #   * `seats`: `%{pid => %{key, scope, used}}`, linked. `scope` `nil` is idle; `key` is the
+  #     options of its last lease (`Slot.key/1`), `nil` after a failed scope's (its driver
+  #     reset); `used` orders the idle ones, the longest idle first.
+  #   * At most `workers` seats, but for those a scope that holds one takes over it (so no scope
+  #     waits while it holds a seat others wait for); a release trims idle seats back to
+  #     `workers`. A trimmed seat stays linked until it exited, so `after_suite/1`, which stops the
+  #     linked ones, waits for it.
+  #   * `scopes`: `%{scope => %{runner, failed?}}` of the scopes that hold seats: `runner` is a
+  #     `setup_all` scope's ExUnit runner (whose tests' results are the scope's), else `nil`.
+  #   * `waiting`: callers whose scope holds no seat while `workers` are held, monitored, first come
+  #     first served. A waiter that exits, or whose scope was released, is dropped.
   #
   # Started unlinked on first use (`ensure_started/0`), never with the application (a release
   # has no ExUnit): its lifetime is the run. It registers the `ExUnit.after_suite/1` that stops
@@ -35,21 +28,7 @@ defmodule PlaywrightEx.Test.Pool do
   alias PlaywrightEx.Client.ClientStackTrace
   alias PlaywrightEx.Test.Options
   alias PlaywrightEx.Test.Pool.Slot
-  alias PlaywrightEx.Test.TestInfo
-
-  # ExUnit kills a test's process past its timeout; so can a test. No stacktrace either way.
-  @killed "The test process was killed (ExUnit's timeout, or an explicit kill)."
-  # A marked test that raised nothing in its body and did not pass.
-  @outside "The test failed outside its body (setup, context pattern or a linked process); see ExUnit's output."
-
-  @doc "`PlaywrightEx.Test`'s table (public, owned here): test, recorder, context and test info rows."
-  def table, do: __MODULE__
-
-  @doc "The failure of a test whose process was killed."
-  def killed, do: @killed
-
-  @doc "The failure of a marked test that failed outside its body."
-  def outside, do: @outside
+  alias PlaywrightEx.Test.Results
 
   @doc "Starts the pool unless it runs. Two callers racing is fine."
   def ensure_started do
@@ -63,93 +42,36 @@ defmodule PlaywrightEx.Test.Pool do
     :ok
   end
 
-  @doc "Whether the pool runs (its table exists)."
-  def started?, do: :ets.whereis(table()) != :undefined
-
   @doc """
-  `%{playwright: _, browser: _}` of the slot of `opts` leased by `scope`: a registered test
+  `%{playwright: _, browser: _}` of the seat of `opts` leased by `scope`: a registered test
   (`{:test, pid}`, its result is the lease's, unless its module holds a lease), or another
-  process (`{:process, pid}`, a `setup_all`'s: the results of its runner's tests are).
+  process (`{:process, pid}`, a `setup_all`'s: the results of its runner's tests are). A seat
+  of another key restarts its driver here, in the caller.
   """
   def browser(opts, {kind, pid}) do
     ensure_started()
 
-    __MODULE__
-    |> GenServer.call({:lease, key(opts), opts, {kind, pid}, parent(pid)}, :infinity)
-    |> Slot.browser()
+    case GenServer.call(__MODULE__, {:lease, Slot.key(opts), {kind, pid}, parent(pid)}, :infinity) do
+      {seat, key} -> Slot.browser(seat, key, opts)
+      :stopped -> raise "PlaywrightEx.Test's drivers were stopped (after the suite)"
+      :released -> raise ArgumentError, "BrowserPool.browser/1 waited past the end of its test or module"
+    end
   end
 
-  @doc "Ends the leases of `scope`: free and warm unless it failed, else stopped."
+  @doc "Ends the leases of `scope`: its seats idle and warm unless it failed, else reset."
   def release(scope) do
     if Process.whereis(__MODULE__), do: GenServer.call(__MODULE__, {:release, scope}, :infinity)
     :ok
   end
 
-  @doc """
-  Monitors the test process `pid`, once. `marked`: `false`, or the failure of a test whose `test`
-  macro marks the end of the body and that raised nothing in it.
-  """
-  def watch(pid, marked) do
-    ensure_started()
-    GenServer.call(__MODULE__, {:watch, pid, parent(pid), marked}, :infinity)
-  end
-
-  @doc "Sends `message` (`{:passed, pid}`, `{:failed, pid, failure}`) if the pool runs."
-  def notify(message) do
-    if pid = Process.whereis(__MODULE__), do: send(pid, message)
-    :ok
-  end
-
-  @doc """
-  The result of the test `pid` once its process ended, waiting up to `timeout` ms:
-  `{:passed, []}`, `{:failed, failures}` (`{kind, reason, stacktrace}` as ExUnit's, or a
-  message), or `{nil, []}` when unknown (not watched, not marked, or past the wait).
-  """
-  def result(pid, timeout) do
-    if Process.whereis(__MODULE__), do: GenServer.call(__MODULE__, {:result, pid}, timeout), else: {nil, []}
-  catch
-    :exit, _ -> {nil, []}
-  end
-
-  @doc "How long the ended test `pid` ran, in ms, from its `watch/2` to its exit; `nil` if unknown."
-  def duration(pid) do
-    if Process.whereis(__MODULE__), do: GenServer.call(__MODULE__, {:duration, pid}, :infinity)
-  end
-
-  @doc """
-  Keeps `info` (`PlaywrightEx.Test.info/1`'s, of the ended test `test_pid`) until the calling
-  process, ExUnit's `on_exit` runner, exits: for the test's `on_exit` callbacks that run after
-  its registration's.
-  """
-  def keep_info(test_pid, info) do
-    :ets.insert(table(), {{:info, test_pid}, info})
-    GenServer.cast(__MODULE__, {:keep_info, test_pid, self()})
-  end
-
-  @doc "Forgets the result of the test `pid`."
-  def forget(pid) do
-    if Process.whereis(__MODULE__), do: GenServer.cast(__MODULE__, {:forget, pid})
-    :ok
-  end
-
-  @doc """
-  The recorder of the registered test `test_pid` (`PlaywrightEx.Test.Recorder`), started on the
-  first call; `nil` once the test's `take/1` ran.
-  """
-  def recorder(test_pid) do
-    case :ets.lookup(table(), {:recorder, test_pid}) do
-      [{_key, pid}] -> pid
-      [] -> GenServer.call(__MODULE__, {:recorder, test_pid}, :infinity)
+  @doc "The ExUnit runner process that spawned `pid` (OTP 25+), `nil` if unknown."
+  def parent(pid) do
+    case Process.info(pid, :parent) do
+      {:parent, parent} when is_pid(parent) -> parent
+      _ -> nil
     end
-  end
-
-  @doc "Unregisters the test `test_pid`: its registration row and its recorder (or `nil`)."
-  def take(test_pid), do: GenServer.call(__MODULE__, {:take, test_pid}, :infinity)
-
-  @doc "Notes `pid` as a process that created a context before it was registered, until it exits."
-  def note_unregistered(pid) do
-    if :ets.insert_new(table(), {{:unregistered, pid}, true}), do: GenServer.cast(__MODULE__, {:monitor, pid})
-    :ok
+  rescue
+    ArgumentError -> nil
   end
 
   @doc false
@@ -165,19 +87,6 @@ defmodule PlaywrightEx.Test.Pool do
     end
 
     :ok
-  end
-
-  defp key(opts),
-    do: {Enum.sort(opts.driver), opts.on_start, opts.browser_name, Enum.sort(opts.launch_options), opts.connect_options}
-
-  # The ExUnit runner process that spawned `pid` (OTP 25+), `nil` if unknown.
-  defp parent(pid) do
-    case Process.info(pid, :parent) do
-      {:parent, parent} when is_pid(parent) -> parent
-      _ -> nil
-    end
-  rescue
-    ArgumentError -> nil
   end
 
   # ExUnit's modules, the runner here, and this layer's (`PlaywrightEx.Test`, `PlaywrightEx.Case`),
@@ -196,7 +105,7 @@ defmodule PlaywrightEx.Test.Pool do
   @impl true
   def init(nil) do
     Process.flag(:trap_exit, true)
-    :ets.new(table(), [:named_table, :public, :set])
+    results = Results.new()
     # The runner's frames stay out of the client's stacks, as upstream's process sets
     # `setBoxedStackPrefixes([packageRoot])` (`packages/playwright/src/common/process.ts`).
     ClientStackTrace.set_boxed_stack_prefixes(runner_modules())
@@ -204,26 +113,21 @@ defmodule PlaywrightEx.Test.Pool do
     if Code.ensure_loaded?(ExUnit) and is_list(Application.get_env(:ex_unit, :after_suite)),
       do: ExUnit.after_suite(&__MODULE__.after_suite/1)
 
-    # `free` newest first; `leases` by scope: `%{slots, runner, failed?}` (`runner` a `setup_all`
-    # scope's, else `nil`; `failed?` once a test of it failed); `stopping`: slots stopping, still
-    # linked; `waiting`: callers waiting for room, monitored. `tests`: the watched test processes
-    # alive; `results` those ended (`{verdict, failures, duration}`), until forgotten.
-    {:ok, %{free: [], leases: %{}, stopping: [], waiting: [], tests: %{}, results: %{}, kept: %{}}}
+    {:ok, %{seats: %{}, scopes: %{}, waiting: [], results: results}}
   end
 
   @impl true
-  def handle_call({:lease, key, opts, {kind, pid}, parent}, {caller, _} = from, state) do
+  def handle_call({:lease, key, {kind, pid}, parent}, {caller, _} = from, state) do
     scope = scope(state, pid, parent)
     runner = if scope == pid and kind == :process, do: parent
-    request = %{key: key, opts: opts, scope: scope, runner: runner}
+    request = %{key: key, scope: scope, runner: runner, from: from}
 
     case lease(state, request) do
-      {{_pid, _key} = slot, state} ->
-        {:reply, slot, state}
+      {:ok, seat, state} ->
+        {:reply, {seat, key}, state}
 
-      {:full, state} ->
-        ref = Process.monitor(caller)
-        waiter = Map.merge(request, %{from: from, ref: ref})
+      :full ->
+        waiter = Map.put(request, :ref, Process.monitor(caller))
         {:noreply, %{state | waiting: state.waiting ++ [waiter]}}
     end
   end
@@ -236,281 +140,155 @@ defmodule PlaywrightEx.Test.Pool do
       GenServer.reply(waiter.from, :released)
     end
 
-    state = %{state | waiting: waiting}
+    case Map.pop(state.scopes, scope) do
+      {nil, _scopes} ->
+        {:reply, :ok, %{state | waiting: waiting}}
 
-    case Map.pop(state.leases, scope) do
-      {nil, _leases} ->
-        {:reply, :ok, state}
-
-      {lease, leases} ->
-        state = %{state | leases: leases}
-
-        state =
-          if !lease.failed? do
-            %{state | free: lease.slots ++ state.free}
-          else
-            Enum.reduce(lease.slots, state, &stop_slot(&2, &1))
-          end
-
-        {:reply, :ok, serve_waiting(state)}
+      {lease, scopes} ->
+        seats = Map.new(state.seats, &release_seat(&1, scope, lease.failed?))
+        state = %{state | waiting: waiting, scopes: scopes, seats: seats}
+        {:reply, :ok, state |> trim() |> serve_waiting()}
     end
   end
 
-  # The discarding slots too: `Slot.stop/1` of a stopping slot waits for it to exit.
   def handle_call(:take_all, _from, state) do
-    leased = Enum.flat_map(Map.values(state.leases), & &1.slots)
-    slots = state.free ++ leased ++ state.stopping
     for waiter <- state.waiting, do: GenServer.reply(waiter.from, :stopped)
-    for {pid, _key} <- slots, do: Process.unlink(pid)
-    {:reply, slots, %{state | free: [], leases: %{}, stopping: [], waiting: []}}
+    {:links, links} = Process.info(self(), :links)
+    slots = Enum.filter(links, &is_pid/1)
+    Enum.each(slots, &Process.unlink/1)
+    {:reply, slots, %{state | seats: %{}, scopes: %{}, waiting: []}}
   end
 
-  def handle_call({:watch, pid, runner, marked}, _from, state) do
-    if Map.has_key?(state.tests, pid) or Map.has_key?(state.results, pid) do
-      {:reply, :ok, state}
-    else
-      Process.monitor(pid)
-      started = System.monotonic_time(:millisecond)
-      test = %{runner: runner, marked: marked, passed?: false, failures: [], awaiting: [], started: started}
-      {:reply, :ok, %{state | tests: Map.put(state.tests, pid, test)}}
+  def handle_call(request, from, state) do
+    case Results.handle_call(request, from, state.results) do
+      {:reply, reply, results} -> {:reply, reply, %{state | results: results}}
+      {:noreply, results} -> {:noreply, %{state | results: results}}
     end
-  end
-
-  def handle_call({:result, pid}, from, state) do
-    case state do
-      %{results: %{^pid => {verdict, failures, _duration}}} -> {:reply, {verdict, failures}, state}
-      %{tests: %{^pid => _}} -> {:noreply, update_in(state.tests[pid].awaiting, &[from | &1])}
-      _ -> {:reply, {nil, []}, state}
-    end
-  end
-
-  def handle_call({:duration, pid}, _from, state) do
-    case state.results do
-      %{^pid => {_verdict, _failures, duration}} -> {:reply, duration, state}
-      _ -> {:reply, nil, state}
-    end
-  end
-
-  # One recorder per test, started here so that two processes of the test can't start two, and
-  # none starts after the test's `take/1`.
-  def handle_call({:recorder, test_pid}, _from, state) do
-    reply =
-      case :ets.lookup(table(), {:recorder, test_pid}) do
-        [{_key, pid}] ->
-          pid
-
-        [] ->
-          case :ets.lookup(table(), {:test, test_pid}) do
-            [{_key, test}] ->
-              {:ok, pid} = GenServer.start(PlaywrightEx.Test.Recorder, test)
-              :ets.insert(table(), {{:recorder, test_pid}, pid})
-              pid
-
-            [] ->
-              nil
-          end
-      end
-
-    {:reply, reply, state}
-  end
-
-  def handle_call({:take, test_pid}, _from, state) do
-    [test] = for {_key, test} <- :ets.take(table(), {:test, test_pid}), do: test
-    recorder = for {_key, pid} <- :ets.take(table(), {:recorder, test_pid}), do: pid
-    {:reply, {test, List.first(recorder)}, state}
   end
 
   @impl true
-  def handle_cast({:forget, pid}, state), do: {:noreply, %{state | results: Map.delete(state.results, pid)}}
-
-  def handle_cast({:keep_info, test_pid, keeper}, state) do
-    Process.monitor(keeper)
-    {:noreply, %{state | kept: Map.update(state.kept, keeper, [test_pid], &[test_pid | &1])}}
-  end
-
-  def handle_cast({:monitor, pid}, state) do
-    Process.monitor(pid)
-    {:noreply, state}
-  end
+  def handle_cast(request, state), do: {:noreply, %{state | results: Results.handle_cast(request, state.results)}}
 
   @impl true
-  def handle_info({:passed, pid}, state) do
-    case state.tests do
-      %{^pid => _} -> {:noreply, put_in(state.tests[pid].passed?, true)}
-      _ -> {:noreply, state}
-    end
-  end
-
-  def handle_info({:failed, pid, failure}, state) do
-    case state.tests do
-      %{^pid => _} -> {:noreply, update_in(state.tests[pid].failures, &(&1 ++ [failure]))}
-      _ -> {:noreply, state}
-    end
-  end
-
-  # A test process (watched), a waiting caller or an unregistered creator of contexts exited: a
-  # test process that waits has two monitors, and the first `DOWN` does both.
   def handle_info({:DOWN, _ref, :process, pid, reason}, state) do
-    :ets.delete(table(), {:unregistered, pid})
-    {kept, state} = pop_in(state.kept[pid])
-    for test_pid <- kept || [], do: :ets.delete(table(), {:info, test_pid})
     state = %{state | waiting: Enum.reject(state.waiting, &match?(%{from: {^pid, _}}, &1))}
 
-    case Map.pop(state.tests, pid) do
-      {nil, _tests} -> {:noreply, state}
-      {test, tests} -> {:noreply, test_ended(%{state | tests: tests}, pid, test, reason)}
+    case Results.down(state.results, pid, reason) do
+      # A failed test fails its own scope, and its module's (its runner's).
+      {{runner, :failed}, results} ->
+        scopes = Map.new(state.scopes, &fail_scope(&1, pid, runner))
+        {:noreply, %{state | results: results, scopes: scopes}}
+
+      {_ended, results} ->
+        {:noreply, %{state | results: results}}
     end
   end
 
-  # A slot that stopped or crashed: forget it, and serve the waiters its room.
+  # A seat that crashed (its holder's next call gets another). A trimmed seat left `seats` already.
   def handle_info({:EXIT, pid, _reason}, state) do
-    gone? = &match?({^pid, _}, &1)
-    leases = Map.new(state.leases, fn {scope, lease} -> {scope, %{lease | slots: Enum.reject(lease.slots, gone?)}} end)
-    free = Enum.reject(state.free, gone?)
-    stopping = Enum.reject(state.stopping, gone?)
-    {:noreply, serve_waiting(%{state | free: free, leases: leases, stopping: stopping})}
+    case Map.pop(state.seats, pid) do
+      {nil, _seats} -> {:noreply, state}
+      {_seat, seats} -> {:noreply, serve_waiting(%{state | seats: seats})}
+    end
   end
 
-  def handle_info(_message, state), do: {:noreply, state}
+  def handle_info(message, state), do: {:noreply, %{state | results: Results.handle_info(message, state.results)}}
 
-  defp test_ended(state, pid, test, reason) do
-    # Its `PlaywrightEx.Test.TestInfo` rows, and the errors its matchers recorded that the end of
-    # its body did not take: killed past its timeout, taken down by a linked process, a later
-    # `setup` failed, or `--breakpoints` and an error. Upstream reports all of `testInfo.errors`
-    # at the test's end: they fail it here, for `error-context.md` and the driver's release.
-    # ExUnit reported the test already, without them: its output can't change once the process
-    # died.
-    {verdict, failures} =
-      case {TestInfo.ended(pid), verdict(test, pid, reason)} do
-        {[], result} -> result
-        {errors, {_verdict, failures}} -> {:failed, Enum.map(errors, &normalize/1) ++ failures}
-      end
-
-    for from <- test.awaiting, do: GenServer.reply(from, {verdict, failures})
-
-    # The test's own leases, and those of its module's scope (its runner's). An unknown verdict
-    # (a doctest's) leaves them as they were.
-    leases =
-      Map.new(state.leases, fn {scope, lease} ->
-        if verdict == :failed and (scope == pid or (lease.runner != nil and lease.runner == test.runner)),
-          do: {scope, %{lease | failed?: true}},
-          else: {scope, lease}
-      end)
-
-    duration = System.monotonic_time(:millisecond) - test.started
-    %{state | results: Map.put(state.results, pid, {verdict, failures, duration}), leases: leases}
+  defp release_seat({pid, %{scope: scope} = seat}, scope, failed?) do
+    # Upstream's `void worker.stop(true)`: the next holder's `Slot.browser/3` awaits it.
+    if failed?, do: Slot.reset(pid)
+    {pid, %{seat | key: if(!failed?, do: seat.key), scope: nil, used: used()}}
   end
 
-  # ExUnit's runner exits a test's process `:shutdown` after the test and its setup, kills it
-  # past its timeout, and a linked process's exit takes it down.
-  defp verdict(%{passed?: true}, _pid, :shutdown), do: {:passed, []}
-  defp verdict(%{marked: false}, _pid, :shutdown), do: {nil, []}
-  defp verdict(%{failures: [_ | _] = failures}, _pid, :shutdown), do: {:failed, failures}
-  defp verdict(%{marked: failure}, _pid, :shutdown), do: {:failed, [failure]}
-  defp verdict(test, _pid, :killed), do: {:failed, test.failures ++ [@killed]}
-  defp verdict(test, pid, reason), do: {:failed, test.failures ++ [{{:EXIT, pid}, reason, []}]}
+  defp release_seat(other, _scope, _failed?), do: other
 
-  defp normalize({kind, reason, stacktrace}), do: {kind, Exception.normalize(kind, reason, stacktrace), stacktrace}
+  defp fail_scope({scope, lease}, pid, runner) do
+    if scope == pid or (lease.runner != nil and lease.runner == runner),
+      do: {scope, %{lease | failed?: true}},
+      else: {scope, lease}
+  end
 
   # A test's calls (registered or not) go to its module's lease, if the module holds one: the
   # `setup_all` scope its runner spawned.
   defp scope(_state, pid, nil), do: pid
 
   defp scope(state, pid, parent) do
-    Enum.find_value(state.leases, pid, fn {scope, lease} -> if lease.runner == parent, do: scope end)
+    Enum.find_value(state.scopes, pid, fn {scope, lease} -> if lease.runner == parent, do: scope end)
   end
 
-  # The scope's slot of the key (a repeated call), else a free one of the key or a new one.
+  # The scope's seat of the key (a repeated call), else `_scheduleJob`'s match: an idle seat of
+  # the key, else a new seat under `workers`, else an idle seat of another key (the longest
+  # idle), whose driver restarts for the key. A scope that holds a seat takes one over `workers`
+  # rather than wait.
   defp lease(state, request) do
-    held = state.leases[request.scope][:slots] || []
+    held = for {pid, %{scope: scope} = seat} <- state.seats, scope == request.scope, do: {pid, seat}
 
-    case Enum.find(held, &match?({_, key} when key == request.key, &1)) do
-      nil -> checkout(state, request, held != [])
-      slot -> {slot, state}
+    case Enum.find(held, &match?({_pid, %{key: key}} when key == request.key, &1)) do
+      {pid, _seat} -> {:ok, pid, state}
+      nil -> claim(state, request, held != [])
     end
   end
 
-  defp checkout(state, request, held?) do
-    key = request.key
-
-    case Enum.split_with(state.free, &match?({_, ^key}, &1)) do
-      {[slot | same], others} ->
-        {slot, add_lease(%{state | free: same ++ others}, request, slot)}
-
-      {[], _} ->
-        case make_room(state, held?) do
-          {:ok, state} ->
-            {slot, state} = start_slot(state, key, request.opts)
-            {slot, add_lease(state, request, slot)}
-
-          full ->
-            full
-        end
-    end
-  end
-
-  # `{:ok, state}` with room for a new slot under `workers`, else `{:full, state}`.
-  # Slots leased, free and stopping count; room is made by stopping free slots (the longest idle
-  # first), and the new slot starts once they exited, as upstream awaits `worker.stop()`. A scope
-  # that holds a slot already does not wait: it goes over `workers`.
-  defp make_room(state, held?) do
-    leased = Enum.sum_by(Map.values(state.leases), &length(&1.slots))
-    excess = leased + length(state.stopping) + length(state.free) + 1 - Options.workers()
+  defp claim(state, request, over?) do
+    workers = Options.workers()
+    idle = for {_pid, %{scope: nil}} = seat <- state.seats, do: seat
 
     cond do
-      excess <= 0 ->
-        {:ok, state}
+      not over? and map_size(state.seats) - length(idle) >= workers ->
+        :full
 
-      excess <= length(state.free) ->
-        {free, idle} = Enum.split(state.free, -excess)
-        state = Enum.reduce(idle, %{state | free: free}, &stop_slot(&2, &1))
-        if held?, do: {:ok, state}, else: {:full, state}
+      seat = Enum.find(idle, &(elem(&1, 1).key == request.key)) ->
+        {:ok, elem(seat, 0), take(state, seat, request)}
 
-      held? ->
-        {:ok, state}
+      # Under `workers`, or over it for a scope that holds one, when no seat is idle.
+      idle == [] or map_size(state.seats) < workers ->
+        {:ok, pid} = Slot.start_link()
+        {:ok, pid, take(state, {pid, %{key: nil, scope: nil, used: nil}}, request)}
 
       true ->
-        {:full, state}
+        seat = Enum.min_by(idle, &restart_order/1)
+        {:ok, elem(seat, 0), take(state, seat, request)}
     end
   end
 
-  defp add_lease(state, request, slot) do
-    lease =
-      Map.get(state.leases, request.scope, %{slots: [], runner: request.runner, failed?: false})
-
-    %{state | leases: Map.put(state.leases, request.scope, %{lease | slots: [slot | lease.slots]})}
+  defp take(state, {pid, seat}, request) do
+    seats = Map.put(state.seats, pid, %{seat | key: request.key, scope: request.scope})
+    scopes = Map.put_new(state.scopes, request.scope, %{runner: request.runner, failed?: false})
+    %{state | seats: seats, scopes: scopes}
   end
 
-  # The waiting callers, first come first served, while there is room; one that finds none
-  # keeps its place, and those after it are still served (a free slot of their key). A caller
-  # that exited meanwhile gets none.
-  defp serve_waiting(state), do: serve_waiting(%{state | waiting: []}, state.waiting)
+  # Reset seats first (their drivers stopped already), then the longest idle.
+  defp restart_order({_pid, seat}), do: {seat.key != nil, seat.used}
 
-  defp serve_waiting(state, []), do: state
+  defp used, do: System.unique_integer([:monotonic])
 
-  defp serve_waiting(state, [waiter | rest]) do
-    {pid, _} = waiter.from
+  # Idle seats over `workers` (taken over it by a scope, or `workers` lowered) are stopped.
+  defp trim(state) do
+    idle = for {_pid, %{scope: nil}} = seat <- state.seats, do: seat
+    excess = min(map_size(state.seats) - Options.workers(), length(idle))
 
-    with true <- Process.alive?(pid),
-         {{_pid, _key} = slot, state} <- lease(state, waiter) do
-      Process.demonitor(waiter.ref, [:flush])
-      GenServer.reply(waiter.from, slot)
-      serve_waiting(state, rest)
+    if excess > 0 do
+      trimmed = idle |> Enum.sort_by(&restart_order/1) |> Enum.take(excess) |> Enum.map(&elem(&1, 0))
+      # A driver's stop waits for it to exit: not in the pool's process.
+      Enum.each(trimmed, &Task.start(Slot, :stop, [&1]))
+      %{state | seats: Map.drop(state.seats, trimmed)}
     else
-      false -> serve_waiting(state, rest)
-      {:full, state} -> serve_waiting(%{state | waiting: state.waiting ++ [waiter]}, rest)
+      state
     end
   end
 
-  defp start_slot(state, key, opts) do
-    {:ok, pid} = Slot.start_link(opts)
-    {{pid, key}, state}
+  # The waiting callers, first come first served, while a seat is free for the first.
+  defp serve_waiting(%{waiting: [waiter | rest]} = state) do
+    case lease(%{state | waiting: rest}, waiter) do
+      {:ok, seat, state} ->
+        Process.demonitor(waiter.ref, [:flush])
+        GenServer.reply(waiter.from, {seat, waiter.key})
+        serve_waiting(state)
+
+      :full ->
+        state
+    end
   end
 
-  # A driver's stop waits for it to exit (up to ~31 s): not in the pool's process. The slot
-  # stays linked until its exit, so `after_suite/1` waits for it too.
-  defp stop_slot(state, slot) do
-    Task.start(fn -> Slot.stop(slot) end)
-    %{state | stopping: [slot | state.stopping]}
-  end
+  defp serve_waiting(state), do: state
 end

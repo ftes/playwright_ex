@@ -7,32 +7,25 @@ defmodule PlaywrightEx.Test.ScopeTest do
 
   alias PlaywrightEx.Browser
   alias PlaywrightEx.Test.BrowserPool
-  alias PlaywrightEx.Test.Pool
 
   @opts [driver: [env: [{"PW_SCOPE_TEST", "module"}]]]
 
   setup_all do
     browser = BrowserPool.browser(@opts)
     again = BrowserPool.browser(@opts)
-    %{browser: browser, again: again, module_pid: self()}
+    %{browser: browser, again: again}
   end
-
-  def leases(scope), do: Map.get(:sys.get_state(Pool).leases, scope)
 
   test "setup_all's scope holds one browser across the module's tests, also on a repeated call", ctx do
     assert Browser.is_connected(ctx.browser)
     assert ctx.again == ctx.browser
-    # (and the other test's driver key, by the order they run in)
-    assert %{slots: [_ | _]} = leases(ctx.module_pid)
   end
 
-  test "a test's calls, and its Task's, go to its module's lease; another key joins it", ctx do
+  test "a test's calls, and its Task's, go to its module's lease; other options get another driver", ctx do
     assert BrowserPool.browser(@opts) == ctx.browser
     assert Task.await(Task.async(fn -> BrowserPool.browser(@opts) end)) == ctx.browser
     other = BrowserPool.browser(Keyword.put(@opts, :launch_options, slow_mo: 1))
     assert BrowserPool.playwright(other) != BrowserPool.playwright(ctx.browser)
-    assert leases(self()) == nil
-    assert %{slots: [_, _]} = leases(ctx.module_pid)
   end
 end
 
@@ -44,26 +37,17 @@ defmodule PlaywrightEx.Test.ScopeTest.TestScopeTest do
 
   alias PlaywrightEx.Browser
   alias PlaywrightEx.Test.BrowserPool
-  alias PlaywrightEx.Test.Pool
 
   @opts [driver: [env: [{"PW_SCOPE_TEST", "test"}]]]
-
-  defp lease, do: Map.get(:sys.get_state(Pool).leases, self())
 
   test "a test's call, and its Task's, and repeated calls: one browser of the test's" do
     browser = BrowserPool.browser(@opts)
     assert Task.await(Task.async(fn -> BrowserPool.browser(@opts) end)) == browser
     assert BrowserPool.browser(@opts) == browser
-    assert %{slots: [_]} = lease()
 
     # Other browser options: another worker.
     other = BrowserPool.browser(Keyword.put(@opts, :launch_options, slow_mo: 1))
     assert BrowserPool.playwright(other) != BrowserPool.playwright(browser)
-    assert %{slots: [_, _]} = lease()
-  end
-
-  test "a test that asks for none holds none" do
-    assert lease() == nil
   end
 end
 

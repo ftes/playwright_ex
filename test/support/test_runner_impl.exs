@@ -6,7 +6,7 @@
 #   * `artifacts` - one passing and one failing test, `trace: :retain_on_failure, screenshot:
 #     :only_on_failure`. It prints "(ready=>true)" in the passing test and waits there until the
 #     go file exists.
-#   * `modules` - pooled browsers (a module's of ten tests, a test's of two driver keys, a
+#   * `modules` - pooled browsers (a module's of ten tests, a test's of two options, a
 #     failing module's, `parameterize:`) and a module with none; prints the pool after the run:
 #     `(report=>%{...})`.
 #   * `max_failures` - `max_failures: 1`, a module holding a browser running when another
@@ -63,14 +63,18 @@ defmodule Report do
   # newest first, and the pool registers its own when it starts (on first use).
   def after_suite, do: ExUnit.after_suite(&print/1)
 
-  # The labels of the free drivers, how many scopes hold leases, and per label how many scopes
-  # and drivers its tests saw.
+  # The labels of the idle seats' warm drivers, how many scopes hold seats, and per label how
+  # many scopes and drivers its tests saw.
   def print(_stats) do
     state = :sys.get_state(PlaywrightEx.Test.Pool)
     reported = :ets.tab2list(:report)
     # A driver's connection names it (every driver's Playwright has the same guid).
     label_of = Map.new(reported, fn {label, _scope, playwright} -> {playwright.conn, label} end)
-    free = for {pid, _key} <- state.free, do: label_of[:sys.get_state(pid).playwright.conn]
+
+    free =
+      for {pid, %{scope: nil, key: key}} <- state.seats,
+          key != nil,
+          do: label_of[:sys.get_state(pid).playwright.conn]
 
     count = fn by ->
       reported |> Enum.group_by(&elem(&1, 0), by) |> Map.new(fn {l, xs} -> {l, length(Enum.uniq(xs))} end)
@@ -78,7 +82,7 @@ defmodule Report do
 
     report = %{
       free: Enum.sort(free),
-      leases: map_size(state.leases),
+      leases: map_size(state.scopes),
       scopes: count.(&elem(&1, 1)),
       drivers: count.(&elem(&1, 2).conn)
     }
@@ -107,7 +111,7 @@ case mode do
     end
 
   "modules" ->
-    # A driver key per label (`driver: [env: ...]`), so no scope reuses another's driver.
+    # Driver options per label (`driver: [env: ...]`), so no scope reuses another's driver.
     defmodule Key do
       def opts(label), do: [driver: [env: [{"PW_MODULE", to_string(label)}]]]
     end
@@ -134,11 +138,11 @@ case mode do
     end
 
     defmodule TwoDriversTest do
-      # A test's lease: two driver keys, two drivers.
+      # A test's lease: two options, two drivers.
       use ExUnit.Case, async: true
       use PlaywrightEx.Test
 
-      test "two driver keys" do
+      test "two options" do
         Report.put(:two_a, self(), BrowserPool.browser(Key.opts(:two_a)))
         Report.put(:two_b, self(), BrowserPool.browser(Key.opts(:two_b)))
       end
@@ -178,7 +182,7 @@ case mode do
       use PlaywrightEx.Test
 
       test "asks for none" do
-        assert Map.get(:sys.get_state(PlaywrightEx.Test.Pool).leases, self()) == nil
+        refute Enum.any?(Map.values(:sys.get_state(PlaywrightEx.Test.Pool).seats), &(&1.scope == self()))
       end
     end
 

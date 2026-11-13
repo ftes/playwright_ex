@@ -11,6 +11,7 @@ defmodule PlaywrightEx.Test.ConnectTest do
   alias PlaywrightEx.RemoteServer.RunServer
   alias PlaywrightEx.Test.BrowserPool
   alias PlaywrightEx.Test.Pool
+  alias PlaywrightEx.Test.Results
   alias PlaywrightEx.TestServer
 
   @moduletag timeout: 60_000
@@ -47,7 +48,7 @@ defmodule PlaywrightEx.Test.ConnectTest do
 
         receive do
           :end ->
-            Pool.notify({:passed, self()})
+            Results.notify({:passed, self()})
             exit(:shutdown)
         end
       end)

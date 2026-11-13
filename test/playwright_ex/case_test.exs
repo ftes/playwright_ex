@@ -24,7 +24,6 @@ defmodule PlaywrightEx.CaseTest do
     assert BrowserContext.browser(context) == browser
     # The module holds it (`setup_all`): the test's own call is the module's.
     assert BrowserPool.browser() == browser
-    refute Map.has_key?(:sys.get_state(PlaywrightEx.Test.Pool).leases, self())
     assert is_pid(PlaywrightEx.Test.Recorder.lookup(self()))
     Page.set_content!(page, "<h1>Hi</h1>")
     Page.get_by_role(page, :heading) |> Expect.to_have_text!("Hi")

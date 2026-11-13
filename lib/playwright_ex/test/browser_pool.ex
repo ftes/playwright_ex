@@ -77,6 +77,7 @@ defmodule PlaywrightEx.Test.BrowserPool do
   alias PlaywrightEx.Test.Options
   alias PlaywrightEx.Test.Pool
   alias PlaywrightEx.Test.Recorder
+  alias PlaywrightEx.Test.Results
 
   @doc """
   The browser of `opts` held by the calling scope (see the moduledoc): a registered test (the
@@ -116,7 +117,7 @@ defmodule PlaywrightEx.Test.BrowserPool do
   @spec playwright(Browser.t()) :: PlaywrightEx.Playwright.t()
   def playwright(%Browser{conn: conn} = browser) do
     # The driver's row of the browser's connection (`PlaywrightEx.Test.Pool.Slot`).
-    case Pool.started?() && :ets.lookup(Pool.table(), {:driver, conn}) do
+    case Results.started?() && :ets.lookup(Results.table(), {:driver, conn}) do
       [{_key, playwright}] -> playwright
       _ -> raise ArgumentError, "not a browser of PlaywrightEx.Test.BrowserPool: #{inspect(browser)}"
     end

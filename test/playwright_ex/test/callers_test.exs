@@ -11,7 +11,7 @@ defmodule PlaywrightEx.Test.CallersTest do
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Route
-  alias PlaywrightEx.Test.Pool
+  alias PlaywrightEx.Test.Results
   alias PlaywrightEx.Test.TestInfo
   alias PlaywrightEx.WebSocketRoute
 
@@ -24,7 +24,7 @@ defmodule PlaywrightEx.Test.CallersTest do
   # Waits until the test `pid` has a recorded error (an unhandled one arrives after the action).
   defp await_error(pid, attempts \\ 100, _slept \\ :ok) do
     cond do
-      :ets.match_object(Pool.table(), {{:test_info, pid, {:error, :_}}, :_}) != [] -> :ok
+      :ets.match_object(Results.table(), {{:test_info, pid, {:error, :_}}, :_}) != [] -> :ok
       attempts == 0 -> flunk("no error recorded")
       true -> await_error(pid, attempts - 1, Process.sleep(50))
     end

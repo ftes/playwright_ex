@@ -4,7 +4,7 @@ defmodule PlaywrightEx.Test.Recorder do
   # `ArtifactsRecorder`, `SnapshotRecorder` and `_contextFactory`
   # (`packages/playwright/src/index.ts`).
   #
-  # A process per test that creates a context (`PlaywrightEx.Test.Pool.recorder/1`, started on
+  # A process per test that creates a context (`PlaywrightEx.Test.Results.recorder/1`, started on
   # its first one; on its registration when it traces, for the steps of `test.trace`), alive to
   # the end of its `on_exit`: it remembers the test's contexts and anchors them (so their pages
   # and videos stay readable after the process that created or closed them exits). The driver's
@@ -28,7 +28,7 @@ defmodule PlaywrightEx.Test.Recorder do
   alias PlaywrightEx.Runtime.Zones
   alias PlaywrightEx.Screencast
   alias PlaywrightEx.Test.ErrorContext
-  alias PlaywrightEx.Test.Pool
+  alias PlaywrightEx.Test.Results
   alias PlaywrightEx.Test.TestInfo
   alias PlaywrightEx.Test.TestTracing
   alias PlaywrightEx.Tracing
@@ -38,7 +38,7 @@ defmodule PlaywrightEx.Test.Recorder do
 
   @doc "The recorder of the test `test_pid`, if it started one, or `nil`."
   def lookup(test_pid) do
-    case Pool.started?() && :ets.lookup(Pool.table(), {:recorder, test_pid}) do
+    case Results.started?() && :ets.lookup(Results.table(), {:recorder, test_pid}) do
       [{_, pid}] -> pid
       _ -> nil
     end
@@ -58,7 +58,7 @@ defmodule PlaywrightEx.Test.Recorder do
 
   @doc "The registration of the test `test_pid`, or `nil`."
   def registration(test_pid) do
-    case Pool.started?() && :ets.lookup(Pool.table(), {:test, test_pid}) do
+    case Results.started?() && :ets.lookup(Results.table(), {:test, test_pid}) do
       [{_key, test}] -> test
       _ -> nil
     end
@@ -73,7 +73,7 @@ defmodule PlaywrightEx.Test.Recorder do
   context hooks run in the process that creates or closes a context, for every context of the
   driver: they look up the creator's test (`registration/0`) and record only the test's
   contexts. A process that creates one unregistered is noted
-  (`PlaywrightEx.Test.Pool.note_unregistered/1`): the test process of a case template's `setup`
+  (`PlaywrightEx.Test.Results.note_unregistered/1`): the test process of a case template's `setup`
   that runs before `use PlaywrightEx.Test`'s fails its registration.
   """
   def listener do
@@ -319,7 +319,7 @@ defmodule PlaywrightEx.Test.Recorder do
   end
 
   # The test process, the root of the `$callers`.
-  defp note_unregistered, do: Pool.note_unregistered(List.last([self() | List.wrap(Process.get(:"$callers"))]))
+  defp note_unregistered, do: Results.note_unregistered(List.last([self() | List.wrap(Process.get(:"$callers"))]))
 
   @doc false
   # `runAfterCreateBrowserContext`: `didCreateBrowserContext`, on the test's recorder, started on
@@ -327,8 +327,8 @@ defmodule PlaywrightEx.Test.Recorder do
   # reads it, no call into every test's recorder on each close.
   def after_create_browser_context(context) do
     with %{} = test <- registration(),
-         recorder when is_pid(recorder) <- Pool.recorder(test.test_pid),
-         true <- :ets.insert_new(Pool.table(), {{:context, context.guid}, recorder}),
+         recorder when is_pid(recorder) <- Results.recorder(test.test_pid),
+         true <- :ets.insert_new(Results.table(), {{:context, context.guid}, recorder}),
          do: record(context, recorder, test)
 
     nil
@@ -347,7 +347,8 @@ defmodule PlaywrightEx.Test.Recorder do
       step("start tracing", fn -> start_tracing(context, BrowserContext.tracing(context), test) end)
       request = BrowserContext.request(context)
 
-      if :ets.insert_new(Pool.table(), {{:request, request.guid}, recorder}), do: start_request_tracing(request, test)
+      if :ets.insert_new(Results.table(), {{:request, request.guid}, recorder}),
+        do: start_request_tracing(request, test)
     end
 
     if test.video[:mode] != :off, do: step("follow the context's pages", fn -> follow_pages(context, recorder) end)
@@ -368,7 +369,7 @@ defmodule PlaywrightEx.Test.Recorder do
   def on_user_step(test_pid, message) do
     with %{video: video} <- registration(test_pid),
          %{} <- video[:show][:test],
-         recorder when is_pid(recorder) <- Pool.recorder(test_pid),
+         recorder when is_pid(recorder) <- Results.recorder(test_pid),
          do: call(recorder, {:user_step, message})
 
     :ok
@@ -442,8 +443,8 @@ defmodule PlaywrightEx.Test.Recorder do
   # `APIRequest.new_context/2` in the test, kept to dispose of at its end, and its trace chunk.
   def after_create_request_context(request) do
     with %{} = test <- registration(),
-         recorder when is_pid(recorder) <- Pool.recorder(test.test_pid),
-         true <- :ets.insert_new(Pool.table(), {{:request, request.guid}, recorder}) do
+         recorder when is_pid(recorder) <- Results.recorder(test.test_pid),
+         true <- :ets.insert_new(Results.table(), {{:request, request.guid}, recorder}) do
       call(recorder, {:add_request, request})
 
       if test.trace[:mode] != :off, do: start_request_tracing(request, test)
@@ -456,7 +457,7 @@ defmodule PlaywrightEx.Test.Recorder do
   # `runBeforeCloseRequestContext` (`willCloseRequestContext`): the trace chunk of a request
   # context, also a browser context's `request` (its close disposes it first).
   def before_close_request_context(request) do
-    with [{_key, recorder}] <- :ets.take(Pool.table(), {:request, request.guid}),
+    with [{_key, recorder}] <- :ets.take(Results.table(), {:request, request.guid}),
          %{} = state <- call(recorder, :state) do
       call(recorder, {:request_closed, request.guid})
 
@@ -482,7 +483,7 @@ defmodule PlaywrightEx.Test.Recorder do
   # (`captureTemporary`), then the page snapshot (`_takePageSnapshot`). Taking the row makes it
   # once per context, also when closes race.
   def before_close_browser_context(context) do
-    with [{_key, recorder}] <- :ets.take(Pool.table(), {:context, context.guid}),
+    with [{_key, recorder}] <- :ets.take(Results.table(), {:context, context.guid}),
          %{} = state <- call(recorder, :state) do
       call(recorder, {:closed, context.guid})
       collect(context, recorder, state)
@@ -516,7 +517,7 @@ defmodule PlaywrightEx.Test.Recorder do
 
   defp failed_without_snapshot?(test_pid) do
     with false <- Process.alive?(test_pid),
-         {:failed, failures} <- Pool.result(test_pid, 5000) do
+         {:failed, failures} <- Results.result(test_pid, 5000) do
       not Enum.any?(failures, &ErrorContext.error(&1).error_context)
     else
       _ -> false
@@ -588,7 +589,7 @@ defmodule PlaywrightEx.Test.Recorder do
 
   @doc """
   The end of the test (in its registration's `on_exit`, so it runs last), with its `result`
-  (`PlaywrightEx.Test.Pool.result/2`): within `budget` ms (ExUnit's `on_exit` shares the test's
+  (`PlaywrightEx.Test.Results.result/2`): within `budget` ms (ExUnit's `on_exit` shares the test's
   timeout), closes its contexts still open, then keeps the videos, trace and screenshots as the
   modes and the result say and writes `error-context.md` of a failure. Then, whatever happened,
   stops the recorder. Returns the path of the trace it kept, or `nil`.
@@ -607,8 +608,8 @@ defmodule PlaywrightEx.Test.Recorder do
         nil
     end
   after
-    :ets.match_delete(Pool.table(), {{:context, :_}, pid})
-    :ets.match_delete(Pool.table(), {{:request, :_}, pid})
+    :ets.match_delete(Results.table(), {{:context, :_}, pid})
+    :ets.match_delete(Results.table(), {{:request, :_}, pid})
     step("stop the recorder", fn -> GenServer.stop(pid) end)
   end
 
