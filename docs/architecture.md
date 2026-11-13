@@ -284,7 +284,7 @@ no call site (the recording modes) are config plus ExUnit tags; the rest are arg
 | upstream | here |
 |---|---|
 | worker `browser` fixture, worker reuse by hash | `BrowserPool.browser/1` (cap `workers`, reuse by key, stopped after a failure; a key is all of its options, as the hash) |
-| `connectOptions` | `connect_options` (part of the browser key) |
+| `connectOptions` | `connect_options` (part of the key) |
 | env defaults (`PW_TEST_CONNECT_*`, `PLAYWRIGHT_TEST_BASE_URL`) | not read: upstream's runner and tools set them, nothing does here; config only, `System.get_env` in `config/test.exs` |
 | `playwright` fixture | `BrowserPool.playwright/1` |
 | `context`/`page` fixtures, `browser.newContext()` | `Browser.new_context!/2`, `BrowserContext.new_page!/1`; `PlaywrightEx.Case` puts them together |
@@ -339,35 +339,38 @@ merge keeps a chunk's own actions' stacks and sources.
 The pool is upstream's worker model. `browser/1` is held by the scope that calls it: `setup_all`'s
 module (upstream runs a file in one worker), or the test (a `Task` resolves to it through
 `$callers`); a test of a module that holds one calls on its module's, as upstream's tests share
-their worker's `browser`. A worker is a driver and one browser per key (all of the options, as
-upstream's worker hash covers the project's), reused warm by the next scope of its key unless the
-scope failed, else stopped (upstream replaces a worker after a failure). A scope with no known
-result (no registered test, a doctest) counts as passed: upstream always knows, and discarding the
-unknown would start a driver per module of a plain `ExUnit.Case` suite. At most `workers` of them
-run (upstream's, default half the cores, `packages/playwright/src/common/config.ts:111`), stopping
-ones included (upstream awaits `worker.stop()` before starting another,
-`packages/playwright/src/runner/dispatcher.ts:153`); waiters are served first come first served,
-and at the cap a key with no free driver stops the longest idle free one of another key. A module
-that waits for one costs nothing, so ExUnit's `max_cases` above `workers` is fine. A scope that
-holds one takes its further keys over the cap, so none waits while holding one. The release is the
-last step of the test's `on_exit` (after its artifacts) or an `on_exit` of `setup_all`'s, never a
-`DOWN`: `on_exit` runs after the test process exits. A module's outcome is its tests', which
-ExUnit's runner spawns from the process that ran `setup_all` (`Process.info(pid, :parent)`). The
-drivers stop in `ExUnit.after_suite/1`, as `mix test` halts without stopping applications (#191).
-The pool starts on first use, never with the application: a release has no ExUnit.
+their worker's `browser`. Its seats are upstream's worker slots: each runs one driver and one
+browser of one key (all of the options, as upstream's worker hash covers the project's), reused warm
+by the next scope of its key unless the scope failed, else stopped (upstream replaces a worker after
+a failure). A scope with no known result (no registered test, a doctest) counts as passed: upstream
+always knows, and discarding the unknown would start a driver per module of a plain `ExUnit.Case`
+suite. At most `workers` seats are held (upstream's, default half the cores,
+`packages/playwright/src/common/config.ts:111`); waiters are served first come first served from the
+head, as `_findFirstJobToRun` takes the queue's first job (its locks and per-project limits are not
+ported). A seat of another key restarts in place, its stop awaited by the new holder's `browser/1`,
+as `_runJobInWorker` awaits `worker.stop()` before it starts a worker of another hash
+(`packages/playwright/src/runner/dispatcher.ts:153`). A stop is fast (a median 28 ms, at most 120
+ms, over 97 in the test suite), so where it is awaited barely matters; the seats keep upstream's
+accounting. A module that waits for one costs nothing, so ExUnit's `max_cases` above `workers` is
+fine. A scope that holds one takes its further keys over the cap, so none waits while holding one;
+seats over `workers` stop when they go idle. The release is the last step of the test's `on_exit`
+(after its artifacts) or an `on_exit` of `setup_all`'s, never a `DOWN`: `on_exit` runs after the
+test process exits. A module's outcome is its tests', which ExUnit's runner spawns from the process
+that ran `setup_all` (`Process.info(pid, :parent)`). The drivers stop in `ExUnit.after_suite/1`, as
+`mix test` halts without stopping applications (#191). The pool starts on first use, never with the
+application: a release has no ExUnit.
 
 Compared with upstream's dispatcher (`packages/playwright/src/runner/dispatcher.ts`,
-`testGroups.ts`):
+`testGroups.ts`), a worker is the same (one Playwright and one browser of one hash, replaced after a
+failure), and so is matching a job to a slot (`_scheduleJob`: a free worker of the hash, else a free
+slot, restarting a worker of another hash), except that of the free seats an empty one goes first,
+then the longest idle, where upstream takes the first. The differences:
 
 | | Playwright Test | here |
 |---|---|---|
 | unit of work | a test group: a file's tests of one project | the scope that calls `browser/1`: a module (`setup_all`) or a test, as ExUnit schedules modules |
-| worker | a process with one Playwright and one browser, for one worker hash | a driver and one browser per key (all of the options): the same |
-| browsers per worker | 1 | the same |
-| job to worker | a free worker of the job's hash, else a new one, restarting a free worker of another hash (`_scheduleJob`) | the same: a free slot of the key, else a new one, stopping the longest idle free slot of another key at the cap |
-| after a failure | the worker is replaced | the same |
 | ordering | the queue grouped by hash, so a worker rarely switches | ExUnit's random module order (not portable: ExUnit owns it), so a run that mixes configurations restarts workers often: one configuration per invocation |
-| idle workers | `_isWorkerRedundant` stops a worker no queued job needs | stopped lazily, when the cap needs room: there is no queue to look ahead |
+| idle workers | `_isWorkerRedundant` stops a worker no queued job needs | restarted lazily, when a scope of another key takes the seat: there is no queue to look ahead |
 | where waiting happens | the dispatcher's queue, before a worker runs the group | inside `browser/1`: no timeout in `setup_all`, the test timeout in `setup` or a test |
 | a scope needing a second configuration | another project, another worker | a further key over `workers`, so a scope that holds one never waits for itself |
 | concurrency | `workers`, half the cores | ExUnit's `max_cases` (twice the schedulers, about four times as many) with `workers` drivers: modules past `workers` wait at no cost, those that never call `browser/1` are unaffected |
@@ -376,11 +379,8 @@ Compared with upstream's dispatcher (`packages/playwright/src/runner/dispatcher.
 
 The defaults: `workers` half the schedulers (upstream's number), ExUnit's `max_cases` unchanged.
 `workers` is not `max_cases`: each running browser test keeps a browser, a renderer and the
-driver busy, so twice the cores oversubscribes the CPU. LiveView's e2e suite at `max_cases` 36 on
-18 schedulers took 64.6 s at 15.0 GB peak with 9 workers (load 15), and 80.2 s at 38.7 GB with 36
-(load 57). A suite that mostly waits on the app needs more `workers`, toward the core count, with
-`max_cases` at about the core count: past it, the app's CPU saturates (see the guide's Workers
-section).
+driver busy, so twice the cores oversubscribes the CPU. A suite that mostly waits on the app needs
+more `workers`, toward the core count (the guide's Workers section has the measurements).
 
 Upstream knows a test's result in-process (`testInfo.errors`, `status`) when it closes contexts
 and keeps artifacts; ExUnit tells `on_exit` nothing. So `use PlaywrightEx.Test` brings a `test`
@@ -463,7 +463,7 @@ proxy. Snapshot comparison and video decoding use the driver's own comparator an
 `launchServer` specs run on the driver's `launch-server` CLI or upstream's unmodified
 `remote-server-impl.js`, as Python's and Java's suites do. The suite runs on `PlaywrightEx.Test`:
 each upstream and example module holds `BrowserPool.browser/1`, upstream's worker, all on one
-driver key (under test, set up as Playwright Test's fixtures by `on_start`), so they reuse each
+set of options (under test, set up as Playwright Test's fixtures by `on_start`), so they reuse each
 other's drivers. Cleanup closes only what a
 test or module created: a passing module's driver goes on to the next. Tests of driver env vars run a second driver with its own env; under test the client keeps `__testHook*` keys per connection. Every long-lived child (servers, the
 `ClientProcess` BEAM) exits on stdin EOF, so a killed test BEAM leaves no orphans

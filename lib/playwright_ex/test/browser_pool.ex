@@ -39,27 +39,28 @@ defmodule PlaywrightEx.Test.BrowserPool do
 
   ## Workers
 
-  A driver and its browser are upstream's worker, held by the scope that calls `browser/1`.
-  Called in `setup_all`, the module holds it until it ends, as upstream runs a file in one
-  worker; a test's own calls then go to its module's driver. In `setup` or a test of a module
-  that holds none (or a `Task` of the test, through `$callers`), the test holds it until it
-  ends. The scope's further calls with the same options return the same browser; other options
-  get another worker. At the end of the scope (the last step of a registered test's
-  `on_exit`; for another scope, an `on_exit` its first call registers), a scope gives its driver
-  back, warm, to the next caller of its key, unless it failed: then the driver stops, as upstream
-  replaces a worker after a failure. A module fails when a test of it failed. Only registered
-  tests have results: register tests with `use PlaywrightEx.Test` to get Playwright Test's
-  discard-after-failure; a scope with no known result (no registered test, a doctest) counts as
-  passed. A lost browser is launched (or connected) again by the scope's next call.
+  A worker is a seat, upstream's worker slot: it runs one driver and its browser at a time, of
+  one set of options, held by the scope that calls `browser/1`. Called in `setup_all`, the
+  module holds it until it ends, as upstream runs a file in one worker; a test's own calls then
+  go to its module's lease. In `setup` or a test of a module that holds none (or a `Task` of the
+  test, through `$callers`), the test holds it until it ends. The scope's further calls with the
+  same options return the same browser; other options take another seat. At the end of the scope
+  (the last step of a registered test's `on_exit`; for another scope, an `on_exit` its first call
+  registers), its seats go back, their drivers warm for the next caller of the options, unless it
+  failed: then the drivers stop, as upstream replaces a worker after a failure. A module fails
+  when a test of it failed. Only registered tests have results: register tests with
+  `use PlaywrightEx.Test` to get Playwright Test's discard-after-failure; a scope with no known
+  result (no registered test, a doctest) counts as passed. A lost browser is launched (or
+  connected) again by the scope's next call.
 
-  At most `workers` drivers run at once (config, default half the schedulers, as Playwright
-  Test's `workers`); others wait, first come first served, within ExUnit's test timeout
-  (`setup_all` has none). A module that waits costs
-  nothing, so ExUnit's `max_cases` can stay above `workers`. A scope that holds one takes its
-  further keys over `workers`, so it never waits while others wait for it. At the cap, a key
-  with no free driver stops the longest idle free driver of another key, as upstream restarts a
-  worker of another hash: in a run that mixes options, each switch costs a driver start (about
-  110 ms) and a browser launch.
+  At most `workers` seats are held at once (config, default half the schedulers, as Playwright
+  Test's `workers`); other scopes wait, first come first served, within ExUnit's test timeout
+  (`setup_all` has none). A scope that waits costs nothing, so ExUnit's `max_cases` can stay
+  above `workers`. A scope that holds a seat takes its further options over `workers`, so it
+  never waits while others wait for it; those seats stop at its end. A scope gets an idle seat
+  of its options, else a new one, else the longest idle seat of other options, whose driver its
+  `browser/1` restarts, as upstream restarts a worker of another hash: in a run that mixes
+  options, each switch costs a driver start (about 110 ms) and a browser launch.
 
   The test id attribute of `get_by_test_id` is global to the VM (upstream's to the worker
   process), so only a suite-wide one is safe: config `test_id_attribute`, which each pooled

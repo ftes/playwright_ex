@@ -490,14 +490,10 @@ The recording counts such a failure as a pass (see `PlaywrightEx.Test`).
 
 ## Workers
 
-The scope that calls `BrowserPool.browser/1` holds the driver and its browser, Playwright Test's
-worker: called in `setup_all`, the module, until it ends; in `setup` or a test of a module that
-holds none (or a `Task` of the test), the test. A test's own calls go to its module's driver, so
-another browser or options there don't take another worker. The scope's further calls with the
-same options return the same browser. At its end, a scope gives the driver back, warm, to the
-next caller of its options, unless it failed: then the driver stops, as Playwright Test replaces
-a worker after a failure. That needs the tests' results, so `use PlaywrightEx.Test`: without it a
-module counts as passed. To set up each new driver
+A worker, Playwright Test's, is a driver and its browser, held by the module (`setup_all`) or
+test that calls `BrowserPool.browser/1`: reused warm after a passing scope, replaced after a
+failing one (`PlaywrightEx.Test.BrowserPool` has the rules). That needs the tests' results, so
+`use PlaywrightEx.Test`: without it a module counts as passed. To set up each new driver
 (register selectors, say), pass `on_start: &MyApp.Selectors.register/1`: the driver's state then
 holds for every scope that gets it.
 
@@ -514,8 +510,8 @@ At most `workers` drivers run at once; the others wait, first come first served,
 `BrowserPool.browser/1`: in `setup_all` with no timeout, in `setup` or a test within ExUnit's
 test timeout. A worker is a driver and one browser of one
 set of options, as Playwright Test's worker runs one project: a call with other options (another
-`browser_name`, `launch_options`, `driver` or `on_start`) takes another worker, which may stop
-an idle one of other options to start. ExUnit runs modules in random order, so in a run that
+`browser_name`, `launch_options`, `driver` or `on_start`) takes another worker, which may
+restart an idle one of other options. ExUnit runs modules in random order, so in a run that
 mixes options each switch restarts a worker (a driver start, about 110 ms, plus the browser's
 launch). Run one configuration per invocation, as Playwright Test's projects effectively do: tag
 each module with its configuration (`@moduletag browser: :firefox`) and run
