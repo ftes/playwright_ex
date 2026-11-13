@@ -36,17 +36,18 @@ defmodule PlaywrightEx.Test.ErrorContext do
   end
 
   @doc """
-  `didFinishTest`'s end: writes `error-context.md` to `info.dir` for the `failures`, the page
-  snapshot left out when a failed matcher carries its own.
+  `didFinishTest`'s end: writes `error-context.md` of the test `test` (its registration:
+  `output_dir`, `title_path`, `location`) for the `failures`, with `page_snapshot` unless a
+  failed matcher carries its own.
   """
-  def write(info, failures) do
+  def write(test, failures, page_snapshot \\ nil) do
     errors = Enum.map(failures, &error/1)
-    page_snapshot = if !Enum.any?(errors, & &1.error_context), do: info.page_snapshot
+    page_snapshot = if !Enum.any?(errors, & &1.error_context), do: page_snapshot
 
     if content =
-         build(%{title_path: info.title_path, location: info.location, errors: errors, page_snapshot: page_snapshot}) do
-      File.mkdir_p!(info.dir)
-      File.write!(Path.join(info.dir, "error-context.md"), content)
+         build(%{title_path: test.title_path, location: test.location, errors: errors, page_snapshot: page_snapshot}) do
+      File.mkdir_p!(test.output_dir)
+      File.write!(Path.join(test.output_dir, "error-context.md"), content)
     end
   end
 

@@ -51,7 +51,7 @@ defmodule PlaywrightEx.Test.RequestContextTest do
       end)
 
     assert_receive {:registered, test}
-    on_exit(fn -> File.rm_rf!(test.dir) end)
+    on_exit(fn -> File.rm_rf!(test.output_dir) end)
 
     run = fn fun ->
       Task.await(
@@ -63,7 +63,7 @@ defmodule PlaywrightEx.Test.RequestContextTest do
       )
     end
 
-    %{pid: pid, dir: test.dir, run: run}
+    %{pid: pid, dir: test.output_dir, run: run}
   end
 
   defp finish(test) do

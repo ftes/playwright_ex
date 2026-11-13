@@ -65,7 +65,7 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
       end)
 
     assert_receive {:registered, test}
-    on_exit(fn -> File.rm_rf!(test.dir) end)
+    on_exit(fn -> File.rm_rf!(test.output_dir) end)
 
     run = fn fun ->
       Task.await(
@@ -77,7 +77,7 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
       )
     end
 
-    %{pid: pid, dir: test.dir, tmp: test.tmp, run: run}
+    %{pid: pid, dir: test.output_dir, tmp: test.tmp, run: run}
   end
 
   # Ends the fake test, then runs its `on_exit`: what it printed.
@@ -499,19 +499,15 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
 
   @tag :tmp_dir
   test "error-context.md has the errors, the source, and the page snapshot unless a matcher has one", %{tmp_dir: dir} do
-    info = %{
-      dir: dir,
-      title_path: ["x_test.exs", "t"],
-      location: {__ENV__.file, 1},
-      page_snapshot: ~s(- heading "PAGE")
-    }
+    test = %{output_dir: dir, title_path: ["x_test.exs", "t"], location: {__ENV__.file, 1}}
+    page_snapshot = ~s(- heading "PAGE")
 
     stack = [{__MODULE__, :t, 1, file: __ENV__.file, line: __ENV__.line}]
     failure = {:error, %ExUnit.AssertionError{message: "on purpose"}, stack}
 
     read = fn -> File.read!(Path.join(dir, "error-context.md")) end
 
-    ErrorContext.write(info, [failure])
+    ErrorContext.write(test, [failure], page_snapshot)
 
     assert read.() =~
              "# Test info\n\n- Name: x_test.exs >> t\n- Location: test/playwright_ex/test/artifacts_test.exs:1\n"
@@ -521,7 +517,7 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     assert read.() =~ ~r/^> \d+ \| +stack = .*\n +\| +\^ ExUnit.AssertionError: on purpose$/m
 
     matcher = %PlaywrightEx.ExpectError{message: "Expected", matcherResult: %{ariaSnapshot: ~s(- heading "OWN")}}
-    ErrorContext.write(info, [{:error, matcher, []}])
+    ErrorContext.write(test, [{:error, matcher, []}], page_snapshot)
     assert read.() =~ ~s(```\nPlaywrightEx.ExpectError: Expected\n```\n\n```yaml\n- heading "OWN"\n```)
     refute read.() =~ "# Page snapshot"
   end

@@ -424,7 +424,6 @@ defmodule PlaywrightEx.Test do
       |> TestInfo.new()
       |> Map.merge(modes)
       |> Map.merge(%{
-        dir: Recorder.output_dir(context),
         title: "#{Path.relative_to_cwd(file)}:#{context[:line]} › #{Recorder.test_name(context)}",
         title_path: Recorder.title_path(context),
         location: {file, context[:line]},
@@ -467,8 +466,7 @@ defmodule PlaywrightEx.Test do
           Recorder.finish(recorder, result, budget)
 
         verdict == :failed ->
-          info = %{dir: test.dir, title_path: test.title_path, location: test.location, page_snapshot: nil}
-          ErrorContext.write(info, failures)
+          ErrorContext.write(test, failures)
           nil
 
         true ->

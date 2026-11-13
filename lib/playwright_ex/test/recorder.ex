@@ -214,7 +214,7 @@ defmodule PlaywrightEx.Test.Recorder do
 
     {paths, ordinal} =
       Enum.map_reduce(pages, state.ordinal, fn page, ordinal ->
-        {{page, attachment_path(state.opts.dir, failed?, ordinal)}, ordinal + 1}
+        {{page, attachment_path(state.opts.output_dir, failed?, ordinal)}, ordinal + 1}
       end)
 
     snapshotted = Enum.reduce(pages, state.snapshotted, &MapSet.put(&2, &1.guid))
@@ -672,10 +672,8 @@ defmodule PlaywrightEx.Test.Recorder do
     trace = save_trace(state, failed?)
     persist_screenshots(state, failed?)
 
-    if verdict == :failed do
-      info = Map.merge(Map.take(state.opts, [:dir, :title_path, :location]), %{page_snapshot: state.page_snapshot})
-      step("write error-context.md", fn -> ErrorContext.write(info, failures) end)
-    end
+    if verdict == :failed,
+      do: step("write error-context.md", fn -> ErrorContext.write(state.opts, failures, state.page_snapshot) end)
 
     trace
   end
@@ -727,7 +725,7 @@ defmodule PlaywrightEx.Test.Recorder do
     videos = for page <- pages, video = step("find a video", fn -> Page.video(page) end), video != nil, do: video
 
     for {video, i} <- Enum.with_index(videos) do
-      path = Path.join(state.opts.dir, if(i == 0, do: "video.webm", else: "video-#{i}.webm"))
+      path = Path.join(state.opts.output_dir, if(i == 0, do: "video.webm", else: "video-#{i}.webm"))
       step("save a video", fn -> save_video(video, path) end)
     end
   end
@@ -743,7 +741,7 @@ defmodule PlaywrightEx.Test.Recorder do
   # `testTracing`'s `stopIfNeeded`: the test's `test.trace` and its contexts' chunks. The path,
   # when kept.
   defp save_trace(state, failed?) do
-    path = Path.join(state.opts.dir, "trace.zip")
+    path = Path.join(state.opts.output_dir, "trace.zip")
 
     result =
       step("merge the traces", fn ->
@@ -769,7 +767,7 @@ defmodule PlaywrightEx.Test.Recorder do
   defp persist_screenshots(state, failed?) do
     for {file, ordinal} <- Enum.with_index(state.screenshots, state.ordinal),
         capture?(state.opts.screenshot[:mode], failed?),
-        path = attachment_path(state.opts.dir, failed?, ordinal),
+        path = attachment_path(state.opts.output_dir, failed?, ordinal),
         do: step("save a screenshot", fn -> save_screenshot(file, path) end)
   end
 
