@@ -10,8 +10,6 @@ defmodule PlaywrightEx.Page.PageHistoryTest do
   alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
 
-  import PlaywrightEx.Utils, only: [to_pass: 1]
-
   @moduletag :page
 
   defp hang(_conn), do: Process.sleep(:infinity)
@@ -276,9 +274,9 @@ defmodule PlaywrightEx.Page.PageHistoryTest do
     {:ok, messages} = Agent.start_link(fn -> [] end)
     Page.on(page, :console, fn msg -> Agent.update(messages, &(&1 ++ [ConsoleMessage.text(msg)])) end)
     Page.goto!(page, server.prefix <> "/main.html")
-    to_pass(fn -> assert Agent.get(messages, & &1) == ["foo"] end)
+    Expect.to_pass!(fn -> assert Agent.get(messages, & &1) == ["foo"] end)
     Page.reload!(page)
-    to_pass(fn -> assert Agent.get(messages, & &1) == ["foo", "foo"] end)
+    Expect.to_pass!(fn -> assert Agent.get(messages, & &1) == ["foo", "foo"] end)
   end
 
   test "NA-086 should reload proper page", %{page: page, server: server} do

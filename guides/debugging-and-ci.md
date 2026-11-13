@@ -81,6 +81,17 @@ Headless is the default. Locally, run a headed browser slowed down, and
 PlaywrightEx.playwright() |> Playwright.chromium() |> BrowserType.launch!(headless: false, slow_mo: 500)
 ```
 
+`PWDEBUG=1` opens the Playwright Inspector, as in Playwright Test. Run one test with
+`--trace`:
+
+```sh
+PWDEBUG=1 mix test --trace test/my_app/sign_up_test.exs:12
+```
+
+`--trace` removes ExUnit's timeout and runs one test at a time, as Playwright Test's `--debug`
+sets no timeout and one worker. Without it, ExUnit's timeout ends the test mid-inspection, and its
+contexts close.
+
 The driver's own logs go to stderr with `DEBUG=pw:api` in its environment:
 
 ```elixir

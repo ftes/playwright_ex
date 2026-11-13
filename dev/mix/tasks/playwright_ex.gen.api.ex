@@ -220,6 +220,10 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   defp impl(class_name), do: Module.concat(PlaywrightEx.Client, class_name)
   defp facade(class_name), do: Module.concat(PlaywrightEx, class_name)
 
+  # A matcher receiver's type: a function for `toPass` and `expect.poll` (`"Function"`).
+  defp receiver_type("Function"), do: "(-> term())"
+  defp receiver_type(class_name), do: "#{inspect(facade(class_name))}.t()"
+
   # The matcher's function in `customAsyncMatchers`, with the JS arity (this, receiver, arguments).
   defp matcher_function(%{"matcher" => %{"name" => name}} = member) do
     fun = PlaywrightEx.Matchers.Expect.custom_async_matchers()[name]
@@ -346,18 +350,18 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
   # --- members -----------------------------------------------------------------
 
-  # `expect(x).not` (`"negate"`, see `Mix.PlaywrightEx.ApiRules`): the struct of a negated or soft
-  # receiver, upstream's `ExpectMetaInfo` `isNot` and `isSoft`.
+  # `expect(x).not` (`"negate"`, see `Mix.PlaywrightEx.ApiRules`): the struct of a negated, soft
+  # or messaged receiver, upstream's `ExpectMetaInfo` `isNot`, `isSoft` and `message`.
   defp member_source(ctx, _class, %{"negate" => receivers} = member, _receiver) do
-    receiver_spec = Enum.map_join(receivers, " | ", &"#{inspect(facade(&1))}.t()")
+    receiver_spec = Enum.map_join(receivers, " | ", &receiver_type/1)
 
     """
-    @typedoc "A negated (`not_/1`) or soft (`soft/1`) receiver: `expect(actual).not`, `expect.soft(actual)` in JS."
-    @type t(actual) :: %__MODULE__{actual: actual, isNot: boolean(), isSoft: boolean()}
-    @typedoc "A negated or soft receiver of any matcher."
+    @typedoc "A negated (`not_/1`), soft (`soft/1`) or messaged (`message/2`) receiver: `expect(actual).not`, `expect.soft(actual)`, `expect(actual, message)` in JS."
+    @type t(actual) :: %__MODULE__{actual: actual, isNot: boolean(), isSoft: boolean(), message: String.t() | nil}
+    @typedoc "A negated, soft or messaged receiver of any matcher."
     @type t :: t(#{receiver_spec})
 
-    defstruct [:actual, isNot: false, isSoft: false]
+    defstruct [:actual, isNot: false, isSoft: false, message: nil]
 
     @doc #{doc(member_doc(ctx, member, []))}
     @spec not_(actual | t(actual)) :: t(actual) when actual: #{receiver_spec}
@@ -372,13 +376,27 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   # `expect.soft(x)` (`"soften"`, see `Mix.PlaywrightEx.ApiRules`): a soft receiver. Upstream's
   # getter returns a soft `expect` as it is.
   defp member_source(ctx, _class, %{"soften" => receivers} = member, _receiver) do
-    receiver_spec = Enum.map_join(receivers, " | ", &"#{inspect(facade(&1))}.t()")
+    receiver_spec = Enum.map_join(receivers, " | ", &receiver_type/1)
 
     """
     @doc #{doc(member_doc(ctx, member, []))}
     @spec soft(actual | t(actual)) :: t(actual) when actual: #{receiver_spec}
     def soft(%__MODULE__{} = expect), do: %{expect | isSoft: true}
     def soft(actual), do: %__MODULE__{actual: actual, isSoft: true}
+    """
+  end
+
+  # `expect(x, message)` (`"customMessage"`, see `Mix.PlaywrightEx.ApiRules`): a receiver with a
+  # custom message. A later message replaces an earlier one, as `expect(x, message)` replaces
+  # `expect.configure({ message })`'s.
+  defp member_source(ctx, _class, %{"customMessage" => receivers} = member, _receiver) do
+    receiver_spec = Enum.map_join(receivers, " | ", &receiver_type/1)
+
+    """
+    @doc #{doc(member_doc(ctx, member, []))}
+    @spec message(actual | t(actual), String.t()) :: t(actual) when actual: #{receiver_spec}
+    def message(%__MODULE__{} = expect, message) when is_binary(message), do: %{expect | message: message}
+    def message(actual, message) when is_binary(message), do: %__MODULE__{actual: actual, message: message}
     """
   end
 
@@ -390,16 +408,23 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     vars = Enum.map(member["args"], &arg_var/1)
     attrs = for {arg, var} <- Enum.zip(member["args"], vars), schema = arg_schema(ctx, arg), do: {arg, var, schema}
     params = [receiver | Enum.map(Enum.zip(member["args"], vars), &param/1)]
-    fun = matcher_function(member)
-    info = Function.info(fun)
-    capture = "&#{inspect(info[:module])}.#{info[:name]}/#{info[:arity]}"
 
     call =
-      "#{inspect(impl(class["name"]))}.create_matcher(#{inspect(matcher["name"])}, info, " <>
-        "#{receiver}, #{capture}).([#{Enum.join(vars, ", ")}])"
+      if matcher["poll"] do
+        # `expect.poll(actual, options)`, then its matcher (`assertion`).
+        [assertion, options] = vars
+        "#{inspect(impl(class["name"]))}.poll(info, #{receiver}, #{options}).([#{assertion}])"
+      else
+        fun = matcher_function(member)
+        info = Function.info(fun)
+        capture = "&#{inspect(info[:module])}.#{info[:name]}/#{info[:arity]}"
+
+        "#{inspect(impl(class["name"]))}.create_matcher(#{inspect(matcher["name"])}, info, " <>
+          "#{receiver}, #{capture}).([#{Enum.join(vars, ", ")}])"
+      end
 
     m = %{params: params, function: nil, or_options: or_options(member["args"], vars)}
-    receiver_spec = Enum.map_join(matcher["receivers"], " | ", &"#{inspect(facade(&1))}.t()")
+    receiver_spec = Enum.map_join(matcher["receivers"], " | ", &receiver_type/1)
     # A negated or soft receiver (`not_/1`, `soft/1`) takes the place of the receiver (a `not_to_*`
     # matcher raises for a negated one).
     receiver_spec = "#{receiver_spec} | t(#{receiver_spec})"
@@ -1230,6 +1255,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     "#{String.downcase(head)}#{rest}.#{member}"
   end
 
+  defp matcher_receiver(["Function"]), do: "callback"
   defp matcher_receiver(receivers), do: receivers |> Enum.map_join("_or_", &snake/1)
 
   # The receiver is named after the class (`locator`); an argument of the same name

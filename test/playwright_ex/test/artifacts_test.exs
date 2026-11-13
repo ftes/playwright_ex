@@ -7,6 +7,7 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
   import ExUnit.CaptureIO
   import ExUnit.CaptureLog
 
+  alias PlaywrightEx.APIRequestContext
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Page
@@ -17,8 +18,12 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
   alias PlaywrightEx.Tracing
   alias PlaywrightEx.VideoPlayer
 
-  setup do
-    %{browser: BrowserPool.shared()}
+  import PlaywrightEx.Runtime.Heap, only: [get: 2, put: 3]
+
+  require PlaywrightEx.Test
+
+  setup_all do
+    %{browser: BrowserPool.browser()}
   end
 
   defp trace(dir, handle), do: PlaywrightEx.Utils.parse_trace_raw(Path.join(dir, "trace.zip"), handle)
@@ -72,7 +77,7 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
       )
     end
 
-    %{pid: pid, dir: test.dir, run: run}
+    %{pid: pid, dir: test.dir, tmp: test.tmp, run: run}
   end
 
   # Ends the fake test, then runs its `on_exit`: what it printed.
@@ -126,7 +131,8 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     assert [_] = File.ls!(own_videos)
 
     trace = trace(test.dir, browser)
-    assert trace.resources |> Map.keys() |> Enum.count(&(&1 =~ ~r/^\d-trace\.trace$/)) == 4
+    # A chunk per context and one per context's `request`.
+    assert trace.resources |> Map.keys() |> Enum.count(&(&1 =~ ~r/^\d-trace\.trace$/)) == 8
 
     for marker <- ~w(ALICE BOB TASK TASK-NEW), do: assert(traced?(trace, marker), "#{marker} not in the trace")
     refute traced?(trace, "OTHER")
@@ -134,7 +140,7 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
 
   test "a context of another browser on the driver is recorded", %{browser: browser} do
     test = fake_test(%{trace: :on})
-    other = BrowserPool.shared(launch_options: [slow_mo: 1])
+    other = BrowserPool.browser(launch_options: [slow_mo: 1])
     assert BrowserPool.playwright(other) == BrowserPool.playwright(browser) and other != browser
 
     test.run.(fn ->
@@ -266,8 +272,9 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
 
     {:ok, files} = :zip.unzip(String.to_charlist(Path.join(test.dir, "trace.zip")), [:memory])
     files = Map.new(files, fn {name, data} -> {to_string(name), data} end)
-    # The context's chunk is the first of two, `test.trace`'s the second.
-    %{"files" => paths, "stacks" => stacks} = JSON.decode!(files["0-trace.stacks"])
+    # The context's chunk is the second of three: its `request`'s is first (disposed as the
+    # context closes), `test.trace`'s last.
+    %{"files" => paths, "stacks" => stacks} = JSON.decode!(files["1-trace.stacks"])
     call_ids = for %{"type" => "before", "callId" => id} <- trace(test.dir, browser).events, do: id
 
     # Every stack is one of the trace's actions', every frame's file is in `files`.
@@ -318,6 +325,45 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     assert {player.videoWidth, player.videoHeight} == {320, 240}
   end
 
+  test "the video's fps and show.actions go to record_video" do
+    show = %{actions: %{position: "top-left"}, test: %{level: "title"}}
+    test = fake_test(%{video: [mode: :on, fps: 5, show: show]})
+
+    assert %{recordVideo: %{fps: 5, showActions: %{position: "top-left"}, dir: _}} =
+             test.run.(fn -> Recorder.before_create_browser_context(%{}) end)
+
+    finish(test, [passed()], :shutdown)
+  end
+
+  # The overlay's shadow root is closed outside upstream's test mode: its calls are in the trace.
+  test "the video's show.test: the test's title and its steps over each page", %{browser: browser} do
+    test = fake_test(%{trace: :on, video: [mode: :on, show: %{test: %{position: "bottom"}}]})
+
+    test.run.(fn ->
+      page = page(Browser.new_context!(browser), "TITLED")
+
+      PlaywrightEx.Test.step "outer <step>" do
+        BrowserContext.new_page!(Page.context(page))
+        PlaywrightEx.Test.step("inner", fn -> :ok end)
+      end
+    end)
+
+    finish(test, [passed()], :shutdown)
+
+    htmls =
+      for %{"method" => "screencastShowOverlay", "params" => %{"html" => html}} <- trace(test.dir, browser).events,
+          do: html
+
+    assert hd(htmls) =~ "bottom: 6px; left: 50%"
+    overlays = for html <- htmls, do: html |> String.split(~r/<[^>]+>|\s+/, trim: true) |> Enum.join("|")
+
+    assert [title | _] = overlays
+    assert title =~ ~r/^test\/playwright_ex\/test\/artifacts_test\.exs\|t\d+$/
+    # Each step's begin and end, on each page (the second opens in the step).
+    assert overlays |> Enum.map(&String.replace_prefix(&1, title, "")) |> Enum.dedup() ==
+             ["", "|outer|&lt;step>", "|outer|&lt;step>|inner", "|outer|&lt;step>", ""]
+  end
+
   test "a failed test keeps its screenshots and gets error-context.md, with a snapshot of a page closed after it failed, and the trace hint",
        %{browser: browser} do
     test = fake_test(%{screenshot: :only_on_failure, trace: :retain_on_failure})
@@ -360,6 +406,88 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     test.run.(fn -> page(Browser.new_context!(browser), "PASSED") end)
     assert finish(test, [passed()], :shutdown) == ""
     refute File.exists?(test.dir)
+  end
+
+  # Upstream's `maybeGenerateNextTraceRecordingPath`: once the test ended and passed, a context's
+  # chunk under `retain_on_failure` is discarded by the driver, not zipped and deleted.
+  test "a passed test's chunks under retain_on_failure are discarded, not zipped, once it ended", %{browser: browser} do
+    test = fake_test(%{trace: :retain_on_failure})
+    zips = record_zips(browser, test.tmp)
+    early = test.run.(fn -> Browser.new_context!(browser) end)
+    test.run.(fn -> page(Browser.new_context!(browser), "LATE") end)
+    # Closed while the test runs: zipped, as upstream (its result is not known yet).
+    test.run.(fn -> BrowserContext.close!(early) end)
+    assert length(zips.()) == 2
+    # The one left, closed at the end: discarded.
+    finish(test, [passed()], :shutdown)
+    assert length(zips.()) == 2
+    refute File.exists?(test.dir)
+  end
+
+  test "a failed test's chunks under retain_on_failure are zipped and kept", %{browser: browser} do
+    test = fake_test(%{trace: :retain_on_failure})
+    zips = record_zips(browser, test.tmp)
+    test.run.(fn -> page(Browser.new_context!(browser), "FAILED") end)
+    finish(test, [failed()], :shutdown)
+    # The context's chunk and its `request`'s.
+    assert length(zips.()) == 2
+    assert traced?(trace(test.dir, browser), "FAILED")
+  end
+
+  # Upstream's `_startTraceChunkOnContextCreation` and `_stopTracing` run as internal calls: no
+  # stacks sent, no actions in the trace.
+  test "the recording's tracing calls are internal", %{browser: browser} do
+    test = fake_test(%{trace: :on})
+    methods = ~w(tracingStart tracingStartChunk tracingStopChunk addStackToTracingNoReply)
+    sent = record_sent(browser, &(to_string(&1.method) in methods))
+    context = test.run.(fn -> Browser.new_context!(browser) end)
+    guids = [BrowserContext.tracing(context).guid, APIRequestContext.tracing(BrowserContext.request(context)).guid]
+    finish(test, [passed()], :shutdown)
+
+    {tracing, stacks} = Enum.split_with(sent.(), &(&1.guid in guids))
+    # `start` (tracingStart, tracingStartChunk) and `stopChunk` of the context and its `request`.
+    assert length(tracing) == 6
+    assert Enum.all?(tracing, & &1.metadata.internal)
+    ids = Enum.map(tracing, & &1.id)
+    refute Enum.any?(stacks, &(&1.params.callData.id in ids))
+  end
+
+  # Upstream's screenshot recorder and `_takePageSnapshot` run as internal calls too.
+  test "the end-of-body screenshot is internal: no stack, no action in the trace", %{browser: browser} do
+    test = fake_test(%{trace: :on, screenshot: :on})
+    sent = record_sent(browser, &(to_string(&1.method) in ~w(screenshot addStackToTracingNoReply)))
+    page = test.run.(fn -> page(Browser.new_context!(browser), "SHOT") end)
+    finish(test, [passed()], :shutdown)
+
+    assert [screenshot] = Enum.filter(sent.(), &(&1.guid == page.guid))
+    assert screenshot.metadata.internal
+
+    refute Enum.any?(
+             sent.(),
+             &(to_string(&1.method) == "addStackToTracingNoReply" and &1.params.callData.id == screenshot.id)
+           )
+
+    assert File.exists?(Path.join(test.dir, "test-finished-1.png"))
+    refute Enum.any?(trace(test.dir, browser).events, &(&1["type"] == "before" and &1["method"] == "screenshot"))
+  end
+
+  # The `localUtils.zip` calls of chunks under `tmp` (the test's), on the shared connection.
+  defp record_zips(browser, tmp),
+    do: record_sent(browser, &(to_string(&1.method) == "zip" and String.starts_with?(&1.params.zipFile, tmp)))
+
+  # The messages `filter` keeps, sent on the shared connection while the test runs.
+  defp record_sent(browser, filter) do
+    connection = get(BrowserPool.playwright(browser), :_connection)
+    onmessage = get(connection, :onmessage)
+    {:ok, sent} = Agent.start_link(fn -> [] end)
+
+    put(connection, :onmessage, fn message ->
+      if filter.(message), do: Agent.update(sent, &[message | &1])
+      onmessage.(message)
+    end)
+
+    on_exit(fn -> put(connection, :onmessage, onmessage) end)
+    fn -> Agent.get(sent, &Enum.reverse/1) end
   end
 
   test "a test of another macro (a doctest) keeps them, as a failure's, without error-context.md", %{browser: browser} do
@@ -422,7 +550,7 @@ defmodule PlaywrightEx.Test.ArtifactsTest.TagsTest do
 
   test "the module's tags, true as :on; the config for the rest" do
     assert modes() == %{
-             trace: [mode: :off, snapshots: true, screenshots: true, sources: true],
+             trace: [mode: :off, snapshots: true, screenshots: true, sources: true, attachments: true],
              screenshot: [mode: :only_on_failure, full_page: true],
              video: [mode: :on]
            }

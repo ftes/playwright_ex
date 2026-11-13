@@ -1,45 +1,26 @@
-defmodule PlaywrightEx.SharedDriver do
+defmodule PlaywrightEx.DriverCleanup do
   @moduledoc """
-  The suite's side of `PlaywrightEx.Test`'s shared drivers (`UpstreamCase`, `ExampleCase`):
-  cleanup that touches only what a test or module created, and a guard that fails a shared
-  module's test that changed the driver or its browser for the modules running alongside.
+  The suite's cleanup on `PlaywrightEx.Test`'s pooled drivers (`UpstreamCase`, `ExampleCase`),
+  which a passing module hands on, warm, to the next: it touches only what a test or module
+  created.
 
   `track_test/2` (in `setup`) follows the test's processes (the test and its `Task`s) with a
   `ClientInstrumentation` listener: the contexts they create and the browsers they launch are
-  closed after the test, as the driver used to go with the module. `track_module/2` (in
-  `setup_all`) does the same for the module's own process (a `setup_all` that launches a
-  browser). Upstream leaves both to the worker's end; on a shared driver that is the run's end.
-
-  With `guard: true` (a shared module), each test fails after its `on_exit` callbacks if:
-
-    * the shared browser is closed;
-    * the driver has selector engines (`Selectors.register`; they are reset, so the next tests
-      pass);
-    * the driver's test id attribute is not `data-testid`.
-
-  The selectors and the test id are the driver's, so a module running alongside may be the one
-  that changed them: the message names both. Such a module needs `isolate: true`.
+  closed after the test. `track_module/2` (in `setup_all`) does the same for the module's own
+  process (a `setup_all` that launches a browser). Upstream leaves both to the worker's end;
+  here a worker outlives its module. Option `:keep`: the browsers not to close, the module's.
   """
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Client
-  alias PlaywrightEx.Playwright
   alias PlaywrightEx.Runtime.Api
   alias PlaywrightEx.Runtime.Heap
 
   require Logger
 
   @doc """
-  Whether the module gets a driver of its own: when it declares `isolate: true`, and on Firefox
-  always, which serializes input across the pages of a browser (a `Mouse.move` waits for a frame
-  of the whole browser): concurrent modules on one Firefox time out.
-  """
-  def isolate?(tags), do: tags[:isolate] == true or PlaywrightEx.TestBrowser.name() == "firefox"
-
-  @doc """
   Closes what the test's processes create on `playwright`'s driver, after its `on_exit`
-  callbacks (call it before the fixtures' setups). Options: `:shared` (the browsers it must
-  not close: the module's), `:guard` (see the moduledoc).
+  callbacks (call it before the fixtures' setups).
   """
   def track_test(playwright, opts) do
     test_pid = self()
@@ -54,8 +35,7 @@ defmodule PlaywrightEx.SharedDriver do
       %{contexts: contexts, pids: pids} = Agent.get(created, & &1)
       Agent.stop(created)
       for context <- contexts, do: BrowserContext.close(context)
-      close_browsers(playwright, pids, opts[:shared] || [])
-      if opts[:guard], do: guard!(playwright, opts[:shared] || [])
+      close_browsers(playwright, pids, opts[:keep] || [])
     end)
 
     :ok
@@ -84,7 +64,7 @@ defmodule PlaywrightEx.SharedDriver do
 
   @doc """
   Closes the browsers and contexts the module's process (`setup_all`) created on `playwright`'s
-  driver, after the module. Option: `:shared`, the browsers it must not close.
+  driver, after the module.
   """
   def track_module(playwright, opts) do
     module_pid = self()
@@ -92,7 +72,7 @@ defmodule PlaywrightEx.SharedDriver do
     ExUnit.Callbacks.on_exit(fn ->
       contexts = Api.call(nil, playwright, fn -> Client.Playwright._all_contexts(playwright) end)
       for context <- contexts, created_by?(context, [module_pid]), do: BrowserContext.close(context)
-      close_browsers(playwright, [module_pid], opts[:shared] || [])
+      close_browsers(playwright, [module_pid], opts[:keep] || [])
     end)
 
     :ok
@@ -105,14 +85,14 @@ defmodule PlaywrightEx.SharedDriver do
     :exit, _ -> :ok
   end
 
-  defp close_browsers(playwright, pids, shared) do
+  defp close_browsers(playwright, pids, keep) do
     browsers =
       Api.call(nil, playwright, fn ->
         for name <- [:chromium, :firefox, :webkit],
             type = Heap.get(playwright, name),
             object <- Heap.map_values(type, :_objects),
             object.type == "Browser",
-            object not in shared,
+            object not in keep,
             created_by?(object, pids),
             do: object
       end)
@@ -124,44 +104,6 @@ defmodule PlaywrightEx.SharedDriver do
 
   defp created_by?(object, pids) do
     Enum.any?(Heap.get(object, :_creators) || [], &(&1 in pids))
-  rescue
-    _ -> false
-  end
-
-  defp guard!(playwright, shared) do
-    selectors = Playwright.selectors(playwright)
-
-    {engines, test_id} =
-      Api.call(nil, playwright, fn ->
-        engines = Heap.get(selectors, :_selectorEngines)
-        # The next tests run without them.
-        if engines != [], do: Heap.put(selectors, :_selectorEngines, [])
-        {engines, Heap.get(selectors, :_testIdAttributeName)}
-      end)
-
-    problems =
-      Enum.reject(
-        [
-          if(not Enum.all?(shared, &connected?/1), do: "closed the shared browser"),
-          if(engines != [],
-            do: "left selector engines #{inspect(Enum.map(engines, & &1.name))} registered (reset now)"
-          ),
-          if(test_id not in [nil, "data-testid"], do: "left the test id attribute #{inspect(test_id)}")
-        ],
-        &is_nil/1
-      )
-
-    if problems != [] do
-      raise ExUnit.AssertionError,
-        message:
-          "this test (or a module running alongside on the shared driver) " <>
-            Enum.join(problems, ", ") <>
-            ": a module that changes its driver or browser for others needs `isolate: true`"
-    end
-  end
-
-  defp connected?(browser) do
-    Browser.is_connected(browser)
   rescue
     _ -> false
   end

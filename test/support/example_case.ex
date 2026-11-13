@@ -30,10 +30,9 @@ defmodule PlaywrightEx.ExampleCase do
   A body that is one `test "name", %{page: page} do ... end` (upstream's test-runner examples)
   runs that block, its pattern matched against those four. Output (`IO.puts`) is captured.
 
-  `browser` is `PlaywrightEx.Test.BrowserPool.shared/1`'s, a plain driver shared by the modules
-  running at once, and `playwright` its driver's; `use PlaywrightEx.ExampleCase, isolate: true`
-  for a module whose examples change the driver or its browser for others
-  (`PlaywrightEx.Test.BrowserPool.exclusive/1`, see `PlaywrightEx.SharedDriver`).
+  `browser` is the module's `PlaywrightEx.Test.BrowserPool.browser/1`, on `UpstreamCase`'s
+  driver (`PlaywrightEx.UpstreamCase.pool_options/0`, see `PlaywrightEx.DriverCleanup`), and
+  `playwright` its driver's.
   """
   use ExUnit.CaseTemplate
   # First: the template's own `setup` creates the context.
@@ -49,13 +48,11 @@ defmodule PlaywrightEx.ExampleCase do
 
   @html "<!doctype html><title>Example</title>"
 
-  using opts do
+  using do
     quote do
       # `example` is a `test`.
       use PlaywrightEx.Test
       import PlaywrightEx.ExampleCase, only: [example: 3]
-
-      if unquote(opts[:isolate]), do: @moduletag(isolate: true)
 
       # The docs' examples use the short names.
       alias PlaywrightEx.{Browser, BrowserContext, BrowserType, Expect, Frame, FrameLocator, Keyboard, Locator, Mouse}
@@ -63,18 +60,13 @@ defmodule PlaywrightEx.ExampleCase do
     end
   end
 
-  setup_all context do
-    isolate? = PlaywrightEx.SharedDriver.isolate?(context)
-    browser = if isolate?, do: BrowserPool.exclusive(), else: BrowserPool.shared()
-
-    %{
-      playwright: BrowserPool.playwright(browser),
-      browser: browser,
-      shared_driver: [shared: [browser], guard: not isolate?]
-    }
+  setup_all do
+    browser = BrowserPool.browser(PlaywrightEx.UpstreamCase.pool_options())
+    %{playwright: BrowserPool.playwright(browser), browser: browser}
   end
 
-  setup %{playwright: playwright, shared_driver: opts}, do: PlaywrightEx.SharedDriver.track_test(playwright, opts)
+  setup %{playwright: playwright, browser: browser},
+    do: PlaywrightEx.DriverCleanup.track_test(playwright, keep: [browser])
 
   setup %{playwright: playwright, browser: browser} = tags do
     context = Browser.new_context!(browser)
@@ -88,7 +80,7 @@ defmodule PlaywrightEx.ExampleCase do
     page = BrowserContext.new_page!(context)
     Page.goto!(page, "https://example.com/")
     # The contexts the example creates (`Browser.new_context`, a browser of its own), in the test
-    # or its `Task`s: the listener runs for every context of the shared driver.
+    # or its `Task`s: the listener runs for every context of the driver.
     instrumentation = Heap.get(playwright, :_instrumentation)
     test_pid = self()
 

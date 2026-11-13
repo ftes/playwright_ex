@@ -9,9 +9,8 @@ defmodule LiveViewE2E.Case do
   `[data-phx-skip]` left) run after the test, in an `on_exit`, as the fixture's teardown.
   `@tag ignore_js_errors: true` (or `@describetag`, `@moduletag`) is `test.use({ ignoreJSErrors: true })`.
 
-  `POOL=exclusive` gives every project a browser per module, as Playwright Test's workers;
-  the default shares the Chromium and WebKit browsers and gives Firefox exclusive ones, as the
-  PlaywrightEx guide advises.
+  The module holds a pooled driver and browser (`BrowserPool.browser/1` in `setup_all`), as
+  Playwright Test's workers.
   """
 
   alias PlaywrightEx.{Browser, BrowserContext, Expect, Page, Playwright}
@@ -68,12 +67,7 @@ defmodule LiveViewE2E.Case do
 
   @doc false
   def browser_fixture(%{browser_name: name}) do
-    browser =
-      if name == :firefox or System.get_env("POOL") == "exclusive",
-        do: BrowserPool.exclusive(browser_name: name),
-        else: BrowserPool.shared(browser_name: name)
-
-    %{browser: browser}
+    %{browser: BrowserPool.browser(browser_name: name)}
   end
 
   @doc false

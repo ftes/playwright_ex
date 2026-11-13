@@ -36,17 +36,36 @@ defmodule PlaywrightEx.Test.TestTracing do
     }
 
     # Newest first.
-    %{trace_events: [context_created_event]}
+    %{trace_events: [context_created_event], did_finish_test_function_and_after_each_hooks: false, failed: nil}
   end
 
   # _shouldCaptureTrace, startIfNeeded  -- ported as `Recorder`'s trace mode: `off`, `on` or
   # `retain_on_failure` (no retries); a test without the recorder has no trace.
-  # didFinishTestFunctionAndAfterEachHooks, maybeGenerateNextTraceRecordingPath  -- not ported:
-  # chunks are kept until the test's result is known
+
+  @doc """
+  `didFinishTestFunctionAndAfterEachHooks`, in the recorder's `finish`: after the test's other
+  `on_exit` callbacks (upstream's `afterEach` hooks), before it closes the contexts left. With
+  the test's result, which `_shouldAbandonTrace` reads (upstream's `testInfo.status`).
+  """
+  def did_finish_test_function_and_after_each_hooks(this, failed?),
+    do: %{this | did_finish_test_function_and_after_each_hooks: true, failed: failed?}
 
   defp generate_next_trace_recording_path(tmp) do
     File.mkdir_p!(tmp)
     Path.join(tmp, "#{System.unique_integer([:positive])}.zip")
+  end
+
+  @doc """
+  `maybeGenerateNextTraceRecordingPath`, with the trace `mode`: the path of a context's chunk
+  under `tmp`, or `nil` for `Tracing.stopChunk` to discard it.
+  """
+  def maybe_generate_next_trace_recording_path(this, mode, tmp) do
+    # Forget about traces that should be saved on failure, when no failure happened
+    # during the test and beforeEach/afterEach hooks.
+    # This avoids downloading traces over the wire when not really needed.
+    if this.did_finish_test_function_and_after_each_hooks and should_abandon_trace(mode, this.failed),
+      do: nil,
+      else: generate_next_trace_recording_path(tmp)
   end
 
   # `_shouldAbandonTrace`.
@@ -73,7 +92,10 @@ defmodule PlaywrightEx.Test.TestTracing do
         :ok
 
       true ->
-        # if (!this._options?.attachments) ...  -- not ported: steps carry no attachments
+        trace_events =
+          if Keyword.get(options, :attachments, true),
+            do: trace_events,
+            else: Enum.map(trace_events, &if(&1.type == "after", do: Map.delete(&1, :attachments), else: &1))
 
         sources =
           if Keyword.get(options, :sources, true) do
@@ -87,7 +109,16 @@ defmodule PlaywrightEx.Test.TestTracing do
             []
           end
 
-        # The `after` events' attachments  -- not ported: steps carry no attachments
+        # The `after` events' attachments, each content once, as `attachments/<sha1>`.
+        {trace_events, {attachment_files, _sha1s}} =
+          Enum.map_reduce(trace_events, {[], MapSet.new()}, fn
+            %{type: "after", attachments: [_ | _] = attachments} = event, acc ->
+              {attachments, acc} = Enum.map_reduce(attachments, acc, &attachment_file/2)
+              {%{event | attachments: attachments}, acc}
+
+            event, acc ->
+              {event, acc}
+          end)
 
         trace_content = Enum.map_join(trace_events, "\n", &JSON.encode!(drop_undefined(&1)))
         file = generate_next_trace_recording_path(tmp)
@@ -95,7 +126,7 @@ defmodule PlaywrightEx.Test.TestTracing do
         {:ok, _} =
           :zip.create(
             String.to_charlist(file),
-            sources ++ [{String.to_charlist(@test_trace_entry_name), trace_content}]
+            sources ++ Enum.reverse(attachment_files) ++ [{String.to_charlist(@test_trace_entry_name), trace_content}]
           )
 
         Recorder.merge_traces(path, chunks ++ [file])
@@ -103,6 +134,31 @@ defmodule PlaywrightEx.Test.TestTracing do
         :saved
     end
   end
+
+  defp attachment_file(attachment, {files, sha1s} = acc) do
+    case attachment_content(attachment) do
+      nil ->
+        {attachment, acc}
+
+      content ->
+        sha1 = sha1(content)
+        attachment = attachment |> Map.drop([:path, :base64]) |> Map.put(:file, "attachments/" <> sha1)
+
+        if MapSet.member?(sha1s, sha1),
+          do: {attachment, acc},
+          else: {attachment, {[{~c"attachments/#{sha1}", content} | files], MapSet.put(sha1s, sha1)}}
+    end
+  end
+
+  defp attachment_content(%{path: path}) when is_binary(path) do
+    case File.read(path) do
+      {:ok, content} -> content
+      {:error, _} -> nil
+    end
+  end
+
+  defp attachment_content(%{base64: base64}) when is_binary(base64), do: Base.decode64!(base64)
+  defp attachment_content(_attachment), do: nil
 
   @doc "`appendForError`: `error` is `{kind, reason, stacktrace}`."
   def append_for_error(this, error) do
@@ -154,8 +210,14 @@ defmodule PlaywrightEx.Test.TestTracing do
   defp _append_trace_event(nil, _event), do: :ok
   defp _append_trace_event(this, event), do: Recorder.append_trace_event(this, event)
 
-  # Attachments are not ported: always `undefined`.
+  # `serializeAttachments`: attachments are `%{name, contentType, path | body}`.
   defp serialize_attachments([]), do: nil
+
+  defp serialize_attachments(attachments) do
+    for a <- attachments, a.name != "trace" do
+      %{name: a.name, contentType: a.contentType, path: a[:path], base64: a[:body] && Base.encode64(a.body)}
+    end
+  end
 
   @doc """
   `generatePreview`. Elixir values: `nil` is `undefined`, `:null` is `null`, maps and structs

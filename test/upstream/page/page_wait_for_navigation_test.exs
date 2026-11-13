@@ -4,6 +4,8 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
 
   @browser_name System.get_env("BROWSER", "chromium")
 
+  alias PlaywrightEx.Expect
+
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
@@ -182,7 +184,7 @@ defmodule PlaywrightEx.Page.PageWaitForNavigationTest do
     assert_receive {:navigated, ^frame}, 5000
     Frame.evaluate!(frame, "() => window.stop()")
     # `expect(done).toBe(true)`: the goto reply may still be in flight here, so a short bound.
-    Utils.to_pass(fn -> assert Runtime.Promise.settled?(done) end, timeout: 1000, intervals: [10])
+    Expect.to_pass!(fn -> assert Runtime.Promise.settled?(done) end, timeout: 1000, intervals: [10])
     assert {:ok, _} = Runtime.Promise.await(done)
   end
 

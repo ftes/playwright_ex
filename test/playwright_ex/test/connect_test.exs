@@ -75,20 +75,26 @@ defmodule PlaywrightEx.Test.ConnectTest do
     capture_io(fn -> PlaywrightEx.Test.__finish__(test.pid, 10_000) end)
   end
 
-  test "a shared connected browser: on_start on the driver, the context defaults and the recording", %{
-    ws_endpoint: ws_endpoint
-  } do
+  test "a connected browser: on_start on the driver, connected again if lost, the context defaults and the recording",
+       %{ws_endpoint: ws_endpoint} do
     opts = [connect_options: [ws_endpoint: ws_endpoint], on_start: {__MODULE__, :on_start, [self()]}]
-    browser = BrowserPool.shared(opts)
+    test = fake_test(%{trace: :on, screenshot: :on})
+
+    {lost, launched} =
+      test.run.(fn -> {BrowserPool.browser(opts), BrowserPool.browser(Keyword.delete(opts, :connect_options))} end)
+
     assert_receive {:on_start, playwright}
-    assert BrowserPool.playwright(browser) == playwright
+    assert BrowserPool.playwright(lost) == playwright
     # A connection of its own, and another browser than the launched one of the driver.
-    assert browser.conn != playwright.conn
-    assert BrowserPool.shared(opts) == browser
-    launched = BrowserPool.shared(Keyword.delete(opts, :connect_options))
+    assert lost.conn != playwright.conn
     assert launched.conn == playwright.conn
 
-    test = fake_test(%{trace: :on, screenshot: :on})
+    # A lost one is connected again by the scope's next call.
+    Browser.close!(lost)
+    browser = test.run.(fn -> BrowserPool.browser(opts) end)
+    assert browser != lost and Browser.is_connected(browser)
+    assert test.run.(fn -> BrowserPool.browser(opts) end) == browser
+    refute_received {:on_start, _}
 
     test.run.(fn ->
       page = BrowserContext.new_page!(Browser.new_context!(browser))
@@ -100,25 +106,21 @@ defmodule PlaywrightEx.Test.ConnectTest do
     assert Enum.sort(File.ls!(test.dir)) == ["test-finished-1.png", "trace.zip"]
     trace = PlaywrightEx.Utils.parse_trace_raw(Path.join(test.dir, "trace.zip"), browser)
     assert Enum.any?(trace.events, &(JSON.encode!(&1) =~ "REMOTE"))
-
-    # A lost one is connected again by the next call.
-    Browser.close!(browser)
-    again = BrowserPool.shared(opts)
-    assert again != browser and Browser.is_connected(again)
-    refute_received {:on_start, _}
   end
 
-  test "an exclusive connected browser is the lease's own", %{ws_endpoint: ws_endpoint} do
+  test "each driver connects a browser of its own", %{ws_endpoint: ws_endpoint} do
     opts = [connect_options: [ws_endpoint: ws_endpoint]]
-    shared = BrowserPool.shared(opts)
     test = fake_test(%{})
 
-    {browser, again} = test.run.(fn -> {BrowserPool.exclusive(opts), BrowserPool.exclusive(opts)} end)
-    assert browser == again
-    assert browser != shared and browser.conn != shared.conn
-    assert BrowserPool.playwright(browser) != BrowserPool.playwright(shared)
-    assert browser.conn != BrowserPool.playwright(browser).conn
-    page = test.run.(fn -> BrowserContext.new_page!(Browser.new_context!(browser)) end)
+    # Another driver key: a scope that holds one driver takes it over `workers`.
+    {a, b} =
+      test.run.(fn ->
+        {BrowserPool.browser(opts), BrowserPool.browser(opts ++ [driver: [env: [{"PW_CONNECT_TEST", "1"}]]])}
+      end)
+
+    assert a.conn != b.conn
+    assert BrowserPool.playwright(a) != BrowserPool.playwright(b)
+    page = test.run.(fn -> BrowserContext.new_page!(Browser.new_context!(b)) end)
     assert Page.evaluate!(page, "navigator.language") == "en-US"
     finish(test)
   end
@@ -130,7 +132,7 @@ defmodule PlaywrightEx.Test.ConnectTest do
 
     request = TestServer.wait_for_web_socket_connection_request(server)
     connect_options = [ws_endpoint: ws_endpoint, timeout: 100, headers: %{"foo" => "bar"}]
-    assert_raise RuntimeError, ~r/Timeout 100ms exceeded/, fn -> shared(launch_options, connect_options) end
+    assert_connect_timeout(fn -> browser(launch_options, connect_options) end)
     request = Task.await(request, :infinity)
     [header] = Plug.Conn.get_req_header(request, "x-playwright-launch-options")
     assert Plug.Conn.get_req_header(request, "foo") == ["bar"]
@@ -140,13 +142,14 @@ defmodule PlaywrightEx.Test.ConnectTest do
     request = TestServer.wait_for_web_socket_connection_request(server)
     headers = %{"x-playwright-launch-options" => "{}"}
 
-    assert_raise RuntimeError, ~r/Timeout 100ms exceeded/, fn ->
-      shared(launch_options, Keyword.put(connect_options, :headers, headers))
-    end
+    assert_connect_timeout(fn -> browser(launch_options, Keyword.put(connect_options, :headers, headers)) end)
 
     assert Plug.Conn.get_req_header(Task.await(request, :infinity), "x-playwright-launch-options") == ["{}"]
   end
 
-  defp shared(launch_options, connect_options),
-    do: BrowserPool.shared(launch_options: launch_options, connect_options: connect_options)
+  # The client's deadline (an Error) races the driver's own connect timeout (a TimeoutError), as upstream's.
+  defp assert_connect_timeout(fun), do: assert(Exception.message(catch_error(fun.())) =~ "Timeout 100ms exceeded")
+
+  defp browser(launch_options, connect_options),
+    do: BrowserPool.browser(launch_options: launch_options, connect_options: connect_options)
 end

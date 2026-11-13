@@ -3,6 +3,7 @@ defmodule PlaywrightEx.Examples.ExpectTest do
   use PlaywrightEx.ExampleCase, async: true
 
   alias PlaywrightEx.APIRequestContext
+  alias PlaywrightEx.APIResponse
   alias PlaywrightEx.TestServer
 
   @list "<ul><li>Text 1</li><li>Text 2</li><li>Text 3</li></ul>"
@@ -54,6 +55,123 @@ defmodule PlaywrightEx.Examples.ExpectTest do
     # ... and continue the test to check more things.
     Page.get_by_role(page, :link, name: "next page") |> Locator.click!()
     Page.get_by_role(page, :heading, name: "Make another order") |> Expect.soft() |> Expect.to_be_visible!()
+  end
+
+  example "Expect.message",
+    js: ~S"""
+    await expect(page.getByText('Name'), 'should be logged in').toBeVisible();
+    """,
+    html: "<p>Name</p>" do
+    Page.get_by_text(page, "Name") |> Expect.message("should be logged in") |> Expect.to_be_visible!()
+  end
+
+  @api "requests https://api.example.com"
+
+  example "Expect.toPass",
+    js: ~S"""
+    await expect(async () => {
+      const response = await page.request.get('https://api.example.com');
+      expect(response.status()).toBe(200);
+    }).toPass();
+    """,
+    skip: @api do
+    Expect.to_pass!(fn ->
+      response = page |> Page.request() |> APIRequestContext.get!("https://api.example.com")
+      assert APIResponse.status(response) == 200
+    end)
+  end
+
+  example "Expect.toPass",
+    js: ~S"""
+    await expect(async () => {
+      const response = await page.request.get('https://api.example.com');
+      expect(response.status()).toBe(200);
+    }).toPass({
+      // Probe, wait 1s, probe, wait 2s, probe, wait 10s, probe, wait 10s, probe
+      // ... Defaults to [100, 250, 500, 1000].
+      intervals: [1_000, 2_000, 10_000],
+      timeout: 60_000
+    });
+    """,
+    skip: @api do
+    Expect.to_pass!(
+      fn ->
+        response = page |> Page.request() |> APIRequestContext.get!("https://api.example.com")
+        assert APIResponse.status(response) == 200
+      end,
+      # Probe, wait 1s, probe, wait 2s, probe, wait 10s, probe, wait 10s, probe
+      # ... Defaults to [100, 250, 500, 1000].
+      intervals: [1_000, 2_000, 10_000],
+      timeout: 60_000
+    )
+  end
+
+  example "Expect.poll",
+    js: ~S"""
+    await expect.poll(async () => {
+      const response = await page.request.get('https://api.example.com');
+      return response.status();
+    }, {
+      // Custom expect message for reporting, optional.
+      message: 'make sure API eventually succeeds',
+      // Poll for 10 seconds; defaults to 5 seconds. Pass 0 to disable timeout.
+      timeout: 10000,
+    }).toBe(200);
+    """,
+    skip: @api do
+    Expect.poll!(
+      fn ->
+        response = page |> Page.request() |> APIRequestContext.get!("https://api.example.com")
+        APIResponse.status(response)
+      end,
+      &assert(&1 == 200),
+      # Custom expect message for reporting, optional.
+      message: "make sure API eventually succeeds",
+      # Poll for 10 seconds; defaults to 5 seconds. Pass 0 to disable timeout.
+      timeout: 10_000
+    )
+  end
+
+  example "Expect.poll",
+    js: ~S"""
+    await expect.poll(async () => {
+      const response = await page.request.get('https://api.example.com');
+      return response.status();
+    }, {
+      // Probe, wait 1s, probe, wait 2s, probe, wait 10s, probe, wait 10s, probe
+      // ... Defaults to [100, 250, 500, 1000].
+      intervals: [1_000, 2_000, 10_000],
+      timeout: 60_000
+    }).toBe(200);
+    """,
+    skip: @api do
+    Expect.poll!(
+      fn ->
+        response = page |> Page.request() |> APIRequestContext.get!("https://api.example.com")
+        APIResponse.status(response)
+      end,
+      &assert(&1 == 200),
+      # Probe, wait 1s, probe, wait 2s, probe, wait 10s, probe, wait 10s, probe
+      # ... Defaults to [100, 250, 500, 1000].
+      intervals: [1_000, 2_000, 10_000],
+      timeout: 60_000
+    )
+  end
+
+  example "Expect.poll",
+    js: ~S"""
+    await expect.soft.poll(async () => {
+      const response = await page.request.get('https://api.example.com');
+      return response.status();
+    }).toBe(200);
+    """,
+    skip: @api do
+    fn ->
+      response = page |> Page.request() |> APIRequestContext.get!("https://api.example.com")
+      APIResponse.status(response)
+    end
+    |> Expect.soft()
+    |> Expect.poll!(&assert(&1 == 200))
   end
 
   example "LocatorAssertions.toBeAttached",

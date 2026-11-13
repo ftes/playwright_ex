@@ -1,7 +1,7 @@
 defmodule PlaywrightEx.Test.EndToEndTest do
   # Suites on `PlaywrightEx.Test` in a child BEAM (`test/support/test_runner_impl.exs`): only the
   # failing test keeps its artifacts and gets `error-context.md`, no driver outlives the halted
-  # VM (`after_suite`), each scope's exclusive drivers are checked in at its end (stopped after
+  # VM (`after_suite`), each scope's drivers are checked in at its end (stopped after
   # a failure), also when `max_failures` stops the run, a test fails with the
   # snapshots its matchers wrote and with its soft matchers' failures, and a failing step's error
   # as ExUnit reports it and in the trace.
@@ -55,7 +55,7 @@ defmodule PlaywrightEx.Test.EndToEndTest do
     assert error_context =~ ~r/^> \d+ +\| +flunk\("on purpose"\)$/m
   end
 
-  test "exclusive drivers: one per driver key and scope, checked in at its end, stopped after a failure",
+  test "pooled drivers: one per driver key and scope, checked in at its end, stopped after a failure",
        %{tmp_dir: tmp_dir} do
     {output, report} = report(start("modules", tmp_dir))
     assert output =~ ~r"15 tests, 1 failure|Result: 14/15 passed"
@@ -72,7 +72,7 @@ defmodule PlaywrightEx.Test.EndToEndTest do
     {output, report} = report(start("max_failures", tmp_dir))
     assert output =~ "--max-failures reached, aborting test suite"
     assert report.leases == 0
-    assert report.free == [:isolated]
+    assert report.free == [:held]
   end
 
   test "a test fails at its end with the snapshots it wrote, all errors reported, also when killed", %{tmp_dir: tmp_dir} do
@@ -198,6 +198,37 @@ defmodule PlaywrightEx.Test.EndToEndTest do
              for(%{"type" => "error"} = event <- events, do: event)
 
     assert frame["line"] == line.("(the boxed call)")
+  end
+
+  test "a test past its timeout: a hanging Playwright call fails with the call log, other code as ExUnit's",
+       %{tmp_dir: tmp_dir} do
+    child = start("timeouts", tmp_dir)
+    assert ChildProcess.exit_code(child, 60_000) == 0
+    output = ChildProcess.output(child)
+    assert output =~ ~r"2 tests, 2 failures|Result: 0/2 passed"
+
+    hangs = failure(output, "test hangs in a Playwright call (TimeoutsTest)")
+    assert hangs =~ "Test timeout of 3000ms exceeded."
+    assert hangs =~ ~r"Call log:\n.*waiting for locator\('#never'\)"
+    refute hangs =~ "ExUnit.TimeoutError"
+
+    output_dir = Path.join(tmp_dir, "test-results")
+    [dir] = output_dir |> File.ls!() |> Enum.filter(&(&1 =~ "hangs-in-a-Playwright-call"))
+    files = File.ls!(Path.join(output_dir, dir))
+    assert "trace.zip" in files
+    assert "test-failed-1.png" in files
+    error_context = File.read!(Path.join([output_dir, dir, "error-context.md"]))
+    assert error_context =~ "Test timeout of 3000ms exceeded."
+    assert error_context =~ ~s(heading "Hangs")
+
+    sleeps = failure(output, "test hangs elsewhere (TimeoutsTest)")
+    assert sleeps =~ "** (ExUnit.TimeoutError) test timed out after 3000ms"
+  end
+
+  test "--trace: no test timeout, so no timer", %{tmp_dir: tmp_dir} do
+    child = start("trace", tmp_dir)
+    assert ChildProcess.exit_code(child, 60_000) == 0
+    assert ChildProcess.output(child) =~ ~r"1 test, 0 failures|Result: 1 passed"
   end
 
   defp alive(processes) do

@@ -16,8 +16,8 @@ defmodule PlaywrightEx.Test.RegistrationTest do
   alias PlaywrightEx.Test.Pool
   alias PlaywrightEx.Test.Recorder
 
-  setup do
-    browser = BrowserPool.shared()
+  setup_all do
+    browser = BrowserPool.browser()
     %{browser: browser, playwright: BrowserPool.playwright(browser)}
   end
 
@@ -75,7 +75,7 @@ defmodule PlaywrightEx.Test.RegistrationTest do
     assert defaults.(request) == @context_defaults
 
     # Of another browser on the driver.
-    other = BrowserPool.shared(launch_options: [slow_mo: 1])
+    other = BrowserPool.browser(launch_options: [slow_mo: 1])
     assert defaults.(&Browser.new_context!(other, user_agent: &1)) == @context_defaults
   end
 
@@ -175,7 +175,7 @@ defmodule PlaywrightEx.Test.RegistrationTest.SetupAllContextTest do
   alias PlaywrightEx.Test.BrowserPool
 
   setup_all do
-    browser = BrowserPool.shared()
+    browser = BrowserPool.browser()
     playwright = BrowserPool.playwright(browser)
     test_pid = self()
 
@@ -212,8 +212,11 @@ defmodule PlaywrightEx.Test.RegistrationTest.TemplateCase do
     end
   end
 
-  setup do
-    browser = BrowserPool.shared()
+  setup_all do
+    %{browser: BrowserPool.browser()}
+  end
+
+  setup %{browser: browser} do
     playwright = BrowserPool.playwright(browser)
     test_pid = self()
     # The client options of the context, as the listeners added before this one leave them.
@@ -252,11 +255,12 @@ defmodule PlaywrightEx.Test.RegistrationTest.LateTest do
 
   test "a context before the registration makes it raise, with the fix" do
     test_pid = self()
+    browser = PlaywrightEx.Test.BrowserPool.browser()
 
     # A template's `setup` that creates a context, then the registration, as a test of a template
     # with `use PlaywrightEx.Test` only in its `using` runs them; in a process of its own.
     spawn(fn ->
-      PlaywrightEx.Browser.new_context!(PlaywrightEx.Test.BrowserPool.shared())
+      PlaywrightEx.Browser.new_context!(browser)
 
       result =
         try do

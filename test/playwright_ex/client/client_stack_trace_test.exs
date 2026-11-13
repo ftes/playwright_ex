@@ -6,6 +6,7 @@ defmodule PlaywrightEx.ClientStackTraceTest do
   # `evaluate` missed its console. Paths come from the modules' compile info.
   # Not async: it changes the working directory of the VM.
   use ExUnit.Case, async: false
+  use PlaywrightEx.Test
 
   alias PlaywrightEx.Client.ClientStackTrace
 
@@ -27,5 +28,19 @@ defmodule PlaywrightEx.ClientStackTraceTest do
     after
       File.cd!(cwd)
     end
+  end
+
+  # upstream's `setBoxedStackPrefixes([packageRoot])` and `parseStackFrame`'s Node internals:
+  # Playwright Test's frames and Node's never reach the driver, which stats each frame's file
+  # (12 ms each for a missing `/home/runner/...` on macOS).
+  test "in a test, the runner's frames and OTP's and Elixir's are left out, the test's stay" do
+    {:current_stacktrace, raw} = Process.info(self(), :current_stacktrace)
+    assert Enum.any?(raw, &(elem(&1, 0) == ExUnit.Runner)) and Enum.any?(raw, &(elem(&1, 0) == :timer))
+
+    [{%{frames: frames}, :ok}] = Enum.map([1], fn _ -> {ClientStackTrace.capture_library_stack_trace(), :ok} end)
+
+    # The function's and the test's.
+    assert [_, _] = frames
+    assert Enum.all?(frames, &(&1.file == __ENV__.file and &1.function =~ "PlaywrightEx.ClientStackTraceTest."))
   end
 end

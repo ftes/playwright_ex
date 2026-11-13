@@ -14,15 +14,14 @@ those of the release candidates below. From an earlier release, also read the se
 - `PlaywrightEx.RegExp.new/1,2` takes a `Regex` or `RegExp` as JS's `new RegExp(re, flags)` does,
   converting a `Regex` as Playwright does (PCRE-only syntax raises `ArgumentError`). It inspects as
   `#PlaywrightEx.RegExp</source/flags>`.
-- `PlaywrightEx.Case`: a case template giving each test a `context` and a `page` of the shared
-  browser.
-- `PlaywrightEx.Test.BrowserPool`: Playwright Test's worker browser. `shared/1` is one browser
-  per set of options for every test at once; `exclusive/1` one held by the module (`setup_all`)
-  or test that calls it, at most `workers` at once (half the schedulers, as Playwright Test's
-  default), reused after a passing scope. `on_start` runs once per new driver (e.g. to register
-  selectors). On Firefox, use `exclusive/1`. `connect_options` is Playwright Test's
-  `connectOptions`: pooled browsers on a remote Playwright server, with the context defaults
-  and the recording.
+- `PlaywrightEx.Case`: a case template giving each module a `browser` and each test a `context`
+  and a `page` of it.
+- `PlaywrightEx.Test.BrowserPool`: Playwright Test's worker browser and worker model.
+  `browser/1` is held by the module (`setup_all`) or test that calls it, at most `workers` at
+  once (half the schedulers, as Playwright Test's default), reused after a passing scope and
+  replaced after a failing one. `on_start` runs once per new driver (e.g. to register
+  selectors). `connect_options` is Playwright Test's `connectOptions`: pooled browsers on a
+  remote Playwright server, with the context defaults and the recording.
 - `PlaywrightEx.Test`: `use PlaywrightEx.Test` after `use ExUnit.Case` (or first in a case
   template's body) registers each test. Every context it creates on a pooled browser, also in a
   `Task`, gets Playwright Test's context defaults (`locale: "en-US"`, a 1280x720 viewport, ...),
@@ -38,7 +37,44 @@ those of the release candidates below. From an earlier release, also read the se
   `subtitle`; no `timeout`), `step_skip` its `test.step.skip`, and each matcher call is a step:
   the trace's `test.trace` has the test's steps, nested, and its errors. `Expect.soft/1` is
   `expect.soft`: in a test, a failed soft matcher returns and fails the test at the end of its
-  body. See the [Testing with ExUnit](guides/testing-with-exunit.md) guide.
+  body. As in Playwright Test, a test's contexts have no action or navigation timeout unless
+  the config's `action_timeout` and `navigation_timeout` set one, and just before ExUnit's
+  test timeout the test's contexts are closed, so a hanging call fails with "Test timeout of
+  Nms exceeded." and its call log, its artifacts kept. See the
+  [Testing with ExUnit](guides/testing-with-exunit.md) guide.
+- `test_id_attribute` in `config :playwright_ex, :test` is Playwright Test's `testIdAttribute`,
+  set on each pooled driver. The client's test id attribute is global to the VM, so a module that
+  sets it changes `get_by_test_id` for concurrent tests: set it suite-wide.
+- `PlaywrightEx.Test` traces each context's `request` and the test's own request contexts
+  (`APIRequest.new_context/2`), and disposes those left at the test's end.
+- Under `trace: :retain_on_failure`, the contexts a passed test leaves open discard their trace
+  chunks at its end, as Playwright Test's do, instead of saving and then deleting them.
+- `PlaywrightEx.Test` starts and stops its traces and takes its screenshots and page snapshots
+  with internal calls, as Playwright Test does, so they send the driver no call stacks and the
+  screenshots are no actions in the trace.
+- `PlaywrightEx.Test.info/1` takes the test's pid and works in `on_exit`, where it also has
+  Playwright Test's `testInfo.status`, `errors`, `expectedStatus` and `duration`.
+- `PlaywrightEx.Test.attach/2` is Playwright Test's `testInfo.attach`: a file (`path:`, copied to
+  the output dir) or a body, as a `test.attach` step in the trace. The trace option `attachments`
+  (default `true`) keeps them in `trace.zip`.
+- The `video` option takes Playwright Test's `fps` and `show` (`show.actions`, and `show.test`,
+  the test's title and steps over each page).
+- `Expect.to_pass/2` and `Expect.poll/3`: `expect(fn).toPass()` and `expect.poll(fn).toBe(x)`
+  (`Expect.poll(fn, &assert(&1 == x))`), with upstream's intervals and timeouts (`toPass`: until
+  the test's timeout), steps, soft receivers and `config :playwright_ex, :expect, to_pass: ...`.
+- `Expect.message/2` is `expect(actual, message)`: a receiver with a custom message, which is the
+  matcher's step title and the first paragraph of its error.
+- `PlaywrightEx.Test.snapshot_path/2` takes a list of path segments too, as Playwright Test's
+  `testInfo.snapshotPath(...name)`.
+- A matcher's step and its driver call share one `callId`, so a test's trace shows them as one
+  action, as Playwright Test's does.
+- `PlaywrightEx.Promise.async/1`: starts calls now, awaited later (JS's
+  `const p = locator.evaluate(...); ...; await p`). It returns once the calls are sent, so they
+  come before your next action, which a `Task` doesn't ensure.
+- The debugging guide covers `PWDEBUG=1 mix test --trace`, the Playwright Inspector for one test.
+- The ExUnit guide covers porting Playwright Test specs, `projects` as `parameterize:` with
+  devices, teardown checks that fail the test, and listener lifetimes; the concurrency guide,
+  route handlers that wait for the test.
 
 ### Changed
 - `%PlaywrightEx.Expect{}` also carries `isSoft`, and `isNot` defaults to `false`: build a
@@ -61,6 +97,10 @@ those of the release candidates below. From an earlier release, also read the se
 - A `Regex` with `u` whose source escapes punctuation (as `Regex.escape/1` does: `\#`, `\ `, `\-`)
   works in locators and matchers: JS's `u` mode rejects those escapes, so the redundant backslash
   is dropped.
+- The stack an API call records (its trace stack and location) leaves out OTP's and Elixir's
+  frames, as upstream's leaves out Node's, and in a `PlaywrightEx.Test` test ExUnit's and the
+  runner's, as Playwright Test leaves out its own. Their sources are the build machine's paths,
+  which the driver looked up for every frame when saving a trace (about 12 ms each on macOS).
 - On Unix, stopping `PlaywrightEx.Supervisor` waits until the driver has exited (at most 31 s).
   When the supervisor is stopped before the VM halts, the driver no longer resets the terminal
   afterwards (↑ printing `OA` in the shell after `mix test`). `mix test` and `mix run` halt

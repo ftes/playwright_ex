@@ -46,8 +46,8 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
 
   defp run_test(messages, reason, marked \\ Pool.outside()), do: end_test(fake_test(marked), messages, reason)
 
-  # An exclusive browser of the fake test `pid`, and its end and release.
-  defp lease(pid, opts), do: Pool.exclusive(Options.pool(opts), {:test, pid}, "fake #{inspect(pid)}")
+  # A browser of the fake test `pid`, and its end and release.
+  defp lease(pid, opts), do: Pool.browser(Options.pool(opts), {:test, pid}, "fake #{inspect(pid)}")
 
   defp finish(pid, messages, reason) do
     end_test(pid, messages, reason)
@@ -91,46 +91,44 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
     end
   end
 
-  describe "shared" do
-    test "callers with the same options share one browser, launched once" do
+  describe "drivers" do
+    test "a scope's concurrent callers get one browser, launched once, after on_start" do
       opts = opts(on_start: {__MODULE__, :on_start, [self()]})
-      results = 1..5 |> Enum.map(fn _ -> Task.async(fn -> BrowserPool.shared(opts) end) end) |> Task.await_many(30_000)
+      t = fake_test()
+      results = 1..5 |> Enum.map(fn _ -> Task.async(fn -> lease(t, opts) end) end) |> Task.await_many(30_000)
 
-      assert [browser] = Enum.uniq(results)
+      assert [%{browser: browser, playwright: playwright}] = Enum.uniq(results)
       assert Browser.is_connected(browser)
-      playwright = BrowserPool.playwright(browser)
+      assert BrowserPool.playwright(browser) == playwright
       assert_received {:on_start, ^playwright}
       refute_received {:on_start, _}
+      finish(t, [], :boom)
     end
 
     test "an on_start that raises leaves no driver running" do
       opts = opts(on_start: {__MODULE__, :raise_on_start, [self()]})
-      assert_raise RuntimeError, "on_start failed", fn -> BrowserPool.shared(opts) end
+      t = fake_test()
+      assert_raise RuntimeError, "on_start failed", fn -> lease(t, opts) end
       assert_received {:drivers, [sup]}
       refute Process.alive?(sup)
-    end
-
-    test "one driver hosts every browser name and launch options" do
-      opts = opts()
-      a = BrowserPool.shared(opts)
-      b = BrowserPool.shared(Keyword.update!(opts, :launch_options, &[{:slow_mo, 1} | &1]))
-      assert BrowserPool.playwright(a) == BrowserPool.playwright(b)
-      assert a != b
+      finish(t, [], :boom)
     end
 
     test "a lost browser is launched again" do
       opts = opts()
-      browser = BrowserPool.shared(opts)
+      t = fake_test()
+      %{browser: browser} = lease(t, opts)
       Browser.close!(browser)
-      again = BrowserPool.shared(opts)
+      %{browser: again} = lease(t, opts)
       assert again != browser
       assert Browser.is_connected(again)
+      finish(t, [], :boom)
     end
 
     test "on_start runs again on a driver its supervisor restarted" do
       opts = opts(on_start: {__MODULE__, :on_start, [self()]})
-      browser = BrowserPool.shared(opts)
-      playwright = BrowserPool.playwright(browser)
+      t = fake_test()
+      %{browser: browser, playwright: playwright} = lease(t, opts)
       assert_received {:on_start, ^playwright}
 
       # kill -9 of the driver: its connection goes, the supervisor starts a new one.
@@ -140,12 +138,12 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
       {_, 0} = System.cmd("kill", ["-9", to_string(os_pid)])
       assert_receive {:DOWN, ^ref, :process, _, _}, 10_000
 
-      relaunched = BrowserPool.shared(opts)
-      again = BrowserPool.playwright(relaunched)
+      %{browser: relaunched, playwright: again} = lease(t, opts)
       assert again != playwright
       assert_received {:on_start, ^again}
       assert relaunched != browser
       assert Browser.is_connected(relaunched)
+      finish(t, [], :boom)
     end
 
     test "playwright raises for a browser the pool didn't launch" do
@@ -159,9 +157,11 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
     end
 
     test "unknown options and bad values raise" do
-      assert_raise ArgumentError, ~r/unknown options \[:headless\]/, fn -> BrowserPool.shared(headless: true) end
-      assert_raise ArgumentError, ~r/unknown options \[:isolate\]/, fn -> BrowserPool.exclusive(isolate: true) end
-      assert_raise ArgumentError, ~r/invalid browser_name: :chrome/, fn -> BrowserPool.shared(browser_name: :chrome) end
+      assert_raise ArgumentError, ~r/unknown options \[:headless\]/, fn -> BrowserPool.browser(headless: true) end
+
+      assert_raise ArgumentError, ~r/invalid browser_name: :chrome/, fn ->
+        BrowserPool.browser(browser_name: :chrome)
+      end
     end
   end
 
@@ -220,7 +220,7 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
     Application.put_env(:playwright_ex, :test, Keyword.put(config, :workers, workers))
   end
 
-  describe "exclusive" do
+  describe "workers" do
     setup do
       config = Application.get_env(:playwright_ex, :test)
       put_workers(2)
@@ -230,15 +230,6 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
         # The leases a failed test left.
         for {scope, %{holder: "fake " <> _}} <- :sys.get_state(Pool).leases, do: Pool.release(scope)
       end)
-    end
-
-    test "shared drivers, one per key, are outside workers" do
-      put_workers(1)
-      held = fake_test()
-      lease(held, opts())
-      shared = BrowserPool.playwright(BrowserPool.shared(opts()))
-      assert BrowserPool.playwright(BrowserPool.shared(opts())) == shared
-      finish(held, [], :boom)
     end
 
     test "at most workers drivers at once, waiters first come first served; a passing scope's goes back warm, a failed one's stops" do
@@ -370,14 +361,21 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
       for t <- [full, ready], do: finish(t, [], :boom)
     end
 
-    test "a scope's driver goes back only if it passed: unknown (a doctest's, or no result) stops it" do
+    test "a scope with no known result (a doctest's, an unregistered test's) goes back warm; a crash stops it" do
       opts = opts()
-      [unknown, unwatched] = [fake_test(false), spawn(fn -> :ok end)]
+      [unknown, unwatched, crashed] = [fake_test(false), spawn(fn -> :ok end), fake_test(false)]
       a = lease(unknown, opts)
       b = lease(unwatched, opts)
       finish(unknown, [], :shutdown)
       Pool.release(unwatched)
-      assert gone?(a.browser) and gone?(b.browser)
+
+      # Both back, warm: the next scopes get them.
+      next = fake_test()
+      c = lease(crashed, opts)
+      assert MapSet.new([lease(next, opts), c]) == MapSet.new([a, b])
+      finish(crashed, [], :boom)
+      assert gone?(c.browser)
+      finish(next, [], :boom)
     end
 
     test "a waiter that exits, or whose scope was released, is dropped: no driver leaks" do
@@ -394,7 +392,7 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
       wait_until(fn -> length(:sys.get_state(Pool).waiting) == 1 end)
       Pool.release(released)
 
-      assert %ArgumentError{message: "BrowserPool.exclusive/1 waited past the end of its test or module"} =
+      assert %ArgumentError{message: "BrowserPool.browser/1 waited past the end of its test or module"} =
                Task.await(released_waiter)
 
       finish(holder, [passed()], :shutdown)
@@ -403,7 +401,7 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
       finish(next, [], :boom)
     end
 
-    test "a wait of 10 s logs the holders and the hint" do
+    test "a wait of 10 s logs the holders" do
       put_workers(1)
       [holder, waiting] = [fake_test(), fake_test()]
       lease(holder, opts())
@@ -418,10 +416,9 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
         end)
 
       assert log =~
-               "BrowserPool.exclusive/1 has waited 10 s for one of `workers` (1) drivers, for fake #{inspect(waiting)}"
+               "BrowserPool.browser/1 has waited 10 s for one of `workers` (1) drivers, for fake #{inspect(waiting)}"
 
       assert log =~ "fake #{inspect(holder)}: 1 driver(s)"
-      assert log =~ "a test's own `exclusive()` call is a separate lease"
 
       finish(holder, [], :boom)
       Task.await(waiter, 30_000)
@@ -434,19 +431,18 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
       scope = fn -> spawn(fn -> Process.sleep(:infinity) end) end
 
       none = scope.()
-      a = Pool.exclusive(opts, {:process, none}, "setup_all")
-      # No test ran: stopped.
+      a = Pool.browser(opts, {:process, none}, "setup_all")
+      # No test ran: no known result, back warm.
       Pool.release(none)
-      assert gone?(a.browser)
 
       passing = scope.()
-      b = Pool.exclusive(opts, {:process, passing}, "setup_all")
+      assert (b = Pool.browser(opts, {:process, passing}, "setup_all")) == a
       assert run_test([passed()], :shutdown) == {:passed, []}
       assert run_test([passed()], :shutdown) == {:passed, []}
       Pool.release(passing)
 
       failing = scope.()
-      assert Pool.exclusive(opts, {:process, failing}, "setup_all") == b
+      assert Pool.browser(opts, {:process, failing}, "setup_all") == b
       assert run_test([passed()], :shutdown) == {:passed, []}
       assert {:failed, _} = run_test([], :boom)
       Pool.release(failing)
@@ -468,23 +464,24 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
 
   test "after_suite waits for the drivers being stopped" do
     t = fake_test()
-    isolated = lease(t, opts())
+    stopped = lease(t, opts())
     finish(t, [], :boom)
     Pool.after_suite(%{})
-    refute connected?(isolated.browser)
+    refute connected?(stopped.browser)
   end
 
   test "after_suite stops every driver" do
-    one = BrowserPool.shared(opts())
-    two = BrowserPool.shared(opts())
-    t = fake_test()
-    isolated = lease(t, opts())
+    [free, held] = [fake_test(), fake_test()]
+    one = lease(free, opts())
+    finish(free, [passed()], :shutdown)
+    two = lease(held, key("held"))
 
     Pool.after_suite(%{})
-    refute connected?(one) or connected?(two) or connected?(isolated.browser)
+    refute connected?(one.browser) or connected?(two.browser)
 
     # The next use starts anew.
-    three = BrowserPool.shared(opts())
-    assert Browser.is_connected(three)
+    next = fake_test()
+    assert Browser.is_connected(lease(next, opts()).browser)
+    finish(next, [], :boom)
   end
 end

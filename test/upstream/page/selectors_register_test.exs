@@ -1,7 +1,6 @@
 defmodule PlaywrightEx.Page.SelectorsRegisterTest do
   @upstream "tests/page/selectors-register.spec.ts"
-  # isolate: registers selector engines on the driver.
-  use PlaywrightEx.UpstreamCase, async: true, isolate: true
+  use PlaywrightEx.UpstreamCase, async: true
 
   alias PlaywrightEx.Page
   alias PlaywrightEx.Playwright

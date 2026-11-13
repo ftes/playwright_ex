@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Page.WheelTest do
   @upstream "tests/page/wheel.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.Expect
+
   alias PlaywrightEx.Keyboard
   alias PlaywrightEx.Mouse
   alias PlaywrightEx.Page
@@ -19,7 +21,8 @@ defmodule PlaywrightEx.Page.WheelTest do
   end
 
   defp expect_event(page, expected, ignore_delta) do
-    received = Utils.poll(fn -> Page.evaluate!(page, "window.lastEvent") end, &Utils.assert_truthy/1)
+    Expect.poll!(fn -> Page.evaluate!(page, "window.lastEvent") end, &Utils.assert_truthy/1)
+    received = Page.evaluate!(page, "window.lastEvent")
 
     {received, expected} =
       if ignore_delta,

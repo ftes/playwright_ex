@@ -7,8 +7,8 @@ defmodule PlaywrightEx.Test.OptionsTest do
 
   describe "validation" do
     test "unknown options raise before anything starts" do
-      assert_raise ArgumentError, ~r/unknown options \[:headless\]/, fn -> BrowserPool.shared(headless: true) end
-      assert_raise ArgumentError, ~r/unknown options \[:isolate\]/, fn -> BrowserPool.exclusive(isolate: true) end
+      assert_raise ArgumentError, ~r/unknown options \[:headless\]/, fn -> BrowserPool.browser(headless: true) end
+      assert_raise ArgumentError, ~r/unknown options \[:isolate\]/, fn -> BrowserPool.browser(isolate: true) end
       assert_raise ArgumentError, ~r/unknown driver options \[:name\]/, fn -> Options.pool(driver: [name: Foo]) end
     end
 
@@ -57,31 +57,41 @@ defmodule PlaywrightEx.Test.OptionsTest do
 
     test "artifact modes are their object forms' mode, with upstream's defaults" do
       assert Options.artifacts(%{trace: :on, screenshot: :on, video: :on}) == %{
-               trace: [mode: :on, snapshots: true, screenshots: true, sources: true],
+               trace: [mode: :on, snapshots: true, screenshots: true, sources: true, attachments: true],
                screenshot: [mode: :on],
                video: [mode: :on]
              }
 
       assert Options.artifacts(%{
-               trace: [sources: false, mode: :retain_on_failure, snapshots: %{dom: true, aria: false}],
+               trace: [
+                 sources: false,
+                 mode: :retain_on_failure,
+                 snapshots: %{dom: true, aria: false},
+                 attachments: false
+               ],
                screenshot: %{mode: :only_on_failure, full_page: true, omit_background: false},
-               video: [mode: :on, size: %{width: 320, height: 240}]
+               video: [mode: :on, show: %{test: %{level: "file"}}, fps: 10, size: %{width: 320, height: 240}]
              }) == %{
                trace: [
                  mode: :retain_on_failure,
                  snapshots: %{dom: true, aria: false},
                  screenshots: true,
-                 sources: false
+                 sources: false,
+                 attachments: false
                ],
                screenshot: [mode: :only_on_failure, full_page: true, omit_background: false],
-               video: [mode: :on, size: %{width: 320, height: 240}]
+               video: [mode: :on, size: %{width: 320, height: 240}, fps: 10, show: %{test: %{level: "file"}}]
              }
     end
 
     test "unknown keys and bad values of the object forms raise" do
       for {option, message} <- [
-            {%{trace: [mode: :on, attachments: false]}, ~r/unknown trace options \[:attachments\], expected one of/},
-            {%{video: [mode: :on, fps: 30]}, ~r/unknown video options \[:fps\]/},
+            {%{trace: [mode: :on, live: true]}, ~r/unknown trace options \[:live\], expected one of/},
+            {%{trace: [mode: :on, attachments: 1]}, ~r/invalid trace attachments: 1/},
+            {%{video: [mode: :on, audio: true]}, ~r/unknown video options \[:audio\]/},
+            {%{video: [mode: :on, fps: 0]}, ~r/invalid video fps: 0/},
+            {%{video: [mode: :on, show: %{test: %{level: "line"}}]}, ~r/invalid video show: /},
+            {%{video: [mode: :on, show: %{actions: %{color: "red"}}]}, ~r/invalid video show: /},
             {%{screenshot: [mode: :on, path: "x.png"]}, ~r/unknown screenshot options \[:path\]/},
             {%{trace: [sources: false]}, ~r/trace options need :mode/},
             {%{video: %{size: %{width: 320, height: 240}}}, ~r/video options need :mode/},
@@ -217,9 +227,16 @@ defmodule PlaywrightEx.Test.ConfigTest do
   use ExUnit.Case, async: false
   use PlaywrightEx.Test
 
+  alias PlaywrightEx.APIRequest
+  alias PlaywrightEx.APIRequestContext
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
+  alias PlaywrightEx.Client.Locator, as: ClientLocator
+  alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Playwright
+  alias PlaywrightEx.Runtime.Heap
+  alias PlaywrightEx.Selectors
   alias PlaywrightEx.Test.BrowserPool
   alias PlaywrightEx.Test.Options
 
@@ -245,6 +262,7 @@ defmodule PlaywrightEx.Test.ConfigTest do
     Application.put_env(:playwright_ex, :test, Keyword.put(ctx.config, :context_options, locale: "de-DE"))
     # The registration of this test read the config before: register a fake one in a process.
     test_pid = self()
+    browser = BrowserPool.browser()
 
     {pid, ref} =
       spawn_monitor(fn ->
@@ -256,7 +274,6 @@ defmodule PlaywrightEx.Test.ConfigTest do
           line: 1
         })
 
-        browser = BrowserPool.shared()
         default = BrowserContext.new_page!(Browser.new_context!(browser))
         own = BrowserContext.new_page!(Browser.new_context!(browser, locale: "fr-FR"))
 
@@ -267,6 +284,28 @@ defmodule PlaywrightEx.Test.ConfigTest do
       end)
 
     assert_receive {:languages, "de-DE", "fr-FR"}, 30_000
+    assert_receive {:DOWN, ^ref, :process, _, _}
+    PlaywrightEx.Test.__finish__(pid, 10_000)
+  end
+
+  test "a registered test's contexts get the config's action_timeout and navigation_timeout", ctx do
+    Application.put_env(:playwright_ex, :test, ctx.config ++ [action_timeout: 300, navigation_timeout: 200])
+    test_pid = self()
+    browser = BrowserPool.browser()
+
+    {pid, ref} =
+      spawn_monitor(fn ->
+        PlaywrightEx.Test.__register__(%{test_pid: self(), module: __MODULE__, test: :"test fake", file: __ENV__.file})
+        page = BrowserContext.new_page!(Browser.new_context!(browser))
+        request = APIRequest.new_context!(Playwright.request(BrowserPool.playwright(browser)))
+        request_timeout = Heap.get(Heap.get(request, :_timeoutSettings), :_defaultTimeout)
+        APIRequestContext.dispose!(request)
+        send(test_pid, {:errors, Page.wait_for_selector(page, "#x"), Page.wait_for_url(page, "**/x"), request_timeout})
+      end)
+
+    assert_receive {:errors, {:error, action}, {:error, navigation}, 300}, 30_000
+    assert action.message =~ "page.waitForSelector: Timeout 300ms exceeded."
+    assert navigation.message =~ "page.waitForURL: Timeout 200ms exceeded."
     assert_receive {:DOWN, ^ref, :process, _, _}
     PlaywrightEx.Test.__finish__(pid, 10_000)
   end
@@ -289,6 +328,20 @@ defmodule PlaywrightEx.Test.ConfigTest do
     assert %{connect_options: nil} = Options.pool(connect_options: nil)
   end
 
+  # Playwright Test's `testIdAttribute`: the client's value is the VM's, so this module is not
+  # async, and resets it.
+  test "test_id_attribute: each new pooled driver gets it, as the client does", %{config: config} do
+    Application.put_env(:playwright_ex, :test, config ++ [test_id_attribute: "data-pw"])
+    browser = BrowserPool.browser(driver: [env: [{"PW_TEST_ID_ATTRIBUTE_TEST", "1"}]])
+    selectors = Playwright.selectors(BrowserPool.playwright(browser))
+    on_exit(fn -> Selectors.set_test_id_attribute(selectors, "data-testid") end)
+
+    assert ClientLocator.test_id_attribute_name() == "data-pw"
+    page = BrowserContext.new_page!(Browser.new_context!(browser))
+    Page.set_content!(page, ~s(<div data-pw="a">A</div><div data-testid="a">B</div>))
+    assert Locator.text_content!(Page.get_by_test_id(page, "a")) == "A"
+  end
+
   test "the defaults", %{config: config} do
     Application.delete_env(:playwright_ex, :test)
 
@@ -296,14 +349,16 @@ defmodule PlaywrightEx.Test.ConfigTest do
              Options.pool([])
 
     assert %{
-             trace: [mode: :off, snapshots: true, screenshots: true, sources: true],
+             trace: [mode: :off, snapshots: true, screenshots: true, sources: true, attachments: true],
              screenshot: [mode: :off],
              video: [mode: :off]
            } = Options.artifacts(%{})
 
     assert Options.context_options() == Options.context_defaults()
+    assert Options.timeouts() == %{action_timeout: :infinity, navigation_timeout: :infinity}
     assert Options.output_dir() == "test-results"
     assert Options.workers() == max(div(System.schedulers_online(), 2), 1)
+    assert Options.test_id_attribute() == "data-testid"
     Application.put_env(:playwright_ex, :test, config)
   end
 
@@ -320,10 +375,26 @@ defmodule PlaywrightEx.Test.ConfigTest do
       assert_raise ArgumentError, ~r/unknown keys \[#{inspect(key)}\]/, fn -> Options.pool([]) end
     end
 
+    Application.put_env(:playwright_ex, :test, config ++ [test_id_attribute: ""])
+    assert_raise ArgumentError, ~r/invalid test_id_attribute: ""/, fn -> Options.test_id_attribute() end
+
     Application.put_env(:playwright_ex, :test, config ++ [trace: :sometimes])
     assert_raise ArgumentError, ~r/invalid trace: :sometimes/, fn -> Options.artifacts(%{}) end
 
     Application.put_env(:playwright_ex, :test, config ++ [context_options: [lokale: "x"]])
     assert_raise ArgumentError, fn -> Options.context_options() end
+
+    for value <- [-1, 1.5, nil, "1000"] do
+      Application.put_env(:playwright_ex, :test, config ++ [action_timeout: value])
+
+      assert_raise ArgumentError, ~r/invalid action_timeout: #{Regex.escape(inspect(value))}/, fn ->
+        Options.timeouts()
+      end
+    end
+
+    Application.put_env(:playwright_ex, :test, config ++ [navigation_timeout: :none])
+    assert_raise ArgumentError, ~r/invalid navigation_timeout: :none/, fn -> Options.timeouts() end
+    Application.put_env(:playwright_ex, :test, config ++ [action_timeout: 0, navigation_timeout: 5000])
+    assert Options.timeouts() == %{action_timeout: 0, navigation_timeout: 5000}
   end
 end

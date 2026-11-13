@@ -6,16 +6,18 @@
 #   * `artifacts` - one passing and one failing test, `trace: :retain_on_failure, screenshot:
 #     :only_on_failure`. It prints "(ready=>true)" in the passing test and waits there until the
 #     go file exists.
-#   * `modules` - exclusive browsers (a module's of ten tests, a test's of two driver keys, a
+#   * `modules` - pooled browsers (a module's of ten tests, a test's of two driver keys, a
 #     failing module's, `parameterize:`) and a module with none; prints the pool after the run:
 #     `(report=>%{...})`.
-#   * `max_failures` - `max_failures: 1`, a module holding an exclusive browser running when
-#     another fails; prints the pool after the run.
+#   * `max_failures` - `max_failures: 1`, a module holding a browser running when another
+#     fails; prints the pool after the run.
 #   * `soft_errors` - tests whose matchers write missing snapshots (`snapshot_dir` next to the
 #     output dir), one of them failing after that, one killed past its timeout.
 #   * `steps` - a test failing in a boxed step, with no browser.
 #   * `soft` - soft matchers (`Expect.soft/1`): failing ones, then the rest of the body, then a
 #     hard failure; and a passing one.
+#   * `timeouts` - tests past their timeout: one in a Playwright call, one in `Process.sleep`.
+#   * `trace` - `trace: true` (`mix test --trace`): a test past its `timeout` tag passes.
 
 # credo:disable-for-this-file Credo.Check.Warning.WrongTestFilename
 
@@ -39,7 +41,7 @@ Application.put_env(:playwright_ex, :test,
 {:ok, _} = PlaywrightEx.Application.start(:normal, [])
 
 max_failures = if mode == "max_failures", do: 1, else: :infinity
-ExUnit.start(autorun: false, max_cases: 8, max_failures: max_failures)
+ExUnit.start(autorun: false, max_cases: 8, max_failures: max_failures, trace: mode == "trace")
 
 # What the modules saw: `{label, scope, playwright}` (the scope: the pid that holds the lease).
 :ets.new(:report, [:named_table, :public, :bag])
@@ -118,8 +120,8 @@ case mode do
       use PlaywrightEx.Test
 
       setup_all do
-        browser = BrowserPool.exclusive(Key.opts(:ten))
-        other = BrowserPool.exclusive(Key.opts(:ten) ++ [launch_options: [timeout: 30_001]])
+        browser = BrowserPool.browser(Key.opts(:ten))
+        other = BrowserPool.browser(Key.opts(:ten) ++ [launch_options: [timeout: 30_001]])
         %{browser: browser, other: other, scope: self()}
       end
 
@@ -137,8 +139,8 @@ case mode do
       use PlaywrightEx.Test
 
       test "two driver keys" do
-        Report.put(:two_a, self(), BrowserPool.exclusive(Key.opts(:two_a)))
-        Report.put(:two_b, self(), BrowserPool.exclusive(Key.opts(:two_b)))
+        Report.put(:two_a, self(), BrowserPool.browser(Key.opts(:two_a)))
+        Report.put(:two_b, self(), BrowserPool.browser(Key.opts(:two_b)))
       end
     end
 
@@ -147,7 +149,7 @@ case mode do
       use PlaywrightEx.Test
 
       setup_all do
-        browser = BrowserPool.exclusive(Key.opts(:fails))
+        browser = BrowserPool.browser(Key.opts(:fails))
         Report.after_suite()
         %{browser: browser, scope: self()}
       end
@@ -163,7 +165,7 @@ case mode do
       use ExUnit.Case, async: true, parameterize: [%{n: 1}, %{n: 2}]
       use PlaywrightEx.Test
 
-      setup_all do: %{browser: BrowserPool.exclusive(Key.opts(:param)), scope: self()}
+      setup_all do: %{browser: BrowserPool.browser(Key.opts(:param)), scope: self()}
 
       test "holds", %{n: n} = ctx do
         Report.put(:"param_#{n}", ctx.scope, ctx.browser)
@@ -181,13 +183,13 @@ case mode do
     end
 
   "max_failures" ->
-    defmodule IsolatedTest do
+    defmodule HeldTest do
       use ExUnit.Case, async: true
       use PlaywrightEx.Test
 
       setup_all do
-        browser = PlaywrightEx.Test.BrowserPool.exclusive()
-        Report.put(:isolated, self(), browser)
+        browser = PlaywrightEx.Test.BrowserPool.browser()
+        Report.put(:held, self(), browser)
         Report.after_suite()
         %{browser: browser}
       end
@@ -200,7 +202,7 @@ case mode do
       use PlaywrightEx.Test
 
       test "fails once the other module runs" do
-        Report.await(:isolated)
+        Report.await(:held)
         flunk("on purpose")
       end
     end
@@ -280,6 +282,35 @@ case mode do
           # (inside the boxed step)
           raise "cannot log in"
         end
+      end
+    end
+
+  "timeouts" ->
+    defmodule TimeoutsTest do
+      use PlaywrightEx.Case, async: true
+
+      @tag timeout: 3000
+      test "hangs in a Playwright call", %{page: page} do
+        Page.set_content!(page, "<h1>Hangs</h1>")
+        Page.wait_for_selector!(page, "#never")
+      end
+
+      @tag timeout: 3000
+      test "hangs elsewhere", %{page: page} do
+        Page.set_content!(page, "<h1>Sleeps</h1>")
+        Process.sleep(:infinity)
+      end
+    end
+
+  "trace" ->
+    defmodule TraceTest do
+      use PlaywrightEx.Case, async: true
+
+      @tag timeout: 500
+      test "runs past its timeout", %{page: page} do
+        assert :sys.get_state(PlaywrightEx.Test.Recorder.lookup(self())).timer == nil
+        Process.sleep(1000)
+        Page.set_content!(page, "<h1>Open</h1>")
       end
     end
 end

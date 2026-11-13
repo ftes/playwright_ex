@@ -3,8 +3,8 @@ defmodule PlaywrightEx.Test.Pool.Slot do
   # One driver and its browsers, in a process of its own: starting the driver and launching
   # block this slot and its callers only, and the slot stays alive as the browsers' creator,
   # which anchors their rows. Lazy: the driver starts with the first `browser/2`, which adds the
-  # recording listener (`PlaywrightEx.Test.Recorder.listener/0`) and runs `on_start` on each new
-  # driver's Playwright before any launch.
+  # recording listener (`PlaywrightEx.Test.Recorder.listener/0`), sets the test id attribute and
+  # runs `on_start` on each new driver's Playwright before any launch.
   # It hosts a browser per `{browser_name, launch_options, connect_options}`, as upstream runs
   # every browser type on one Playwright: the listener on the driver's instrumentation sees all of
   # their contexts, also those of a connected browser, whose connection shares it. A lost browser
@@ -20,6 +20,8 @@ defmodule PlaywrightEx.Test.Pool.Slot do
   alias PlaywrightEx.Runtime.Api
   alias PlaywrightEx.Runtime.Facade
   alias PlaywrightEx.Runtime.Heap
+  alias PlaywrightEx.Selectors
+  alias PlaywrightEx.Test.Options
   alias PlaywrightEx.Test.Recorder
 
   require Logger
@@ -39,7 +41,7 @@ defmodule PlaywrightEx.Test.Pool.Slot do
   def browser(:stopped, _opts), do: raise("PlaywrightEx.Test's drivers were stopped (after the suite)")
 
   def browser(:released, _opts),
-    do: raise(ArgumentError, "BrowserPool.exclusive/1 waited past the end of its test or module")
+    do: raise(ArgumentError, "BrowserPool.browser/1 waited past the end of its test or module")
 
   @doc "The Playwright of the driver whose connection is `conn`, `nil` for one the pool didn't start."
   def playwright(conn) do
@@ -120,6 +122,9 @@ defmodule PlaywrightEx.Test.Pool.Slot do
       ClientInstrumentation.add_listener(Heap.get(playwright, :_instrumentation), Recorder.listener())
       :ets.insert(PlaywrightEx.Test.Pool.table(), {{:driver, playwright.conn}, playwright})
       state = %{state | playwright: playwright, browsers: %{}}
+      # `_setupContextOptions`' `selectors.setTestIdAttribute(testIdAttribute)`: suite-wide,
+      # as the client's value (`get_by_test_id`) is global to the VM.
+      Selectors.set_test_id_attribute(Playwright.selectors(playwright), Options.test_id_attribute())
       on_start(state.opts.on_start, playwright)
       {:ok, state}
     end

@@ -1,7 +1,6 @@
 defmodule PlaywrightEx.Library.Chromium.TracingTest do
   @upstream "tests/library/chromium/tracing.spec.ts"
-  # isolate: traces `browser` (one trace per browser).
-  use PlaywrightEx.UpstreamCase, async: true, isolate: true
+  use PlaywrightEx.UpstreamCase, async: true
 
   import PlaywrightEx.Utils, only: [rafraf: 1, rafraf: 2]
 

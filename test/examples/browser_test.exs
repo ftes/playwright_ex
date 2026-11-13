@@ -1,7 +1,6 @@
 defmodule PlaywrightEx.Examples.BrowserTest do
   # Elixir translations of upstream's JS examples, rendered into the facade docs (see ExampleCase).
-  # isolate: traces `browser` (one trace per browser).
-  use PlaywrightEx.ExampleCase, async: true, isolate: true
+  use PlaywrightEx.ExampleCase, async: true
 
   # The examples that launch a browser run where it is the browser under test.
   @browser PlaywrightEx.TestBrowser.name()

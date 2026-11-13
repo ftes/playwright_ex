@@ -21,6 +21,28 @@ mix test
 cd path/to/phoenix_live_view/test/e2e && npx playwright test -c playwright.noteardown.config.js
 ```
 
+## Runtime on the final #201 stack (2026-11-13)
+
+Pin `regexp-new-regex` 1dcc2715 (#204 merge): `BrowserPool.browser/1` (a browser per module, as
+Playwright Test's workers; the shared pool is gone) and cheaper tracing (passing
+`retain_on_failure` tests discard their trace chunks). Measured by the #201 session under the
+perf lock with `caffeinate`, 9 workers, against upstream's 58.0 s from the quiet run below.
+
+| Run | Wall (`Finished in`) | Result |
+| --- | --- | --- |
+| port, seed 1 | 56.0 s | 697 / 699 |
+| port, seed 2 | 57.6 s | 698 / 699 |
+
+Module time (summed over the 219 modules) is +7.7% over upstream's, down from +19.4%: chromium
++8 s, webkit +12 s, firefox +10 s. The median per-test gap is +24-30 ms (it was +88 ms). Module
+time exceeds test time by 15-17 s, mostly in one-test Firefox modules, each 1-4.6 s slower than
+upstream's same file. Probably a browser start per module, where upstream's workers reuse
+one; not measured. Starting the longest modules first would save another ~10 s (an LPT
+schedule: 46.8 s). Failures: `issue 3115` (Chromium, also upstream) every run, 2835 once.
+
+The sections below are history, on pin 47caed19, where `BrowserPool.shared/1` and
+`exclusive/1` still existed (the `POOL=exclusive` switch).
+
 ## Runtime at quiet load (2026-11-12, 18:47)
 
 One run each, with the display kept awake (`caffeinate -di`: WebKit on macOS stalls while the

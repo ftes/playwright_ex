@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
   @upstream "tests/library/chromium/chromium.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.Expect
+
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
@@ -16,7 +18,6 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
   alias PlaywrightEx.Route
   alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
-  alias PlaywrightEx.Utils
   alias PlaywrightEx.Worker
 
   @chromium_only if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: chromium only")
@@ -121,13 +122,13 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     Page.goto!(page, server.prefix <> "/home")
     sw = Promise.await!(sw)
 
-    Utils.poll(fn -> Worker.evaluate!(sw, "() => self['PW_VERSION']") end, &assert(&1 == 0))
+    Expect.poll!(fn -> Worker.evaluate!(sw, "() => self['PW_VERSION']") end, &assert(&1 == 0))
 
     updated_sw = wait_for_service_worker(context)
     Page.click!(page, "#update")
     updated_sw = Promise.await!(updated_sw)
 
-    Utils.poll(fn -> Worker.evaluate!(updated_sw, "() => self['PW_VERSION']") end, &assert(&1 == 1))
+    Expect.poll!(fn -> Worker.evaluate!(updated_sw, "() => self['PW_VERSION']") end, &assert(&1 == 1))
   end
 
   describe "http credentials" do
@@ -508,7 +509,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     Page.goto!(page, server.prefix <> "/index.html")
     sw = Promise.await!(sw)
 
-    Utils.poll(fn -> Worker.evaluate!(sw, "() => self.registration.active?.state") end, &assert(&1 == "activated"))
+    Expect.poll!(fn -> Worker.evaluate!(sw, "() => self.registration.active?.state") end, &assert(&1 == "activated"))
 
     Page.evaluate!(page, "() => fetch('/data.json')")
 
@@ -589,7 +590,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     Page.goto!(page, server.prefix <> "/index.html")
     sw = Promise.await!(sw)
 
-    Utils.poll(fn -> Worker.evaluate!(sw, "() => self.registration.active?.state") end, &assert(&1 == "activated"))
+    Expect.poll!(fn -> Worker.evaluate!(sw, "() => self.registration.active?.state") end, &assert(&1 == "activated"))
 
     Page.evaluate!(page, "() => fetch('/addressbook.json')")
     Page.evaluate!(page, "() => fetch('/foo')")

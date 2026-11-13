@@ -1,7 +1,6 @@
 defmodule PlaywrightEx.Page.LocatorQueryTest do
   @upstream "tests/page/locator-query.spec.ts"
-  # isolate: registers a selector engine on the driver.
-  use PlaywrightEx.UpstreamCase, async: true, isolate: true
+  use PlaywrightEx.UpstreamCase, async: true
 
   alias PlaywrightEx.Expect
   alias PlaywrightEx.Frame
