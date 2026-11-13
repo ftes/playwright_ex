@@ -47,7 +47,7 @@ defmodule PlaywrightEx.Test.Recorder do
 
   @doc "Whether the recorder `recorder` (or `nil`) closed its test's contexts at the test timeout."
   def timed_out?(nil), do: false
-  def timed_out?(recorder), do: match?(%{timed_out: true}, call(recorder, :state))
+  def timed_out?(recorder), do: match?(%{timed_out: true}, call(recorder, {:fields, [:timed_out]}))
 
   @doc """
   The registration of the running test (`PlaywrightEx.Test`'s per-test setup) of the calling
@@ -286,6 +286,10 @@ defmodule PlaywrightEx.Test.Recorder do
   def handle_call({:add_chunk, path}, _from, state), do: {:reply, :ok, %{state | chunks: state.chunks ++ [path]}}
   def handle_call({:page_snapshot, snapshot}, _from, state), do: {:reply, :ok, %{state | page_snapshot: snapshot}}
   def handle_call(:state, _from, state), do: {:reply, state, state}
+  # Those of `fields` alone: the whole state copies the test's trace events.
+  def handle_call({:fields, fields}, _from, state), do: {:reply, Map.take(state, fields), state}
+  # `TestTracing`'s flags, without its events.
+  def handle_call(:tracing_flags, _from, state), do: {:reply, %{state.tracing | trace_events: []}, state}
 
   def handle_call({:title_context, context}, _from, state),
     do: {:reply, :ok, update_overlay(%{state | title_contexts: state.title_contexts ++ [context]})}
@@ -568,7 +572,7 @@ defmodule PlaywrightEx.Test.Recorder do
   # context, also a browser context's `request` (its close disposes it first).
   def before_close_request_context(request) do
     with [{_key, recorder}] <- :ets.take(Results.table(), {:request, request.guid}),
-         %{} = state <- call(recorder, :state) do
+         %{} = state <- call(recorder, {:fields, [:opts]}) do
       call(recorder, {:request_closed, request.guid})
 
       if state.opts.trace[:mode] != :off, do: stop_request_tracing(request, recorder, state)
@@ -594,7 +598,7 @@ defmodule PlaywrightEx.Test.Recorder do
   # once per context, also when closes race.
   def before_close_browser_context(context) do
     with [{_key, recorder}] <- :ets.take(Results.table(), {:context, context.guid}),
-         %{} = state <- call(recorder, :state) do
+         %{} = state <- call(recorder, {:fields, [:opts, :timed_out, :test_pid]}) do
       call(recorder, {:closed, context.guid})
       collect(context, recorder, state)
     end
@@ -615,7 +619,7 @@ defmodule PlaywrightEx.Test.Recorder do
   # snapshot, or timed out (its close is the timeout's).
   defp page_snapshot(context, recorder, state) do
     with true <- state.timed_out or errors_without_snapshot?(state.test_pid),
-         %{page_snapshot: nil} <- call(recorder, :state),
+         %{page_snapshot: nil} <- call(recorder, {:fields, [:page_snapshot]}),
          [page | _] <- BrowserContext.pages(context),
          # The snapshot may fail: ignored, as upstream's. An internal call of the page.
          {:ok, snapshot} <-
@@ -641,12 +645,14 @@ defmodule PlaywrightEx.Test.Recorder do
 
   # `_stopTracing`: the chunk, or none once the test abandons its trace (a passed test's under
   # `retain_on_failure`), which `stopChunk` discards without saving it.
-  defp stop_tracing(owner, tracing, recorder, %{opts: opts} = state) do
+  defp stop_tracing(owner, tracing, recorder, %{opts: opts}) do
     ChannelOwner._wrap_api_call(
       owner,
       fn _api_zone ->
+        tracing_flags = GenServer.call(recorder, :tracing_flags, :infinity)
+
         path =
-          TestTracing.maybe_generate_next_trace_recording_path(state.tracing, opts.trace[:mode], opts.retry, opts.tmp)
+          TestTracing.maybe_generate_next_trace_recording_path(tracing_flags, opts.trace[:mode], opts.retry, opts.tmp)
 
         Tracing.stop_chunk!(tracing, path: path)
         if path, do: call(recorder, {:add_chunk, path})
@@ -735,7 +741,8 @@ defmodule PlaywrightEx.Test.Recorder do
   end
 
   defp abandon(pid) do
-    step("close the contexts left", fn -> close_leftovers(GenServer.call(pid, :state, :infinity)) end)
+    fields = [:contexts, :closed, :requests]
+    step("close the contexts left", fn -> close_leftovers(GenServer.call(pid, {:fields, fields}, :infinity)) end)
     step("stop the recorder", fn -> GenServer.stop(pid) end)
   end
 
@@ -746,7 +753,7 @@ defmodule PlaywrightEx.Test.Recorder do
   end
 
   defp collect_all(pid, {verdict, failures}) do
-    state = GenServer.call(pid, :state, :infinity)
+    state = GenServer.call(pid, {:fields, [:closing, :opts, :contexts, :closed, :requests]}, :infinity)
     # The test timeout's closes, with their artifact steps.
     if state.closing, do: await_exit(state.closing)
     # A test of another macro (a doctest) has no result: kept as a failure's.
@@ -765,6 +772,7 @@ defmodule PlaywrightEx.Test.Recorder do
     for request <- state.requests,
         do: step("dispose a request context", fn -> APIRequestContext.dispose!(request, reason: "Test ended.") end)
 
+    # All of it, the trace events too, once.
     state = GenServer.call(pid, :state, :infinity)
     save_videos(state, failed?)
     trace = save_trace(state, failed?)
