@@ -138,10 +138,10 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     refute traced?(trace, "OTHER")
   end
 
-  test "a context of another browser on the driver is recorded", %{browser: browser} do
+  test "a context of another worker's browser is recorded", %{browser: browser} do
     test = fake_test(%{trace: :on})
     other = BrowserPool.browser(launch_options: [slow_mo: 1])
-    assert BrowserPool.playwright(other) == BrowserPool.playwright(browser) and other != browser
+    assert BrowserPool.playwright(other) != BrowserPool.playwright(browser)
 
     test.run.(fn ->
       page(Browser.new_context!(browser), "OWN")

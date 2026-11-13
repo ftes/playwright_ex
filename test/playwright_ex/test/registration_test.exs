@@ -74,9 +74,10 @@ defmodule PlaywrightEx.Test.RegistrationTest do
     request = &APIRequestContext.dispose!(APIRequest.new_context!(Playwright.request(ctx.playwright), user_agent: &1))
     assert defaults.(request) == @context_defaults
 
-    # Of another browser on the driver.
+    # Of another worker's browser.
     other = BrowserPool.browser(launch_options: [slow_mo: 1])
-    assert defaults.(&Browser.new_context!(other, user_agent: &1)) == @context_defaults
+    options = options_of(BrowserPool.playwright(other), &Browser.new_context!(other, user_agent: &1))
+    assert Map.take(options, Map.keys(@context_defaults)) == @context_defaults
   end
 
   test "a context option given wins over its default, also nil", ctx do

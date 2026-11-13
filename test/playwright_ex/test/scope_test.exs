@@ -26,15 +26,12 @@ defmodule PlaywrightEx.Test.ScopeTest do
     assert %{slots: [_ | _]} = leases(ctx.module_pid)
   end
 
-  test "a test's calls, and its Task's, go to its module's lease; another driver key joins it", ctx do
+  test "a test's calls, and its Task's, go to its module's lease; another key joins it", ctx do
     assert BrowserPool.browser(@opts) == ctx.browser
     assert Task.await(Task.async(fn -> BrowserPool.browser(@opts) end)) == ctx.browser
     other = BrowserPool.browser(Keyword.put(@opts, :launch_options, slow_mo: 1))
-    assert other != ctx.browser and BrowserPool.playwright(other) == BrowserPool.playwright(ctx.browser)
+    assert BrowserPool.playwright(other) != BrowserPool.playwright(ctx.browser)
     assert leases(self()) == nil
-
-    another = BrowserPool.browser(driver: [env: [{"PW_SCOPE_TEST", "module 2"}]])
-    assert BrowserPool.playwright(another) != BrowserPool.playwright(ctx.browser)
     assert %{slots: [_, _]} = leases(ctx.module_pid)
   end
 end
@@ -59,14 +56,13 @@ defmodule PlaywrightEx.Test.ScopeTest.TestScopeTest do
     assert BrowserPool.browser(@opts) == browser
     assert %{slots: [_]} = lease()
 
-    # Another browser key: on the same driver.
+    # Other browser options: another worker.
     other = BrowserPool.browser(Keyword.put(@opts, :launch_options, slow_mo: 1))
-    assert other != browser
-    assert BrowserPool.playwright(other) == BrowserPool.playwright(browser)
-    assert %{slots: [_]} = lease()
+    assert BrowserPool.playwright(other) != BrowserPool.playwright(browser)
+    assert %{slots: [_, _]} = lease()
   end
 
-  test "another driver key takes a driver of its own" do
+  test "other driver options take a driver of their own" do
     a = BrowserPool.browser(@opts)
     b = BrowserPool.browser(driver: [env: [{"PW_SCOPE_TEST", "test 2"}]])
     assert BrowserPool.playwright(a) != BrowserPool.playwright(b)

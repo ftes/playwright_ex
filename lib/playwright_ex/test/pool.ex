@@ -2,7 +2,9 @@ defmodule PlaywrightEx.Test.Pool do
   @moduledoc false
   # The drivers of `PlaywrightEx.Test.BrowserPool`, each in a `PlaywrightEx.Test.Pool.Slot`, the
   # results of the registered tests (`use PlaywrightEx.Test`), and their recorders. A slot is
-  # `{pid, driver_key}`, the key its `driver` options and `on_start`.
+  # `{pid, key}`, the key all of its options (`driver`, `on_start`, and the browser's
+  # `browser_name`, `launch_options`, `connect_options`), as upstream's worker hash covers the
+  # project's options: one driver and one browser per worker.
   #
   # Upstream's worker model: a scope (a registered test, found through the caller or its
   # `$callers`, else the calling process, `setup_all`'s) leases a slot per key; its further calls
@@ -17,7 +19,7 @@ defmodule PlaywrightEx.Test.Pool do
   # `workers` slots run, as upstream's worker processes (stopping ones count): room is made by
   # stopping free ones of other keys, the longest idle first, and the new one starts once they
   # exited; with none, the caller waits (first come first served, a warning after
-  # `@wait_warning` ms), unless its scope holds a slot already (its further driver keys go over
+  # `@wait_warning` ms), unless its scope holds a slot already (its further keys go over
   # `workers`, so no scope waits while it holds a slot others wait for). A waiter that exits, or
   # whose scope was released, is dropped.
   #
@@ -77,8 +79,8 @@ defmodule PlaywrightEx.Test.Pool do
     ensure_started()
 
     __MODULE__
-    |> GenServer.call({:lease, driver_key(opts), opts, {kind, pid}, parent(pid), holder}, :infinity)
-    |> Slot.browser(opts)
+    |> GenServer.call({:lease, key(opts), opts, {kind, pid}, parent(pid), holder}, :infinity)
+    |> Slot.browser()
   end
 
   @doc "Ends the leases of `scope`: free and warm unless it failed, else stopped."
@@ -169,8 +171,8 @@ defmodule PlaywrightEx.Test.Pool do
     :ok
   end
 
-  # Without `browser_name` and `launch_options`: one driver hosts every browser of its options.
-  defp driver_key(opts), do: {Enum.sort(opts.driver), opts.on_start}
+  defp key(opts),
+    do: {Enum.sort(opts.driver), opts.on_start, opts.browser_name, Enum.sort(opts.launch_options), opts.connect_options}
 
   # The ExUnit runner process that spawned `pid` (OTP 25+), `nil` if unknown.
   defp parent(pid) do

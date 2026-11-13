@@ -8,7 +8,6 @@ defmodule PlaywrightEx.Test.OptionsTest do
   describe "validation" do
     test "unknown options raise before anything starts" do
       assert_raise ArgumentError, ~r/unknown options \[:headless\]/, fn -> BrowserPool.browser(headless: true) end
-      assert_raise ArgumentError, ~r/unknown options \[:isolate\]/, fn -> BrowserPool.browser(isolate: true) end
       assert_raise ArgumentError, ~r/unknown driver options \[:name\]/, fn -> Options.pool(driver: [name: Foo]) end
     end
 
@@ -369,11 +368,9 @@ defmodule PlaywrightEx.Test.ConfigTest do
       Options.artifacts(%{})
     end
 
-    # `isolate` is gone, and error-context.md has no switch, as upstream.
-    for key <- [:isolate, :error_context] do
-      Application.put_env(:playwright_ex, :test, config ++ [{key, true}])
-      assert_raise ArgumentError, ~r/unknown keys \[#{inspect(key)}\]/, fn -> Options.pool([]) end
-    end
+    # error-context.md has no switch, as upstream.
+    Application.put_env(:playwright_ex, :test, config ++ [error_context: true])
+    assert_raise ArgumentError, ~r/unknown keys \[:error_context\]/, fn -> Options.pool([]) end
 
     Application.put_env(:playwright_ex, :test, config ++ [test_id_attribute: ""])
     assert_raise ArgumentError, ~r/invalid test_id_attribute: ""/, fn -> Options.test_id_attribute() end

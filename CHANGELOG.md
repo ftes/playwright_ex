@@ -18,8 +18,9 @@ those of the release candidates below. From an earlier release, also read the se
   and a `page` of it.
 - `PlaywrightEx.Test.BrowserPool`: Playwright Test's worker browser and worker model.
   `browser/1` is held by the module (`setup_all`) or test that calls it, at most `workers` at
-  once (half the schedulers, as Playwright Test's default), reused after a passing scope and
-  replaced after a failing one. `on_start` runs once per new driver (e.g. to register
+  once (half the schedulers, as Playwright Test's default), each one driver and one browser of
+  its options (Playwright Test's worker hash), reused after a passing scope and replaced after a
+  failing one. `on_start` runs once per new driver (e.g. to register
   selectors). `connect_options` is Playwright Test's `connectOptions`: pooled browsers on a
   remote Playwright server, with the context defaults and the recording.
 - `PlaywrightEx.Test`: `use PlaywrightEx.Test` after `use ExUnit.Case` (or first in a case

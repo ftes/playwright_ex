@@ -249,7 +249,7 @@ true)`: IndexedDB is not in the state by default. See
 ## Several users
 
 Each user is a context, and a user on another browser takes it from another `browser/1` call,
-on the module's driver:
+another worker that the module holds too (over `workers`, so it never waits for itself):
 
 ```elixir
 test "two users edit one document", %{browser: browser} do
@@ -490,7 +490,7 @@ The recording counts such a failure as a pass (see `PlaywrightEx.Test`).
 
 ## Workers
 
-The scope that calls `BrowserPool.browser/1` holds the driver and its browsers, Playwright Test's
+The scope that calls `BrowserPool.browser/1` holds the driver and its browser, Playwright Test's
 worker: called in `setup_all`, the module, until it ends; in `setup` or a test of a module that
 holds none (or a `Task` of the test), the test. A test's own calls go to its module's driver, so
 another browser or options there don't take another worker. The scope's further calls with the
@@ -510,12 +510,31 @@ suite, as Playwright Test's `testIdAttribute`; each pooled driver gets it:
 config :playwright_ex, :test, test_id_attribute: "data-pw"
 ```
 
-At most `workers` drivers run at once; the others wait, first come first served, within ExUnit's
-test timeout (`setup_all` has none), and a wait of 10 s logs the holders. A call with other
-`driver` or `on_start` options takes another driver, which may stop an idle driver of other
-options to start: mark a rare module with unusual options `async: false`, so it doesn't wait
-behind the others, raise `workers`, or split the run by options, with tags and `--only` /
-`--exclude`.
+At most `workers` drivers run at once; the others wait, first come first served, inside
+`BrowserPool.browser/1`: in `setup_all` with no timeout, in `setup` or a test within ExUnit's
+test timeout, and a wait of 10 s logs the holders. A worker is a driver and one browser of one
+set of options, as Playwright Test's worker runs one project: a call with other options (another
+`browser_name`, `launch_options`, `driver` or `on_start`) takes another worker, which may stop
+an idle one of other options to start. ExUnit runs modules in random order, so in a run that
+mixes options each switch restarts a worker (a driver start, about 110 ms, plus the browser's
+launch). Run one configuration per invocation, as Playwright Test's projects effectively do: tag
+each module with its configuration (`@moduletag browser: :firefox`) and run
+`mix test --only browser:firefox`, or give each CI job one. A rare module with unusual options
+can be `async: false`, so it doesn't wait behind the others.
+
+The defaults: `workers` half the schedulers (Playwright Test's default, half the cores), and
+ExUnit's `max_cases` unchanged, twice the schedulers. So about four times as many modules run as
+Playwright Test's workers: those past `workers` wait inside `browser/1` at no cost, and modules
+that never call it are unaffected. `workers` stays below `max_cases` because each running
+browser test keeps a browser, its renderer and the driver busy: on an 18-core Mac, LiveView's
+e2e suite at `max_cases` 36 took 64.6 s at 15.0 GB peak memory with 9 workers, and 80.2 s at
+38.7 GB with 36.
+
+A suite whose tests mostly wait on the app needs more: raise `workers` toward the core count. An
+app's full e2e suite on 18 cores at `max_cases` 18 took 93.8 s at 6.5 GB with 16 workers,
+against 113.5 s at 6.1 GB with the default 9. Keep `max_cases` at about the core count for
+browser suites: past it the app's CPU saturates. At `max_cases` 36 the same suite gained nothing
+(100.9 to 102.7 s) and hit 4 s action timeouts.
 
 ## Debugging one test
 

@@ -80,14 +80,12 @@ defmodule PlaywrightEx.Test.ConnectTest do
     opts = [connect_options: [ws_endpoint: ws_endpoint], on_start: {__MODULE__, :on_start, [self()]}]
     test = fake_test(%{trace: :on, screenshot: :on})
 
-    {lost, launched} =
-      test.run.(fn -> {BrowserPool.browser(opts), BrowserPool.browser(Keyword.delete(opts, :connect_options))} end)
+    lost = test.run.(fn -> BrowserPool.browser(opts) end)
 
     assert_receive {:on_start, playwright}
     assert BrowserPool.playwright(lost) == playwright
-    # A connection of its own, and another browser than the launched one of the driver.
+    # A connection of its own.
     assert lost.conn != playwright.conn
-    assert launched.conn == playwright.conn
 
     # A lost one is connected again by the scope's next call.
     Browser.close!(lost)

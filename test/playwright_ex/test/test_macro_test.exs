@@ -46,11 +46,11 @@ defmodule PlaywrightEx.Test.TestMacroTest do
   end
 
   test "use PlaywrightEx.Test takes no options" do
-    assert_raise ArgumentError, ~r/use PlaywrightEx.Test takes no options, got: \[isolate: true\]/, fn ->
+    assert_raise ArgumentError, ~r/use PlaywrightEx.Test takes no options, got: \[trace: :on\]/, fn ->
       Code.compile_string("""
       defmodule PlaywrightEx.Test.TestMacroTest.Options do
         use ExUnit.Case
-        use PlaywrightEx.Test, isolate: true
+        use PlaywrightEx.Test, trace: :on
       end
       """)
     end
