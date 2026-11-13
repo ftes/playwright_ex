@@ -58,6 +58,33 @@ defmodule PlaywrightEx.Test.GitHubFormatterTest do
              "\n::error file=#{@file_path},title=#{@file_path}%3A10 › fails::  1) #{@file_path}:10 › fails "
   end
 
+  test "a dependency's frames under the deps path are skipped, a path dependency's are the user's" do
+    for {app, module} <- [ghfmt_dep: GhfmtDep.Expect, ghfmt_sibling: GhfmtSibling.Helper] do
+      :ok = :application.load({:application, app, [description: ~c"", vsn: ~c"1", modules: [module], applications: []]})
+      on_exit(fn -> :application.unload(app) end)
+    end
+
+    root = "/work/repo"
+    System.put_env("GITHUB_WORKSPACE", root)
+    deps = %{paths: %{ghfmt_dep: "#{root}/deps/ghfmt_dep", ghfmt_sibling: "#{root}/apps/sibling"}, path: "#{root}/deps"}
+    frame = fn module, file, line -> {module, :check!, 0, file: String.to_charlist(file), line: line} end
+    user = frame.(__MODULE__, @file_path, 7)
+
+    errors = fn stack ->
+      run([{:test_finished, test_struct("test fails", state: {:failed, [{:error, %RuntimeError{}, stack}]})}],
+        github_formatter_deps: deps
+      )
+    end
+
+    in_repo = Path.relative_to(Path.expand(@file_path), root, force: true)
+
+    assert errors.([frame.(GhfmtDep.Expect, "lib/expect.ex", 3), user]) =~
+             "::error file=#{in_repo},title=#{@file_path}%3A10 › fails,line=7::"
+
+    assert errors.([frame.(GhfmtSibling.Helper, "lib/helper.ex", 5), user]) =~
+             "::error file=apps/sibling/lib/helper.ex,title=#{@file_path}%3A10 › fails,line=5::"
+  end
+
   test "a parameterized module's parameters are the project" do
     test = %{
       test_struct("test fails", state: {:failed, [failure(fn -> raise "oops" end)]})
@@ -143,9 +170,9 @@ defmodule PlaywrightEx.Test.GitHubFormatterTest do
     assert run([{:test_finished, test}]) =~ "::error file=#{@file_path},"
   end
 
-  defp run(events) do
+  defp run(events, opts \\ []) do
     capture_io(fn ->
-      {:ok, pid} = GenServer.start(GitHubFormatter, [])
+      {:ok, pid} = GenServer.start(GitHubFormatter, opts)
       Enum.each(events, &GenServer.cast(pid, &1))
       GenServer.stop(pid)
     end)

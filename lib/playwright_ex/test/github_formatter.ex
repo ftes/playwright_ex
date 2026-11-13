@@ -17,8 +17,9 @@ defmodule PlaywrightEx.Test.GitHubFormatter do
 
   It prints:
 
-    * an `::error` for each failure of a failed test, at the first frame of its stacktrace
-      outside PlaywrightEx, ExUnit, Elixir and Erlang/OTP (else on the test's file), titled
+    * an `::error` for each failure of a failed test, at the first frame of its stacktrace in
+      your code (not PlaywrightEx's, ExUnit's, Elixir's, Erlang/OTP's or a dependency's under
+      `deps/`; a path dependency is yours), else on the test's file, titled
       `file:line › describe › test`, with ExUnit's failure text.
     * an `::error` for each failed `setup_all`; its tests count as not run.
     * a `Slow Test` `::warning` for each of the 5 slowest files whose tests took more than
@@ -65,13 +66,23 @@ defmodule PlaywrightEx.Test.GitHubFormatter do
 
   # constructor: `omitTags`  -- not ported: ExUnit's tags are not Playwright's `@tag`s
   @impl true
-  def init(_opts) do
+  def init(opts) do
     report_slow_tests =
       Keyword.get(Application.get_env(:playwright_ex, __MODULE__, []), :report_slow_tests, max: 5, threshold: 300_000)
 
     # TerminalReporter's `suite` (the tests, newest first), `fileDurations` and
     # `config.reportSlowTests`; GitHubReporter's `_failedTestCount`.
-    {:ok, %{tests: [], file_durations: %{}, report_slow_tests: report_slow_tests, failed_test_count: 0, duration: 0}}
+    {:ok,
+     %{
+       tests: [],
+       file_durations: %{},
+       report_slow_tests: report_slow_tests,
+       failed_test_count: 0,
+       duration: 0,
+       # Elixir only: where the deps live, for `belongsToNodeModules` (`location/2`). Tests pass
+       # their own.
+       deps: Keyword.get_lazy(opts, :github_formatter_deps, &deps/0)
+     }}
   end
 
   # printsToStdio  -- not ported: ExUnit runs only the formatters it is given (add ExUnit.CLIFormatter)
@@ -97,7 +108,7 @@ defmodule PlaywrightEx.Test.GitHubFormatter do
       this = %{this | failed_test_count: this.failed_test_count + 1}
       new_line()
       # for (const r of test.results): an ExUnit test has one result.
-      print_failure_annotation(test, this.failed_test_count)
+      print_failure_annotation(this, test, this.failed_test_count)
       this
     else
       this
@@ -136,10 +147,10 @@ defmodule PlaywrightEx.Test.GitHubFormatter do
 
   defp print_summary_annotation(summary), do: log(summary, :notice, title: "🎭 Playwright Run Summary")
 
-  defp print_failure_annotation(test, index) do
+  defp print_failure_annotation(this, test, index) do
     title = format_test_title(test)
     header = format_test_header(test, indent: "  ", index: index, mode: :error)
-    errors = format_result_failure(test)
+    errors = format_result_failure(this, test)
 
     for error <- errors do
       options = [
@@ -253,33 +264,65 @@ defmodule PlaywrightEx.Test.GitHubFormatter do
   # the lines of its header, which upstream's replaces) for formatError's message, already
   # indented. 'Expected to fail, but passed.', 'Test was interrupted.'  -- never: no `test.fail`,
   # no interruption.
-  defp format_result_failure(%ExUnit.Test{state: {:failed, failures}} = test) do
+  defp format_result_failure(this, %ExUnit.Test{state: {:failed, failures}} = test) do
     header_lines = if test.parameters == %{}, do: 2, else: 3
 
     for {_kind, _reason, stack} = failure <- failures do
       text = ExUnit.Formatter.format_test_failure(test, [failure], 1, @width, &formatter/2)
       message = text |> String.split("\n") |> Enum.drop(header_lines) |> Enum.join("\n") |> String.trim_trailing()
-      %{message: message, location: location(stack)}
+      %{message: message, location: location(this.deps, stack)}
     end
   end
 
   # `parsedStack.location` of `filterStackTrace`'s stack: its first frame outside the runner's and
-  # the client's code, here of a module of no app (a test's `.exs`) or of the user's.
-  defp location(stack) do
+  # the client's code (`filterStackFile`) that is not a dependency's (`parseErrorStack`'s
+  # `belongsToNodeModules`), its file resolved against its app's root (a dependency's paths are
+  # relative to it).
+  defp location(deps, stack) do
     Enum.find_value(stack, fn
       {module, _fun, _arity, location} when is_list(location) ->
-        if location[:file] && location[:line] && user_module?(module),
-          do: %{file: Path.expand(to_string(location[:file])), line: location[:line]}
+        with file when file != nil <- location[:file],
+             line when line != nil <- location[:line],
+             {:ok, root} <- user_code_root(deps, module) do
+          %{file: Path.expand(to_string(file), root), line: line}
+        else
+          _ -> nil
+        end
 
       _ ->
         nil
     end)
   end
 
-  defp user_module?(module) do
+  # The root of a user module's files, or `:error` for the runner's, the client's or a
+  # dependency's module. A module of no app (a test's `.exs`) or of the project is the user's; a
+  # dependency's is when its source is outside the deps path (a path dependency, an umbrella
+  # sibling).
+  defp user_code_root(deps, module) do
     case :application.get_application(module) do
-      {:ok, app} -> app not in [:playwright_ex, :ex_unit, :elixir, :stdlib, :kernel]
-      :undefined -> true
+      :undefined ->
+        {:ok, File.cwd!()}
+
+      {:ok, app} when app in [:playwright_ex, :ex_unit, :elixir, :stdlib, :kernel] ->
+        :error
+
+      {:ok, app} ->
+        dep_root(deps, deps && deps.paths[app])
+    end
+  end
+
+  # The project's app, or no Mix project.
+  defp dep_root(_deps, nil), do: {:ok, File.cwd!()}
+  defp dep_root(deps, path), do: if(String.starts_with?(path <> "/", deps.path <> "/"), do: :error, else: {:ok, path})
+
+  # `%{paths: %{app => dir}, path: deps_dir}` of the Mix project, or `nil` without one (every
+  # app's frames are then the user's).
+  defp deps do
+    if Code.ensure_loaded?(Mix.Project) and Process.whereis(Mix.ProjectStack) != nil and Mix.Project.get() != nil do
+      %{
+        paths: Map.new(Mix.Project.deps_paths(), fn {app, dir} -> {app, Path.expand(dir)} end),
+        path: Mix.Project.deps_path()
+      }
     end
   end
 
