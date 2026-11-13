@@ -598,8 +598,8 @@ so the server tunnels `localhost` to your machine.
 ## The running test
 
 `PlaywrightEx.Test.info/0` is Playwright Test's `test.info()`: the running test's `test_pid`,
-`file`, `test_name` and `output_dir`, in the test's process and in processes with it in
-`$callers` (a `Task`, a route handler). A library that owns resources per test (an Ecto sandbox
+`file`, `test_name`, `output_dir` and `timeout` (ExUnit's, `:infinity` for none), in the test's
+process and in processes with it in `$callers` (a `Task`, a route handler). A library that owns resources per test (an Ecto sandbox
 owner, a session) finds the test from a `Task` with it: `PlaywrightEx.Test.info().test_pid`.
 
 ## Polling and waiting

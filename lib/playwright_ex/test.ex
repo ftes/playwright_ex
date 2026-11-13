@@ -459,7 +459,7 @@ defmodule PlaywrightEx.Test do
     {verdict, failures} = result = Results.result(test_pid, budget)
     {test, recorder} = Results.take(test_pid)
     # For `info/1` in the `on_exit` callbacks that run after this one.
-    Results.keep_info(test_pid, Map.merge(Map.take(test, @info_keys), result_info(test_pid, result, recorder)))
+    Results.keep_info(test_pid, Map.merge(info_of(test), result_info(test_pid, result, recorder)))
 
     trace =
       cond do
@@ -490,13 +490,21 @@ defmodule PlaywrightEx.Test do
   @doc """
   The running test of the calling process or a process in its `$callers` (a `Task`), as
   upstream's `test.info()`: `test_pid`, `file` (absolute), `test_name` (without the macro's
-  `test ` prefix) and `output_dir` (absolute, see "Artifacts" in the moduledoc), from the
-  test's setup to the end of its body. Raises outside a test, and in `on_exit` callbacks (ExUnit
-  runs them in a process of their own): there, use `info/1`.
+  `test ` prefix), `output_dir` (absolute, see "Artifacts" in the moduledoc) and `timeout`
+  (upstream's `testInfo.timeout`: ExUnit's timeout of the test in ms, the `@tag timeout:` or
+  `mix test --timeout`, `:infinity` for none, as under `mix test --trace`), from the test's
+  setup to the end of its body. Raises outside a test, and in `on_exit` callbacks (ExUnit runs
+  them in a process of their own): there, use `info/1`.
 
       PlaywrightEx.Test.info().test_pid
   """
-  @spec info() :: %{test_pid: pid(), file: Path.t(), test_name: String.t(), output_dir: Path.t()}
+  @spec info() :: %{
+          test_pid: pid(),
+          file: Path.t(),
+          test_name: String.t(),
+          output_dir: Path.t(),
+          timeout: timeout()
+        }
   def info do
     case Recorder.registration() do
       nil ->
@@ -504,9 +512,12 @@ defmodule PlaywrightEx.Test do
                 "`use PlaywrightEx.Test` (its process, or one with it in $callers)"
 
       test ->
-        Map.take(test, @info_keys)
+        info_of(test)
     end
   end
+
+  # `info/0` of a registration: its `@info_keys` and `timeout`, upstream's `testInfo.timeout`.
+  defp info_of(test), do: test |> Map.take(@info_keys) |> Map.put(:timeout, test.test_timeout)
 
   @doc """
   `info/0` of the test `test_pid` (the context's `test_pid`), from any process, from its setup to
@@ -538,7 +549,7 @@ defmodule PlaywrightEx.Test do
         end
 
       test ->
-        info = Map.take(test, @info_keys)
+        info = info_of(test)
 
         if Process.alive?(test_pid),
           do: info,

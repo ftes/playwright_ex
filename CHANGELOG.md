@@ -35,8 +35,9 @@ those of the release candidates below. From an earlier release, also read the se
   plus Playwright Test's `error-context.md` of each failed test and a `show-trace` hint. As in
   Playwright Test, the recording's tracing, screenshots and page snapshots are internal calls,
   and a matcher's step and its driver call share one `callId`. `info/0` and `output_path/1`
-  are Playwright Test's `test.info()` and `testInfo.outputPath`; `info/1` takes the test's pid
-  and works in `on_exit`, with `testInfo.status`, `errors`, `expectedStatus` and `duration`.
+  are Playwright Test's `test.info()` (with `testInfo.timeout`) and `testInfo.outputPath`;
+  `info/1` takes the test's pid and works in `on_exit`, with `testInfo.status`, `errors`,
+  `expectedStatus` and `duration`.
   `attach/2` is `testInfo.attach` (a `test.attach` step in the trace). In a test, the snapshot
   matchers take upstream's `name:` (or none), resolved by Playwright Test's path templates
   (`snapshot_dir`, `snapshot_path_template`, `snapshot_path/2`, which takes path segments too)

@@ -134,6 +134,19 @@ defmodule PlaywrightEx.Test.RegistrationTest do
                     %RuntimeError{message: "PlaywrightEx.Test.info() can only be called while a test is running" <> _}}
   end
 
+  # Upstream's `testInfo.timeout`: ExUnit's timeout of the test, none (`:infinity`) under `--trace`.
+  test "info: the timeout is the config's" do
+    config = ExUnit.configuration()
+    assert PlaywrightEx.Test.info().timeout == if(config[:trace], do: :infinity, else: config[:timeout])
+  end
+
+  @tag timeout: 12_345
+  test "info: the timeout is the test's tag" do
+    trace? = ExUnit.configuration()[:trace]
+    assert PlaywrightEx.Test.info().timeout == if(trace?, do: :infinity, else: 12_345)
+    assert PlaywrightEx.Test.info(self()).timeout == PlaywrightEx.Test.info().timeout
+  end
+
   test "output_path is a path in the test's output dir, created" do
     dir = PlaywrightEx.Test.info().output_dir
     on_exit(fn -> File.rm_rf!(dir) end)
