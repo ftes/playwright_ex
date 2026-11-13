@@ -534,7 +534,17 @@ defmodule PlaywrightEx.Test do
     # For `info/1` in the `on_exit` callbacks that run after this one.
     Results.keep_info(test_pid, Map.merge(info_of(test), result_info(test_pid, result, recorder)))
 
-    trace = finish_artifacts(test, recorder, result, deadline)
+    trace =
+      case finish_artifacts(test, recorder, result, deadline) do
+        # Past the budget its contexts may be left open in a pooled browser: its seats reset, as a
+        # failed test's.
+        :abandoned ->
+          Pool.fail(test_pid)
+          nil
+
+        trace ->
+          trace
+      end
 
     # The list reporter's `npx playwright show-trace <path>`.
     if verdict == :failed and trace,

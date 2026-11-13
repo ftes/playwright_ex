@@ -113,7 +113,7 @@ defmodule PlaywrightEx.Test.Results do
 
   @doc """
   The registry's state, its table created: `tests`, the watched test processes alive; `results`,
-  those ended (`{verdict, failures, duration}`), until forgotten; `kept`, the tests by the
+  those ended (`{verdict, failures, duration, runner}`), until forgotten; `kept`, the tests by the
   process that finishes them (`finishing/1`).
   """
   def new do
@@ -135,7 +135,7 @@ defmodule PlaywrightEx.Test.Results do
 
   def handle_call({:result, pid}, from, state) do
     case state do
-      %{results: %{^pid => {verdict, failures, _duration}}} -> {:reply, {verdict, failures}, state}
+      %{results: %{^pid => {verdict, failures, _duration, _runner}}} -> {:reply, {verdict, failures}, state}
       %{tests: %{^pid => _}} -> {:noreply, update_in(state.tests[pid].awaiting, &[from | &1])}
       _ -> {:reply, {nil, []}, state}
     end
@@ -143,7 +143,7 @@ defmodule PlaywrightEx.Test.Results do
 
   def handle_call({:duration, pid}, _from, state) do
     case state.results do
-      %{^pid => {_verdict, _failures, duration}} -> {:reply, duration, state}
+      %{^pid => {_verdict, _failures, duration, _runner}} -> {:reply, duration, state}
       _ -> {:reply, nil, state}
     end
   end
@@ -175,6 +175,14 @@ defmodule PlaywrightEx.Test.Results do
     [test] = for {_key, test} <- :ets.take(table(), {:test, test_pid}), do: test
     recorder = for {_key, pid} <- :ets.take(table(), {:recorder, test_pid}), do: pid
     {:reply, {test, List.first(recorder)}, state}
+  end
+
+  @doc "The ExUnit runner of the ended test `pid` (`watch/2`'s), `nil` if unknown."
+  def runner(state, pid) do
+    case state.results do
+      %{^pid => {_verdict, _failures, _duration, runner}} -> runner
+      _ -> nil
+    end
   end
 
   @doc "A cast of this module's functions: the state."
@@ -209,8 +217,8 @@ defmodule PlaywrightEx.Test.Results do
 
   @doc """
   A monitored process exited (a test, a finisher or an unregistered creator of contexts):
-  `{ended, state}`, `ended` the `{runner, verdict}` of a watched test, `{:finished, test_pids}`
-  of a finisher (`finishing/1`), else `nil`.
+  `{ended, state}`, `ended` the `{runner, verdict}` of a watched test, `{:finished, [{test_pid,
+  runner}]}` of a finisher (`finishing/1`), else `nil`.
   """
   def down(state, pid, reason) do
     :ets.delete(table(), {:unregistered, pid})
@@ -224,7 +232,8 @@ defmodule PlaywrightEx.Test.Results do
 
       {kept, state} ->
         for test_pid <- kept, do: :ets.delete(table(), {:info, test_pid})
-        {{:finished, kept}, %{state | results: Map.drop(state.results, kept)}}
+        tests = for test_pid <- kept, do: {test_pid, runner(state, test_pid)}
+        {{:finished, tests}, %{state | results: Map.drop(state.results, kept)}}
     end
   end
 
@@ -243,7 +252,9 @@ defmodule PlaywrightEx.Test.Results do
 
     for from <- test.awaiting, do: GenServer.reply(from, {verdict, failures})
     duration = System.monotonic_time(:millisecond) - test.started
-    {{test.runner, verdict}, %{state | results: Map.put(state.results, pid, {verdict, failures, duration})}}
+
+    {{test.runner, verdict},
+     %{state | results: Map.put(state.results, pid, {verdict, failures, duration, test.runner})}}
   end
 
   # ExUnit's runner exits a test's process `:shutdown` after the test and its setup, kills it

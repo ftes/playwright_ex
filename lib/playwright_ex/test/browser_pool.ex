@@ -48,7 +48,8 @@ defmodule PlaywrightEx.Test.BrowserPool do
   (the last step of a registered test's `on_exit`; for another scope, an `on_exit` its first call
   registers), its seats go back, their drivers warm for the next caller of the options, unless it
   failed: then the drivers stop, as upstream replaces a worker after a failure. A module fails
-  when a test of it failed. Only registered tests have results: register tests with
+  when a test of it failed, or when a test's artifacts took longer than their half of its
+  timeout (its contexts may be left open). Only registered tests have results: register tests with
   `use PlaywrightEx.Test` to get Playwright Test's discard-after-failure; a scope with no known
   result (no registered test, a doctest) counts as passed. A lost browser is launched (or
   connected) again by the scope's next call.

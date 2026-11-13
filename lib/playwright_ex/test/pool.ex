@@ -66,6 +66,15 @@ defmodule PlaywrightEx.Test.Pool do
     :ok
   end
 
+  @doc """
+  Fails the leases of the ended test `test_pid`, as its failure does: its own and its module's
+  (its runner's), whose seats reset at their release.
+  """
+  def fail(test_pid) do
+    if Process.whereis(__MODULE__), do: GenServer.call(__MODULE__, {:fail, test_pid}, :infinity)
+    :ok
+  end
+
   @doc "The ExUnit runner process that spawned `pid` (OTP 25+), `nil` if unknown."
   def parent(pid) do
     case Process.info(pid, :parent) do
@@ -137,6 +146,9 @@ defmodule PlaywrightEx.Test.Pool do
 
   def handle_call({:release, scope}, _from, state), do: {:reply, :ok, release(workers(state), scope)}
 
+  def handle_call({:fail, test_pid}, _from, state),
+    do: {:reply, :ok, fail_scopes(state, test_pid, Results.runner(state.results, test_pid))}
+
   def handle_call(:started, _from, state), do: {:reply, :ok, state}
 
   def handle_call(:take_all, _from, state) do
@@ -164,19 +176,17 @@ defmodule PlaywrightEx.Test.Pool do
     case Results.down(state.results, pid, reason) do
       # A failed test fails its own scope, and its module's (its runner's).
       {{runner, :failed}, results} ->
-        scopes = Map.new(state.scopes, &fail_scope(&1, pid, runner))
-        {:noreply, %{state | results: results, scopes: scopes}}
+        {:noreply, fail_scopes(%{state | results: results}, pid, runner)}
 
-      # The test's finish was killed before its release: its seats reset, as a failed scope's
+      # The test's finish was killed before its release: its seats reset, as a failed test's
       # (its contexts may be left open). After a release, nothing to do.
-      {{:finished, test_pids}, results} ->
-        scopes =
-          Map.new(state.scopes, fn {scope, lease} ->
-            {scope, %{lease | failed?: lease.failed? or scope in test_pids}}
+      {{:finished, tests}, results} ->
+        state =
+          Enum.reduce(tests, %{state | results: results}, fn {test_pid, runner}, state ->
+            fail_scopes(state, test_pid, runner)
           end)
 
-        state = %{state | results: results, scopes: scopes}
-        {:noreply, Enum.reduce(test_pids, workers(state), &release(&2, &1))}
+        {:noreply, Enum.reduce(tests, workers(state), fn {test_pid, _runner}, state -> release(state, test_pid) end)}
 
       {_ended, results} ->
         {:noreply, %{state | results: results}}
@@ -220,6 +230,8 @@ defmodule PlaywrightEx.Test.Pool do
   end
 
   defp release_seat(other, _scope, _failed?), do: other
+
+  defp fail_scopes(state, pid, runner), do: %{state | scopes: Map.new(state.scopes, &fail_scope(&1, pid, runner))}
 
   defp fail_scope({scope, lease}, pid, runner) do
     if scope == pid or (lease.runner != nil and lease.runner == runner),

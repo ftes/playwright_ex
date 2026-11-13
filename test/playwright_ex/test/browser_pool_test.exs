@@ -231,6 +231,33 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
       finish(t, [], :boom)
     end
 
+    test "a finish past its budget resets the test's seat, and kills a recorder that doesn't answer" do
+      t = fake_test()
+      lease(t, opts())
+      [seat] = for {pid, %{scope: ^t}} <- :sys.get_state(Pool).seats, do: pid
+
+      PlaywrightEx.Test.__register__(%{
+        test_pid: t,
+        module: __MODULE__,
+        test: :"test abandoned",
+        file: __ENV__.file,
+        line: 1,
+        trace: :on,
+        playwright_ex: :marked
+      })
+
+      # A recorder that is blocked: the finish's budget runs out waiting for it.
+      recorder = Results.recorder(t)
+      ref = Process.monitor(recorder)
+      :sys.suspend(recorder)
+      assert end_test(t, [passed()], :shutdown) == {:passed, []}
+      PlaywrightEx.Test.__finish__(t, 100)
+
+      # Its contexts may be left open: the seat resets, though the test passed.
+      assert %{scope: nil, key: nil} = :sys.get_state(Pool).seats[seat]
+      assert_receive {:DOWN, ^ref, :process, _, :killed}, 10_000
+    end
+
     test "forgotten once the test's on_exit took it" do
       pid = fake_test()
       assert end_test(pid, [passed()], :shutdown) == {:passed, []}

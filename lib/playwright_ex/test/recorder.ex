@@ -25,6 +25,10 @@ defmodule PlaywrightEx.Test.Recorder do
   # that ask for an update (`update_overlay/2`), as upstream's in its async functions.
   use GenServer
 
+  # How long the test's end waits for an answer of a recorder that may be blocked: before its
+  # artifacts (`timed_out?/1`), and past their budget (`finish/3`), before it kills it.
+  @answer_timeout 5000
+
   alias PlaywrightEx.APIRequestContext
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Client.ChannelOwner
@@ -54,7 +58,7 @@ defmodule PlaywrightEx.Test.Recorder do
 
   @doc "Whether the recorder `recorder` (or `nil`) closed its test's contexts at the test timeout."
   def timed_out?(nil), do: false
-  def timed_out?(recorder), do: match?(%{timed_out: true}, call(recorder, {:fields, [:timed_out]}))
+  def timed_out?(recorder), do: match?(%{timed_out: true}, call(recorder, {:fields, [:timed_out]}, @answer_timeout))
 
   @doc """
   The registration of the running test (`PlaywrightEx.Test`'s per-test setup) of the calling
@@ -760,10 +764,10 @@ defmodule PlaywrightEx.Test.Recorder do
     |> Stream.run()
   end
 
-  defp call(recorder, message) do
-    GenServer.call(recorder, message, :infinity)
+  defp call(recorder, message, timeout \\ :infinity) do
+    GenServer.call(recorder, message, timeout)
   catch
-    # The test is over.
+    # The test is over (or, with a timeout, the recorder doesn't answer).
     :exit, _ -> nil
   end
 
@@ -773,7 +777,8 @@ defmodule PlaywrightEx.Test.Recorder do
   timeout), closes its contexts still open, then keeps the videos, trace and screenshots as the
   modes and the result say and writes `error-context.md` of a failure. Then, whatever happened,
   stops the recorder: past the budget in the background, after closing the contexts left, and
-  by itself when the caller is killed. Returns the path of the trace it kept, or `nil`.
+  by itself when the caller is killed. Returns the path of the trace it kept, or `nil`, or
+  `:abandoned` past the budget: the test's contexts may be left open.
   """
   def finish(pid, result, budget) do
     # Killed past ExUnit's timeout, the caller doesn't stop it: it stops itself.
@@ -793,14 +798,27 @@ defmodule PlaywrightEx.Test.Recorder do
 
         # The recorder may be blocked (that's what took so long): in the background.
         Task.start(fn -> abandon(pid) end)
-        nil
+        :abandoned
     end
   end
 
+  # The contexts left closed, and the recorder stopped; killed if it doesn't answer in time (its
+  # temporary files stay).
   defp abandon(pid) do
-    fields = [:contexts, :closed, :requests]
-    step("close the contexts left", fn -> close_leftovers(GenServer.call(pid, {:fields, fields}, :infinity)) end)
-    step("stop the recorder", fn -> GenServer.stop(pid) end)
+    case call(pid, {:fields, [:contexts, :closed, :requests]}, @answer_timeout) do
+      nil ->
+        Process.exit(pid, :kill)
+
+      state ->
+        step("close the contexts left", fn -> close_leftovers(state) end)
+        stop(pid)
+    end
+  end
+
+  defp stop(pid) do
+    GenServer.stop(pid, :normal, @answer_timeout)
+  catch
+    :exit, _ -> Process.exit(pid, :kill)
   end
 
   # The contexts' rows: a close from now on has no artifact steps.
