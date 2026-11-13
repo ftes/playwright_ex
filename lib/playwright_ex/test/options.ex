@@ -81,9 +81,7 @@ defmodule PlaywrightEx.Test.Options do
   The recording modes of a test: its tags (`@moduletag`, `@describetag`, `@tag`, which ExUnit
   merges in that order) over the config. `true` is `:on`, `false` is `:off`.
   """
-  def artifacts(tags) do
-    config = config()
-
+  def artifacts(tags, config \\ config()) do
     Map.new(@artifact_keys, fn key ->
       case tags do
         %{^key => value} -> {key, validate!(key, value)}
@@ -97,9 +95,9 @@ defmodule PlaywrightEx.Test.Options do
   the config's `context_options` (facade options, converted as `PlaywrightEx.Browser.new_context/2`
   converts them). Upstream's `PLAYWRIGHT_TEST_BASE_URL` default is not read: config only.
   """
-  def context_options do
+  def context_options(config \\ config()) do
     type = PlaywrightEx.Browser.__options_type__(:new_context)
-    Map.merge(@context_defaults, Facade.options!(config()[:context_options], type, "browser.newContext"))
+    Map.merge(@context_defaults, Facade.options!(config[:context_options], type, "browser.newContext"))
   end
 
   @doc """
@@ -107,7 +105,7 @@ defmodule PlaywrightEx.Test.Options do
   `navigation_timeout`): `%{action_timeout: _, navigation_timeout: _}`, each `:infinity` by
   default (upstream's `0`, no timeout).
   """
-  def timeouts, do: Map.take(config(), [:action_timeout, :navigation_timeout])
+  def timeouts(config \\ config()), do: Map.take(config, [:action_timeout, :navigation_timeout])
 
   @doc "Playwright Test's context option defaults, with the client's keys and values."
   def context_defaults, do: @context_defaults
@@ -116,7 +114,7 @@ defmodule PlaywrightEx.Test.Options do
   def output_dir, do: config()[:output_dir]
 
   @doc "Upstream's `preserveOutput` (config `preserve_output`, default `:always`)."
-  def preserve_output, do: config()[:preserve_output]
+  def preserve_output(config \\ config()), do: config.preserve_output
 
   @doc "How many pooled drivers may run at once (config `workers`)."
   def workers, do: config()[:workers]

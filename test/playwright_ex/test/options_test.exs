@@ -185,6 +185,31 @@ defmodule PlaywrightEx.Test.ConfigTest do
     PlaywrightEx.Test.__finish__(pid, 10_000)
   end
 
+  test "a registration reads the config once" do
+    test_pid = self()
+
+    {pid, ref} =
+      spawn_monitor(fn ->
+        # `call_count` counts the calls of the processes with the `call` flag: this one.
+        :erlang.trace(self(), true, [:call, tracer: test_pid])
+        assert_receive :go
+        PlaywrightEx.Test.__register__(%{test_pid: self(), module: __MODULE__, test: :"test fake", file: __ENV__.file})
+        send(test_pid, {:count, :erlang.trace_info({Options, :config, 0}, :call_count)})
+      end)
+
+    :erlang.trace_pattern({Options, :config, 0}, true, [:call_count])
+
+    try do
+      send(pid, :go)
+      assert_receive {:count, {:call_count, 1}}
+    after
+      :erlang.trace_pattern({Options, :config, 0}, false, [:call_count])
+    end
+
+    assert_receive {:DOWN, ^ref, :process, _, _}
+    PlaywrightEx.Test.__finish__(pid, 10_000)
+  end
+
   test "a registered test's contexts get the config's action_timeout and navigation_timeout", ctx do
     Application.put_env(:playwright_ex, :test, ctx.config ++ [action_timeout: 300, navigation_timeout: 200])
     test_pid = self()

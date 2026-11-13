@@ -465,8 +465,10 @@ defmodule PlaywrightEx.Test do
   @doc false
   # The registration of the test of `context` (its `test_pid`), without its `on_exit`.
   def __register__(context) do
-    test_info = TestInfo.new(context)
-    modes = Options.artifacts(context)
+    # Read and validated once.
+    config = Options.config()
+    test_info = TestInfo.new(context, config.output_dir)
+    modes = Options.artifacts(context, config)
     # Upstream's `testTracing.startIfNeeded` and `_contextFactory`'s `captureVideo`, by the retry.
     modes = %{
       modes
@@ -487,9 +489,9 @@ defmodule PlaywrightEx.Test do
         location: {file, context[:line]},
         test_timeout: timeout,
         deadline: if(is_integer(timeout), do: started(context) + timeout),
-        context_options: Options.context_options(),
-        timeouts: Options.timeouts(),
-        preserve_output: Options.preserve_output(),
+        context_options: Options.context_options(config),
+        timeouts: Options.timeouts(config),
+        preserve_output: Options.preserve_output(config),
         tmp: Path.join(System.tmp_dir!(), "playwright_ex-test-#{System.unique_integer([:positive])}")
       })
 
@@ -670,7 +672,7 @@ defmodule PlaywrightEx.Test do
   def config do
     config = Options.config()
     # Validated as the registration converts them for `PlaywrightEx.Browser.new_context/2`.
-    Options.context_options()
+    Options.context_options(config)
     Map.put(config, :expect, %{timeout: PlaywrightEx.Matchers.Expect.config_timeout()})
   end
 

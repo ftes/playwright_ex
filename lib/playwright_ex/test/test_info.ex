@@ -25,10 +25,10 @@ defmodule PlaywrightEx.Test.TestInfo do
 
   @doc """
   The test's fields: `test_pid`, `file`, `test_name` (`titlePath.slice(1).join(' ')`), `retry`
-  (`retry/2`) and `output_dir` (with the retry's suffix).
+  (`retry/2`) and `output_dir` (under `root`, config `output_dir`, with the retry's suffix).
   """
-  def new(context) do
-    dir = Path.expand(output_dir(context))
+  def new(context, root) do
+    dir = Path.expand(output_dir(context, root))
     retry = retry(dir)
 
     %{
@@ -63,10 +63,9 @@ defmodule PlaywrightEx.Test.TestInfo do
     end
   end
 
-  @doc "The output dir of the test of `context` (see `output_dir/5`)."
-  def output_dir(%{module: module, file: file} = context),
-    do:
-      output_dir(PlaywrightEx.Test.Options.output_dir(), file, test_name(context), module, parameters(module, context))
+  @doc "The output dir of the test of `context` under `root` (see `output_dir/5`)."
+  def output_dir(%{module: module, file: file} = context, root \\ PlaywrightEx.Test.Options.output_dir()),
+    do: output_dir(root, file, test_name(context), module, parameters(module, context))
 
   @doc """
   A test's output dir under `root`, as upstream's `testInfo.outputDir`: the file relative to
