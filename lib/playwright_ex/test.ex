@@ -120,7 +120,9 @@ defmodule PlaywrightEx.Test do
   without `--failed` deletes the test's `-retryN` dirs too, where
   upstream deletes all of `output_dir` at the start of a run: here the dirs of tests that didn't
   run stay. Config `preserve_output` is upstream's `preserveOutput`: `:always` (default) keeps
-  the files at the end of each test, `:failures_only` only a failed test's, `:never` none.
+  the files at the end of each test, `:failures_only` only a failed test's, `:never` none. The
+  retry is counted from the test's dirs on disk, so with `:never` (no dirs left) each
+  `--failed` run is retry 1 again.
 
   ## Context defaults
 

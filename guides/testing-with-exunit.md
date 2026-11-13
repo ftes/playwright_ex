@@ -403,7 +403,8 @@ run stay, where Playwright Test empties `test-results/` at the start of a run. F
 `PlaywrightEx.Test.attach("export", path: path)` (or `body:`) also shows one in the trace, as
 Playwright Test's `testInfo.attach`. Config `preserve_output` is Playwright Test's
 `preserveOutput`: `:failures_only` deletes a passing test's dir at its end, `:never` every
-test's. A flaky test that passes on the rerun keeps that passing run's trace; for the failure's
+test's. The retry is counted from the `-retryN` dirs on disk, so under `:never` each `--failed`
+run is retry 1 again. A flaky test that passes on the rerun keeps that passing run's trace; for the failure's
 own too, `:retain_on_failure_and_retries`.
 
 The files are written in the test's `on_exit`, which ExUnit runs in reverse order of
