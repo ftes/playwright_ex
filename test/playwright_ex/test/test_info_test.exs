@@ -24,6 +24,15 @@ defmodule PlaywrightEx.Test.TestInfoTest do
     end
   end
 
+  test "a filtered stack trace drops Elixir's own frames, as the client's stack does" do
+    # `Enum.map/2` calling a remote capture: an `Enum` frame right above the call.
+    [{:current_stacktrace, stacktrace}] = Enum.map([:current_stacktrace], &Process.info(self(), &1))
+    assert Enum.any?(stacktrace, &(elem(&1, 0) == Enum))
+
+    assert [{__MODULE__, _, _, _} | _] = filtered = TestInfo.filtered_stack_trace(stacktrace)
+    refute Enum.any?(filtered, &(:application.get_application(elem(&1, 0)) == {:ok, :elixir}))
+  end
+
   describe "output dirs" do
     defp output_dir(file, name, module \\ MyApp.CheckoutTest, parameters \\ %{}) do
       dir = TestInfo.output_dir("out", file, name, module, parameters)

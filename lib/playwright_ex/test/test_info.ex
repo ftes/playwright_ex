@@ -483,7 +483,8 @@ defmodule PlaywrightEx.Test.TestInfo do
     end)
   end
 
-  @runner_apps [{:ok, :playwright_ex}, {:ok, :ex_unit}, {:ok, :stdlib}, {:ok, :kernel}]
+  # The library, ExUnit, and OTP's and Elixir's own apps (`ClientStackTrace`'s internal ones).
+  @runner_apps [{:ok, :playwright_ex}, {:ok, :ex_unit}, {:ok, :elixir}, {:ok, :stdlib}, {:ok, :kernel}]
 
   @doc "utils `captureRawStack`: the caller's stacktrace (from its caller's frame)."
   def capture_raw_stack do
@@ -493,8 +494,8 @@ defmodule PlaywrightEx.Test.TestInfo do
 
   @doc """
   utils `filteredStackTrace`, on an Elixir stacktrace: without the frames of the library, of
-  ExUnit and of OTP (the runner's `:timer.tc/2`), as upstream drops its own packages, the
-  runner's too, or without a file.
+  ExUnit, of OTP (the runner's `:timer.tc/2`) and of Elixir (`Enum`, `Task`), as upstream drops
+  its own packages, the runner's too and Node's internals, or without a file.
   """
   def filtered_stack_trace(stacktrace) do
     Enum.filter(stacktrace, fn
