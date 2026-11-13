@@ -10,6 +10,7 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
   alias PlaywrightEx.APIRequestContext
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
+  alias PlaywrightEx.Expect
   alias PlaywrightEx.Page
   alias PlaywrightEx.Test.BrowserPool
   alias PlaywrightEx.Test.ErrorContext
@@ -398,6 +399,33 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     refute error_context =~ "RUNNING" or error_context =~ "SECOND"
     assert output =~ "mix playwright_ex.cli show-trace #{Path.relative_to_cwd(Path.join(test.dir, "trace.zip"))}"
     assert length(String.split(output, "show-trace")) == 2
+  end
+
+  # Upstream's `_takePageSnapshot` as a context closes: `testInfo.errors` has the soft ones.
+  test "a context the test closes after a soft error has the page snapshot; a passing test's none",
+       %{browser: browser} do
+    test = fake_test(%{})
+
+    test.run.(fn ->
+      context = Browser.new_context!(browser)
+      page = page(context, "SOFT")
+      # A soft error without a matcher's aria snapshot: the matcher's own `new Error`.
+      assert :ok = page |> Expect.soft() |> Expect.to_match_aria_snapshot(name: "a.aria.yml", path: "a.aria.yml")
+      BrowserContext.close!(context)
+    end)
+
+    assert Recorder.lookup(test.pid)
+    finish(test, [passed()], :shutdown)
+    error_context = File.read!(Path.join(test.dir, "error-context.md"))
+    assert error_context =~ "```\nRuntimeError: "
+    assert error_context =~ ~s(# Page snapshot\n\n```yaml\n- heading "SOFT")
+
+    test = fake_test(%{})
+    test.run.(fn -> BrowserContext.close!(tap(Browser.new_context!(browser), &page(&1, "PASSED"))) end)
+    recorder = Recorder.lookup(test.pid)
+    assert %{page_snapshot: nil} = :sys.get_state(recorder)
+    finish(test, [passed()], :shutdown)
+    refute File.exists?(test.dir)
   end
 
   test "a failed test without a context gets error-context.md, with no recorder" do

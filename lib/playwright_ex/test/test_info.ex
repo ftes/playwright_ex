@@ -176,12 +176,21 @@ defmodule PlaywrightEx.Test.TestInfo do
   @doc "Takes the errors `_fail_with_error/2` recorded for the test `test_pid`."
   def take_errors(test_pid) do
     # One by one (`take`): a row `_fail_with_error/2` took back is not counted.
-    Results.table()
-    |> :ets.match_object({{:test_info, test_pid, {:error, :_}}, :_})
+    test_pid
+    |> error_rows()
     |> Enum.flat_map(fn {key, _error} -> :ets.take(Results.table(), key) end)
-    |> Enum.sort_by(fn {{_, _, {:error, seq}}, _error} -> seq end)
-    |> Enum.map(&elem(&1, 1))
+    |> in_order()
   end
+
+  @doc """
+  `testInfo.errors` while the test `test_pid` runs: the errors `_fail_with_error/2` recorded so
+  far (its soft errors), left in place.
+  """
+  def errors(test_pid), do: if(Results.started?(), do: test_pid |> error_rows() |> in_order(), else: [])
+
+  defp error_rows(test_pid), do: :ets.match_object(Results.table(), {{:test_info, test_pid, {:error, :_}}, :_})
+
+  defp in_order(rows), do: rows |> Enum.sort_by(fn {{_, _, {:error, seq}}, _error} -> seq end) |> Enum.map(&elem(&1, 1))
 
   # Whether the test runs: the end of its body, and the pool, unregister it before taking its
   # errors and rows.

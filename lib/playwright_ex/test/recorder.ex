@@ -500,11 +500,11 @@ defmodule PlaywrightEx.Test.Recorder do
     step("take a page snapshot", fn -> page_snapshot(context, recorder, state) end)
   end
 
-  # `_takePageSnapshot`: once per test, of the first page, when the test failed (upstream's
-  # `testInfo.errors`) without a matcher's snapshot, or timed out (its close is the timeout's). A
-  # context closed while the test runs has no errors yet, as upstream's.
+  # `_takePageSnapshot`: once per test, of the first page, when the test has errors (upstream's
+  # `testInfo.errors`: while it runs its soft ones, then its failures) without a matcher's
+  # snapshot, or timed out (its close is the timeout's).
   defp page_snapshot(context, recorder, state) do
-    with true <- state.timed_out or failed_without_snapshot?(state.test_pid),
+    with true <- state.timed_out or errors_without_snapshot?(state.test_pid),
          %{page_snapshot: nil} <- call(recorder, :state),
          [page | _] <- BrowserContext.pages(context),
          # The snapshot may fail: ignored, as upstream's. An internal call of the page.
@@ -515,13 +515,18 @@ defmodule PlaywrightEx.Test.Recorder do
          do: call(recorder, {:page_snapshot, snapshot})
   end
 
-  defp failed_without_snapshot?(test_pid) do
-    with false <- Process.alive?(test_pid),
-         {:failed, failures} <- Results.result(test_pid, 5000) do
-      not Enum.any?(failures, &ErrorContext.error(&1).error_context)
-    else
-      _ -> false
-    end
+  defp errors_without_snapshot?(test_pid) do
+    errors =
+      if Process.alive?(test_pid) do
+        TestInfo.errors(test_pid)
+      else
+        case Results.result(test_pid, 5000) do
+          {:failed, failures} -> failures
+          _ -> []
+        end
+      end
+
+    errors != [] and not Enum.any?(errors, &ErrorContext.error(&1).error_context)
   end
 
   # `_stopTracing`: the chunk, or none once the test abandons its trace (a passed test's under
