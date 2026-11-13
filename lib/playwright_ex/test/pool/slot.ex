@@ -114,15 +114,21 @@ defmodule PlaywrightEx.Test.Pool.Slot do
       {:ok, state}
     else
       forget_driver(state)
-      ClientInstrumentation.add_listener(Heap.get(playwright, :_instrumentation), Recorder.listener())
-      :ets.insert(PlaywrightEx.Test.Results.table(), {{:driver, playwright.conn}, playwright})
-      state = %{state | playwright: playwright, browser: nil}
-      # `_setupContextOptions`' `selectors.setTestIdAttribute(testIdAttribute)`: suite-wide,
-      # as the client's value (`get_by_test_id`) is global to the VM.
-      Selectors.set_test_id_attribute(Playwright.selectors(playwright), Options.test_id_attribute())
-      on_start(state.opts.on_start, playwright)
-      {:ok, state}
+      set_up_new(%{state | playwright: playwright, browser: nil})
     end
+  rescue
+    exception -> {:error, {:error, exception, __STACKTRACE__}, stop_driver(state)}
+  end
+
+  # The new driver's state, so a failure forgets its row too.
+  defp set_up_new(%{playwright: playwright} = state) do
+    ClientInstrumentation.add_listener(Heap.get(playwright, :_instrumentation), Recorder.listener())
+    :ets.insert(PlaywrightEx.Test.Results.table(), {{:driver, playwright.conn}, playwright})
+    # `_setupContextOptions`' `selectors.setTestIdAttribute(testIdAttribute)`: suite-wide,
+    # as the client's value (`get_by_test_id`) is global to the VM.
+    Selectors.set_test_id_attribute(Playwright.selectors(playwright), Options.test_id_attribute())
+    on_start(state.opts.on_start, playwright)
+    {:ok, state}
   rescue
     exception -> {:error, {:error, exception, __STACKTRACE__}, stop_driver(state)}
   end

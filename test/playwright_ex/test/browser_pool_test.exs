@@ -63,9 +63,9 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
   end
 
   # Runs in the slot: its links are the pool and the driver's supervisor.
-  def raise_on_start(_playwright, test_pid) do
+  def raise_on_start(playwright, test_pid) do
     {:links, links} = Process.info(self(), :links)
-    send(test_pid, {:drivers, links -- [Process.whereis(Pool)]})
+    send(test_pid, {:drivers, links -- [Process.whereis(Pool)], playwright})
     raise "on_start failed"
   end
 
@@ -106,12 +106,13 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
       finish(t, [], :boom)
     end
 
-    test "an on_start that raises leaves no driver running" do
+    test "an on_start that raises leaves no driver running, nor its row" do
       opts = opts(on_start: {__MODULE__, :raise_on_start, [self()]})
       t = fake_test()
       assert_raise RuntimeError, "on_start failed", fn -> lease(t, opts) end
-      assert_received {:drivers, [sup]}
+      assert_received {:drivers, [sup], playwright}
       refute Process.alive?(sup)
+      assert :ets.lookup(Results.table(), {:driver, playwright.conn}) == []
       finish(t, [], :boom)
     end
 
