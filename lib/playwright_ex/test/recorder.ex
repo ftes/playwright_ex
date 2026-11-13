@@ -213,12 +213,13 @@ defmodule PlaywrightEx.Test.Recorder do
     # contexts of `APIRequest.new_context/2`, `screenshots` (temporary files) in capture order;
     # `snapshotted` the guids of the pages with a screenshot, `ordinal` the screenshots named so
     # far (upstream's `SnapshotRecorder`). `timer` the test timeout's, `timed_out` once it fired,
-    # `closing` the process that closes the contexts then.
+    # `closing` the process that closes the contexts then; `finisher` the caller of `finish/3`.
     {:ok,
      %{
        timer: arm(test),
        timed_out: false,
        closing: nil,
+       finisher: nil,
        test_pid: test.test_pid,
        opts: test,
        contexts: [],
@@ -322,6 +323,11 @@ defmodule PlaywrightEx.Test.Recorder do
     {:noreply, %{state | timer: nil, timed_out: true, closing: closing}}
   end
 
+  # Its `finish/3` was killed (ExUnit's timeout of the `on_exit` callback): it stops.
+  def handle_info({:DOWN, _ref, :process, pid, reason}, %{finisher: pid} = state)
+      when reason not in [:normal, :shutdown],
+      do: {:stop, :normal, state}
+
   # The test process ended before its timeout.
   def handle_info({:DOWN, _ref, :process, pid, _reason}, %{test_pid: pid} = state) do
     if state.timer && !Process.cancel_timer(state.timer) do
@@ -346,10 +352,18 @@ defmodule PlaywrightEx.Test.Recorder do
   defp arm(_test), do: nil
 
   @impl true
-  def terminate(_reason, state), do: File.rm_rf(state.opts.tmp)
+  def terminate(_reason, state) do
+    forget_rows(self())
+    File.rm_rf(state.opts.tmp)
+  end
 
   @impl true
   def handle_cast(:update_overlay, state), do: {:noreply, update_overlay(state)}
+
+  def handle_cast({:finisher, pid}, state) do
+    Process.monitor(pid)
+    {:noreply, %{state | finisher: pid}}
+  end
 
   def handle_cast({:add_page, guid, page}, state) do
     contexts =
@@ -695,25 +709,40 @@ defmodule PlaywrightEx.Test.Recorder do
   (`PlaywrightEx.Test.Results.result/2`): within `budget` ms (ExUnit's `on_exit` shares the test's
   timeout), closes its contexts still open, then keeps the videos, trace and screenshots as the
   modes and the result say and writes `error-context.md` of a failure. Then, whatever happened,
-  stops the recorder. Returns the path of the trace it kept, or `nil`.
+  stops the recorder: past the budget in the background, after closing the contexts left, and
+  by itself when the caller is killed. Returns the path of the trace it kept, or `nil`.
   """
   def finish(pid, result, budget) do
+    # Killed past ExUnit's timeout, the caller doesn't stop it: it stops itself.
+    GenServer.cast(pid, {:finisher, self()})
     task = Task.async(fn -> step("finish the recording", fn -> collect_all(pid, result) end) end)
 
     case Task.yield(task, budget) do
       {:ok, trace} ->
+        forget_rows(pid)
+        step("stop the recorder", fn -> GenServer.stop(pid) end)
         trace
 
       nil ->
         Task.shutdown(task, :brutal_kill)
+        forget_rows(pid)
         log("finish the recording", "it took over #{budget} ms")
-        step("close the contexts left", fn -> close_leftovers(GenServer.call(pid, :state, :infinity)) end)
+
+        # The recorder may be blocked (that's what took so long): in the background.
+        Task.start(fn -> abandon(pid) end)
         nil
     end
-  after
+  end
+
+  defp abandon(pid) do
+    step("close the contexts left", fn -> close_leftovers(GenServer.call(pid, :state, :infinity)) end)
+    step("stop the recorder", fn -> GenServer.stop(pid) end)
+  end
+
+  # The contexts' rows: a close from now on has no artifact steps.
+  defp forget_rows(pid) do
     :ets.match_delete(Results.table(), {{:context, :_}, pid})
     :ets.match_delete(Results.table(), {{:request, :_}, pid})
-    step("stop the recorder", fn -> GenServer.stop(pid) end)
   end
 
   defp collect_all(pid, {verdict, failures}) do

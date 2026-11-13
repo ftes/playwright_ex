@@ -133,24 +133,7 @@ defmodule PlaywrightEx.Test.Pool do
     end
   end
 
-  def handle_call({:release, scope}, _from, state) do
-    {waiters, waiting} = Enum.split_with(state.waiting, &(&1.scope == scope))
-
-    for waiter <- waiters do
-      Process.demonitor(waiter.ref, [:flush])
-      GenServer.reply(waiter.from, :released)
-    end
-
-    case Map.pop(state.scopes, scope) do
-      {nil, _scopes} ->
-        {:reply, :ok, %{state | waiting: waiting}}
-
-      {lease, scopes} ->
-        seats = Map.new(state.seats, &release_seat(&1, scope, lease.failed?))
-        state = %{state | waiting: waiting, scopes: scopes, seats: seats}
-        {:reply, :ok, state |> trim() |> serve_waiting()}
-    end
-  end
+  def handle_call({:release, scope}, _from, state), do: {:reply, :ok, release(state, scope)}
 
   def handle_call(:started, _from, state), do: {:reply, :ok, state}
 
@@ -182,6 +165,17 @@ defmodule PlaywrightEx.Test.Pool do
         scopes = Map.new(state.scopes, &fail_scope(&1, pid, runner))
         {:noreply, %{state | results: results, scopes: scopes}}
 
+      # The test's finish was killed before its release: its seats reset, as a failed scope's
+      # (its contexts may be left open). After a release, nothing to do.
+      {{:finished, test_pids}, results} ->
+        scopes =
+          Map.new(state.scopes, fn {scope, lease} ->
+            {scope, %{lease | failed?: lease.failed? or scope in test_pids}}
+          end)
+
+        state = %{state | results: results, scopes: scopes}
+        {:noreply, Enum.reduce(test_pids, state, &release(&2, &1))}
+
       {_ended, results} ->
         {:noreply, %{state | results: results}}
     end
@@ -196,6 +190,26 @@ defmodule PlaywrightEx.Test.Pool do
   end
 
   def handle_info(message, state), do: {:noreply, %{state | results: Results.handle_info(message, state.results)}}
+
+  # Ends the leases of `scope`: its waiters get `:released`, its seats go back idle (reset when it
+  # failed).
+  defp release(state, scope) do
+    {waiters, waiting} = Enum.split_with(state.waiting, &(&1.scope == scope))
+
+    for waiter <- waiters do
+      Process.demonitor(waiter.ref, [:flush])
+      GenServer.reply(waiter.from, :released)
+    end
+
+    case Map.pop(state.scopes, scope) do
+      {nil, _scopes} ->
+        %{state | waiting: waiting}
+
+      {lease, scopes} ->
+        seats = Map.new(state.seats, &release_seat(&1, scope, lease.failed?))
+        %{state | waiting: waiting, scopes: scopes, seats: seats} |> trim() |> serve_waiting()
+    end
+  end
 
   defp release_seat({pid, %{scope: scope} = seat}, scope, failed?) do
     # Upstream's `void worker.stop(true)`: the next holder's `Slot.browser/3` awaits it.

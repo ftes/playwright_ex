@@ -519,9 +519,13 @@ defmodule PlaywrightEx.Test do
   end
 
   @doc false
-  # The test's end, its first `on_exit`, so it runs last: its artifacts by its result, then the
-  # release of its pooled drivers.
+  # The test's end, its first `on_exit`, so it runs last: its artifacts by its result, within
+  # `budget` ms, then the release of its pooled drivers. ExUnit kills a callback past the test's
+  # timeout, before its `after`: the pool then releases them as this process exits
+  # (`Results.finishing/1`).
   def __finish__(test_pid, budget) do
+    deadline = if is_integer(budget), do: System.monotonic_time(:millisecond) + budget, else: :infinity
+    Results.finishing(test_pid)
     {verdict, failures} = result = Results.result(test_pid, budget)
     {test, recorder} = Results.take(test_pid)
     # For `info/1` in the `on_exit` callbacks that run after this one.
@@ -530,7 +534,7 @@ defmodule PlaywrightEx.Test do
     trace =
       cond do
         recorder ->
-          Recorder.finish(recorder, result, budget)
+          Recorder.finish(recorder, result, remaining(deadline))
 
         verdict == :failed ->
           ErrorContext.write(test, failures)
@@ -556,6 +560,9 @@ defmodule PlaywrightEx.Test do
     Pool.release(test_pid)
     Results.forget(test_pid)
   end
+
+  defp remaining(:infinity), do: :infinity
+  defp remaining(deadline), do: max(deadline - System.monotonic_time(:millisecond), 0)
 
   @doc """
   The running test of the calling process or a process in its `$callers` (a `Task`), as

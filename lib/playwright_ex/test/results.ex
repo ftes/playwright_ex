@@ -60,13 +60,24 @@ defmodule PlaywrightEx.Test.Results do
   end
 
   @doc """
-  Keeps `info` (`PlaywrightEx.Test.info/1`'s, of the ended test `test_pid`) until the calling
-  process, ExUnit's `on_exit` runner, exits: for the test's `on_exit` callbacks that run after
-  its registration's.
+  Notes the calling process, ExUnit's `on_exit` runner, as the one that finishes the test
+  `test_pid` (`PlaywrightEx.Test.__finish__/2`): when it exits, the pool drops the test's
+  `keep_info/2` row and result, and releases the test's leases if the finish did not (ExUnit
+  killed it past the timeout), as a failed scope's.
+  """
+  def finishing(test_pid) do
+    if Process.whereis(Pool), do: GenServer.cast(Pool, {:finishing, test_pid, self()})
+    :ok
+  end
+
+  @doc """
+  Keeps `info` (`PlaywrightEx.Test.info/1`'s, of the ended test `test_pid`) until the process
+  that finishes it (`finishing/1`) exits: for the test's `on_exit` callbacks that run after its
+  registration's.
   """
   def keep_info(test_pid, info) do
     :ets.insert(table(), {{:info, test_pid}, info})
-    GenServer.cast(Pool, {:keep_info, test_pid, self()})
+    :ok
   end
 
   @doc "Whether one of `pids` is a test at its registration's `on_exit` (`keep_info/2`), which closes its contexts."
@@ -102,8 +113,8 @@ defmodule PlaywrightEx.Test.Results do
 
   @doc """
   The registry's state, its table created: `tests`, the watched test processes alive; `results`,
-  those ended (`{verdict, failures, duration}`), until forgotten; `kept`, the `keep_info/2` rows
-  by the process that keeps them.
+  those ended (`{verdict, failures, duration}`), until forgotten; `kept`, the tests by the
+  process that finishes them (`finishing/1`).
   """
   def new do
     :ets.new(table(), [:named_table, :public, :set])
@@ -169,7 +180,7 @@ defmodule PlaywrightEx.Test.Results do
   @doc "A cast of this module's functions: the state."
   def handle_cast({:forget, pid}, state), do: %{state | results: Map.delete(state.results, pid)}
 
-  def handle_cast({:keep_info, test_pid, keeper}, state) do
+  def handle_cast({:finishing, test_pid, keeper}, state) do
     Process.monitor(keeper)
     %{state | kept: Map.update(state.kept, keeper, [test_pid], &[test_pid | &1])}
   end
@@ -197,17 +208,23 @@ defmodule PlaywrightEx.Test.Results do
   def handle_info(_message, state), do: state
 
   @doc """
-  A monitored process exited (a test, a keeper or an unregistered creator of contexts):
-  `{ended, state}`, `ended` the `{runner, verdict}` of a watched test, else `nil`.
+  A monitored process exited (a test, a finisher or an unregistered creator of contexts):
+  `{ended, state}`, `ended` the `{runner, verdict}` of a watched test, `{:finished, test_pids}`
+  of a finisher (`finishing/1`), else `nil`.
   """
   def down(state, pid, reason) do
     :ets.delete(table(), {:unregistered, pid})
-    {kept, state} = pop_in(state.kept[pid])
-    for test_pid <- kept || [], do: :ets.delete(table(), {:info, test_pid})
 
-    case Map.pop(state.tests, pid) do
-      {nil, _tests} -> {nil, state}
-      {test, tests} -> test_ended(%{state | tests: tests}, pid, test, reason)
+    case pop_in(state.kept[pid]) do
+      {nil, state} ->
+        case Map.pop(state.tests, pid) do
+          {nil, _tests} -> {nil, state}
+          {test, tests} -> test_ended(%{state | tests: tests}, pid, test, reason)
+        end
+
+      {kept, state} ->
+        for test_pid <- kept, do: :ets.delete(table(), {:info, test_pid})
+        {{:finished, kept}, %{state | results: Map.drop(state.results, kept)}}
     end
   end
 

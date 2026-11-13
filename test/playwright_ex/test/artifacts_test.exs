@@ -200,7 +200,7 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     finish(test, [passed()], :shutdown)
   end
 
-  test "finish is bounded: past its budget it logs, closes the contexts left and stops the recorder", %{
+  test "finish is bounded: past its budget it logs, then closes the contexts left and stops the recorder", %{
     browser: browser
   } do
     test = fake_test(%{trace: :on})
@@ -214,12 +214,35 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     :sys.suspend(recorder)
     spawn(fn -> Process.sleep(500) && :sys.resume(recorder) end)
 
-    log = capture_log(fn -> finish(test, [passed()], :shutdown, 50) end)
+    ref = Process.monitor(recorder)
+    {elapsed, log} = :timer.tc(fn -> capture_log(fn -> finish(test, [passed()], :shutdown, 50) end) end, :millisecond)
     assert log =~ "PlaywrightEx.Test could not finish the recording: it took over 50 ms"
-    refute Process.alive?(recorder)
+    # Not waiting for the blocked recorder: that's in the background.
+    assert elapsed < 400
     assert Recorder.lookup(test.pid) == nil
-    refute File.exists?(tmp)
     assert_receive :closed, 10_000
+    assert_receive {:DOWN, ^ref, :process, _, _}, 10_000
+    refute File.exists?(tmp)
+  end
+
+  test "a finish killed past ExUnit's timeout: the recorder stops itself", %{browser: browser} do
+    test = fake_test(%{trace: :on})
+    test.run.(fn -> Browser.new_context!(browser) end)
+    recorder = Recorder.lookup(test.pid)
+    tmp = :sys.get_state(recorder).opts.tmp
+    ref = Process.monitor(recorder)
+    :sys.suspend(recorder)
+
+    finisher = spawn(fn -> finish(test, [passed()], :shutdown, :infinity) end)
+    # The finish has sent its `{:finisher, pid}` and waits for the suspended recorder.
+    finishing? = fn -> {:"$gen_cast", {:finisher, finisher}} in elem(Process.info(recorder, :messages), 1) end
+    wait = fn wait -> if !finishing?.(), do: Process.sleep(10) && wait.(wait) end
+    wait.(wait)
+    Process.exit(finisher, :kill)
+    :sys.resume(recorder)
+
+    assert_receive {:DOWN, ^ref, :process, _, _}, 10_000
+    refute File.exists?(tmp)
   end
 
   @tag screenshot: :on

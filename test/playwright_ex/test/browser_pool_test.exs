@@ -208,6 +208,22 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
       assert Results.result(spawn(fn -> :ok end), 100) == {nil, []}
     end
 
+    test "a finish killed past ExUnit's timeout releases the test's seat as it exits, reset" do
+      t = fake_test()
+      %{playwright: playwright} = lease(t, opts())
+      [seat] = for {pid, %{scope: ^t}} <- :sys.get_state(Pool).seats, do: pid
+
+      # It waits for the result of `t`, which runs on, until ExUnit kills it.
+      finisher = spawn(fn -> PlaywrightEx.Test.__finish__(t, :infinity) end)
+      wait_until(fn -> match?({:current_function, {:gen, :do_call, 4}}, Process.info(finisher, :current_function)) end)
+      Process.exit(finisher, :kill)
+
+      wait_until(fn -> not Map.has_key?(:sys.get_state(Pool).scopes, t) end)
+      assert %{scope: nil, key: nil} = :sys.get_state(Pool).seats[seat]
+      wait_until(fn -> :ets.lookup(Results.table(), {:driver, playwright.conn}) == [] end)
+      finish(t, [], :boom)
+    end
+
     test "forgotten once the test's on_exit took it" do
       pid = fake_test()
       assert end_test(pid, [passed()], :shutdown) == {:passed, []}
