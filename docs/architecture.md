@@ -402,8 +402,9 @@ piece to install; `module_finished` never comes for a module `--max-failures` st
 
 A crashed browser fails the remaining tests of its module, where upstream restarts its worker;
 the failed module's driver is then stopped. ExUnit gives the context a
-`parameterize:` module's values, not its parameter map, so the output dir guesses the map for
-its hash.
+`parameterize:` module's values, not its parameter map, which a `setup` may overwrite: the
+output dir's hash takes the map from the runner's `%ExUnit.Test{}` (internal API), else guesses
+it from the values.
 
 The matchers' `testInfo` is the running test, found by the calling process or its `$callers`
 (upstream's worker sets it per test): it resolves snapshot names by upstream's path templates

@@ -28,7 +28,9 @@ defmodule PlaywrightEx.Test.TestInfo do
   (`retry/2`) and `output_dir` (under `root`, config `output_dir`, with the retry's suffix).
   """
   def new(context, root) do
-    dir = Path.expand(output_dir(context, root))
+    %{module: module, file: file} = context
+    parameters = runner_parameters(context) || parameters(module, context)
+    dir = Path.expand(output_dir(root, file, test_name(context), module, parameters))
     retry = retry(dir)
 
     %{
@@ -84,7 +86,9 @@ defmodule PlaywrightEx.Test.TestInfo do
 
   @doc """
   The parameters of `context` in `module` (`%{}` for a module without `parameterize:`), for its
-  output dir: a guess, the module's parameter map whose keys have the context's values.
+  output dir: a guess, the module's parameter map whose keys have the context's values. A
+  registration takes them from ExUnit's runner instead (`new/2`): a `setup` may have changed
+  those values.
   """
   def parameters(module, context) do
     case parameterize(module) do
@@ -92,6 +96,22 @@ defmodule PlaywrightEx.Test.TestInfo do
       _ -> %{}
     end
   end
+
+  # The parameters ExUnit's runner (the test process's parent) runs the test of `context` with:
+  # its `%ExUnit.Test{}` (`parameters` since 1.18) in the runner's process dictionary, ExUnit's
+  # internal API (any other shape is `nil`, then `parameters/2` guesses). Without them, two
+  # parameter sets of a test whose `setup` overwrote a parameter would share an output dir, and
+  # each would delete the other's.
+  defp runner_parameters(%{module: module, test: name, test_pid: test_pid}) do
+    with {:parent, runner} when is_pid(runner) <- Process.info(test_pid, :parent),
+         {:dictionary, dictionary} <- Process.info(runner, :dictionary),
+         {ExUnit.Runner, %{module: ^module, name: ^name, parameters: %{} = parameters}} <-
+           List.keyfind(dictionary, ExUnit.Runner, 0),
+         do: parameters,
+         else: (_ -> nil)
+  end
+
+  defp runner_parameters(_context), do: nil
 
   # `__ex_unit__(:config)` is ExUnit's internal API (`@doc false`; a map with `:parameterize`
   # in 1.18 to 1.20): any other shape is no parameters.

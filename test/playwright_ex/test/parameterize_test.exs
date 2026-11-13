@@ -83,3 +83,22 @@ defmodule PlaywrightEx.Test.ParameterizeTest.Shapes do
     assert TestInfo.parameters(PlaywrightEx.Test.ParameterizeTest, %{n: 2}) == %{n: 2}
   end
 end
+
+defmodule PlaywrightEx.Test.ParameterizeTest.Overwritten do
+  # A `setup` before the registration overwrites a parameter: each parameter set still gets an
+  # output dir of its own (the runner's parameters, not a guess from the context), so neither
+  # deletes the other's.
+  use ExUnit.Case, async: true, parameterize: [%{n: 1}, %{n: 2}]
+
+  alias PlaywrightEx.Test.TestInfo
+
+  setup ctx, do: %{param: ctx.n, n: :overwritten}
+
+  use PlaywrightEx.Test
+
+  test "gets its parameter set's output dir", %{param: n} = ctx do
+    dir = Path.expand(TestInfo.output_dir(%{ctx | n: n}))
+    # With its `-retryN` suffix under `mix test --failed`.
+    assert PlaywrightEx.Test.info().output_dir =~ ~r/^#{Regex.escape(dir)}(-retry\d+)?$/
+  end
+end
