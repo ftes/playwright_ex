@@ -53,7 +53,9 @@ those of the release candidates below. From an earlier release, also read the se
   `navigation_timeout` set one, and just before ExUnit's test timeout the test's contexts are
   closed, so a hanging call fails with "Test timeout of Nms exceeded." and its call log, its
   artifacts kept. `config/0` returns the resolved config (defaults filled in, validated, the
-  expect timeout), for libraries building on the runner. See the
+  expect timeout), for libraries building on the runner. `PlaywrightEx.Test.GitHubFormatter`,
+  an ExUnit formatter for any suite, is Playwright Test's `github` reporter: GitHub Actions
+  annotations for failures, slow files and the run's summary. See the
   [Testing with ExUnit](guides/testing-with-exunit.md) guide.
 - `Expect.to_pass/2` and `Expect.poll/3`: `expect(fn).toPass()` and `expect.poll(fn).toBe(x)`
   (`Expect.poll(fn, &assert(&1 == x))`), with upstream's intervals and timeouts (`toPass`: until

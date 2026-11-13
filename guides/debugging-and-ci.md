@@ -123,6 +123,18 @@ With a cache hit, only the system packages are installed. If the runner's apt mi
 stalls, this repository's [workflow](https://github.com/ftes/playwright_ex/blob/main/.github/workflows/elixir.yml)
 retries and caches the `.deb` files.
 
+`PlaywrightEx.Test.GitHubFormatter` is Playwright Test's `github` reporter: annotations for the
+failed tests (at their line), failed `setup_all`s and slow files, and a summary. It prints
+only those, so name `ExUnit.CLIFormatter` next to it (`--formatter` replaces the configured
+formatters). When failures are rerun, pass it to the first run only, or a test failing twice is
+annotated twice:
+
+```yaml
+- run: |
+    mix test --formatter ExUnit.CLIFormatter --formatter PlaywrightEx.Test.GitHubFormatter ||
+      mix test --failed
+```
+
 ## Docker
 
 Browsers need system libraries, so install them in the image:

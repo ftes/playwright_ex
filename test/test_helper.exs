@@ -27,12 +27,15 @@ ExUnit.configure(exclude: exclude)
 
 # Our own tests (not mirrored from upstream, which get upstream's 30 s): tight, so a hang fails
 # fast. The slowest takes ~5 s (a 5 s navigation timeout) on each browser (2026-11-05, macOS);
-# longer ones carry their own `@tag timeout:` with the measurement.
+# longer ones carry their own `@tag timeout:` with the measurement. CI sets PW_GITHUB_FORMATTER
+# for GitHub Actions annotations on the first run, not on its rerun of the failures.
 ExUnit.start(
   timeout: 20_000,
   assert_receive_timeout: 10_000,
   max_cases: max_cases,
-  formatters: [ExUnit.CLIFormatter, PlaywrightEx.FailuresFormatter, PlaywrightEx.ModuleTimesFormatter]
+  formatters:
+    [ExUnit.CLIFormatter, PlaywrightEx.FailuresFormatter, PlaywrightEx.ModuleTimesFormatter] ++
+      if(System.get_env("PW_GITHUB_FORMATTER", "") != "", do: [PlaywrightEx.Test.GitHubFormatter], else: [])
 )
 
 # The artifacts dirs of `PlaywrightEx.UpstreamCase`'s drivers. Registered first, so it runs after

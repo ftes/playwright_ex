@@ -154,7 +154,12 @@ defmodule PlaywrightEx.MixProject do
           PlaywrightEx.Worker
         ],
         Assertions: [PlaywrightEx.Expect, PlaywrightEx.ExpectError],
-        Testing: [PlaywrightEx.Case, PlaywrightEx.Test, PlaywrightEx.Test.BrowserPool],
+        Testing: [
+          PlaywrightEx.Case,
+          PlaywrightEx.Test,
+          PlaywrightEx.Test.BrowserPool,
+          PlaywrightEx.Test.GitHubFormatter
+        ],
         Network: [
           PlaywrightEx.Request,
           PlaywrightEx.Response,
