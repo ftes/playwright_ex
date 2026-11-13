@@ -389,7 +389,8 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
       wait_until(fn -> length(:sys.get_state(Pool).waiting) == 1 end)
       Process.exit(waiter, :kill)
       released_waiter = Task.async(fn -> catch_error(lease(released, opts)) end)
-      wait_until(fn -> length(:sys.get_state(Pool).waiting) == 1 end)
+      # The kill is async: wait until the killed waiter is gone and this one is queued.
+      wait_until(fn -> Enum.map(:sys.get_state(Pool).waiting, & &1.scope) == [released] end)
       Pool.release(released)
 
       assert %ArgumentError{message: "BrowserPool.browser/1 waited past the end of its test or module"} =
