@@ -77,12 +77,25 @@ defmodule PlaywrightEx.Matchers.Expect do
   end
 
   @doc false
-  def expect_config do
+  def expect_config, do: expect_config(:call)
+
+  @doc false
+  # deviation: the worker sets `testInfo` per test (`setExpectConfig`); here it is the running
+  # `PlaywrightEx.Test` test of the calling process, or of one in its `$callers`: in a matcher
+  # call (`:call`), the one `call_matcher_as_step/6` found, else (`:now`) looked up.
+  def expect_config(at) do
     config = :persistent_term.get({__MODULE__, :expect_config}, nil) || app_env_expect_config()
-    # deviation: the worker sets `testInfo` per test (`setExpectConfig`); here it is the running
-    # `PlaywrightEx.Test` test of the calling process, or of one in its `$callers`.
-    if config[:testInfo] == nil, do: Map.put(config, :testInfo, TestInfo.current()), else: config
+    if config[:testInfo] == nil, do: Map.put(config, :testInfo, current_test_info(at)), else: config
   end
+
+  defp current_test_info(:call) do
+    case Zones.data(:expectTestInfo) do
+      {test_info} -> test_info
+      nil -> TestInfo.current()
+    end
+  end
+
+  defp current_test_info(:now), do: TestInfo.current()
 
   @doc false
   # Elixir only: the app env's `ExpectConfig`, built when the env changes (at application start,
@@ -303,6 +316,9 @@ defmodule PlaywrightEx.Matchers.Expect do
         end
 
         # if (result instanceof Promise) return result.then(finalizer, handleError);  -- not ported: matchers return their result
+        # Elixir only: the matcher's `expectConfig()` reads get this call's `testInfo`
+        # (`expect_config/1`), not each a lookup.
+        invoke = fn -> Zones.with(:expectTestInfo, {test_info}, invoke) end
         {:ok, if(step, do: Zones.with(:stepZone, step, invoke), else: invoke.())}
       catch
         kind, reason ->
@@ -376,7 +392,8 @@ defmodule PlaywrightEx.Matchers.Expect do
     result =
       TimeoutRunner.poll_against_deadline(
         fn ->
-          if test_info && expect_config().testInfo != test_info do
+          # The running test, not the matcher call's: polling ends with the test's body.
+          if test_info && expect_config(:now).testInfo != test_info do
             %{continuePolling: false, result: nil}
           else
             value = actual.()

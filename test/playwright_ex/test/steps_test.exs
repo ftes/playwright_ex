@@ -546,6 +546,20 @@ defmodule PlaywrightEx.Test.StepsTest do
     Expect.poll!(next, &assert(&1 >= 3))
   end
 
+  test "a matcher call looks its test up once, and a poll once more per attempt" do
+    # `call_count` counts the calls of the processes with the `call` flag: this one.
+    :erlang.trace(self(), true, [:call])
+    :erlang.trace_pattern({TestInfo, :current, 0}, true, [:call_count])
+
+    try do
+      Expect.poll!(fn -> 1 end, &assert(&1 == 1))
+      assert {:call_count, 2} = :erlang.trace_info({TestInfo, :current, 0}, :call_count)
+    after
+      :erlang.trace_pattern({TestInfo, :current, 0}, false, [:call_count])
+      :erlang.trace(self(), false, [:call])
+    end
+  end
+
   test "a soft matcher outside a test fails as any matcher (no step)" do
     page = new_page()
     Page.set_content!(page, "<h1>Outside</h1>")

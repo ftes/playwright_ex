@@ -833,7 +833,8 @@ defmodule PlaywrightEx.Matchers.Matchers do
     result =
       TimeoutRunner.poll_against_deadline(
         fn ->
-          if test_info && Expect.expect_config().testInfo != test_info do
+          # The running test, not the matcher call's: polling ends with the test's body.
+          if test_info && Expect.expect_config(:now).testInfo != test_info do
             %{continuePolling: false, result: nil}
           else
             try do
