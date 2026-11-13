@@ -77,7 +77,7 @@ defmodule PlaywrightEx.Client.Waiter do
                 params: info
               })
 
-            api_zone = if assigned, do: Zones.update(:apiZone, &Map.merge(&1, assigned)), else: api_zone
+            api_zone = ChannelOwner._assign(api_zone, assigned)
 
             Connection.send_message_to_server(
               get(owner, :_connection),

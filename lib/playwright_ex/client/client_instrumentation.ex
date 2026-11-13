@@ -12,8 +12,8 @@ defmodule PlaywrightEx.Client.ClientInstrumentation do
   last listener. The `ApiCallData` the `onApiCall*` listeners get is a copy (the api zone), so
   an `onApiCallBegin` listener returns the fields it assigns (`%{callId: id}`; anything other
   than a map assigns none), the next listener gets them, and the hook returns them all (or `nil`)
-  for the caller to put in the api zone. They don't reach `onApiCallEnd`, which gets the zone
-  `_wrapApiCall` created.
+  for the caller to put in the api zone (`PlaywrightEx.Client.ChannelOwner._assign/2`), where
+  `onApiCallEnd` finds them, also when another process of the call assigned them.
 
   The instrumentation is owned by the connection that creates it (`createInstrumentation` in
   `new Connection`); a remote connection shares its parent's (`connect.ts`).

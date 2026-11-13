@@ -427,8 +427,8 @@ use PlaywrightEx.Test
 ## Steps
 
 `PlaywrightEx.Test.step/3` groups a test's actions under a title, as Playwright Test's `test.step`: the trace
-(`test.trace` in `trace.zip`) shows the steps, nested, with each matcher call as a step of its own
-and the test's errors. A step returns its body's value and works in a `Task` of the test too:
+(`test.trace` in `trace.zip`) shows the steps, nested, with each matcher call and each driver call
+as a step of its own, and the test's errors. A step returns its body's value and works in a `Task` of the test too:
 
 ```elixir
 test "signs up in steps", %{page: page} do

@@ -6,6 +6,9 @@ defmodule PlaywrightEx.Runtime.ProcessOwner do
   its table, see `PlaywrightEx.Runtime.Heap`) and deletes a process's rows when it exits.
 
   `owner(pid)` is the owner handle (`%{guid: pid, conn: _, table: _}`) to create latches on.
+
+  It also owns `zones/0`, the public table of the API calls' zone fields that another process
+  assigned (`PlaywrightEx.Client.ChannelOwner._assign/2`).
   """
   use GenServer
 
@@ -24,8 +27,15 @@ defmodule PlaywrightEx.Runtime.ProcessOwner do
     end
   end
 
+  @zones PlaywrightEx.Runtime.ProcessOwner.Zones
+
+  @doc "The table of the zone fields (`PlaywrightEx.Client.ChannelOwner._assign/2`)."
+  def zones, do: @zones
+
   @impl true
   def init(nil) do
+    :ets.new(@zones, [:named_table, :public, :set, write_concurrency: true])
+
     {:ok, %{table: :ets.new(__MODULE__, [:ordered_set, :protected, read_concurrency: true]), monitored: %{}}}
   end
 

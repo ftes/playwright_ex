@@ -182,14 +182,15 @@ defmodule PlaywrightEx.Test do
   `step(title, fun, options)` for wrappers, with upstream's `box`, `location`, `params` and
   `subtitle` (`step_skip/3` is `test.step.skip`). Each matcher call in a test is a step too
   (`category: 'expect'`), and a soft one's failure (`PlaywrightEx.Expect.soft/1`, upstream's
-  `expect.soft`) fails the test at the end of its body, as a written snapshot does. The trace's
+  `expect.soft`) fails the test at the end of its body, as a written snapshot does. So is each
+  driver call (`pw:api`, titled as upstream's: `Click getByRole('button')`), in the step or
+  `PlaywrightEx.Tracing.group/3` it runs in; a matcher's driver call is its step. The trace's
   `test.trace` entry (upstream's `TestTracing`) has the steps, nested by the step they run in,
   and the test's errors, so `trace: :on` gives a `trace.zip` also for a test without contexts.
   `attach/2` adds a `test.attach` step with the attachment (the trace's `attachments: false`
-  leaves the attachments out). Not ported: the test's stdout and stderr in the trace, steps of
-  the driver calls (`pw:api`: the calls stay top-level in the trace, a matcher's `Frame.expect`
-  call apart from its step), hooks and fixtures as steps, the step's `TestStepInfo` (the body
-  takes no argument, so no `step.attach`) and its `timeout` (the test's timeout bounds a step).
+  leaves the attachments out). Not ported: the test's stdout and stderr in the trace, hooks and
+  fixtures as steps, the step's `TestStepInfo` (the body takes no argument, so no
+  `step.attach`) and its `timeout` (the test's timeout bounds a step).
 
   ## Config
 

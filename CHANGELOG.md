@@ -37,7 +37,8 @@ those of the release candidates below. From an earlier release, also read the se
   Playwright Test's `-retryN` dirs, with Playwright Test's retry modes (`trace: :on_first_retry`,
   ...) and `info/0`'s `retry` going by it, and `preserve_output` is `preserveOutput`. As in
   Playwright Test, the recording's tracing, screenshots and page snapshots are internal calls,
-  and a matcher's step and its driver call share one `callId`. `info/0` and `output_path/1`
+  and each driver call in a test is a `pw:api` step of the step or `Tracing.group` it runs in (a
+  matcher's driver call is the matcher's step). `info/0` and `output_path/1`
   are Playwright Test's `test.info()` (with `testInfo.timeout`) and `testInfo.outputPath`;
   `info/1` takes the test's pid and works in `on_exit`, with `testInfo.status`, `errors`,
   `expectedStatus` and `duration`.

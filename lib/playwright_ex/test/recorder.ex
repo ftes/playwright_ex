@@ -23,6 +23,7 @@ defmodule PlaywrightEx.Test.Recorder do
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Client.ChannelOwner
   alias PlaywrightEx.Disposable
+  alias PlaywrightEx.Isomorphic.ProtocolFormatter
   alias PlaywrightEx.Isomorphic.StringUtils
   alias PlaywrightEx.Page
   alias PlaywrightEx.Runtime.Zones
@@ -79,6 +80,7 @@ defmodule PlaywrightEx.Test.Recorder do
   def listener do
     %{
       onApiCallBegin: &__MODULE__.on_api_call_begin/2,
+      onApiCallEnd: &__MODULE__.on_api_call_end/1,
       runBeforeCreateBrowserContext: &__MODULE__.before_create_browser_context/1,
       runAfterCreateBrowserContext: &__MODULE__.after_create_browser_context/1,
       runBeforeCloseBrowserContext: &__MODULE__.before_close_browser_context/1,
@@ -89,19 +91,113 @@ defmodule PlaywrightEx.Test.Recorder do
   end
 
   @doc """
-  `onApiCallBegin`: a matcher's driver call (`Frame.expect`, `Page.expectScreenshot`) in a
-  test's expect step gets the step's id as its `callId`, so a trace shows the two as one action.
-  It runs on every call of the driver, in tests or not: the checks go cheapest first.
+  `onApiCallBegin`: a driver call in a test that traces is a `pw:api` step (`PlaywrightEx.Test.TestInfo`) of
+  the step it runs in, or of the open `Tracing.group/3`'s, whose id is its `callId`, so a trace
+  shows them as one action. A matcher's driver call (`Frame.expect`, `Page.expectScreenshot`) in
+  its expect step gets that step's id. It runs on every call of the driver, in tests or not.
   """
-  # if (channel.type === 'Tracing' && channel.method === 'tracingGroupEnd') { ... }  -- not ported: no step per API call
-  # In the general case, create a step for each api call, use it as a callId.  -- not ported: no step per API call (#211)
-  def on_api_call_begin(_data, %{type: "Frame", method: "expect"}), do: expect_step_call_id()
-  def on_api_call_begin(_data, %{type: "Page", method: "expectScreenshot"}), do: expect_step_call_id()
-  def on_api_call_begin(_data, _channel), do: nil
+  def on_api_call_begin(data, channel) do
+    if test_info = TestInfo.current(), do: on_api_call_begin(test_info, data, channel)
+  end
 
-  defp expect_step_call_id do
+  defp on_api_call_begin(test_info, _data, %{type: "Tracing", method: "tracingGroupEnd"}) do
+    # The "tracing.group" step ends together with the "tracing.groupEnd" call.
+    %{userData: fn error -> with %{} = step <- pop_tracing_group_step(test_info), do: complete(step, error) end}
+  end
+
+  defp on_api_call_begin(test_info, data, channel) do
     zone = Zones.data(:stepZone)
-    if zone && zone.category == "expect" && TestInfo.current(), do: %{callId: zone.stepId}
+
+    is_expect_call =
+      (channel.type == "Frame" and channel.method == "expect") or
+        (channel.type == "Page" and channel.method == "expectScreenshot")
+
+    cond do
+      zone && zone.category == "expect" && is_expect_call ->
+        %{callId: zone.stepId}
+
+      # deviation: no step without the test's trace, where nothing would see it (no reporters):
+      # the formatter and the step cost about a fifth of a fast call.
+      not traced?(test_info) ->
+        nil
+
+      true ->
+        api_step(test_info, data, channel)
+    end
+  end
+
+  # In the general case, create a step for each api call, use it as a callId.
+  defp api_step(test_info, data, channel) do
+    params =
+      ProtocolFormatter.render_params_for_call(%{type: channel.type, method: channel.method, params: channel.params})
+
+    step =
+      TestInfo._add_step(
+        test_info,
+        %{
+          stack: data.frames,
+          category: "pw:api",
+          title: render_title(channel.type, channel.method, channel.params, data.title),
+          subtitle: render_subtitle(channel.type, channel.method, channel.params),
+          params: params,
+          group: ProtocolFormatter.get_action_group(%{type: channel.type, method: channel.method})
+        },
+        List.first(tracing_group_steps(test_info))
+      )
+
+    if channel.type == "Tracing" and channel.method == "tracingGroup" do
+      # The step will end later, when the corresponding "tracing.groupEnd" call finishes.
+      push_tracing_group_step(test_info, step)
+      %{callId: step.stepId}
+    else
+      %{callId: step.stepId, userData: fn error -> complete(step, error) end}
+    end
+  end
+
+  defp traced?(test_info), do: match?(%{trace: [{:mode, mode} | _]} when mode != :off, registration(test_info.test_pid))
+
+  @doc "`onApiCallEnd`: completes the call's step."
+  def on_api_call_end(data) do
+    if complete_step = data.userData, do: complete_step.(data[:error])
+  end
+
+  # `step.complete({ error })`: `error` the call's exception, or `nil`.
+  defp complete(step, nil), do: TestInfo.step_complete(step, %{})
+  defp complete(step, error), do: TestInfo.step_complete(step, %{error: {:error, error, []}})
+
+  # `tracingGroupSteps`, newest first: a row of the test (`PlaywrightEx.Test.TestInfo`), as a
+  # group may start and end in different processes of the test.
+  defp tracing_group_steps(test_info) do
+    case :ets.lookup(Results.table(), tracing_group_steps_key(test_info)) do
+      [{_key, steps}] -> steps
+      [] -> []
+    end
+  end
+
+  defp push_tracing_group_step(test_info, step),
+    do: :ets.insert(Results.table(), {tracing_group_steps_key(test_info), [step | tracing_group_steps(test_info)]})
+
+  defp pop_tracing_group_step(test_info) do
+    case tracing_group_steps(test_info) do
+      [step | steps] ->
+        :ets.insert(Results.table(), {tracing_group_steps_key(test_info), steps})
+        step
+
+      [] ->
+        nil
+    end
+  end
+
+  defp tracing_group_steps_key(test_info), do: {:test_info, test_info.test_pid, :tracing_group_steps}
+
+  # `renderTitle`.
+  defp render_title(type, method, params, title),
+    do: ProtocolFormatter.render_title_for_call(%{title: title, type: type, method: method, params: params})
+
+  # `renderSubtitle`.
+  defp render_subtitle(type, method, params) do
+    subtitle = ProtocolFormatter.render_subtitle_for_call(%{type: type, method: method, params: params})
+    if subtitle != nil, do: ProtocolFormatter.truncate_param(subtitle)
   end
 
   @doc """

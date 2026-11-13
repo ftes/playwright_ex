@@ -9,11 +9,15 @@ defmodule PlaywrightEx.Test.StepsTest do
 
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
+  alias PlaywrightEx.Client.ChannelOwner
   alias PlaywrightEx.Expect
+  alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime.Promise
   alias PlaywrightEx.Test
   alias PlaywrightEx.Test.BrowserPool
   alias PlaywrightEx.Test.TestInfo
+  alias PlaywrightEx.Tracing
 
   @moduletag trace: :on
 
@@ -288,6 +292,108 @@ defmodule PlaywrightEx.Test.StepsTest do
     page = new_page()
     Page.set_content!(page, "<h1>One</h1>")
     Expect.to_have_text!(Page.locator(page, "h1"), "One")
+  end
+
+  # The driver's `before` events (its `*.trace` entries) by `callId`.
+  defp driver_actions(files) do
+    for {name, trace} <- files,
+        name != "test.trace" and Path.extname(name) == ".trace",
+        line <- String.split(trace, "\n", trim: true),
+        event = JSON.decode!(line),
+        event["type"] == "before",
+        into: %{},
+        do: {event["callId"], event}
+  end
+
+  defp api_steps(events), do: for(%{"type" => "before", "method" => "pw:api"} = e <- events, do: e)
+
+  test "a driver call is a pw:api step of the step it runs in, with the driver's callId" do
+    on_trace(fn events, files ->
+      step = before(events, "log in")
+      click = before(events, "Click")
+
+      assert %{"class" => "Test", "subtitle" => "getByRole('button', { name: 'Go' })", "parentId" => parent_id} = click
+      assert parent_id == step["callId"]
+      assert click["params"] == %{"locator" => "getByRole('button', { name: 'Go' })", "button" => "left"}
+      assert [%{"file" => @this_file, "line" => line} | _] = click["stack"]
+      assert source(line) =~ "Locator.click!"
+      assert %{"class" => "Frame", "method" => "click"} = driver_actions(files)[click["callId"]]
+      refute Map.has_key?(after_of(events, click), "error")
+
+      assert %{"group" => "getter"} = visible = before(events, "Is visible")
+      refute Map.has_key?(visible, "parentId")
+
+      failed = after_of(events, before(events, "Fill \"x\""))
+      assert failed["error"]["message"] =~ ~r/^PlaywrightEx.TimeoutError: locator.fill: Timeout 1ms exceeded/
+    end)
+
+    page = new_page()
+    Page.set_content!(page, "<button>Go</button>")
+    button = Page.get_by_role(page, :button, name: "Go")
+
+    Test.step "log in" do
+      Locator.click!(button, button: :left)
+    end
+
+    assert Locator.is_visible!(button)
+    assert {:error, _} = Locator.fill(Page.locator(page, "input"), "x", timeout: 1)
+  end
+
+  test "a tracing group is a step of the calls in it, ended by its end" do
+    on_trace(fn events, _files ->
+      group = before(events, ~s(Trace "sign in"))
+      assert group["params"] == %{"name" => "sign in"}
+      assert before(events, "Set content")["parentId"] == group["callId"]
+      inner = before(events, ~s(Trace "inner"))
+      assert inner["parentId"] == group["callId"]
+      assert before(events, "Get page title")["parentId"] == inner["callId"]
+      assert after_of(events, inner)["endTime"] <= after_of(events, group)["endTime"]
+      refute before(events, "Group end")
+      refute Map.has_key?(before(events, "Evaluate"), "parentId")
+    end)
+
+    page = new_page()
+    tracing = page |> Page.context() |> BrowserContext.tracing()
+    Tracing.group!(tracing, "sign in")
+    Page.set_content!(page, "<title>T</title>")
+    Tracing.group!(tracing, "inner")
+    Page.title!(page)
+    Tracing.group_end!(tracing)
+    Tracing.group_end!(tracing)
+    Page.evaluate!(page, "1")
+  end
+
+  test "a call another process of it reports first still ends its step" do
+    on_trace(fn events, _files ->
+      assert %{"endTime" => _} = after_of(events, before(events, "Get page title"))
+    end)
+
+    page = new_page()
+
+    # An API call whose first driver call runs in a process it starts (`Promise.async`).
+    assert ChannelOwner._wrap_api_call(page, fn _api_zone ->
+             Promise.await(Promise.async(fn -> Page.title!(page) end))
+           end) ==
+             ""
+  end
+
+  @tag screenshot: :on
+  test "the recording's own calls are no steps" do
+    on_trace(fn events, _files ->
+      assert for(e <- api_steps(events), do: e["title"]) == [
+               "Create context",
+               "Create page",
+               "Set content",
+               "Close context"
+             ]
+
+      assert Enum.all?(api_steps(events), &after_of(events, &1))
+    end)
+
+    context = Browser.new_context!(BrowserPool.browser())
+    page = BrowserContext.new_page!(context)
+    Page.set_content!(page, "<p>x</p>")
+    BrowserContext.close!(context)
   end
 
   test "a soft matcher: a soft step, its failure recorded as the test's error, the body continues" do
