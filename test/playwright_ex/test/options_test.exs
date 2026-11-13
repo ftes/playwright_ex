@@ -5,6 +5,18 @@ defmodule PlaywrightEx.Test.OptionsTest do
   alias PlaywrightEx.Test.Options
 
   describe "validation" do
+    test "config :playwright_ex takes :test, :expect and existing modules' keys" do
+      formatter = PlaywrightEx.Test.GitHubFormatter
+      assert PlaywrightEx.Application.validate_env!([{:test, []}, {:expect, []}, {formatter, []}]) == :ok
+
+      for key <- [:tests, Not.A.Module] do
+        assert_raise ArgumentError,
+                     "unknown keys [#{inspect(key)}] in config :playwright_ex, expected one of [:test, :expect] " <>
+                       "or a module's (PlaywrightEx.Test.GitHubFormatter)",
+                     fn -> PlaywrightEx.Application.validate_env!([{key, []}]) end
+      end
+    end
+
     test "unknown options raise before anything starts" do
       assert_raise ArgumentError, ~r/unknown options \[:headless\]/, fn -> BrowserPool.browser(headless: true) end
       assert_raise ArgumentError, ~r/unknown driver options \[:name\]/, fn -> Options.pool(driver: [name: Foo]) end
@@ -330,9 +342,14 @@ defmodule PlaywrightEx.Test.ConfigTest do
   test "a bad config raises", %{config: config} do
     Application.put_env(:playwright_ex, :test, config ++ [tracing: :on])
 
-    assert_raise ArgumentError, ~r/unknown keys \[:tracing\] in config :playwright_ex, :test/, fn ->
-      Options.artifacts(%{})
-    end
+    assert_raise ArgumentError,
+                 ~r/unknown keys \[:tracing\] in config :playwright_ex, :test, expected one of \[:browser_name, .*:test_id_attribute\]/,
+                 fn -> Options.artifacts(%{}) end
+
+    # At the application's start, before anything reads it.
+    assert_raise ArgumentError, ~r/unknown keys \[:tracing\]/, fn -> PlaywrightEx.Application.start(:normal, []) end
+    Application.put_env(:playwright_ex, :test, config ++ [context_options: [lokale: "x"]])
+    assert_raise ArgumentError, fn -> PlaywrightEx.Application.start(:normal, []) end
 
     # error-context.md has no switch, as upstream.
     Application.put_env(:playwright_ex, :test, config ++ [error_context: true])

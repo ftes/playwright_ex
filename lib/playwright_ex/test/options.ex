@@ -143,8 +143,12 @@ defmodule PlaywrightEx.Test.Options do
       do: raise(ArgumentError, "config :playwright_ex, :test must be a keyword list, got: #{inspect(config)}")
 
     case Keyword.keys(config) -- @config_keys do
-      [] -> :ok
-      unknown -> raise ArgumentError, "unknown keys #{inspect(unknown)} in config :playwright_ex, :test"
+      [] ->
+        :ok
+
+      unknown ->
+        raise ArgumentError,
+              "unknown keys #{inspect(unknown)} in config :playwright_ex, :test, expected one of #{inspect(@config_keys)}"
     end
 
     defaults()

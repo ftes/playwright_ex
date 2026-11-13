@@ -221,7 +221,8 @@ defmodule PlaywrightEx.Test do
   `workers` is half the schedulers, as upstream's default `workers` is half the cores (`'50%'`).
   `test_id_attribute` is upstream's `testIdAttribute`, set on each pooled driver: the client's
   value is global to the VM, so set it here, not per module. `config/0` returns the config
-  resolved.
+  resolved. An unknown key or a bad value raises at application start (and when the runner
+  reads a config changed since).
   """
 
   alias PlaywrightEx.Runtime.Zones

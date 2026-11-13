@@ -68,10 +68,58 @@ defmodule PlaywrightEx.Test.GitHubFormatter do
   # class GitHubReporter
 
   # constructor: `omitTags`  -- not ported: ExUnit's tags are not Playwright's `@tag`s
+  @doc false
+  # Elixir only: `config :playwright_ex, PlaywrightEx.Test.GitHubFormatter`, validated as upstream's
+  # configLoader validates `reportSlowTests` (also at application start).
+  def config(env \\ Application.get_env(:playwright_ex, __MODULE__, []))
+
+  def config(env) when is_list(env) do
+    env =
+      case Keyword.keyword?(env) && Keyword.validate(env, report_slow_tests: [max: 5, threshold: 300_000]) do
+        {:ok, env} ->
+          env
+
+        {:error, unknown} ->
+          raise ArgumentError,
+                "unknown keys #{inspect(unknown)} in config :playwright_ex, #{inspect(__MODULE__)}, expected one of [:report_slow_tests]"
+
+        false ->
+          raise ArgumentError,
+                "config :playwright_ex, #{inspect(__MODULE__)} must be a keyword list, got: #{inspect(env)}"
+      end
+
+    %{report_slow_tests: report_slow_tests(env[:report_slow_tests])}
+  end
+
+  def config(env),
+    do:
+      raise(ArgumentError, "config :playwright_ex, #{inspect(__MODULE__)} must be a keyword list, got: #{inspect(env)}")
+
+  defp report_slow_tests(nil), do: nil
+
+  defp report_slow_tests(options) when is_list(options) or (is_map(options) and not is_struct(options)) do
+    options = Enum.to_list(options)
+
+    case Keyword.keyword?(options) && Keyword.keys(options) -- [:max, :threshold] do
+      [] ->
+        for key <- [:max, :threshold], do: {key, non_negative!(key, options[key])}
+
+      _ ->
+        raise ArgumentError, "config report_slow_tests takes [:max, :threshold], got: #{inspect(options)}"
+    end
+  end
+
+  defp report_slow_tests(other),
+    do: raise(ArgumentError, "config report_slow_tests must be a keyword list or nil, got: #{inspect(other)}")
+
+  defp non_negative!(_key, value) when is_number(value) and value >= 0, do: value
+
+  defp non_negative!(key, value),
+    do: raise(ArgumentError, "config report_slow_tests.#{key} must be a non-negative number, got: #{inspect(value)}")
+
   @impl true
   def init(opts) do
-    report_slow_tests =
-      Keyword.get(Application.get_env(:playwright_ex, __MODULE__, []), :report_slow_tests, max: 5, threshold: 300_000)
+    %{report_slow_tests: report_slow_tests} = config()
 
     # TerminalReporter's `suite` (the tests, newest first), `fileDurations` and
     # `config.reportSlowTests`; GitHubReporter's `_failedTestCount`.

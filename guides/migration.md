@@ -365,7 +365,9 @@ Task.start(fn -> Process.sleep(1_000); AbortController.abort(controller, "user c
 - A lost driver closes its pages, contexts and browsers (`close`, `disconnected`), its waits fail
   with `PlaywrightEx.TargetClosedError` instead of hanging, and `PlaywrightEx.playwright/1` waits
   for the restarted driver.
-- Unknown keys in `config :playwright_ex, :expect` raise at application start.
+- An unknown key of `config :playwright_ex` (other than `:test`, `:expect` and a module's), and
+  an invalid `:test`, `:expect` or `PlaywrightEx.Test.GitHubFormatter` config, raise at
+  application start.
 - Dialogs without a listener are dismissed instead of blocking the page.
 - Error messages start with the API name (`locator.click: ...`).
 - `Tracing.start/2` no longer takes `coverage:`.

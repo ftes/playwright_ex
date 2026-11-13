@@ -161,6 +161,36 @@ defmodule PlaywrightEx.Test.GitHubFormatterTest do
                )
   end
 
+  test "its config: report_slow_tests' max and threshold, non-negative numbers, or nil" do
+    assert GitHubFormatter.config([]) == %{report_slow_tests: [max: 5, threshold: 300_000]}
+    assert GitHubFormatter.config(report_slow_tests: nil) == %{report_slow_tests: nil}
+
+    assert GitHubFormatter.config(report_slow_tests: %{threshold: 1, max: 0}) == %{
+             report_slow_tests: [max: 0, threshold: 1]
+           }
+
+    assert_raise ArgumentError, ~r/unknown keys \[:slow\] .*, expected one of \[:report_slow_tests\]/, fn ->
+      GitHubFormatter.config(slow: true)
+    end
+
+    assert_raise ArgumentError, ~r/must be a keyword list, got: :on/, fn -> GitHubFormatter.config(:on) end
+    assert_raise ArgumentError, ~r/must be a keyword list, got: \[1\]/, fn -> GitHubFormatter.config([1]) end
+
+    assert_raise ArgumentError, ~r/max must be a non-negative number, got: -1/, fn ->
+      GitHubFormatter.config(report_slow_tests: [max: -1, threshold: 1])
+    end
+
+    assert_raise ArgumentError, ~r/threshold must be a non-negative number, got: nil/, fn ->
+      GitHubFormatter.config(report_slow_tests: [max: 1])
+    end
+
+    assert_raise ArgumentError, ~r/takes \[:max, :threshold\]/, fn ->
+      GitHubFormatter.config(report_slow_tests: [top: 1])
+    end
+
+    assert_raise ArgumentError, ~r/keyword list or nil/, fn -> GitHubFormatter.config(report_slow_tests: true) end
+  end
+
   test "slow files: the slowest over the threshold, of one module each" do
     Application.put_env(:playwright_ex, GitHubFormatter, report_slow_tests: [max: 2, threshold: 1000])
     project_file = Path.join(File.cwd!(), "test/project_test.exs")
