@@ -2,10 +2,11 @@ defmodule PlaywrightEx.Page.ElementhandleConvenienceTest do
   @upstream "tests/page/elementhandle-convenience.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.Expect
+
   alias PlaywrightEx.ElementHandle
   alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Page
-  alias PlaywrightEx.Utils
 
   @moduletag :page
 
@@ -31,7 +32,7 @@ defmodule PlaywrightEx.Page.ElementhandleConvenienceTest do
     expected =
       ~s(JSHandle@<div title="#{String.duplicate("😛", 100)}">#{String.duplicate("😛", 49)}…</div>)
 
-    Utils.poll(fn -> to_string(handle) end, &assert(&1 == expected))
+    Expect.poll!(fn -> to_string(handle) end, &assert(&1 == expected))
   end
 
   test "EH-026 getAttribute should work", %{page: page, server: server} do

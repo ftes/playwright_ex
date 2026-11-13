@@ -145,10 +145,17 @@ defmodule PlaywrightEx.WebMCP do
     Facade.async!("webMCP.tools", web_mcp, fn -> PlaywrightEx.Client.WebMCP.tools(web_mcp, options) end)
   end
 
-  @doc false
+  @doc """
+  The options of `function`, an atom such as `:call_tool`, as
+  `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, for tools that build on the facade at
+  compile time; a function without options raises `FunctionClauseError`. Unstable: the shape
+  may change between releases.
+  """
   @spec __options__(atom()) :: [
           {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
         ]
+  def __options__(function)
+
   def __options__(:call_tool) do
     [
       timeout: %{
@@ -172,4 +179,11 @@ defmodule PlaywrightEx.WebMCP do
       }
     ]
   end
+
+  @doc false
+  # The type of `function`'s options, as `Facade.options!/3` converts them.
+  def __options_type__(function)
+
+  def __options_type__(:call_tool), do: @call_tool_options
+  def __options_type__(:tools), do: @tools_options
 end

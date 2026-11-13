@@ -528,7 +528,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
         do: ["started b", "finished b"],
         else: ["started b", "started c", "finished b", "finished c"]
 
-    Utils.to_pass(fn -> assert Agent.get(events, & &1) == expect_events end)
+    Expect.to_pass!(fn -> assert Agent.get(events, & &1) == expect_events end)
     assert Agent.get(events, & &1) == expect_events
 
     case browser_name do
@@ -578,7 +578,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
       end
 
     expect_events = ["started c", "started b", "finished c", "finished b"]
-    Utils.to_pass(fn -> assert Agent.get(events, & &1) == expect_events end, timeout: 5000)
+    Expect.to_pass!(fn -> assert Agent.get(events, & &1) == expect_events end, timeout: 5000)
     assert Agent.get(events, & &1) == expect_events
     refute error
     assert Page.url(page) == server.prefix <> "/b"

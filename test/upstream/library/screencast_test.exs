@@ -4,6 +4,8 @@ defmodule PlaywrightEx.Library.ScreencastTest do
 
   import PlaywrightEx.Utils, only: [ensure_some_frames: 1]
 
+  alias PlaywrightEx.Expect
+
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
@@ -11,7 +13,6 @@ defmodule PlaywrightEx.Library.ScreencastTest do
   alias PlaywrightEx.Page
   alias PlaywrightEx.Runtime
   alias PlaywrightEx.Screencast
-  alias PlaywrightEx.Utils
   alias PlaywrightEx.VideoPlayer
 
   @ffmpeg_skip VideoPlayer.skip_reason()
@@ -88,7 +89,7 @@ defmodule PlaywrightEx.Library.ScreencastTest do
     """)
 
     assert_receive :first_frame, 5000
-    Utils.poll(fn -> now() - Agent.get(state, & &1.last_frame_timestamp) end, &assert(&1 > 1000), timeout: 30_000)
+    Expect.poll!(fn -> now() - Agent.get(state, & &1.last_frame_timestamp) end, &assert(&1 > 1000), timeout: 30_000)
 
     frames_while_blocked = Agent.get(state, & &1.frame_count)
     ensure_some_frames(page)
@@ -96,7 +97,7 @@ defmodule PlaywrightEx.Library.ScreencastTest do
 
     Runtime.Promise.resolve(callback_done, nil)
 
-    Utils.poll(
+    Expect.poll!(
       fn ->
         Page.evaluate!(page, """
         () => {

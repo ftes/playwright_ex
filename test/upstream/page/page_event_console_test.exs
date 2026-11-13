@@ -4,11 +4,12 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
 
   @browser_name System.get_env("BROWSER", "chromium")
 
+  alias PlaywrightEx.Expect
+
   alias PlaywrightEx.ConsoleMessage
   alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Page
   alias PlaywrightEx.TestServer
-  alias PlaywrightEx.Utils
 
   @moduletag :page
 
@@ -270,7 +271,7 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
     }
     """)
 
-    Utils.poll(fn -> Agent.get(messages, & &1) end, &assert(&1 == ["begin", "end"]))
+    Expect.poll!(fn -> Agent.get(messages, & &1) end, &assert(&1 == ["begin", "end"]))
   end
 
   test "CM-014 should have timestamp", %{page: page} do

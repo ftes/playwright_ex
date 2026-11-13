@@ -84,9 +84,14 @@ storage state and cookies, `@result_options` for `Credentials.create`).
   fixtures, and they would live in generated moduledocs) and a compile-only checker (weaker, as
   the tests give compiling for free).
 - Out of scope: `launchServer`/`BrowserServer` (JS-only), `connectOverCDP(transport)`, function
-  serialization, the inspector, the test runner (`toPass`, `expect.poll`, soft asserts, jest
-  matchers). `to_have_screenshot(target, path:)` and `to_match_aria_snapshot(target, path:)` stay,
-  with an explicit path in place of `testInfo`.
+  serialization, the inspector, Playwright Test (jest matchers); `PlaywrightEx.Test` is an
+  ExUnit layer instead (see Test runner), whose tests give the matchers a ported `testInfo` for
+  snapshot names, soft errors, steps and the test's deadline. `toPass` and `expect.poll` are
+  matchers of a function (`Expect.to_pass/2`, `Expect.poll/3`), `poll`'s jest matcher an ExUnit
+  assertion. `expect.soft` is `soft/1`, a receiver as `not_/1` is (`isSoft`), and
+  `expect(x, message)` is `message/2` (`message`), in any order with them.
+  `to_have_screenshot(target, path:)` and `to_match_aria_snapshot(target, path:)` stay, with an
+  explicit path in place of a `name`, also outside a test.
 - Consumer requests (phoenix_test_playwright, fluffy) were checked against the official
   clients; only additive ones were kept (tuple matchers, the error `log` field,
   `to_have_screenshot` with a path, `Driver.version/0`, `mix playwright_ex.cli`). Per-call client
@@ -117,6 +122,19 @@ rejects with `TargetClosedError` instead of hanging. `async/2` runs a
 function in a process of its own and settles a local promise, or a latch (`owner:` an object,
 `shared: true` the calling process). `void/1` fires and forgets. `then_`/`catch_` are lazy and
 run in the awaiter; `race`/`all` are selective receives.
+
+A process the client starts on one caller's behalf carries that caller's `$callers`, as a `Task`
+does (`PlaywrightEx.Runtime.Callers`): an async function's (`Promise.start`), a user listener's
+subscription process, and the listener processes that run a user callback (routes, WebSocket
+routes and their handlers, bindings, locator handlers), which adopt the registrant's `$callers`,
+captured at registration as `RouteHandler` captures its zone. So `testInfo`, the Ecto sandbox and
+Mox find the test there, and an error nothing handles (the listener sink) fails the test of the
+process's `$callers`, as upstream's worker fails its current test (`workerMain.ts`
+`unhandledError`); elsewhere it is logged. Shared processes (the connection, transport, pool,
+supervisors, async functions started in the connection) get none. Rejected: `$callers` in the
+zone, as upstream finds the test through the worker's global, not the zone, a saved zone's `run`
+ends before the error reaches the sink, and listeners, bindings and locator handlers have no
+saved zone upstream.
 
 Outgoing messages are buffered and written once per turn of the connection process, which
 replaces per-message writes (a subscription update arrived ~1 ms after the call it precedes) and
@@ -231,9 +249,12 @@ jest-matcher-utils/pretty-format/jest-diff (ExUnit.Diff is private and colour-on
 ## URL globs
 
 Globs become regexes through the driver (`LocalUtils.globToRegex`, cached per glob, base URL and
-WebSocket flag), as Python, Java and .NET do. Function matchers get the URL string, as in those
-clients; `URLPattern` has no Elixir counterpart and is dropped. A local port of `urlMatch` with a reduced WHATWG
-URL was tried and reverted: 417 more lines to keep exact for no user-visible gain.
+WebSocket flag), as Python, Java and .NET do. Function matchers get the URL as a `URI`
+(`URI.parse/1`), Elixir's counterpart of the `URL` upstream passes; those clients pass the string,
+having no such struct. It is not WHATWG-normalized and has no `searchParams`
+(`URI.decode_query(uri.query || "")`). `URLPattern` has no Elixir counterpart and is dropped. A
+local port of `urlMatch` with a reduced WHATWG URL was tried and reverted: 417 more lines to keep
+exact for no user-visible gain.
 `toHaveURL` with a base URL uses `URI.merge` plus lowercasing, less exact than WHATWG on
 default ports, IDN and percent-encoding.
 
@@ -246,6 +267,184 @@ issues. So driver-rendered text (call logs, errors) stays JS. Text the client re
 `to_string` and the matchers' `Locator:` line read `Page.get_by_role(page, :button, name: "Submit")`.
 `cssParser` is not ported (CSS bodies stay strings). Driver install hints name
 `mix playwright_ex.install`.
+
+## Test runner
+
+`PlaywrightEx.Test`'s core is native, not a port. ExUnit is the runner, as pytest, NUnit and JUnit
+are for the non-JS clients, whose plugins (pytest-playwright, Playwright.NUnit, Java's
+`@UsePlaywright`) it follows: Playwright Test's names and defaults (trace, screenshot and video
+modes, artifact names, `testInfo.outputDir`, context defaults), and upstream's artifact code as
+the model (`ArtifactsRecorder` hooks on `ClientInstrumentation`, `mergeTraceFiles`). The only
+fixture the facade can't provide is a pooled browser, so it is an explicit module; contexts and
+pages come from the plain API, and the user owns the ExUnit context map. Everything about the
+test (recording, context defaults, soft errors, output and snapshot paths, steps) is found
+through the calling process or its `$callers`, as the Ecto sandbox finds its owner. Settings with
+no call site (the recording modes) are config plus ExUnit tags; the rest are arguments.
+
+| upstream | here |
+|---|---|
+| worker `browser` fixture, worker reuse by hash | `BrowserPool.browser/1` (cap `workers`, reuse by key, stopped after a failure; a key is all of its options, as the hash) |
+| `connectOptions` | `connect_options` (part of the key) |
+| env defaults (`PW_TEST_CONNECT_*`, `PLAYWRIGHT_TEST_BASE_URL`) | not read: upstream's runner and tools set them, nothing does here; config only, `System.get_env` in `config/test.exs` |
+| `playwright` fixture | `BrowserPool.playwright/1` |
+| `context`/`page` fixtures, `browser.newContext()` | `Browser.new_context!/2`, `BrowserContext.new_page!/1`; `PlaywrightEx.Case` puts them together |
+| `request` fixture | `APIRequest.new_context!/2` in the test (disposed at its end); not in `PlaywrightEx.Case`, where each test would pay for it |
+| auto `_setupArtifacts` | the recording of every registered test (`error-context.md` whatever the modes) |
+| `_combinedContextOptions` (`{...contextOptions, ...options}`) | Playwright Test's defaults, then config `context_options`, then the call's (`key in options`) |
+| `actionTimeout`, `navigationTimeout` (default 0) | config `action_timeout`, `navigation_timeout` (default `:infinity`), set on each context |
+| test timeout, `closeReason` "Test timeout of Nms exceeded." | ExUnit's timeout; the recorder closes the test's contexts with that reason just before it |
+| `test.use({ trace, screenshot, video })` | `@moduletag`/`@describetag`/`@tag` over config |
+| `testIdAttribute` (per test) | config `test_id_attribute`, set on each pooled driver: the client's value is global to the VM, not to a worker |
+| `--trace <mode>` | `TRACE` read in `config/test.exs` |
+| `test.info()` | `info/0` (`test_pid`, `file`, `test_name`, `output_dir`, `retry`, `timeout`), raises outside a test |
+| `testInfo.status`, `errors`, `expectedStatus`, `duration` in teardown | `info(test_pid)` in `on_exit` (another process), kept until ExUnit's `on_exit` process exits |
+| `testInfo.outputDir` removed before the test, `-retryN`, `preserveOutput` | removed in the test's setup; a test under `mix test --failed` is a retry (the one after its `-retryN` dirs); a run without it removes the test's `-retryN` dirs, not all of `output_dir` (`createRemoveOutputDirsTask`), which `--failed` needs; config `preserve_output` |
+| `testInfo.outputPath`/`snapshotPath` | `output_path(name)` (one string, no segments), `snapshot_path(name, opts)` (a string or a list of segments) |
+| `test.step` | `step/2,3` (no timeout) |
+| `testInfo.attach` | `attach/2` (`test.attach` step, `trace.attachments`) |
+| list reporter's `npx playwright show-trace <path>` | a failure prints `mix playwright_ex.cli show-trace <path>` |
+| `testInfo.retry`, retry modes (`on-first-retry`, ...) | ExUnit has no retries in a run: `mix test --failed` is the retry (`info/0`'s `retry`), and the modes (`:on_first_retry`, ...) go by it, as upstream's `_shouldCaptureTrace`, `shouldCaptureVideo` and `SnapshotRecorder` |
+
+Deviations the port requires:
+
+- Closing the test's leftover contexts, last in its `on_exit`: a pooled browser outlives the test,
+  where upstream's worker browser closes them later. Its request contexts left are disposed, as
+  upstream's `request` fixture is.
+- The test's listeners don't run as the runner closes its contexts, as upstream's do in the
+  `context` fixture's teardown: the test's process, and the state linked to it, have exited (#209).
+- A video of every context the test creates, not only the fixtures' (there are no context
+  fixtures), and `video.show.test`'s title overlay on all of them.
+- `actionTimeout`/`navigationTimeout` per context, in the listener's after-create hook (and a
+  request context's `timeout`), not on the Playwright (`_setupContextOptions`): a pooled driver's
+  Playwright outlives the test and serves any process.
+- The test timeout's close before the timeout. Upstream fails the test, then closes its contexts
+  with the reason; ExUnit kills the test process, which nothing can follow. So the test's
+  recorder closes them `min(1 s, 5%)` before ExUnit's timeout (`--trace` and `:infinity` have
+  none): the close's artifact steps and the failing call's reply fit in it (about 50 ms with a
+  trace and a screenshot), and a test stuck outside Playwright still gets ExUnit's
+  `TimeoutError`. ExUnit's clock starts at the test process's spawn, ours at the registration
+  just after. A test that ends earlier cancels it.
+- `use PlaywrightEx.Test` as the first line of a case template's body: a template's own `setup`
+  callbacks run before those its `using` brings in, so the test is registered before them.
+
+A pooled driver hosts one browser, as upstream's worker runs its project's. Each pooled driver gets
+one static listener when it starts (`runBeforeCreateBrowserContext`, `runAfterCreateBrowserContext`,
+`runBeforeCloseBrowserContext` and their request context counterparts), which finds the creating
+process's test (an ETS lookup of it and its `$callers`) and hands the context to that test's
+recorder, so a test's recording sees the contexts of all its browsers. The recorder process
+starts at the test's first context (at its registration when it traces, for its steps): a test
+without contexts runs none, and its `error-context.md` comes from `TestInfo`. A context a test
+process creates before its registration (a template's `setup` with the `use` only in `using`)
+makes the registration raise with the fix; one outside any test gets no defaults and no
+recording. The driver also adds every call's stack to each trace on its connection, so the trace
+merge keeps a chunk's own actions' stacks and sources.
+
+The pool is upstream's worker model. `browser/1` is held by the scope that calls it: `setup_all`'s
+module (upstream runs a file in one worker), or the test (a `Task` resolves to it through
+`$callers`); a test of a module that holds one calls on its module's, as upstream's tests share
+their worker's `browser`. Its seats are upstream's worker slots: each runs one driver and one
+browser of one key (all of the options, as upstream's worker hash covers the project's), reused warm
+by the next scope of its key unless the scope failed, else stopped (upstream replaces a worker after
+a failure). A scope with no known result (no registered test, a doctest) counts as passed: upstream
+always knows, and discarding the unknown would start a driver per module of a plain `ExUnit.Case`
+suite. At most `workers` seats are held (upstream's, default half the cores,
+`packages/playwright/src/common/config.ts:111`); waiters are served first come first served from the
+head, as `_findFirstJobToRun` takes the queue's first job (its locks and per-project limits are not
+ported). A seat of another key restarts in place, its stop awaited by the new holder's `browser/1`,
+as `_runJobInWorker` awaits `worker.stop()` before it starts a worker of another hash
+(`packages/playwright/src/runner/dispatcher.ts:153`). A stop is fast (a median 28 ms, at most 120
+ms, over 97 in the test suite), so where it is awaited barely matters; the seats keep upstream's
+accounting. A module that waits for one costs nothing, so ExUnit's `max_cases` above `workers` is
+fine. A scope that holds one takes its further keys over the cap, so none waits while holding one;
+seats over `workers` stop when they go idle. The release is the last step of the test's `on_exit`
+(after its artifacts) or an `on_exit` of `setup_all`'s, never a `DOWN`: `on_exit` runs after the
+test process exits. A module's outcome is its tests', which ExUnit's runner spawns from the process
+that ran `setup_all` (`Process.info(pid, :parent)`). The drivers stop in `ExUnit.after_suite/1`, as
+`mix test` halts without stopping applications (#191). The pool starts on first use, never with the
+application: a release has no ExUnit.
+
+Compared with upstream's dispatcher (`packages/playwright/src/runner/dispatcher.ts`,
+`testGroups.ts`), a worker is the same (one Playwright and one browser of one hash, replaced after a
+failure), and so is matching a job to a slot (`_scheduleJob`: a free worker of the hash, else a free
+slot, restarting a worker of another hash), except that of the free seats an empty one goes first,
+then the longest idle, where upstream takes the first. The differences:
+
+| | Playwright Test | here |
+|---|---|---|
+| unit of work | a test group: a file's tests of one project | the scope that calls `browser/1`: a module (`setup_all`) or a test, as ExUnit schedules modules |
+| ordering | the queue grouped by hash, so a worker rarely switches | ExUnit's random module order (not portable: ExUnit owns it), so a run that mixes configurations restarts workers often: one configuration per invocation |
+| idle workers | `_isWorkerRedundant` stops a worker no queued job needs | restarted lazily, when a scope of another key takes the seat: there is no queue to look ahead |
+| where waiting happens | the dispatcher's queue, before a worker runs the group | inside `browser/1`: no timeout in `setup_all`, the test timeout in `setup` or a test |
+| a scope needing a second configuration | another project, another worker | a further key over `workers`, so a scope that holds one never waits for itself |
+| concurrency | `workers`, half the cores | ExUnit's `max_cases` (twice the schedulers, about four times as many) with `workers` drivers: modules past `workers` wait at no cost, those that never call `browser/1` are unaffected |
+| per-project worker limit | `project.workers` | not needed: one configuration per invocation sets `workers` per run; serial runs use ExUnit's `async: false` |
+| `fullyParallel` | a file's tests across workers | not ported: ExUnit runs a module's tests serially |
+
+The defaults: `workers` half the schedulers (upstream's number), ExUnit's `max_cases` unchanged.
+`workers` is not `max_cases`: each running browser test keeps a browser, a renderer and the
+driver busy, so twice the cores oversubscribes the CPU. A suite that mostly waits on the app needs
+more `workers`, toward the core count (the guide's Workers section has the measurements).
+
+Upstream knows a test's result in-process (`testInfo.errors`, `status`) when it closes contexts
+and keeps artifacts; ExUnit tells `on_exit` nothing. So `use PlaywrightEx.Test` brings a `test`
+macro that hands the body to `ExUnit.Case.test/3` with a mark at its end and a `catch` that
+notes the error and re-raises it: a test passed when it was marked and its process exited
+`:shutdown`, which a monitor sees for raises, exits, throws, timeouts (`:killed`), linked crashes
+and failed setups. The `catch` gives `error-context.md` the errors; failure output stays
+ExUnit's, byte for byte (tested). Its `setup` registers the test and adds the test's first
+`on_exit`, which runs last. The mark also takes the end-of-body screenshots
+(`didFinishTestFunction`). Not covered: doctests and other macros' tests (no mark: their
+artifacts are kept), a failure only in an `on_exit` (it counts as passed), and a failure in a
+case template's own `setup` before the registration. Rejected: an ExUnit formatter (a second
+piece to install; `module_finished` never comes for a module `--max-failures` stops), a
+`defoverridable` wrapper of each test (renames the test's frame), and a monitor on the
+`setup_all` process (its `DOWN` races the user's `on_exit`).
+
+A crashed browser fails the remaining tests of its module, where upstream restarts its worker;
+the failed module's driver is then stopped. ExUnit gives the context a
+`parameterize:` module's values, not its parameter map, which a `setup` may overwrite: the
+output dir's hash takes the map from the runner's `%ExUnit.Test{}` (internal API), else guesses
+it from the values.
+
+The matchers' `testInfo` is the running test, found by the calling process or its `$callers`
+(upstream's worker sets it per test): it resolves snapshot names by upstream's path templates
+and keeps the test's errors, a matcher result's `softError` (a snapshot it wrote, a soft
+matcher's failure). The `test` macro's mark raises them at the end of the body, one as itself and
+several as an `ExUnit.MultiError` (with a later failure too), which ExUnit 1.18 to 1.20 report as
+numbered failures; a test without them fails as before. A matcher outside a test (no `testInfo`)
+prints the soft error, as before, and a soft matcher there fails as any, as upstream's without a
+step.
+
+The matchers and traces need part of Playwright Test's worker, so that part is ported:
+`PlaywrightEx.Test.TestInfo` (`testInfo.ts`: snapshot paths, `_failWithError`, steps, `attach`),
+`PlaywrightEx.Test.TestTracing` (`testTracing.ts`: `test.trace`) and `step/3` (`test.step`),
+with upstream source references and `-- not ported`/`# deviation:` comments. They have no
+`@upstream`, as parity tracks the client API, not the runner; the rest of the runner is native.
+
+`toPass` and `expect.poll` are ported (`matchers.ts`, `expect.ts`, `pollAgainstDeadline`), as
+upstream's specs and suites ported onto `PlaywrightEx.Test` (LiveView's e2e) use them often
+and a helper per suite drifted from upstream's intervals, deadlines and steps. Being matchers,
+they get `expect.soft`, steps and the expect config for free; `poll`'s matcher is an ExUnit
+assertion (`Expect.poll(fn -> v end, &assert(&1 == 3))`), as the jest matchers are not ported. Their
+callbacks run in the calling process, not raced against the deadline (a running callback overruns
+it), for the reason a step has no timeout.
+
+Rejected: porting the rest of Playwright Test, `createExpect` (`expect.configure`; `expect.soft`
+and `expect(x, message)` are fields of the receiver, `soft/1` and `message/2`, not a configured
+`expect`), a step's `timeout` (a process can't be interrupted, so the body would run in another
+process, with another `self()` and mailbox, and on past the timeout; the test's timeout bounds
+it). For the pool and fixtures: a browser shared by every test at once (one connection serves
+any process), its one driver and browser the bottleneck. On LiveView's e2e suite it was slower
+than a worker per module and failed under load, for about half the memory
+([#213](https://github.com/ftes/playwright_ex/issues/213)); on an app's full e2e suite (18 cores,
+`max_cases` 18) it took 106.8 s at 4.5 GB, against 93.8 s at 6.5 GB for 16 workers. Also
+rejected: ambient fixtures (context keys the
+runner fills in: the user owns the map), a lazy module lease (a module's first test taking the
+browser for the module; a scope holds what it calls), serving waiters LIFO (first come first
+served bounds every wait), an `:open` lease that outlives its scope, `fresh: true` for a cold
+driver (`on_start` sets up each new one), and tags for options other than the recording modes (a
+template maps its own tags). The features ExUnit can't host, with their replacements: the guide's
+[Not supported](../guides/testing-with-exunit.md#not-supported).
 
 ## Mirroring upstream specs
 
@@ -267,8 +466,11 @@ WebSocket framing uses cowlib's `cow_ws` on the raw socket: Bandit's WebSock ans
 with 1000 and hides the peer's close frame. `TestProxy` is a small `:gen_tcp` HTTP and SOCKS5
 proxy. Snapshot comparison and video decoding use the driver's own comparator and ffmpeg.
 `launchServer` specs run on the driver's `launch-server` CLI or upstream's unmodified
-`remote-server-impl.js`, as Python's and Java's suites do. Tests of driver env vars run a second
-driver with its own env; under test the client keeps `__testHook*` keys per connection. Every long-lived child (servers, the
+`remote-server-impl.js`, as Python's and Java's suites do. The suite runs on `PlaywrightEx.Test`:
+each upstream and example module holds `BrowserPool.browser/1`, upstream's worker, all on one
+set of options (under test, set up as Playwright Test's fixtures by `on_start`), so they reuse each
+other's drivers. Cleanup closes only what a
+test or module created: a passing module's driver goes on to the next. Tests of driver env vars run a second driver with its own env; under test the client keeps `__testHook*` keys per connection. Every long-lived child (servers, the
 `ClientProcess` BEAM) exits on stdin EOF, so a killed test BEAM leaves no orphans
 (`no_orphan_processes_test`). Upstream assets come from the pinned release cache, not vendored.
 Stress and perf runs are manual, not CI.

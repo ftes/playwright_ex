@@ -4,6 +4,7 @@
 upstream_shaped = [
   ~r"lib/playwright_ex/(api|client|isomorphic|matchers|protocol|runtime)/",
   ~r"lib/playwright_ex/driver.ex",
+  ~r"lib/playwright_ex/test/(test_info|test_tracing).ex",
   ~r"test/support/test_server.ex",
   ~r"test/support/utils.ex"
 ]

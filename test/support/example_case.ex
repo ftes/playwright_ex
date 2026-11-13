@@ -29,8 +29,14 @@ defmodule PlaywrightEx.ExampleCase do
 
   A body that is one `test "name", %{page: page} do ... end` (upstream's test-runner examples)
   runs that block, its pattern matched against those four. Output (`IO.puts`) is captured.
+
+  `browser` is the module's `PlaywrightEx.Test.BrowserPool.browser/1`, on `UpstreamCase`'s
+  driver (`PlaywrightEx.UpstreamCase.pool_options/0`, see `PlaywrightEx.DriverCleanup`), and
+  `playwright` its driver's.
   """
   use ExUnit.CaseTemplate
+  # First: the template's own `setup` creates the context.
+  use PlaywrightEx.Test
 
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
@@ -38,11 +44,14 @@ defmodule PlaywrightEx.ExampleCase do
   alias PlaywrightEx.Page
   alias PlaywrightEx.Route
   alias PlaywrightEx.Runtime.Heap
+  alias PlaywrightEx.Test.BrowserPool
 
   @html "<!doctype html><title>Example</title>"
 
   using do
     quote do
+      # `example` is a `test`.
+      use PlaywrightEx.Test
       import PlaywrightEx.ExampleCase, only: [example: 3]
 
       # The docs' examples use the short names.
@@ -51,10 +60,13 @@ defmodule PlaywrightEx.ExampleCase do
     end
   end
 
-  setup_all context do
-    %{playwright: playwright, browser: browser} = PlaywrightEx.TestWorkers.checkout(:example, context.module)
-    %{playwright: playwright, browser: browser}
+  setup_all do
+    browser = BrowserPool.browser(PlaywrightEx.UpstreamCase.pool_options())
+    %{playwright: BrowserPool.playwright(browser), browser: browser}
   end
+
+  setup %{playwright: playwright, browser: browser},
+    do: PlaywrightEx.DriverCleanup.track_test(playwright, keep: [browser])
 
   setup %{playwright: playwright, browser: browser} = tags do
     context = Browser.new_context!(browser)
@@ -67,11 +79,21 @@ defmodule PlaywrightEx.ExampleCase do
     offline.(context)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, "https://example.com/")
-    # The contexts the example creates (`Browser.new_context`, a browser of its own).
+    # The contexts the example creates (`Browser.new_context`, a browser of its own), in the test
+    # or its `Task`s: the listener runs for every context of the driver.
     instrumentation = Heap.get(playwright, :_instrumentation)
-    listener = %{runAfterCreateBrowserContext: offline}
+    test_pid = self()
+
+    listener = %{
+      ref: make_ref(),
+      runAfterCreateBrowserContext: fn context ->
+        if self() == test_pid or test_pid in List.wrap(Process.get(:"$callers")), do: offline.(context)
+      end
+    }
+
     ClientInstrumentation.add_listener(instrumentation, listener)
-    on_exit(fn -> ClientInstrumentation.remove_listener(instrumentation, listener) end)
+    # Exactly this listener: the ported `remove_listener` removes the last one for an unknown one.
+    on_exit(fn -> Heap.update(instrumentation, :listeners, &List.delete(&1, listener)) end)
     %{context: context, page: page}
   end
 

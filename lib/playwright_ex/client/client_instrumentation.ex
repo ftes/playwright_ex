@@ -9,8 +9,11 @@ defmodule PlaywrightEx.Client.ClientInstrumentation do
 
   Deviations: JS listeners mutate the options of `runBeforeCreateBrowserContext` and
   `runBeforeCreateRequestContext`; here they return them, and the hook returns the options of the
-  last listener. The `ApiCallData` the `onApiCall*` listeners get is a copy (the api zone): they
-  cannot assign its `callId` or `userData`.
+  last listener. The `ApiCallData` the `onApiCall*` listeners get is a copy (the api zone), so
+  an `onApiCallBegin` listener returns the fields it assigns (`%{callId: id}`; anything other
+  than a map assigns none), the next listener gets them, and the hook returns them all (or `nil`)
+  for the caller to put in the api zone (`PlaywrightEx.Client.ChannelOwner._assign/2`), where
+  `onApiCallEnd` finds them, also when another process of the call assigned them.
 
   The instrumentation is owned by the connection that creates it (`createInstrumentation` in
   `new Connection`); a remote connection shares its parent's (`connect.ts`).
@@ -37,7 +40,18 @@ defmodule PlaywrightEx.Client.ClientInstrumentation do
 
   def remove_all_listeners(this), do: put(this, :listeners, [])
 
-  def on_api_call_begin(this, api_call, channel), do: _on(this, :onApiCallBegin, [api_call, channel])
+  # "Instrumentation can mutate the data, for example assign the callId.": see the moduledoc.
+  def on_api_call_begin(this, api_call, channel) do
+    Enum.reduce(_listeners(this), nil, fn listener, assigned ->
+      with fun when fun != nil <- listener[:onApiCallBegin],
+           %{} = more <- fun.(if(assigned, do: Map.merge(api_call, assigned), else: api_call), channel) do
+        Map.merge(assigned || %{}, more)
+      else
+        _ -> assigned
+      end
+    end)
+  end
+
   def on_api_call_end(this, api_call), do: _on(this, :onApiCallEnd, [api_call])
   def on_will_pause(this, options), do: _on(this, :onWillPause, [options])
   def on_page(this, page), do: _on(this, :onPage, [page])

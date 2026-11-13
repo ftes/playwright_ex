@@ -1,7 +1,5 @@
 # The snippets of `guides/testing-with-exunit.md`, run against an app on `PlaywrightEx.TestServer`.
-# Deviations from the guide: each module starts its own driver, browser and app (the guide starts
-# one driver and browser for the run in `test_helper.exs` and reads `BASE_URL`; this suite's
-# test_helper is shared), and the browser is `BROWSER`'s.
+# Deviations from the guide: each module starts its own app, and the browser is `BROWSER`'s.
 
 defmodule PlaywrightEx.Guides.TestingWithExUnit.App do
   @moduledoc false
@@ -60,84 +58,35 @@ end
 
 defmodule PlaywrightEx.Guides.TestingWithExUnit.BrowserCase do
   @moduledoc false
+  # The guide's case template from the pieces. Deviation: `base_url` is the module's own app,
+  # not the config's.
   use ExUnit.CaseTemplate
+  use PlaywrightEx.Test
 
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
   alias PlaywrightEx.Guides.TestingWithExUnit.App
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.TestBrowser
-  alias PlaywrightEx.Tracing
+  alias PlaywrightEx.Test.BrowserPool
 
-  setup_all %{module: module} do
-    start_supervised!({PlaywrightEx.Supervisor, name: module})
+  using do
+    quote do
+      use PlaywrightEx.Test
+      alias PlaywrightEx.{Browser, BrowserContext, Expect, Locator, Page, Test}
+      alias PlaywrightEx.Test.BrowserPool
+    end
+  end
+
+  setup_all do
     server = App.start!(Path.join(System.tmp_dir!(), "guide-app-#{System.unique_integer([:positive])}"))
-
-    browser = PlaywrightEx.playwright(module) |> TestBrowser.browser_type() |> BrowserType.launch!()
-    on_exit(fn -> Browser.close(browser) end)
-    %{browser: browser, base_url: server.prefix}
+    %{base_url: server.prefix, browser: BrowserPool.browser()}
   end
 
+  # `@tag locale: "de-DE"` on a test.
   setup %{browser: browser} = ctx do
-    context =
-      Browser.new_context!(browser,
-        base_url: ctx.base_url,
-        storage_state: ctx[:storage_state]
-      )
-
+    options = [base_url: ctx.base_url] ++ Enum.to_list(Map.take(ctx, [:locale]))
+    context = Browser.new_context!(browser, options)
     BrowserContext.set_default_timeout(context, 5_000)
-    on_exit(fn -> BrowserContext.close(context) end)
-    page = BrowserContext.new_page!(context)
-    tracing = BrowserContext.tracing(context)
-    Tracing.start!(tracing, screenshots: true, snapshots: true, sources: true)
-    dir = artifacts_dir(ctx.module, ctx.test)
-
-    on_exit(fn ->
-      Page.screenshot(page, path: Path.join(dir, "failure.png"))
-      Tracing.stop(tracing, path: Path.join(dir, "trace.zip"))
-    end)
-
-    %{context: context, page: page}
-  end
-
-  def artifacts_dir(module, test) do
-    Path.join(["tmp/test-results", inspect(module), String.replace(to_string(test), ~r/\W+/, "_")])
-  end
-end
-
-defmodule PlaywrightEx.Guides.TestingWithExUnit.RetainOnFailure do
-  @moduledoc "An ExUnit formatter that deletes the artifacts of passing tests (retain-on-failure)."
-  use GenServer
-
-  alias PlaywrightEx.Guides.TestingWithExUnit.BrowserCase
-
-  @impl true
-  def init(opts), do: {:ok, opts}
-
-  @impl true
-  def handle_cast({:test_finished, %ExUnit.Test{state: nil} = test}, state) do
-    File.rm_rf!(BrowserCase.artifacts_dir(test.module, test.name))
-    {:noreply, state}
-  end
-
-  def handle_cast(_event, state), do: {:noreply, state}
-end
-
-defmodule PlaywrightEx.Guides.TestingWithExUnit.Eventually do
-  @moduledoc false
-  @doc "Calls `fun` until it doesn't raise, for up to `timeout` ms, then raises its last error."
-  def eventually(fun, timeout \\ 5_000, interval \\ 100) do
-    retry(fun, System.monotonic_time(:millisecond) + timeout, interval)
-  end
-
-  defp retry(fun, deadline, interval) do
-    fun.()
-  rescue
-    error ->
-      if System.monotonic_time(:millisecond) >= deadline, do: reraise(error, __STACKTRACE__)
-      Process.sleep(interval)
-      retry(fun, deadline, interval)
+    %{context: context, page: BrowserContext.new_page!(context)}
   end
 end
 
@@ -155,31 +104,7 @@ end
 defmodule PlaywrightEx.Guides.TestingWithExUnit.SignUpTest do
   use PlaywrightEx.Guides.TestingWithExUnit.BrowserCase, async: true
 
-  alias PlaywrightEx.Expect
   alias PlaywrightEx.Guides.TestingWithExUnit.Assertions
-  alias PlaywrightEx.Guides.TestingWithExUnit.BrowserCase
-  alias PlaywrightEx.Guides.TestingWithExUnit.Eventually
-  alias PlaywrightEx.Guides.TestingWithExUnit.RetainOnFailure
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-
-  # Retain on failure: the setup's `on_exit` wrote each test's artifacts; the formatter deletes
-  # those of passing ones.
-  setup_all do
-    on_exit(fn ->
-      dir = BrowserCase.artifacts_dir(__MODULE__, :"test signs up")
-      assert File.exists?(Path.join(dir, "trace.zip"))
-      assert File.exists?(Path.join(dir, "failure.png"))
-
-      failed = %ExUnit.Test{module: __MODULE__, name: :"test signs up", state: {:failed, []}}
-      {:noreply, _} = RetainOnFailure.handle_cast({:test_finished, failed}, [])
-      assert File.exists?(dir)
-
-      {:noreply, _} = RetainOnFailure.handle_cast({:test_finished, %{failed | state: nil}}, [])
-      refute File.exists?(dir)
-      File.rm_rf!(Path.join("tmp/test-results", inspect(__MODULE__)))
-    end)
-  end
 
   test "signs up", %{page: page} do
     Page.goto!(page, "/sign-up")
@@ -188,9 +113,37 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.SignUpTest do
     Expect.to_have_text!(Page.get_by_role(page, :status), "Welcome, ada@example.com")
   end
 
-  test "artifacts_dir" do
-    assert BrowserCase.artifacts_dir(MyApp.SignUpTest, :"test signs up") ==
-             "tmp/test-results/MyApp.SignUpTest/test_signs_up"
+  @tag locale: "de-DE"
+  test "a tag of the case template", %{page: page} do
+    assert Page.evaluate!(page, "navigator.language") == "de-DE"
+  end
+
+  # Deviation: the second browser is `BROWSER`'s too (CI installs one browser per job), launched
+  # with other options.
+  test "two users edit one document", %{browser: browser} do
+    ada = Browser.new_context!(browser)
+    bob = Browser.new_context!(browser)
+    other = BrowserPool.browser(launch_options: [slow_mo: 1])
+    eve = Browser.new_context!(other)
+
+    ada_page = BrowserContext.new_page!(ada)
+    bob_page = BrowserContext.new_page!(bob)
+    eve_page = BrowserContext.new_page!(eve)
+    assert BrowserContext.browser(eve) == other
+    # Another worker, held by the module over `workers`.
+    assert BrowserPool.playwright(other) != BrowserPool.playwright(browser)
+    for page <- [ada_page, bob_page, eve_page], do: Page.set_content!(page, "<p>Doc</p>")
+  end
+
+  # "Devices". Deviation: the browser is `BROWSER`'s.
+  test "on a phone" do
+    alias PlaywrightEx.Playwright
+    browser = BrowserPool.browser()
+    iphone = Playwright.devices(BrowserPool.playwright(browser))["iPhone 13"]
+    page = BrowserContext.new_page!(Browser.new_context!(browser, Map.put(iphone, :locale, "de-DE")))
+    assert iphone.default_browser_type == "webkit"
+    assert Page.viewport_size(page) == %{width: 390, height: 664}
+    assert Page.evaluate!(page, "[navigator.language, navigator.userAgent]") == ["de-DE", iphone.user_agent]
   end
 
   test "assert_expect raises a failed matcher as an ExUnit.AssertionError", %{page: page} do
@@ -200,16 +153,13 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.SignUpTest do
       Assertions.assert_expect(fn -> Expect.to_have_text!(Page.get_by_role(page, :status), "Saved", timeout: 100) end)
     end
   end
-
-  test "eventually raises the last error after the timeout" do
-    assert_raise ExUnit.AssertionError, fn -> Eventually.eventually(fn -> assert 1 == 2 end, 200) end
-  end
 end
 
 defmodule PlaywrightEx.Guides.TestingWithExUnit.LoggedInTest do
-  use PlaywrightEx.Guides.TestingWithExUnit.BrowserCase, async: true
+  # "Logging in once", without the case template.
+  use ExUnit.Case, async: true
 
-  import PlaywrightEx.Guides.TestingWithExUnit.Eventually
+  use PlaywrightEx.Test
 
   alias PlaywrightEx.APIRequestContext
   alias PlaywrightEx.APIResponse
@@ -217,11 +167,15 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.LoggedInTest do
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.ConsoleMessage
   alias PlaywrightEx.Expect
+  alias PlaywrightEx.Guides.TestingWithExUnit.App
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Test.BrowserPool
 
-  setup_all %{browser: browser, base_url: base_url} do
-    context = Browser.new_context!(browser, base_url: base_url)
+  setup_all do
+    server = App.start!(Path.join(System.tmp_dir!(), "guide-app-#{System.unique_integer([:positive])}"))
+    browser = BrowserPool.browser()
+    context = Browser.new_context!(browser, base_url: server.prefix)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, "/login")
     Page.get_by_label(page, "Email") |> Locator.fill!("ada@example.com")
@@ -231,8 +185,12 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.LoggedInTest do
 
     storage_state = BrowserContext.storage_state!(context)
     BrowserContext.close!(context)
-    on_exit(fn -> File.rm_rf!(Path.join("tmp/test-results", inspect(__MODULE__))) end)
-    %{storage_state: storage_state}
+    %{browser: browser, storage_state: storage_state, base_url: server.prefix}
+  end
+
+  setup %{browser: browser, storage_state: storage_state, base_url: base_url} do
+    context = Browser.new_context!(browser, storage_state: storage_state, base_url: base_url)
+    %{context: context, page: BrowserContext.new_page!(context)}
   end
 
   test "assertions on a logged-in page", %{page: page} do
@@ -241,11 +199,13 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.LoggedInTest do
     Expect.to_be_visible!(Page.get_by_text(page, "Saved"))
     Page.get_by_role(page, :listitem) |> Expect.to_have_count!(3)
     Page.locator(page, ".error") |> Expect.not_() |> Expect.to_be_visible!()
+    Page.get_by_text(page, "Saved") |> Expect.soft() |> Expect.to_be_visible!()
+    Page.get_by_role(page, :listitem) |> Expect.soft() |> Expect.to_have_count!(3)
     assert Page.evaluate!(page, "localStorage.getItem('theme')") == "dark"
   end
 
   @tag :tmp_dir
-  test "storage_state to a file", %{context: context, browser: browser, base_url: base_url, tmp_dir: tmp_dir} do
+  test "storage_state to a file", %{browser: browser, context: context, base_url: base_url, tmp_dir: tmp_dir} do
     path = Path.join(tmp_dir, "auth.json")
     BrowserContext.storage_state!(context, path: path)
     other = Browser.new_context!(browser, base_url: base_url, storage_state: path)
@@ -255,8 +215,7 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.LoggedInTest do
     BrowserContext.close!(other)
   end
 
-  test "storage_state with IndexedDB", %{context: context} do
-    page = BrowserContext.new_page!(context)
+  test "storage_state with IndexedDB", %{context: context, page: page} do
     Page.goto!(page, "/dashboard")
 
     Page.evaluate!(page, """
@@ -276,11 +235,16 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.LoggedInTest do
     refute Enum.any?(origins, &Map.has_key?(&1, :indexedDB))
   end
 
-  test "eventually", %{context: context} do
-    eventually(fn ->
+  test "to_pass and poll", %{context: context} do
+    Expect.to_pass!(fn ->
       response = APIRequestContext.get!(BrowserContext.request(context), "/api/exports/1")
       assert APIResponse.json!(response)["status"] == "done"
     end)
+
+    # Deviation: an Agent for the guide's `Repo.aggregate(Export, :count)`.
+    {:ok, exports} = Agent.start_link(fn -> 0 end)
+    count = fn -> Agent.get_and_update(exports, &{&1, &1 + 1}) end
+    Expect.poll!(fn -> count.() end, &assert(&1 == 1), timeout: 10_000)
   end
 
   test "forwarded events need an assert_receive timeout", %{page: page} do
@@ -292,58 +256,290 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.LoggedInTest do
   end
 end
 
-defmodule PlaywrightEx.Guides.TestingWithExUnit.TraceOnRerunTest do
-  # "Trace on rerun": the guide's gated setup, with `TRACE` set as by `TRACE=1 mix test --failed`.
-  # Not async: it sets an environment variable.
-  use ExUnit.Case, async: false
+defmodule PlaywrightEx.Guides.TestingWithExUnit.ArtifactsTest do
+  # "Traces, screenshots and videos": the config's `trace: :on_first_retry`, which traces the
+  # test under `mix test --failed` only. Not async: it sets the config.
+  use PlaywrightEx.Guides.TestingWithExUnit.BrowserCase, async: false
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Guides.TestingWithExUnit.App
-  alias PlaywrightEx.Guides.TestingWithExUnit.BrowserCase
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.TestBrowser
-  alias PlaywrightEx.Tracing
+  alias PlaywrightEx.Test.TestInfo
 
-  setup_all %{module: module} do
-    start_supervised!({PlaywrightEx.Supervisor, name: module})
-    server = App.start!(Path.join(System.tmp_dir!(), "guide-app-#{System.unique_integer([:positive])}"))
-    browser = PlaywrightEx.playwright(module) |> TestBrowser.browser_type() |> BrowserType.launch!()
-    System.put_env("TRACE", "1")
+  setup_all do
+    config = Application.get_env(:playwright_ex, :test)
+    Application.put_env(:playwright_ex, :test, Keyword.put(config, :trace, :on_first_retry))
 
     on_exit(fn ->
-      System.delete_env("TRACE")
-      dir = BrowserCase.artifacts_dir(__MODULE__, :"test signs up")
-      assert File.exists?(Path.join(dir, "trace.zip"))
-      File.rm_rf!(Path.join("tmp/test-results", inspect(__MODULE__)))
-      Browser.close(browser)
+      Application.put_env(:playwright_ex, :test, config)
+      dir = TestInfo.output_dir(%{module: __MODULE__, test: :"test signs up", file: __ENV__.file})
+      traced = Path.wildcard(dir <> "*/trace.zip")
+      if ExUnit.configuration()[:only_test_ids], do: assert([_ | _] = traced), else: assert(traced == [])
+      Enum.each([dir | Path.wildcard(dir <> "-retry*")], &File.rm_rf!/1)
     end)
-
-    %{browser: browser, base_url: server.prefix}
-  end
-
-  setup %{browser: browser} = ctx do
-    context = Browser.new_context!(browser, base_url: ctx.base_url)
-    BrowserContext.set_default_timeout(context, 5_000)
-    on_exit(fn -> BrowserContext.close(context) end)
-
-    if System.get_env("TRACE") do
-      tracing = BrowserContext.tracing(context)
-      Tracing.start!(tracing, screenshots: true, snapshots: true, sources: true)
-
-      on_exit(fn ->
-        Tracing.stop(tracing, path: Path.join(BrowserCase.artifacts_dir(ctx.module, ctx.test), "trace.zip"))
-      end)
-    end
-
-    %{context: context, page: BrowserContext.new_page!(context)}
   end
 
   test "signs up", %{page: page} do
     Page.goto!(page, "/sign-up")
     Page.get_by_label(page, "Email") |> Locator.fill!("ada@example.com")
-    Page.get_by_role(page, :button, name: "Sign up") |> Locator.click!()
+  end
+end
+
+defmodule PlaywrightEx.Guides.TestingWithExUnit.StepsTest do
+  # "Steps".
+  use PlaywrightEx.Guides.TestingWithExUnit.BrowserCase, async: true
+
+  test "signs up in steps", %{page: page} do
+    Test.step "fill in the form" do
+      Page.goto!(page, "/sign-up")
+      Page.get_by_label(page, "Email") |> Locator.fill!("ada@example.com")
+    end
+
+    status =
+      Test.step("submit", fn ->
+        Page.get_by_role(page, :button, name: "Sign up") |> Locator.click!()
+        Page.get_by_role(page, :status)
+      end)
+
+    Expect.to_have_text!(status, "Welcome, ada@example.com")
+  end
+
+  test "a boxed helper", %{page: page} do
+    sign_up(page, "ada@example.com")
+    Expect.to_have_text!(Page.get_by_role(page, :status), "Welcome, ada@example.com")
+  end
+
+  defp sign_up(page, email) do
+    Test.step "sign up", box: true do
+      Page.goto!(page, "/sign-up")
+      Page.get_by_label(page, "Email") |> Locator.fill!(email)
+      Page.get_by_role(page, :button, name: "Sign up") |> Locator.click!()
+    end
+  end
+end
+
+defmodule PlaywrightEx.Guides.TestingWithExUnit.SnapshotsTest do
+  # "Snapshots", with `snapshot_dir` in a temporary dir. Not async: it sets the config.
+  use PlaywrightEx.Guides.TestingWithExUnit.BrowserCase, async: false
+
+  alias PlaywrightEx.Test.TestInfo
+
+  @moduletag :tmp_dir
+
+  setup %{tmp_dir: tmp_dir} do
+    config = Application.get_env(:playwright_ex, :test)
+    Application.put_env(:playwright_ex, :test, Keyword.put(config, :snapshot_dir, tmp_dir))
+    on_exit(fn -> Application.put_env(:playwright_ex, :test, config) end)
+  end
+
+  test "signs up", %{page: page, tmp_dir: tmp_dir} do
+    Page.goto!(page, "/sign-up")
+    Expect.to_have_screenshot!(page, name: "home.png")
+    Expect.to_match_aria_snapshot!(Page.locator(page, "body"))
+
+    platform = Atom.to_string(elem(:os.type(), 1))
+    dir = Path.join(tmp_dir, "guides/testing_with_exunit_test.exs-snapshots")
+    assert Test.snapshot_path("home.png", kind: :screenshot) == Path.join(dir, "home-#{platform}.png")
+    assert File.exists?(Path.join(dir, "home-#{platform}.png"))
+    assert File.exists?(Path.join(dir, "signs-up-1.aria.yml"))
+    # Both written snapshots would fail the test at its end: taken here.
+    assert [{:error, %RuntimeError{}, _}, {:error, %RuntimeError{}, _}] = TestInfo.take_errors(self())
+  end
+end
+
+defmodule PlaywrightEx.Guides.TestingWithExUnit.ResultInOnExitTest do
+  # "Traces, screenshots and videos": the result in an `on_exit` that runs after the recording.
+  # Deviation: it asserts where the guide uploads a failure's trace.
+  use ExUnit.Case, async: true
+
+  @moduletag trace: :retain_on_failure
+
+  setup %{test_pid: test_pid} do
+    on_exit(fn ->
+      %{status: status, output_dir: dir} = PlaywrightEx.Test.info(test_pid)
+      assert status == :passed
+      refute File.exists?(Path.join(dir, "trace.zip"))
+    end)
+  end
+
+  use PlaywrightEx.Test
+
+  test "passes" do
+    page =
+      PlaywrightEx.BrowserContext.new_page!(PlaywrightEx.Browser.new_context!(PlaywrightEx.Test.BrowserPool.browser()))
+
+    PlaywrightEx.Page.set_content!(page, "<h1>Hi</h1>")
+  end
+end
+
+defmodule PlaywrightEx.Guides.TestingWithExUnit.WorkersTest do
+  # "Workers".
+  use ExUnit.Case, async: true
+  use PlaywrightEx.Test
+
+  alias PlaywrightEx.Browser
+  alias PlaywrightEx.Test.BrowserPool
+
+  setup_all do
+    %{browser: BrowserPool.browser()}
+  end
+
+  test "a browser of the module's, also for the test's own call", %{browser: browser} do
+    assert Browser.is_connected(browser)
+    assert BrowserPool.browser() == browser
+  end
+end
+
+defmodule PlaywrightEx.Guides.TestingWithExUnit.DebugTest do
+  # "Debugging one test". Deviation: `BROWSER`'s.
+  use ExUnit.Case, async: true
+  use PlaywrightEx.Test
+
+  alias PlaywrightEx.Browser
+  alias PlaywrightEx.BrowserContext
+  alias PlaywrightEx.Page
+  alias PlaywrightEx.Test.BrowserPool
+
+  @moduletag :debug
+  @moduletag :headed
+
+  setup_all do
+    %{browser: BrowserPool.browser(launch_options: [headless: false, slow_mo: 500])}
+  end
+
+  setup %{browser: browser} do
+    context = Browser.new_context!(browser)
+    %{context: context, page: BrowserContext.new_page!(context)}
+  end
+
+  test "a headed, slowed-down browser of the module's own", %{page: page} do
+    Page.set_content!(page, "<p>Debug</p>")
+    assert Page.text_content!(page, "p") == "Debug"
+  end
+end
+
+defmodule PlaywrightEx.Guides.TestingWithExUnit.RemoteTest do
+  # "Remote browsers": the config's `connect_options` (its env var line) as the call's, on a
+  # `run-server`.
+  use ExUnit.Case, async: true
+  use PlaywrightEx.Test
+
+  alias PlaywrightEx.Browser
+  alias PlaywrightEx.BrowserContext
+  alias PlaywrightEx.Expect
+  alias PlaywrightEx.Guides.TestingWithExUnit.App
+  alias PlaywrightEx.Page
+  alias PlaywrightEx.RemoteServer.RunServer
+  alias PlaywrightEx.Test.BrowserPool
+
+  setup_all do
+    server = RunServer.start()
+    on_exit(fn -> RunServer.close(server) end)
+    app = App.start!(Path.join(System.tmp_dir!(), "guide-app-#{System.unique_integer([:positive])}"))
+    System.put_env("PW_TEST_CONNECT_WS_ENDPOINT", RunServer.ws_endpoint(server))
+    connect_options = if(url = System.get_env("PW_TEST_CONNECT_WS_ENDPOINT"), do: [ws_endpoint: url])
+    System.delete_env("PW_TEST_CONNECT_WS_ENDPOINT")
+    browser = BrowserPool.browser(connect_options: connect_options ++ [expose_network: "<loopback>"])
+    %{browser: browser, base_url: app.prefix}
+  end
+
+  test "a page of the remote browser reaches the app on localhost", %{browser: browser, base_url: base_url} do
+    page = BrowserContext.new_page!(Browser.new_context!(browser, base_url: base_url))
+    Page.goto!(page, "/sign-up")
+    Expect.to_have_text!(Page.get_by_role(page, :button), "Sign up")
+  end
+end
+
+defmodule PlaywrightEx.Guides.TestingWithExUnit.PageChecksTest do
+  # "A check after the test" and the listener lifetimes of "Route handlers and listeners".
+  use PlaywrightEx.Case, async: true
+
+  setup %{page: page} = ctx do
+    {:ok, errors} = Agent.start(fn -> [] end)
+    Page.on(page, :page_error, fn error -> Agent.update(errors, &(&1 ++ [error])) end)
+
+    on_exit(fn ->
+      page_errors = Agent.get(errors, & &1)
+      Agent.stop(errors)
+      if !ctx[:ignore_js_errors], do: assert(page_errors == [], "unhandled page errors")
+    end)
+  end
+
+  test "no page errors: the check passes", %{page: page} do
+    Page.set_content!(page, "<p>Fine</p>")
+  end
+
+  @tag ignore_js_errors: true
+  test "a page error, ignored by the tag", %{page: page} do
+    Page.set_content!(page, "<button onclick='throw new Error(`boom`)'>Go</button>")
+    Page.get_by_role(page, :button) |> Locator.click!()
+  end
+
+  test "a listener sends to the test process: a late event is dropped with it", %{page: page} do
+    test_pid = self()
+    Page.on(page, :console, &send(test_pid, {:console, PlaywrightEx.ConsoleMessage.text(&1)}))
+    Page.evaluate!(page, "console.log('now')")
+    assert_receive {:console, "now"}
+    # Fires after the test process exited, as the context closes in the test's last `on_exit`.
+    Page.evaluate!(page, "setTimeout(() => console.log('late'), 0)")
+  end
+end
+
+defmodule PlaywrightEx.Guides.TestingWithExUnit.ProjectsCase do
+  @moduledoc false
+  # "Projects". Deviation: `BROWSER`'s browser only.
+  use ExUnit.CaseTemplate
+  use PlaywrightEx.Test
+
+  alias PlaywrightEx.{Browser, BrowserContext, Playwright}
+  alias PlaywrightEx.Test.BrowserPool
+
+  @devices %{chromium: "Desktop Chrome", firefox: "Desktop Firefox", webkit: "Desktop Safari"}
+
+  def projects, do: for(name <- [String.to_atom(PlaywrightEx.TestBrowser.name())], do: %{browser_name: name})
+
+  using do
+    quote do
+      use PlaywrightEx.Test
+      alias PlaywrightEx.{Browser, BrowserContext, Expect, Locator, Page}
+    end
+  end
+
+  setup_all %{browser_name: name} do
+    %{browser: BrowserPool.browser(browser_name: name)}
+  end
+
+  setup %{browser: browser, browser_name: name} do
+    device = Map.fetch!(Playwright.devices(BrowserPool.playwright(browser)), @devices[name])
+    context = Browser.new_context!(browser, device)
+    %{context: context, page: BrowserContext.new_page!(context)}
+  end
+end
+
+defmodule PlaywrightEx.Guides.TestingWithExUnit.ProjectsTest do
+  use PlaywrightEx.Guides.TestingWithExUnit.ProjectsCase,
+    async: true,
+    parameterize: PlaywrightEx.Guides.TestingWithExUnit.ProjectsCase.projects()
+
+  @user_agents %{chromium: "Chrome", firefox: "Firefox", webkit: "Safari"}
+
+  test "a page of the project's browser, with its device", %{page: page, browser_name: name} do
+    assert Page.evaluate!(page, "navigator.userAgent") =~ @user_agents[name]
+    assert Page.viewport_size(page) == %{width: 1280, height: 720}
+  end
+end
+
+defmodule PlaywrightEx.Guides.TestingWithExUnit.PortingTest do
+  # "Porting Playwright Test specs".
+  use PlaywrightEx.Case, async: true
+
+  alias PlaywrightEx.JSHandle
+
+  test "null, objects, regexes and element handles", %{page: page} do
+    assert Page.evaluate!(page, "() => ({ entry: { foo: null }, gone: undefined })") ==
+             %{"entry" => %{"foo" => :null}, "gone" => nil}
+
+    Page.set_content!(page, "<p>patched=true</p>")
+    Expect.to_have_text!(Page.locator(page, "p"), PlaywrightEx.RegExp.new("\\patched=true"))
+
+    element_handle = Page.query_selector!(page, "p")
+    assert JSHandle.evaluate!(element_handle, "e => e.textContent") == "patched=true"
   end
 end

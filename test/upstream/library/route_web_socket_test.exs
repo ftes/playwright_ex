@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
   @upstream "tests/library/route-web-socket.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.Expect
+
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Page
@@ -75,12 +77,12 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
         assert Page.evaluate!(page, "() => window.ws.readyState") == 0
         assert Page.evaluate!(page, "() => window.log") == []
         do_upgrade.()
-        Utils.poll(fn -> Page.evaluate!(page, "() => window.ws.readyState") end, &assert(&1 == 1))
+        Expect.poll!(fn -> Page.evaluate!(page, "() => window.ws.readyState") end, &assert(&1 == 1))
         assert Page.evaluate!(page, "() => window.log") == ["open"]
         ws = Task.await(ws_promise, :infinity)
         TestServer.WebSocket.send(ws, "hello")
 
-        Utils.poll(
+        Expect.poll!(
           fn -> Page.evaluate!(page, "() => window.log") end,
           &assert(&1 == ["open", "message: data=hello origin=ws://#{server.host} lastEventId="])
         )
@@ -91,7 +93,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
         Page.evaluate!(page, "() => window.ws.send('hi')")
         assert_receive {:message, "hi"}, 5000
         TestServer.WebSocket.close(ws, 1008, "oops")
-        Utils.poll(fn -> Page.evaluate!(page, "() => window.ws.readyState") end, &assert(&1 == 3))
+        Expect.poll!(fn -> Page.evaluate!(page, "() => window.ws.readyState") end, &assert(&1 == 3))
 
         assert Page.evaluate!(page, "() => window.log") == [
                  "open",
@@ -106,7 +108,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
         ws = Task.await(ws_promise, :infinity)
         TestServer.WebSocket.send(ws, {:binary, "hi"})
 
-        Utils.poll(
+        Expect.poll!(
           fn -> Page.evaluate!(page, "() => window.log") end,
           &assert(&1 == ["open", "message: data=blob:hi origin=ws://#{server.host} lastEventId="])
         )
@@ -123,7 +125,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
         ws = Task.await(ws_promise, :infinity)
         TestServer.WebSocket.send(ws, {:binary, "hi"})
 
-        Utils.poll(
+        Expect.poll!(
           fn -> Page.evaluate!(page, "() => window.log") end,
           &assert(&1 == ["open", "message: data=arraybuffer:hi origin=ws://#{server.host} lastEventId="])
         )
@@ -144,7 +146,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
         assert Page.evaluate!(page, "() => window.ws.readyState") == 0
         assert Page.evaluate!(page, "() => window.log") == []
         TestServer.WebSocket.destroy(socket)
-        Utils.poll(fn -> Page.evaluate!(page, "() => window.ws.readyState") end, &assert(&1 == 3))
+        Expect.poll!(fn -> Page.evaluate!(page, "() => window.ws.readyState") end, &assert(&1 == 3))
         assert ["error", close] = Page.evaluate!(page, "() => window.log")
         assert close =~ ~r/close code=\d+ reason= wasClean=false/
       end
@@ -168,10 +170,10 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
         setup_ws(page, server, "blob")
         %{socket: socket, do_upgrade: do_upgrade} = Task.await(upgrade_promise, :infinity)
         do_upgrade.()
-        Utils.poll(fn -> Page.evaluate!(page, "() => window.ws.readyState") end, &assert(&1 == 1))
+        Expect.poll!(fn -> Page.evaluate!(page, "() => window.ws.readyState") end, &assert(&1 == 1))
         assert Page.evaluate!(page, "() => window.log") == ["open"]
         TestServer.WebSocket.write(socket, "garbage")
-        Utils.poll(fn -> Page.evaluate!(page, "() => window.ws.readyState") end, &assert(&1 == 3))
+        Expect.poll!(fn -> Page.evaluate!(page, "() => window.ws.readyState") end, &assert(&1 == 3))
         assert ["open", "error", close] = Page.evaluate!(page, "() => window.log")
         assert close =~ ~r/close code=\d+ reason= wasClean=false/
       end
@@ -185,7 +187,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
         assert Page.evaluate!(page, "() => window.ws.readyState") == 0
         assert Page.evaluate!(page, "() => window.log") == []
         do_upgrade.()
-        Utils.poll(fn -> Page.evaluate!(page, "() => window.ws.readyState") end, &assert(&1 == 1))
+        Expect.poll!(fn -> Page.evaluate!(page, "() => window.ws.readyState") end, &assert(&1 == 1))
         assert Page.evaluate!(page, "() => window.log") == ["open"]
         ws = Task.await(ws_promise, :infinity)
         me = self()
@@ -200,7 +202,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
           """)
 
         assert ready_state == 2
-        Utils.poll(fn -> Page.evaluate!(page, "() => window.ws.readyState") end, &assert(&1 == 3))
+        Expect.poll!(fn -> Page.evaluate!(page, "() => window.ws.readyState") end, &assert(&1 == 3))
         assert Page.evaluate!(page, "() => window.log") == ["open", "close code=3002 reason=oops wasClean=true"]
         assert_receive {:closed, closed}, 5000
         assert closed.code == 3002
@@ -220,7 +222,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
         ws = Task.await(ws_promise, :infinity)
         TestServer.WebSocket.send(ws, {:binary, "hi"})
 
-        Utils.poll(
+        Expect.poll!(
           fn -> Page.evaluate!(page, "() => window.log") end,
           &assert(&1 == ["open", "message: data=blob:hi origin=ws://#{server.host} lastEventId="])
         )
@@ -248,7 +250,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     assert_receive {:route, route}, 5000
     WebSocketRoute.send(route, "hello")
 
-    Utils.poll(
+    Expect.poll!(
       fn -> Page.evaluate!(page, "() => window.log") end,
       &assert(&1 == ["open", "message: data=hello origin=ws://#{server.host} lastEventId="])
     )
@@ -256,7 +258,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     TestServer.WebSocket.once(ws, :close, &send(me, {:closed, %{code: &1, reason: &2}}))
     WebSocketRoute.close!(route, code: 3009, reason: "oops")
 
-    Utils.poll(
+    Expect.poll!(
       fn -> Page.evaluate!(page, "() => window.log") end,
       &assert(
         &1 == [
@@ -295,11 +297,11 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     TestServer.WebSocket.destroy(socket)
 
     # Server-side route handler observes the close caused by the rejected handshake.
-    Utils.poll(fn -> length(Agent.get(server_closes, & &1)) end, &assert(&1 == 1))
+    Expect.poll!(fn -> length(Agent.get(server_closes, & &1)) end, &assert(&1 == 1))
     assert hd(Agent.get(server_closes, & &1)).code >= 1000
 
     # Once the route closes the page-side socket, the page sees the close.
-    Utils.poll(fn -> Page.evaluate!(page, "() => window.ws.readyState") end, &assert(&1 == 3))
+    Expect.poll!(fn -> Page.evaluate!(page, "() => window.ws.readyState") end, &assert(&1 == 3))
     assert_received :route_handler_invoked
     refute_received :route_handler_invoked
   end
@@ -385,10 +387,14 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     TestServer.WebSocket.on(ws, :message, fn -> TestServer.WebSocket.send(ws, "response") end)
 
     Page.evaluate!(page, "() => window.ws1.send('request')")
-    Utils.poll(fn -> Page.evaluate!(page, "() => window.log") end, &assert(&1 == ["ws1:response"]))
+    Expect.poll!(fn -> Page.evaluate!(page, "() => window.log") end, &assert(&1 == ["ws1:response"]))
 
     Page.evaluate!(page, "() => window.ws2.send('request')")
-    Utils.poll(fn -> Page.evaluate!(page, "() => window.log") end, &assert(&1 == ["ws1:response", "ws2:mock-response"]))
+
+    Expect.poll!(
+      fn -> Page.evaluate!(page, "() => window.log") end,
+      &assert(&1 == ["ws1:response", "ws2:mock-response"])
+    )
   end
 
   test "WS-027 should work with server", %{page: page, server: server} do
@@ -425,13 +431,13 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
 
     setup_ws(page, server, "blob")
     ws = Task.await(ws_promise, :infinity)
-    Utils.poll(fn -> Agent.get(log, & &1) end, &assert(&1 == ["message: fake"]))
+    Expect.poll!(fn -> Agent.get(log, & &1) end, &assert(&1 == ["message: fake"]))
 
     TestServer.WebSocket.send(ws, "to-modify")
     TestServer.WebSocket.send(ws, "to-block")
     TestServer.WebSocket.send(ws, "pass-server")
 
-    Utils.poll(
+    Expect.poll!(
       fn -> Page.evaluate!(page, "() => window.log") end,
       &assert(
         &1 == [
@@ -451,12 +457,12 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     }
     """)
 
-    Utils.poll(
+    Expect.poll!(
       fn -> Agent.get(log, & &1) end,
       &assert(&1 == ["message: fake", "message: modified", "message: pass-client"])
     )
 
-    Utils.poll(
+    Expect.poll!(
       fn -> Page.evaluate!(page, "() => window.log") end,
       &assert(
         &1 == [
@@ -471,7 +477,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     assert_receive {:route, route}, 5000
     WebSocketRoute.send(route, "another")
 
-    Utils.poll(
+    Expect.poll!(
       fn -> Page.evaluate!(page, "() => window.log") end,
       &assert(
         &1 == [
@@ -490,7 +496,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     }
     """)
 
-    Utils.poll(
+    Expect.poll!(
       fn -> Agent.get(log, & &1) end,
       &assert(&1 == ["message: fake", "message: modified", "message: pass-client", "message: pass-client-2"])
     )
@@ -501,7 +507,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     }
     """)
 
-    Utils.poll(
+    Expect.poll!(
       fn -> Agent.get(log, & &1) end,
       &assert(
         &1 == [
@@ -538,7 +544,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     }
     """)
 
-    Utils.poll(
+    Expect.poll!(
       fn -> Page.evaluate!(page, "() => window.log") end,
       &assert(
         &1 == [
@@ -553,7 +559,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     WebSocketRoute.send(route, "another")
     WebSocketRoute.close!(route, code: 3008, reason: "oops")
 
-    Utils.poll(
+    Expect.poll!(
       fn -> Page.evaluate!(page, "() => window.log") end,
       &assert(
         &1 == [
@@ -590,7 +596,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
         %{host: server.host}
       )
 
-      Utils.poll(fn -> Frame.evaluate!(target, "() => window.log") end, &assert(&1 == ["mock-hi"]))
+      Expect.poll!(fn -> Frame.evaluate!(target, "() => window.log") end, &assert(&1 == ["mock-hi"]))
     end
   end
 
@@ -607,7 +613,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     assert_receive {:route, route}, 5000
     WebSocketRoute.send(route, "hello")
 
-    Utils.poll(
+    Expect.poll!(
       fn -> Page.evaluate!(page, "() => window.log") end,
       &assert(&1 == ["open", "message: data=hello origin=ws://#{server.host} lastEventId="])
     )
@@ -631,7 +637,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     assert_receive {:route, route}, 5000
     WebSocketRoute.send(route, "hello")
 
-    Utils.poll(
+    Expect.poll!(
       fn -> Frame.evaluate!(frame, "() => window.log") end,
       &assert(&1 == ["open", "message: data=hello origin=ws://#{server.host} lastEventId="])
     )
@@ -672,11 +678,11 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     )
 
     Page.evaluate!(page, "() => window.ws1.send('request')")
-    Utils.poll(fn -> Page.evaluate!(page, "() => window.log") end, &assert(&1 == ["ws1:page-mock-2"]))
+    Expect.poll!(fn -> Page.evaluate!(page, "() => window.log") end, &assert(&1 == ["ws1:page-mock-2"]))
 
     Page.evaluate!(page, "() => window.ws2.send('request')")
 
-    Utils.poll(
+    Expect.poll!(
       fn -> Page.evaluate!(page, "() => window.log") end,
       &assert(&1 == ["ws1:page-mock-2", "ws2:context-mock-2"])
     )
@@ -701,10 +707,10 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
   test "WS-034 should not throw with empty handler", %{page: page, server: server} do
     Page.route_web_socket!(page, ~r/.*/, fn _ -> nil end)
     setup_ws(page, server, "blob")
-    Utils.poll(fn -> Page.evaluate!(page, "() => window.log") end, &assert(&1 == ["open"]))
+    Expect.poll!(fn -> Page.evaluate!(page, "() => window.log") end, &assert(&1 == ["open"]))
     Page.evaluate!(page, "() => window.ws.send('hi')")
     Page.evaluate!(page, "() => window.ws.send('hi2')")
-    Utils.poll(fn -> Page.evaluate!(page, "() => window.log") end, &assert(&1 == ["open"]))
+    Expect.poll!(fn -> Page.evaluate!(page, "() => window.log") end, &assert(&1 == ["open"]))
   end
 
   test "WS-035 should throw when connecting twice", %{page: page, server: server} do
@@ -750,9 +756,9 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
       %{host: server.host}
     )
 
-    Utils.poll(fn -> Page.evaluate!(page, "() => window.ws.readyState") end, &assert(&1 == 1))
+    Expect.poll!(fn -> Page.evaluate!(page, "() => window.ws.readyState") end, &assert(&1 == 1))
     Page.evaluate!(page, "() => window.ws.send('query')")
-    Utils.poll(fn -> Agent.get(log, & &1) end, &assert(&1 == ["query"]))
+    Expect.poll!(fn -> Agent.get(log, & &1) end, &assert(&1 == ["query"]))
     assert Page.evaluate!(page, "() => window.log") == ["response"]
   end
 
@@ -774,7 +780,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     }
     """)
 
-    Utils.poll(
+    Expect.poll!(
       fn -> Page.evaluate!(page, "() => window.log") end,
       &assert(&1 == ["open", "message: data=echo origin=ws://#{server.host} lastEventId="])
     )
@@ -802,7 +808,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
     }
     """)
 
-    Utils.poll(
+    Expect.poll!(
       fn -> Page.evaluate!(page, "() => window.log") end,
       &assert(&1 == ["open", "message: data=echo origin=ws://#{server.host} lastEventId="])
     )
@@ -826,7 +832,7 @@ defmodule PlaywrightEx.Library.RouteWebSocketTest do
       %{host: server.host}
     )
 
-    Utils.poll(fn -> length(Agent.get(routes, & &1)) end, &assert(&1 == 3))
+    Expect.poll!(fn -> length(Agent.get(routes, & &1)) end, &assert(&1 == 3))
 
     by_url = Map.new(Agent.get(routes, & &1), &{URI.parse(WebSocketRoute.url(&1)).path, &1})
     assert WebSocketRoute.protocols(by_url["/ws-none"]) == []

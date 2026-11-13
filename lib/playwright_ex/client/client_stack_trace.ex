@@ -1,22 +1,28 @@
 defmodule PlaywrightEx.Client.ClientStackTrace do
   @upstream "packages/playwright-core/src/client/clientStackTrace.ts"
   @moduledoc """
-  Port of `#{@upstream}`. Library frames are those of `PlaywrightEx.*` modules other than
-  `PlaywrightEx.Driver`, instead of files under the core dir.
+  Port of `#{@upstream}`. Library frames are those of the `:playwright_ex` application's modules
+  (the facade's and the matchers' too), instead of files under the core dir; each is left out,
+  so a caller's frames below a library frame (a step's body, a callback's) stay.
 
   Deviations: the API name recorded by `PlaywrightEx.Runtime.Api.call/3` wins over the stack
-  (BEAM drops tail-call frames). Upstream's `filterStackFile` drops internal frames; here
-  every frame up to the outermost library frame is dropped (that includes
-  `Process.info/2`), so the first frame is the caller's; in a handed-off listener process,
-  the library frames it starts with don't count.
+  (BEAM drops tail-call frames); without one it comes from the `PlaywrightEx.Client.*` (and
+  runtime) frames. Frames are told apart by module, not by file: Node's internals (`internal/`,
+  `node:`) are the runtime's own library, OTP's `kernel` and `stdlib` and Elixir's `elixir` (by
+  code path, `internal_frame?/1`), and the boxed prefixes are modules
+  (`set_boxed_stack_prefixes/1`).
   """
   @library Enum.map(~w(Client Isomorphic Protocol Runtime Transport), &"Elixir.PlaywrightEx.#{&1}.")
+  @internal_apps [:kernel, :stdlib, :elixir]
 
   def capture_library_stack_trace do
-    {:current_stacktrace, stack} = Process.info(self(), :current_stacktrace)
+    {:current_stacktrace, [_process_info | stack]} = Process.info(self(), :current_stacktrace)
+    boxed = boxed_stack_prefixes()
+    show_internal = show_internal_stack_frames()
 
     parsed_frames =
-      Enum.map(stack, fn {module, function, arity, location} ->
+      stack
+      |> Enum.map(fn {module, function, arity, location} ->
         frame = %{
           # JS stack frames carry absolute paths (metadata.location.file): see `source_file/2`.
           file: if(file = location[:file], do: to_string(file), else: ""),
@@ -30,6 +36,9 @@ defmodule PlaywrightEx.Client.ClientStackTrace do
 
         %{frame: frame, mfa: {module, function, arity}, isPlaywrightLibrary: is_playwright_library}
       end)
+      # utils/stackTrace.ts `parseStackFrame`: `if (!showInternalStackFrames() &&
+      # (file.startsWith('internal') || file.startsWith('node:'))) return null;`
+      |> Enum.reject(&(!show_internal and !&1.isPlaywrightLibrary and internal_frame?(elem(&1.mfa, 0))))
 
     # Deepest transition between non-client code calling into client code is the api entry.
     # (BEAM drops tail-call frames, so the entry point recorded by `Runtime.Api.call/3` wins.)
@@ -43,25 +52,93 @@ defmodule PlaywrightEx.Client.ClientStackTrace do
         end)
 
     # This is for the inspector so that it did not include the test runner stack frames.
-    # (The library frames a listener or async process starts with (`PlaywrightEx.Runtime.Conn`)
-    # are below the caller's: they don't count.)
-    parsed_frames = parsed_frames |> Enum.reverse() |> Enum.drop_while(& &1.isPlaywrightLibrary) |> Enum.reverse()
-    outermost = parsed_frames |> Enum.with_index() |> Enum.filter(&elem(&1, 0).isPlaywrightLibrary) |> List.last()
+    library = library_modules()
 
     parsed_frames =
-      if outermost, do: Enum.drop(parsed_frames, elem(outermost, 1) + 1), else: Enum.drop(parsed_frames, 1)
+      Enum.filter(
+        parsed_frames,
+        &(&1.frame.file != "" and filter_stack_file(&1, library, boxed, show_internal))
+      )
 
-    parsed_frames = Enum.reject(parsed_frames, &(&1.frame.file == ""))
     frames = Enum.map(parsed_frames, &%{&1.frame | file: source_file(elem(&1.mfa, 0), &1.frame.file)})
 
     %{frames: frames, apiName: api_name}
   end
 
+  # utils/stackTrace.ts `filterStackFile`, of a parsed frame's module: `_coreDir` is the client's
+  # namespaces and the application's modules.
+  # if (isUnderTest() && file.match(...)) return false;  -- not ported: upstream's own repo layout
+  defp filter_stack_file(%{mfa: {module, _, _}} = parsed, library, boxed, show_internal) do
+    show_internal or
+      not (parsed.isPlaywrightLibrary or Map.has_key?(library, module) or Map.has_key?(boxed, module))
+  end
+
+  # Elixir only: the application's modules (the facade's, between the caller's and the client's
+  # frames, and the matchers'), read once.
+  defp library_modules do
+    case :persistent_term.get({__MODULE__, :library}, nil) do
+      nil ->
+        case Application.spec(:playwright_ex, :modules) do
+          nil ->
+            %{}
+
+          modules ->
+            library = Map.new(modules, &{&1, true})
+            :persistent_term.put({__MODULE__, :library}, library)
+            library
+        end
+
+      library ->
+        library
+    end
+  end
+
+  @doc """
+  utils/stackTrace.ts `setBoxedStackPrefixes`, with modules in place of file prefixes: captured
+  stacks leave out their frames, as upstream's test runner leaves out its package's
+  (`PlaywrightEx.Test`).
+  """
+  def set_boxed_stack_prefixes(modules) do
+    boxed = Map.new(modules, &{&1, true})
+    if :persistent_term.get({__MODULE__, :boxed}, %{}) != boxed, do: :persistent_term.put({__MODULE__, :boxed}, boxed)
+    :ok
+  end
+
+  defp boxed_stack_prefixes, do: :persistent_term.get({__MODULE__, :boxed}, %{})
+
+  # `showInternalStackFrames()`: `getAsBooleanFromENV('PWDEBUGIMPL')`, read on each capture.
+  defp show_internal_stack_frames, do: System.get_env("PWDEBUGIMPL") not in [nil, "", "false", "0"]
+
+  # Elixir only: a frame of OTP's or Elixir's own library, as Node's `internal/` and `node:`
+  # frames, by its module's code path (an ETS lookup), under the apps' dirs (read once). Their
+  # compile-time sources are the build machine's (`/home/runner/...`), so the driver would stat
+  # missing files for each.
+  defp internal_frame?(module) do
+    case :code.is_loaded(module) do
+      {:file, :preloaded} -> true
+      {:file, path} when is_list(path) -> Enum.any?(internal_dirs(), &:lists.prefix(&1, path))
+      _ -> false
+    end
+  end
+
+  defp internal_dirs do
+    case :persistent_term.get({__MODULE__, :internal_dirs}, nil) do
+      nil ->
+        dirs = for app <- @internal_apps, dir = :code.lib_dir(app), is_list(dir), do: dir ++ ~c"/"
+        :persistent_term.put({__MODULE__, :internal_dirs}, dirs)
+        dirs
+
+      dirs ->
+        dirs
+    end
+  end
+
   # Elixir only: BEAM frames carry paths relative to their app's root; a module's compile info has
   # its absolute source. A frame that isn't its module's source (injected code, `nofile`,
   # deterministic builds) stays relative: the driver resolves it against its working directory,
-  # the BEAM's at launch.
-  defp source_file(module, file) do
+  # the BEAM's at launch. Also `PlaywrightEx.Test`'s step frames.
+  @doc false
+  def source_file(module, file) do
     if Path.type(file) == :absolute do
       file
     else

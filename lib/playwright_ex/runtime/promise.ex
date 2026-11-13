@@ -37,6 +37,7 @@ defmodule PlaywrightEx.Runtime.Promise do
   ("Playwright driver closed"), as a call to it does, instead of hanging. One monitor per armed
   leaf, dropped (with its `:DOWN`) when the wait ends.
   """
+  alias PlaywrightEx.Runtime.Callers
   alias PlaywrightEx.Runtime.Conn
   alias PlaywrightEx.Runtime.Heap
   alias PlaywrightEx.Runtime.Invocation
@@ -264,16 +265,19 @@ defmodule PlaywrightEx.Runtime.Promise do
     kind, reason -> {:error, Exception.normalize(kind, reason, __STACKTRACE__)}
   end
 
-  # Starts `body` in a process that runs as the caller until its first yield.
+  # Starts `body` in a process that runs as the caller until its first yield. It works on the
+  # caller's behalf, so it gets its `$callers` as a `Task` does; not the connection's (shared).
   defp start(body) do
     caller = self()
     zone = Zones.current_zone()
     barrier = Process.get(:pw_barrier)
     in_conn = Conn.in_conn?()
+    callers = if !in_conn, do: Callers.capture()
     inv = make_ref()
 
     pid =
       spawn(fn ->
+        if callers, do: Callers.adopt(callers)
         Zones.restore(zone)
         # Inside the connection: started (and waited for) at the current dispatch step.
         barrier =

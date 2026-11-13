@@ -34,8 +34,9 @@ Page.route!(page, "**/api/users", fn route ->
 end)
 ```
 
-- The pattern is a glob, a `Regex` or a function of the URL; with `base_url`, a path such as
-  `"/api/users"` is resolved against it.
+- The pattern is a glob, a `Regex` or a function of the URL, which gets a `URI`
+  (`&(&1.path == "/api/users")`); with `base_url`, a path such as `"/api/users"` is resolved
+  against it.
 - When several routes match, the one added last runs;
   [`Route.fallback/2`](`PlaywrightEx.Route.fallback/2`) hands the request to the one before.
 - [`BrowserContext.route/4`](`PlaywrightEx.BrowserContext.route/4`) covers every page of the

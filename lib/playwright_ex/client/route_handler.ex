@@ -14,6 +14,7 @@ defmodule PlaywrightEx.Client.RouteHandler do
   alias PlaywrightEx.Client.Errors
   alias PlaywrightEx.Client.Route
   alias PlaywrightEx.Isomorphic.UrlMatch
+  alias PlaywrightEx.Runtime.Callers
   alias PlaywrightEx.Runtime.Promise
   alias PlaywrightEx.Runtime.Zones
 
@@ -34,6 +35,8 @@ defmodule PlaywrightEx.Client.RouteHandler do
     put(this, :handler, handler)
     # The public API name is a zone here too (`Runtime.Api`): the handler's calls have their own.
     put(this, :_savedZone, Map.delete(Zones.without(:apiZone), :apiName))
+    # deviation: the registrant's `$callers` too, for the processes the handler runs in (`Runtime.Callers`).
+    put(this, :_callers, Callers.capture())
     # Eagerly validate string globs so that invalid patterns throw at the call site
     # (e.g. page.route()) rather than silently aborting requests later.
     if is_binary(url), do: UrlMatch.resolve_glob_to_regex_pattern(local_utils, base_url, url)
@@ -56,6 +59,9 @@ defmodule PlaywrightEx.Client.RouteHandler do
   end
 
   def handle(this, route) do
+    # deviation: the `route` listener's process runs on the registrant's behalf from here, so its
+    # unhandled error fails the registrant's test (`Runtime.Callers`).
+    Callers.adopt(get(this, :_callers))
     Zones.run(get(this, :_savedZone), fn -> _handle_impl(this, route) end)
   end
 

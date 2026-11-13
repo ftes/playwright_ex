@@ -11,7 +11,7 @@ defmodule PlaywrightEx.VideoPlayer do
 
   import Bitwise
 
-  alias PlaywrightEx.Driver
+  alias PlaywrightEx.TestBrowser
 
   # `cache`  -- not ported: frames are decoded on demand (immutable struct)
   defstruct [:fileName, :output, :duration, :frames, :videoWidth, :videoHeight, :fps]
@@ -112,27 +112,13 @@ defmodule PlaywrightEx.VideoPlayer do
   of the driver), else `ffmpeg` on PATH, else `nil`.
   """
   def ffmpeg do
-    registry_ffmpeg() || System.find_executable("ffmpeg")
+    TestBrowser.registry_executable("ffmpeg") || System.find_executable("ffmpeg")
   end
 
   @doc "`nil` when ffmpeg is available, else a skip reason."
   def skip_reason do
     if !ffmpeg(),
       do: "env: no ffmpeg (Playwright installs it with any browser: mix playwright_ex.install; or put ffmpeg on PATH)"
-  end
-
-  defp registry_ffmpeg do
-    with {node, [cli]} <- Driver.executable(),
-         core_bundle = Path.join([Path.dirname(cli), "lib", "coreBundle.js"]),
-         true <- File.regular?(node) and File.regular?(core_bundle),
-         script =
-           "process.stdout.write(require(process.argv[1]).registry.registry.findExecutable('ffmpeg').executablePath() || '')",
-         {path, 0} <- System.cmd(node, ["-e", script, core_bundle]),
-         true <- path != "" and File.regular?(path) do
-      path
-    else
-      _ -> nil
-    end
   end
 
   defp parse_float(string) do

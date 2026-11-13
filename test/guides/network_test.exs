@@ -101,7 +101,7 @@ defmodule PlaywrightEx.Guides.NetworkTest do
   end
 
   test "context routes", %{context: context} do
-    BrowserContext.route!(context, &String.ends_with?(&1, "/api/users"), &Route.fulfill(&1, json: "context"))
+    BrowserContext.route!(context, &(&1.path == "/api/users"), &Route.fulfill(&1, json: "context"))
     page = BrowserContext.new_page!(context)
     Page.goto!(page, "/")
     assert fetch_json(page, "/api/users") == "context"

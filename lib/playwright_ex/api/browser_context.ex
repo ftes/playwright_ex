@@ -893,7 +893,7 @@ defmodule PlaywrightEx.BrowserContext do
 
   ## Arguments
 
-  * `url` - A glob pattern, regex pattern, URL pattern, or predicate that receives a `URL` to match during routing. If `:base_url` is set in the context options and the provided URL is a string that does not start with `*`, it is resolved using the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor.
+  * `url` - A glob pattern, regex pattern, URL pattern, or predicate that receives a `URI` to match during routing. If `:base_url` is set in the context options and the provided URL is a string that does not start with `*`, it is resolved using the [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor.
   * `handler` - handler function to route the request.
 
   ## Options
@@ -902,7 +902,7 @@ defmodule PlaywrightEx.BrowserContext do
   """
   @spec route(
           t(),
-          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (URI.t() -> boolean()),
           (PlaywrightEx.Route.t() -> term()) | (PlaywrightEx.Route.t(), PlaywrightEx.Request.t() -> term()),
           route_options()
         ) :: {:ok, PlaywrightEx.Disposable.t()} | {:error, PlaywrightEx.error()}
@@ -917,7 +917,7 @@ defmodule PlaywrightEx.BrowserContext do
   @doc "Like `route/4`, but returns the value and raises on error."
   @spec route!(
           t(),
-          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (URI.t() -> boolean()),
           (PlaywrightEx.Route.t() -> term()) | (PlaywrightEx.Route.t(), PlaywrightEx.Request.t() -> term()),
           route_options()
         ) :: PlaywrightEx.Disposable.t()
@@ -1027,7 +1027,7 @@ defmodule PlaywrightEx.BrowserContext do
   """
   @spec route_web_socket(
           t(),
-          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (URI.t() -> boolean()),
           (PlaywrightEx.WebSocketRoute.t() -> term())
         ) :: :ok | {:error, PlaywrightEx.error()}
   def route_web_socket(browser_context, url, handler) do
@@ -1039,7 +1039,7 @@ defmodule PlaywrightEx.BrowserContext do
   @doc "Like `route_web_socket/3`, but returns the value and raises on error."
   @spec route_web_socket!(
           t(),
-          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (URI.t() -> boolean()),
           (PlaywrightEx.WebSocketRoute.t() -> term())
         ) :: :ok
   def route_web_socket!(browser_context, url, handler) do
@@ -1555,13 +1555,13 @@ defmodule PlaywrightEx.BrowserContext do
 
   ## Arguments
 
-  * `url` - A glob pattern, regex pattern, URL pattern, or predicate receiving `URL` used to register a routing with
+  * `url` - A glob pattern, regex pattern, URL pattern, or predicate receiving `URI` used to register a routing with
     `PlaywrightEx.BrowserContext.route/4`.
   * `handler` - Optional handler function used to register a routing with `PlaywrightEx.BrowserContext.route/4`.
   """
   @spec unroute(
           t(),
-          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (URI.t() -> boolean()),
           (PlaywrightEx.Route.t() -> term()) | (PlaywrightEx.Route.t(), PlaywrightEx.Request.t() -> term()) | nil
         ) :: :ok | {:error, PlaywrightEx.error()}
   def unroute(browser_context, url, handler \\ nil) do
@@ -1573,7 +1573,7 @@ defmodule PlaywrightEx.BrowserContext do
   @doc "Like `unroute/3`, but returns the value and raises on error."
   @spec unroute!(
           t(),
-          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (URI.t() -> boolean()),
           (PlaywrightEx.Route.t() -> term()) | (PlaywrightEx.Route.t(), PlaywrightEx.Request.t() -> term()) | nil
         ) :: :ok
   def unroute!(browser_context, url, handler \\ nil) do
@@ -2067,10 +2067,17 @@ defmodule PlaywrightEx.BrowserContext do
     Facade.listen(fn -> PlaywrightEx.Client.BrowserContext.prepend_listener(browser_context, event, listener) end)
   end
 
-  @doc false
+  @doc """
+  The options of `function`, an atom such as `:add_init_script`, as
+  `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, for tools that build on the facade at
+  compile time; a function without options raises `FunctionClauseError`. Unstable: the shape
+  may change between releases.
+  """
   @spec __options__(atom()) :: [
           {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
         ]
+  def __options__(function)
+
   def __options__(:add_init_script) do
     [
       expose_functions: %{
@@ -2336,4 +2343,22 @@ defmodule PlaywrightEx.BrowserContext do
       }
     ]
   end
+
+  @doc false
+  # The type of `function`'s options, as `Facade.options!/3` converts them.
+  def __options_type__(function)
+
+  def __options_type__(:add_init_script), do: @add_init_script_options
+  def __options_type__(:clear_cookies), do: @clear_cookies_options
+  def __options_type__(:close), do: @close_options
+  def __options_type__(:grant_permissions), do: @grant_permissions_options
+  def __options_type__(:remove_all_listeners), do: @remove_all_listeners_options
+  def __options_type__(:route), do: @route_options
+  def __options_type__(:route_from_har), do: @route_from_har_options
+  def __options_type__(:storage_state), do: @storage_state_options
+  def __options_type__(:unroute_all), do: @unroute_all_options
+  def __options_type__(:wait_for_event), do: @wait_for_event_options
+  def __options_type__(:expect_console_message), do: @expect_console_message_options
+  def __options_type__(:expect_event), do: @expect_event_options
+  def __options_type__(:expect_page), do: @expect_page_options
 end

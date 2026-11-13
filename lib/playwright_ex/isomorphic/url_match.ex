@@ -5,8 +5,10 @@ defmodule PlaywrightEx.Isomorphic.UrlMatch do
 
   Deviations: globs become regexes through the driver (`LocalUtils.globToRegex`), so the functions
   that resolve globs take the `LocalUtils` as first argument (architecture: URL globs).
-  `RegExp` is a `Regex` or a `PlaywrightEx.RegExp` (compiled to a `Regex` to match here); a function matcher gets the URL string (Elixir has no `URL` class, as
-  in the Python, Java and .NET clients). `URLPattern` has no Elixir counterpart.
+  `RegExp` is a `Regex` or a `PlaywrightEx.RegExp` (compiled to a `Regex` to match here). A
+  function matcher gets the URL as a `URI` (`URI.parse/1`), Elixir's counterpart of JS's `URL`:
+  it is not WHATWG-normalized and has no `searchParams` (`URI.decode_query(uri.query || "")`).
+  `URLPattern` has no Elixir counterpart.
   """
 
   import PlaywrightEx.RegExp, only: [reg_exp?: 1]
@@ -88,10 +90,11 @@ defmodule PlaywrightEx.Isomorphic.UrlMatch do
 
   # toWebSocketBaseUrl, resolveGlobBase  -- not ported: LocalUtils.globToRegex (architecture: URL globs)
 
-  # `new URL(url)`, but the matcher gets the string (see the moduledoc). An absolute URL has a
-  # scheme; `URI.new/1` is stricter than WHATWG URLs (`data:text/html,<div>`), so only the scheme is checked.
+  # `new URL(url)` as a `URI` (see the moduledoc), `nil` where `new URL` throws. An absolute URL
+  # has a scheme; `URI.new/1` is stricter than WHATWG URLs (`data:text/html,<div>`) while
+  # `URI.parse/1` never fails, so only the scheme is checked.
   defp parse_url(url) do
-    if Regex.match?(~r/^[a-zA-Z][a-zA-Z0-9+.-]*:/, url), do: url
+    if Regex.match?(~r/^[a-zA-Z][a-zA-Z0-9+.-]*:/, url), do: URI.parse(url)
   end
 
   def construct_url_based_on_base_url(base_url, given_url) do

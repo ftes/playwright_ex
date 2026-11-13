@@ -3,6 +3,7 @@ defmodule PlaywrightEx.Examples.ExpectTest do
   use PlaywrightEx.ExampleCase, async: true
 
   alias PlaywrightEx.APIRequestContext
+  alias PlaywrightEx.APIResponse
   alias PlaywrightEx.TestServer
 
   @list "<ul><li>Text 1</li><li>Text 2</li><li>Text 3</li></ul>"
@@ -33,6 +34,144 @@ defmodule PlaywrightEx.Examples.ExpectTest do
     html: "<div>All good</div>",
     given: [locator: Page.locator(page, "div")] do
     locator |> Expect.not_() |> Expect.to_contain_text!("error")
+  end
+
+  example "Expect.soft",
+    js: ~S"""
+    // Make a few checks that will not stop the test when failed...
+    await expect.soft(page.getByTestId('status')).toHaveText('Success');
+    await expect.soft(page.getByTestId('eta')).toHaveText('1 day');
+
+    // ... and continue the test to check more things.
+    await page.getByRole('link', { name: 'next page' }).click();
+    await expect.soft(page.getByRole('heading', { name: 'Make another order' })).toBeVisible();
+    """,
+    html: ~s{<div data-testid="status">Success</div><div data-testid="eta">1 day</div>
+    <a href="/next">next page</a><h1>Make another order</h1>} do
+    # Make a few checks that will not stop the test when failed...
+    Page.get_by_test_id(page, "status") |> Expect.soft() |> Expect.to_have_text!("Success")
+    Page.get_by_test_id(page, "eta") |> Expect.soft() |> Expect.to_have_text!("1 day")
+
+    # ... and continue the test to check more things.
+    Page.get_by_role(page, :link, name: "next page") |> Locator.click!()
+    Page.get_by_role(page, :heading, name: "Make another order") |> Expect.soft() |> Expect.to_be_visible!()
+  end
+
+  example "Expect.message",
+    js: ~S"""
+    await expect(page.getByText('Name'), 'should be logged in').toBeVisible();
+    """,
+    html: "<p>Name</p>" do
+    Page.get_by_text(page, "Name") |> Expect.message("should be logged in") |> Expect.to_be_visible!()
+  end
+
+  @api "requests https://api.example.com"
+
+  example "Expect.toPass",
+    js: ~S"""
+    await expect(async () => {
+      const response = await page.request.get('https://api.example.com');
+      expect(response.status()).toBe(200);
+    }).toPass();
+    """,
+    skip: @api do
+    Expect.to_pass!(fn ->
+      response = page |> Page.request() |> APIRequestContext.get!("https://api.example.com")
+      assert APIResponse.status(response) == 200
+    end)
+  end
+
+  example "Expect.toPass",
+    js: ~S"""
+    await expect(async () => {
+      const response = await page.request.get('https://api.example.com');
+      expect(response.status()).toBe(200);
+    }).toPass({
+      // Probe, wait 1s, probe, wait 2s, probe, wait 10s, probe, wait 10s, probe
+      // ... Defaults to [100, 250, 500, 1000].
+      intervals: [1_000, 2_000, 10_000],
+      timeout: 60_000
+    });
+    """,
+    skip: @api do
+    Expect.to_pass!(
+      fn ->
+        response = page |> Page.request() |> APIRequestContext.get!("https://api.example.com")
+        assert APIResponse.status(response) == 200
+      end,
+      # Probe, wait 1s, probe, wait 2s, probe, wait 10s, probe, wait 10s, probe
+      # ... Defaults to [100, 250, 500, 1000].
+      intervals: [1_000, 2_000, 10_000],
+      timeout: 60_000
+    )
+  end
+
+  example "Expect.poll",
+    js: ~S"""
+    await expect.poll(async () => {
+      const response = await page.request.get('https://api.example.com');
+      return response.status();
+    }, {
+      // Custom expect message for reporting, optional.
+      message: 'make sure API eventually succeeds',
+      // Poll for 10 seconds; defaults to 5 seconds. Pass 0 to disable timeout.
+      timeout: 10000,
+    }).toBe(200);
+    """,
+    skip: @api do
+    Expect.poll!(
+      fn ->
+        response = page |> Page.request() |> APIRequestContext.get!("https://api.example.com")
+        APIResponse.status(response)
+      end,
+      &assert(&1 == 200),
+      # Custom expect message for reporting, optional.
+      message: "make sure API eventually succeeds",
+      # Poll for 10 seconds; defaults to 5 seconds. Pass 0 to disable timeout.
+      timeout: 10_000
+    )
+  end
+
+  example "Expect.poll",
+    js: ~S"""
+    await expect.poll(async () => {
+      const response = await page.request.get('https://api.example.com');
+      return response.status();
+    }, {
+      // Probe, wait 1s, probe, wait 2s, probe, wait 10s, probe, wait 10s, probe
+      // ... Defaults to [100, 250, 500, 1000].
+      intervals: [1_000, 2_000, 10_000],
+      timeout: 60_000
+    }).toBe(200);
+    """,
+    skip: @api do
+    Expect.poll!(
+      fn ->
+        response = page |> Page.request() |> APIRequestContext.get!("https://api.example.com")
+        APIResponse.status(response)
+      end,
+      &assert(&1 == 200),
+      # Probe, wait 1s, probe, wait 2s, probe, wait 10s, probe, wait 10s, probe
+      # ... Defaults to [100, 250, 500, 1000].
+      intervals: [1_000, 2_000, 10_000],
+      timeout: 60_000
+    )
+  end
+
+  example "Expect.poll",
+    js: ~S"""
+    await expect.soft.poll(async () => {
+      const response = await page.request.get('https://api.example.com');
+      return response.status();
+    }).toBe(200);
+    """,
+    skip: @api do
+    fn ->
+      response = page |> Page.request() |> APIRequestContext.get!("https://api.example.com")
+      APIResponse.status(response)
+    end
+    |> Expect.soft()
+    |> Expect.poll!(&assert(&1 == 200))
   end
 
   example "LocatorAssertions.toBeAttached",
@@ -525,12 +664,12 @@ defmodule PlaywrightEx.Examples.ExpectTest do
     Expect.to_have_url!(page, ~r/docs?\//)
 
     # Check for the page URL to match the URL pattern (Elixir has no URLPattern: a predicate)
-    Expect.to_have_url!(page, &String.starts_with?(URI.parse(&1).path, "/docs/"))
+    Expect.to_have_url!(page, &String.starts_with?(&1.path, "/docs/"))
 
     # Check for the predicate to be satisfied
     # For example: verify query strings
     Expect.to_have_url!(page, fn url ->
-      params = URI.decode_query(URI.parse(url).query || "")
+      params = URI.decode_query(url.query || "")
       Map.has_key?(params, "search") and Map.has_key?(params, "options") and params["id"] == "5"
     end)
   end

@@ -34,6 +34,7 @@ defmodule PlaywrightEx.Client.BrowserContext do
   alias PlaywrightEx.Client.Worker
   alias PlaywrightEx.Isomorphic.Headers
   alias PlaywrightEx.Isomorphic.UrlMatch
+  alias PlaywrightEx.Runtime.Callers
   alias PlaywrightEx.TargetClosedError
 
   def from(context) do
@@ -409,25 +410,39 @@ defmodule PlaywrightEx.Client.BrowserContext do
   # Bindings take the source and the list of arguments: `(source, ...args) => ...`.
   # The statements after the await run on reply, before a bindingCall (`channel_call/5`).
   def expose_binding(this, name, callback) do
+    # deviation: the `bindingCall` listener runs it on the registrant's behalf (`Runtime.Callers`).
+    callers = Callers.capture()
+
     result =
       channel_call(this, :exposeBinding, %{name: name}, TimeoutSettings.k_no_timeout(), fn _ ->
         # this._bindings.set(name, callback): called with (source, ...args)
-        map_set(this, :_bindings, name, fn source, args -> ClientHelper.call_function(callback, [source | args]) end)
+        map_set(this, :_bindings, name, fn source, args ->
+          Callers.run_as(callers, fn -> ClientHelper.call_function(callback, [source | args]) end)
+        end)
       end)
 
     DisposableObject.from(result.disposable)
   end
 
   def _expose_callback_binding(this, name, callback) do
-    map_set(this, :_bindings, name, fn _source, args -> ClientHelper.call_function(callback, args) end)
+    # deviation: the `bindingCall` listener runs it on the registrant's behalf (`Runtime.Callers`).
+    callers = Callers.capture()
+
+    map_set(this, :_bindings, name, fn _source, args ->
+      Callers.run_as(callers, fn -> ClientHelper.call_function(callback, args) end)
+    end)
+
     result = channel_call(this, :exposeBinding, %{name: name, noGlobal: true}, TimeoutSettings.k_no_timeout())
     DisposableObject.from(result.disposable)
   end
 
   def expose_function(this, name, callback) do
+    # deviation: the `bindingCall` listener runs it on the registrant's behalf (`Runtime.Callers`).
+    callers = Callers.capture()
+
     result =
       channel_call(this, :exposeBinding, %{name: name}, TimeoutSettings.k_no_timeout(), fn _ ->
-        binding = fn _source, args -> ClientHelper.call_function(callback, args) end
+        binding = fn _source, args -> Callers.run_as(callers, fn -> ClientHelper.call_function(callback, args) end) end
         map_set(this, :_bindings, name, binding)
       end)
 

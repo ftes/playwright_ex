@@ -10,7 +10,95 @@ those of the release candidates below. From an earlier release, also read the se
 
 ## [Unreleased]
 
+### Added
+- `PlaywrightEx.RegExp.new/1,2` takes a `Regex` or `RegExp` as JS's `new RegExp(re, flags)` does,
+  converting a `Regex` as Playwright does (PCRE-only syntax raises `ArgumentError`). It inspects as
+  `#PlaywrightEx.RegExp</source/flags>`.
+- `PlaywrightEx.Case`: a case template giving each module a `browser` and each test a `context`
+  and a `page` of it.
+- `PlaywrightEx.Test.BrowserPool`: Playwright Test's worker browser and worker model.
+  `browser/1` is held by the module (`setup_all`) or test that calls it, at most `workers` at
+  once (half the schedulers, as Playwright Test's default), each one driver and one browser of
+  its options (Playwright Test's worker hash), reused after a passing scope and replaced after a
+  failing one. `on_start` runs once per new driver (e.g. to register
+  selectors). `connect_options` is Playwright Test's `connectOptions`: pooled browsers on a
+  remote Playwright server, with the context defaults and the recording. `test_id_attribute` in
+  `config :playwright_ex, :test` is Playwright Test's `testIdAttribute`, set on each pooled
+  driver: the client's is global to the VM, so set it suite-wide.
+- `PlaywrightEx.Test`: `use PlaywrightEx.Test` after `use ExUnit.Case` (or first in a case
+  template's body) registers each test. Every context it creates on a pooled browser, also in a
+  `Task`, gets Playwright Test's context defaults (`locale: "en-US"`, a 1280x720 viewport, ...),
+  then the config's `context_options`, and is recorded: traces (of its contexts, their
+  `request`s and the test's request contexts, which are disposed at its end), screenshots and
+  videos (with `fps` and `show`, the test's title and steps over each page), with Playwright
+  Test's modes and their options, from config and tags (`@tag trace: :on`), kept for failures,
+  plus Playwright Test's `error-context.md` of each failed test and a `show-trace` hint. Each
+  test's output dir is emptied before it runs, a test under `mix test --failed` writes to
+  Playwright Test's `-retryN` dirs, with Playwright Test's retry modes (`trace: :on_first_retry`,
+  ...) and `info/0`'s `retry` going by it, and `preserve_output` is `preserveOutput`. As in
+  Playwright Test, the recording's tracing, screenshots and page snapshots are internal calls,
+  and each driver call in a test is a `pw:api` step of the step or `Tracing.group` it runs in (a
+  matcher's driver call is the matcher's step). `info/0` and `output_path/1`
+  are Playwright Test's `test.info()` (with `testInfo.timeout`) and `testInfo.outputPath`;
+  `info/1` takes the test's pid and works in `on_exit`, with `testInfo.status`, `errors`,
+  `expectedStatus` and `duration`.
+  `attach/2` is `testInfo.attach` (a `test.attach` step in the trace). In a test, the snapshot
+  matchers take upstream's `name:` (or none), resolved by Playwright Test's path templates
+  (`snapshot_dir`, `snapshot_path_template`, `snapshot_path/2`, which takes path segments too)
+  with their `-actual`, `-expected`, `-previous` and `-diff` files in the test's output dir, and
+  a snapshot they write fails the test at the end of its body, with all its errors reported.
+  `step` is Playwright Test's `test.step` (`box`, `location`, `params`, `subtitle`; no
+  `timeout`), `step_skip` its `test.step.skip`, and each matcher call is a step: the trace's
+  `test.trace` has the test's steps, nested, and its errors. `Expect.soft/1` is `expect.soft`:
+  in a test, a failed soft matcher returns and fails the test at the end of its body, as does an
+  error a route handler, listener or locator handler raises; the test's listeners don't run as
+  its contexts close after its `on_exit` callbacks. As in Playwright Test, a test's
+  contexts have no action or navigation timeout unless the config's `action_timeout` and
+  `navigation_timeout` set one, and just before ExUnit's test timeout the test's contexts are
+  closed, so a hanging call fails with "Test timeout of Nms exceeded." and its call log, its
+  artifacts kept. `config/0` returns the resolved config (defaults filled in, validated, the
+  expect timeout), for libraries building on the runner. `PlaywrightEx.Test.GitHubFormatter`,
+  an ExUnit formatter for any suite, is Playwright Test's `github` reporter: GitHub Actions
+  annotations for failures, slow files and the run's summary. See the
+  [Testing with ExUnit](guides/testing-with-exunit.md) guide.
+- `Expect.to_pass/2` and `Expect.poll/3`: `expect(fn).toPass()` and `expect.poll(fn).toBe(x)`
+  (`Expect.poll(fn, &assert(&1 == x))`), with upstream's intervals and timeouts (`toPass`: until
+  the test's timeout), steps, soft receivers and `config :playwright_ex, :expect, to_pass: ...`.
+- `Expect.message/2` is `expect(actual, message)`: a receiver with a custom message, which is the
+  matcher's step title and the first paragraph of its error.
+- `PlaywrightEx.Promise.async/1`: starts calls now, awaited later (JS's
+  `const p = locator.evaluate(...); ...; await p`). It returns once the calls are sent, so they
+  come before your next action, which a `Task` doesn't ensure.
+- The debugging guide covers `PWDEBUG=1 mix test --trace`, the Playwright Inspector for one test.
+- The ExUnit guide covers porting Playwright Test specs, `projects` as `parameterize:` with
+  devices, teardown checks that fail the test, and listener lifetimes; the concurrency guide,
+  route handlers that wait for the test.
+
+### Changed
+- `%PlaywrightEx.Expect{}` also carries `isSoft`, and `isNot` defaults to `false`: build a
+  negated receiver with `Expect.not_/1`.
+- The facade's `__options__/1` is documented as unstable: its shape may change between releases.
+- **Breaking:** function URL matchers (`wait_for_url`, `wait_for_navigation`, routes, WebSocket
+  routes, `Page.frame/2`, `to_have_url`) get the URL as a `URI` (`URI.parse/1`) instead of the
+  string, as upstream passes a `URL`: `&(&1.path == "/api/users")`.
+- User callbacks run on behalf of the process that registered them, with its `$callers`, as a
+  `Task` does: route and WebSocket route handlers (and their `on_message`/`on_close`), event
+  listeners, exposed functions and bindings, locator handlers, and the processes the client
+  starts for a call (wait predicates). So the Ecto sandbox, Mox and `Req.Test` find the test in
+  them.
+
 ### Fixed
+- Matching a JS regex in Elixir (`RegExp.compile!/1`, `wait_for_url`, routes): `\s` and `\S` follow JS's
+  whitespace (NBSP, U+2003, U+FEFF, …), not PCRE's ASCII one.
+- A `Regex` with `u` whose source escapes punctuation (as `Regex.escape/1` does: `\#`, `\ `, `\-`)
+  works in locators and matchers: JS's `u` mode rejects those escapes, so the redundant backslash
+  is dropped.
+- The stack an API call records (its trace stack and location) leaves out OTP's and Elixir's
+  frames, as upstream's leaves out Node's, and in a `PlaywrightEx.Test` test ExUnit's and the
+  runner's, as Playwright Test leaves out its own. Their sources are the build machine's paths,
+  which the driver looked up for every frame when saving a trace (about 12 ms each on macOS).
+  A call in a callback the library runs (a step's body, `Expect.to_pass/2`'s) is located at its
+  own line, not at the library call around it: only the library's frames are left out.
 - On Unix, stopping `PlaywrightEx.Supervisor` waits until the driver has exited (at most 31 s).
   When the supervisor is stopped before the VM halts, the driver no longer resets the terminal
   afterwards (↑ printing `OA` in the shell after `mix test`). `mix test` and `mix run` halt

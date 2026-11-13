@@ -5,17 +5,17 @@ defmodule PlaywrightEx.Library.TracingTest do
   @browser_name System.get_env("BROWSER", "chromium")
 
   import PlaywrightEx.Runtime.Heap, only: [get: 2]
-  import PlaywrightEx.Utils, only: [parse_trace_raw: 2, rafraf: 1, to_pass: 1]
+  import PlaywrightEx.Utils, only: [parse_trace_raw: 2, rafraf: 1]
 
+  alias PlaywrightEx.APIRequest
+  alias PlaywrightEx.APIRequestContext
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
   alias PlaywrightEx.Dialog
-  alias PlaywrightEx.Expect
   alias PlaywrightEx.Disposable
+  alias PlaywrightEx.Expect
   alias PlaywrightEx.Keyboard
-  alias PlaywrightEx.APIRequest
-  alias PlaywrightEx.APIRequestContext
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Mouse
   alias PlaywrightEx.Page
@@ -1135,18 +1135,14 @@ defmodule PlaywrightEx.Library.TracingTest do
       File.read!(Path.join(dir, trace_name))
     end
 
-    content =
-      to_pass(fn ->
-        content = read_trace.()
-        assert content =~ "31415926"
-        content
-      end)
-
+    # `let content` assigned in the callback: the trace once it passed.
+    Expect.to_pass!(fn -> assert read_trace.() =~ "31415926" end)
+    content = read_trace.()
     refute content =~ "hello 0"
 
     Page.evaluate!(page, "() => 42")
 
-    to_pass(fn ->
+    Expect.to_pass!(fn ->
       content = read_trace.()
       assert content =~ "hello 0"
       assert content =~ "hello 99"

@@ -373,7 +373,7 @@ defmodule PlaywrightEx.RuntimeConnTest do
       # Runs when the navigation commits: aborts once `load` fired, so the load state is not
       # waited for and the abort wins the response wait.
       url = fn url ->
-        if url =~ "grid.html" do
+        if url.path == "/grid.html" do
           wait_until(fn -> PlaywrightEx.Runtime.Heap.set_has(frame, :_loadStates, "load") end)
           AbortController.abort(controller)
           true
@@ -681,12 +681,20 @@ defmodule PlaywrightEx.RuntimeConnTest do
         {context, page}
       end
 
+      # Outside the test (no `$callers`): a test's contexts are its recording's until it ends.
+      outside = fn fun ->
+        Task.async(fn ->
+          Process.delete(:"$callers")
+          fun.()
+        end)
+      end
+
       # Warm the caches (localUtils' glob cache) in a process that exits.
-      Task.await(Task.async(cycle))
+      Task.await(outside.(cycle))
       Process.sleep(50)
       before = Conn.stats(conn)
 
-      task = Task.async(fn -> for _ <- 1..10, do: cycle.() end)
+      task = outside.(fn -> for _ <- 1..10, do: cycle.() end)
       [{context, page} | _] = Task.await(task, 60_000)
       Process.sleep(50)
 

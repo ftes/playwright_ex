@@ -10,7 +10,6 @@ defmodule PlaywrightEx.Library.ScreencastActionsTest do
   alias PlaywrightEx.Page
   alias PlaywrightEx.Runtime
   alias PlaywrightEx.Screencast
-  alias PlaywrightEx.Utils
 
   # test.skip(({ mode }) => mode !== 'default', ...)  -- we run in default mode
 
@@ -230,7 +229,7 @@ defmodule PlaywrightEx.Library.ScreencastActionsTest do
 
     click_later(page, "#b", force: true)
 
-    Utils.poll(
+    Expect.poll!(
       fn -> Locator.evaluate!(cursor, "el => ({ top: el.style.top, left: el.style.left })") end,
       &refute(&1 == first)
     )

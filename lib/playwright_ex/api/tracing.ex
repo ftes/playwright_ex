@@ -366,10 +366,17 @@ defmodule PlaywrightEx.Tracing do
     Facade.async_void!("tracing.stopHar", tracing, fn -> PlaywrightEx.Client.Tracing.stop_har(tracing) end)
   end
 
-  @doc false
+  @doc """
+  The options of `function`, an atom such as `:start`, as
+  `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, for tools that build on the facade at
+  compile time; a function without options raises `FunctionClauseError`. Unstable: the shape
+  may change between releases.
+  """
   @spec __options__(atom()) :: [
           {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
         ]
+  def __options__(function)
+
   def __options__(:start) do
     [
       live: %{
@@ -500,4 +507,15 @@ defmodule PlaywrightEx.Tracing do
       }
     ]
   end
+
+  @doc false
+  # The type of `function`'s options, as `Facade.options!/3` converts them.
+  def __options_type__(function)
+
+  def __options_type__(:start), do: @start_options
+  def __options_type__(:start_chunk), do: @start_chunk_options
+  def __options_type__(:start_har), do: @start_har_options
+  def __options_type__(:group), do: @group_options
+  def __options_type__(:stop), do: @stop_options
+  def __options_type__(:stop_chunk), do: @stop_chunk_options
 end

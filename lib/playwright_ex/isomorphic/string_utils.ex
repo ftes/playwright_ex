@@ -1,12 +1,16 @@
 defmodule PlaywrightEx.Isomorphic.StringUtils do
   @upstream "packages/isomorphic/stringUtils.ts"
   @moduledoc """
-  Port of `#{@upstream}`: the selector escaping that locators need and the case helpers of the
-  locator generators. `RegExp` is a `Regex` or a `PlaywrightEx.RegExp`; `String(re)` is
-  `/source/flags` as in JS.
+  Port of `#{@upstream}`: the selector escaping that locators need, the case helpers of the
+  locator generators and `normalize_white_space/1`. `RegExp` is a `Regex` or a
+  `PlaywrightEx.RegExp`; `String(re)` is `/source/flags` as in JS.
   """
 
   alias PlaywrightEx.RegExp
+
+  # JS `\s` and `trim()`, the same set (WhiteSpace and LineTerminator). PCRE's `\s` differs: it
+  # also matches U+0085 and misses U+FEFF.
+  @js_white_space "[\\x{09}-\\x{0d}\\x{20}\\x{a0}\\x{1680}\\x{2000}-\\x{200a}\\x{2028}\\x{2029}\\x{202f}\\x{205f}\\x{3000}\\x{feff}]"
 
   def escape_with_quotes(text, char \\ "'") do
     stringified = JSON.encode!(text)
@@ -43,7 +47,18 @@ defmodule PlaywrightEx.Isomorphic.StringUtils do
   end
 
   # formatObject, formatObjectOrVoid, quoteCSSAttributeValue  -- not ported: codegen
-  # cacheNormalizedWhitespaces, normalizeWhiteSpace  -- not ported: locator parsing
+  # let normalizedWhitespaceCache: Map<string, string> | undefined;  -- not ported: an optimization
+  # cacheNormalizedWhitespaces  -- not ported: only the injected recorder enables the cache
+
+  def normalize_white_space(text) do
+    # let result = normalizedWhitespaceCache?.get(text);  -- not ported
+    text
+    |> String.replace(~r/[\x{200b}\x{00ad}]/u, "")
+    |> String.replace(~r/\A#{@js_white_space}+|#{@js_white_space}+\z/u, "")
+    |> String.replace(~r/#{@js_white_space}+/u, " ")
+
+    # normalizedWhitespaceCache?.set(text, result);  -- not ported
+  end
 
   def normalize_escaped_regex_quotes(source) do
     # This function reverses the effect of escapeRegexForSelector below.
@@ -98,8 +113,19 @@ defmodule PlaywrightEx.Isomorphic.StringUtils do
     trim_string(input, cap, "\u2026")
   end
 
-  # truncateDataUrl, escapeRegExp, escapeHTMLAttribute, escapeHTML  -- not ported
-  # longestCommonSubstring, parseRegex, tomlBasicString, tomlArray, tomlMultilineBasicString, stripAnsiEscapes  -- not ported
+  # truncateDataUrl, escapeRegExp, escapeHTMLAttribute  -- not ported
+
+  def escape_html(s), do: String.replace(s, ~r/[&<]/u, &if(&1 == "&", do: "&amp;", else: "&lt;"))
+  # longestCommonSubstring, parseRegex, tomlBasicString, tomlArray, tomlMultilineBasicString  -- not ported
+
+  def strip_ansi_escapes(str) do
+    # ansiRegex (not a module attribute: OTP 28 cannot store a compiled regex in one).
+    Regex.replace(
+      ~r/([\x{1B}\x{9B}][[\]()#?]*(?:(?:(?:[a-zA-Z\d]*(?:;[-a-zA-Z\d\/#&.:=?%@~_]*)*)?\x{07})|(?:(?:\d{0,4}(?:;\d{0,4})*)?[\dA-PR-TZcf-ntqry=><~])))/u,
+      str,
+      ""
+    )
+  end
 
   # String(re): JS escapes `/` in the source (`~r/a\/b/` has the source "a/b").
   defp regex_to_string(re), do: RegExp.to_string(RegExp.from_regex(re))
