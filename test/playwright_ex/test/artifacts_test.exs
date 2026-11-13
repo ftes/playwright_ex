@@ -366,6 +366,40 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     finish(test, [passed()], :shutdown)
   end
 
+  test "a tracing group a process of the test opens as the test ends leaves no row of the test", %{browser: browser} do
+    test = fake_test(%{trace: :on})
+    tracing = test.run.(fn -> browser |> Browser.new_context!() |> BrowserContext.tracing() end)
+
+    # The group's step waits for the recorder (suspended) until the test has ended.
+    recorder = Recorder.lookup(test.pid)
+    :sys.suspend(recorder)
+
+    group =
+      Task.async(fn ->
+        Process.put(:"$callers", [test.pid])
+        Tracing.group!(tracing, "late")
+      end)
+
+    wait_until(fn -> match?({:current_function, {:gen, :do_call, 4}}, Process.info(group.pid, :current_function)) end)
+    ref = Process.monitor(test.pid)
+    send(test.pid, {:end, [passed()], :shutdown})
+    assert_receive {:DOWN, ^ref, :process, _, _}
+    assert Results.result(test.pid, 5000) == {:passed, []}
+    :sys.resume(recorder)
+    Task.await(group)
+
+    assert :ets.match(Results.table(), {{:test_info, test.pid, :"$1"}, :_}) == []
+    capture_io(fn -> PlaywrightEx.Test.__finish__(test.pid, 10_000) end)
+  end
+
+  defp wait_until(fun, attempts \\ 100) do
+    cond do
+      fun.() -> :ok
+      attempts == 0 -> flunk("timed out waiting")
+      true -> Process.sleep(20) && wait_until(fun, attempts - 1)
+    end
+  end
+
   # The overlay's shadow root is closed outside upstream's test mode: its calls are in the trace.
   test "the video's show.test: the test's title and its steps over each page", %{browser: browser} do
     test = fake_test(%{trace: :on, video: [mode: :on, show: %{test: %{position: "bottom"}}]})

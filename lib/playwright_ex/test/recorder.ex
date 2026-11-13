@@ -191,12 +191,12 @@ defmodule PlaywrightEx.Test.Recorder do
   end
 
   defp push_tracing_group_step(test_info, step),
-    do: :ets.insert(Results.table(), {tracing_group_steps_key(test_info), [step | tracing_group_steps(test_info)]})
+    do: TestInfo.put_row(test_info, tracing_group_steps_key(test_info), [step | tracing_group_steps(test_info)])
 
   defp pop_tracing_group_step(test_info) do
     case tracing_group_steps(test_info) do
       [step | steps] ->
-        :ets.insert(Results.table(), {tracing_group_steps_key(test_info), steps})
+        TestInfo.put_row(test_info, tracing_group_steps_key(test_info), steps)
         step
 
       [] ->

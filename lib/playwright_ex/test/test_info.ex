@@ -266,9 +266,10 @@ defmodule PlaywrightEx.Test.TestInfo do
   # errors and rows.
   defp running?(this), do: lookup(this.test_pid) != nil
 
+  @doc false
   # Elixir only: a row of the test. One written once the test ended (by a process of the test
   # that outlived its body) is removed again, as the pool may have removed its rows.
-  defp put_row(this, key, value) do
+  def put_row(this, key, value) do
     :ets.insert(Results.table(), {key, value})
     if !running?(this), do: :ets.delete(Results.table(), key)
   end
