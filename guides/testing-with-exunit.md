@@ -42,8 +42,12 @@ use PlaywrightEx.Test
 alias PlaywrightEx.{Browser, BrowserContext, Expect, Locator, Page}
 alias PlaywrightEx.Test.BrowserPool
 
-setup do
-  context = Browser.new_context!(BrowserPool.shared())
+setup_all do
+  %{browser: BrowserPool.browser()}
+end
+
+setup %{browser: browser} do
+  context = Browser.new_context!(browser)
   %{context: context, page: BrowserContext.new_page!(context)}
 end
 ```
@@ -54,33 +58,20 @@ the end of each test's body, so the recording knows whether the test passed (ExU
 failures as before). Doctests and other macros' tests count as failed for their artifacts, and a
 failure only in an `on_exit` callback counts as passed.
 
-`PlaywrightEx.Test.BrowserPool.shared/1` starts a driver and launches the browser on first use;
-every caller with the same options gets the same browser, also with `async: true` (ExUnit runs
-those modules concurrently with each other; a module's own tests run one after another). A
-context is a fresh browser profile with its own cookies, storage and cache, so tests don't share
-state. The drivers stop after the suite.
+`PlaywrightEx.Test.BrowserPool.browser/1` is Playwright Test's `browser` fixture, and the pool
+is its worker model: called in `setup_all`, it gives the module a driver and browser of its own
+while it runs, as Playwright Test runs a file in one worker. At most `workers` of them run at
+once (config, default half the schedulers, as Playwright Test's `workers`); other modules wait
+for one, which costs nothing, so ExUnit's `max_cases` can stay as it is. A module that passed
+hands its browser on, warm, to the next; one that failed has it replaced. A context is a fresh
+browser profile with its own cookies, storage and cache, so tests don't share state. The drivers
+stop after the suite.
 
-The browser is shared by default because ExUnit's unit of concurrency is a cheap process, and
-its default `max_cases` (twice the schedulers) is much higher than Playwright Test's default
-`workers` (half the cores): a browser per concurrent test would be many browsers. Sharing lets
-concurrency grow with one browser and a context per test, Playwright's own isolation model. It
-suits mixed suites too: browser tests, plain ExUnit tests and tests that use PlaywrightEx
-through a library all run in ExUnit's one pool, no worker holds an idle browser, and a test
-that needs none never pays for a launch. It isn't faster: at the default parallelism a run
-takes about as long as Playwright Test's or up to a fifth longer, with a fraction of the memory
-and driver CPU.
-Wall time differs mostly by scheduling: ExUnit balances whole modules, running a module's tests
-one after another, where Playwright Test's `fullyParallel` balances single tests. So many small
-`async: true` modules parallelise better than a few big ones.
+A module's tests run one after another (ExUnit balances whole modules, where Playwright Test's
+`fullyParallel` balances single tests), so many small `async: true` modules parallelise better
+than a few big ones.
 
-> #### Firefox: use `exclusive` {: .warning}
->
-> Firefox dispatches input for all of a browser's pages in one queue, so a shared Firefox
-> browser slows down as concurrent tests grow, until they time out. On Firefox, use
-> `BrowserPool.exclusive/1`: one browser per worker, as Playwright Test always does (see
-> [Exclusive browsers](#exclusive-browsers)).
-
-Options go in as arguments, merged over the config: `BrowserPool.shared(browser_name: :webkit)`,
+Options go in as arguments, merged over the config: `BrowserPool.browser(browser_name: :webkit)`,
 `Browser.new_context!(browser, locale: "de-DE")`. `launch_options` are those of
 `PlaywrightEx.BrowserType.launch/2`, `context_options` those of
 `PlaywrightEx.Browser.new_context/2`. Every context a test creates on a pooled browser starts from
@@ -140,9 +131,13 @@ defmodule MyApp.BrowserCase do
     end
   end
 
+  setup_all do
+    %{browser: BrowserPool.browser()}
+  end
+
   # `@tag locale: "de-DE"` on a test.
-  setup ctx do
-    context = Browser.new_context!(BrowserPool.shared(), Enum.to_list(Map.take(ctx, [:locale])))
+  setup %{browser: browser} = ctx do
+    context = Browser.new_context!(browser, Enum.to_list(Map.take(ctx, [:locale])))
     %{context: context, page: BrowserContext.new_page!(context)}
   end
 end
@@ -225,7 +220,8 @@ context in `setup_all` belongs to no test, so it gets neither the defaults nor a
 
 ```elixir
 setup_all do
-  context = Browser.new_context!(BrowserPool.shared())
+  browser = BrowserPool.browser()
+  context = Browser.new_context!(browser)
   page = BrowserContext.new_page!(context)
   Page.goto!(page, "http://localhost:4000/login")
   Page.get_by_label(page, "Email") |> Locator.fill!("ada@example.com")
@@ -235,11 +231,11 @@ setup_all do
 
   storage_state = BrowserContext.storage_state!(context)
   BrowserContext.close!(context)
-  %{storage_state: storage_state}
+  %{browser: browser, storage_state: storage_state}
 end
 
-setup %{storage_state: storage_state} do
-  context = Browser.new_context!(BrowserPool.shared(), storage_state: storage_state)
+setup %{browser: browser, storage_state: storage_state} do
+  context = Browser.new_context!(browser, storage_state: storage_state)
   %{context: context, page: BrowserContext.new_page!(context)}
 end
 ```
@@ -252,14 +248,14 @@ true)`: IndexedDB is not in the state by default. See
 
 ## Several users
 
-Each user is a context, and a user on another browser takes it from another `shared/1` call:
+Each user is a context, and a user on another browser takes it from another `browser/1` call,
+on the module's driver:
 
 ```elixir
-test "two users edit one document" do
-  browser = BrowserPool.shared()
+test "two users edit one document", %{browser: browser} do
   ada = Browser.new_context!(browser)
   bob = Browser.new_context!(browser)
-  eve = Browser.new_context!(BrowserPool.shared(browser_name: :webkit))
+  eve = Browser.new_context!(BrowserPool.browser(browser_name: :webkit))
 
   ada_page = BrowserContext.new_page!(ada)
   bob_page = BrowserContext.new_page!(bob)
@@ -278,7 +274,7 @@ device's options as a map, which `Browser.new_context!/2` takes as they are or w
 
 ```elixir
 test "on a phone" do
-  browser = BrowserPool.shared(browser_name: :webkit)
+  browser = BrowserPool.browser(browser_name: :webkit)
   iphone = Playwright.devices(BrowserPool.playwright(browser))["iPhone 13"]
   page = BrowserContext.new_page!(Browser.new_context!(browser, Map.put(iphone, :locale, "de-DE")))
   # ...
@@ -313,8 +309,7 @@ defmodule MyApp.BrowserCase do
   end
 
   setup_all %{browser_name: name} do
-    browser = if name == :firefox, do: BrowserPool.exclusive(browser_name: name), else: BrowserPool.shared(browser_name: name)
-    %{browser: browser}
+    %{browser: BrowserPool.browser(browser_name: name)}
   end
 
   setup %{browser: browser, browser_name: name} do
@@ -411,11 +406,6 @@ end
 use PlaywrightEx.Test
 ```
 
-A trace you start yourself (`Tracing.start!(tracing, sources: true)`) on a shared driver also
-gets the stacks and sources of concurrent tests, as the driver adds every call's stack to each
-trace on the connection. The recording filters them out of its `trace.zip`; for your own traces,
-use `BrowserPool.exclusive/1`.
-
 ## Steps
 
 `PlaywrightEx.Test.step/3` groups a test's actions under a title, as Playwright Test's `test.step`: the trace
@@ -498,70 +488,44 @@ end
 
 The recording counts such a failure as a pass (see `PlaywrightEx.Test`).
 
-## Exclusive browsers
+## Workers
 
-A shared browser suits tests that only use contexts. A module that changes the driver or the
-browser for others (registers selectors, closes or traces the browser) takes one of its own, as
-Playwright Test's worker gives one:
-
-```elixir
-setup_all do
-  %{browser: BrowserPool.exclusive()}
-end
-```
-
-The scope that calls `BrowserPool.exclusive/1` holds the browser: called in `setup_all`, the
-module, until it ends; in `setup` or a test (or a `Task` of the test), the test. A test's own
-`exclusive()` call is a separate lease from its module's, so a module that holds one in
-`setup_all` uses it from the context. The scope's further calls with the same options return the
-same browser. At its end, a scope that passed gives the driver back, warm, to the next caller of
-its options, and one that failed stops it. To set up each new driver (register selectors, say),
-pass `on_start: &MyApp.Selectors.register/1`: the driver's state then holds for every scope that
-gets it.
+The scope that calls `BrowserPool.browser/1` holds the driver and its browsers, Playwright Test's
+worker: called in `setup_all`, the module, until it ends; in `setup` or a test of a module that
+holds none (or a `Task` of the test), the test. A test's own calls go to its module's driver, so
+another browser or options there don't take another worker. The scope's further calls with the
+same options return the same browser. At its end, a scope gives the driver back, warm, to the
+next caller of its options, unless it failed: then the driver stops, as Playwright Test replaces
+a worker after a failure. That needs the tests' results, so `use PlaywrightEx.Test`: without it a
+module counts as passed. To set up each new driver
+(register selectors, say), pass `on_start: &MyApp.Selectors.register/1`: the driver's state then
+holds for every scope that gets it.
 
 The test id attribute of `get_by_test_id` is global to the VM, as Playwright's is to a worker
-process, so an exclusive browser doesn't isolate it: a module that sets it changes it for every
-test running at once. Set it for the suite, as Playwright Test's `testIdAttribute`; each pooled
-driver gets it:
+process, so a module that sets it changes it for every test running at once. Set it for the
+suite, as Playwright Test's `testIdAttribute`; each pooled driver gets it:
 
 ```elixir
 # config/test.exs
 config :playwright_ex, :test, test_id_attribute: "data-pw"
 ```
 
-At most `workers` exclusive drivers run at once (config, default half the schedulers, as
-Playwright Test's `workers`); the others wait, first come first served, within ExUnit's test
-timeout (`setup_all` has none), and a wait of 10 s logs the holders. Shared browsers run outside
-that limit. A call with other options takes another driver: prefer `shared`; mark a rare
-exclusive module with unusual options `async: false`, so it doesn't wait for a driver of its own
-behind the others; raise `workers`; or split the run by options, with tags and `--only` /
+At most `workers` drivers run at once; the others wait, first come first served, within ExUnit's
+test timeout (`setup_all` has none), and a wait of 10 s logs the holders. A call with other
+`driver` or `on_start` options takes another driver, which may stop an idle driver of other
+options to start: mark a rare module with unusual options `async: false`, so it doesn't wait
+behind the others, raise `workers`, or split the run by options, with tags and `--only` /
 `--exclude`.
-
-On Firefox, use `exclusive` for every module (for a whole Firefox run, in your case template's
-`setup_all`). For a few Firefox modules in a mixed suite, ExUnit's `group:` works too: modules of
-a group never run at once, so they share one Firefox browser one module at a time while the
-others run in parallel:
-
-```elixir
-use ExUnit.Case, async: true, group: :firefox
-use PlaywrightEx.Test
-
-setup do
-  context = Browser.new_context!(BrowserPool.shared(browser_name: :firefox))
-  %{page: BrowserContext.new_page!(context)}
-end
-```
 
 ## Debugging one test
 
-To watch one module run headed, slowed down, give it an exclusive browser with those launch
-options:
+To watch one module run headed, slowed down, give it a browser with those launch options:
 
 ```elixir
 @moduletag :debug
 
 setup_all do
-  %{browser: BrowserPool.exclusive(launch_options: [headless: false, slow_mo: 500])}
+  %{browser: BrowserPool.browser(launch_options: [headless: false, slow_mo: 500])}
 end
 
 setup %{browser: browser} do
@@ -572,10 +536,6 @@ end
 
 and run it alone: `mix test test/my_app/sign_up_test.exs`, or `mix test --only debug`. The
 `launch_options` merge over the config's one key at a time, so its other launch options stay.
-`exclusive` rather than `shared`: the browser is the module's alone, and its driver stops when
-the module fails or another key needs the room; a shared browser serves every caller of its
-options and stays open until the suite ends.
-The driver counts toward `workers`, and may stop an idle driver of other options to start.
 
 To step through a test with `Page.pause/1`, tag it `@tag timeout: :infinity` (or run `mix test
 --trace`): otherwise ExUnit's timeout ends the test mid-pause, closing its contexts. The same goes
@@ -602,9 +562,8 @@ it allows (`headless`, `channel`, `slow_mo`, ...). A connected browser and a lau
 different browsers, also of one `browser_name`, and a lost connection is made again by the next
 call.
 
-`shared` connects once per set of options. `exclusive` connects once per driver, and the server
-launches a browser per connection, so each lease has a browser of its own, as each Playwright
-Test worker does.
+Each driver connects once, and the server launches a browser per connection, so each worker has
+a browser of its own, as each Playwright Test worker does.
 
 A call's `connect_options` win over the config's, and `connect_options: nil` launches. To switch
 a suite from the shell, read an env var in the config:

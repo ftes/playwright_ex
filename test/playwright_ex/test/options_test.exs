@@ -7,8 +7,8 @@ defmodule PlaywrightEx.Test.OptionsTest do
 
   describe "validation" do
     test "unknown options raise before anything starts" do
-      assert_raise ArgumentError, ~r/unknown options \[:headless\]/, fn -> BrowserPool.shared(headless: true) end
-      assert_raise ArgumentError, ~r/unknown options \[:isolate\]/, fn -> BrowserPool.exclusive(isolate: true) end
+      assert_raise ArgumentError, ~r/unknown options \[:headless\]/, fn -> BrowserPool.browser(headless: true) end
+      assert_raise ArgumentError, ~r/unknown options \[:isolate\]/, fn -> BrowserPool.browser(isolate: true) end
       assert_raise ArgumentError, ~r/unknown driver options \[:name\]/, fn -> Options.pool(driver: [name: Foo]) end
     end
 
@@ -262,6 +262,7 @@ defmodule PlaywrightEx.Test.ConfigTest do
     Application.put_env(:playwright_ex, :test, Keyword.put(ctx.config, :context_options, locale: "de-DE"))
     # The registration of this test read the config before: register a fake one in a process.
     test_pid = self()
+    browser = BrowserPool.browser()
 
     {pid, ref} =
       spawn_monitor(fn ->
@@ -273,7 +274,6 @@ defmodule PlaywrightEx.Test.ConfigTest do
           line: 1
         })
 
-        browser = BrowserPool.shared()
         default = BrowserContext.new_page!(Browser.new_context!(browser))
         own = BrowserContext.new_page!(Browser.new_context!(browser, locale: "fr-FR"))
 
@@ -291,11 +291,11 @@ defmodule PlaywrightEx.Test.ConfigTest do
   test "a registered test's contexts get the config's action_timeout and navigation_timeout", ctx do
     Application.put_env(:playwright_ex, :test, ctx.config ++ [action_timeout: 300, navigation_timeout: 200])
     test_pid = self()
+    browser = BrowserPool.browser()
 
     {pid, ref} =
       spawn_monitor(fn ->
         PlaywrightEx.Test.__register__(%{test_pid: self(), module: __MODULE__, test: :"test fake", file: __ENV__.file})
-        browser = BrowserPool.shared()
         page = BrowserContext.new_page!(Browser.new_context!(browser))
         request = APIRequest.new_context!(Playwright.request(BrowserPool.playwright(browser)))
         request_timeout = Heap.get(Heap.get(request, :_timeoutSettings), :_defaultTimeout)
@@ -332,7 +332,7 @@ defmodule PlaywrightEx.Test.ConfigTest do
   # async, and resets it.
   test "test_id_attribute: each new pooled driver gets it, as the client does", %{config: config} do
     Application.put_env(:playwright_ex, :test, config ++ [test_id_attribute: "data-pw"])
-    browser = BrowserPool.shared(driver: [env: [{"PW_TEST_ID_ATTRIBUTE_TEST", "1"}]])
+    browser = BrowserPool.browser(driver: [env: [{"PW_TEST_ID_ATTRIBUTE_TEST", "1"}]])
     selectors = Playwright.selectors(BrowserPool.playwright(browser))
     on_exit(fn -> Selectors.set_test_id_attribute(selectors, "data-testid") end)
 

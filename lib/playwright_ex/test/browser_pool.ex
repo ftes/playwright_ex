@@ -1,18 +1,22 @@
 defmodule PlaywrightEx.Test.BrowserPool do
   @moduledoc """
-  Browsers for tests, launched on first use on drivers the pool starts and stops after the
-  suite: Playwright Test's worker-scoped `browser` and `playwright` fixtures. Contexts and pages
+  Browsers for tests, on drivers the pool starts and stops after the suite: Playwright Test's
+  worker-scoped `browser` and `playwright` fixtures, and its worker model. Contexts and pages
   come from the plain API (`PlaywrightEx.Browser.new_context!/2`,
   `PlaywrightEx.BrowserContext.new_page!/1`), and a test of `use PlaywrightEx.Test` records the
   contexts it creates on a pooled browser and gives them Playwright Test's defaults.
 
-      setup do
-        context = Browser.new_context!(BrowserPool.shared())
+      setup_all do
+        %{browser: BrowserPool.browser()}
+      end
+
+      setup %{browser: browser} do
+        context = Browser.new_context!(browser)
         %{context: context, page: BrowserContext.new_page!(context)}
       end
 
-  Both functions take the same options, merged over `config :playwright_ex, :test`
-  (`launch_options` and `driver` one level deep):
+  `browser/1` takes these options, merged over `config :playwright_ex, :test` (`launch_options`
+  and `driver` one level deep):
 
     * `:browser_name` - `:chromium` (default), `:firefox` or `:webkit`.
     * `:launch_options` - for `PlaywrightEx.BrowserType.launch/2`, as is.
@@ -31,42 +35,37 @@ defmodule PlaywrightEx.Test.BrowserPool do
   A driver hosts a browser per `browser_name`, `launch_options` and `connect_options`, so the
   browser's key is all of the options and the driver's key `driver` and `on_start`. A connected
   browser runs on the server, its driver here: `on_start` runs on the driver before the connect,
-  and its contexts get the defaults and are recorded, as a launched browser's. Unknown options and bad values
-  raise `ArgumentError`.
+  and its contexts get the defaults and are recorded, as a launched browser's. Unknown options
+  and bad values raise `ArgumentError`.
 
-  ## Shared and exclusive
+  ## Workers
 
-  `shared/1` returns the browser of its key, used by every caller at once, as the one
-  connection serves any number of processes: contexts isolate tests. It is never evicted and
-  never waits, and a lost browser is launched (or connected) again by the next call.
+  A driver and its browsers are upstream's worker, held by the scope that calls `browser/1`.
+  Called in `setup_all`, the module holds it until it ends, as upstream runs a file in one
+  worker; a test's own calls then go to its module's driver. In `setup` or a test of a module
+  that holds none (or a `Task` of the test, through `$callers`), the test holds it until it
+  ends. The scope's further calls with the same options return the same browser; another
+  driver key gets another driver. At the end of the scope (the last step of a registered test's
+  `on_exit`; for another scope, an `on_exit` its first call registers), a scope gives its driver
+  back, warm, to the next caller of its key, unless it failed: then the driver stops, as upstream
+  replaces a worker after a failure. A module fails when a test of it failed. Only registered
+  tests have results: register tests with `use PlaywrightEx.Test` to get Playwright Test's
+  discard-after-failure; a scope with no known result (no registered test, a doctest) counts as
+  passed. A lost browser is launched (or connected) again by the scope's next call.
 
-  > #### Firefox: use `exclusive` {: .warning}
-  >
-  > Firefox dispatches input for all of a browser's pages in one queue, so a shared Firefox
-  > browser slows down as concurrent tests grow, until they time out. On Firefox, use
-  > `exclusive/1`: one browser per worker, as Playwright Test always does.
+  At most `workers` drivers run at once (config, default half the schedulers, as Playwright
+  Test's `workers`); others wait, first come first served, within ExUnit's test timeout
+  (`setup_all` has none), and a wait of 10 s logs the holders. A module that waits costs
+  nothing, so ExUnit's `max_cases` can stay above `workers`. A scope that holds one takes its
+  further driver keys over `workers`, so it never waits while others wait for it. At the cap, a
+  key with no free driver stops the longest idle free driver of another key.
 
-  `exclusive/1` is upstream's worker: a driver and browser held by the scope that calls it, for
-  a module that changes the driver or browser for others (registers selectors, closes or traces
-  the browser). Not for the test id attribute: `get_by_test_id` reads a value global to the VM
-  (upstream's to the worker process), so only a suite-wide one is safe, config
-  `test_id_attribute`, which each pooled driver gets. Called in `setup_all`, the module holds it
-  until it ends; in `setup` or a test (or a `Task` of the test, through `$callers`), the test holds it
-  until it ends. A test's own call is a separate lease from its module's. The scope's further
-  calls with the same options return the same browser; another driver key gets another driver.
-  At the end of the scope (the last step of a registered test's `on_exit`; for another scope,
-  an `on_exit` its first call registers), a scope that passed gives its driver back, warm, to
-  the next caller of its key, and one that failed stops it. A module passes when a test of it
-  ran and all of them passed, which needs `use PlaywrightEx.Test`.
+  The test id attribute of `get_by_test_id` is global to the VM (upstream's to the worker
+  process), so only a suite-wide one is safe: config `test_id_attribute`, which each pooled
+  driver gets.
 
-  At most `workers` exclusive drivers run at once (config, default half the schedulers, as
-  Playwright Test's `workers`); others wait, first come first served, within ExUnit's test
-  timeout (`setup_all` has none), and a wait of 10 s logs the holders. A scope that holds one
-  takes its further driver keys over `workers`, so it never waits while others wait for it. At
-  the cap, a key with no free driver stops the longest idle free driver of another key.
-
-  With `connect_options`, `shared/1` connects once per key; `exclusive/1` once per driver, and the
-  server launches a browser per connection, so each lease has a browser of its own.
+  With `connect_options`, each driver connects once, and the server launches a browser per
+  connection, so each worker has a browser of its own, as each Playwright Test worker does.
 
   A driver you start yourself (`start_supervised!({PlaywrightEx.Supervisor, name: MyDriver})`,
   then `PlaywrightEx.Playwright.chromium/1` and `PlaywrightEx.BrowserType.launch!/2` or
@@ -80,24 +79,17 @@ defmodule PlaywrightEx.Test.BrowserPool do
   alias PlaywrightEx.Test.Recorder
 
   @doc """
-  The shared browser of `opts` (see the moduledoc): one driver and browser per key, launched on
-  first use and again if lost, outside `workers`.
+  The browser of `opts` held by the calling scope (see the moduledoc): a registered test (the
+  caller or a process in its `$callers`; its module's, if the module holds one), else the
+  calling process, a `setup_all`'s. Raises outside ExUnit's processes.
   """
-  @spec shared(keyword()) :: Browser.t()
-  def shared(opts \\ []), do: Pool.shared(Options.pool(opts)).browser
-
-  @doc """
-  An exclusive browser of `opts` held by the calling scope (see the moduledoc): a registered
-  test (the caller or a process in its `$callers`), else the calling process, a `setup_all`'s.
-  Raises outside ExUnit's processes.
-  """
-  @spec exclusive(keyword()) :: Browser.t()
-  def exclusive(opts \\ []) do
+  @spec browser(keyword()) :: Browser.t()
+  def browser(opts \\ []) do
     opts = Options.pool(opts)
 
     case Recorder.registration() do
       %{test_pid: test_pid, test_name: name, file: file} ->
-        Pool.exclusive(opts, {:test, test_pid}, "the test #{inspect(name)} (#{Path.relative_to_cwd(file)})").browser
+        Pool.browser(opts, {:test, test_pid}, "the test #{inspect(name)} (#{Path.relative_to_cwd(file)})").browser
 
       nil ->
         scope = self()
@@ -107,13 +99,13 @@ defmodule PlaywrightEx.Test.BrowserPool do
         rescue
           ArgumentError ->
             reraise ArgumentError,
-                    "BrowserPool.exclusive/1 is held by a test (its process or a process with it in $callers, " <>
+                    "BrowserPool.browser/1 is held by a test (its process or a process with it in $callers, " <>
                       "with `use PlaywrightEx.Test`) or by setup_all, and released at their end; got a call " <>
                       "from #{inspect(scope)}",
                     __STACKTRACE__
         end
 
-        Pool.exclusive(opts, {:process, scope}, holder()).browser
+        Pool.browser(opts, {:process, scope}, holder()).browser
     end
   end
 

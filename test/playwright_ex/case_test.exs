@@ -18,9 +18,13 @@ end
 defmodule PlaywrightEx.CaseTest do
   use PlaywrightEx.Case, async: true
 
-  test "a test gets a context of the shared browser and a page of it, recorded", %{context: context, page: page} do
+  test "a test gets a context of the module's browser and a page of it, recorded", ctx do
+    %{browser: browser, context: context, page: page} = ctx
     assert Page.context(page) == context
-    assert BrowserContext.browser(context) == BrowserPool.shared()
+    assert BrowserContext.browser(context) == browser
+    # The module holds it (`setup_all`): the test's own call is the module's.
+    assert BrowserPool.browser() == browser
+    refute Map.has_key?(:sys.get_state(PlaywrightEx.Test.Pool).leases, self())
     assert is_pid(PlaywrightEx.Test.Recorder.lookup(self()))
     Page.set_content!(page, "<h1>Hi</h1>")
     Page.get_by_role(page, :heading) |> Expect.to_have_text!("Hi")

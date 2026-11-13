@@ -1,7 +1,6 @@
 defmodule PlaywrightEx.Page.PageDispatcheventTest do
   @upstream "tests/page/page-dispatchevent.spec.ts"
-  # isolate: registers a selector engine on the driver.
-  use PlaywrightEx.UpstreamCase, async: true, isolate: true
+  use PlaywrightEx.UpstreamCase, async: true
 
   alias PlaywrightEx.ElementHandle
   alias PlaywrightEx.Frame

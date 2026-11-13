@@ -9,6 +9,8 @@ defmodule PlaywrightEx.Test.ParameterizeTest do
   alias PlaywrightEx.Test.BrowserPool
   alias PlaywrightEx.Test.Recorder
 
+  setup_all do: %{browser: BrowserPool.browser()}
+
   # Before the registration, so its `on_exit` runs after the test's end has saved the trace.
   setup ctx, do: check(ctx, "PARAM-#{ctx.n}", [%{ctx | n: 3 - ctx.n}, %{ctx | module: __MODULE__.Other}])
 
@@ -22,7 +24,7 @@ defmodule PlaywrightEx.Test.ParameterizeTest do
 
     on_exit(fn ->
       assert File.ls!(dir) == ["trace.zip"]
-      trace = PlaywrightEx.Utils.parse_trace_raw(Path.join(dir, "trace.zip"), BrowserPool.shared())
+      trace = PlaywrightEx.Utils.parse_trace_raw(Path.join(dir, "trace.zip"), ctx.browser)
       text = JSON.encode!(trace.events)
       assert text =~ marker
       for other <- ["PARAM-1", "PARAM-2", "OTHER-MODULE"] -- [marker], do: refute(text =~ other)
@@ -30,20 +32,23 @@ defmodule PlaywrightEx.Test.ParameterizeTest do
     end)
   end
 
-  def record(marker) do
-    page = BrowserContext.new_page!(Browser.new_context!(BrowserPool.shared()))
+  def record(browser, marker) do
+    page = BrowserContext.new_page!(Browser.new_context!(browser))
     Page.set_content!(page, "<h1>#{marker}</h1>")
     # Long enough for the other parameter set's test to run alongside.
     Process.sleep(200)
   end
 
-  test("records", %{n: n}, do: record("PARAM-#{n}"))
+  test("records", %{browser: browser, n: n}, do: record(browser, "PARAM-#{n}"))
 end
 
 defmodule PlaywrightEx.Test.ParameterizeTest.Other do
   use ExUnit.Case, async: true
 
+  alias PlaywrightEx.Test.BrowserPool
   alias PlaywrightEx.Test.ParameterizeTest
+
+  setup_all do: %{browser: BrowserPool.browser()}
 
   setup ctx do
     others = for n <- [1, 2], do: Map.merge(ctx, %{module: ParameterizeTest, n: n})
@@ -54,7 +59,7 @@ defmodule PlaywrightEx.Test.ParameterizeTest.Other do
 
   @moduletag trace: :on
 
-  test "records", do: ParameterizeTest.record("OTHER-MODULE")
+  test("records", %{browser: browser}, do: ParameterizeTest.record(browser, "OTHER-MODULE"))
 end
 
 defmodule PlaywrightEx.Test.ParameterizeTest.Shapes do

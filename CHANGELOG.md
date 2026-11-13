@@ -14,15 +14,14 @@ those of the release candidates below. From an earlier release, also read the se
 - `PlaywrightEx.RegExp.new/1,2` takes a `Regex` or `RegExp` as JS's `new RegExp(re, flags)` does,
   converting a `Regex` as Playwright does (PCRE-only syntax raises `ArgumentError`). It inspects as
   `#PlaywrightEx.RegExp</source/flags>`.
-- `PlaywrightEx.Case`: a case template giving each test a `context` and a `page` of the shared
-  browser.
-- `PlaywrightEx.Test.BrowserPool`: Playwright Test's worker browser. `shared/1` is one browser
-  per set of options for every test at once; `exclusive/1` one held by the module (`setup_all`)
-  or test that calls it, at most `workers` at once (half the schedulers, as Playwright Test's
-  default), reused after a passing scope. `on_start` runs once per new driver (e.g. to register
-  selectors). On Firefox, use `exclusive/1`. `connect_options` is Playwright Test's
-  `connectOptions`: pooled browsers on a remote Playwright server, with the context defaults
-  and the recording.
+- `PlaywrightEx.Case`: a case template giving each module a `browser` and each test a `context`
+  and a `page` of it.
+- `PlaywrightEx.Test.BrowserPool`: Playwright Test's worker browser and worker model.
+  `browser/1` is held by the module (`setup_all`) or test that calls it, at most `workers` at
+  once (half the schedulers, as Playwright Test's default), reused after a passing scope and
+  replaced after a failing one. `on_start` runs once per new driver (e.g. to register
+  selectors). `connect_options` is Playwright Test's `connectOptions`: pooled browsers on a
+  remote Playwright server, with the context defaults and the recording.
 - `PlaywrightEx.Test`: `use PlaywrightEx.Test` after `use ExUnit.Case` (or first in a case
   template's body) registers each test. Every context it creates on a pooled browser, also in a
   `Task`, gets Playwright Test's context defaults (`locale: "en-US"`, a 1280x720 viewport, ...),
@@ -48,6 +47,11 @@ those of the release candidates below. From an earlier release, also read the se
   sets it changes `get_by_test_id` for concurrent tests: set it suite-wide.
 - `PlaywrightEx.Test` traces each context's `request` and the test's own request contexts
   (`APIRequest.new_context/2`), and disposes those left at the test's end.
+- Under `trace: :retain_on_failure`, the contexts a passed test leaves open discard their trace
+  chunks at its end, as Playwright Test's do, instead of saving and then deleting them.
+- `PlaywrightEx.Test` starts and stops its traces and takes its screenshots and page snapshots
+  with internal calls, as Playwright Test does, so they send the driver no call stacks and the
+  screenshots are no actions in the trace.
 - `PlaywrightEx.Test.info/1` takes the test's pid and works in `on_exit`, where it also has
   Playwright Test's `testInfo.status`, `errors`, `expectedStatus` and `duration`.
 - `PlaywrightEx.Test.attach/2` is Playwright Test's `testInfo.attach`: a file (`path:`, copied to
@@ -93,6 +97,10 @@ those of the release candidates below. From an earlier release, also read the se
 - A `Regex` with `u` whose source escapes punctuation (as `Regex.escape/1` does: `\#`, `\ `, `\-`)
   works in locators and matchers: JS's `u` mode rejects those escapes, so the redundant backslash
   is dropped.
+- The stack an API call records (its trace stack and location) leaves out OTP's and Elixir's
+  frames, as upstream's leaves out Node's, and in a `PlaywrightEx.Test` test ExUnit's and the
+  runner's, as Playwright Test leaves out its own. Their sources are the build machine's paths,
+  which the driver looked up for every frame when saving a trace (about 12 ms each on macOS).
 - On Unix, stopping `PlaywrightEx.Supervisor` waits until the driver has exited (at most 31 s).
   When the supervisor is stopped before the VM halts, the driver no longer resets the terminal
   afterwards (↑ printing `OA` in the shell after `mix test`). `mix test` and `mix run` halt

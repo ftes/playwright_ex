@@ -140,14 +140,11 @@ single thread. Use each only where the JS code needs it, with its marker.
   playwright-java `playwright/src/test/upstream_not_ported.txt` (rules against upstream's
   `tests/registry.md`, same format as ours); a spec they run (e.g. via the driver's
   `launch-server` CLI) we run too.
-- Drivers and browsers come from `PlaywrightEx.Test.BrowserPool.shared/1`, shared by the modules
-  running at once; a spec that needs other launch options launches its own browser, as upstream's do. A
-  module that changes the driver or its `browser` for others (registers selectors, sets the test
-  id attribute, closes, traces or counts the contexts of `browser`, edits the Playwright's
-  defaults) declares `use PlaywrightEx.UpstreamCase, isolate: true` with a `# isolate: <reason>`
-  comment: upstream's worker, a driver of its own from `BrowserPool.exclusive/1` (every module on
-  Firefox, which serializes input across a browser's pages). `PlaywrightEx.SharedDriver` fails a shared
-  module's test that changed the driver ("needs `isolate: true`").
+- Drivers and browsers come from `PlaywrightEx.Test.BrowserPool.browser/1` in `setup_all`,
+  upstream's worker: a driver and browser of the module's while it runs, reused by the next
+  module after a pass. A spec that needs other launch options launches its own browser, as
+  upstream's do. `PlaywrightEx.DriverCleanup` closes the contexts and browsers a test or module
+  created.
 - Mirror upstream spec files: one module per file, `@upstream "tests/page/page-goto.spec.ts"`
   then `use PlaywrightEx.UpstreamCase` (which tags the module with it: `mix test --only
   upstream:tests/page/page-goto.spec.ts`), test names identical to upstream, which start with

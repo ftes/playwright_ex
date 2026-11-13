@@ -36,17 +36,36 @@ defmodule PlaywrightEx.Test.TestTracing do
     }
 
     # Newest first.
-    %{trace_events: [context_created_event]}
+    %{trace_events: [context_created_event], did_finish_test_function_and_after_each_hooks: false, failed: nil}
   end
 
   # _shouldCaptureTrace, startIfNeeded  -- ported as `Recorder`'s trace mode: `off`, `on` or
   # `retain_on_failure` (no retries); a test without the recorder has no trace.
-  # didFinishTestFunctionAndAfterEachHooks, maybeGenerateNextTraceRecordingPath  -- not ported:
-  # chunks are kept until the test's result is known
+
+  @doc """
+  `didFinishTestFunctionAndAfterEachHooks`, in the recorder's `finish`: after the test's other
+  `on_exit` callbacks (upstream's `afterEach` hooks), before it closes the contexts left. With
+  the test's result, which `_shouldAbandonTrace` reads (upstream's `testInfo.status`).
+  """
+  def did_finish_test_function_and_after_each_hooks(this, failed?),
+    do: %{this | did_finish_test_function_and_after_each_hooks: true, failed: failed?}
 
   defp generate_next_trace_recording_path(tmp) do
     File.mkdir_p!(tmp)
     Path.join(tmp, "#{System.unique_integer([:positive])}.zip")
+  end
+
+  @doc """
+  `maybeGenerateNextTraceRecordingPath`, with the trace `mode`: the path of a context's chunk
+  under `tmp`, or `nil` for `Tracing.stopChunk` to discard it.
+  """
+  def maybe_generate_next_trace_recording_path(this, mode, tmp) do
+    # Forget about traces that should be saved on failure, when no failure happened
+    # during the test and beforeEach/afterEach hooks.
+    # This avoids downloading traces over the wire when not really needed.
+    if this.did_finish_test_function_and_after_each_hooks and should_abandon_trace(mode, this.failed),
+      do: nil,
+      else: generate_next_trace_recording_path(tmp)
   end
 
   # `_shouldAbandonTrace`.

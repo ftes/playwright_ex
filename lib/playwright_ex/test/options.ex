@@ -57,7 +57,7 @@ defmodule PlaywrightEx.Test.Options do
     video: [:mode, :size, :fps, :show]
   }
 
-  @doc "The pool options (`BrowserPool.shared/1`, `exclusive/1`): the config merged with `opts`."
+  @doc "The pool options (`BrowserPool.browser/1`): the config merged with `opts`."
   def pool(opts) do
     if !Keyword.keyword?(opts), do: raise(ArgumentError, "expected a keyword list of options, got: #{inspect(opts)}")
 
@@ -112,7 +112,7 @@ defmodule PlaywrightEx.Test.Options do
   @doc "The root of the output dirs (config `output_dir`, default `test-results`)."
   def output_dir, do: config()[:output_dir]
 
-  @doc "How many exclusive drivers may run at once (config `workers`)."
+  @doc "How many pooled drivers may run at once (config `workers`)."
   def workers, do: config()[:workers]
 
   @doc "The snapshot dir (config `snapshot_dir`, default `nil`: upstream's `testDir`)."
