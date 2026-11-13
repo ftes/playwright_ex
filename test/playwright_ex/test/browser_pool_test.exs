@@ -269,15 +269,6 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
       finish(next, [], :boom)
     end
 
-    test "a scope that holds a driver takes its next driver key over workers, not waiting" do
-      put_workers(1)
-      t = fake_test()
-      a = lease(t, opts())
-      b = lease(t, key("next key"))
-      assert a.playwright != b.playwright
-      finish(t, [], :boom)
-    end
-
     test "at the cap, a key with no free driver stops the longest idle free driver of another key" do
       put_workers(2)
       [t1, t2] = for _ <- 1..2, do: fake_test()

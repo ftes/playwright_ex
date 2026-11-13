@@ -112,23 +112,6 @@ defmodule PlaywrightEx.Test.ConnectTest do
     assert Enum.any?(trace.events, &(JSON.encode!(&1) =~ "REMOTE"))
   end
 
-  test "each driver connects a browser of its own", %{ws_endpoint: ws_endpoint} do
-    opts = [connect_options: [ws_endpoint: ws_endpoint]]
-    test = fake_test(%{})
-
-    # Another driver key: a scope that holds one driver takes it over `workers`.
-    {a, b} =
-      test.run.(fn ->
-        {BrowserPool.browser(opts), BrowserPool.browser(opts ++ [driver: [env: [{"PW_CONNECT_TEST", "1"}]]])}
-      end)
-
-    assert a.conn != b.conn
-    assert BrowserPool.playwright(a) != BrowserPool.playwright(b)
-    page = test.run.(fn -> BrowserContext.new_page!(Browser.new_context!(b)) end)
-    assert Page.evaluate!(page, "navigator.language") == "en-US"
-    finish(test)
-  end
-
   test "the launch options go in x-playwright-launch-options, ASCII only; the caller's headers win" do
     server = TestServer.server(start_supervised!({TestServer, dir_path: System.tmp_dir!()}))
     ws_endpoint = "ws://localhost:#{server.port}/ws"

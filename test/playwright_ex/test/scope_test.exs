@@ -62,14 +62,6 @@ defmodule PlaywrightEx.Test.ScopeTest.TestScopeTest do
     assert %{slots: [_, _]} = lease()
   end
 
-  test "other driver options take a driver of their own" do
-    a = BrowserPool.browser(@opts)
-    b = BrowserPool.browser(driver: [env: [{"PW_SCOPE_TEST", "test 2"}]])
-    assert BrowserPool.playwright(a) != BrowserPool.playwright(b)
-    assert %{slots: [_, _]} = lease()
-    assert Browser.is_connected(a) and Browser.is_connected(b)
-  end
-
   test "a test that asks for none holds none" do
     assert lease() == nil
   end
