@@ -636,25 +636,41 @@ See [Events and waiting](events-and-waiting.md) for one-off events (downloads, p
 
 ## Porting Playwright Test specs
 
-Most of a spec ports call for call. What differs:
+Most of a spec ports call for call. What differs (and see [Not supported](#not-supported)):
 
 - JS `null` is `:null` (`undefined` is `nil`), and objects from `evaluate` are maps with string
   keys (`result["entry"]["foo"]`).
 - A JS regex literal PCRE rejects (`/\patched/`: `\p` is `p` in JS without `u`) needs
   `PlaywrightEx.RegExp.new/1`, which sends the JS source as it is.
-- `test.skip(condition)` at runtime has no ExUnit equivalent: ExUnit can't skip a running test,
-  and its filters don't see `parameterize:` values. Use a tag known before the run
-  (`@tag skip: ...`, `--exclude`), or an `if` around the body (reported as passed).
-- `describe` blocks don't nest, and their names must be unique in a module: the outer one becomes
-  the module (its `beforeEach` a module `setup`), and a `describe` repeated in a loop becomes one
-  `describe` with the loop inside.
 - `elementHandle.evaluate(...)` is `JSHandle.evaluate!(element_handle, ...)`: an `ElementHandle`
   takes the `JSHandle` functions.
-- Asymmetric matchers (`expect.objectContaining`, `expect.any(String)`) become patterns:
-  `assert [%{"id" => id} | _] = list`, then `assert is_binary(id)`.
 - Module-level `let` state reset in `beforeEach` becomes per-test state, returned from `setup` or
   kept in an `Agent` (unlinked when an `on_exit` reads it, see "A check after the test").
 - `expect(fn).toPass()` is `Expect.to_pass!/2`, `expect.poll(fn).toBe(x)` is
   `Expect.poll!(fn, &assert(&1 == x))`, and a call started now and awaited later
   (`const p = locator.evaluate(...)`) is `PlaywrightEx.Promise.async/1` (see
   [Concurrency](concurrency.md)).
+
+## Not supported
+
+Playwright Test features ExUnit can't host, or that ExUnit and Elixir already cover
+([#210](https://github.com/ftes/playwright_ex/issues/210)):
+
+| Playwright Test | why | instead |
+|---|---|---|
+| runtime `test.skip(condition)` | ExUnit can't skip a running test, and its filters don't see `parameterize:` values | a tag known before the run (`@tag skip: ...`, `--exclude`), or an `if` around the body (reported as passed) |
+| `test.fixme`, `test.slow` | ExUnit has tags for both | `@tag :skip`, `@tag timeout: ...` |
+| `test.fail` | ExUnit has no expected-failure mode | none |
+| `retries`, retry modes (`on-first-retry`, ...) | ExUnit has no retries | `mix test --failed` (see "Traces, screenshots and videos") |
+| nested or duplicate-name `describe` | ExUnit's `describe` doesn't nest, and its names are unique in a module | a module per outer `describe` (its `beforeEach` a module `setup`); a `describe` repeated in a loop becomes one `describe` with the loop inside |
+| asymmetric matchers (`expect.objectContaining`, `expect.any(String)`, ...) | the jest matchers aren't ported | patterns: `assert %{"id" => id} = hd(list)`, then `assert is_binary(id)` |
+| `expect.configure({ timeout, soft })` | the options are the receiver's, not a configured `expect` | the matchers' `timeout:`, `Expect.soft/1` |
+| trace annotations | ExUnit has no annotations | none: a trace's `annotations` are `[]` |
+| `json`, `junit` reporters | ExUnit formatters cover them | an ExUnit formatter, such as the `junit_formatter` Hex package |
+| `list`, `line`, `dot` reporters | ExUnit's output covers them | ExUnit's CLI formatter |
+| reporter plugins (monocart coverage, ...) | there are no reporters to plug into | none: `PlaywrightEx.Coverage` collects, your code reports |
+| `webServer` | `test_helper.exs` starts what a run needs | start the endpoint in `test_helper.exs`, or `server: true` in the test config |
+
+Not yet: the HTML reporter with `blob` and `merge-reports`
+([#225](https://github.com/ftes/playwright_ex/issues/225)), and rebaselining inline snapshots
+([#226](https://github.com/ftes/playwright_ex/issues/226)).

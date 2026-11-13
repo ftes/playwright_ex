@@ -302,7 +302,7 @@ no call site (the recording modes) are config plus ExUnit tags; the rest are arg
 | `test.step` | `step/2,3` (no timeout) |
 | `testInfo.attach` | `attach/2` (`test.attach` step, `trace.attachments`) |
 | list reporter's `npx playwright show-trace <path>` | a failure prints `mix playwright_ex.cli show-trace <path>` |
-| retry modes (`on-first-retry`, ...) | not supported: ExUnit has no retries; the `TRACE=1 mix test --failed` recipe |
+| retry modes (`on-first-retry`, ...) | not supported, as the rest of the guide's [Not supported](../guides/testing-with-exunit.md#not-supported) |
 
 Deviations the port requires:
 
@@ -440,8 +440,9 @@ rejected: ambient fixtures (context keys the
 runner fills in: the user owns the map), a lazy module lease (a module's first test taking the
 browser for the module; a scope holds what it calls), serving waiters LIFO (first come first
 served bounds every wait), an `:open` lease that outlives its scope, `fresh: true` for a cold
-driver (`on_start` sets up each new one), retry modes (ExUnit has no retries), and tags for
-options other than the recording modes (a template maps its own tags).
+driver (`on_start` sets up each new one), and tags for options other than the recording modes (a
+template maps its own tags). The features ExUnit can't host, with their replacements: the guide's
+[Not supported](../guides/testing-with-exunit.md#not-supported).
 
 ## Mirroring upstream specs
 
