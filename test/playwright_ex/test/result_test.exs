@@ -31,6 +31,13 @@ defmodule PlaywrightEx.Test.ResultTest do
       end)
 
     assert_receive {:registered, _test}
+
+    # Its leases released, also when the test fails before the fake test's end.
+    on_exit(fn ->
+      Process.exit(pid, :kill)
+      Pool.release(pid)
+    end)
+
     pid
   end
 

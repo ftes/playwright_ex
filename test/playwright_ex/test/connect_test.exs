@@ -55,6 +55,12 @@ defmodule PlaywrightEx.Test.ConnectTest do
     assert_receive {:registered, test}
     on_exit(fn -> File.rm_rf!(test.output_dir) end)
 
+    # Its leases released, also when the test fails before the fake test's end.
+    on_exit(fn ->
+      Process.exit(pid, :kill)
+      Pool.release(pid)
+    end)
+
     run = fn fun ->
       Task.await(
         Task.async(fn ->

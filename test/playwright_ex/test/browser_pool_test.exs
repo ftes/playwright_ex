@@ -38,14 +38,6 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
     pid
   end
 
-  # The drivers the async modules left, stopped first: with `workers` 1, the first test's lease
-  # waits for each of them to exit, which under load can outlast its timeout (`setup_all` has
-  # none).
-  setup_all do
-    Pool.after_suite(%{})
-    :ok
-  end
-
   # Ends the fake test: its result.
   defp end_test(pid, messages, reason) do
     send(pid, {:end, messages, reason})
