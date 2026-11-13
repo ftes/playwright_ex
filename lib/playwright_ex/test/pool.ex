@@ -30,12 +30,13 @@ defmodule PlaywrightEx.Test.Pool do
   alias PlaywrightEx.Test.Pool.Slot
   alias PlaywrightEx.Test.Results
 
-  @doc "Starts the pool unless it runs. Two callers racing is fine."
+  @doc "Starts the pool unless it runs, its table created. Two callers racing is fine."
   def ensure_started do
-    if !Process.whereis(__MODULE__) do
+    if !Results.started?() do
       case GenServer.start(__MODULE__, nil, name: __MODULE__) do
         {:ok, _pid} -> :ok
-        {:error, {:already_started, _pid}} -> :ok
+        # The name is registered before `init/1` runs: a call waits for it.
+        {:error, {:already_started, pid}} -> GenServer.call(pid, :started, :infinity)
       end
     end
 
@@ -150,6 +151,8 @@ defmodule PlaywrightEx.Test.Pool do
         {:reply, :ok, state |> trim() |> serve_waiting()}
     end
   end
+
+  def handle_call(:started, _from, state), do: {:reply, :ok, state}
 
   def handle_call(:take_all, _from, state) do
     for waiter <- state.waiting, do: GenServer.reply(waiter.from, :stopped)

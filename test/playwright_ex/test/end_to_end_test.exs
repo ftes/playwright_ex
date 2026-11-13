@@ -75,6 +75,12 @@ defmodule PlaywrightEx.Test.EndToEndTest do
     assert report.free == [:held]
   end
 
+  test "a test's setup racing the pool's start waits for its init", %{tmp_dir: tmp_dir} do
+    child = start("pool_start", tmp_dir)
+    assert ChildProcess.exit_code(child, 60_000) == 0
+    assert ChildProcess.output(child) =~ ~r"1 test, 0 failures|Result: 1 passed"
+  end
+
   test "a test fails at its end with the snapshots it wrote, all errors reported, also when killed", %{tmp_dir: tmp_dir} do
     child = start("soft_errors", tmp_dir)
     assert ChildProcess.exit_code(child, 60_000) == 0

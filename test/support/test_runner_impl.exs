@@ -11,6 +11,8 @@
 #     `(report=>%{...})`.
 #   * `max_failures` - `max_failures: 1`, a module holding a browser running when another
 #     fails; prints the pool after the run.
+#   * `pool_start` - `PlaywrightEx.Test.Pool.ensure_started/0` while the pool's name is
+#     registered and its `init/1` still runs.
 #   * `soft_errors` - tests whose matchers write missing snapshots (`snapshot_dir` next to the
 #     output dir), one of them failing after that, one killed past its timeout.
 #   * `steps` - a test failing in a boxed step, with no browser.
@@ -303,6 +305,33 @@ case mode do
       test "hangs elsewhere", %{page: page} do
         Page.set_content!(page, "<h1>Sleeps</h1>")
         Process.sleep(:infinity)
+      end
+    end
+
+  "pool_start" ->
+    # Stands in for the pool, whose name is registered before its `init/1` runs: this one's
+    # creates the table after a while.
+    defmodule SlowInit do
+      use GenServer
+
+      def init(nil) do
+        Process.sleep(200)
+        :ets.new(PlaywrightEx.Test.Results.table(), [:named_table, :public, :set])
+        {:ok, nil}
+      end
+
+      def handle_call(_request, _from, state), do: {:reply, :ok, state}
+    end
+
+    defmodule PoolStartTest do
+      use ExUnit.Case, async: true
+
+      test "a caller racing the pool's start gets it once its table exists" do
+        spawn(fn -> GenServer.start(SlowInit, nil, name: PlaywrightEx.Test.Pool) end)
+        wait = fn wait -> if !Process.whereis(PlaywrightEx.Test.Pool), do: Process.sleep(1) && wait.(wait) end
+        wait.(wait)
+        PlaywrightEx.Test.Pool.ensure_started()
+        assert PlaywrightEx.Test.Results.started?()
       end
     end
 
