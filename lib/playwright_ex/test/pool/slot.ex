@@ -1,15 +1,14 @@
 defmodule PlaywrightEx.Test.Pool.Slot do
   @moduledoc false
-  # One driver and its browsers, in a process of its own: starting the driver and launching
-  # block this slot and its callers only, and the slot stays alive as the browsers' creator,
-  # which anchors their rows. Lazy: the driver starts with the first `browser/2`, which adds the
+  # One driver and its browser, in a process of its own: starting the driver and launching
+  # block this slot and its callers only, and the slot stays alive as the browser's creator,
+  # which anchors its rows. Lazy: the driver starts with the first `browser/1`, which adds the
   # recording listener (`PlaywrightEx.Test.Recorder.listener/0`), sets the test id attribute and
-  # runs `on_start` on each new driver's Playwright before any launch.
-  # It hosts a browser per `{browser_name, launch_options, connect_options}`, as upstream runs
-  # every browser type on one Playwright: the listener on the driver's instrumentation sees all of
-  # their contexts, also those of a connected browser, whose connection shares it. A lost browser
-  # (closed, disconnected, or its driver gone) is launched or connected again by the next
-  # `browser/2`.
+  # runs `on_start` on each new driver's Playwright before the launch. Its one browser is the
+  # slot's options' (`browser_name`, `launch_options`, `connect_options`), as upstream's worker
+  # runs its project's: the listener on the driver's instrumentation sees its contexts, also
+  # those of a connected browser, whose connection shares it. A lost browser (closed,
+  # disconnected, or its driver gone) is launched or connected again by the next `browser/1`.
   use GenServer
 
   alias PlaywrightEx.Browser
@@ -29,18 +28,16 @@ defmodule PlaywrightEx.Test.Pool.Slot do
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts)
 
   @doc "`%{playwright: _, browser: _}`, starting the driver and launching the browser if needed."
-  def browser({pid, _key}, opts) do
-    key = {opts.browser_name, Enum.sort(opts.launch_options), opts.connect_options}
-
-    case GenServer.call(pid, {:browser, key}, :infinity) do
+  def browser({pid, _key}) do
+    case GenServer.call(pid, :browser, :infinity) do
       {:ok, result} -> result
       {:error, exception, stacktrace} -> reraise exception, stacktrace
     end
   end
 
-  def browser(:stopped, _opts), do: raise("PlaywrightEx.Test's drivers were stopped (after the suite)")
+  def browser(:stopped), do: raise("PlaywrightEx.Test's drivers were stopped (after the suite)")
 
-  def browser(:released, _opts),
+  def browser(:released),
     do: raise(ArgumentError, "BrowserPool.browser/1 waited past the end of its test or module")
 
   @doc "The Playwright of the driver whose connection is `conn`, `nil` for one the pool didn't start."
@@ -64,13 +61,13 @@ defmodule PlaywrightEx.Test.Pool.Slot do
   @impl true
   def init(opts) do
     Process.flag(:trap_exit, true)
-    {:ok, %{opts: opts, sup: nil, name: nil, playwright: nil, browsers: %{}}}
+    {:ok, %{opts: opts, sup: nil, name: nil, playwright: nil, browser: nil}}
   end
 
   @impl true
-  def handle_call({:browser, browser_key}, _from, state) do
+  def handle_call(:browser, _from, state) do
     with {:ok, state} <- driver(state),
-         {:ok, browser, state} <- launch(state, browser_key) do
+         {:ok, browser, state} <- launch(state) do
       {:reply, {:ok, %{playwright: state.playwright, browser: browser}}, state}
     else
       {:error, error, state} -> {:reply, error, state}
@@ -86,7 +83,7 @@ defmodule PlaywrightEx.Test.Pool.Slot do
   @impl true
   def handle_info({:EXIT, sup, _reason}, %{sup: sup} = state) do
     forget_driver(state)
-    {:noreply, %{state | sup: nil, name: nil, playwright: nil, browsers: %{}}}
+    {:noreply, %{state | sup: nil, name: nil, playwright: nil, browser: nil}}
   end
 
   def handle_info(_message, state), do: {:noreply, state}
@@ -121,7 +118,7 @@ defmodule PlaywrightEx.Test.Pool.Slot do
       forget_driver(state)
       ClientInstrumentation.add_listener(Heap.get(playwright, :_instrumentation), Recorder.listener())
       :ets.insert(PlaywrightEx.Test.Pool.table(), {{:driver, playwright.conn}, playwright})
-      state = %{state | playwright: playwright, browsers: %{}}
+      state = %{state | playwright: playwright, browser: nil}
       # `_setupContextOptions`' `selectors.setTestIdAttribute(testIdAttribute)`: suite-wide,
       # as the client's value (`get_by_test_id`) is global to the VM.
       Selectors.set_test_id_attribute(Playwright.selectors(playwright), Options.test_id_attribute())
@@ -132,28 +129,24 @@ defmodule PlaywrightEx.Test.Pool.Slot do
     exception -> {:error, {:error, exception, __STACKTRACE__}, stop_driver(state)}
   end
 
-  # A launch that fails leaves the driver and its other browsers be.
-  defp launch(state, browser_key) do
-    case state.browsers do
-      %{^browser_key => browser} ->
-        if connected?(browser) do
-          {:ok, browser, state}
-        else
-          forget_browser(state, browser)
-          launch_new(%{state | browsers: Map.delete(state.browsers, browser_key)}, browser_key)
-        end
+  # A launch that fails leaves the driver be.
+  defp launch(%{browser: nil} = state), do: launch_new(state)
 
-      _ ->
-        launch_new(state, browser_key)
+  defp launch(state) do
+    if connected?(state.browser) do
+      {:ok, state.browser, state}
+    else
+      forget_browser(state, state.browser)
+      launch_new(%{state | browser: nil})
     end
   end
 
-  defp launch_new(state, {browser_name, launch_options, connect_options} = browser_key) do
-    browser_type = apply(Playwright, browser_name, [state.playwright])
-    browser = launch_or_connect(browser_type, launch_options, connect_options)
+  defp launch_new(%{opts: opts} = state) do
+    browser_type = apply(Playwright, opts.browser_name, [state.playwright])
+    browser = launch_or_connect(browser_type, opts.launch_options, opts.connect_options)
     # `BrowserPool.playwright/1` of a connected browser: the driver's.
     :ets.insert(PlaywrightEx.Test.Pool.table(), {{:driver, browser.conn}, state.playwright})
-    {:ok, browser, %{state | browsers: Map.put(state.browsers, browser_key, browser)}}
+    {:ok, browser, %{state | browser: browser}}
   rescue
     exception -> {:error, {:error, exception, __STACKTRACE__}, state}
   end
@@ -211,15 +204,15 @@ defmodule PlaywrightEx.Test.Pool.Slot do
   defp stop_driver(state) do
     forget_driver(state)
     Supervisor.stop(state.sup, :normal, :infinity)
-    %{state | sup: nil, name: nil, playwright: nil, browsers: %{}}
+    %{state | sup: nil, name: nil, playwright: nil, browser: nil}
   catch
-    :exit, _ -> %{state | sup: nil, name: nil, playwright: nil, browsers: %{}}
+    :exit, _ -> %{state | sup: nil, name: nil, playwright: nil, browser: nil}
   end
 
   defp forget_driver(%{playwright: nil}), do: :ok
 
   defp forget_driver(state) do
-    Enum.each(state.browsers, fn {_key, browser} -> forget_browser(state, browser) end)
+    if state.browser, do: forget_browser(state, state.browser)
     :ets.delete(PlaywrightEx.Test.Pool.table(), {:driver, state.playwright.conn})
   end
 
@@ -232,7 +225,7 @@ defmodule PlaywrightEx.Test.Pool.Slot do
   defp close_others(%{playwright: nil}), do: :ok
 
   defp close_others(state) do
-    own = for {_key, browser} <- state.browsers, do: browser.guid
+    own = if state.browser, do: [state.browser.guid], else: []
 
     others =
       Api.call(nil, state.playwright, fn ->

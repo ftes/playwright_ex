@@ -13,8 +13,8 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
   alias PlaywrightEx.Test.Pool
   alias PlaywrightEx.Test.TestInfo
 
-  # A driver of this module's (no other module passes this `env`) and a browser of each test's
-  # (`launch_options` no other test passes).
+  # A worker of this module's (no other module passes this `env`), of each call's options
+  # (`launch_options` no other call passes).
   defp opts(extra \\ []) do
     [driver: [env: [{"PW_POOL_TEST", "1"}]], launch_options: [timeout: 40_000 + System.unique_integer([:positive])]] ++
       extra
@@ -36,6 +36,14 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
 
     Pool.watch(pid, marked)
     pid
+  end
+
+  # The drivers the async modules left, stopped first: with `workers` 1, the first test's lease
+  # waits for each of them to exit, which under load can outlast its timeout (`setup_all` has
+  # none).
+  setup_all do
+    Pool.after_suite(%{})
+    :ok
   end
 
   # Ends the fake test: its result.
@@ -255,16 +263,22 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
       for t <- [tc, td], do: finish(t, [], :boom)
     end
 
-    test "a repeated call returns the scope's browser; another browser key launches on its driver" do
+    test "a repeated call returns the scope's browser; other browser options get another worker" do
+      put_workers(1)
       opts = opts()
-      t = fake_test()
+      [t, next] = [fake_test(), fake_test()]
       a = lease(t, opts)
       assert lease(t, opts) == a
-      # Other launch options: the browser under test, so CI's one installed browser runs it.
+      # Other launch options: the browser under test, so CI's one installed browser runs it. Over
+      # `workers`: `t` holds a driver already.
       b = lease(t, Keyword.put(opts, :launch_options, opts()[:launch_options]))
-      assert a.playwright == b.playwright and a.browser != b.browser
-      finish(t, [], :boom)
-      assert gone?(a.browser)
+      assert a.playwright != b.playwright
+      finish(t, [passed()], :shutdown)
+
+      # A free worker of other browser options is not reused: one of them stops for room.
+      c = lease(next, Keyword.put(opts, :launch_options, opts()[:launch_options]))
+      assert c.playwright not in [a.playwright, b.playwright]
+      finish(next, [], :boom)
     end
 
     test "a scope that holds a driver takes its next driver key over workers, not waiting" do

@@ -130,8 +130,8 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.SignUpTest do
     bob_page = BrowserContext.new_page!(bob)
     eve_page = BrowserContext.new_page!(eve)
     assert BrowserContext.browser(eve) == other
-    # On the module's driver.
-    assert BrowserPool.playwright(other) == BrowserPool.playwright(browser)
+    # Another worker, held by the module over `workers`.
+    assert BrowserPool.playwright(other) != BrowserPool.playwright(browser)
     for page <- [ada_page, bob_page, eve_page], do: Page.set_content!(page, "<p>Doc</p>")
   end
 

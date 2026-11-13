@@ -115,7 +115,7 @@ case mode do
     alias PlaywrightEx.Test.BrowserPool
 
     defmodule TenTest do
-      # The module's lease: two browser keys on one driver.
+      # The module's lease: two browser options, a worker each.
       use ExUnit.Case, async: true
       use PlaywrightEx.Test
 

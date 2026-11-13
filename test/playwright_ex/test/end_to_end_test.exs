@@ -62,9 +62,9 @@ defmodule PlaywrightEx.Test.EndToEndTest do
 
     assert report.leases == 0
     # Not the failed module's; each parameter set's own (a driver has one label).
-    assert report.free == [:param_1, :param_2, :ten, :two_a, :two_b]
-    # Ten tests and two browser keys of one module on one driver.
-    assert report.drivers.ten == 1
+    assert report.free == [:param_1, :param_2, :ten, :ten, :two_a, :two_b]
+    # Ten tests and two browser options of one module: a worker each.
+    assert report.drivers.ten == 2
     assert report.scopes.ten == 1
   end
 
