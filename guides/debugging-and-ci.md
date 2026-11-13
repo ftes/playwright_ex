@@ -155,9 +155,16 @@ failed tests (at their line), failed `setup_all`s and slow files, and a summary.
 only those, so name `ExUnit.CLIFormatter` next to it (`--formatter` replaces the configured
 formatters). When failures are rerun, pass it to the first run only, or a test failing twice is
 annotated twice. Rerun only on exit status 2 (tests failed): any other failure, such as a crash
-or a missed coverage threshold, would otherwise go green on an empty `--failed` run:
+or a missed coverage threshold, would otherwise go green on an empty `--failed` run.
+`erlef/setup-beam`'s problem matchers annotate each failure again, at the test's line, so turn
+them off:
 
 ```yaml
+- uses: erlef/setup-beam@v1
+  with:
+    elixir-version: "1.20"
+    otp-version: "29"
+    disable_problem_matchers: true
 - run: |
     mix test --formatter ExUnit.CLIFormatter --formatter PlaywrightEx.Test.GitHubFormatter ||
       { [ $? -eq 2 ] && mix test --failed; }
