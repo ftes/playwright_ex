@@ -95,14 +95,39 @@ defmodule PlaywrightEx.Isomorphic.ProtocolFormatter do
 
   defp new_url(_url), do: nil
 
-  # `url.host`: lowercase, an IPv6 address in brackets (which `URI` drops), with the port unless
-  # it is the scheme's default.
+  # `url.host`: lowercase, an IPv6 address in brackets (which `URI` drops) as JS serializes it,
+  # with the port unless it is the scheme's default.
   defp url_host(%URI{host: nil}), do: ""
 
   defp url_host(%URI{host: host, port: port, scheme: scheme}) do
-    host = String.downcase(host)
-    host = if String.contains?(host, ":"), do: "[#{host}]", else: host
+    host = if String.contains?(host, ":"), do: "[#{ipv6_serialize(host)}]", else: String.downcase(host)
     if port == nil or port == URI.default_port(scheme), do: host, else: "#{host}:#{port}"
+  end
+
+  # The URL Standard's IPv6 serializer: lowercase hex pieces, the first longest run of two or
+  # more zero pieces compressed to "::".
+  defp ipv6_serialize(host) do
+    case :inet.parse_ipv6strict_address(String.to_charlist(host)) do
+      {:ok, address} ->
+        pieces = Tuple.to_list(address)
+
+        zeros =
+          pieces
+          |> Enum.with_index()
+          |> Enum.chunk_by(&(elem(&1, 0) == 0))
+          |> Enum.filter(&match?([{0, _}, {0, _} | _], &1))
+          |> Enum.max_by(&length/1, fn -> nil end)
+
+        hex = &Enum.map_join(&1, ":", fn piece -> String.downcase(Integer.to_string(piece, 16)) end)
+
+        case zeros do
+          nil -> hex.(pieces)
+          [{0, first} | _] -> hex.(Enum.take(pieces, first)) <> "::" <> hex.(Enum.drop(pieces, first + length(zeros)))
+        end
+
+      {:error, _} ->
+        String.downcase(host)
+    end
   end
 
   # `url.pathname`: "/" for the empty path of a URL with a host.

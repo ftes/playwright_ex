@@ -58,6 +58,12 @@ defmodule PlaywrightEx.Isomorphic.ProtocolFormatterTest do
     assert goto.("about:blank") == "about:blank"
     assert goto.("/relative") == "/relative"
     assert goto.("http://[::1]:8080/a") == "[::1]:8080/a"
+    # As JS's URL serializes an IPv6 address: the first longest run of zeros compressed, lowercase
+    # hex, an embedded IPv4 address in hex.
+    assert goto.("http://[0:0::1]:8080/a") == "[::1]:8080/a"
+    assert goto.("http://[2001:DB8:0:0:1:0:0:1]/") == "[2001:db8::1:0:0:1]/"
+    assert goto.("http://[1:0:0:2:0:0:3:4]/") == "[1::2:0:0:3:4]/"
+    assert goto.("http://[::FFFF:1.2.3.4]/") == "[::ffff:102:304]/"
   end
 
   test "params: renamed, nested, selectors as locators, long strings truncated, none is nil" do
