@@ -385,8 +385,18 @@ defmodule PlaywrightEx.Test.GitHubFormatter do
 
   defp relative_test_path(test), do: Path.relative_to(Path.expand(test.tags.file), File.cwd!(), force: true)
 
+  # A project's name: the `parameterize:` values, by key, as `[chromium]` for
+  # `%{browser_name: :chromium}`.
   defp project_name(%ExUnit.Test{parameters: parameters}) when parameters == %{}, do: nil
-  defp project_name(%ExUnit.Test{parameters: parameters}), do: inspect(parameters)
+
+  defp project_name(%ExUnit.Test{parameters: parameters}) do
+    parameters
+    |> Enum.sort()
+    |> Enum.map_join(", ", fn
+      {_key, value} when is_binary(value) or is_atom(value) or is_number(value) -> to_string(value)
+      {_key, value} -> inspect(value)
+    end)
+  end
 
   defp separator(text) do
     text = if text != "", do: text <> " ", else: text

@@ -106,16 +106,19 @@ defmodule PlaywrightEx.Test.GitHubFormatterTest do
     refute output =~ "%0A     #{@file_path}:10%0A"
   end
 
-  test "a parameterized module's parameters are the project" do
+  test "a parameterized module's parameter values are the project, as upstream's [chromium]" do
     test = %{
       test_struct("test fails", state: {:failed, [failure(fn -> raise "oops" end)]})
       | parameters: %{browser_name: :firefox}
     }
 
     output = run([{:test_finished, test}])
-    assert output =~ ",title=[%25{browser_name%3A %3Afirefox}] › #{@file_path}%3A10 › fails,"
-    assert output =~ "::  1) [%25{browser_name: :firefox}] › #{@file_path}:10 › fails ─"
+    assert output =~ ",title=[firefox] › #{@file_path}%3A10 › fails,"
+    assert output =~ "::  1) [firefox] › #{@file_path}:10 › fails ─"
     assert output =~ "─%0A     ** (RuntimeError) oops%0A"
+
+    test = %{test | parameters: %{size: {1280, 720}, browser_name: "webkit"}}
+    assert run([{:test_finished, test}]) =~ "::  1) [webkit, {1280, 720}] › #{@file_path}:10 › fails ─"
   end
 
   test "the summary lists the failed tests and counts the others; a failed setup_all is an error" do
