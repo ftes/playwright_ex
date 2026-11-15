@@ -431,6 +431,117 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
              ["", "|outer|&lt;step>", "|outer|&lt;step>|inner", "|outer|&lt;step>", ""]
   end
 
+  # The overlays the trace's calls leave (shown, not removed), and the ids removed more than once.
+  defp overlays_left(events) do
+    shows = for %{"type" => "before", "method" => "screencastShowOverlay", "callId" => id} <- events, do: id
+    shown = for %{"type" => "after", "callId" => id, "result" => %{"id" => overlay}} <- events, id in shows, do: overlay
+    removed = for %{"method" => "screencastRemoveOverlay", "params" => %{"id" => overlay}} <- events, do: overlay
+    {shown -- removed, removed -- Enum.uniq(removed)}
+  end
+
+  # A process blocked in `Promise.await/1`.
+  defp awaiting?(pid) do
+    case Process.info(pid, :current_stacktrace) do
+      {:current_stacktrace, stack} -> Enum.any?(stack, &match?({PlaywrightEx.Runtime.Promise, :receive_loop, _, _}, &1))
+      nil -> false
+    end
+  end
+
+  # Upstream's updates are one chain (`lastUpdate`): each starts once the one before it is done.
+  test "the video's show.test: an update waits for the one before it, also when a process waiting in between is killed",
+       %{browser: browser} do
+    test = fake_test(%{trace: :on, video: [mode: :on, show: %{test: %{}}]})
+
+    test.run.(fn ->
+      me = self()
+      callers = [self() | Process.get(:"$callers")]
+      page = page(Browser.new_context!(browser), "TITLED")
+
+      # A listener that blocks holds the connection's dispatch: the replies to the overlay's calls wait.
+      Page.on(page, :console, fn _ ->
+        send(me, {:stalled, self()})
+
+        receive do
+          :release -> :ok
+        end
+      end)
+
+      spawn(fn -> Page.evaluate(page, "console.log(1)") end)
+      assert_receive {:stalled, listener}
+
+      step = fn title ->
+        pid =
+          spawn(fn ->
+            Process.put(:"$callers", callers)
+            PlaywrightEx.Test.step(title, fn -> send(me, {:body, title}) end)
+          end)
+
+        wait_until(fn -> awaiting?(pid) end)
+        pid
+      end
+
+      # M's update waits for the replies to its calls, W's for M's, T's for W's.
+      step.("M")
+      w = step.("W")
+      step.("T")
+      Process.exit(w, :kill)
+      refute_receive {:body, _}, 200
+
+      send(listener, :release)
+      assert_receive {:body, "M"}
+      assert_receive {:body, "T"}
+      PlaywrightEx.Test.step("last", fn -> :ok end)
+    end)
+
+    finish(test, [passed()], :shutdown)
+
+    assert {[_one], []} = overlays_left(trace(test.dir, browser).events)
+  end
+
+  test "the video's show.test: the updates of processes killed in a step leave the page one overlay, each removed once",
+       %{browser: browser} do
+    test = fake_test(%{trace: :on, video: [mode: :on, show: %{test: %{}}]})
+
+    test.run.(fn ->
+      callers = [self() | Process.get(:"$callers")]
+      page = page(Browser.new_context!(browser), "TITLED")
+
+      for i <- 1..15 do
+        pid =
+          spawn(fn ->
+            Process.put(:"$callers", callers)
+            Stream.repeatedly(fn -> PlaywrightEx.Test.step("k#{i}", fn -> Page.title!(page) end) end) |> Stream.run()
+          end)
+
+        PlaywrightEx.Test.step("s#{i}", fn -> Page.title!(page) end)
+        Process.sleep(:rand.uniform(21) - 1)
+        Process.exit(pid, :kill)
+      end
+
+      # After every update asked for before it.
+      PlaywrightEx.Test.step("last", fn -> :ok end)
+    end)
+
+    finish(test, [passed()], :shutdown)
+
+    assert {[_one], []} = overlays_left(trace(test.dir, browser).events)
+  end
+
+  test "the video's show.test: the updates leave no rows of the stepping process", %{browser: browser} do
+    test = fake_test(%{video: [mode: :on, show: %{test: %{}}]})
+
+    test.run.(fn ->
+      page(Browser.new_context!(browser), "TITLED")
+      %{table: table} = :sys.get_state(PlaywrightEx.Runtime.ProcessOwner)
+      rows = fn -> :ets.select_count(table, [{{{self(), :_}, :_}, [], [true]}]) end
+      before = rows.()
+      for i <- 1..10, do: PlaywrightEx.Test.step("s#{i}", fn -> :ok end)
+      assert rows.() == before
+    end)
+
+    finish(test, [passed()], :shutdown)
+  end
+
   test "a failed test keeps its screenshots and gets error-context.md, with a snapshot of a page closed after it failed, and the trace hint",
        %{browser: browser} do
     test = fake_test(%{screenshot: :only_on_failure, trace: :retain_on_failure})

@@ -21,8 +21,9 @@ defmodule PlaywrightEx.Test.Recorder do
   # The recorder makes no driver call and awaits nothing, so its calls return at once: every
   # driver call of a traced test reports its step to it synchronously (`append_trace_event/2`),
   # also from a listener the connection's dispatch waits for (a route handler), as upstream's
-  # in-memory `_appendTraceEvent`. The driver calls of the title overlay run in the processes
-  # that ask for an update (`update_overlay/2`), as upstream's in its async functions.
+  # in-memory `_appendTraceEvent`. The driver calls of the title overlay run in a process of the
+  # one that asks for an update (`update_overlay/2`), as upstream's in its promise chain; the
+  # recorder only keeps their turns.
   use GenServer
 
   # How long the test's end waits for an answer of a recorder that may be blocked: before its
@@ -36,7 +37,7 @@ defmodule PlaywrightEx.Test.Recorder do
   alias PlaywrightEx.Isomorphic.ProtocolFormatter
   alias PlaywrightEx.Isomorphic.StringUtils
   alias PlaywrightEx.Page
-  alias PlaywrightEx.Runtime.ProcessOwner
+  alias PlaywrightEx.Runtime.Invocation
   alias PlaywrightEx.Runtime.Promise
   alias PlaywrightEx.Runtime.Zones
   alias PlaywrightEx.Test.ErrorContext
@@ -248,11 +249,13 @@ defmodule PlaywrightEx.Test.Recorder do
        page_snapshot: nil,
        tracing: TestTracing.new(),
        # `installScreencastTitleUpdater`'s: the contexts with the title overlay, the steps'
-       # titles, the overlays' ids by page guid, `lastUpdate` (a latch, `nil` before the first).
+       # titles, the overlays' ids by page guid, and `lastUpdate`'s chain: the update processes
+       # in turn, `{pid, monitor, from}`, `from` `nil` until one awaits its turn, `:running` once
+       # the first has it.
        title_contexts: [],
        step_stack: [],
        overlays: %{},
-       last_update: nil
+       overlay_queue: []
      }}
   end
 
@@ -309,9 +312,9 @@ defmodule PlaywrightEx.Test.Recorder do
   def handle_call(:tracing_flags, _from, state), do: {:reply, %{state.tracing | trace_events: []}, state}
 
   # `installScreencastTitleUpdater`, `_onUserStepBegin` (`stepStack.push(title)`) and
-  # `_onUserStepEnd` (`stepStack.pop()`), then `updateOverlay`'s `lastUpdate = ...`: the
-  # previous update, which the caller awaits before its own (`update_overlay/2`).
-  def handle_call({:update_overlay, change, next}, _from, state) do
+  # `_onUserStepEnd` (`stepStack.pop()`), then `updateOverlay`'s `lastUpdate.then(...)`: the
+  # calling update process's turn, `{:go, overlay}` if it is the first, else `:wait`.
+  def handle_call({:update_overlay, change}, {pid, _tag}, state) do
     state =
       case change do
         {:title_context, context} -> %{state | title_contexts: state.title_contexts ++ [context]}
@@ -320,23 +323,37 @@ defmodule PlaywrightEx.Test.Recorder do
         nil -> state
       end
 
-    {:reply, {:ok, state.last_update}, %{state | last_update: next}}
+    state = %{state | overlay_queue: state.overlay_queue ++ [{pid, Process.monitor(pid), nil}]}
+
+    case state.overlay_queue do
+      [_running] -> {:reply, {:go, overlay(state)}, start_update(state)}
+      _queue -> {:reply, :wait, state}
+    end
   end
 
-  # `doUpdateOverlay`'s reads: the overlay's html, the open contexts with the title, the overlays.
-  def handle_call(:overlay, _from, state) do
-    show = state.opts.video[:show][:test]
-    level = show[:level] || "step"
-    test_title = if level == "file", do: [hd(state.opts.title_path)], else: state.opts.title_path
-    parts = if level == "step", do: test_title ++ state.step_stack, else: test_title
-    html = create_test_overlay(parts, show[:position] || "top-left", show[:fontSize] || 14)
-    contexts = for context <- state.title_contexts, context.guid not in state.closed, do: context
-    {:reply, %{html: html, contexts: contexts, overlays: state.overlays}, state}
+  # The awaited turn of an update that had to wait: answered once the one before it is done.
+  def handle_call(:overlay_turn, {pid, _tag} = from, state) do
+    case List.keyfind(state.overlay_queue, pid, 0) do
+      {^pid, mref, nil} ->
+        {:noreply, grant(%{state | overlay_queue: List.keyreplace(state.overlay_queue, pid, 0, {pid, mref, from})})}
+
+      _other ->
+        {:reply, nil, state}
+    end
   end
 
-  # `overlays.delete(page)`, then `overlays.set(page, disposable)`: `nil` if the show failed.
-  def handle_call({:overlay, guid, overlay}, _from, state),
-    do: {:reply, :ok, %{state | overlays: Map.put(state.overlays, guid, overlay)}}
+  # The end of the running update: `overlays.delete(page)`, then `overlays.set(page, disposable)`
+  # (`nil` if the show failed) of each page; the next update's turn.
+  def handle_call({:overlay_done, shown}, {pid, _tag}, state) do
+    case List.keytake(state.overlay_queue, pid, 0) do
+      {{^pid, mref, _from}, queue} ->
+        Process.demonitor(mref, [:flush])
+        {:reply, :ok, grant(%{state | overlays: Map.merge(state.overlays, shown), overlay_queue: queue})}
+
+      nil ->
+        {:reply, :ok, state}
+    end
+  end
 
   def handle_call({:did_finish_test_function_and_after_each_hooks, failed?}, _from, state),
     do:
@@ -345,6 +362,28 @@ defmodule PlaywrightEx.Test.Recorder do
 
   def handle_call({:append_trace_event, event}, _from, state),
     do: {:reply, :ok, %{state | tracing: %{state.tracing | trace_events: [event | state.tracing.trace_events]}}}
+
+  # `doUpdateOverlay`'s reads: the overlay's html, the open contexts with the title, the overlays.
+  defp overlay(state) do
+    show = state.opts.video[:show][:test]
+    level = show[:level] || "step"
+    test_title = if level == "file", do: [hd(state.opts.title_path)], else: state.opts.title_path
+    parts = if level == "step", do: test_title ++ state.step_stack, else: test_title
+    html = create_test_overlay(parts, show[:position] || "top-left", show[:fontSize] || 14)
+    contexts = for context <- state.title_contexts, context.guid not in state.closed, do: context
+    %{html: html, contexts: contexts, overlays: state.overlays}
+  end
+
+  # The first update runs once it awaits its turn (`:overlay_turn`), or has it already.
+  defp grant(%{overlay_queue: [{pid, mref, {_, _} = from} | queue]} = state) do
+    GenServer.reply(from, {:go, overlay(state)})
+    %{state | overlay_queue: [{pid, mref, :running} | queue]}
+  end
+
+  defp grant(state), do: state
+
+  defp start_update(%{overlay_queue: [{pid, mref, nil} | queue]} = state),
+    do: %{state | overlay_queue: [{pid, mref, :running} | queue]}
 
   @impl true
   def handle_info(:test_timeout, state) do
@@ -364,13 +403,23 @@ defmodule PlaywrightEx.Test.Recorder do
     {:noreply, %{state | timer: nil, timed_out: true, closing: closing}}
   end
 
+  # An update's process exited before it was done: the next one's turn.
+  def handle_info({:DOWN, mref, :process, _pid, _reason} = down, state) do
+    case List.keytake(state.overlay_queue, mref, 1) do
+      {_update, queue} -> {:noreply, grant(%{state | overlay_queue: queue})}
+      nil -> process_down(down, state)
+    end
+  end
+
+  def handle_info(_message, state), do: {:noreply, state}
+
   # Its `finish/3` was killed (ExUnit's timeout of the `on_exit` callback): it stops.
-  def handle_info({:DOWN, _ref, :process, pid, reason}, %{finisher: pid} = state)
-      when reason not in [:normal, :shutdown],
-      do: {:stop, :normal, state}
+  defp process_down({:DOWN, _ref, :process, pid, reason}, %{finisher: pid} = state)
+       when reason not in [:normal, :shutdown],
+       do: {:stop, :normal, state}
 
   # The test process ended before its timeout.
-  def handle_info({:DOWN, _ref, :process, pid, _reason}, %{test_pid: pid} = state) do
+  defp process_down({:DOWN, _ref, :process, pid, _reason}, %{test_pid: pid} = state) do
     if state.timer && !Process.cancel_timer(state.timer) do
       receive do
         :test_timeout -> :ok
@@ -382,7 +431,7 @@ defmodule PlaywrightEx.Test.Recorder do
     {:noreply, %{state | timer: nil}}
   end
 
-  def handle_info(_message, state), do: {:noreply, state}
+  defp process_down(_down, state), do: {:noreply, state}
 
   # The test timeout's timer, `nil` without one (`:infinity`, `--trace`).
   defp arm(%{deadline: deadline, test_timeout: timeout, test_pid: test_pid}) when is_integer(deadline) do
@@ -508,7 +557,7 @@ defmodule PlaywrightEx.Test.Recorder do
   # fixtures), with one `stepStack` and `lastUpdate` for all of them.
   defp install_title_updater(context, recorder) do
     # context.on('page', async () => { void updateOverlay(); });
-    BrowserContext.on(context, :page, fn _page -> Promise.void(fn -> update_overlay(recorder, nil) end) end)
+    BrowserContext.on(context, :page, fn _page -> Promise.void(fn -> run_update_overlay(recorder, nil) end) end)
     update_overlay(recorder, {:title_context, context})
   end
 
@@ -525,44 +574,47 @@ defmodule PlaywrightEx.Test.Recorder do
     :ok
   end
 
+  # `await updateOverlay()`: the update runs in a process of its own, on the caller's behalf (its
+  # zone and `$callers`: its calls are steps of the caller's step), as upstream's in its promise
+  # chain, which goes on whoever awaits it: a caller that exits (killed) doesn't end it midway.
+  # Awaiting it (and its turn) lets the dispatch go on.
+  defp update_overlay(recorder, change),
+    do: Promise.await(Promise.async(fn -> run_update_overlay(recorder, change) end))
+
   # `updateOverlay`: `lastUpdate.then(doUpdateOverlay)`, after `change` to the recorder's
-  # `stepStack` or contexts. In the calling process, as upstream's runs in its caller's async
-  # context: its calls are steps of the caller's step, and awaiting them (and the previous
-  # update) lets the dispatch go on. `lastUpdate` is a latch of the caller's, rejected if it exits
-  # first, so the chain goes on (`lastUpdate = result.catch(() => {})`).
-  defp update_overlay(recorder, change) do
-    next = Promise.new(ProcessOwner.owner())
+  # `stepStack` or contexts, in one call to it, so the updates run in the order of their
+  # changes, each once the one before is done (`lastUpdate = result.catch(() => {})`: also if
+  # it failed, or its process exited).
+  defp run_update_overlay(recorder, change) do
+    turn =
+      case call(recorder, {:update_overlay, change}) do
+        :wait ->
+          # await lastUpdate
+          Invocation.yield()
+          call(recorder, :overlay_turn)
 
-    with {:ok, last_update} <- call(recorder, {:update_overlay, change, next}) do
-      try do
-        if last_update, do: await_settled(last_update)
-        step("show the test's title", fn -> do_update_overlay(recorder) end)
-      after
-        Promise.resolve(next, nil)
+        turn ->
+          turn
       end
-    end
-  end
 
-  # `lastUpdate`'s `.catch(() => {})`: also rejected once its process exited (its rows went).
-  defp await_settled(promise) do
-    Promise.await(promise)
-  rescue
-    _ -> nil
+    with {:go, overlay} <- turn do
+      shown = step("show the test's title", fn -> do_update_overlay(overlay) end) || %{}
+      call(recorder, {:overlay_done, shown})
+    end
   end
 
   # `doUpdateOverlay`: each page's overlay replaced by the test's title and steps.
-  defp do_update_overlay(recorder) do
-    with %{html: html, contexts: contexts, overlays: overlays} <- call(recorder, :overlay) do
-      for page <- Enum.flat_map(contexts, &list_pages/1), do: replace_overlay(recorder, page, overlays[page.guid], html)
-    end
+  defp do_update_overlay(%{html: html, contexts: contexts, overlays: overlays}) do
+    for page <- Enum.flat_map(contexts, &list_pages/1),
+        into: %{},
+        do: {page.guid, replace_overlay(page, overlays[page.guid], html)}
   end
 
   defp list_pages(context), do: step("list the pages", fn -> BrowserContext.pages(context) end) || []
 
-  defp replace_overlay(recorder, page, old_id, html) do
+  defp replace_overlay(page, old_id, html) do
     if old_id, do: step("hide the test's title", fn -> remove_overlay(page, old_id) end)
-    id = step("show the test's title", fn -> show_overlay(page, html) end)
-    call(recorder, {:overlay, page.guid, id})
+    step("show the test's title", fn -> show_overlay(page, html) end)
   end
 
   # `page.screencast.showOverlay(html)`, and `dispose()` of what it returns, by their protocol
