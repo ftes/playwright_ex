@@ -632,17 +632,23 @@ defmodule PlaywrightEx.Test.StepsTest do
   end
 
   test "a matcher call looks its test up once, and a poll once more per attempt" do
-    # `call_count` counts the calls of the processes with the `call` flag: this one.
-    :erlang.trace(self(), true, [:call])
-    :erlang.trace_pattern({TestInfo, :current, 0}, true, [:call_count])
+    test_pid = self()
+    :erlang.trace_pattern({TestInfo, :current, 0}, true, [:local])
 
-    try do
-      Expect.poll!(fn -> 1 end, &assert(&1 == 1))
-      assert {:call_count, 2} = :erlang.trace_info({TestInfo, :current, 0}, :call_count)
-    after
-      :erlang.trace_pattern({TestInfo, :current, 0}, false, [:call_count])
-      :erlang.trace(self(), false, [:call])
-    end
+    # In a Task (of the test, through `$callers`): a process can't trace itself.
+    task =
+      try do
+        Task.async(fn ->
+          :erlang.trace(self(), true, [:call, tracer: test_pid])
+          Expect.poll!(fn -> 1 end, &assert(&1 == 1))
+          :erlang.trace(self(), false, [:call])
+        end)
+        |> tap(&Task.await/1)
+      after
+        :erlang.trace_pattern({TestInfo, :current, 0}, false, [:local])
+      end
+
+    assert traced_calls(task.pid, {TestInfo, :current}) == 2
   end
 
   test "a soft matcher outside a test fails as any matcher (no step)" do
@@ -664,5 +670,23 @@ defmodule PlaywrightEx.Test.StepsTest do
     |> Task.await(:infinity)
 
     assert TestInfo.take_errors(self()) == []
+  end
+
+  # The calls of `mod.fun` by `pid` traced so far (`:erlang.trace/3`'s messages, sent to this
+  # process): unlike `call_count`, not the calls of other async tests' traced processes.
+  defp traced_calls(pid, mfa, count \\ nil)
+
+  defp traced_calls(pid, mfa, nil) do
+    ref = :erlang.trace_delivered(pid)
+    assert_receive {:trace_delivered, ^pid, ^ref}
+    traced_calls(pid, mfa, 0)
+  end
+
+  defp traced_calls(pid, {mod, fun}, count) do
+    receive do
+      {:trace, ^pid, :call, {^mod, ^fun, _args}} -> traced_calls(pid, {mod, fun}, count + 1)
+    after
+      0 -> count
+    end
   end
 end

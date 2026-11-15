@@ -202,23 +202,24 @@ defmodule PlaywrightEx.Test.ConfigTest do
 
     {pid, ref} =
       spawn_monitor(fn ->
-        # `call_count` counts the calls of the processes with the `call` flag: this one.
         :erlang.trace(self(), true, [:call, tracer: test_pid])
         assert_receive :go
         PlaywrightEx.Test.__register__(%{test_pid: self(), module: __MODULE__, test: :"test fake", file: __ENV__.file})
-        send(test_pid, {:count, :erlang.trace_info({Options, :config, 0}, :call_count)})
+        :erlang.trace(self(), false, [:call])
+        send(test_pid, :registered)
       end)
 
-    :erlang.trace_pattern({Options, :config, 0}, true, [:call_count])
+    :erlang.trace_pattern({Options, :config, 0}, true, [:local])
 
     try do
       send(pid, :go)
-      assert_receive {:count, {:call_count, 1}}
+      assert_receive :registered
     after
-      :erlang.trace_pattern({Options, :config, 0}, false, [:call_count])
+      :erlang.trace_pattern({Options, :config, 0}, false, [:local])
     end
 
     assert_receive {:DOWN, ^ref, :process, _, _}
+    assert traced_calls(pid, {Options, :config}) == 1
     PlaywrightEx.Test.__finish__(pid, 10_000)
   end
 
@@ -379,5 +380,23 @@ defmodule PlaywrightEx.Test.ConfigTest do
     assert_raise ArgumentError, ~r/invalid navigation_timeout: :none/, fn -> Options.timeouts() end
     Application.put_env(:playwright_ex, :test, config ++ [action_timeout: 0, navigation_timeout: 5000])
     assert Options.timeouts() == %{action_timeout: 0, navigation_timeout: 5000}
+  end
+
+  # The calls of `mod.fun` by `pid` traced so far (`:erlang.trace/3`'s messages, sent to this
+  # process): unlike `call_count`, not the calls of other async tests' traced processes.
+  defp traced_calls(pid, mfa, count \\ nil)
+
+  defp traced_calls(pid, mfa, nil) do
+    ref = :erlang.trace_delivered(pid)
+    assert_receive {:trace_delivered, ^pid, ^ref}
+    traced_calls(pid, mfa, 0)
+  end
+
+  defp traced_calls(pid, {mod, fun}, count) do
+    receive do
+      {:trace, ^pid, :call, {^mod, ^fun, _args}} -> traced_calls(pid, {mod, fun}, count + 1)
+    after
+      0 -> count
+    end
   end
 end
