@@ -393,7 +393,7 @@ defmodule PlaywrightEx.Test.GitHubFormatter do
     parameters
     |> Enum.sort()
     |> Enum.map_join(", ", fn
-      {_key, value} when is_binary(value) or is_atom(value) or is_number(value) -> to_string(value)
+      {_key, value} when is_binary(value) or (is_atom(value) and value != nil) or is_number(value) -> to_string(value)
       {_key, value} -> inspect(value)
     end)
   end

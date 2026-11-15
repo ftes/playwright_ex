@@ -119,6 +119,9 @@ defmodule PlaywrightEx.Test.GitHubFormatterTest do
 
     test = %{test | parameters: %{size: {1280, 720}, browser_name: "webkit"}}
     assert run([{:test_finished, test}]) =~ "::  1) [webkit, {1280, 720}] › #{@file_path}:10 › fails ─"
+
+    test = %{test | parameters: %{browser_name: :chromium, device: nil}}
+    assert run([{:test_finished, test}]) =~ "::  1) [chromium, nil] › #{@file_path}:10 › fails ─"
   end
 
   test "the summary lists the failed tests and counts the others; a failed setup_all is an error" do

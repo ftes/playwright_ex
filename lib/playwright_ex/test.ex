@@ -98,7 +98,9 @@ defmodule PlaywrightEx.Test do
   video's `:size` and `:fps` are `record_video`'s, and its `:show` is upstream's map:
   `%{actions: _}` is `record_video`'s `showActions`, `%{test: %{level: _, position: _, fontSize:
   _}}` overlays the test's title and its steps' (`level` `"file"`, `"title"` or `"step"`) on
-  each page of its contexts. So `trace`, `screenshot` and `video` are reserved tags: a
+  each page of its contexts. With it, don't call `step/2,3` in a route handler that holds a
+  page's navigation (a document request): the step's overlay waits for that navigation, so the
+  test hangs until its timeout, as upstream's does. So `trace`, `screenshot` and `video` are reserved tags: a
   `@tag :screenshot` label turns screenshots on, and an invalid value raises at registration.
 
   The `*_on_failure` modes record every test and keep the files of failed ones, as upstream

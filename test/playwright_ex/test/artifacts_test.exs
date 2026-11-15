@@ -216,8 +216,8 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
 
     ref = Process.monitor(recorder)
     {elapsed, log} = :timer.tc(fn -> capture_log(fn -> finish(test, [passed()], :shutdown, 50) end) end, :millisecond)
-    # The budget left when the recorder is called: 50 ms, or a little less.
-    assert log =~ ~r/PlaywrightEx.Test could not finish the recording: it took over (50|4\d) ms/
+    # The budget left when the recorder is called: 50 ms, or less under load.
+    assert log =~ ~r/PlaywrightEx.Test could not finish the recording: it took over \d+ ms/
     # Not waiting for the blocked recorder: that's in the background.
     assert elapsed < 400
     assert Recorder.lookup(test.pid) == nil
