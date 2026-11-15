@@ -86,7 +86,9 @@ As in Playwright Test, actions and navigations have no timeout of their own in a
 test timeout (60 seconds) bounds them. Just before it, the test's contexts are closed, so a stuck
 call fails with "Test timeout of 60000ms exceeded." and its call log, and the artifacts are kept.
 To fail sooner, set `action_timeout` and `navigation_timeout` in the config (milliseconds), or
-`set_default_timeout/2` and `set_default_navigation_timeout/2` on a context.
+`set_default_timeout/2` and `set_default_navigation_timeout/2` on a context. `:infinity`, the
+default, is no limit, and so is `0`, in the config as in every `timeout:` option: as in
+Playwright, `0` never means "fail at once" ([API conventions](api-conventions.md)).
 
 ## Your own case template
 
@@ -622,7 +624,8 @@ so the server tunnels `localhost` to your machine.
 ## The running test
 
 `PlaywrightEx.Test.info/0` is Playwright Test's `test.info()`: the running test's `test_pid`,
-`file`, `test_name`, `output_dir` and `timeout` (ExUnit's, `:infinity` for none), in the test's
+`file`, `test_name`, `output_dir`, `timeout` (ExUnit's, `:infinity` for none) and `deadline`
+(when ExUnit's timeout ends it, in `System.monotonic_time(:millisecond)`), in the test's
 process and in processes with it in `$callers` (a `Task`, a route handler). A library that owns resources per test (an Ecto sandbox
 owner, a session) finds the test from a `Task` with it: `PlaywrightEx.Test.info().test_pid`.
 

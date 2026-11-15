@@ -8,8 +8,9 @@ defmodule PlaywrightEx.Matchers.Expect do
 
   The keys (other keys raise `ArgumentError`, at application start for the config files):
 
-    * `:timeout` - Default timeout of the matchers in milliseconds, `0` or `:infinity` for no
-      timeout. Defaults to `5000`. A `timeout:` option of a matcher wins.
+    * `:timeout` - Default timeout of the matchers in milliseconds. Defaults to `5000`. A
+      `timeout:` option of a matcher wins. `:infinity` is no limit, and so is `0`, as in
+      Playwright: `0` never means "fail at once" (see [API conventions](api-conventions.md)).
     * `:update_snapshots` - When `to_have_screenshot` and `to_match_aria_snapshot` write snapshots:
       `:all`, `:changed`, `:missing`, `:none` or `:default` (the default: write missing ones,
       which fails a `PlaywrightEx.Test` test at its end, as upstream's). A snapshot is written to
@@ -19,7 +20,7 @@ defmodule PlaywrightEx.Matchers.Expect do
       matcher fails with the new snapshot in its message.
     * `:ignore_snapshots` - Skip the snapshot matchers. Defaults to `false`.
     * `:to_pass` - Defaults of `PlaywrightEx.Expect.to_pass/2`, `%{timeout: 10_000, intervals: [1000]}`. Its timeout
-      defaults to `0`, the test's timeout, not `:timeout`.
+      defaults to `0`, no limit of its own (the test's timeout bounds it), not `:timeout`.
     * `:to_have_screenshot`, `:to_match_aria_snapshot` - Defaults for their options, maps with
       the JS keys (`%{maxDiffPixels: 10}`, `%{children: "equal"}`), as upstream's config, and
       their `pathTemplate` (see "Snapshots" in `PlaywrightEx.Test`).

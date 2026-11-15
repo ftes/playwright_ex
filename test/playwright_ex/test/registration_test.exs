@@ -149,6 +149,27 @@ defmodule PlaywrightEx.Test.RegistrationTest do
     assert PlaywrightEx.Test.info(self()).timeout == PlaywrightEx.Test.info().timeout
   end
 
+  # Upstream's internal `testInfo._deadline()`: the test's start (its first setup callback) plus
+  # its timeout, the same from any process.
+  @tag timeout: 12_345
+  test "info: the deadline is the test's start plus its timeout" do
+    %{deadline: deadline} = PlaywrightEx.Test.info()
+
+    if ExUnit.configuration()[:trace] do
+      assert deadline == :infinity
+    else
+      now = System.monotonic_time(:millisecond)
+      assert deadline > now and deadline <= now + 12_345
+      assert Task.await(Task.async(fn -> PlaywrightEx.Test.info().deadline end)) == deadline
+      assert PlaywrightEx.Test.info(self()).deadline == deadline
+    end
+  end
+
+  @tag timeout: :infinity
+  test "info: no deadline without a timeout" do
+    assert PlaywrightEx.Test.info().deadline == :infinity
+  end
+
   test "output_path is a path in the test's output dir, created" do
     dir = PlaywrightEx.Test.info().output_dir
     on_exit(fn -> File.rm_rf!(dir) end)

@@ -142,7 +142,9 @@ defmodule PlaywrightEx.Test do
   `actionTimeout`, `navigationTimeout`; milliseconds, `:infinity` by default) set each context's
   `PlaywrightEx.BrowserContext.set_default_timeout/2` and `set_default_navigation_timeout/2`
   (`navigation_timeout` alone governs navigations), and the action timeout is a request
-  context's `timeout`, when the call gives none.
+  context's `timeout`, when the call gives none. `0` is no limit too, not an immediate failure,
+  as `timeout: 0` is everywhere in Playwright (see [API conventions](api-conventions.md)):
+  write `:infinity` to say so.
 
   Shortly before ExUnit's timeout (1 s before, at most 5% of the timeout), the test's open
   contexts are closed with upstream's reason, "Test timeout of 60000ms exceeded.": a call that
@@ -208,7 +210,7 @@ defmodule PlaywrightEx.Test do
         on_start: nil,                # BrowserPool
         workers: max(div(System.schedulers_online(), 2), 1),
         context_options: [],          # PlaywrightEx.Browser.new_context/2, over the defaults
-        action_timeout: :infinity,    # ms, each context's default (and navigation_timeout's)
+        action_timeout: :infinity,    # ms, each context's default (and navigation_timeout's); :infinity or 0: none
         navigation_timeout: :infinity,
         trace: :off,                  # :off | :on | :retain_on_failure | :on_first_retry | ..., or [mode: _, ...]
         screenshot: :off,             # :off | :on | :only_on_failure | :on_first_failure, or [mode: _, ...]
@@ -589,9 +591,13 @@ defmodule PlaywrightEx.Test do
   see "Artifacts" in the moduledoc), `retry` (upstream's `testInfo.retry`: 0, or N in a
   `-retryN` run) and `timeout` (upstream's `testInfo.timeout`: ExUnit's timeout of the test in
   ms, the `@tag timeout:` or `mix test --timeout`, `:infinity` for none, as under `mix test
-  --trace`), from the test's
-  setup to the end of its body. Raises outside a test, and in `on_exit` callbacks (ExUnit runs
-  them in a process of their own): there, use `info/1`.
+  --trace`) and `deadline` (the `System.monotonic_time(:millisecond)` at which ExUnit's timeout
+  kills the test, counted from its first setup callback as ExUnit counts, `:infinity` for none),
+  from the test's setup to the end of its body. A library that waits or retries on its own (a
+  server-side backstop) should stop before the deadline, with a margin: the test's contexts
+  close `min(1000, timeout / 20)` ms before it (see "Timeouts"), and the matchers stop 250 ms
+  before that, as upstream's stop 250 ms before its test deadline. Raises outside a test, and in
+  `on_exit` callbacks (ExUnit runs them in a process of their own): there, use `info/1`.
 
       PlaywrightEx.Test.info().test_pid
   """
@@ -601,7 +607,8 @@ defmodule PlaywrightEx.Test do
           test_name: String.t(),
           output_dir: Path.t(),
           retry: non_neg_integer(),
-          timeout: timeout()
+          timeout: timeout(),
+          deadline: integer() | :infinity
         }
   def info do
     case Recorder.registration() do
@@ -614,8 +621,10 @@ defmodule PlaywrightEx.Test do
     end
   end
 
-  # `info/0` of a registration: its `@info_keys` and `timeout`, upstream's `testInfo.timeout`.
-  defp info_of(test), do: test |> Map.take(@info_keys) |> Map.put(:timeout, test.test_timeout)
+  # `info/0` of a registration: its `@info_keys`, `timeout` (upstream's `testInfo.timeout`) and
+  # `deadline` (ExUnit's; `TestInfo._deadline/1` is the contexts' close, before it).
+  defp info_of(test),
+    do: test |> Map.take(@info_keys) |> Map.merge(%{timeout: test.test_timeout, deadline: test.deadline || :infinity})
 
   @doc """
   `info/0` of the test `test_pid` (the context's `test_pid`), from any process, from its setup to
