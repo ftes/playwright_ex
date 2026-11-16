@@ -40,8 +40,10 @@ those of the release candidates below. From an earlier release, also read the se
   and each driver call in a test is a `pw:api` step of the step or `Tracing.group` it runs in (a
   matcher's driver call is the matcher's step). `info/0` and `output_path/1`
   are Playwright Test's `test.info()` (with `testInfo.timeout`) and `testInfo.outputPath`;
-  `info/1` takes the test's pid and works in `on_exit`, with `testInfo.status`, `errors`,
-  `expectedStatus` and `duration`.
+  `info/0` also has `deadline` (ExUnit's kill time) and `close_deadline` (when the contexts
+  close, upstream's internal `testInfo._deadline()`), for libraries that wait on their own, and
+  `in_registered_test?/0` tells whether `info/0` finds a test. `info/1` takes the test's pid and
+  works in `on_exit`, with `testInfo.status`, `errors`, `expectedStatus` and `duration`.
   `attach/2` is `testInfo.attach` (a `test.attach` step in the trace). In a test, the snapshot
   matchers take upstream's `name:` (or none), resolved by Playwright Test's path templates
   (`snapshot_dir`, `snapshot_path_template`, `snapshot_path/2`, which takes path segments too)

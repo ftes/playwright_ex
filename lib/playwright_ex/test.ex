@@ -593,13 +593,15 @@ defmodule PlaywrightEx.Test do
   see "Artifacts" in the moduledoc), `retry` (upstream's `testInfo.retry`: 0, or N in a
   `-retryN` run) and `timeout` (upstream's `testInfo.timeout`: ExUnit's timeout of the test in
   ms, the `@tag timeout:` or `mix test --timeout`, `:infinity` for none, as under `mix test
-  --trace`) and `deadline` (the `System.monotonic_time(:millisecond)` at which ExUnit's timeout
-  kills the test, counted from its first setup callback as ExUnit counts, `:infinity` for none),
-  from the test's setup to the end of its body. A library that waits or retries on its own (a
-  server-side backstop) should stop before the deadline, with a margin: the test's contexts
-  close `min(1000, timeout / 20)` ms before it (see "Timeouts"), and the matchers stop 250 ms
-  before that, as upstream's stop 250 ms before its test deadline. Raises outside a test, and in
-  `on_exit` callbacks (ExUnit runs them in a process of their own): there, use `info/1`.
+  --trace`), `deadline` (the `System.monotonic_time(:millisecond)` at which ExUnit's timeout
+  kills the test, counted from its first setup callback as ExUnit counts, `:infinity` for none)
+  and `close_deadline` (when the runner closes the test's contexts, `min(1000, timeout / 20)` ms
+  before `deadline`, see "Timeouts": upstream's internal `testInfo._deadline()`, where its
+  timeout fails the test), from the test's setup to the end of its body. A library that waits or
+  retries on its own (a server-side backstop) should stop by `close_deadline`, as the matchers
+  stop 250 ms before it, as upstream's stop 250 ms before its test deadline. Raises outside a
+  test (see `in_registered_test?/0`), and in `on_exit` callbacks (ExUnit runs them in a process
+  of their own): there, use `info/1`.
 
       PlaywrightEx.Test.info().test_pid
   """
@@ -610,7 +612,8 @@ defmodule PlaywrightEx.Test do
           output_dir: Path.t(),
           retry: non_neg_integer(),
           timeout: timeout(),
-          deadline: integer() | :infinity
+          deadline: integer() | :infinity,
+          close_deadline: integer() | :infinity
         }
   def info do
     case Recorder.registration() do
@@ -623,10 +626,27 @@ defmodule PlaywrightEx.Test do
     end
   end
 
-  # `info/0` of a registration: its `@info_keys`, `timeout` (upstream's `testInfo.timeout`) and
-  # `deadline` (ExUnit's; `TestInfo._deadline/1` is the contexts' close, before it).
-  defp info_of(test),
-    do: test |> Map.take(@info_keys) |> Map.merge(%{timeout: test.test_timeout, deadline: test.deadline || :infinity})
+  # `info/0` of a registration: its `@info_keys`, `timeout` (upstream's `testInfo.timeout`),
+  # `deadline` (ExUnit's) and `close_deadline` (`TestInfo._deadline/1`, the contexts' close).
+  defp info_of(test) do
+    test
+    |> Map.take(@info_keys)
+    |> Map.merge(%{
+      timeout: test.test_timeout,
+      deadline: test.deadline || :infinity,
+      close_deadline: TestInfo._deadline(test).deadline
+    })
+  end
+
+  @doc """
+  Whether the calling process runs a registered test, as `info/0` finds it: the test's process,
+  or a process with it in `$callers` (a `Task`), of a module with `use PlaywrightEx.Test`, from
+  the test's setup to the end of its body. For a library that also runs outside such tests.
+
+      if PlaywrightEx.Test.in_registered_test?(), do: PlaywrightEx.Test.info().deadline, else: :infinity
+  """
+  @spec in_registered_test?() :: boolean()
+  def in_registered_test?, do: Recorder.registration() != nil
 
   @doc """
   `info/0` of the test `test_pid` (the context's `test_pid`), from any process, from its setup to

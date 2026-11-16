@@ -624,10 +624,13 @@ so the server tunnels `localhost` to your machine.
 ## The running test
 
 `PlaywrightEx.Test.info/0` is Playwright Test's `test.info()`: the running test's `test_pid`,
-`file`, `test_name`, `output_dir`, `timeout` (ExUnit's, `:infinity` for none) and `deadline`
-(when ExUnit's timeout ends it, in `System.monotonic_time(:millisecond)`), in the test's
-process and in processes with it in `$callers` (a `Task`, a route handler). A library that owns resources per test (an Ecto sandbox
-owner, a session) finds the test from a `Task` with it: `PlaywrightEx.Test.info().test_pid`.
+`file`, `test_name`, `output_dir`, `timeout` (ExUnit's, `:infinity` for none), `deadline`
+(when ExUnit's timeout ends it, in `System.monotonic_time(:millisecond)`) and `close_deadline`
+(when the runner closes the test's contexts, just before), in the test's process and in
+processes with it in `$callers` (a `Task`, a route handler). A library that owns resources per
+test (an Ecto sandbox owner, a session) finds the test from a `Task` with it:
+`PlaywrightEx.Test.info().test_pid`. Outside a registered test `info/0` raises;
+`PlaywrightEx.Test.in_registered_test?/0` tells first.
 
 ## Polling and waiting
 

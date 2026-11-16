@@ -149,25 +149,38 @@ defmodule PlaywrightEx.Test.RegistrationTest do
     assert PlaywrightEx.Test.info(self()).timeout == PlaywrightEx.Test.info().timeout
   end
 
-  # Upstream's internal `testInfo._deadline()`: the test's start (its first setup callback) plus
-  # its timeout, the same from any process.
+  # ExUnit's kill time: the test's start (its first setup callback) plus its timeout. And the
+  # contexts' close before it, upstream's internal `testInfo._deadline()`. The same from any
+  # process.
   @tag timeout: 12_345
-  test "info: the deadline is the test's start plus its timeout" do
-    %{deadline: deadline} = PlaywrightEx.Test.info()
+  test "info: the deadline is the test's start plus its timeout, the contexts close before it" do
+    %{deadline: deadline, close_deadline: close_deadline} = PlaywrightEx.Test.info()
 
     if ExUnit.configuration()[:trace] do
       assert deadline == :infinity
+      assert close_deadline == :infinity
     else
       now = System.monotonic_time(:millisecond)
       assert deadline > now and deadline <= now + 12_345
-      assert Task.await(Task.async(fn -> PlaywrightEx.Test.info().deadline end)) == deadline
-      assert PlaywrightEx.Test.info(self()).deadline == deadline
+      # `min(1000, 12_345 / 20)`
+      assert close_deadline == deadline - 617
+      info = Task.await(Task.async(fn -> PlaywrightEx.Test.info() end))
+      assert {info.deadline, info.close_deadline} == {deadline, close_deadline}
+      assert PlaywrightEx.Test.info(self()).close_deadline == close_deadline
     end
   end
 
   @tag timeout: :infinity
   test "info: no deadline without a timeout" do
-    assert PlaywrightEx.Test.info().deadline == :infinity
+    assert %{deadline: :infinity, close_deadline: :infinity} = PlaywrightEx.Test.info()
+  end
+
+  test "in_registered_test?: in the test and its Tasks, not in other processes" do
+    assert PlaywrightEx.Test.in_registered_test?()
+    assert Task.await(Task.async(&PlaywrightEx.Test.in_registered_test?/0))
+    test_pid = self()
+    spawn(fn -> send(test_pid, {:registered?, PlaywrightEx.Test.in_registered_test?()}) end)
+    assert_receive {:registered?, false}
   end
 
   test "output_path is a path in the test's output dir, created" do
