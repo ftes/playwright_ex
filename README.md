@@ -48,8 +48,8 @@ Expect.to_have_title!(page, ~r/Install/)
 Supervisor.stop(Playwright)
 ```
 
-**For no timeout, pass `timeout: :infinity`.** Unlike Elixir's `receive ... after 0`, `timeout: 0`
-here means no timeout, as in Playwright JS, so don't use it for an immediate check.
+**For no timeout, pass `timeout: :infinity`;** `0` also means no timeout, unlike Elixir's convention
+([details](https://hexdocs.pm/playwright_ex/api-conventions.html#no-timeout)).
 
 ## Reading playwright.dev
 

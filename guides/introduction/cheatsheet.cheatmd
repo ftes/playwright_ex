@@ -252,7 +252,7 @@ Expect.not_to_be_visible!(locator)
 Expect.to_be_visible!(locator, timeout: 10_000)
 ```
 
-`timeout: :infinity` waits forever. Unlike Elixir's `after 0`, `timeout: 0` does too, as in JS.
+For no timeout, pass `timeout: :infinity`; `0` also means no timeout, unlike Elixir's convention ([details](api-conventions.md#no-timeout)).
 
 ## Waiting
 {: .col-2}

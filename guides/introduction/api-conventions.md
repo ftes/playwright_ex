@@ -80,7 +80,7 @@ BrowserContext.add_cookies!(context, [
 Page.set_extra_http_headers!(page, %{"x-request-id" => "42"})
 ```
 
-> #### For no timeout, pass `timeout: :infinity` {: .warning}
+> #### For no timeout, pass `timeout: :infinity` {: .warning #no-timeout}
 >
 > Unlike Elixir's `receive ... after 0`, `timeout: 0` here means no timeout, as in Playwright
 > JS: it waits forever. Don't use it for an immediate check.
