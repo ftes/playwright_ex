@@ -11,7 +11,7 @@ set -euo pipefail
 # Our version for an upstream release: a new upstream major.minor X.Y gives X.Y.0, an upstream
 # patch of the minor we already mirror gives our next patch (the patch is ours,
 # docs/architecture.md "Port and versions").
-# A pre-release of ours (1.65.0-rc.1) stays as it is; the next version is picked by hand.
+# A pre-release of ours (X.Y.Z-rc.N) stays as it is; the next version is picked by hand.
 next_version() {
   local ours=$1 upstream=$2
   local o_major o_minor o_patch u_major u_minor
