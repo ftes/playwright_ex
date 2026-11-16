@@ -43,10 +43,21 @@ Expect.to_have_text!(Page.get_by_role(page, :status), "Welcome")
 
 ## Locators and assertions
 
-- Prefer `get_by_role`, `get_by_label`, `get_by_text` and `get_by_test_id`. Use `Page.locator/3` with CSS when nothing user-facing identifies the element.
-- Locators are lazy and strict: an action on a locator matching several elements fails. Narrow it with `Locator.filter/2`, `first/1`, `last/1` or `nth/2`.
+Locate elements as users and assistive technology perceive them, never by implementation details users don't see, such as CSS classes or DOM structure. Take the first locator that fits:
+
+1. `Page.get_by_role/3` with `name:` for interactive elements (`button`, `a`, `input`, checkboxes): `Page.get_by_role(page, :button, name: "Sign in")`.
+2. `Page.get_by_label/3` for form fields.
+3. `Page.get_by_placeholder/3` for inputs that have placeholder text but no label.
+4. `Page.get_by_text/3` for non-interactive elements (`div`, `span`, `p`). Interactive elements use role.
+5. `Page.get_by_alt_text/3` for elements with alt text (`img`, `area`), `Page.get_by_title/3` for elements with a `title` attribute.
+6. `Page.get_by_test_id/2` (`data-testid`, or the attribute set with `Selectors.set_test_id_attribute/2`) when role or text can't locate the element. Test ids are resilient but not user-facing: where the role or text matters, locate by that.
+7. `Page.locator/3` with CSS or XPath only if you absolutely must. CSS classes and long CSS or XPath chains break when the DOM changes.
+
+- When no user-facing locator finds an element, consider fixing the markup before falling back: a form field without a `<label>`, a button without an accessible name. The test sees what users see, so it is revealing an accessibility gap.
+- Narrow by chaining and filtering, not with a longer selector. `Locator` has the same `get_by_*` functions, and `Locator.filter/2` takes `has_text:`, `has:`, `has_not_text:` and `has_not:`: `Page.get_by_role(page, :listitem) |> Locator.filter(has_text: "Product 2") |> Locator.get_by_role(:button, name: "Add to cart")`.
+- Locators are lazy and strict: an action on a locator matching several elements fails. Narrow it as above. Use `Locator.first/1`, `last/1` or `nth/2` only when order is the one thing that tells identical elements apart.
 - Act directly. Actions wait for their element, so do not check `is_visible` first.
-- Assert with `Playwright.Expect`, which retries until the timeout: `Expect.to_have_url!(page, ~r"/dashboard$")`. `assert Locator.text_content!(l) == "x"` reads once and races the page.
+- Assert with `Playwright.Expect`, which retries until the timeout: `Expect.to_be_visible!(Page.get_by_text(page, "Welcome"))`, `Expect.to_have_url!(page, ~r"/dashboard$")`. `assert Locator.is_visible!(l)` or `assert Locator.text_content!(l) == "x"` reads once and races the page.
 - Negate with `Expect.not_to_be_visible!(l)` or `l |> Expect.not_() |> Expect.to_be_visible!()`.
 - After a click that navigates, assert on the new page; the click returns before it loads.
 - Avoid `Page.wait_for_timeout/2` (debugging only) and waiting for `:networkidle`. Wait for what the user sees.

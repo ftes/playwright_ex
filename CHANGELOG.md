@@ -10,6 +10,10 @@ those of the release candidates below. From an earlier release, also read the se
 
 ## [Unreleased]
 
+### Changed
+- `usage-rules.md` gives Playwright's locator guidance: user-facing locators in upstream's order,
+  chaining and filtering, CSS or XPath only as a last resort.
+
 ## [0.17.0-rc.6] 2026-11-16
 
 ### Breaking

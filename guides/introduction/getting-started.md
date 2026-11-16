@@ -7,9 +7,8 @@ Snippets alias `Playwright.{Browser, BrowserType, ...}`.
 Add the dependency to `mix.exs` as shown in the [Overview](../../README.md#installation). Its name
 is the app's, `:playwright`, and `hex: :playwright_ex` is required: the Hex package is
 `playwright_ex`, as `playwright` on Hex is another library. If you only use it in tests, prefer
-`only: [:dev, :test]` to `only: :test`: its mix tasks, and
-[`mix usage_rules.sync`](https://hexdocs.pm/usage_rules) for its usage rules (list it as
-`:playwright` there), then work in `:dev`, where it starts no driver. Fetch it and install the
+`only: [:dev, :test]` to `only: :test`: its mix tasks, and `mix usage_rules.sync` for its
+[usage rules](#usage-rules-for-coding-agents), then work in `:dev`, where it starts no driver. Fetch it and install the
 driver and the browsers:
 
 ```sh
@@ -119,9 +118,11 @@ one headed.
 
 ## Finding elements
 
-Find elements the way a user does, with `get_by_role`, `get_by_label`, `get_by_text` and
-`get_by_test_id`. Use [`Page.locator/3`](`Playwright.Page.locator/3`) with CSS when nothing
-user-facing identifies the element.
+Find elements the way a user does: `get_by_role` with `name:` for interactive elements,
+`get_by_label` for form fields, `get_by_text` for non-interactive text, and `get_by_test_id`
+when nothing user-facing identifies the element. Use
+[`Page.locator/3`](`Playwright.Page.locator/3`) with CSS or XPath only as a last resort, never
+by CSS classes or DOM structure.
 
 ```elixir
 Page.get_by_role(page, :button, name: "Save") |> Locator.click!()
@@ -181,6 +182,24 @@ To upgrade, bump the dependency and run `mix playwright.install` again for the n
 browsers. Read the [changelog](../../CHANGELOG.md) and Playwright's [release
 notes](https://playwright.dev/docs/release-notes). From 0.16, follow the
 [migration guide](../migration.md).
+
+## Usage rules for coding agents
+
+The package ships `usage-rules.md`, rules for coding agents: setup, the API's shape, locators
+in Playwright's recommended order, web-first assertions, timeouts, events and concurrency.
+They are generic, so add your app's own rules on top. With the
+[`usage_rules`](https://hexdocs.pm/usage_rules) package, list `:playwright` in its config and
+run `mix usage_rules.sync` to copy them into your `AGENTS.md`; sync again after upgrading.
+
+```elixir
+# mix.exs
+def project do
+  [
+    # ...
+    usage_rules: [file: "AGENTS.md", usage_rules: [:playwright]]
+  ]
+end
+```
 
 ## Next
 

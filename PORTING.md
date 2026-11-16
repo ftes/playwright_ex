@@ -254,6 +254,12 @@ to that PR, the workflow also pushes fixes for its CI failures. The mix tasks be
 5. Skim `git diff vA vB -- 'docs/src/*.md' ':!docs/src/api'` (upstream's guides) for new patterns
    or caveats the guides in `guides/` should mention. Nothing checks their prose against upstream;
    their snippets are tests in `test/guides`.
+   - The locator rules in `usage-rules.md` ("Locators and assertions") are ported from two of
+     those guides. Compare these sections' diff against them and port the changes:
+     `locators.md` "Quick Guide", the "When to use … locators" notes under "Locating elements",
+     "Locate by CSS or XPath", "Get by nth item" and "Strictness"; `best-practices-js.md` "Test
+     user-visible behavior", "Use chaining and filtering", "Prefer user-facing attributes to
+     XPath or CSS selectors" and "Use web first assertions".
 6. Re-check skips that may be gone: run the spec files with `env:` or `flaky:` skips
    (`grep -rlE '"(env|flaky):' test/upstream`) with `PW_UNSKIP=env,flaky mix test <files>` on the
    browser they name (ExUnit runs no skipped test, `--include skip` neither), drop each skip that

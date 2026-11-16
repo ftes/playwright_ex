@@ -56,7 +56,8 @@ names match Python's: snake_case, keyword options, `expect_popup`, `eval_on_sele
 
 ## Guides
 
-- [Getting started](guides/introduction/getting-started.md): install, the driver, a first script.
+- [Getting started](guides/introduction/getting-started.md): install, the driver, a first script, usage rules
+  for coding agents.
 - [From playwright.dev to Elixir](guides/introduction/api-conventions.md): how a JS call reads in
   Elixir.
 - [Cheatsheet](guides/introduction/cheatsheet.cheatmd): frequent calls, JS next to Elixir.
