@@ -1,19 +1,29 @@
 # Migrating from 0.16
 
-PlaywrightEx is now a 1:1 port of the official JavaScript client, and its public API is generated
+The library is now a 1:1 port of the official JavaScript client, and its public API is generated
 from Playwright's own docs. The [playwright.dev](https://playwright.dev/docs/api/class-playwright)
-docs apply: `page.getByRole(...)` is `PlaywrightEx.Page.get_by_role/3`, `locator.click()` is
-`PlaywrightEx.Locator.click/2`, `expect(locator).toBeVisible()` is
-`PlaywrightEx.Expect.to_be_visible/2`.
+docs apply: `page.getByRole(...)` is `Playwright.Page.get_by_role/3`, `locator.click()` is
+`Playwright.Locator.click/2`, `expect(locator).toBeVisible()` is
+`Playwright.Expect.to_be_visible/2`.
 
 This is a clean cut: the guid-based modules, `Selector`, `EventWaiter`, `launch_browser/2`,
 `subscribe/2` and `JsLogger` are gone. This guide covers the changes from 0.16, including those
 of the release candidates. From an earlier release, also read the [changelog](../CHANGELOG.md)
-up to 0.16. Snippets below alias `PlaywrightEx.{Page, Locator, ...}`.
+up to 0.16. Snippets below alias `Playwright.{Page, Locator, ...}`.
+
+## Names
+
+The modules are `Playwright.*` (were `PlaywrightEx.*`) and the app is `:playwright` (was
+`:playwright_ex`); the Hex package keeps the name `playwright_ex`. Name the dependency after the
+app, `{:playwright, "~> ...", hex: :playwright_ex}`: `hex: :playwright_ex` is required, as
+`playwright` on Hex is another library. Then `config :playwright, ...`, `mix playwright.install`
+(in aliases too), `usage_rules: [:playwright]`. In a module that aliases a `Playwright` of its own
+(`alias MyApp.Playwright`), `Playwright.Page` and `Playwright.instance()` resolve to that module:
+write `alias MyApp.Playwright, as: MyPlaywright` there, or `Elixir.Playwright.Page`.
 
 ## Handles, not guids
 
-Functions take and return structs (`%PlaywrightEx.Page{}`, typed `PlaywrightEx.Page.t()`). Each
+Functions take and return structs (`%Playwright.Page{}`, typed `Playwright.Page.t()`). Each
 handle knows its connection, so there is no `connection:` option.
 
 ```elixir
@@ -44,37 +54,37 @@ options, enums, promises and `expect_*`, events, assertions, errors) is in
 {:ok, page} = BrowserContext.new_page(context.guid, timeout: 1000)
 
 # after
-{PlaywrightEx.Supervisor, name: MyApp.Playwright}
-playwright = PlaywrightEx.playwright(MyApp.Playwright)
+{Playwright.Supervisor, name: MyApp.Playwright}
+playwright = Playwright.instance(MyApp.Playwright)
 browser = BrowserType.launch!(Playwright.chromium(playwright), headless: true)
 context = Browser.new_context!(browser, base_url: url)
 page = BrowserContext.new_page!(context)
 ```
 
 - The driver (Node and `playwright-core`) is pinned and downloaded on first start, or with
-  `mix playwright_ex.install` (`-- chromium firefox --with-deps` for CI), so the npm `playwright`
-  package can go. Its version (`PlaywrightEx.Driver.version/0`) may be newer than the one you ran:
+  `mix playwright.install` (`-- chromium firefox --with-deps` for CI), so the npm `playwright`
+  package can go. Its version (`Playwright.Driver.version/0`) may be newer than the one you ran:
   read Playwright's [release notes](https://playwright.dev/docs/release-notes) (1.65 breaks some
   tests: actions wait for the element to be not inert, cookie matching follows RFC 6265, and text
   the browser doesn't render leaves accessible names). `executable:`
   takes a Playwright 1.65 CLI such as `node_modules/.bin/playwright`, not `cli.js`: a path (not
   looked up in `$PATH`), whose version nothing checks.
 - Prefer `only: [:dev, :test]` to `only: :test`, so that the mix tasks and `mix usage_rules.sync`
-  (PlaywrightEx ships `usage-rules.md`) work in `:dev` ([Installation](introduction/getting-started.md#installation)).
+  (the package ships `usage-rules.md`) work in `:dev` ([Installation](introduction/getting-started.md#installation)).
 - The supervisor's `timeout:`, `js_logger:`, `ws_endpoint:` and `fail_on_unknown_opts:` options
   are gone (unknown options raise); `env:` stays. Its `connection_name/1` and the `connection:`
-  option are replaced by `PlaywrightEx.playwright(name)`. Its default name is `PlaywrightEx` (was
+  option are replaced by `Playwright.instance(name)`. Its default name is `Playwright` (was
   `PlaywrightEx.Supervisor`), and its child id is its `:name`, so drivers of different names can
   share a supervision tree.
 - `ws_endpoint:` becomes `BrowserType.connect!(Playwright.chromium(playwright), "ws://localhost:3000/")`,
   through the local driver (no `websockex`), with a server on the driver's version
   ([Remote browsers](debugging-and-ci.md#remote-browsers)). `connect_over_cdp/3` works too.
-- `mix playwright_ex.install --no-browsers` installs only the driver, for a browser launched with
+- `mix playwright.install --no-browsers` installs only the driver, for a browser launched with
   `executable_path:` or `channel:`.
-- The driver is cached under `:filename.basedir(:user_cache, "playwright_ex")`, moved with
-  `PLAYWRIGHT_EX_CACHE_DIR` or the supervisor's `cache_dir:`; cache it in CI
+- The driver is cached under `:filename.basedir(:user_cache, "playwright")`, moved with
+  `config :playwright, :driver, cache_dir: ...` or the supervisor's `cache_dir:`; cache it in CI
   ([GitHub Actions](debugging-and-ci.md#github-actions)).
-- `minimum_supported_version/0`: `PlaywrightEx.Driver.version/0`.
+- `minimum_supported_version/0`: `Playwright.Driver.version/0`.
 
 ### Context, page, navigation
 
@@ -302,7 +312,7 @@ png = Page.screenshot!(page, full_page: true)
 Expect.to_have_screenshot!(page, path: "test/screenshots/home.png")
 ```
 
-Open a trace with `mix playwright_ex.cli show-trace trace.zip` (forwards any args to the
+Open a trace with `mix playwright.cli show-trace trace.zip` (forwards any args to the
 Playwright CLI).
 
 ### Errors
@@ -315,7 +325,7 @@ lists them), with the JS message (API name prefix and call log) and a `log` fiel
 {:error, %{error: %{name: "TimeoutError", message: message}}} = Frame.click(frame.guid, selector: "#x", timeout: 100)
 
 # after
-alias PlaywrightEx.TimeoutError
+alias Playwright.TimeoutError
 {:error, %TimeoutError{message: "locator.click: Timeout 100ms exceeded" <> _, log: log}} =
   Page.locator(page, "#x") |> Locator.click(timeout: 100)
 ```
@@ -329,7 +339,7 @@ Task.yield(task, 5_000) || Task.shutdown(task)
 ```
 
 Calls with a `timeout:` also take a `signal:` (a JS `AbortSignal`), so that another process can
-cancel them with a `PlaywrightEx.AbortController`. As in JS, a controller is global: its signal
+cancel them with a `Playwright.AbortController`. As in JS, a controller is global: its signal
 works with calls on any driver.
 
 ```elixir
@@ -358,15 +368,15 @@ Task.start(fn -> Process.sleep(1_000); AbortController.abort(controller, "user c
   `-0` is `-0.0` (was `:negative_zero`), a JS `Error` is a `JSError` exception (was a map),
   typed arrays are lists of numbers (was `%{type:, data:}`), a circular reference is `:circular`
   (was `{:circular_reference, id}`).
-- Tuple forms return `{:error, e}` only for Playwright's errors (`t:PlaywrightEx.error/0`);
+- Tuple forms return `{:error, e}` only for Playwright's errors (`t:Playwright.error/0`);
   misuse such as a bad argument raises in both forms.
-- Failed bang matchers raise `PlaywrightEx.ExpectError`, not `ExUnit.AssertionError`
+- Failed bang matchers raise `Playwright.ExpectError`, not `ExUnit.AssertionError`
   ([Testing with ExUnit](testing-with-exunit.md#assertions)).
 - A lost driver closes its pages, contexts and browsers (`close`, `disconnected`), its waits fail
-  with `PlaywrightEx.TargetClosedError` instead of hanging, and `PlaywrightEx.playwright/1` waits
+  with `Playwright.TargetClosedError` instead of hanging, and `Playwright.instance/1` waits
   for the restarted driver.
-- An unknown key of `config :playwright_ex` (other than `:test`, `:expect` and a module's), and
-  an invalid `:test`, `:expect` or `PlaywrightEx.Test.GitHubFormatter` config, raise at
+- An unknown key of `config :playwright` (other than `:test`, `:expect`, `:driver` and a module's), and
+  an invalid `:test`, `:expect` or `Playwright.Test.GitHubFormatter` config, raise at
   application start.
 - Dialogs without a listener are dismissed instead of blocking the page.
 - Error messages start with the API name (`locator.click: ...`).
@@ -376,12 +386,12 @@ Task.start(fn -> Process.sleep(1_000); AbortController.abort(controller, "user c
 - Each API call logs at `:debug` ([Logging](introduction/getting-started.md#logging)).
 - Local file errors (a missing `set_input_files` file or `path:`) raise Elixir's `File.Error` (as
   `Route.fulfill(path:)` did before), not a driver error. A storage-state file that can't be read
-  raises `PlaywrightEx.PlaywrightError` ("Error reading storage state from ..."), with the
+  raises `Playwright.PlaywrightError` ("Error reading storage state from ..."), with the
   `File.Error` as its `:cause`.
 - Strings are literal text (or globs, for URLs), never patterns. A `Regex` passed where JS takes a
-  `RegExp` is sent to the browser or driver as a JS regex; `PlaywrightEx.RegExp` lists what raises
+  `RegExp` is sent to the browser or driver as a JS regex; `Playwright.RegExp` lists what raises
   `ArgumentError` and takes JS-only syntax. JS regexes returned by `evaluate` are always a
-  `PlaywrightEx.RegExp` (lossless); `PlaywrightEx.RegExp.to_regex/1` (or `compile!/1`) gives a
+  `Playwright.RegExp` (lossless); `Playwright.RegExp.to_regex/1` (or `compile!/1`) gives a
   `Regex` when PCRE can run it.
 
 ## Known gaps

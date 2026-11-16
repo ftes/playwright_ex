@@ -1,4 +1,4 @@
-# Upstream tests that playwright_ex does not port, with the reason.
+# Upstream tests that are not ported here, with the reason.
 #
 # The registry of upstream tests is test/upstream_registry.md, a copy of tests/registry.md in
 # microsoft/playwright at the pin. `mix playwright.parity` checks that every test

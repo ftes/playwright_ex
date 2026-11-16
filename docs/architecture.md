@@ -1,23 +1,23 @@
 # Architecture
 
-Why PlaywrightEx is built the way it is, for contributors (not in hexdocs). The how (rules,
+Why the port is built the way it is, for contributors (not in hexdocs). The how (rules,
 idioms, traps, bumping the pin) is in [`PORTING.md`](../PORTING.md); users get
 [`guides/concurrency.md`](../guides/concurrency.md).
 
 ## Layers
 
 ```
-PlaywrightEx                      entry: playwright/1 returns the root object
-PlaywrightEx.{Page, Locator, ...} facade generated from api.json (official names, docs, specs)
-PlaywrightEx.Expect               generated matcher facade (tuple + bang)
-PlaywrightEx.Client.*             hand 1:1 port of playwright-core/src/client/*.ts
-PlaywrightEx.Matchers.*           hand 1:1 port of playwright/src/matchers
-PlaywrightEx.Isomorphic.*         isomorphic helpers (manualPromise, locatorGenerators, ...)
-PlaywrightEx.Protocol.*           generated from protocol/spec/*.yml, plus a port of serializers.ts
-PlaywrightEx.Runtime.*            Elixir only: connection process, heap, promises, zones
-PlaywrightEx.Transport.Pipe       port of pipeTransport (JSON off the connection process)
-PlaywrightEx.Driver               pinned driver: install, locate
-PlaywrightEx.Supervisor           OTP form of outofprocess.start(): driver and connection
+Playwright                      root: upstream's Playwright class (generated), instance/1
+Playwright.{Page, Locator, ...} facade generated from api.json (official names, docs, specs)
+Playwright.Expect               generated matcher facade (tuple + bang)
+Playwright.Client.*             hand 1:1 port of playwright-core/src/client/*.ts
+Playwright.Matchers.*           hand 1:1 port of playwright/src/matchers
+Playwright.Isomorphic.*         isomorphic helpers (manualPromise, locatorGenerators, ...)
+Playwright.Protocol.*           generated from protocol/spec/*.yml, plus a port of serializers.ts
+Playwright.Runtime.*            Elixir only: connection process, heap, promises, zones
+Playwright.Transport.Pipe       port of pipeTransport (JSON off the connection process)
+Playwright.Driver               pinned driver: install, locate
+Playwright.Supervisor           OTP form of outofprocess.start(): driver and connection
 ```
 
 ## Port and versions
@@ -32,9 +32,9 @@ Versions will mirror upstream major.minor once the port is stable (`1.64.x` driv
 1.64; the patch is ours), as playwright-python does; upstream's `since` is then ours. Until then
 releases are 0.17 release candidates (GH #126).
 
-The driver is pinned too: `PlaywrightEx.Driver` downloads `playwright-core@<pin>` from npm
+The driver is pinned too: `Playwright.Driver` downloads `playwright-core@<pin>` from npm
 (sha512) and Node from nodejs.org (SHASUMS256, committed for six platforms; no musl, like
-Playwright), lazily on first start or with `mix playwright_ex.install`. No Node needed
+Playwright), lazily on first start or with `mix playwright.install`. No Node needed
 beforehand, and no client-side version check: the pin always matches, and remote servers reject
 mismatches by the `Playwright/<pin>` user agent. `executable:` points at an npm-managed CLI.
 Remote browsers (`BrowserType.connect`) go through the local driver's `LocalUtils.connect` and
@@ -42,20 +42,24 @@ Remote browsers (`BrowserType.connect`) go through the local driver's `LocalUtil
 
 ## Generated facade
 
-`mix playwright_ex.gen.api` emits every api.json member (`langs: js`) as a facade module that
+`mix playwright.gen.api` emits every api.json member (`langs: js`) as a facade module that
 names the API call for errors, validates option keys and enums, carries docs and specs, and
 calls the client. A missing client function is then a compile warning, so completeness is
-checked, not hoped for. Elixir-only adjustments live in `Mix.PlaywrightEx.ApiRules` (dropped
+checked, not hoped for. Elixir-only adjustments live in `Mix.Playwright.ApiRules` (dropped
 members and options, merged overloads, callback objects such as `Logger`, open maps such as
 storage state and cookies, `@result_options` for `Credentials.create`).
+
+Upstream's `Playwright` class is the root module `Playwright`, as `require('playwright')` is the
+Playwright object; `use Playwright.Root` adds its hand-written part (`instance/1`, which returns
+a running supervisor's root object, and the `error` type), `@intros` in `ApiRules` its intro.
 
 - Shapes: `name/n` returns `{:ok, v} | {:error, e}`, `name!/n` raises; sync members return
   plain values; void members return `:ok`. Options are snake_case keyword lists or maps, nested
   objects keep JS keys in both directions, so results round-trip and each object has one type.
   Optional positional arguments stay positional, options last.
-- Handles are facade structs (`%PlaywrightEx.Page{}`) built from the client's
+- Handles are facade structs (`%Playwright.Page{}`) built from the client's
   `__struct_fields__/0`, not `@opaque` (OTP 28 opaques are nominal, which breaks cross-module
-  specs). Exceptions are top-level (`PlaywrightEx.TimeoutError`, ...) with the JS message.
+  specs). Exceptions are top-level (`Playwright.TimeoutError`, ...) with the JS message.
 - Tuple forms return what the JS promise rejects with (`Facade.error?/1`: the library's errors,
   `RuntimeError` for the client's `new Error`, the protocol `ValidationError`, `JSON.DecodeError`,
   `File.Error`); anything else raises in both forms. The criterion is upstream's, so it needs no
@@ -64,7 +68,7 @@ storage state and cookies, `@result_options` for `Credentials.create`).
   arrive as `PlaywrightError`, so callers couldn't rely on it, and each of upstream's ~75
   `throw new Error` would need classifying. Our own Elixir-side checks (unknown option or event,
   RegExp translation) raise `ArgumentError`.
-- Bang matchers raise `PlaywrightEx.ExpectError`, as JS's expect throws its own error (ExUnit
+- Bang matchers raise `Playwright.ExpectError`, as JS's expect throws its own error (ExUnit
   reports it as a failure with the same text). Rejected: `ExUnit.AssertionError` when ExUnit is
   loaded: it is loaded in nearly every mix/iex run, so detection gains nothing and makes behaviour
   depend on the environment. Callers who want ExUnit's error wrap the call (testing-with-exunit
@@ -72,19 +76,19 @@ storage state and cookies, `@result_options` for `Credentials.create`).
 - Names that are no Elixir function names take Python's (`$eval` is `eval_on_selector`,
   `and`/`or` are `and_`/`or_`, `not` is `not_to_*` and `Expect.not_/1`): the closest official
   precedent. JS readonly fields are arity-1 functions.
-- Waits JS starts without `await` return a `PlaywrightEx.Promise` where Python has an
+- Waits JS starts without `await` return a `Playwright.Promise` where Python has an
   `expect_*`, and get the callback form too (`expect_popup(page, action)`, C#'s order). Bang
   waits exist but await at once.
 - Docs render from the `spec` AST, not `comment` (admonitions, nested option bullets,
   `*Since Playwright 1.x.*` as text, not `since:` metadata while our versions differ, events as
   moduledoc headings). Non-JS doc variants replace JS-only text where
   the type matches. A JS example with an Elixir translation in `test/examples` (tests, so each
-  compiles and runs; `PlaywrightEx.ExampleCase`) is rendered in Elixir, keyed by the JS text; the
+  compiles and runs; `Playwright.ExampleCase`) is rendered in Elixir, keyed by the JS text; the
   rest stay JS until translated. Rejected: `iex>` doctests (scripts with no printable results or
   fixtures, and they would live in generated moduledocs) and a compile-only checker (weaker, as
   the tests give compiling for free).
 - Out of scope: `launchServer`/`BrowserServer` (JS-only), `connectOverCDP(transport)`, function
-  serialization, the inspector, Playwright Test (jest matchers); `PlaywrightEx.Test` is an
+  serialization, the inspector, Playwright Test (jest matchers); `Playwright.Test` is an
   ExUnit layer instead (see Test runner), whose tests give the matchers a ported `testInfo` for
   snapshot names, soft errors, steps and the test's deadline. `toPass` and `expect.poll` are
   matchers of a function (`Expect.to_pass/2`, `Expect.poll/3`), `poll`'s jest matcher an ExUnit
@@ -94,7 +98,7 @@ storage state and cookies, `@result_options` for `Credentials.create`).
   explicit path in place of a `name`, also outside a test.
 - Consumer requests (phoenix_test_playwright, fluffy) were checked against the official
   clients; only additive ones were kept (tuple matchers, the error `log` field,
-  `to_have_screenshot` with a path, `Driver.version/0`, `mix playwright_ex.cli`). Per-call client
+  `to_have_screenshot` with a path, `Driver.version/0`, `mix playwright.cli`). Per-call client
   timeouts and document identity are done by callers with the official API. A lost driver is
   noticed by Browser `disconnected`: a lost local driver emits it too (pages and contexts emit
   `close` first), as `connect` does for its connection (rejected: a public `connection_pid/1`).
@@ -102,19 +106,19 @@ storage state and cookies, `@result_options` for `Credentials.create`).
 
 ## Runtime
 
-One process per connection (`PlaywrightEx.Runtime.Conn`) owns an `ordered_set`, `:protected`
+One process per connection (`Playwright.Runtime.Conn`) owns an `ordered_set`, `:protected`
 ETS table and dispatches driver messages one at a time. It is the only writer: client code runs
 in the caller's process, reads rows lock-free, and sends writes as funs to run in the connection
 (`Conn.run/2`). So a read-modify-write (`Heap.update/3`, `Heap.atomic/2`) is atomic, as a
 synchronous JS section is, while callers in many processes overlap as async JS calls do.
 `await` inside the connection raises: dispatch must not block.
 
-`PlaywrightEx.Runtime.Heap` maps `this._x` to rows keyed `{owner_guid, local}`, so disposing an
+`Playwright.Runtime.Heap` maps `this._x` to rows keyed `{owner_guid, local}`, so disposing an
 object and everything it owns is one bounded prefix delete. Map rows carry an insertion
 sequence (JS Map order). A runtime object without an owner (`new_object(module)`) lives in its
 creator's process dictionary.
 
-Promises (`PlaywrightEx.Runtime.Promise`) are messages, in two kinds. A local promise is a ref
+Promises (`Playwright.Runtime.Promise`) are messages, in two kinds. A local promise is a ref
 whose result is sent to its creator, which awaits it once. A latch is a row on an owner, awaitable
 any number of times from any process, rejected when its owner is disposed. A wait also monitors
 the connection process of what it awaits (a latch, a call, an event): if that exits, the wait
@@ -124,7 +128,7 @@ function in a process of its own and settles a local promise, or a latch (`owner
 run in the awaiter; `race`/`all` are selective receives.
 
 A process the client starts on one caller's behalf carries that caller's `$callers`, as a `Task`
-does (`PlaywrightEx.Runtime.Callers`): an async function's (`Promise.start`), a user listener's
+does (`Playwright.Runtime.Callers`): an async function's (`Promise.start`), a user listener's
 subscription process, and the listener processes that run a user callback (routes, WebSocket
 routes and their handlers and URL matchers, bindings, locator handlers, screencast frames),
 which adopt the registrant's `$callers`, captured at registration as `RouteHandler` captures its
@@ -138,7 +142,7 @@ and locator handlers have no saved zone upstream.
 
 Outgoing messages are buffered and written once per turn of the connection process, which
 replaces per-message writes (a subscription update arrived ~1 ms after the call it precedes) and
-the baton's tick batching with its safety timer. `PlaywrightEx.Supervisor` preloads the client
+the baton's tick batching with its safety timer. `Playwright.Supervisor` preloads the client
 modules: lazy code loading once delayed a subscription past its event.
 
 This supersedes the baton event loop: one token per driver, client code only in its holder,
@@ -193,7 +197,7 @@ A promise settled in that synchronous section (by the dispatch, a step, or a lis
 waits for) wakes its awaiters once the frame stack is empty, as JS runs the continuation as a
 microtask after the whole `emit`: `Browser.close` returns after the `disconnected` listeners.
 
-Listener kinds (`PlaywrightEx.Client.EventEmitter`): user listeners (added through the facade)
+Listener kinds (`Playwright.Client.EventEmitter`): user listeners (added through the facade)
 get one process per subscription, FIFO; internal listeners a process per event; `on_sync/3`
 runs inline in the connection for pure state updates (closest to JS, and no process hop on hot
 events); mailbox subscriptions turn events into messages for waiters.
@@ -221,7 +225,7 @@ Where JS leans on Node or the browser runtime, the BEAM or stdlib stands in, so 
 code to keep in sync: Elixir `JSON` (with `ClientHelper.json_parse/1` mapping `null` to `:null`),
 `Process.send_after/3` for timers (`Promise.timer/1`), process dictionaries for zones (inherited
 by listener processes), ETS for state, `Enumerable`/`Collectable` for streams, `DateTime` for
-`Date`, keyword lists for `URLSearchParams`/`FormData`. `PlaywrightEx.AbortController` is global
+`Date`, keyword lists for `URLSearchParams`/`FormData`. `Playwright.AbortController` is global
 as in JS: signals live in an ETS table of the application, any process aborts, listeners run in
 the aborting process and only send messages. Local file access is plain Elixir: `path.resolve` is
 `Path.expand/1`, a failed `fs` call raises `File.Error`; Node's error texts are not imitated.
@@ -237,7 +241,7 @@ jest-matcher-utils/pretty-format/jest-diff (ExUnit.Diff is private and colour-on
   results are `nil`, as they are handles, not JS values. The facade passes omitted optional
   arguments as `nil`, so JS defaults apply in the body.
 - Bytes are `{:binary, b}` where JS branches on Buffer; binaries are strings.
-- `PlaywrightEx.RegExp` is public for JS-only syntax; a `Regex` is translated to a JS regex and
+- `Playwright.RegExp` is public for JS-only syntax; a `Regex` is translated to a JS regex and
   PCRE-only syntax raises. Regexes from the driver always come back as `%RegExp{}` (lossless).
 - `evaluate` takes JS source; a string plus `arg` is function source (no `isFunction`, like
   Python). Elixir closures in `arg` become bindings (utilityScriptSerializers).
@@ -266,11 +270,11 @@ issues. So driver-rendered text (call logs, errors) stays JS. Text the client re
 `locatorGenerators` and `selectorParser` are ported with an Elixir factory, so `inspect(locator)`,
 `to_string` and the matchers' `Locator:` line read `Page.get_by_role(page, :button, name: "Submit")`.
 `cssParser` is not ported (CSS bodies stay strings). Driver install hints name
-`mix playwright_ex.install`.
+`mix playwright.install`.
 
 ## Test runner
 
-`PlaywrightEx.Test`'s core is native, not a port. ExUnit is the runner, as pytest, NUnit and JUnit
+`Playwright.Test`'s core is native, not a port. ExUnit is the runner, as pytest, NUnit and JUnit
 are for the non-JS clients, whose plugins (pytest-playwright, Playwright.NUnit, Java's
 `@UsePlaywright`) it follows: Playwright Test's names and defaults (trace, screenshot and video
 modes, artifact names, `testInfo.outputDir`, context defaults), and upstream's artifact code as
@@ -288,13 +292,13 @@ module, not put in the context) and ExUnit tags; the rest are arguments.
 | `connectOptions` | `connect_options` (part of the key) |
 | env defaults (`PW_TEST_CONNECT_*`, `PLAYWRIGHT_TEST_BASE_URL`) | not read: upstream's runner and tools set them, nothing does here; config only, `System.get_env` in `config/test.exs` |
 | `playwright` fixture | `BrowserPool.playwright/1` |
-| `context`/`page` fixtures, `browser.newContext()` | `Browser.new_context!/2`, `BrowserContext.new_page!/1`; `PlaywrightEx.Case` puts them together |
-| `request` fixture | `APIRequest.new_context!/2` in the test (disposed at its end); not in `PlaywrightEx.Case`, where each test would pay for it |
+| `context`/`page` fixtures, `browser.newContext()` | `Browser.new_context!/2`, `BrowserContext.new_page!/1`; `Playwright.Case` puts them together |
+| `request` fixture | `APIRequest.new_context!/2` in the test (disposed at its end); not in `Playwright.Case`, where each test would pay for it |
 | auto `_setupArtifacts` | the recording of every registered test (`error-context.md` whatever the modes) |
 | `_combinedContextOptions` (`{...contextOptions, ...options}`) | Playwright Test's defaults, then config `context_options`, then the call's (`key in options`) |
 | `actionTimeout`, `navigationTimeout` (default 0) | config `action_timeout`, `navigation_timeout` (default `:infinity`), set on each context |
 | test timeout, `closeReason` "Test timeout of Nms exceeded." | ExUnit's timeout; the recorder closes the test's contexts with that reason just before it |
-| `test.use({ trace, screenshot, video })` (worker-scoped, file level) | `use PlaywrightEx.Test, trace: _` over config, `@moduletag`/`@describetag`/`@tag` over it (`tags: false`: none) |
+| `test.use({ trace, screenshot, video })` (worker-scoped, file level) | `use Playwright.Test, trace: _` over config, `@moduletag`/`@describetag`/`@tag` over it (`tags: false`: none) |
 | `testIdAttribute` (per test) | config `test_id_attribute`, set on each pooled driver: the client's value is global to the VM, not to a worker |
 | `--trace <mode>` | `TRACE` read in `config/test.exs` |
 | `test.info()` | `info/0` (`test_pid`, `file`, `test_name`, `output_dir`, `retry`, `timeout`), raises outside a test |
@@ -303,7 +307,7 @@ module, not put in the context) and ExUnit tags; the rest are arguments.
 | `testInfo.outputPath`/`snapshotPath` | `output_path(name)` (one string, no segments), `snapshot_path(name, opts)` (a string or a list of segments) |
 | `test.step` | `step/2,3` (no timeout) |
 | `testInfo.attach` | `attach/2` (`test.attach` step, `trace.attachments`) |
-| list reporter's `npx playwright show-trace <path>` | a failure prints `mix playwright_ex.cli show-trace <path>` |
+| list reporter's `npx playwright show-trace <path>` | a failure prints `mix playwright.cli show-trace <path>` |
 | `testInfo.retry`, retry modes (`on-first-retry`, ...) | ExUnit has no retries in a run: `mix test --failed` is the retry (`info/0`'s `retry`), and the modes (`:on_first_retry`, ...) go by it, as upstream's `_shouldCaptureTrace`, `shouldCaptureVideo` and `SnapshotRecorder` |
 
 Deviations the port requires:
@@ -325,7 +329,7 @@ Deviations the port requires:
   trace and a screenshot), and a test stuck outside Playwright still gets ExUnit's
   `TimeoutError`. ExUnit's clock starts at the test process's spawn, ours at the registration
   just after. A test that ends earlier cancels it.
-- `use PlaywrightEx.Test` as the first line of a case template's body: a template's own `setup`
+- `use Playwright.Test` as the first line of a case template's body: a template's own `setup`
   callbacks run before those its `using` brings in, so the test is registered before them. It
   takes no options, which another `setup` registering the test first would drop: they go in
   `using`, merged with the module's own at compile time.
@@ -390,7 +394,7 @@ driver busy, so twice the cores oversubscribes the CPU. A suite that mostly wait
 more `workers`, toward the core count (the guide's Workers section has the measurements).
 
 Upstream knows a test's result in-process (`testInfo.errors`, `status`) when it closes contexts
-and keeps artifacts; ExUnit tells `on_exit` nothing. So `use PlaywrightEx.Test` brings a `test`
+and keeps artifacts; ExUnit tells `on_exit` nothing. So `use Playwright.Test` brings a `test`
 macro that hands the body to `ExUnit.Case.test/3` with a mark at its end and a `catch` that
 notes the error and re-raises it: a test passed when it was marked and its process exited
 `:shutdown`, which a monitor sees for raises, exits, throws, timeouts (`:killed`), linked crashes
@@ -420,13 +424,13 @@ prints the soft error, as before, and a soft matcher there fails as any, as upst
 step.
 
 The matchers and traces need part of Playwright Test's worker, so that part is ported:
-`PlaywrightEx.Test.TestInfo` (`testInfo.ts`: snapshot paths, `_failWithError`, steps, `attach`),
-`PlaywrightEx.Test.TestTracing` (`testTracing.ts`: `test.trace`) and `step/3` (`test.step`),
+`Playwright.Test.TestInfo` (`testInfo.ts`: snapshot paths, `_failWithError`, steps, `attach`),
+`Playwright.Test.TestTracing` (`testTracing.ts`: `test.trace`) and `step/3` (`test.step`),
 with upstream source references and `-- not ported`/`# deviation:` comments. They have no
 `@upstream`, as parity tracks the client API, not the runner; the rest of the runner is native.
 
 `toPass` and `expect.poll` are ported (`matchers.ts`, `expect.ts`, `pollAgainstDeadline`), as
-upstream's specs and suites ported onto `PlaywrightEx.Test` (LiveView's e2e) use them often
+upstream's specs and suites ported onto `Playwright.Test` (LiveView's e2e) use them often
 and a helper per suite drifted from upstream's intervals, deadlines and steps. Being matchers,
 they get `expect.soft`, steps and the expect config for free; `poll`'s matcher is an ExUnit
 assertion (`Expect.poll(fn -> v end, &assert(&1 == 3))`), as the jest matchers are not ported. Their
@@ -457,20 +461,20 @@ verbatim. The north star is to run what the non-JS clients run: specs of JS-only
 in-process server (upstream's `default` mode, client and server in one Node process; we always run
 as its `driver` mode does) or of the test runner stay bodiless, ruled out in
 `test/upstream_not_ported.txt` against `test/upstream_registry.md` (playwright-python and -java's
-mechanism, so their rule sets can be compared with `mix playwright_ex.parity --north-star`).
+mechanism, so their rule sets can be compared with `mix playwright.parity --north-star`).
 Parity fails on unported registry tests, stale rules and stale skips (a reason naming a member
 that now exists), so a version roll surfaces new work. Skip tags and annotations: PORTING, "Tests".
 
 ## Test infrastructure
 
-Fixtures mirror upstream's (`PlaywrightEx.UpstreamCase`, Playwright Test's default context and
-launch options, 30 s test timeout, action timeout 0). `PlaywrightEx.TestServer` ports upstream's
+Fixtures mirror upstream's (`Playwright.UpstreamCase`, Playwright Test's default context and
+launch options, 30 s test timeout, action timeout 0). `Playwright.TestServer` ports upstream's
 test server on Bandit (`compress: false`, both loopbacks on one port, HTTP/1.1 https as Node's).
 WebSocket framing uses cowlib's `cow_ws` on the raw socket: Bandit's WebSock answers every close
 with 1000 and hides the peer's close frame. `TestProxy` is a small `:gen_tcp` HTTP and SOCKS5
 proxy. Snapshot comparison and video decoding use the driver's own comparator and ffmpeg.
 `launchServer` specs run on the driver's `launch-server` CLI or upstream's unmodified
-`remote-server-impl.js`, as Python's and Java's suites do. The suite runs on `PlaywrightEx.Test`:
+`remote-server-impl.js`, as Python's and Java's suites do. The suite runs on `Playwright.Test`:
 each upstream and example module holds `BrowserPool.browser/1`, upstream's worker, all on one
 set of options (under test, set up as Playwright Test's fixtures by `on_start`), so they reuse each
 other's drivers. Cleanup closes only what a

@@ -6,7 +6,7 @@ the function docs are upstream's. This page shows how a JS call reads in Elixir.
 names, keyword options and `expect_*` helpers are ours.
 
 Snippets here and in the function docs alias the modules they use:
-`alias PlaywrightEx.{Browser, BrowserContext, Expect, Locator, Page, ...}`.
+`alias Playwright.{Browser, BrowserContext, Expect, Locator, Page, ...}`.
 
 ## Names
 
@@ -18,16 +18,16 @@ with pipes:
 Page.get_by_role(page, :button, name: "Save") |> Locator.click!()
 ```
 
-Objects are structs (`%PlaywrightEx.Page{}`, typed `PlaywrightEx.Page.t()`). Names are snake_case.
+Objects are structs (`%Playwright.Page{}`, typed `Playwright.Page.t()`). Names are snake_case.
 Where a JS name is no Elixir name, Python's is used: `$eval` is
-[`Page.eval_on_selector/4`](`PlaywrightEx.Page.eval_on_selector/4`), `and`/`or` are
-[`Locator.and_/2`](`PlaywrightEx.Locator.and_/2`) and
-[`Locator.or_/2`](`PlaywrightEx.Locator.or_/2`), `not` is `not_to_*` (see
+[`Page.eval_on_selector/4`](`Playwright.Page.eval_on_selector/4`), `and`/`or` are
+[`Locator.and_/2`](`Playwright.Locator.and_/2`) and
+[`Locator.or_/2`](`Playwright.Locator.or_/2`), `not` is `not_to_*` (see
 [Assertions](#assertions)). Properties are functions too: `page.keyboard` is `Page.keyboard(page)`,
 `request.url()` is `Request.url(request)`.
 
-Predicates keep Python's names, [`Locator.is_visible/2`](`PlaywrightEx.Locator.is_visible/2`) and
-[`Browser.is_connected/1`](`PlaywrightEx.Browser.is_connected/1`), not `visible?`: a `?` function
+Predicates keep Python's names, [`Locator.is_visible/2`](`Playwright.Locator.is_visible/2`) and
+[`Browser.is_connected/1`](`Playwright.Browser.is_connected/1`), not `visible?`: a `?` function
 returns a plain boolean, and most of these are calls with a tuple and a bang form (`{:ok, true} =
 Locator.is_visible(locator)`, `true = Locator.is_visible!(locator)`).
 
@@ -35,7 +35,7 @@ Locator.is_visible(locator)`, `true = Locator.is_visible!(locator)`).
 
 Each call that JS awaits has two forms. `name/n` returns `{:ok, value}` or
 `{:error, exception}` (`:ok` when JS returns nothing), `name!/n` returns the value or raises.
-`exception` is one of the errors a JS promise rejects with (`t:PlaywrightEx.error/0`, see
+`exception` is one of the errors a JS promise rejects with (`t:Playwright.error/0`, see
 [Errors](#errors)), including the client's own argument checks (`path` and `content` both given),
 which JS rejects with too. Anything else raises in both forms: a bug, an exception from your own
 handler, or an Elixir-side check such as an unknown option (`ArgumentError`). The line is JS's, so
@@ -48,7 +48,7 @@ title = Page.title!(page)
 
 case Page.goto(page, "/admin") do
   {:ok, response} -> Response.status(response)
-  {:error, %PlaywrightEx.TimeoutError{}} -> :timeout
+  {:error, %Playwright.TimeoutError{}} -> :timeout
 end
 ```
 
@@ -125,7 +125,7 @@ Expect.to_have_attribute!(locator, "disabled", timeout: 1_000)
 
 ## Waiting for events: promises and `expect_*`
 
-JS starts a wait, acts, then awaits the wait. `wait_for_*` returns a `PlaywrightEx.Promise` for
+JS starts a wait, acts, then awaits the wait. `wait_for_*` returns a `Playwright.Promise` for
 this, and `expect_*`, Python's `with page.expect_popup()`, takes the action as a callback and
 exists where Python has one. A predicate, JS `waitForEvent(event, predicate)`, goes in place of the
 options or as `predicate:`. A bang `wait_for_*!` awaits at once, so it can miss what the code
@@ -146,7 +146,7 @@ ready = Page.wait_for_event(page, :console, &(ConsoleMessage.text(&1) == "ready"
 
 `on/3`, `once/3` and `off/3` take a listener function, as in JS. A listener runs in a process of its
 own and may call Playwright, as a `:dialog` listener calls
-[`Dialog.accept/2`](`PlaywrightEx.Dialog.accept/2`). The [Concurrency](../concurrency.md) guide
+[`Dialog.accept/2`](`Playwright.Dialog.accept/2`). The [Concurrency](../concurrency.md) guide
 covers ordering, blocking listeners and promise lifetimes.
 
 ## Assertions
@@ -162,17 +162,17 @@ Expect.not_to_have_text!(locator, "Error")
 locator |> Expect.not_() |> Expect.to_have_text!("Error")
 ```
 
-Matchers retry until they pass or time out (5 seconds, `config :playwright_ex, :expect`). They
-return `:ok` or `{:error, %PlaywrightEx.ExpectError{}}`; the bang forms raise the
-`PlaywrightEx.ExpectError`, which fails an ExUnit test as any exception does. Unknown keys in the
+Matchers retry until they pass or time out (5 seconds, `config :playwright, :expect`). They
+return `:ok` or `{:error, %Playwright.ExpectError{}}`; the bang forms raise the
+`Playwright.ExpectError`, which fails an ExUnit test as any exception does. Unknown keys in the
 `:expect` config raise `ArgumentError`.
 
 ## Errors
 
-Errors are exceptions named after the JS classes: `PlaywrightEx.PlaywrightError` (JS `Error`),
-`PlaywrightEx.TimeoutError`, `PlaywrightEx.TargetClosedError`, `PlaywrightEx.AbortError` and
-`PlaywrightEx.ExpectError`. Where the JS client throws a plain `new Error(message)` itself, it is
-a `RuntimeError`; local file errors are `File.Error`. `t:PlaywrightEx.error/0` lists them all.
+Errors are exceptions named after the JS classes: `Playwright.PlaywrightError` (JS `Error`),
+`Playwright.TimeoutError`, `Playwright.TargetClosedError`, `Playwright.AbortError` and
+`Playwright.ExpectError`. Where the JS client throws a plain `new Error(message)` itself, it is
+a `RuntimeError`; local file errors are `File.Error`. `t:Playwright.error/0` lists them all.
 The message is JS's, starting with the API name, and `log` holds the call log:
 
 ```elixir
@@ -191,10 +191,10 @@ Expect.to_have_url!(page, ~r"/dashboard$")
 ```
 
 PCRE-only syntax JS cannot run (`\A`, possessive quantifiers, inline `(?i)`, ...) raises
-`ArgumentError`. For JS-only syntax, pass a `PlaywrightEx.RegExp`:
+`ArgumentError`. For JS-only syntax, pass a `Playwright.RegExp`:
 
 ```elixir
-Page.get_by_text(page, PlaywrightEx.RegExp.new("a[^]b", "v"))
+Page.get_by_text(page, Playwright.RegExp.new("a[^]b", "v"))
 ```
 
 ## `evaluate` takes JS source
@@ -208,5 +208,5 @@ Page.locator(page, "button") |> Locator.evaluate!("el => el.textContent")
 ```
 
 Values cross as Elixir terms: JS objects come back as maps with string keys, `Date` is
-`DateTime`, `RegExp` is `PlaywrightEx.RegExp`, `NaN` and `Infinity` are `:nan` and `:infinity`,
+`DateTime`, `RegExp` is `Playwright.RegExp`, `NaN` and `Infinity` are `:nan` and `:infinity`,
 `undefined` is `nil` and `null` is `:null`.

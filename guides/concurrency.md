@@ -1,7 +1,7 @@
 # Concurrency
 
-JS runs Playwright on one thread. PlaywrightEx runs it in Elixir processes, and that changes a
-few things you can rely on. Snippets alias `PlaywrightEx.{Page, BrowserContext, Promise, ...}`.
+JS runs Playwright on one thread. This port runs it in Elixir processes, and that changes a
+few things you can rely on. Snippets alias `Playwright.{Page, BrowserContext, Promise, ...}`.
 
 ## Connections and your processes
 
@@ -85,10 +85,10 @@ matchers) already do this. Only code that checks state itself and then waits nee
 
 ## Promises from any process
 
-`wait_for_*` returns a `PlaywrightEx.Promise`. Unlike a `Task`, any process can await it, any
+`wait_for_*` returns a `Playwright.Promise`. Unlike a `Task`, any process can await it, any
 number of times, and gets the same result. The result is kept while the process that started the
-wait lives; after it has exited, awaiting raises `PlaywrightEx.TargetClosedError`.
-`PlaywrightEx.Promise.free/1` drops a wait you no longer need.
+wait lives; after it has exited, awaiting raises `Playwright.TargetClosedError`.
+`Playwright.Promise.free/1` drops a wait you no longer need.
 
 ```elixir
 download = Page.wait_for_event(page, :download)
@@ -101,7 +101,7 @@ task = Task.async(fn -> Download.path!(Promise.await!(download)) end)
 JS starts a call and awaits it later: `const p = locator.evaluate(...); ...; await p`. Which
 Elixir form fits depends on when the call completes:
 
-- `PlaywrightEx.Promise.async/1` when the call must be sent before your next action, say an
+- `Playwright.Promise.async/1` when the call must be sent before your next action, say an
   `evaluate` that resolves on a click. It returns once the call is sent; a `Task` may send it
   after the click.
 
@@ -124,13 +124,13 @@ Elixir form fits depends on when the call completes:
 
 ## Lifetimes after close
 
-As in JS, a closed page or context stays readable: [`Page.url/1`](`PlaywrightEx.Page.url/1`) and
+As in JS, a closed page or context stays readable: [`Page.url/1`](`Playwright.Page.url/1`) and
 other accessors return the last values. That lasts until every process that created or closed its
-context (or browser) has exited; after that, reading it raises `PlaywrightEx.TargetClosedError`. A
+context (or browser) has exited; after that, reading it raises `Playwright.TargetClosedError`. A
 process that lives for long and closes many contexts keeps a few hundred rows per context until it
 exits, so in a long-running service, create each context in a process that ends with the session.
 
-Handles of a lost driver stay readable the same way; `PlaywrightEx.Supervisor` has the details.
+Handles of a lost driver stay readable the same way; `Playwright.Supervisor` has the details.
 
 ## Where it differs from JS
 

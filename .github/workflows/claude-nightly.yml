@@ -413,7 +413,7 @@ jobs:
             and open one pull request for it, the kind a senior maintainer would be glad to merge.
             Pick it in or touching FOCUS: each night looks at a different part of the codebase.
 
-            playwright_ex is a statement-by-statement port of the Playwright JS client, and staying
+            This repo is a statement-by-statement port of the Playwright JS client, and staying
             1:1 is what keeps version bumps cheap, so shorter ported code is not simpler:
             - Ours, where to look: lib/ modules without `@upstream` (runtime, driver, supervisor),
               lib/mix/, dev/ (generators, parity), test/support/, tests outside test/upstream/.
