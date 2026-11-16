@@ -375,18 +375,19 @@ the test's title and steps over the video). Each replaces the value under it as 
 unknown `use` option or an invalid value fails the module's compilation.
 
 `use PlaywrightEx.Case, async: true, trace: :on` takes them next to ExUnit's options. A module's
-`use`s merge per key, the later winning, so a template can forward its own from `using` (keep
-the ExUnit options out), and a `use` with options in a template's body applies to each of its
-modules, under the module's own:
+`use`s merge per key, the later winning, and ExUnit.Case's keys are ignored, so a template
+forwards its options as is, after its own defaults. They go in `using`: a `use` in the
+template's body takes none.
 
 ```elixir
 defmodule MyApp.BrowserCase do
   use ExUnit.CaseTemplate
-  use PlaywrightEx.Test, screenshot: :only_on_failure
+  use PlaywrightEx.Test
 
   using opts do
     quote do
-      use PlaywrightEx.Test, unquote(Keyword.take(opts, [:trace, :screenshot, :video, :tags]))
+      use PlaywrightEx.Test, screenshot: :only_on_failure
+      use PlaywrightEx.Test, unquote(opts)
     end
   end
 

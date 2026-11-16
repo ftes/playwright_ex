@@ -326,7 +326,9 @@ Deviations the port requires:
   `TimeoutError`. ExUnit's clock starts at the test process's spawn, ours at the registration
   just after. A test that ends earlier cancels it.
 - `use PlaywrightEx.Test` as the first line of a case template's body: a template's own `setup`
-  callbacks run before those its `using` brings in, so the test is registered before them.
+  callbacks run before those its `using` brings in, so the test is registered before them. It
+  takes no options, which another `setup` registering the test first would drop: they go in
+  `using`, merged with the module's own at compile time.
 
 A pooled driver hosts one browser, as upstream's worker runs its project's. Each pooled driver gets
 one static listener when it starts (`runBeforeCreateBrowserContext`, `runAfterCreateBrowserContext`,

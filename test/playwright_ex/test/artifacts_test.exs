@@ -217,7 +217,8 @@ defmodule PlaywrightEx.Test.ArtifactsTest do
     ref = Process.monitor(recorder)
     {elapsed, log} = :timer.tc(fn -> capture_log(fn -> finish(test, [passed()], :shutdown, 50) end) end, :millisecond)
     # The budget left when the recorder is called: 50 ms, or less under load.
-    assert log =~ ~r/PlaywrightEx.Test could not finish the recording: it took over \d+ ms/
+    assert [_, budget] = Regex.run(~r/PlaywrightEx.Test could not finish the recording: it took over (\d+) ms/, log)
+    assert String.to_integer(budget) <= 50
     # Not waiting for the blocked recorder: that's in the background.
     assert elapsed < 400
     assert Recorder.lookup(test.pid) == nil
@@ -869,6 +870,33 @@ defmodule PlaywrightEx.Test.ArtifactsTest.UseOptionsTest do
     end
 
     assert_raise ArgumentError, ~r/invalid tags: :off, expected a boolean/, fn -> compile("tags: :off") end
+
+    assert_raise ArgumentError, ~r/duplicated option :trace for use PlaywrightEx.Test/, fn ->
+      compile("trace: :on, trace: :off")
+    end
+  end
+
+  test "a typo through a case template raises at compile time" do
+    assert_raise ArgumentError, ~r/unknown options \[:screnshot\] for use PlaywrightEx.Test/, fn ->
+      Code.compile_string("""
+      defmodule PlaywrightEx.Test.ArtifactsTest.UseOptionsTest.Typo do
+        use PlaywrightEx.Test.ArtifactsTest.UseOptionsCase, async: true, screnshot: :on
+      end
+      """)
+    end
+  end
+
+  test "a use in a case template's body takes no options" do
+    assert_raise CompileError,
+                 ~r/use PlaywrightEx.Test in a case template's body takes no options, got: \[trace: :on\]; put them in the template's `using` block/,
+                 fn ->
+                   Code.compile_string("""
+                   defmodule PlaywrightEx.Test.ArtifactsTest.UseOptionsTest.BodyCase do
+                     use ExUnit.CaseTemplate
+                     use PlaywrightEx.Test, async: true, trace: :on
+                   end
+                   """)
+                 end
   end
 end
 
@@ -889,27 +917,43 @@ defmodule PlaywrightEx.Test.ArtifactsTest.UseTagsOffTest do
 end
 
 defmodule PlaywrightEx.Test.ArtifactsTest.UseOptionsCase do
-  # A template with options in its body, and forwarding its own to the `use` in its `using`.
+  # A template forwarding its options as is (ExUnit's too), after its own defaults.
   use ExUnit.CaseTemplate
-  use PlaywrightEx.Test, trace: :retain_on_failure, screenshot: :only_on_failure, video: true
+  use PlaywrightEx.Test
 
   using opts do
     quote do
-      use PlaywrightEx.Test, unquote(Keyword.take(opts, [:trace, :screenshot, :video, :tags]))
+      use PlaywrightEx.Test, trace: :retain_on_failure, screenshot: :only_on_failure, video: true
+      use PlaywrightEx.Test, unquote(opts)
     end
   end
 end
 
 defmodule PlaywrightEx.Test.ArtifactsTest.UseTemplateTest do
-  # The template body's options under the module's, which merge per key, the later `use` winning.
+  # The module's `use`s merge per key, the later winning; ExUnit's options go to ExUnit.Case.
   use PlaywrightEx.Test.ArtifactsTest.UseOptionsCase, async: true, video: false, screenshot: :on
   use PlaywrightEx.Test, screenshot: :off
 
   import PlaywrightEx.Test.ArtifactsTest.UseOptionsTest, only: [modes: 0]
 
-  test "the module's uses merged, over the template body's" do
+  test "the module's uses merged, the template's defaults under them", ctx do
+    assert ctx.async
     assert %{trace: [mode: :retain_on_failure] ++ _, screenshot: [mode: :off], video: [mode: :off]} = modes()
-    assert __MODULE__.__playwright_ex_test__(:options) == %{video: [mode: :off], screenshot: [mode: :off]}
+  end
+end
+
+defmodule PlaywrightEx.Test.ArtifactsTest.UseAttributeTest do
+  # Options that are an expression, evaluated in the module's body.
+  @opts [async: true, video: false]
+  use PlaywrightEx.Test.ArtifactsTest.UseOptionsCase, @opts
+
+  import PlaywrightEx.Test.ArtifactsTest.UseOptionsTest, only: [modes: 0]
+
+  test "a module attribute as the options", ctx do
+    assert ctx.async
+
+    assert %{trace: [mode: :retain_on_failure] ++ _, screenshot: [mode: :only_on_failure], video: [mode: :off]} =
+             modes()
   end
 end
 

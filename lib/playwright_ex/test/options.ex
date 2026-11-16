@@ -82,12 +82,19 @@ defmodule PlaywrightEx.Test.Options do
   @doc """
   The options of `use PlaywrightEx.Test`, validated, as a map: the recording modes as the config
   takes them, and `tags` (a boolean, `true` by default) whether the test's tags set them.
+  ExUnit.Case's keys are ignored (`without_ex_unit_keys/1`); any other key, a duplicated one or a
+  bad value raises.
   """
   def use_options(opts) do
-    if !Keyword.keyword?(opts),
-      do: raise(ArgumentError, "use PlaywrightEx.Test expects a keyword list of options, got: #{inspect(opts)}")
+    opts = without_ex_unit_keys(opts)
+    keys = Keyword.keys(opts)
 
-    case Keyword.keys(opts) -- @use_keys do
+    case keys -- Enum.uniq(keys) do
+      [] -> :ok
+      [key | _] -> raise ArgumentError, "duplicated option #{inspect(key)} for use PlaywrightEx.Test"
+    end
+
+    case keys -- @use_keys do
       [] ->
         :ok
 
@@ -102,6 +109,18 @@ defmodule PlaywrightEx.Test.Options do
       {:tags, tags} -> raise ArgumentError, "invalid tags: #{inspect(tags)}, expected a boolean"
       {key, value} -> {key, validate!(key, value)}
     end)
+  end
+
+  @doc """
+  `opts` without ExUnit.Case's own `use` keys (`:async` and the rest, as `ExUnit.Case.__keys__/1`
+  takes them for `use ExUnit.CaseTemplate`'s modules), so a case template forwards its options to
+  `use PlaywrightEx.Test` as is.
+  """
+  def without_ex_unit_keys(opts) do
+    if !Keyword.keyword?(opts),
+      do: raise(ArgumentError, "use PlaywrightEx.Test expects a keyword list of options, got: #{inspect(opts)}")
+
+    opts -- ExUnit.Case.__keys__(opts)
   end
 
   @doc """

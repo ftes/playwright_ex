@@ -47,7 +47,7 @@ defmodule PlaywrightEx.Case do
 
   using opts do
     quote do
-      use PlaywrightEx.Test, unquote(Keyword.take(opts, [:trace, :screenshot, :video, :tags]))
+      use PlaywrightEx.Test, unquote(opts)
 
       alias PlaywrightEx.{Browser, BrowserContext, Expect, Locator, Page, Test}
       alias PlaywrightEx.Test.BrowserPool

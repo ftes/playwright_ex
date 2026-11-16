@@ -6,6 +6,7 @@ defmodule PlaywrightEx.Test.StepsTest do
   @this_file __ENV__.file
 
   import PlaywrightEx.Runtime.Heap, only: [get: 2, put: 3]
+  import PlaywrightEx.TracedCalls
 
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
@@ -670,23 +671,5 @@ defmodule PlaywrightEx.Test.StepsTest do
     |> Task.await(:infinity)
 
     assert TestInfo.take_errors(self()) == []
-  end
-
-  # The calls of `mod.fun` by `pid` traced so far (`:erlang.trace/3`'s messages, sent to this
-  # process): unlike `call_count`, not the calls of other async tests' traced processes.
-  defp traced_calls(pid, mfa, count \\ nil)
-
-  defp traced_calls(pid, mfa, nil) do
-    ref = :erlang.trace_delivered(pid)
-    assert_receive {:trace_delivered, ^pid, ^ref}
-    traced_calls(pid, mfa, 0)
-  end
-
-  defp traced_calls(pid, {mod, fun}, count) do
-    receive do
-      {:trace, ^pid, :call, {^mod, ^fun, _args}} -> traced_calls(pid, {mod, fun}, count + 1)
-    after
-      0 -> count
-    end
   end
 end

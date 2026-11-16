@@ -49,12 +49,12 @@ defmodule PlaywrightEx.Test do
 
   In a case template, `use PlaywrightEx.Test` may also be the first line of the template's
   body: a template's own `setup` callbacks run before those its `using` brings in, so the test
-  is registered before them, and their contexts are recorded too. A module's later `use`s (a
-  template's `using` and the module's own) only add their options (see "Artifacts"). A context
-  that a test process creates before its registration (a template's `setup` with no `use` in the
-  body) makes the registration raise, with that fix. A context created outside a test (in
-  `setup_all`, in a module without `use PlaywrightEx.Test`, on a driver you started yourself)
-  gets no defaults and no recording.
+  is registered before them, and their contexts are recorded too. That `use` takes no options
+  (they go in `using`); a module's later `use`s (a template's `using` and the module's own) only
+  add their options (see "Artifacts"). A context that a test process creates before its
+  registration (a template's `setup` with no `use` in the body) makes the registration raise,
+  with that fix. A context created outside a test (in `setup_all`, in a module without `use
+  PlaywrightEx.Test`, on a driver you started yourself) gets no defaults and no recording.
 
   The rest is called qualified, as upstream's `test.info()` and `test.step()`: `info/0`
   (`info/1` in `on_exit`, with the test's result), `output_path/1`, `attach/2`, `snapshot_path/2`, `step/2,3` and `step_skip/2,3`. They work in the test's
@@ -105,14 +105,13 @@ defmodule PlaywrightEx.Test do
 
   `use PlaywrightEx.Test, trace: :on` is upstream's file-level `test.use({ trace: 'on' })` (the
   modes are worker-scoped options there), with the values the config takes; an unknown option or
-  an invalid value raises at compile time. A module's `use`s merge per key, the later winning,
-  and those of a `use` in a case template's body apply to each module of the template, under the
-  module's own. A template forwards its options from `using opts`: `use PlaywrightEx.Test,
-  unquote(Keyword.take(opts, [:trace, :screenshot, :video, :tags]))`, as `PlaywrightEx.Case`
-  does. The tags take the same values, so `trace`, `screenshot` and `video` are reserved tags: a
-  `@tag :screenshot` label turns screenshots on, and an invalid value raises at registration,
-  unless the module has `use PlaywrightEx.Test, tags: false` (default `true`): then tags don't
-  set the modes.
+  an invalid value raises at compile time. A module's `use`s merge per key, the later winning.
+  ExUnit.Case's keys (`:async`, ...) are ignored, so a template forwards its options from `using
+  opts` as is: `use PlaywrightEx.Test, unquote(opts)`, as `PlaywrightEx.Case` does. The tags
+  take the same values, so `trace`, `screenshot` and `video` are reserved tags: a `@tag
+  :screenshot` label turns screenshots on, and an invalid value raises at registration, unless
+  the module has `use PlaywrightEx.Test, tags: false` (default `true`): then tags don't set the
+  modes.
 
   The `*_on_failure` modes record every test and keep the files of failed ones, as upstream
   (files you write to `output_path/1` stay). A failing artifact step is logged; the test's
@@ -278,13 +277,14 @@ defmodule PlaywrightEx.Test do
           end
         end
 
-      # The body of a case template: its `setup` callbacks run before those of its `using`. The
-      # registration reads the template's options under the test module's.
+      # The body of a case template: its `setup` callbacks run before those of its `using`.
       {:using, 1} in Keyword.get(macros, ExUnit.CaseTemplate, []) ->
         quote do
-          if PlaywrightEx.Test.__use__(__MODULE__, unquote(opts)) do
+          PlaywrightEx.Test.__template_use__(unquote(opts), __ENV__)
+
+          if PlaywrightEx.Test.__use__(__MODULE__, []) do
             PlaywrightEx.Test.__clock__(__MODULE__)
-            setup(context, do: PlaywrightEx.Test.__setup__(context, __MODULE__))
+            setup({PlaywrightEx.Test, :__setup__})
           end
         end
 
@@ -293,6 +293,26 @@ defmodule PlaywrightEx.Test do
           file: __CALLER__.file,
           line: __CALLER__.line,
           description: "use PlaywrightEx.Test must come after use ExUnit.Case (or in a case template's body or using)"
+    end
+  end
+
+  @doc false
+  # A `use PlaywrightEx.Test` in a case template's body takes no options (but ExUnit.Case's, which
+  # it ignores as the module's does): the test may be registered by another `setup` before the
+  # body's, which would drop them. In `using` they merge with the module's `use`s at compile time.
+  def __template_use__(opts, env) do
+    case Options.without_ex_unit_keys(opts) do
+      [] ->
+        :ok
+
+      opts ->
+        raise CompileError,
+          file: env.file,
+          line: env.line,
+          description:
+            "use PlaywrightEx.Test in a case template's body takes no options, got: #{inspect(opts)}; " <>
+              "put them in the template's `using` block (`use PlaywrightEx.Test, #{inspect(opts)}`), " <>
+              "where they merge with the module's own `use`s"
     end
   end
 
@@ -317,7 +337,7 @@ defmodule PlaywrightEx.Test do
   end
 
   @doc false
-  # The module's merged `use` options, for its registration (`__register__/2`): a function, so the
+  # The module's merged `use` options, for its registration (`__register__/1`): a function, so the
   # test's context stays the test author's.
   defmacro __before_compile__(env) do
     options = Module.get_attribute(env.module, :playwright_ex_test)
@@ -471,9 +491,8 @@ defmodule PlaywrightEx.Test do
 
   @doc false
   # The per-test `setup` of `use PlaywrightEx.Test`: registers the test, once (a case
-  # template's body and its `using` may both bring it). `template` is the case template whose
-  # body brought it.
-  def __setup__(%{test_pid: test_pid} = context, template \\ nil) do
+  # template's body and its `using` may both bring it).
+  def __setup__(%{test_pid: test_pid} = context) do
     Pool.ensure_started()
 
     cond do
@@ -487,7 +506,7 @@ defmodule PlaywrightEx.Test do
                 "recording: add `use PlaywrightEx.Test` as the first line of the case template's body"
 
       true ->
-        test = __register__(context, template)
+        test = __register__(context)
         timeout = test.test_timeout
         # Each `on_exit` callback gets the test's timeout: half of it for the artifacts.
         budget = if is_integer(timeout), do: div(timeout, 2), else: :infinity
@@ -498,13 +517,12 @@ defmodule PlaywrightEx.Test do
 
   @doc false
   # The registration of the test of `context` (its `test_pid`), without its `on_exit`, with the
-  # `use` options of its module over those of the case template `template`'s body.
-  def __register__(context, template \\ nil) do
+  # `use` options of its module.
+  def __register__(context) do
     # Read and validated once.
     config = Options.config()
     test_info = TestInfo.new(context, config.output_dir)
-    options = Map.merge(use_options(template), use_options(context[:module]))
-    modes = Options.artifacts(context, config, options)
+    modes = Options.artifacts(context, config, use_options(context[:module]))
     # Upstream's `testTracing.startIfNeeded` and `_contextFactory`'s `captureVideo`, by the retry.
     modes = %{
       modes

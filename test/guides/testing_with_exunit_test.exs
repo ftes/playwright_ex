@@ -71,7 +71,7 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.BrowserCase do
   # Its options forwarded, as "Traces, screenshots and videos" shows.
   using opts do
     quote do
-      use PlaywrightEx.Test, unquote(Keyword.take(opts, [:trace, :screenshot, :video, :tags]))
+      use PlaywrightEx.Test, unquote(opts)
       alias PlaywrightEx.{Browser, BrowserContext, Expect, Locator, Page, Test}
       alias PlaywrightEx.Test.BrowserPool
     end

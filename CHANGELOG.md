@@ -32,8 +32,8 @@ those of the release candidates below. From an earlier release, also read the se
   `request`s and the test's request contexts, which are disposed at its end), screenshots and
   videos (with `fps` and `show`, the test's title and steps over each page), with Playwright
   Test's modes and their options, from config, `use` options (`use PlaywrightEx.Test, trace:
-  :on`, Playwright Test's file-level `test.use`, merged over a case template's; `tags: false`
-  ignores the tags) and tags (`@tag trace: :on`), kept for failures,
+  :on`, Playwright Test's file-level `test.use`, which a case template forwards from `using` as
+  is; `tags: false` ignores the tags) and tags (`@tag trace: :on`), kept for failures,
   plus Playwright Test's `error-context.md` of each failed test and a `show-trace` hint. Each
   test's output dir is emptied before it runs, a test under `mix test --failed` writes to
   Playwright Test's `-retryN` dirs, with Playwright Test's retry modes (`trace: :on_first_retry`,

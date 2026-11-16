@@ -136,6 +136,8 @@ defmodule PlaywrightEx.Test.ConfigTest do
   use ExUnit.Case, async: false
   use PlaywrightEx.Test
 
+  import PlaywrightEx.TracedCalls
+
   alias PlaywrightEx.APIRequest
   alias PlaywrightEx.APIRequestContext
   alias PlaywrightEx.Browser
@@ -380,23 +382,5 @@ defmodule PlaywrightEx.Test.ConfigTest do
     assert_raise ArgumentError, ~r/invalid navigation_timeout: :none/, fn -> Options.timeouts() end
     Application.put_env(:playwright_ex, :test, config ++ [action_timeout: 0, navigation_timeout: 5000])
     assert Options.timeouts() == %{action_timeout: 0, navigation_timeout: 5000}
-  end
-
-  # The calls of `mod.fun` by `pid` traced so far (`:erlang.trace/3`'s messages, sent to this
-  # process): unlike `call_count`, not the calls of other async tests' traced processes.
-  defp traced_calls(pid, mfa, count \\ nil)
-
-  defp traced_calls(pid, mfa, nil) do
-    ref = :erlang.trace_delivered(pid)
-    assert_receive {:trace_delivered, ^pid, ^ref}
-    traced_calls(pid, mfa, 0)
-  end
-
-  defp traced_calls(pid, {mod, fun}, count) do
-    receive do
-      {:trace, ^pid, :call, {^mod, ^fun, _args}} -> traced_calls(pid, {mod, fun}, count + 1)
-    after
-      0 -> count
-    end
   end
 end
