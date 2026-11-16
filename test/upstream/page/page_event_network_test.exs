@@ -177,6 +177,13 @@ defmodule Playwright.Page.PageEventNetworkTest do
              ]
   end
 
+  @tag skip:
+         if(@browser_name == "webkit",
+           do:
+             "flaky: WebKit sometimes answers Network.getResponseBody for a request cut off by a " <>
+               "navigation with an empty body instead of an error, so text() resolves \"\". Upstream's " <>
+               "client does too: https://github.com/ftes/playwright_ex/issues/245"
+         )
   test "NE-143 should resolve responses after a same-process navigation", %{
     page: page,
     server: server,
