@@ -157,6 +157,31 @@ defmodule PlaywrightEx.RegExpTest do
     refute match?.("^[\\s-a]$", "", "b")
   end
 
+  test "compile!: a range with a class escape at an end is a literal - without u, an error with u (as node)" do
+    matches = fn source, flags ->
+      re = RegExp.compile!(RegExp.new("^[#{source}]$", flags))
+      Enum.filter(["-", " ", "a", "b", "5", "_"], &Regex.match?(re, &1))
+    end
+
+    assert matches.("a-\\s", "") == ["-", " ", "a"]
+    assert matches.("\\s-a", "i") == ["-", " ", "a"]
+    assert matches.("a-\\d", "") == ["-", "a", "5"]
+    assert matches.("\\d-a", "") == ["-", "a", "5"]
+    assert matches.("\\w-\\d", "") == ["-", "a", "b", "5", "_"]
+    assert matches.("a-\\D", "") == ["-", " ", "a", "b", "_"]
+    assert matches.("\\d--a", "") == ["-", "a", "5"]
+    assert matches.("--\\d", "") == ["-", "5"]
+    assert matches.("\\d-", "u") == ["-", "5"]
+    assert matches.("-\\d", "u") == ["-", "5"]
+    assert matches.("^-\\d", "u") == [" ", "a", "b", "_"]
+    assert matches.("a-b-\\d", "u") == ["-", "a", "b", "5"]
+    assert matches.("\\p{L}-", "u") == ["-", "a", "b"]
+
+    for source <- ["a-\\s", "\\s-a", "a-\\d", "\\d-a", "\\w-\\d", "--\\d", "\\p{L}-a", "a-\\p{L}"] do
+      assert RegExp.to_regex(RegExp.new("[#{source}]", "u")) == {:error, "an invalid character class"}
+    end
+  end
+
   test "inspect shows the JS form" do
     assert inspect(RegExp.new("a/b", "iv")) == "#PlaywrightEx.RegExp</a\\/b/iv>"
   end

@@ -218,28 +218,49 @@ defmodule PlaywrightEx.RegExp do
     for {a, b} <- ranges, into: "", do: if(a == b, do: item.(a), else: item.(a) <> "-" <> item.(b))
   end
 
+  # In a class, `in_class` is what came last: `:start` (`[`, `[^`), an `:atom`, a class `:escape`
+  # (`\d`, `\s`, `\p{...}` with `u`), a `:range`, or `{:dash, start}` (a `-` after an atom or
+  # escape, not emitted yet). A range with a class escape at an end is a literal `-` without `u`
+  # (`[a-\s]` is `a`, `-`, `\s`), a syntax error with it, as JS's Annex B.
   defp js_to_pcre(<<?\\, c, rest::binary>>, unicode, in_class, acc) when c in ~c"sS" do
     items = class_items(if c == ?s, do: @js_space, else: @js_non_space)
+    class_escape(rest, unicode, in_class, acc, items, "[" <> items <> "]")
+  end
 
-    case {in_class, rest} do
-      # `[\s-a]`: the `-` after a class escape is literal.
-      {true, <<?-, rest::binary>>} -> js_to_pcre(rest, unicode, true, acc <> items <> "\\-")
-      {true, _} -> js_to_pcre(rest, unicode, true, acc <> items)
-      {false, _} -> js_to_pcre(rest, unicode, false, acc <> "[" <> items <> "]")
+  defp js_to_pcre(<<?\\, c, rest::binary>>, unicode, in_class, acc) when c in ~c"dDwW",
+    do: class_escape(rest, unicode, in_class, acc, <<?\\, c>>, <<?\\, c>>)
+
+  defp js_to_pcre(<<?\\, c, ?{, rest::binary>>, true, in_class, acc) when c in ~c"pP" do
+    case String.split(rest, "}", parts: 2) do
+      [name, rest] ->
+        class_escape(rest, true, in_class, acc, <<?\\, c, ?{>> <> name <> "}", <<?\\, c, ?{>> <> name <> "}")
+
+      [_] ->
+        js_to_pcre(rest, true, in_class, <<acc::binary, ?\\, c, ?{>>)
     end
   end
 
   defp js_to_pcre(<<"[^]", rest::binary>>, unicode, false, acc), do: js_to_pcre(rest, unicode, false, acc <> "[\\s\\S]")
   defp js_to_pcre(<<"[]", rest::binary>>, unicode, false, acc), do: js_to_pcre(rest, unicode, false, acc <> "(?!)")
-  defp js_to_pcre(<<?[, rest::binary>>, unicode, false, acc), do: js_to_pcre(rest, unicode, true, acc <> "[")
-  defp js_to_pcre(<<?[, rest::binary>>, unicode, true, acc), do: js_to_pcre(rest, unicode, true, acc <> "\\[")
-  defp js_to_pcre(<<?], rest::binary>>, unicode, true, acc), do: js_to_pcre(rest, unicode, false, acc <> "]")
+  defp js_to_pcre(<<"[^", rest::binary>>, unicode, false, acc), do: js_to_pcre(rest, unicode, :start, acc <> "[^")
+  defp js_to_pcre(<<?[, rest::binary>>, unicode, false, acc), do: js_to_pcre(rest, unicode, :start, acc <> "[")
+  defp js_to_pcre(<<?[, rest::binary>>, unicode, in_class, acc), do: atom(rest, unicode, in_class, acc, "\\[")
+  defp js_to_pcre(<<?], rest::binary>>, unicode, {:dash, _}, acc), do: js_to_pcre(rest, unicode, false, acc <> "\\-]")
+
+  defp js_to_pcre(<<?], rest::binary>>, unicode, in_class, acc) when in_class != false,
+    do: js_to_pcre(rest, unicode, false, acc <> "]")
+
+  defp js_to_pcre(<<?-, rest::binary>>, unicode, start, acc) when start in [:atom, :escape],
+    do: js_to_pcre(rest, unicode, {:dash, start}, acc)
+
+  defp js_to_pcre(<<?-, rest::binary>>, unicode, in_class, acc) when in_class != false,
+    do: atom(rest, unicode, in_class, acc, "\\-")
 
   defp js_to_pcre(<<"\\u", hi::binary-4, "\\u", lo::binary-4, rest::binary>> = all, unicode, in_class, acc) do
     with {:ok, h} when h in 0xD800..0xDBFF <- hex(hi),
          {:ok, l} when l in 0xDC00..0xDFFF <- hex(lo) do
       cp = 0x10000 + (h - 0xD800) * 0x400 + (l - 0xDC00)
-      js_to_pcre(rest, unicode, in_class, acc <> Regex.escape(<<cp::utf8>>))
+      atom(rest, unicode, in_class, acc, Regex.escape(<<cp::utf8>>))
     else
       _ -> js_to_pcre_u(all, unicode, in_class, acc)
     end
@@ -249,32 +270,51 @@ defmodule PlaywrightEx.RegExp do
 
   defp js_to_pcre(<<"\\x", h1, h2, rest::binary>>, unicode, in_class, acc)
        when h1 in ~c"0123456789abcdefABCDEF" and h2 in ~c"0123456789abcdefABCDEF",
-       do: js_to_pcre(rest, unicode, in_class, acc <> "\\x" <> <<h1, h2>>)
+       do: atom(rest, unicode, in_class, acc, "\\x" <> <<h1, h2>>)
 
-  defp js_to_pcre(<<"\\x", rest::binary>>, unicode, in_class, acc), do: js_to_pcre(rest, unicode, in_class, acc <> "x")
+  defp js_to_pcre(<<"\\x", rest::binary>>, unicode, in_class, acc), do: atom(rest, unicode, in_class, acc, "x")
 
-  defp js_to_pcre(<<"\\v", rest::binary>>, unicode, in_class, acc),
-    do: js_to_pcre(rest, unicode, in_class, acc <> "\\x0B")
+  defp js_to_pcre(<<"\\v", rest::binary>>, unicode, in_class, acc), do: atom(rest, unicode, in_class, acc, "\\x0B")
+
+  defp js_to_pcre(<<"\\c", c, rest::binary>>, unicode, in_class, acc) when c in ?a..?z or c in ?A..?Z,
+    do: atom(rest, unicode, in_class, acc, <<"\\c", c>>)
 
   defp js_to_pcre(<<?\\, c, rest::binary>>, false, in_class, acc) when c in ~c"pP",
-    do: js_to_pcre(rest, false, in_class, acc <> <<c>>)
+    do: atom(rest, false, in_class, acc, <<c>>)
 
   defp js_to_pcre(<<?\\, c, rest::binary>>, unicode, in_class, acc)
        when (c in ?a..?z or c in ?A..?Z) and c not in @js_letter_escapes,
-       do: js_to_pcre(rest, unicode, in_class, acc <> <<c>>)
+       do: atom(rest, unicode, in_class, acc, <<c>>)
 
   defp js_to_pcre(<<?\\, c::utf8, rest::binary>>, unicode, in_class, acc),
-    do: js_to_pcre(rest, unicode, in_class, <<acc::binary, ?\\, c::utf8>>)
+    do: atom(rest, unicode, in_class, acc, <<?\\, c::utf8>>)
 
   defp js_to_pcre(<<c::utf8, rest::binary>>, unicode, in_class, acc),
-    do: js_to_pcre(rest, unicode, in_class, <<acc::binary, c::utf8>>)
+    do: atom(rest, unicode, in_class, acc, <<c::utf8>>)
 
+  defp js_to_pcre(<<>>, _unicode, {:dash, _}, acc), do: acc <> "-"
   defp js_to_pcre(<<>>, _unicode, _in_class, acc), do: acc
+
+  # An atom, which may end a range.
+  defp atom(rest, unicode, false, acc, text), do: js_to_pcre(rest, unicode, false, acc <> text)
+  defp atom(rest, unicode, {:dash, :atom}, acc, text), do: js_to_pcre(rest, unicode, :range, acc <> "-" <> text)
+  defp atom(_rest, true, {:dash, :escape}, _acc, _text), do: throw({:error, "an invalid character class"})
+  defp atom(rest, false, {:dash, :escape}, acc, text), do: js_to_pcre(rest, false, :range, acc <> "\\-" <> text)
+  defp atom(rest, unicode, _in_class, acc, text), do: js_to_pcre(rest, unicode, :atom, acc <> text)
+
+  # A class escape: `text` in a class, `outside` out of one.
+  defp class_escape(rest, unicode, false, acc, _text, outside), do: js_to_pcre(rest, unicode, false, acc <> outside)
+  defp class_escape(_rest, true, {:dash, _}, _acc, _text, _outside), do: throw({:error, "an invalid character class"})
+
+  defp class_escape(rest, false, {:dash, _}, acc, text, _outside),
+    do: js_to_pcre(rest, false, :range, acc <> "\\-" <> text)
+
+  defp class_escape(rest, unicode, _in_class, acc, text, _outside), do: js_to_pcre(rest, unicode, :escape, acc <> text)
 
   defp js_to_pcre_u(<<"\\u{", rest::binary>>, true, in_class, acc) do
     with [digits, rest] <- String.split(rest, "}", parts: 2),
          {:ok, cp} <- hex(digits) do
-      js_to_pcre(rest, true, in_class, acc <> escape_code_point(cp))
+      atom(rest, true, in_class, acc, escape_code_point(cp))
     else
       _ -> throw({:error, "an invalid \\u{...} escape"})
     end
@@ -282,7 +322,7 @@ defmodule PlaywrightEx.RegExp do
 
   defp js_to_pcre_u(<<"\\u", digits::binary-4, rest::binary>> = all, unicode, in_class, acc) do
     case hex(digits) do
-      {:ok, cp} -> js_to_pcre(rest, unicode, in_class, acc <> escape_code_point(cp))
+      {:ok, cp} -> atom(rest, unicode, in_class, acc, escape_code_point(cp))
       :error -> js_to_pcre_u_identity(all, unicode, in_class, acc)
     end
   end
@@ -290,7 +330,7 @@ defmodule PlaywrightEx.RegExp do
   defp js_to_pcre_u(all, unicode, in_class, acc), do: js_to_pcre_u_identity(all, unicode, in_class, acc)
 
   defp js_to_pcre_u_identity(<<"\\u", rest::binary>>, false, in_class, acc),
-    do: js_to_pcre(rest, false, in_class, acc <> "u")
+    do: atom(rest, false, in_class, acc, "u")
 
   defp js_to_pcre_u_identity(_all, true, _in_class, _acc), do: throw({:error, "an invalid \\u escape"})
 
