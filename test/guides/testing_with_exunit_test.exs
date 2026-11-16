@@ -68,10 +68,13 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.BrowserCase do
   alias PlaywrightEx.Guides.TestingWithExUnit.App
   alias PlaywrightEx.Test.BrowserPool
 
-  # Its options forwarded, as "Traces, screenshots and videos" shows.
+  # Its options forwarded, its own popped first, as "Traces, screenshots and videos" shows.
   using opts do
+    {sandbox, opts} = Keyword.pop(opts, :sandbox, true)
+
     quote do
       use PlaywrightEx.Test, unquote(opts)
+      @moduletag sandbox: unquote(sandbox)
       alias PlaywrightEx.{Browser, BrowserContext, Expect, Locator, Page, Test}
       alias PlaywrightEx.Test.BrowserPool
     end
@@ -286,11 +289,16 @@ end
 defmodule PlaywrightEx.Guides.TestingWithExUnit.UseOptionsTest do
   # "Traces, screenshots and videos": the modes of the template's options, under the tags.
   # Deviation: `retain_on_failure`, so the passing test leaves no files.
-  use PlaywrightEx.Guides.TestingWithExUnit.BrowserCase, async: true, trace: :retain_on_failure, video: :on
+  use PlaywrightEx.Guides.TestingWithExUnit.BrowserCase,
+    async: true,
+    trace: :retain_on_failure,
+    video: :on,
+    sandbox: false
 
   @moduletag video: :retain_on_failure
 
-  test "checks out", %{page: page} do
+  test "checks out", %{page: page} = ctx do
+    refute ctx.sandbox
     Page.goto!(page, "/sign-up")
     registration = PlaywrightEx.Test.Recorder.registration(self())
     assert [mode: :retain_on_failure] ++ _ = registration.trace

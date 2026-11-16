@@ -15,7 +15,9 @@ defmodule PlaywrightEx.Case do
       end
 
   It takes `use PlaywrightEx.Test`'s options next to ExUnit.Case's: `use PlaywrightEx.Case,
-  async: true, trace: :on`.
+  async: true, trace: :on`. Any other option raises, so a template that forwards its options
+  here pops its own first: `{sandbox, opts} = Keyword.pop(opts, :sandbox)` in its `using opts`,
+  then `use PlaywrightEx.Case, unquote(opts)`.
 
   It only puts the pieces together, so it is a recipe as much as an API: `use PlaywrightEx.Test`
   first in the body, so the test is registered before the context is created, the browser in

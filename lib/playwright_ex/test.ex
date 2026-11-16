@@ -107,7 +107,9 @@ defmodule PlaywrightEx.Test do
   modes are worker-scoped options there), with the values the config takes; an unknown option or
   an invalid value raises at compile time. A module's `use`s merge per key, the later winning.
   ExUnit.Case's keys (`:async`, ...) are ignored, so a template forwards its options from `using
-  opts` as is: `use PlaywrightEx.Test, unquote(opts)`, as `PlaywrightEx.Case` does. The tags
+  opts` as is: `use PlaywrightEx.Test, unquote(opts)`, as `PlaywrightEx.Case` does. A template
+  with options of its own pops them first (`{sandbox, opts} = Keyword.pop(opts, :sandbox)`),
+  as they raise here. The tags
   take the same values, so `trace`, `screenshot` and `video` are reserved tags: a `@tag
   :screenshot` label turns screenshots on, and an invalid value raises at registration, unless
   the module has `use PlaywrightEx.Test, tags: false` (default `true`): then tags don't set the

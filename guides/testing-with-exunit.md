@@ -377,7 +377,8 @@ unknown `use` option or an invalid value fails the module's compilation.
 `use PlaywrightEx.Case, async: true, trace: :on` takes them next to ExUnit's options. A module's
 `use`s merge per key, the later winning, and ExUnit.Case's keys are ignored, so a template
 forwards its options as is, after its own defaults. They go in `using`: a `use` in the
-template's body takes none.
+template's body takes none. Options of the template's own are unknown to `use
+PlaywrightEx.Test` and raise: pop them before forwarding the rest.
 
 ```elixir
 defmodule MyApp.BrowserCase do
@@ -385,9 +386,12 @@ defmodule MyApp.BrowserCase do
   use PlaywrightEx.Test
 
   using opts do
+    {sandbox, opts} = Keyword.pop(opts, :sandbox, true)
+
     quote do
       use PlaywrightEx.Test, screenshot: :only_on_failure
       use PlaywrightEx.Test, unquote(opts)
+      @moduletag sandbox: unquote(sandbox)
     end
   end
 
@@ -395,7 +399,7 @@ defmodule MyApp.BrowserCase do
 end
 
 defmodule MyApp.CheckoutTest do
-  use MyApp.BrowserCase, async: true, trace: :on
+  use MyApp.BrowserCase, async: true, trace: :on, sandbox: false
 end
 ```
 
