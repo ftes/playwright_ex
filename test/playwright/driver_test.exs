@@ -79,6 +79,11 @@ defmodule Playwright.DriverConfigTest do
     assert Driver.cache_dir() == "/c"
     assert Driver.cache_dir(cache_dir: "/d") == "/d"
     assert {"/usr/local/bin/node", ["/c/" <> _]} = Driver.executable()
+    # An empty value (an empty env var read in config) counts as unset.
+    assert Driver.cache_dir(cache_dir: "") == "/c"
+    Application.put_env(:playwright, :driver, cache_dir: "")
+    assert Driver.cache_dir() == Driver.cache_dir(cache_dir: nil)
+    refute Driver.cache_dir() == ""
 
     Application.put_env(:playwright, :driver, cachedir: "/c")
 

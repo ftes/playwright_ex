@@ -30,12 +30,12 @@ defmodule Playwright.Driver do
 
       config :playwright, :driver, cache_dir: "/cache"
 
-  Put it in `config/config.exs` (or a file it imports, such as `config/test.exs`), not
-  `config/runtime.exs`: `mix playwright.install` doesn't compile the project, so it doesn't read
-  `config/runtime.exs`. Mix evaluates `config/config.exs` on every run, so an environment variable
+  Put it in `config/config.exs`, not in a file imported only for one environment (such as
+  `config/test.exs`: `mix playwright.install` usually runs in `:dev`) or in `config/runtime.exs`
+  (`mix playwright.install` doesn't compile the project, so it doesn't read it). Mix evaluates `config/config.exs` on every run, so an environment variable
   read there takes effect each time, locally and in CI. The library reads no environment variables
   of its own (the Playwright CLI reads its own, such as `PLAYWRIGHT_BROWSERS_PATH`). To take an
-  option from one of your choice:
+  option from one of your choice (an empty one counts as unset):
 
       if dir = System.get_env("PLAYWRIGHT_CACHE_DIR") do
         config :playwright, :driver, cache_dir: dir
@@ -434,7 +434,11 @@ defmodule Playwright.Driver do
     end
   end
 
-  defp option(opts, key), do: opts[key] || config()[key]
+  # An empty value (e.g. from an empty environment variable) counts as unset, as the env vars did.
+  defp option(opts, key), do: present(opts[key]) || present(config()[key])
+
+  defp present(""), do: nil
+  defp present(value), do: value
 end
 
 defmodule Playwright.Driver.ChecksumError do
