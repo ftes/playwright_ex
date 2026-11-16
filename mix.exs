@@ -86,8 +86,6 @@ defmodule Playwright.MixProject do
   defp docs do
     [
       main: "readme",
-      # The upgrading guide was migration.md; published links point there.
-      redirects: %{"migration" => "upgrading"},
       source_ref: "v#{@version}",
       extra_section: "GUIDES",
       extras: [
