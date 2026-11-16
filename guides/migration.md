@@ -19,7 +19,12 @@ app, `{:playwright, "~> ...", hex: :playwright_ex}`: `hex: :playwright_ex` is re
 `playwright` on Hex is another library. Then `config :playwright, ...`, `mix playwright.install`
 (in aliases too), `usage_rules: [:playwright]`. In a module that aliases a `Playwright` of its own
 (`alias MyApp.Playwright`), `Playwright.Page` and `Playwright.instance()` resolve to that module:
-write `alias MyApp.Playwright, as: MyPlaywright` there, or `Elixir.Playwright.Page`.
+write `alias MyApp.Playwright, as: MyPlaywright` there, or `Elixir.Playwright.Page`. A sorted alias
+list (as Styler sorts it) puts `alias MyApp.Playwright` before `alias Playwright.Page`, which then
+expands to `MyApp.Playwright.Page`: write `alias Elixir.Playwright.Page` there. ex_doc links a
+dependency's docs by app name, so if your docs link to ours, add
+`docs: [deps: [playwright: "https://hexdocs.pm/playwright_ex"]]` to your `mix.exs`: without it,
+the links go to the other `playwright` library's docs.
 
 Upgrade every library you depend on that uses PlaywrightEx at the same time. While one still
 declares `:playwright_ex`, Mix fetches both packages, and they compile side by side without a

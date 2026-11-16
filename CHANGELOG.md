@@ -33,7 +33,12 @@ those of the release candidates below. From an earlier release, also read the se
 
   In a module that aliases a `Playwright` of its own (`alias MyApp.Playwright`),
   `Playwright.instance()` and `Playwright.Page` silently resolve to that module: alias it
-  `as: MyPlaywright` there, or write `Elixir.Playwright...`.
+  `as: MyPlaywright` there, or write `Elixir.Playwright...`. A sorted alias list (as Styler sorts
+  it) puts `alias MyApp.Playwright` before `alias Playwright.Page`, which then expands to
+  `MyApp.Playwright.Page`: write `alias Elixir.Playwright.Page` there.
+
+  ex_doc links a dependency's docs by app name, so links to `:playwright` go to the other
+  library's docs: if your docs link to ours, add `docs: [deps: [playwright: "https://hexdocs.pm/playwright_ex"]]`.
 
 ### Added
 - `Playwright.RegExp.new/1,2` takes a `Regex` or `RegExp` as JS's `new RegExp(re, flags)` does,
