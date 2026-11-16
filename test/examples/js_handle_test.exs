@@ -2,11 +2,11 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Examples.JSHandleTest do
+defmodule Playwright.Examples.JSHandleTest do
   # Elixir translations of upstream's JS examples, rendered into the facade docs (see ExampleCase).
-  use PlaywrightEx.ExampleCase, async: true
+  use Playwright.ExampleCase, async: true
 
-  alias PlaywrightEx.JSHandle
+  alias Playwright.JSHandle
 
   example "JSHandle",
     js: ~S"""

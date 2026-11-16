@@ -1,18 +1,18 @@
-defmodule PlaywrightEx.UpstreamCase do
+defmodule Playwright.UpstreamCase do
   @moduledoc """
   Case template for tests mirrored from upstream `tests/` (see `PORTING.md`).
 
   Fixtures, as upstream's `tests/config/{baseTest,serverFixtures,browserTest}.ts` provide them.
   Upstream's worker-scoped `playwright` and `browser` come from
-  `PlaywrightEx.Test.BrowserPool.browser/1` in `setup_all`, upstream's worker: a driver under
+  `Playwright.Test.BrowserPool.browser/1` in `setup_all`, upstream's worker: a driver under
   test (`PWTEST_UNDER_TEST`) and browser of the module's while it runs, reused by the next
-  module (a fresh one after a failure). `PlaywrightEx.DriverCleanup` closes what a test or
+  module (a fresh one after a failure). `Playwright.DriverCleanup` closes what a test or
   module created. `@moduletag :own_worker` starts a driver for the module alone:
 
     * `playwright`, `browser_name` (`BROWSER` env, default `"chromium"`), `headless` (`HEADED`
-      env, see `PlaywrightEx.TestBrowser.headless/0`), `browser_type`, `browser` (the worker's,
+      env, see `Playwright.TestBrowser.headless/0`), `browser_type`, `browser` (the worker's,
       default launch options)
-    * `server`, `https_server` (`PlaywrightEx.TestServer`, reset before each test),
+    * `server`, `https_server` (`Playwright.TestServer`, reset before each test),
       `asset` (`asset.("file-to-upload.txt")` is its path under upstream `tests/assets`)
     * `context_factory` (`context_factory.(options)`; its contexts are closed after the test)
     * `context`, `page` for tests tagged `:page` (`@moduletag :page` for `pageTest` specs):
@@ -22,10 +22,10 @@ defmodule PlaywrightEx.UpstreamCase do
     * `create_user_data_dir` (`create_user_data_dir.()`, a fresh temp dir, removed after the test),
       `launch_persistent` (`launch_persistent.(options)` returns `%{context: _, page: _}`, closed
       after the test), `start_remote_server` (`start_remote_server.(kind, options)`: kind
-      `"run-server"` (`PlaywrightEx.RemoteServer.RunServer`) or `"launchServer"`
-      (`PlaywrightEx.RemoteServer`), closed after the test)
+      `"run-server"` (`Playwright.RemoteServer.RunServer`) or `"launchServer"`
+      (`Playwright.RemoteServer`), closed after the test)
     * `launch_server` (`launch_server.(options)` for `browserType.launchServer(options)`:
-      `{:ok, PlaywrightEx.RemoteServer.LaunchServer}` or `{:error, message}`, killed after the test)
+      `{:ok, Playwright.RemoteServer.LaunchServer}` or `{:error, message}`, killed after the test)
 
   Each driver's Playwright gets Playwright Test's defaults (`setup_playwright/2`): no action
   timeout, the default launch options (`headless`, `tracesDir`, ...) and context options (`locale:
@@ -34,41 +34,40 @@ defmodule PlaywrightEx.UpstreamCase do
   `PW_CLOCK` frozen/realtime context setup. A test that needs a driver of its own (another `env`) starts
   it with `start_playwright/2`.
 
-  Tests call the public API (`PlaywrightEx.BrowserType`, ...), as upstream tests do.
+  Tests call the public API (`Playwright.BrowserType`, ...), as upstream tests do.
 
   `test` skips a test that a rule in `test/upstream_not_ported.txt` rules out (`skip: "not
   ported: <reason>"`, over the test's own skip tags), so a bodiless test needs no tag of its own.
-  See `Mix.PlaywrightEx.TestRegistry`. With `PW_UNSKIP=env,flaky`, it drops the test's own
+  See `Mix.Playwright.TestRegistry`. With `PW_UNSKIP=env,flaky`, it drops the test's own
   `@tag skip:` reasons with those prefixes, so the tests they skip run (ExUnit runs no skipped
   test, `--include skip` neither): `PW_UNSKIP=env,flaky mix test <files>` re-checks them on a bump.
   """
   use ExUnit.CaseTemplate
   # First: the template's own `setup` callbacks create contexts.
-  use PlaywrightEx.Test
+  use Playwright.Test
 
-  alias Mix.PlaywrightEx.TestRegistry
-  alias PlaywrightEx.APIRequest
-  alias PlaywrightEx.APIRequestContext
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Client.ClientInstrumentation
-  alias PlaywrightEx.Client.Locator
-  alias PlaywrightEx.Playwright
-  alias PlaywrightEx.Runtime.Api
-  alias PlaywrightEx.Runtime.Heap
-  alias PlaywrightEx.Selectors
-  alias PlaywrightEx.Test.BrowserPool
-  alias PlaywrightEx.TestBrowser
-  alias PlaywrightEx.TestServer
+  alias Mix.Playwright.TestRegistry
+  alias Playwright.APIRequest
+  alias Playwright.APIRequestContext
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.BrowserType
+  alias Playwright.Client.ClientInstrumentation
+  alias Playwright.Client.Locator
+  alias Playwright.Runtime.Api
+  alias Playwright.Runtime.Heap
+  alias Playwright.Selectors
+  alias Playwright.Test.BrowserPool
+  alias Playwright.TestBrowser
+  alias Playwright.TestServer
 
   using do
     quote do
-      # Registered by the template's body; `test` is ours, on `PlaywrightEx.Test.test/3`.
+      # Registered by the template's body; `test` is ours, on `Playwright.Test.test/3`.
       import ExUnit.Case, only: [describe: 2]
-      require PlaywrightEx.Test
+      require Playwright.Test
 
-      import PlaywrightEx.UpstreamCase,
+      import Playwright.UpstreamCase,
         only: [test: 1, test: 2, test: 3, start_playwright: 2, expected_failure: 2, default_same_site_cookie_value: 1]
 
       # Set `@upstream "tests/...spec.ts"` before `use`: `mix test --only upstream:<spec>`.
@@ -76,13 +75,13 @@ defmodule PlaywrightEx.UpstreamCase do
       # tests/library/playwright.config.ts: `timeout: video || (darwin && x64) ? 60000 : 30000`
       # (we never record video); `test.slow()` triples it: `@tag timeout: @slow_timeout`. Our own
       # tests (`@upstream nil`) keep test_helper's tighter default.
-      if @upstream, do: @moduletag(timeout: PlaywrightEx.UpstreamCase.timeout())
-      @slow_timeout 3 * PlaywrightEx.UpstreamCase.timeout()
+      if @upstream, do: @moduletag(timeout: Playwright.UpstreamCase.timeout())
+      @slow_timeout 3 * Playwright.UpstreamCase.timeout()
       # ExUnit has no runtime skip: an annotation whose condition is known before the run (browser,
       # browser version, host OS, env) is a tag, `@tag skip: if(@browser_name == "chromium" and
       # @browser_major_version < 155, do: "upstream skip: ...")`, not an `if` around the body.
-      @browser_name PlaywrightEx.TestBrowser.name()
-      @browser_major_version PlaywrightEx.UpstreamCase.browser_major_version()
+      @browser_name Playwright.TestBrowser.name()
+      @browser_major_version Playwright.UpstreamCase.browser_major_version()
     end
   end
 
@@ -105,10 +104,10 @@ defmodule PlaywrightEx.UpstreamCase do
     key = {__MODULE__, :browser_major_version, name}
 
     with nil <- :persistent_term.get(key, nil) do
-      PlaywrightEx.Driver.ensure_installed()
+      Playwright.Driver.ensure_installed()
 
       %{"browsers" => browsers} =
-        [PlaywrightEx.Driver.install_dir(), "package", "browsers.json"] |> Path.join() |> File.read!() |> JSON.decode!()
+        [Playwright.Driver.install_dir(), "package", "browsers.json"] |> Path.join() |> File.read!() |> JSON.decode!()
 
       %{"browserVersion" => version} = Enum.find(browsers, &(&1["name"] == name))
       major = major_version(version)
@@ -148,21 +147,21 @@ defmodule PlaywrightEx.UpstreamCase do
     end
   end
 
-  @doc "`PlaywrightEx.Test.test/1`, skipped when a rule rules it out."
+  @doc "`Playwright.Test.test/1`, skipped when a rule rules it out."
   defmacro test(message) do
     quote do
-      PlaywrightEx.UpstreamCase.__unskip__(__MODULE__)
-      PlaywrightEx.UpstreamCase.__not_ported__(__MODULE__, unquote(message))
-      PlaywrightEx.Test.test(unquote(message))
+      Playwright.UpstreamCase.__unskip__(__MODULE__)
+      Playwright.UpstreamCase.__not_ported__(__MODULE__, unquote(message))
+      Playwright.Test.test(unquote(message))
     end
   end
 
-  @doc "`PlaywrightEx.Test.test/3`, skipped when a rule rules it out."
+  @doc "`Playwright.Test.test/3`, skipped when a rule rules it out."
   defmacro test(message, var \\ quote(do: _), contents) do
     quote do
-      PlaywrightEx.UpstreamCase.__unskip__(__MODULE__)
-      PlaywrightEx.UpstreamCase.__not_ported__(__MODULE__, unquote(message))
-      PlaywrightEx.Test.test(unquote(message), unquote(var), unquote(contents))
+      Playwright.UpstreamCase.__unskip__(__MODULE__)
+      Playwright.UpstreamCase.__not_ported__(__MODULE__, unquote(message))
+      Playwright.Test.test(unquote(message), unquote(var), unquote(contents))
     end
   end
 
@@ -183,7 +182,7 @@ defmodule PlaywrightEx.UpstreamCase do
   `artifacts_dir` stands in for the worker's artifacts dir (`artifacts_dir/0`), the caller removes it.
   """
   def setup_playwright(playwright, artifacts_dir) do
-    defaults = PlaywrightEx.Test.Options.context_defaults()
+    defaults = Playwright.Test.Options.context_defaults()
 
     Api.call(nil, playwright, fn ->
       Heap.put(playwright, :_defaultContextTimeout, 0)
@@ -209,8 +208,8 @@ defmodule PlaywrightEx.UpstreamCase do
   set up as the module's (`setup_playwright/2`); stopped after the test. Returns its Playwright.
   """
   def start_playwright(name, env) do
-    start_supervised!({PlaywrightEx.Supervisor, name: name, env: [{"PWTEST_UNDER_TEST", "1"} | env]}, id: name)
-    playwright = PlaywrightEx.playwright(name)
+    start_supervised!({Playwright.Supervisor, name: name, env: [{"PWTEST_UNDER_TEST", "1"} | env]}, id: name)
+    playwright = Playwright.instance(name)
     artifacts_dir = artifacts_dir()
     on_exit(fn -> File.rm_rf(artifacts_dir) end)
     setup_playwright(playwright, artifacts_dir)
@@ -218,14 +217,14 @@ defmodule PlaywrightEx.UpstreamCase do
   end
 
   @doc """
-  The options of the module's `PlaywrightEx.Test.BrowserPool` driver: under test, set up as
+  The options of the module's `Playwright.Test.BrowserPool` driver: under test, set up as
   Playwright Test's fixtures (`on_start/1`). `ExampleCase` shares them, so both templates' modules
   reuse each other's drivers.
   """
   def pool_options, do: [driver: [env: [{"PWTEST_UNDER_TEST", "1"}]], on_start: {__MODULE__, :on_start, []}]
 
   @doc """
-  The `on_start` of the module's driver (`PlaywrightEx.Test.BrowserPool`), on each new driver:
+  The `on_start` of the module's driver (`Playwright.Test.BrowserPool`), on each new driver:
   `setup_playwright/2` with an artifacts dir of the driver's, removed when its connection goes
   (a driver stopped or restarted). `test_helper.exs` removes `artifacts_root/0` after the suite.
   """
@@ -295,8 +294,8 @@ defmodule PlaywrightEx.UpstreamCase do
     # or one it starts with `:own_worker`.
     {playwright, browser} =
       if tags[:own_worker] do
-        start_supervised!({PlaywrightEx.Supervisor, name: module, env: [{"PWTEST_UNDER_TEST", "1"}]})
-        playwright = PlaywrightEx.playwright(module)
+        start_supervised!({Playwright.Supervisor, name: module, env: [{"PWTEST_UNDER_TEST", "1"}]})
+        playwright = Playwright.instance(module)
         artifacts_dir = artifacts_dir()
         on_exit(fn -> File.rm_rf(artifacts_dir) end)
         setup_playwright(playwright, artifacts_dir)
@@ -307,12 +306,12 @@ defmodule PlaywrightEx.UpstreamCase do
       end
 
     # The browsers and contexts the module's own `setup_all` creates (a `browser` of its own).
-    PlaywrightEx.DriverCleanup.track_module(playwright, keep: [browser])
+    Playwright.DriverCleanup.track_module(playwright, keep: [browser])
 
     browser_name = TestBrowser.name()
     browser_type = TestBrowser.browser_type(playwright)
 
-    assets = Path.join(PlaywrightEx.Upstream.ensure!(), "tests/assets")
+    assets = Path.join(Playwright.Upstream.ensure!(), "tests/assets")
     cached = Path.join(assets, "cached")
 
     server = TestServer.server(start_supervised!({TestServer, dir_path: assets}, id: :server))
@@ -367,7 +366,7 @@ defmodule PlaywrightEx.UpstreamCase do
   # contexts and browsers the test left open, or one still tracing would add its stacks to the
   # traces of the next tests. Only the test's: the module's stay.
   setup %{playwright: playwright, browser: browser} do
-    PlaywrightEx.DriverCleanup.track_test(playwright, keep: [browser])
+    Playwright.DriverCleanup.track_test(playwright, keep: [browser])
   end
 
   setup %{browser: browser} = tags do
@@ -391,7 +390,7 @@ defmodule PlaywrightEx.UpstreamCase do
 
   # `testInfo.status === 'timedOut' ? ... : 'Test ended.'`.
   defp close_reason(tags) do
-    if PlaywrightEx.Test.info(tags.test_pid).status == :timed_out,
+    if Playwright.Test.info(tags.test_pid).status == :timed_out,
       do: "Test timeout of #{tags[:timeout] || ExUnit.configuration()[:timeout]}ms exceeded.",
       else: "Test ended."
   end
@@ -434,18 +433,18 @@ defmodule PlaywrightEx.UpstreamCase do
     start_remote_server = fn kind, options ->
       server =
         case kind do
-          "run-server" -> PlaywrightEx.RemoteServer.RunServer.start(options)
-          "launchServer" -> PlaywrightEx.RemoteServer._start(browser_type, options)
+          "run-server" -> Playwright.RemoteServer.RunServer.start(options)
+          "launchServer" -> Playwright.RemoteServer._start(browser_type, options)
         end
 
-      on_exit(fn -> PlaywrightEx.RemoteServer.PlaywrightServer.close(server) end)
+      on_exit(fn -> Playwright.RemoteServer.PlaywrightServer.close(server) end)
 
       server
     end
 
     launch_server = fn options ->
-      with {:ok, server} <- PlaywrightEx.RemoteServer.LaunchServer.start(browser_name, options) do
-        on_exit(fn -> PlaywrightEx.RemoteServer.LaunchServer.kill(server) end)
+      with {:ok, server} <- Playwright.RemoteServer.LaunchServer.start(browser_name, options) do
+        on_exit(fn -> Playwright.RemoteServer.LaunchServer.kill(server) end)
         {:ok, server}
       end
     end

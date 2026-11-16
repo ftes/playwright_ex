@@ -2,14 +2,14 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.Chromium.ConnectToWorkerTest do
+defmodule Playwright.Library.Chromium.ConnectToWorkerTest do
   @upstream "tests/library/chromium/connect-to-worker.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.ConsoleMessage
-  alias PlaywrightEx.RemoteServer.ChildProcess
-  alias PlaywrightEx.Runtime.Api
-  alias PlaywrightEx.Worker
+  alias Playwright.ConsoleMessage
+  alias Playwright.RemoteServer.ChildProcess
+  alias Playwright.Runtime.Api
+  alias Playwright.Worker
 
   if System.get_env("BROWSER", "chromium") != "chromium", do: @moduletag(skip: "upstream skip: chromium only")
 
@@ -18,15 +18,15 @@ defmodule PlaywrightEx.Library.Chromium.ConnectToWorkerTest do
   #     its output collected by `wait_for_output/2`; `process.execPath` (the node running the
   #     client) is the driver's node. Node 22 (Ubuntu's) fails `worker.evaluate` with "Resulting
   #     promise was garbage collected" in most runs, with the JS client too. The node preloads
-  #     `exit_on_stdin_eof.js` (`PlaywrightEx.RemoteServer.ChildProcess`), so that it exits when
+  #     `exit_on_stdin_eof.js` (`Playwright.RemoteServer.ChildProcess`), so that it exits when
   #     the test BEAM dies; `--inspect-brk` pauses it before the preload, until connected.
   #   * `(browserType as any)._connectToWorker(endpoint)` and `worker._disconnect()` are internal
   #     (not in the facade): client calls in an API scope.
 
   defp exec_path do
-    case PlaywrightEx.Driver.executable() do
+    case Playwright.Driver.executable() do
       {node, [_cli]} -> node
-      # PLAYWRIGHT_EX_EXECUTABLE: a driver binary, not node.
+      # The :executable option: a driver binary, not node.
       {_driver, []} -> System.find_executable("node")
     end
   end
@@ -61,7 +61,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectToWorkerTest do
   # it (see the test below). Returns `{worker, then_result}`.
   defp connect_to_worker(browser_type, endpoint, then \\ fn _worker -> nil end) do
     Api.call("browserType._connectToWorker", browser_type, fn ->
-      worker = PlaywrightEx.Client.BrowserType._connect_to_worker(browser_type, endpoint)
+      worker = Playwright.Client.BrowserType._connect_to_worker(browser_type, endpoint)
       {worker, then.(worker)}
     end)
   end
@@ -87,13 +87,13 @@ defmodule PlaywrightEx.Library.Chromium.ConnectToWorkerTest do
     {worker, message_promise} = connect_to_worker(browser_type, endpoint, &Worker.wait_for_event(&1, :console))
     result = Worker.evaluate!(worker, "() => 1 + 1")
     assert result == 2
-    message = PlaywrightEx.Promise.await!(message_promise)
+    message = Playwright.Promise.await!(message_promise)
     assert ConsoleMessage.text(message) == "hello from node"
     assert ConsoleMessage.type(message) == "log"
     # Disconnect and receive close event.
     close_promise = Worker.wait_for_event(worker, :close)
-    Api.call("worker._disconnect", worker, fn -> PlaywrightEx.Client.Worker._disconnect(worker) end)
-    PlaywrightEx.Promise.await!(close_promise)
+    Api.call("worker._disconnect", worker, fn -> Playwright.Client.Worker._disconnect(worker) end)
+    Playwright.Promise.await!(close_promise)
   end
 
   test "CR-044 should receive close when node process exits", %{browser_type: browser_type} do
@@ -104,6 +104,6 @@ defmodule PlaywrightEx.Library.Chromium.ConnectToWorkerTest do
     close_promise = Worker.wait_for_event(worker, :close)
     # child.process.kill(): SIGTERM
     System.cmd("kill", [to_string(child.os_pid)])
-    PlaywrightEx.Promise.await!(close_promise)
+    Playwright.Promise.await!(close_promise)
   end
 end

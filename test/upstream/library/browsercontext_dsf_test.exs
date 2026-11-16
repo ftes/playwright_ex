@@ -2,14 +2,14 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.BrowsercontextDsfTest do
+defmodule Playwright.Library.BrowsercontextDsfTest do
   @upstream "tests/library/browsercontext-dsf.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Request
+  alias Playwright.BrowserContext
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Request
 
   test "DV-009 should fetch lodpi assets @smoke", %{context_factory: context_factory, server: server} do
     context = context_factory.(device_scale_factor: 1)

@@ -171,7 +171,7 @@ jobs:
       # May fail on a branch that doesn't compile; Claude then runs without them.
       - name: Download upstream sources
         continue-on-error: true
-        run: mkdir -p ~/.cache/playwright_ex && mix playwright_ex.upstream
+        run: mkdir -p ~/.cache/playwright && mix playwright.upstream
       - name: Save the failed CI log
         shell: bash
         env:
@@ -198,13 +198,13 @@ jobs:
             Read it along with `gh pr view ${{ matrix.pr.number }}` and
             `gh pr diff ${{ matrix.pr.number }}` and find the cause. For a failing port or ported
             test, compare with upstream: its sources and specs at the pin are under
-            ~/.cache/playwright_ex/<version>/upstream. Tests can't run here: CI runs them on your
+            ~/.cache/playwright/<version>/upstream. Tests can't run here: CI runs them on your
             push. Don't merge or rebase on main. End with exactly one of these:
 
             - The PR caused it: fix it, keeping what the PR set out to do and the public behaviour,
               and matching the surrounding code. Follow PORTING.md for ported code. Files marked
-              "do not edit manually" are regenerated with `mix playwright_ex.gen.api` or
-              `mix playwright_ex.gen.protocol`. Don't weaken or skip a test to get it green. Run
+              "do not edit manually" are regenerated with `mix playwright.gen.api` or
+              `mix playwright.gen.protocol`. Don't weaken or skip a test to get it green. Run
               `mix format`, `mix compile --warnings-as-errors` and `mix credo`, `git add` the files,
               commit with one imperative sentence as the subject (match `git log`), then run exactly:
                 git push origin ${{ matrix.pr.branch }}
@@ -219,12 +219,12 @@ jobs:
           # The owner forbids attribution; the prompt says so too.
           settings: |
             {"includeCoAuthoredBy": false, "attribution": {"commit": "", "pr": ""}}
-          # --add-dir: the driver cache holding the upstream sources (PlaywrightEx.Upstream).
+          # --add-dir: the driver cache holding the upstream sources (Playwright.Upstream).
           claude_args: |
             --model claude-opus-5-5
             --max-turns 60
-            --add-dir /home/runner/.cache/playwright_ex
-            --allowedTools "Read,Grep,Glob,Edit,Write,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix credo:*),Bash(mix playwright_ex.parity:*),Bash(mix playwright_ex.gen.api:*),Bash(mix playwright_ex.gen.protocol:*),Bash(gh pr view ${{ matrix.pr.number }}:*),Bash(gh pr diff ${{ matrix.pr.number }}:*),Bash(git push origin ${{ matrix.pr.branch }}),Bash(gh pr close ${{ matrix.pr.number }} *)"
+            --add-dir /home/runner/.cache/playwright
+            --allowedTools "Read,Grep,Glob,Edit,Write,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix credo:*),Bash(mix playwright.parity:*),Bash(mix playwright.gen.api:*),Bash(mix playwright.gen.protocol:*),Bash(gh pr view ${{ matrix.pr.number }}:*),Bash(gh pr diff ${{ matrix.pr.number }}:*),Bash(git push origin ${{ matrix.pr.branch }}),Bash(gh pr close ${{ matrix.pr.number }} *)"
       - name: Summarize Claude's result
         if: ${{ !cancelled() && steps.claude.outputs.execution_file != '' }}
         env:
@@ -262,7 +262,7 @@ jobs:
       - name: Setup languages
         uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
       - name: Install dependencies and upstream sources
-        run: mix "do" deps.get, deps.compile, playwright_ex.upstream
+        run: mix "do" deps.get, deps.compile, playwright.upstream
       - run: git switch -c "$NIGHTLY_BRANCH"
       - name: Run Claude
         id: claude
@@ -279,9 +279,9 @@ jobs:
             Read `gh pr view ${{ matrix.pr }}` and `gh pr diff ${{ matrix.pr }}` for what it set out
             to do, then make the same change against the code as it is now, keeping what main has
             changed since. Files marked "do not edit manually" are regenerated with
-            `mix playwright_ex.gen.api` or `mix playwright_ex.gen.protocol`, never merged by hand.
+            `mix playwright.gen.api` or `mix playwright.gen.protocol`, never merged by hand.
             Ported code follows upstream's sources at the pin, under
-            ~/.cache/playwright_ex/<version>/upstream. Run `mix format`,
+            ~/.cache/playwright/<version>/upstream. Run `mix format`,
             `mix compile --warnings-as-errors` and `mix credo`; they must pass. CI on the new PR
             runs the test suite.
 
@@ -303,8 +303,8 @@ jobs:
           claude_args: |
             --model claude-opus-5-5
             --max-turns 60
-            --add-dir /home/runner/.cache/playwright_ex
-            --allowedTools "Read,Grep,Glob,Edit,Write,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix credo:*),Bash(mix playwright_ex.gen.api:*),Bash(mix playwright_ex.gen.protocol:*),Bash(gh pr view ${{ matrix.pr }}:*),Bash(gh pr diff ${{ matrix.pr }}:*),Bash(git push -u origin ${{ env.NIGHTLY_BRANCH }}),Bash(gh pr create --base main --head ${{ env.NIGHTLY_BRANCH }} *),Bash(gh pr close ${{ matrix.pr }} *)"
+            --add-dir /home/runner/.cache/playwright
+            --allowedTools "Read,Grep,Glob,Edit,Write,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix credo:*),Bash(mix playwright.gen.api:*),Bash(mix playwright.gen.protocol:*),Bash(gh pr view ${{ matrix.pr }}:*),Bash(gh pr diff ${{ matrix.pr }}:*),Bash(git push -u origin ${{ env.NIGHTLY_BRANCH }}),Bash(gh pr create --base main --head ${{ env.NIGHTLY_BRANCH }} *),Bash(gh pr close ${{ matrix.pr }} *)"
       - name: Summarize Claude's result
         if: ${{ !cancelled() && steps.claude.outputs.execution_file != '' }}
         env:
@@ -380,17 +380,17 @@ jobs:
       - name: Setup languages
         uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
       - name: Install dependencies and upstream sources
-        run: mix "do" deps.get, deps.compile, playwright_ex.upstream
+        run: mix "do" deps.get, deps.compile, playwright.upstream
       - run: git switch -c "$NIGHTLY_BRANCH"
       - name: Pick tonight's focus area
         id: focus
         # By day of the year, so successive nights look at different parts of the code.
         run: |
           areas=(
-            "the runtime and top-level modules (ours): lib/playwright_ex/runtime/, transport/ and lib/playwright_ex/*.ex"
-            "the ported API modules: lib/playwright_ex/api/"
-            "the ported client modules: lib/playwright_ex/client/"
-            "the ported isomorphic, protocol and matcher modules: lib/playwright_ex/isomorphic/, protocol/, matchers/"
+            "the runtime and top-level modules (ours): lib/playwright/runtime/, transport/ and lib/playwright/*.ex"
+            "the ported API modules: lib/playwright/api/"
+            "the ported client modules: lib/playwright/client/"
+            "the ported isomorphic, protocol and matcher modules: lib/playwright/isomorphic/, protocol/, matchers/"
             "tooling (ours): lib/mix/ and dev/ (generators, parity)"
             "the tests: test/support/, test/upstream/ (ported) and the tests outside it"
           )
@@ -413,7 +413,7 @@ jobs:
             and open one pull request for it, the kind a senior maintainer would be glad to merge.
             Pick it in or touching FOCUS: each night looks at a different part of the codebase.
 
-            playwright_ex is a statement-by-statement port of the Playwright JS client, and staying
+            This repo is a statement-by-statement port of the Playwright JS client, and staying
             1:1 is what keeps version bumps cheap, so shorter ported code is not simpler:
             - Ours, where to look: lib/ modules without `@upstream` (runtime, driver, supervisor),
               lib/mix/, dev/ (generators, parity), test/support/, tests outside test/upstream/.
@@ -421,7 +421,7 @@ jobs:
               Change only what brings it closer to upstream or PORTING.md's idioms. Prioritize
               removing a deviation nothing requires (PORTING.md, "Rules"): one no longer needed, or
               a synthetic special case for an edge case upstream doesn't handle. Upstream's sources
-              at the pin are under ~/.cache/playwright_ex/<version>/upstream.
+              at the pin are under ~/.cache/playwright/<version>/upstream.
             - Generated ("do not edit manually"): change the generator in dev/ and regenerate.
 
             1. Read PORTING.md, docs/architecture.md and enough of the code above to know the
@@ -460,12 +460,12 @@ jobs:
           # The owner forbids attribution; the prompt says so too.
           settings: |
             {"includeCoAuthoredBy": false, "attribution": {"commit": "", "pr": ""}}
-          # --add-dir: the driver cache holding the upstream sources (PlaywrightEx.Upstream).
+          # --add-dir: the driver cache holding the upstream sources (Playwright.Upstream).
           claude_args: |
             --model claude-opus-5-5
             --max-turns 150
-            --add-dir /home/runner/.cache/playwright_ex
-            --allowedTools "Read,Grep,Glob,Edit,Write,Agent,Task,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix credo:*),Bash(mix playwright_ex.parity:*),Bash(mix playwright_ex.gen.api:*),Bash(mix playwright_ex.gen.protocol:*),Bash(git push -u origin ${{ env.NIGHTLY_BRANCH }}),Bash(gh pr create --base main --head ${{ env.NIGHTLY_BRANCH }} *)"
+            --add-dir /home/runner/.cache/playwright
+            --allowedTools "Read,Grep,Glob,Edit,Write,Agent,Task,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix credo:*),Bash(mix playwright.parity:*),Bash(mix playwright.gen.api:*),Bash(mix playwright.gen.protocol:*),Bash(git push -u origin ${{ env.NIGHTLY_BRANCH }}),Bash(gh pr create --base main --head ${{ env.NIGHTLY_BRANCH }} *)"
       - name: Summarize Claude's result
         if: ${{ !cancelled() && steps.claude.outputs.execution_file != '' }}
         env:

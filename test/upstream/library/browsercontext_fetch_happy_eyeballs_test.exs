@@ -2,14 +2,14 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.BrowsercontextFetchHappyEyeballsTest do
+defmodule Playwright.Library.BrowsercontextFetchHappyEyeballsTest do
   @upstream "tests/library/browsercontext-fetch-happy-eyeballs.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.APIRequestContext
-  alias PlaywrightEx.APIResponse
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.TestServer
+  alias Playwright.APIRequestContext
+  alias Playwright.APIResponse
+  alias Playwright.Expect
+  alias Playwright.TestServer
 
   @moduletag :page
 

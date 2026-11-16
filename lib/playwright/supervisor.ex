@@ -1,0 +1,119 @@
+defmodule Playwright.Supervisor do
+  @moduledoc """
+  Runs one Playwright driver and its connection.
+
+      children = [{Playwright.Supervisor, name: MyApp.Playwright}]
+      playwright = Playwright.instance(MyApp.Playwright)
+
+  Options:
+
+    * `:name` - defaults to `Playwright`.
+    * `:executable`, `:node`, `:cache_dir` - see `Playwright.Driver`; by default
+      `config :playwright, :driver`.
+    * `:env` - extra environment variables for the driver process.
+
+  Child: the driver connection (the driver's pipe and the connection process), the OTP form of
+  JS's `outofprocess.start()`. The child id is the `:name`, so drivers of different names can
+  share a supervision tree.
+
+  ## Lifetimes
+
+  When the driver exits, its connection is closed and the supervisor starts a new driver, with a
+  new root object.
+
+  As `Playwright.BrowserType.connect/3` does when its connection is lost, every page and context
+  emits `close`, then every browser `disconnected` (also when the supervisor stops), and waits on
+  them fail with `Playwright.TargetClosedError`: a lost driver is noticed by `disconnected`.
+
+  Handles of the old driver keep reading their last state (`Playwright.Page.is_closed/1` is
+  true, `Playwright.Page.url/1` the last URL) until the processes that created or closed its
+  browsers and contexts have exited, or the supervisor stops. Calls and other writes on them fail
+  with `Playwright.TargetClosedError`; closing a page, context or browser returns `:ok`, as it
+  does for anything closed.
+
+  Get the root again with `Playwright.instance/1`: it waits for the new driver (in a
+  `disconnected` listener too).
+
+  The loss is logged as an error, with the driver's exit status (137: killed, often for lack of
+  memory), its version, the supervisor's name and how many browsers and contexts it closed.
+
+  Browsers and contexts are not closed when the process that created them exits; only the data
+  the library keeps for closed ones is freed then. So close what you open, as tests close their
+  contexts in `on_exit`.
+
+  Starting installs the driver first if it is missing
+  (`Playwright.Driver.ensure_installed/1`): a download that blocks `start_link/1`.
+  """
+  use Supervisor
+
+  alias Playwright.OutOfProcess
+
+  @typedoc "An option of `start_link/1`, see the module docs."
+  @type option ::
+          {:name, atom()}
+          | {:executable, Path.t()}
+          | {:node, Path.t()}
+          | {:cache_dir, Path.t()}
+          | {:env, Enumerable.t({String.t(), String.t()})}
+
+  @doc """
+  Starts the driver and its connection under a supervisor registered as `:name`. Returns once
+  the root object is ready (`Playwright.instance/1`), after installing the driver if needed.
+  """
+  @spec start_link([option()]) :: Supervisor.on_start()
+  def start_link(opts \\ []) do
+    opts = Keyword.validate!(opts, [:executable, :node, :cache_dir, name: Playwright, env: []])
+    Supervisor.start_link(__MODULE__, opts, name: opts[:name])
+  end
+
+  @doc "A child spec whose id is the `:name` (`Playwright` by default)."
+  @spec child_spec([option()]) :: Supervisor.child_spec()
+  def child_spec(opts), do: opts |> super() |> Map.put(:id, Keyword.get(opts, :name, Playwright))
+
+  @doc false
+  def out_of_process(name), do: Module.concat(name, OutOfProcess)
+
+  @doc false
+  # The root of `name`'s driver. A driver being replaced never answers (it stops once its close
+  # emulation is done): wait for the supervisor to restart it, then ask the new one.
+  def playwright(name) do
+    OutOfProcess.playwright(out_of_process(name))
+  catch
+    :exit, {_reason, {GenServer, :call, _}} = reason ->
+      await_restart(name, reason)
+      playwright(name)
+  end
+
+  # Returns once the driver child runs again. `which_children/1` returns after a restart in
+  # progress; the supervisor may not have seen the exit yet, then it is asked again. Exits with
+  # `reason` if the child is not restarted (terminated, or the supervisor gave up).
+  defp await_restart(name, reason) do
+    case List.keyfind(Supervisor.which_children(name), OutOfProcess, 0) do
+      {_, pid, _, _} when is_pid(pid) ->
+        if !Process.alive?(pid) do
+          Process.sleep(1)
+          await_restart(name, reason)
+        end
+
+      {_, :restarting, _, _} ->
+        Process.sleep(1)
+        await_restart(name, reason)
+
+      _ ->
+        exit(reason)
+    end
+  end
+
+  @impl true
+  def init(opts) do
+    # The client is loaded up front, as `require('playwright')` does: in interactive mode (dev,
+    # test) modules load on first use, and that delay between two calls of one synchronous JS
+    # section (`evaluate` sent, then the `console` subscription of `wait_for_event`) can let an
+    # event the second one waits for pass unseen.
+    :code.ensure_modules_loaded(Application.spec(:playwright, :modules) || [])
+    name = Keyword.fetch!(opts, :name)
+    children = [{OutOfProcess, Keyword.merge(opts, name: out_of_process(name), supervisor: {name, self()})}]
+
+    Supervisor.init(children, strategy: :rest_for_one)
+  end
+end

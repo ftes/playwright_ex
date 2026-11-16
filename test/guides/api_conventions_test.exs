@@ -1,20 +1,20 @@
-defmodule PlaywrightEx.Guides.ApiConventionsTest do
+defmodule Playwright.Guides.ApiConventionsTest do
   # The snippets of `guides/introduction/api-conventions.md`, run against the facade.
   use ExUnit.Case, async: true
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.ConsoleMessage
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Request
-  alias PlaywrightEx.Response
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.TestBrowser
-  alias PlaywrightEx.TimeoutError
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.BrowserType
+  alias Playwright.ConsoleMessage
+  alias Playwright.Expect
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Request
+  alias Playwright.Response
+  alias Playwright.Route
+  alias Playwright.TestBrowser
+  alias Playwright.TimeoutError
 
   @moduletag :tmp_dir
 
@@ -30,8 +30,8 @@ defmodule PlaywrightEx.Guides.ApiConventionsTest do
   """
 
   setup_all do
-    start_supervised!({PlaywrightEx.Supervisor, name: __MODULE__})
-    browser = BrowserType.launch!(TestBrowser.browser_type(PlaywrightEx.playwright(__MODULE__)))
+    start_supervised!({Playwright.Supervisor, name: __MODULE__})
+    browser = BrowserType.launch!(TestBrowser.browser_type(Playwright.instance(__MODULE__)))
     %{browser: browser}
   end
 
@@ -54,7 +54,7 @@ defmodule PlaywrightEx.Guides.ApiConventionsTest do
   test "names", %{page: page} do
     Page.get_by_role(page, :button, name: "Save") |> Locator.click!()
     assert Page.eval_on_selector!(page, ".status", "el => el.textContent") == "Saved"
-    assert %PlaywrightEx.Keyboard{} = Page.keyboard(page)
+    assert %Playwright.Keyboard{} = Page.keyboard(page)
 
     request = Page.expect_request!(page, "**/x", fn -> Page.evaluate!(page, "() => fetch('/x')") end)
     assert Request.url(request) == "http://app.test/x"
@@ -67,11 +67,11 @@ defmodule PlaywrightEx.Guides.ApiConventionsTest do
     result =
       case Page.goto(page, "/") do
         {:ok, response} -> Response.status(response)
-        {:error, %PlaywrightEx.TimeoutError{}} -> :timeout
+        {:error, %Playwright.TimeoutError{}} -> :timeout
       end
 
     assert result == 200
-    assert {:error, %PlaywrightEx.PlaywrightError{}} = Page.goto(page, "/admin")
+    assert {:error, %Playwright.PlaywrightError{}} = Page.goto(page, "/admin")
   end
 
   test "options", %{browser: browser, page: page, tmp_dir: tmp_dir} do
@@ -128,8 +128,8 @@ defmodule PlaywrightEx.Guides.ApiConventionsTest do
     locator = Page.locator(page, ".status")
     Expect.not_to_have_text!(locator, "Error")
     locator |> Expect.not_() |> Expect.to_have_text!("Error")
-    assert {:error, %PlaywrightEx.ExpectError{}} = Expect.to_have_text(locator, "Error", timeout: 100)
-    assert_raise PlaywrightEx.ExpectError, fn -> Expect.to_have_text!(locator, "Error", timeout: 100) end
+    assert {:error, %Playwright.ExpectError{}} = Expect.to_have_text(locator, "Error", timeout: 100)
+    assert_raise Playwright.ExpectError, fn -> Expect.to_have_text!(locator, "Error", timeout: 100) end
   end
 
   test "errors", %{page: page} do
@@ -143,7 +143,7 @@ defmodule PlaywrightEx.Guides.ApiConventionsTest do
     assert Page.get_by_role(page, :button, name: ~r/submit/i) |> Locator.count!() == 1
     Page.goto!(page, "/dashboard")
     Expect.to_have_url!(page, ~r"/dashboard$")
-    assert Page.get_by_text(page, PlaywrightEx.RegExp.new("a[^]b", "v")) |> Locator.count!() == 1
+    assert Page.get_by_text(page, Playwright.RegExp.new("a[^]b", "v")) |> Locator.count!() == 1
     assert_raise ArgumentError, fn -> Page.get_by_text(page, ~r/\Aa/) |> Locator.count() end
   end
 
@@ -155,7 +155,7 @@ defmodule PlaywrightEx.Guides.ApiConventionsTest do
     assert Page.evaluate!(page, "({ at: new Date(0), re: /a/g, n: NaN, i: Infinity, u: undefined, z: null })") ==
              %{
                "at" => ~U[1970-01-01 00:00:00.000Z],
-               "re" => %PlaywrightEx.RegExp{source: "a", flags: "g"},
+               "re" => %Playwright.RegExp{source: "a", flags: "g"},
                "n" => :nan,
                "i" => :infinity,
                "u" => nil,

@@ -2,12 +2,12 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.Chromium.JsCoverageTest do
+defmodule Playwright.Library.Chromium.JsCoverageTest do
   @upstream "tests/library/chromium/js-coverage.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Coverage
-  alias PlaywrightEx.Page
+  alias Playwright.Coverage
+  alias Playwright.Page
 
   @moduletag :page
   @moduletag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: Chromium only")

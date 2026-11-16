@@ -2,15 +2,15 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.ExpectTimeoutTest do
+defmodule Playwright.Page.ExpectTimeoutTest do
   @upstream "tests/page/expect-timeout.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.AbortController
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TimeoutError
+  alias Playwright.AbortController
+  alias Playwright.Expect
+  alias Playwright.Page
+  alias Playwright.Runtime
+  alias Playwright.TimeoutError
 
   @moduletag :page
 

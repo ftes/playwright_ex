@@ -1,4 +1,4 @@
-defmodule PlaywrightEx.FailuresFormatter do
+defmodule Playwright.FailuresFormatter do
   @moduledoc """
   An ExUnit formatter that appends each failed test to the file named by `PW_FAILURES_FILE` (if set), one
   `file:line<TAB>module: test name` line per failure (a failed `setup_all` reports its module at

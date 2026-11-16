@@ -3,24 +3,24 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.InterceptionTest do
+defmodule Playwright.Page.InterceptionTest do
   @upstream "tests/page/interception.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.PlaywrightError
-  alias PlaywrightEx.Client.LocalUtils
-  alias PlaywrightEx.ConsoleMessage
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.Isomorphic.UrlMatch
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Request
-  alias PlaywrightEx.Response
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.Runtime.Api
-  alias PlaywrightEx.TestServer
-  alias PlaywrightEx.Utils
+  alias Playwright.PlaywrightError
+  alias Playwright.Client.LocalUtils
+  alias Playwright.ConsoleMessage
+  alias Playwright.Expect
+  alias Playwright.Frame
+  alias Playwright.Isomorphic.UrlMatch
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Request
+  alias Playwright.Response
+  alias Playwright.Route
+  alias Playwright.Runtime.Api
+  alias Playwright.TestServer
+  alias Playwright.Utils
 
   @moduletag :page
 
@@ -116,7 +116,7 @@ defmodule PlaywrightEx.Page.InterceptionTest do
   # Deviation: the driver converts globs (`LocalUtils.globToRegex`), as in the non-JS clients
   # (architecture: URL globs).
   defp local_utils(playwright),
-    do: PlaywrightEx.Client.Connection.local_utils(PlaywrightEx.Runtime.Heap.get(playwright, :_connection))
+    do: Playwright.Client.Connection.local_utils(Playwright.Runtime.Heap.get(playwright, :_connection))
 
   defp glob_to_regex_pattern(playwright, glob) do
     local_utils = local_utils(playwright)

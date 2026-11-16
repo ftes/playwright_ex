@@ -1,4 +1,4 @@
-defmodule PlaywrightEx.Guides.DebuggingAndCiTest do
+defmodule Playwright.Guides.DebuggingAndCiTest do
   # The snippets of `guides/debugging-and-ci.md`. Not run: `show-trace` and the headed launch
   # (they open windows), the GitHub Actions and Docker files. The remote browser runs the
   # driver's `run-server` locally instead of in the Docker image.
@@ -6,28 +6,27 @@ defmodule PlaywrightEx.Guides.DebuggingAndCiTest do
 
   import ExUnit.CaptureLog
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.ConsoleMessage
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Playwright
-  alias PlaywrightEx.RemoteServer.RunServer
-  alias PlaywrightEx.TestBrowser
-  alias PlaywrightEx.TimeoutError
-  alias PlaywrightEx.Tracing
-  alias PlaywrightEx.Video
-  alias PlaywrightEx.WebError
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.BrowserType
+  alias Playwright.ConsoleMessage
+  alias Playwright.Expect
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.RemoteServer.RunServer
+  alias Playwright.TestBrowser
+  alias Playwright.TimeoutError
+  alias Playwright.Tracing
+  alias Playwright.Video
+  alias Playwright.WebError
 
   require Logger
 
   @moduletag :tmp_dir
 
   setup_all do
-    start_supervised!({PlaywrightEx.Supervisor, name: __MODULE__})
-    playwright = PlaywrightEx.playwright(__MODULE__)
+    start_supervised!({Playwright.Supervisor, name: __MODULE__})
+    playwright = Playwright.instance(__MODULE__)
     browser = playwright |> TestBrowser.browser_type() |> BrowserType.launch!()
     %{playwright: playwright, browser: browser}
   end
@@ -49,7 +48,7 @@ defmodule PlaywrightEx.Guides.DebuggingAndCiTest do
     assert [_ | _] = error.log
 
     error =
-      assert_raise PlaywrightEx.ExpectError, fn ->
+      assert_raise Playwright.ExpectError, fn ->
         Expect.to_have_text!(Page.get_by_role(page, :button), "Save", timeout: 100)
       end
 
@@ -105,15 +104,15 @@ defmodule PlaywrightEx.Guides.DebuggingAndCiTest do
 
   test "headed (compiled, not run: the suite stays headless)" do
     headed = fn ->
-      PlaywrightEx.playwright() |> Playwright.chromium() |> BrowserType.launch!(headless: false, slow_mo: 500)
+      Playwright.instance() |> Playwright.chromium() |> BrowserType.launch!(headless: false, slow_mo: 500)
     end
 
     assert is_function(headed, 0)
   end
 
   test "the driver's environment" do
-    start_supervised!({PlaywrightEx.Supervisor, name: :"#{__MODULE__}.Debug", env: [{"DEBUG", "pw:none"}]})
-    assert %Playwright{} = PlaywrightEx.playwright(:"#{__MODULE__}.Debug")
+    start_supervised!({Playwright.Supervisor, name: :"#{__MODULE__}.Debug", env: [{"DEBUG", "pw:none"}]})
+    assert %Playwright{} = Playwright.instance(:"#{__MODULE__}.Debug")
   end
 
   test "remote browsers", %{playwright: playwright} do
@@ -129,9 +128,9 @@ defmodule PlaywrightEx.Guides.DebuggingAndCiTest do
   end
 
   test "versions match the image tag" do
-    assert PlaywrightEx.Driver.version() == "1.65.0"
+    assert Playwright.Driver.version() == "1.65.0"
     guide = File.read!(Path.expand("../../guides/debugging-and-ci.md", __DIR__))
-    assert guide =~ "mcr.microsoft.com/playwright:v#{PlaywrightEx.Driver.version()}-noble"
-    assert guide =~ "playwright@#{PlaywrightEx.Driver.version()} run-server"
+    assert guide =~ "mcr.microsoft.com/playwright:v#{Playwright.Driver.version()}-noble"
+    assert guide =~ "playwright@#{Playwright.Driver.version()} run-server"
   end
 end

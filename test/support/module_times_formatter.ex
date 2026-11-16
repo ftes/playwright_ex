@@ -1,4 +1,4 @@
-defmodule PlaywrightEx.ModuleTimesFormatter do
+defmodule Playwright.ModuleTimesFormatter do
   @moduledoc """
   An ExUnit formatter that appends each test module's wall time (`setup_all` included) to the
   file named by `PW_MODULE_TIMES_FILE` (if set), one `milliseconds<TAB>file<TAB>module` line per

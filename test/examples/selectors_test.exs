@@ -2,9 +2,9 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Examples.SelectorsTest do
+defmodule Playwright.Examples.SelectorsTest do
   # Elixir translations of upstream's JS examples, rendered into the facade docs (see ExampleCase).
-  use PlaywrightEx.ExampleCase, async: true
+  use Playwright.ExampleCase, async: true
 
   # Upstream's example registers a function (`createTagNameEngine`); the port takes the engine as
   # JS source, as the Python client does.
@@ -43,7 +43,7 @@ defmodule PlaywrightEx.Examples.SelectorsTest do
       await browser.close();
     })();
     """,
-    skip: if(PlaywrightEx.TestBrowser.name() != "firefox", do: "launches firefox, not the browser under test") do
+    skip: if(Playwright.TestBrowser.name() != "firefox", do: "launches firefox, not the browser under test") do
     # Must be a script that evaluates to a selector engine instance.
     tag_name_engine = """
     {

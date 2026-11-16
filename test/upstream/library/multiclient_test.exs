@@ -2,26 +2,26 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.MulticlientTest do
+defmodule Playwright.Library.MulticlientTest do
   @upstream "tests/library/multiclient.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  import PlaywrightEx.Utils, only: [ensure_some_frames: 1]
+  import Playwright.Utils, only: [ensure_some_frames: 1]
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Clock
-  alias PlaywrightEx.Coverage
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.RemoteServer.LaunchServer
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.Screencast
-  alias PlaywrightEx.TestServer
-  alias PlaywrightEx.Tracing
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.BrowserType
+  alias Playwright.Clock
+  alias Playwright.Coverage
+  alias Playwright.Expect
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.RemoteServer.LaunchServer
+  alias Playwright.Route
+  alias Playwright.Runtime
+  alias Playwright.Screencast
+  alias Playwright.TestServer
+  alias Playwright.Tracing
 
   @browser_name System.get_env("BROWSER", "chromium")
 

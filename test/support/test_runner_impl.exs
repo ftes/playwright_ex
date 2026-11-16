@@ -1,7 +1,7 @@
-# The child BEAM of `PlaywrightEx.Test.EndToEndTest`: a suite on `PlaywrightEx.Test`, run as
+# The child BEAM of `Playwright.Test.EndToEndTest`: a suite on `Playwright.Test`, run as
 # `mix test` runs one (`ExUnit.run/0`, then halt).
 #
-# Runs as `elixir -pa <playwright_ex ebin> test_runner_impl.exs <mode> <output dir> <browser> [<go file>]`:
+# Runs as `elixir -pa <playwright ebin> test_runner_impl.exs <mode> <output dir> <browser> [<go file>]`:
 #
 #   * `artifacts` - one passing and one failing test, `trace: :retain_on_failure, screenshot:
 #     :only_on_failure`. It prints "(ready=>true)" in the passing test and waits there until the
@@ -11,7 +11,7 @@
 #     `(report=>%{...})`.
 #   * `max_failures` - `max_failures: 1`, a module holding a browser running when another
 #     fails; prints the pool after the run.
-#   * `pool_start` - `PlaywrightEx.Test.Pool.ensure_started/0` while the pool's name is
+#   * `pool_start` - `Playwright.Test.Pool.ensure_started/0` while the pool's name is
 #     registered and its `init/1` still runs.
 #   * `soft_errors` - tests whose matchers write missing snapshots (`snapshot_dir` next to the
 #     output dir), one of them failing after that, one killed past its timeout.
@@ -19,7 +19,7 @@
 #   * `soft` - soft matchers (`Expect.soft/1`): failing ones, then the rest of the body, then a
 #     hard failure; and a passing one.
 #   * `timeouts` - tests past their timeout: one in a Playwright call, one in `Process.sleep`, one
-#     in a Playwright call after a slow `setup` before `use PlaywrightEx.Test`.
+#     in a Playwright call after a slow `setup` before `use Playwright.Test`.
 #   * `trace` - `trace: true` (`mix test --trace`): a test past its `timeout` tag passes.
 #   * `rerun` - one failing and one passing test (writing a file of its own), `preserve_output:
 #     :failures_only`; with a further `failed` argument, only the failing one, as `mix test
@@ -29,12 +29,12 @@
 
 # credo:disable-for-this-file Credo.Check.Warning.WrongTestFilename
 
-PlaywrightEx.ClientProcess.halt_on_stdin_eof()
+Playwright.ClientProcess.halt_on_stdin_eof()
 Logger.configure(level: :info)
 
 [mode, output_dir, browser_name | _] = System.argv()
 
-Application.put_env(:playwright_ex, :test,
+Application.put_env(:playwright, :test,
   browser_name: String.to_atom(browser_name),
   output_dir: output_dir,
   snapshot_dir: Path.join(Path.dirname(output_dir), "snapshots"),
@@ -45,9 +45,9 @@ Application.put_env(:playwright_ex, :test,
 )
 
 # The test build's .app lists the test-only deps: start the library's own tree.
-:ok = Application.load(:playwright_ex)
+:ok = Application.load(:playwright)
 {:ok, _} = Application.ensure_all_started(:crypto)
-{:ok, _} = PlaywrightEx.Application.start(:normal, [])
+{:ok, _} = Playwright.Application.start(:normal, [])
 
 max_failures = if mode == "max_failures", do: 1, else: :infinity
 # `mix test --failed`'s filter.
@@ -78,7 +78,7 @@ ExUnit.start(
 
 defmodule Report do
   def put(label, scope, browser),
-    do: :ets.insert(:report, {label, scope, PlaywrightEx.Test.BrowserPool.playwright(browser)})
+    do: :ets.insert(:report, {label, scope, Playwright.Test.BrowserPool.playwright(browser)})
 
   # Polls until `label` is in the report.
   def await(label, attempts \\ 100) do
@@ -96,7 +96,7 @@ defmodule Report do
   # The labels of the idle seats' warm drivers, how many scopes hold seats, and per label how
   # many scopes and drivers its tests saw.
   def print(_stats) do
-    state = :sys.get_state(PlaywrightEx.Test.Pool)
+    state = :sys.get_state(Playwright.Test.Pool)
     reported = :ets.tab2list(:report)
     # A driver's connection names it (every driver's Playwright has the same guid).
     label_of = Map.new(reported, fn {label, _scope, playwright} -> {playwright.conn, label} end)
@@ -124,7 +124,7 @@ end
 case mode do
   "artifacts" ->
     defmodule SampleTest do
-      use PlaywrightEx.Case, async: true
+      use Playwright.Case, async: true
 
       test "passes", %{page: page} do
         Page.set_content!(page, "<h1>Passes</h1>")
@@ -146,12 +146,12 @@ case mode do
       def opts(label), do: [driver: [env: [{"PW_MODULE", to_string(label)}]]]
     end
 
-    alias PlaywrightEx.Test.BrowserPool
+    alias Playwright.Test.BrowserPool
 
     defmodule TenTest do
       # The module's lease: two browser options, a worker each.
       use ExUnit.Case, async: true
-      use PlaywrightEx.Test
+      use Playwright.Test
 
       setup_all do
         browser = BrowserPool.browser(Key.opts(:ten))
@@ -170,7 +170,7 @@ case mode do
     defmodule TwoDriversTest do
       # A test's lease: two options, two drivers.
       use ExUnit.Case, async: true
-      use PlaywrightEx.Test
+      use Playwright.Test
 
       test "two options" do
         Report.put(:two_a, self(), BrowserPool.browser(Key.opts(:two_a)))
@@ -180,7 +180,7 @@ case mode do
 
     defmodule FailsTest do
       use ExUnit.Case, async: true
-      use PlaywrightEx.Test
+      use Playwright.Test
 
       setup_all do
         browser = BrowserPool.browser(Key.opts(:fails))
@@ -197,7 +197,7 @@ case mode do
     defmodule ParamTest do
       # Both parameter sets hold their drivers at once.
       use ExUnit.Case, async: true, parameterize: [%{n: 1}, %{n: 2}]
-      use PlaywrightEx.Test
+      use Playwright.Test
 
       setup_all do: %{browser: BrowserPool.browser(Key.opts(:param)), scope: self()}
 
@@ -209,20 +209,20 @@ case mode do
 
     defmodule NoBrowserTest do
       use ExUnit.Case, async: true
-      use PlaywrightEx.Test
+      use Playwright.Test
 
       test "asks for none" do
-        refute Enum.any?(Map.values(:sys.get_state(PlaywrightEx.Test.Pool).seats), &(&1.scope == self()))
+        refute Enum.any?(Map.values(:sys.get_state(Playwright.Test.Pool).seats), &(&1.scope == self()))
       end
     end
 
   "max_failures" ->
     defmodule HeldTest do
       use ExUnit.Case, async: true
-      use PlaywrightEx.Test
+      use Playwright.Test
 
       setup_all do
-        browser = PlaywrightEx.Test.BrowserPool.browser()
+        browser = Playwright.Test.BrowserPool.browser()
         Report.put(:held, self(), browser)
         Report.after_suite()
         %{browser: browser}
@@ -233,7 +233,7 @@ case mode do
 
     defmodule FailsTest do
       use ExUnit.Case, async: true
-      use PlaywrightEx.Test
+      use Playwright.Test
 
       test "fails once the other module runs" do
         Report.await(:held)
@@ -243,7 +243,7 @@ case mode do
 
   "soft_errors" ->
     defmodule SoftErrorsTest do
-      use PlaywrightEx.Case, async: true
+      use Playwright.Case, async: true
 
       test "writes a snapshot", %{page: page} do
         Page.set_content!(page, "<h1>One</h1>")
@@ -273,7 +273,7 @@ case mode do
 
   "soft" ->
     defmodule SoftTest do
-      use PlaywrightEx.Case, async: true
+      use Playwright.Case, async: true
 
       test "continues after a soft failure", %{page: page} do
         Page.set_content!(page, "<h1>One</h1>")
@@ -299,9 +299,9 @@ case mode do
   "steps" ->
     defmodule StepsTest do
       use ExUnit.Case, async: true
-      use PlaywrightEx.Test
+      use Playwright.Test
 
-      alias PlaywrightEx.Test
+      alias Playwright.Test
 
       test "fails in a boxed step" do
         Test.step "outer" do
@@ -321,7 +321,7 @@ case mode do
 
   "timeouts" ->
     defmodule TimeoutsTest do
-      use PlaywrightEx.Case, async: true
+      use Playwright.Case, async: true
 
       @tag timeout: 3000
       test "hangs in a Playwright call", %{page: page} do
@@ -340,17 +340,17 @@ case mode do
     defmodule SlowSetupTest do
       use ExUnit.Case, async: true
 
-      alias PlaywrightEx.{Browser, BrowserContext, Page}
+      alias Playwright.{Browser, BrowserContext, Page}
 
       setup_all do
-        %{browser: PlaywrightEx.Test.BrowserPool.browser()}
+        %{browser: Playwright.Test.BrowserPool.browser()}
       end
 
       setup do
         Process.sleep(1500)
       end
 
-      use PlaywrightEx.Test
+      use Playwright.Test
 
       @tag timeout: 3000
       test "hangs in a Playwright call after a slow setup", %{browser: browser} do
@@ -361,11 +361,11 @@ case mode do
 
   "rerun" ->
     defmodule RerunTest do
-      use PlaywrightEx.Case, async: true
+      use Playwright.Case, async: true
 
       test "passes", %{page: page} do
         Page.set_content!(page, "<h1>Passes</h1>")
-        File.write!(PlaywrightEx.Test.output_path("note.txt"), "")
+        File.write!(Playwright.Test.output_path("note.txt"), "")
       end
 
       test "fails", %{page: page} do
@@ -376,14 +376,14 @@ case mode do
 
   "retry_modes" ->
     defmodule RetryModesTest do
-      use PlaywrightEx.Case, async: true
+      use Playwright.Case, async: true
 
       @moduletag screenshot: :off
 
       # Fails on the first run only, passes under `--failed`.
       defp flaky(page) do
-        Page.set_content!(page, "<h1>Retry #{PlaywrightEx.Test.info().retry}</h1>")
-        if PlaywrightEx.Test.info().retry == 0, do: flunk("first run")
+        Page.set_content!(page, "<h1>Retry #{Playwright.Test.info().retry}</h1>")
+        if Playwright.Test.info().retry == 0, do: flunk("first run")
       end
 
       @tag trace: :on_first_retry, video: :on_first_retry
@@ -413,7 +413,7 @@ case mode do
 
       def init(nil) do
         Process.sleep(200)
-        :ets.new(PlaywrightEx.Test.Results.table(), [:named_table, :public, :set])
+        :ets.new(Playwright.Test.Results.table(), [:named_table, :public, :set])
         {:ok, nil}
       end
 
@@ -424,21 +424,21 @@ case mode do
       use ExUnit.Case, async: true
 
       test "a caller racing the pool's start gets it once its table exists" do
-        spawn(fn -> GenServer.start(SlowInit, nil, name: PlaywrightEx.Test.Pool) end)
-        wait = fn wait -> if !Process.whereis(PlaywrightEx.Test.Pool), do: Process.sleep(1) && wait.(wait) end
+        spawn(fn -> GenServer.start(SlowInit, nil, name: Playwright.Test.Pool) end)
+        wait = fn wait -> if !Process.whereis(Playwright.Test.Pool), do: Process.sleep(1) && wait.(wait) end
         wait.(wait)
-        PlaywrightEx.Test.Pool.ensure_started()
-        assert PlaywrightEx.Test.Results.started?()
+        Playwright.Test.Pool.ensure_started()
+        assert Playwright.Test.Results.started?()
       end
     end
 
   "trace" ->
     defmodule TraceTest do
-      use PlaywrightEx.Case, async: true
+      use Playwright.Case, async: true
 
       @tag timeout: 500
       test "runs past its timeout", %{page: page} do
-        assert :sys.get_state(PlaywrightEx.Test.Recorder.lookup(self())).timer == nil
+        assert :sys.get_state(Playwright.Test.Recorder.lookup(self())).timer == nil
         Process.sleep(1000)
         Page.set_content!(page, "<h1>Open</h1>")
       end

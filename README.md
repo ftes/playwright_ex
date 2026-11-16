@@ -1,4 +1,4 @@
-# PlaywrightEx
+# Playwright
 
 [![Hex.pm Version](https://img.shields.io/hexpm/v/playwright_ex)](https://hex.pm/packages/playwright_ex)
 [![Hex Docs](https://img.shields.io/badge/hex-docs-lightgreen.svg)](https://hexdocs.pm/playwright_ex/)
@@ -8,7 +8,7 @@
 Elixir client for [Playwright](https://playwright.dev). Automate Chromium, Firefox and WebKit:
 end-to-end tests, web scraping, agentic AI.
 
-PlaywrightEx is a 1:1 port of the official JavaScript client. Its API is generated from
+It is a 1:1 port of the official JavaScript client. Its API is generated from
 Playwright's docs, so the docs at playwright.dev apply. The driver (Node.js and `playwright-core`)
 is pinned and installed by Mix, no npm needed. This release drives Playwright 1.65.
 
@@ -17,29 +17,32 @@ is pinned and installed by Mix, no npm needed. This release drives Playwright 1.
 ```elixir
 def deps do
   [
-    {:playwright_ex, "~> 0.17.0-rc.5"}
+    {:playwright, "~> 0.17.0-rc.5", hex: :playwright_ex}
   ]
 end
 ```
 
+The Hex package is `playwright_ex`, the app and modules are `playwright` and `Playwright`.
+`hex: :playwright_ex` is required: `playwright` on Hex is another library.
+
 ```sh
 mix deps.get
-mix playwright_ex.install
+mix playwright.install
 ```
 
 ## Example
 
 ```elixir
-alias PlaywrightEx.{Browser, BrowserType, Expect, Locator, Page, Playwright}
+alias Playwright.{Browser, BrowserType, Expect, Locator, Page}
 
-{:ok, _} = PlaywrightEx.Supervisor.start_link()
-browser = BrowserType.launch!(Playwright.chromium(PlaywrightEx.playwright()))
+{:ok, _} = Playwright.Supervisor.start_link()
+browser = BrowserType.launch!(Playwright.chromium(Playwright.instance()))
 page = Browser.new_page!(browser)
 Page.goto!(page, "https://elixir-lang.org/")
 Page.get_by_role(page, :link, name: "Install") |> Locator.click!()
 Expect.to_have_title!(page, ~r/Install/)
 # Closes the browser and waits for the driver to exit before the VM halts.
-Supervisor.stop(PlaywrightEx)
+Supervisor.stop(Playwright)
 ```
 
 **`timeout: 0` means no timeout.** As in Playwright JS, it waits forever instead of failing at
@@ -57,7 +60,7 @@ names match Python's: snake_case, keyword options, `expect_popup`, `eval_on_sele
 - [From playwright.dev to Elixir](guides/introduction/api-conventions.md): how a JS call reads in
   Elixir.
 - [Cheatsheet](guides/introduction/cheatsheet.cheatmd): frequent calls, JS next to Elixir.
-- [Testing with ExUnit](guides/testing-with-exunit.md): `PlaywrightEx.Test` and its browser pool,
+- [Testing with ExUnit](guides/testing-with-exunit.md): `Playwright.Test` and its browser pool,
   assertions, traces of failures.
 - [Events and waiting](guides/events-and-waiting.md), [Network](guides/network.md),
   [Debugging and CI](guides/debugging-and-ci.md).

@@ -3,23 +3,23 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageFilechooserTest do
+defmodule Playwright.Page.PageFilechooserTest do
   @upstream "tests/page/page-filechooser.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  import PlaywrightEx.Utils, only: [attach_frame: 3, assert_truthy: 1]
+  import Playwright.Utils, only: [attach_frame: 3, assert_truthy: 1]
 
-  alias PlaywrightEx.AbortController
-  alias PlaywrightEx.ConsoleMessage
-  alias PlaywrightEx.FileChooser
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TestServer
-  alias PlaywrightEx.TimeoutError
+  alias Playwright.AbortController
+  alias Playwright.ConsoleMessage
+  alias Playwright.FileChooser
+  alias Playwright.Frame
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Route
+  alias Playwright.Runtime
+  alias Playwright.TestServer
+  alias Playwright.TimeoutError
 
   @moduletag :page
 

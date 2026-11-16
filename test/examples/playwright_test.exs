@@ -2,12 +2,12 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Examples.PlaywrightTest do
+defmodule Playwright.Examples.PlaywrightTest do
   # Elixir translations of upstream's JS examples, rendered into the facade docs (see ExampleCase).
-  use PlaywrightEx.ExampleCase, async: true
+  use Playwright.ExampleCase, async: true
 
   # The examples that launch a browser run where it is the browser under test.
-  @browser PlaywrightEx.TestBrowser.name()
+  @browser Playwright.TestBrowser.name()
   @chromium_only if(@browser != "chromium", do: "launches chromium, not the browser under test")
   @webkit_only if(@browser != "webkit", do: "launches webkit, not the browser under test")
 
@@ -73,7 +73,7 @@ defmodule PlaywrightEx.Examples.PlaywrightTest do
     try do
       Page.locator(page, ".foo") |> Locator.wait_for!()
     rescue
-      _ in PlaywrightEx.TimeoutError ->
+      _ in Playwright.TimeoutError ->
         # Do something if this is a timeout.
         nil
     end

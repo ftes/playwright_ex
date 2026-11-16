@@ -2,27 +2,27 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.HeadfulTest do
+defmodule Playwright.Library.HeadfulTest do
   @upstream "tests/library/headful.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.ConsoleMessage
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Mouse
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.TestServer
-  alias PlaywrightEx.UpstreamSnapshot
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.BrowserType
+  alias Playwright.ConsoleMessage
+  alias Playwright.Frame
+  alias Playwright.Locator
+  alias Playwright.Mouse
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.TestServer
+  alias Playwright.UpstreamSnapshot
 
   @browser_name System.get_env("BROWSER", "chromium")
 
   # it.skip(({ headless }) => headless, 'avoid popping windows in headless mode');
   # it.skip(({ channel }) => channel === 'chromium-headless-shell', 'shell is never headed');  -- we run no channel
-  @headless_skip if(PlaywrightEx.TestBrowser.headless(),
+  @headless_skip if(Playwright.TestBrowser.headless(),
                    do: "upstream skip: avoid popping windows in headless mode (HEADED=1 runs it)"
                  )
   # Upstream's client too (tmp script on the driver's playwright-core, macOS 26): headed Chromium

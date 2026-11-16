@@ -2,7 +2,7 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.TestProxy do
+defmodule Playwright.TestProxy do
   @upstream "tests/config/proxy.ts"
   @moduledoc """
   Port of upstream `#{@upstream}` (`TestProxy`, `setupSocksForwardingServer`) and of
@@ -18,11 +18,11 @@ defmodule PlaywrightEx.TestProxy do
       `ws_urls/1`; `proxyServer.connectHosts = []` is `clear_connect_hosts/1`.
     * The auth handler gets `%{method:, url:, headers:}` (lowercase header names) and runs in the
       connection's process.
-    * The fixtures listen on ephemeral ports: `setup {PlaywrightEx.TestProxy, :proxy_server}`
-      gives `proxy_server`, `setup {PlaywrightEx.TestProxy, :socks_port}` gives `socks_port`
+    * The fixtures listen on ephemeral ports: `setup {Playwright.TestProxy, :proxy_server}`
+      gives `proxy_server`, `setup {Playwright.TestProxy, :socks_port}` gives `socks_port`
       (both stopped after the test). `setup_socks_forwarding_server/1` ignores `:port`.
     * Upstream listens dual-stack; this listens on `127.0.0.1` and `[::1]` (one port, see
-      `PlaywrightEx.TestServer`), or on `ip:` only.
+      `Playwright.TestServer`), or on `ip:` only.
       `proxyServer.requestUrls = []` is `clear_request_urls/1`.
     * `set_lookup/2` (not upstream) stands in for the `{ __testHookLookup }` request option, as
       playwright-python's `tests/helpers/lookup_proxy.py`: the API request context sends every
@@ -450,7 +450,7 @@ defmodule PlaywrightEx.TestProxy do
       handler = Keyword.fetch!(opts, :handler)
 
       spawn_link(fn ->
-        PlaywrightEx.TestProxy.accept_loop(listen, fn socket ->
+        Playwright.TestProxy.accept_loop(listen, fn socket ->
           try do
             with {:ok, host, port} <- handshake(socket), do: handler.(socket, host, port)
           after

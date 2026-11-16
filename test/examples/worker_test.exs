@@ -2,12 +2,12 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Examples.WorkerTest do
+defmodule Playwright.Examples.WorkerTest do
   # Elixir translations of upstream's JS examples, rendered into the facade docs (see ExampleCase).
-  use PlaywrightEx.ExampleCase, async: true
+  use Playwright.ExampleCase, async: true
 
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Worker
+  alias Playwright.Promise
+  alias Playwright.Worker
 
   @start_worker "() => { window.worker = new Worker(URL.createObjectURL(new Blob(['1'], { type: 'text/javascript' }))) }"
 

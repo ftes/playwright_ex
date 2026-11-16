@@ -3,17 +3,17 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.ElementhandleBoundingBoxTest do
+defmodule Playwright.Page.ElementhandleBoundingBoxTest do
   @upstream "tests/page/elementhandle-bounding-box.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.ElementHandle
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.FrameLocator
-  alias PlaywrightEx.JSHandle
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Mouse
-  alias PlaywrightEx.Page
+  alias Playwright.ElementHandle
+  alias Playwright.Frame
+  alias Playwright.FrameLocator
+  alias Playwright.JSHandle
+  alias Playwright.Locator
+  alias Playwright.Mouse
+  alias Playwright.Page
 
   @moduletag :page
 

@@ -2,25 +2,24 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.VideoTest do
+defmodule Playwright.Library.VideoTest do
   @upstream "tests/library/video.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  import PlaywrightEx.Utils, only: [ensure_some_frames: 1]
+  import Playwright.Utils, only: [ensure_some_frames: 1]
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Client.ChannelOwner
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.Runtime.Api
-  alias PlaywrightEx.Playwright
-  alias PlaywrightEx.TestServer
-  alias PlaywrightEx.Tracing
-  alias PlaywrightEx.Utils
-  alias PlaywrightEx.Video
-  alias PlaywrightEx.VideoPlayer
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.BrowserType
+  alias Playwright.Client.ChannelOwner
+  alias Playwright.Page
+  alias Playwright.Runtime
+  alias Playwright.Runtime.Api
+  alias Playwright.TestServer
+  alias Playwright.Tracing
+  alias Playwright.Utils
+  alias Playwright.Video
+  alias Playwright.VideoPlayer
 
   @browser_name System.get_env("BROWSER", "chromium")
   @ffmpeg_skip VideoPlayer.skip_reason()

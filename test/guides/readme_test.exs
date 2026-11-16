@@ -1,20 +1,20 @@
-defmodule PlaywrightEx.Guides.ReadmeTest do
+defmodule Playwright.Guides.ReadmeTest do
   # The snippet of `README.md`, routed instead of the network. Not async: it starts the
   # supervisor under its default name.
   use ExUnit.Case, async: false
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Request
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.TestBrowser
+  alias Playwright.Browser
+  alias Playwright.BrowserType
+  alias Playwright.Expect
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Request
+  alias Playwright.Route
+  alias Playwright.TestBrowser
 
   test "example" do
-    {:ok, _} = start_supervised(PlaywrightEx.Supervisor)
-    browser = BrowserType.launch!(TestBrowser.browser_type(PlaywrightEx.playwright()))
+    {:ok, _} = start_supervised(Playwright.Supervisor)
+    browser = BrowserType.launch!(TestBrowser.browser_type(Playwright.instance()))
     page = Browser.new_page!(browser)
 
     Page.route!(page, "https://elixir-lang.org/**", fn route, request ->

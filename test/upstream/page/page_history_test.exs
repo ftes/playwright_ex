@@ -3,17 +3,17 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageHistoryTest do
+defmodule Playwright.Page.PageHistoryTest do
   @upstream "tests/page/page-history.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.ConsoleMessage
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Response
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TestServer
+  alias Playwright.ConsoleMessage
+  alias Playwright.Expect
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Response
+  alias Playwright.Runtime
+  alias Playwright.TestServer
 
   @moduletag :page
 

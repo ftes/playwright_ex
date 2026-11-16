@@ -1,0 +1,57 @@
+# Copyright (c) Microsoft Corporation.
+# Ported to Elixir and modified by the playwright_ex authors.
+# SPDX-License-Identifier: Apache-2.0
+
+defmodule Playwright.Client.ConsoleMessage do
+  @upstream "packages/playwright-core/src/client/consoleMessage.ts"
+  @moduledoc "Port of `#{@upstream}`. No mutable state: a plain struct."
+  alias Playwright.Client.JSHandle
+
+  # Elixir only: the handle is the facade's struct, `%Playwright.ConsoleMessage{}` (gen.api copies these fields).
+  @doc false
+  def __struct_fields__, do: [:_page, :_worker, :_event]
+
+  def new(event, page, worker) do
+    # if (inspect.custom) (this as any)[inspect.custom] = () => this._inspect();  -- ported as Inspect, see below
+    %Playwright.ConsoleMessage{_page: page, _worker: worker, _event: event}
+  end
+
+  def worker(this) do
+    this._worker
+  end
+
+  def page(this) do
+    this._page
+  end
+
+  def type(this) do
+    this._event.type
+  end
+
+  def text(this) do
+    this._event.text
+  end
+
+  def args(this) do
+    Enum.map(this._event.args, &JSHandle.from/1)
+  end
+
+  def location(this) do
+    %{url: url, lineNumber: line_number, columnNumber: column_number} = this._event.location
+    %{url: url, line: line_number, column: column_number, lineNumber: line_number, columnNumber: column_number}
+  end
+
+  def timestamp(this) do
+    this._event.timestamp
+  end
+
+  def _inspect(this) do
+    text(this)
+  end
+
+  # deviation: Inspect wraps `_inspect` as `#Playwright.ConsoleMessage<text>` (Elixir's
+  # convention, as Locator's); JS's inspect.custom returns the bare text.
+  defimpl Inspect, for: Playwright.ConsoleMessage do
+    def inspect(this, _opts), do: "#Playwright.ConsoleMessage<#{Playwright.Client.ConsoleMessage._inspect(this)}>"
+  end
+end

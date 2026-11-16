@@ -3,28 +3,28 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
+defmodule Playwright.Library.BrowsercontextBasicTest do
   @upstream "tests/library/browsercontext-basic.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Client.ChannelOwner
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.JSHandle
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Response
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TestServer
-  alias PlaywrightEx.Utils
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.Client.ChannelOwner
+  alias Playwright.Expect
+  alias Playwright.Frame
+  alias Playwright.JSHandle
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Response
+  alias Playwright.Route
+  alias Playwright.Runtime
+  alias Playwright.TestServer
+  alias Playwright.Utils
 
-  import PlaywrightEx.Utils, only: [verify_viewport: 3]
+  import Playwright.Utils, only: [verify_viewport: 3]
 
   test "BC-001 should create new context @smoke", %{browser: browser} do
     assert Browser.contexts(browser) == []
@@ -234,7 +234,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
     context = Browser.new_context!(browser)
     promise = BrowserContext.wait_for_event(context, :page)
     BrowserContext.close!(context)
-    {:error, error} = PlaywrightEx.Promise.await(promise)
+    {:error, error} = Playwright.Promise.await(promise)
     assert Exception.message(error) =~ "Target page, context or browser has been closed"
   end
 
@@ -528,7 +528,7 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
   @tag :page
   test "BC-030 default user agent", %{browser: browser, page: page} do
     %{userAgent: user_agent} =
-      PlaywrightEx.Runtime.Api.call(nil, browser, fn ->
+      Playwright.Runtime.Api.call(nil, browser, fn ->
         ChannelOwner.channel_call(browser, :defaultUserAgentForTest, %{})
       end)
 

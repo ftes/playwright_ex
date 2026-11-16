@@ -2,12 +2,12 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageLocalstorageTest do
+defmodule Playwright.Page.PageLocalstorageTest do
   @upstream "tests/page/page-localstorage.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.WebStorage
+  alias Playwright.Page
+  alias Playwright.WebStorage
 
   @moduletag :page
 

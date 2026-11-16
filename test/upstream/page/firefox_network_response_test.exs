@@ -2,16 +2,16 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.FirefoxNetworkResponseTest do
+defmodule Playwright.Page.FirefoxNetworkResponseTest do
   @upstream "tests/page/firefox-network-response.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Request
-  alias PlaywrightEx.Response
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.TestServer
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Request
+  alias Playwright.Response
+  alias Playwright.Route
+  alias Playwright.TestServer
 
   @moduletag :page
 

@@ -3,18 +3,18 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.BrowsercontextBaseUrlTest do
+defmodule Playwright.Library.BrowsercontextBaseUrlTest do
   @upstream "tests/library/browsercontext-base-url.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Request
-  alias PlaywrightEx.Response
-  alias PlaywrightEx.Route
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.BrowserType
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Request
+  alias Playwright.Response
+  alias Playwright.Route
 
   test "NA-089 should construct a new URL when a baseURL in browser.newContext is passed to page.goto @smoke",
        %{

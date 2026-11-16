@@ -3,12 +3,12 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.LocatorElementHandleTest do
+defmodule Playwright.Page.LocatorElementHandleTest do
   @upstream "tests/page/locator-element-handle.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
+  alias Playwright.Locator
+  alias Playwright.Page
 
   @moduletag :page
 

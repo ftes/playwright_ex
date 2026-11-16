@@ -3,15 +3,15 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageAutowaitingBasicTest do
+defmodule Playwright.Page.PageAutowaitingBasicTest do
   @upstream "tests/page/page-autowaiting-basic.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.TestServer
+  alias Playwright.Expect
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.TestServer
 
   @moduletag :page
 

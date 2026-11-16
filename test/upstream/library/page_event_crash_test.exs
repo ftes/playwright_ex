@@ -3,17 +3,17 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.PageEventCrashTest do
+defmodule Playwright.Library.PageEventCrashTest do
   @upstream "tests/library/page-event-crash.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TestServer
-  alias PlaywrightEx.Worker
+  alias Playwright.BrowserContext
+  alias Playwright.Expect
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Runtime
+  alias Playwright.TestServer
+  alias Playwright.Worker
 
   @moduletag :page
 

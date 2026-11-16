@@ -2,35 +2,34 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.TracingTest do
+defmodule Playwright.Library.TracingTest do
   @upstream "tests/library/tracing.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  import PlaywrightEx.Runtime.Heap, only: [get: 2]
-  import PlaywrightEx.Utils, only: [parse_trace_raw: 2, rafraf: 1]
+  import Playwright.Runtime.Heap, only: [get: 2]
+  import Playwright.Utils, only: [parse_trace_raw: 2, rafraf: 1]
 
-  alias PlaywrightEx.APIRequest
-  alias PlaywrightEx.APIRequestContext
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Dialog
-  alias PlaywrightEx.Disposable
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Keyboard
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Mouse
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Playwright
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.Runtime.Facade
-  alias PlaywrightEx.TestServer
-  alias PlaywrightEx.Tracing
-  alias PlaywrightEx.Utils
+  alias Playwright.APIRequest
+  alias Playwright.APIRequestContext
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.BrowserType
+  alias Playwright.Dialog
+  alias Playwright.Disposable
+  alias Playwright.Expect
+  alias Playwright.Keyboard
+  alias Playwright.Locator
+  alias Playwright.Mouse
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Route
+  alias Playwright.Runtime
+  alias Playwright.Runtime.Facade
+  alias Playwright.TestServer
+  alias Playwright.Tracing
+  alias Playwright.Utils
 
   @moduletag :page
 
@@ -793,7 +792,7 @@ defmodule PlaywrightEx.Library.TracingTest do
     Tracing.start!(tracing(context), screenshots: true, snapshots: true)
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, "<button>Click</button>")
-    start("page.click", page, fn -> PlaywrightEx.Client.Page.click(page, ~s("ClickNoButton"), %{}) end)
+    start("page.click", page, fn -> Playwright.Client.Page.click(page, ~s("ClickNoButton"), %{}) end)
     Tracing.stop!(tracing(context), path: Path.join(tmp_dir, "trace.zip"))
     BrowserContext.close!(context)
 
@@ -854,7 +853,7 @@ defmodule PlaywrightEx.Library.TracingTest do
     Tracing.start_chunk!(tracing(context))
     Page.set_content!(page, "<button>Click</button>")
     Page.click!(page, ~s("Click"))
-    start("page.click", page, fn -> PlaywrightEx.Client.Page.click(page, ~s("ClickNoButton"), %{timeout: 0}) end)
+    start("page.click", page, fn -> Playwright.Client.Page.click(page, ~s("ClickNoButton"), %{timeout: 0}) end)
     Page.evaluate!(page, "() => {}")
     Tracing.stop_chunk!(tracing(context), path: Path.join(tmp_dir, "trace.zip"))
 
@@ -961,7 +960,7 @@ defmodule PlaywrightEx.Library.TracingTest do
 
     # Deviation: no tail calls into the client, so that the BEAM keeps this file's frames.
     Page.on(page, :dialog, fn dialog ->
-      send(test, {:eval, start("page.evaluate", page, fn -> [PlaywrightEx.Client.Page.evaluate(page, "2+2")] end)})
+      send(test, {:eval, start("page.evaluate", page, fn -> [Playwright.Client.Page.evaluate(page, "2+2")] end)})
       Dialog.dismiss(dialog)
       :ok
     end)

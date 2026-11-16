@@ -1,0 +1,21 @@
+# Copyright (c) Microsoft Corporation.
+# Ported to Elixir and modified by the playwright_ex authors.
+# SPDX-License-Identifier: Apache-2.0
+
+defmodule Playwright.Client.JsonPipe do
+  @upstream "packages/playwright-core/src/client/jsonPipe.ts"
+  @moduledoc "Port of `#{@upstream}`."
+  use Playwright.Client.ChannelOwner
+
+  def from(json_pipe) do
+    json_pipe
+  end
+
+  def new(parent, type, guid, initializer) do
+    ChannelOwner.new(__MODULE__, parent, type, guid, initializer)
+  end
+
+  def channel(this) do
+    _channel(this)
+  end
+end

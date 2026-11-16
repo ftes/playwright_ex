@@ -3,24 +3,24 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageRouteTest do
+defmodule Playwright.Page.PageRouteTest do
   @upstream "tests/page/page-route.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Request
-  alias PlaywrightEx.Response
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TestServer
-  alias PlaywrightEx.Utils
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.Expect
+  alias Playwright.Frame
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Request
+  alias Playwright.Response
+  alias Playwright.Route
+  alias Playwright.Runtime
+  alias Playwright.TestServer
+  alias Playwright.Utils
 
   @moduletag :page
 

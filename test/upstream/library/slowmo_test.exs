@@ -2,9 +2,9 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.SlowmoTest do
+defmodule Playwright.Library.SlowmoTest do
   @upstream "tests/library/slowmo.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   describe "slowMo" do
     # it.skip(mode !== 'default'): checkSlowMo patches the in-process server's

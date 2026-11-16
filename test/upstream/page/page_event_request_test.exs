@@ -3,18 +3,18 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageEventRequestTest do
+defmodule Playwright.Page.PageEventRequestTest do
   @upstream "tests/page/page-event-request.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  import PlaywrightEx.Utils, only: [attach_frame: 3]
+  import Playwright.Utils, only: [attach_frame: 3]
 
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Request
-  alias PlaywrightEx.Response
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.TestServer
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Request
+  alias Playwright.Response
+  alias Playwright.Route
+  alias Playwright.TestServer
 
   @moduletag :page
 

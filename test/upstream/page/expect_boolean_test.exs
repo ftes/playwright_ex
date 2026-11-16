@@ -2,17 +2,17 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.ExpectBooleanTest do
+defmodule Playwright.Page.ExpectBooleanTest do
   @upstream "tests/page/expect-boolean.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.APIRequestContext
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.FrameLocator
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TestServer
+  alias Playwright.APIRequestContext
+  alias Playwright.Expect
+  alias Playwright.FrameLocator
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Runtime
+  alias Playwright.TestServer
 
   @moduletag :page
 

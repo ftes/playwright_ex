@@ -1,24 +1,23 @@
-# The child process of `PlaywrightEx.ClientProcess`: a BEAM that uses the Elixir client.
+# The child process of `Playwright.ClientProcess`: a BEAM that uses the Elixir client.
 #
 # Upstream's `tests/config/remote-server-impl.js` for the Elixir client, as Python's
 # `tests/helpers/client_process_impl.py`: it launches the browser with the client, then waits
 # idle (outside any Playwright call) until the test sends it a signal. It prints "(key=>value)"
 # lines, like upstream: (tempDir=>...), (ready=>true), (closed=>success).
 #
-# Runs as `elixir --erl +Bd -pa <playwright_ex ebin> client_process_impl.exs '<json options>'`.
+# Runs as `elixir --erl +Bd -pa <playwright ebin> client_process_impl.exs '<json options>'`.
 
-alias PlaywrightEx.Browser
-alias PlaywrightEx.BrowserType
-alias PlaywrightEx.Page
-alias PlaywrightEx.Playwright
+alias Playwright.Browser
+alias Playwright.BrowserType
+alias Playwright.Page
 
-PlaywrightEx.ClientProcess.halt_on_stdin_eof()
+Playwright.ClientProcess.halt_on_stdin_eof()
 
 options = JSON.decode!(hd(System.argv()))
 out = fn key, value -> IO.puts("(#{key}=>#{value})") end
 
-{:ok, _} = PlaywrightEx.Supervisor.start_link(name: :client)
-playwright = PlaywrightEx.playwright(:client)
+{:ok, _} = Playwright.Supervisor.start_link(name: :client)
+playwright = Playwright.instance(:client)
 
 browser_type =
   case options["browserTypeName"] do
@@ -29,7 +28,7 @@ browser_type =
 
 # remoteServer.ts: the parent's `_defaultLaunchOptions` (`headless`; no args, channel or executablePath here).
 launch_options = [
-  headless: PlaywrightEx.TestBrowser.headless(),
+  headless: Playwright.TestBrowser.headless(),
   handle_sigint: true,
   handle_sigterm: true,
   handle_sighup: true

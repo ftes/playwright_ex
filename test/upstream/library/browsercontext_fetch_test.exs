@@ -2,24 +2,23 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
+defmodule Playwright.Library.BrowsercontextFetchTest do
   @upstream "tests/library/browsercontext-fetch.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
   import Bitwise
 
-  alias PlaywrightEx.APIRequestContext
-  alias PlaywrightEx.APIResponse
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Playwright
-  alias PlaywrightEx.TestProxy
-  alias PlaywrightEx.TestServer
+  alias Playwright.APIRequestContext
+  alias Playwright.APIResponse
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.BrowserType
+  alias Playwright.Expect
+  alias Playwright.Page
+  alias Playwright.TestProxy
+  alias Playwright.TestServer
 
   @moduletag :page
 

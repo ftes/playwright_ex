@@ -3,15 +3,15 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.ElementhandleOwnerFrameTest do
+defmodule Playwright.Page.ElementhandleOwnerFrameTest do
   @upstream "tests/page/elementhandle-owner-frame.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  import PlaywrightEx.Utils
+  import Playwright.Utils
 
-  alias PlaywrightEx.ElementHandle
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.Page
+  alias Playwright.ElementHandle
+  alias Playwright.Frame
+  alias Playwright.Page
 
   @moduletag :page
 

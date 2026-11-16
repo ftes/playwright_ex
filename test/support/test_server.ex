@@ -3,7 +3,7 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.TestServer do
+defmodule Playwright.TestServer do
   @upstream "tests/config/testserver/index.ts"
   @moduledoc """
   Port of upstream `#{@upstream}` on Bandit.
@@ -23,14 +23,14 @@ defmodule PlaywrightEx.TestServer do
     * Responses to HTTP/1.1 requests get Node's `Connection: keep-alive` and
       `Keep-Alive: timeout=5` (Bandit sends neither). `send_resp/4` sends a custom status message.
     * WebSocket: an upgrade request runs in its Bandit connection process, which is also its
-      `ws` server socket once upgraded (`PlaywrightEx.TestServer.WebSocket`, upstream: the `ws`
+      `ws` server socket once upgraded (`Playwright.TestServer.WebSocket`, upstream: the `ws`
       package). That pid is upstream's `ws` (`wait_for_web_socket/1`,
       `once_web_socket_connection/2`) and the `socket` of `wait_for_upgrade/1` (which resolves to
       `%{do_upgrade: fun/0, socket: pid}`). The `wait_for_*` functions return a `Task`.
   """
   use GenServer
 
-  alias PlaywrightEx.TestServer
+  alias Playwright.TestServer
 
   defstruct [:pid, :port, :prefix, :cross_process_prefix, :empty_page, :host, :hostname, :hello_world]
   @type t :: %__MODULE__{}
@@ -38,7 +38,7 @@ defmodule PlaywrightEx.TestServer do
   def create(dir_path, port \\ 0, loopback \\ nil), do: start!(dir_path: dir_path, port: port, loopback: loopback)
 
   def cert_options do
-    dir = Path.join(PlaywrightEx.Upstream.ensure!(), "tests/config/testserver")
+    dir = Path.join(Playwright.Upstream.ensure!(), "tests/config/testserver")
 
     [
       keyfile: to_charlist(Path.join(dir, "key.pem")),
@@ -410,7 +410,7 @@ defmodule PlaywrightEx.TestServer do
     task
   end
 
-  @doc "A `Task` resolving to the `ws` server socket (a pid, see `PlaywrightEx.TestServer.WebSocket`)."
+  @doc "A `Task` resolving to the `ws` server socket (a pid, see `Playwright.TestServer.WebSocket`)."
   def wait_for_web_socket(this) do
     task = Task.async(fn -> receive do: ({:ws_connection, ws, _conn} -> ws) end)
     once_web_socket_connection(this, fn ws, conn -> send(task.pid, {:ws_connection, ws, conn}) end)

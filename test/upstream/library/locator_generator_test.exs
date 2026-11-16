@@ -2,19 +2,19 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.LocatorGeneratorTest do
+defmodule Playwright.Library.LocatorGeneratorTest do
   @upstream "tests/library/locator-generator.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Client.BrowserContext
-  alias PlaywrightEx.Client.ChannelOwner
-  alias PlaywrightEx.Client.Connection
-  alias PlaywrightEx.FrameLocator
-  alias PlaywrightEx.Isomorphic.LocatorGenerators
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Runtime.Api
-  alias PlaywrightEx.Runtime.Heap
+  alias Playwright.Client.BrowserContext
+  alias Playwright.Client.ChannelOwner
+  alias Playwright.Client.Connection
+  alias Playwright.FrameLocator
+  alias Playwright.Isomorphic.LocatorGenerators
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Runtime.Api
+  alias Playwright.Runtime.Heap
 
   @moduletag :page
 

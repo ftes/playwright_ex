@@ -3,17 +3,16 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.LocatorQueryTest do
+defmodule Playwright.Page.LocatorQueryTest do
   @upstream "tests/page/locator-query.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.FrameLocator
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Playwright
-  alias PlaywrightEx.Selectors
+  alias Playwright.Expect
+  alias Playwright.Frame
+  alias Playwright.FrameLocator
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Selectors
 
   @moduletag :page
 

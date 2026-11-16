@@ -2,12 +2,12 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Examples.DownloadTest do
+defmodule Playwright.Examples.DownloadTest do
   # Elixir translations of upstream's JS examples, rendered into the facade docs (see ExampleCase).
-  use PlaywrightEx.ExampleCase, async: true
+  use Playwright.ExampleCase, async: true
 
-  alias PlaywrightEx.Download
-  alias PlaywrightEx.Promise
+  alias Playwright.Download
+  alias Playwright.Promise
 
   example "Download",
     js: ~S"""

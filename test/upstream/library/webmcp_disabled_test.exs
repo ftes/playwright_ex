@@ -2,12 +2,12 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.WebmcpDisabledTest do
+defmodule Playwright.Library.WebmcpDisabledTest do
   @upstream "tests/library/webmcp-disabled.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.WebMCP
+  alias Playwright.Page
+  alias Playwright.WebMCP
 
   @moduletag :page
   @moduletag skip: if(System.get_env("BROWSER") == "webkit", do: "upstream skip: WebKit does not implement WebMCP")

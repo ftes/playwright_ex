@@ -2,13 +2,13 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Examples.ExpectTest do
+defmodule Playwright.Examples.ExpectTest do
   # Elixir translations of upstream's JS examples, rendered into the facade docs (see ExampleCase).
-  use PlaywrightEx.ExampleCase, async: true
+  use Playwright.ExampleCase, async: true
 
-  alias PlaywrightEx.APIRequestContext
-  alias PlaywrightEx.APIResponse
-  alias PlaywrightEx.TestServer
+  alias Playwright.APIRequestContext
+  alias Playwright.APIResponse
+  alias Playwright.TestServer
 
   @list "<ul><li>Text 1</li><li>Text 2</li><li>Text 3</li></ul>"
 

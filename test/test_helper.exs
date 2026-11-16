@@ -1,6 +1,6 @@
 Logger.configure(level: :info)
 # Upstream's tests/library/playwright.config.ts `expect: { timeout: 10000 }`.
-Application.put_env(:playwright_ex, :expect, timeout: 10_000)
+Application.put_env(:playwright, :expect, timeout: 10_000)
 # Upstream awaits events with no timeout of its own (bounded by the test timeout); ExUnit's
 # 100 ms `assert_receive` default flakes on slow CI runners. As many modules at once as upstream
 # runs workers (Playwright's default: half the logical cores), or `PW_MAX_CASES`.
@@ -10,12 +10,12 @@ max_cases =
     value -> String.to_integer(value)
   end
 
-# `PlaywrightEx.Test`, which every case template gets its browser from (`UpstreamCase`,
-# `ExampleCase`, its own tests in test/playwright_ex/test): the browser under test, artifacts
+# `Playwright.Test`, which every case template gets its browser from (`UpstreamCase`,
+# `ExampleCase`, its own tests in test/playwright/test): the browser under test, artifacts
 # outside the checkout, and a worker for each module running at once.
-Application.put_env(:playwright_ex, :test,
-  browser_name: String.to_atom(PlaywrightEx.TestBrowser.name()),
-  output_dir: Path.join(System.tmp_dir!(), "playwright_ex-test-results"),
+Application.put_env(:playwright, :test,
+  browser_name: String.to_atom(Playwright.TestBrowser.name()),
+  output_dir: Path.join(System.tmp_dir!(), "playwright-test-results"),
   workers: max_cases
 )
 
@@ -34,10 +34,10 @@ ExUnit.start(
   assert_receive_timeout: 10_000,
   max_cases: max_cases,
   formatters:
-    [ExUnit.CLIFormatter, PlaywrightEx.FailuresFormatter, PlaywrightEx.ModuleTimesFormatter] ++
-      if(System.get_env("PW_GITHUB_FORMATTER", "") != "", do: [PlaywrightEx.Test.GitHubFormatter], else: [])
+    [ExUnit.CLIFormatter, Playwright.FailuresFormatter, Playwright.ModuleTimesFormatter] ++
+      if(System.get_env("PW_GITHUB_FORMATTER", "") != "", do: [Playwright.Test.GitHubFormatter], else: [])
 )
 
-# The artifacts dirs of `PlaywrightEx.UpstreamCase`'s drivers. Registered first, so it runs after
-# `PlaywrightEx.Test` stops the drivers.
-ExUnit.after_suite(fn _ -> File.rm_rf(PlaywrightEx.UpstreamCase.artifacts_root()) end)
+# The artifacts dirs of `Playwright.UpstreamCase`'s drivers. Registered first, so it runs after
+# `Playwright.Test` stops the drivers.
+ExUnit.after_suite(fn _ -> File.rm_rf(Playwright.UpstreamCase.artifacts_root()) end)

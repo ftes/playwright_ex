@@ -3,7 +3,7 @@
 Manual tooling (not run by CI, `mix test` or any alias) for failures that only show on CI's
 Linux runners, and for flake rates under load. The image matches CI's test job: Elixir/OTP from
 `.tool-versions`, xvfb, the driver and browsers installed by
-`mix playwright_ex.install -- <browsers> --with-deps`.
+`mix playwright.install -- <browsers> --with-deps`.
 
 The checkout (default: this repo; `-C <path>` for another, e.g. a jj workspace) is rsynced into a
 long-lived container on each command; its `_build` and `deps` stay in the container.
@@ -29,7 +29,7 @@ CPUS=2 scripts/linux/run stress 6 test/upstream/page/workers_test.exs --repeat-u
 
 `PLATFORM=linux/amd64` is CI's architecture (emulated on Apple silicon: slow, with
 `+JMsingle true` for the JIT); the default is the host's architecture (native, fast). Each platform
-has its own container, `playwright_ex-linux-<arch>`. The host's upstream source cache
-(`~/Library/Caches/playwright_ex` or `~/.cache/playwright_ex`) is mounted read-only, as the
+has its own container, `playwright-linux-<arch>`. The host's upstream source cache
+(`~/Library/Caches/playwright` or `~/.cache/playwright`) is mounted read-only, as the
 upstream download's tar extraction fails under emulation. `BROWSER`, `DEBUG` (e.g.
 `pw:protocol`) and the variables named in `PASS_ENV` are forwarded.

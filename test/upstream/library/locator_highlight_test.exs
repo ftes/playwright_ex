@@ -2,18 +2,17 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.LocatorHighlightTest do
+defmodule Playwright.Library.LocatorHighlightTest do
   @upstream "tests/library/locator-highlight.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Playwright
-  alias PlaywrightEx.Selectors
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.Expect
+  alias Playwright.Frame
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Selectors
 
   # test.skip(({ mode }) => mode !== 'default', ...)  -- always default mode
 

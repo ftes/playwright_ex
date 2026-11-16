@@ -2,13 +2,13 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageDropTest do
+defmodule Playwright.Page.PageDropTest do
   @upstream "tests/page/page-drop.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.JSHandle
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
+  alias Playwright.JSHandle
+  alias Playwright.Locator
+  alias Playwright.Page
 
   @moduletag :page
 

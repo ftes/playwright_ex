@@ -3,17 +3,17 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.BrowsertypeLaunchTest do
+defmodule Playwright.Library.BrowsertypeLaunchTest do
   @upstream "tests/library/browsertype-launch.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Runtime
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.BrowserType
+  alias Playwright.Page
+  alias Playwright.Runtime
 
   test "BT-004 should reject all promises when browser is closed", %{browser_type: browser_type} do
     browser = BrowserType.launch!(browser_type)

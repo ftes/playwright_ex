@@ -2,14 +2,14 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.Chromium.LauncherTest do
+defmodule Playwright.Library.Chromium.LauncherTest do
   @upstream "tests/library/chromium/launcher.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.CDPSession
-  alias PlaywrightEx.RemoteServer.LaunchServer
+  alias Playwright.Browser
+  alias Playwright.BrowserType
+  alias Playwright.CDPSession
+  alias Playwright.RemoteServer.LaunchServer
 
   @moduletag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: Chromium only")
 

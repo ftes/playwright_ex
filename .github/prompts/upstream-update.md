@@ -1,10 +1,10 @@
-# Update playwright_ex to a new upstream Playwright release
+# Update the port to a new upstream Playwright release
 
 You run unattended in GitHub Actions, in a checkout of this repo's default branch. The header
 above gives FROM (the pinned upstream version), TO (the new upstream release), VERSION (ours for
 it), BRANCH and the RELEASE link. Elixir deps, the FROM driver and chromium are installed.
 
-playwright_ex is a 1:1 port of the Playwright JS client. Read `PORTING.md` (all of it: the rules
+This repo is a 1:1 port of the Playwright JS client. Read `PORTING.md` (all of it: the rules
 decide how every hunk is ported) and `docs/architecture.md` before changing anything, and study
 the existing ported code next to whatever you port.
 
@@ -21,11 +21,11 @@ the existing ported code next to whatever you port.
    ```
    Read the RELEASE notes too (`gh release view vTO --repo microsoft/playwright`).
 3. Follow PORTING.md "Bumping the pinned version", step by step:
-   1. Run `mix playwright_ex.checksums TO NODE`: it writes `DRIVER_VERSION`, `NODE_VERSION` and
+   1. Run `mix playwright.checksums TO NODE`: it writes `DRIVER_VERSION`, `NODE_VERSION` and
       the checksums. NODE is the current `NODE_VERSION`, or playwright-python's `NODE_VERSION`
       for TO if that changed (look it up in microsoft/playwright-python with `gh` or `curl`). Then
-      `mix playwright_ex.install -- chromium` (driver and browser for TO).
-   2. `mix playwright_ex.gen.protocol` and `mix playwright_ex.gen.api`; commit the generated diff
+      `mix playwright.install -- chromium` (driver and browser for TO).
+   2. `mix playwright.gen.protocol` and `mix playwright.gen.api`; commit the generated diff
       on its own. Then publish, before porting anything, so a run that stops early still leaves
       its work on a PR:
       ```
@@ -35,18 +35,18 @@ the existing ported code next to whatever you port.
    3. Port every hunk of `git -C /tmp/playwright diff vFROM vTO -- packages/playwright-core/src/client
       packages/playwright/src/matchers tests/page tests/library` 1:1, per PORTING's rules: same module per class, upstream order
       and names, `-- not ported: <reason>` / `-- ported as <name>` markers, specs mirrored with
-      identical names and order. Never edit the generated facade (`lib/playwright_ex/api/`) by
+      identical names and order. Never edit the generated facade (`lib/playwright/api/`) by
       hand. Use subagents for independent files when the diff is large.
    4. Read the runner's diff, which is watched rather than ported 1:1 (PORTING step 3):
       ```
       git -C /tmp/playwright diff vFROM vTO -- packages/playwright/src/index.ts packages/playwright/src/common/config.ts packages/playwright/src/common/testType.ts packages/playwright/src/worker/testInfo.ts packages/playwright/src/worker/testTracing.ts packages/playwright/types/test.d.ts
       ```
-      - Port the hunks that touch what `PlaywrightEx.Test` ports: `lib/playwright_ex/test.ex`
-        and `lib/playwright_ex/test/{test_info,test_tracing,recorder,error_context}.ex`.
+      - Port the hunks that touch what `Playwright.Test` ports: `lib/playwright/test.ex`
+        and `lib/playwright/test/{test_info,test_tracing,recorder,error_context}.ex`.
       - Don't port the rest: reporters, retries, projects, fixtures and the CLI.
       - New options, fixtures or defaults go into the PR body under "Runner" as features to
         adopt or skip.
-   5. `mix playwright_ex.parity` until it prints `parity: ok`, handling new, removed and renamed
+   5. `mix playwright.parity` until it prints `parity: ok`, handling new, removed and renamed
       upstream files as PORTING says, and refresh `test/upstream_registry.md`.
    6. Read `git -C /tmp/playwright diff vFROM vTO -- 'docs/src/*.md' ':!docs/src/api'` (upstream's
       guides) and update `guides/` where it adds a pattern or caveat they should mention; list
@@ -62,8 +62,8 @@ the existing ported code next to whatever you port.
    mix format
    mix compile --warnings-as-errors
    mix credo
-   mix playwright_ex.parity
-   mix playwright_ex.gen.api --check
+   mix playwright.parity
+   mix playwright.gen.api --check
    mix test --warnings-as-errors   # BROWSER=chromium is set; a failure: rerun once with --failed
    ```
    A failing test the port did not cause (it fails on FROM as well) is reported, not hidden.
@@ -90,5 +90,5 @@ checklist. A draft PR with a green partial port beats no PR.
 - List non-obvious decisions in the PR checklist.
 - No attribution anywhere: no `Co-Authored-By` trailers, no "Generated with Claude Code" lines,
   in commits, the PR or comments. The repo owner forbids it.
-- Upstream sources come from the release at the pin (`PlaywrightEx.Upstream`, re-downloaded for
+- Upstream sources come from the release at the pin (`Playwright.Upstream`, re-downloaded for
   TO by the mix tasks) and `/tmp/playwright`; nothing else is a reference for TO.

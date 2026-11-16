@@ -3,14 +3,14 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.BrowsercontextSetExtraHttpHeadersTest do
+defmodule Playwright.Library.BrowsercontextSetExtraHttpHeadersTest do
   @upstream "tests/library/browsercontext-set-extra-http-headers.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.TestServer
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.Page
+  alias Playwright.TestServer
 
   defp header(conn, name), do: List.first(Plug.Conn.get_req_header(conn, name))
 

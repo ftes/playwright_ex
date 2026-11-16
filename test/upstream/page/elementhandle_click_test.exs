@@ -3,12 +3,12 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.ElementhandleClickTest do
+defmodule Playwright.Page.ElementhandleClickTest do
   @upstream "tests/page/elementhandle-click.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.ElementHandle
-  alias PlaywrightEx.Page
+  alias Playwright.ElementHandle
+  alias Playwright.Page
 
   @moduletag :page
 

@@ -2,12 +2,12 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.SharedWorkerTest do
+defmodule Playwright.Library.SharedWorkerTest do
   @upstream "tests/library/shared-worker.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Page
+  alias Playwright.BrowserContext
+  alias Playwright.Page
 
   @moduletag :page
 

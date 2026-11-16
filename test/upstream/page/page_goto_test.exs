@@ -3,24 +3,24 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageGotoTest do
+defmodule Playwright.Page.PageGotoTest do
   @upstream "tests/page/page-goto.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
   import ExUnit.CaptureLog
 
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Request
-  alias PlaywrightEx.Response
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TestServer
-  alias PlaywrightEx.TimeoutError
-  alias PlaywrightEx.Utils
+  alias Playwright.BrowserContext
+  alias Playwright.Expect
+  alias Playwright.Page
+  alias Playwright.Request
+  alias Playwright.Response
+  alias Playwright.Route
+  alias Playwright.Runtime
+  alias Playwright.TestServer
+  alias Playwright.TimeoutError
+  alias Playwright.Utils
 
   @moduletag :page
 
@@ -635,7 +635,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
       capture_log(fn ->
         promises = for _ <- 1..20, do: Page.wait_for_navigation(page)
         Page.goto!(page, server.empty_page)
-        for promise <- promises, do: PlaywrightEx.Promise.await!(promise)
+        for promise <- promises, do: Playwright.Promise.await!(promise)
       end)
 
     refute warning =~ "MaxListenersExceededWarning"
@@ -916,7 +916,7 @@ defmodule PlaywrightEx.Page.PageGotoTest do
     frame_detached = Page.wait_for_event(page, :frame_detached)
     done = Runtime.Promise.async(fn -> Page.goto!(page, server.empty_page, wait_until: :load) end)
     # Make sure that iframe is gone.
-    PlaywrightEx.Promise.await!(frame_detached)
+    Playwright.Promise.await!(frame_detached)
     Runtime.Promise.await(done)
     assert Page.query_selector!(page, "iframe") == nil
   end

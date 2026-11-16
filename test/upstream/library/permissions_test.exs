@@ -3,24 +3,24 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.PermissionsTest do
+defmodule Playwright.Library.PermissionsTest do
   @upstream "tests/library/permissions.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Request
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.TestServer
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.BrowserType
+  alias Playwright.Frame
+  alias Playwright.Page
+  alias Playwright.Request
+  alias Playwright.Route
+  alias Playwright.TestServer
 
   @moduletag :page
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  defp get_permission(%PlaywrightEx.Frame{} = frame, name),
+  defp get_permission(%Playwright.Frame{} = frame, name),
     do: Frame.evaluate!(frame, "name => navigator.permissions.query({ name }).then(result => result.state)", name)
 
   defp get_permission(page, name),
@@ -216,7 +216,7 @@ defmodule PlaywrightEx.Library.PermissionsTest do
       if browser_name != "webkit", do: assert(get_permission(page, "clipboard-read") == "prompt")
 
       # isHeadlessShell: headless chromium (no channel).
-      if browser_name == "chromium" and PlaywrightEx.TestBrowser.headless() do
+      if browser_name == "chromium" and Playwright.TestBrowser.headless() do
         # Chromium (but not headless-shell) shows a dialog and does not resolve the promise.
         {:error, error} = Page.evaluate(page, "() => navigator.clipboard.readText()")
         assert Exception.message(error) =~ "denied"

@@ -2,16 +2,16 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.DownloadsPathTest do
+defmodule Playwright.Library.DownloadsPathTest do
   @upstream "tests/library/downloads-path.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Download
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.TestServer
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.BrowserType
+  alias Playwright.Download
+  alias Playwright.Page
+  alias Playwright.TestServer
 
   defp click_download(page), do: Page.expect_download!(page, fn -> Page.click!(page, "a") end)
 

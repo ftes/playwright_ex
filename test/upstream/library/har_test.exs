@@ -3,7 +3,7 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.HarTest.Http2Plug do
+defmodule Playwright.Library.HarTest.Http2Plug do
   # The createHttp2Server handler of "should contain http2 for http2 requests".
   @moduledoc false
   @behaviour Plug
@@ -19,28 +19,27 @@ defmodule PlaywrightEx.Library.HarTest.Http2Plug do
   end
 end
 
-defmodule PlaywrightEx.Library.HarTest do
+defmodule Playwright.Library.HarTest do
   @upstream "tests/library/har.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  alias PlaywrightEx.APIRequest
-  alias PlaywrightEx.APIRequestContext
-  alias PlaywrightEx.APIResponse
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Playwright
-  alias PlaywrightEx.Response
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.TestServer
-  alias PlaywrightEx.Tracing
-  alias PlaywrightEx.Utils
+  alias Playwright.APIRequest
+  alias Playwright.APIRequestContext
+  alias Playwright.APIResponse
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.Page
+  alias Playwright.Response
+  alias Playwright.Route
+  alias Playwright.TestServer
+  alias Playwright.Tracing
+  alias Playwright.Utils
 
   # testInfo.outputPath(): a fresh directory per test.
   setup do
-    dir = Path.join(System.tmp_dir!(), "playwright_ex-har-#{System.unique_integer([:positive])}")
+    dir = Path.join(System.tmp_dir!(), "playwright-har-#{System.unique_integer([:positive])}")
     File.mkdir_p!(dir)
     on_exit(fn -> File.rm_rf!(dir) end)
     %{output_path: &Path.join(dir, &1)}
@@ -101,7 +100,7 @@ defmodule PlaywrightEx.Library.HarTest do
     log = get_log(session)
     assert log["version"] == "1.2"
     assert log["creator"]["name"] == "Playwright"
-    assert log["creator"]["version"] =~ (System.get_env("PW_VERSION_OVERRIDE") || PlaywrightEx.Driver.version())
+    assert log["creator"]["version"] =~ (System.get_env("PW_VERSION_OVERRIDE") || Playwright.Driver.version())
   end
 
   test "HA-002 should have browser", %{
@@ -194,7 +193,7 @@ defmodule PlaywrightEx.Library.HarTest do
     busy_loop(block_until)
     unblocked_at = now_ms()
 
-    PlaywrightEx.Promise.await!(response)
+    Playwright.Promise.await!(response)
     log = get_log(session)
 
     entry = Enum.find(log["entries"], &String.ends_with?(&1["request"]["url"], "/delayed-fetch"))
@@ -474,7 +473,7 @@ defmodule PlaywrightEx.Library.HarTest do
         url: server.empty_page,
         method: "POST",
         headers:
-          Map.merge(PlaywrightEx.Request.headers(Route.request(route)), %{
+          Map.merge(Playwright.Request.headers(Route.request(route)), %{
             "content-type" => "text/plain",
             "cookie" => "foo=bar",
             "custom" => "value"
@@ -768,7 +767,7 @@ defmodule PlaywrightEx.Library.HarTest do
         url: server.empty_page,
         method: "POST",
         headers:
-          Map.merge(PlaywrightEx.Request.headers(Route.request(route)), %{
+          Map.merge(Playwright.Request.headers(Route.request(route)), %{
             "content-type" => "text/plain",
             "cookie" => "foo=bar",
             "custom" => "value"
@@ -1080,7 +1079,7 @@ defmodule PlaywrightEx.Library.HarTest do
     Supervisor.stop(http2_server)
   end
 
-  @headless PlaywrightEx.TestBrowser.headless()
+  @headless Playwright.TestBrowser.headless()
   @tag skip:
          if(@headless and @browser_name != "firefox",
            do: "upstream skip: headless browsers, except firefox, do not request favicons"

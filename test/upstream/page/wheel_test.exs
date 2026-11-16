@@ -2,16 +2,16 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.WheelTest do
+defmodule Playwright.Page.WheelTest do
   @upstream "tests/page/wheel.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Expect
+  alias Playwright.Expect
 
-  alias PlaywrightEx.Keyboard
-  alias PlaywrightEx.Mouse
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Utils
+  alias Playwright.Keyboard
+  alias Playwright.Mouse
+  alias Playwright.Page
+  alias Playwright.Utils
 
   @moduletag :page
 

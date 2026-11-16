@@ -3,13 +3,13 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.ElementhandleTypeTest do
+defmodule Playwright.Page.ElementhandleTypeTest do
   @upstream "tests/page/elementhandle-type.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  alias PlaywrightEx.Page
+  alias Playwright.Page
 
   @moduletag :page
 

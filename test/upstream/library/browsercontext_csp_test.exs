@@ -3,19 +3,19 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.BrowsercontextCspTest do
+defmodule Playwright.Library.BrowsercontextCspTest do
   @upstream "tests/library/browsercontext-csp.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Expect
+  alias Playwright.Expect
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.TestServer
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.Frame
+  alias Playwright.Page
+  alias Playwright.TestServer
 
-  import PlaywrightEx.Utils, only: [attach_frame: 3]
+  import Playwright.Utils, only: [attach_frame: 3]
 
   test "CS-001 should bypass CSP meta tag @smoke", %{browser: browser, server: server} do
     # Make sure CSP prohibits addScriptTag.

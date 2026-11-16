@@ -62,7 +62,7 @@ ours=$(sed -nE 's/^ *@version "([^"]+)".*/\1/p' "$root/mix.exs")
 [[ $from =~ $stable && $ours =~ $semver ]] || { echo "cannot read DRIVER_VERSION/@version" >&2; exit 1; }
 out from "$from"
 
-# The driver is the playwright-core npm package (PlaywrightEx.Driver.npm_url/0), so the npm
+# The driver is the playwright-core npm package (Playwright.Driver.npm_url/0), so the npm
 # registry is the source of truth: dist-tags.latest is the stable release (next/beta are tagged
 # otherwise).
 meta=$(curl -fsSL --retry 3 https://registry.npmjs.org/playwright-core)

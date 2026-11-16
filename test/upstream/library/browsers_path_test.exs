@@ -2,9 +2,9 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.BrowsersPathTest do
+defmodule Playwright.Library.BrowsersPathTest do
   @upstream "tests/library/browsers-path.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   test "BP-001 should import on an unsupported platform when PLAYWRIGHT_BROWSERS_PATH=0"
 

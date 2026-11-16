@@ -3,13 +3,13 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageEmulateMediaTest do
+defmodule Playwright.Page.PageEmulateMediaTest do
   @upstream "tests/page/page-emulate-media.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TestServer
+  alias Playwright.Page
+  alias Playwright.Runtime
+  alias Playwright.TestServer
 
   @moduletag :page
 

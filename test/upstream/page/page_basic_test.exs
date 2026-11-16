@@ -3,17 +3,17 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageBasicTest do
+defmodule Playwright.Page.PageBasicTest do
   @upstream "tests/page/page-basic.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.ConsoleMessage
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TestServer
+  alias Playwright.ConsoleMessage
+  alias Playwright.Expect
+  alias Playwright.Frame
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Runtime
+  alias Playwright.TestServer
 
   @moduletag :page
 

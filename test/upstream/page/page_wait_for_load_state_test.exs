@@ -3,17 +3,17 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageWaitForLoadStateTest do
+defmodule Playwright.Page.PageWaitForLoadStateTest do
   @upstream "tests/page/page-wait-for-load-state.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TestServer
+  alias Playwright.BrowserContext
+  alias Playwright.Frame
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Route
+  alias Playwright.Runtime
+  alias Playwright.TestServer
 
   @moduletag :page
 

@@ -2,12 +2,12 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Examples.DialogTest do
+defmodule Playwright.Examples.DialogTest do
   # Elixir translations of upstream's JS examples, rendered into the facade docs (see ExampleCase).
-  use PlaywrightEx.ExampleCase, async: true
+  use Playwright.ExampleCase, async: true
 
-  alias PlaywrightEx.Dialog
-  alias PlaywrightEx.TestBrowser
+  alias Playwright.Dialog
+  alias Playwright.TestBrowser
 
   example "Dialog",
     js: ~S"""

@@ -3,23 +3,23 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.BrowsercontextRouteTest do
+defmodule Playwright.Library.BrowsercontextRouteTest do
   @upstream "tests/library/browsercontext-route.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Request
-  alias PlaywrightEx.Response
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.TestServer
-  alias PlaywrightEx.Utils
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.Expect
+  alias Playwright.Frame
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Request
+  alias Playwright.Response
+  alias Playwright.Route
+  alias Playwright.TestServer
+  alias Playwright.Utils
 
   # `const intercepted = []; ... intercepted.push(x)`: the handlers send to the test process.
   defp received(acc \\ []) do
@@ -421,7 +421,7 @@ defmodule PlaywrightEx.Library.BrowsercontextRouteTest do
       }
       """)
 
-      response = PlaywrightEx.Promise.await!(resp_promise)
+      response = Playwright.Promise.await!(resp_promise)
       assert Response.status(response) == 200
       requests = requests + length(received())
       assert requests == i + 1

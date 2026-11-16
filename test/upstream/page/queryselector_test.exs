@@ -3,12 +3,12 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.QueryselectorTest do
+defmodule Playwright.Page.QueryselectorTest do
   @upstream "tests/page/queryselector.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.JSHandle
-  alias PlaywrightEx.Page
+  alias Playwright.JSHandle
+  alias Playwright.Page
 
   @moduletag :page
 

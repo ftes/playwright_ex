@@ -3,14 +3,14 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: MIT
 
-defmodule PlaywrightEx.Library.BrowsercontextFetchAlgorithmsTest do
+defmodule Playwright.Library.BrowsercontextFetchAlgorithmsTest do
   @upstream "tests/library/browsercontext-fetch-algorithms.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.APIRequestContext
-  alias PlaywrightEx.APIResponse
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.TestServer
+  alias Playwright.APIRequestContext
+  alias Playwright.APIResponse
+  alias Playwright.BrowserContext
+  alias Playwright.TestServer
 
   @moduletag :page
 

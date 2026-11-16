@@ -3,12 +3,12 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageCheckTest do
+defmodule Playwright.Page.PageCheckTest do
   @upstream "tests/page/page-check.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.ElementHandle
-  alias PlaywrightEx.Page
+  alias Playwright.ElementHandle
+  alias Playwright.Page
 
   @moduletag :page
 

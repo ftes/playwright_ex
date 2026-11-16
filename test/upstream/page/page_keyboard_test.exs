@@ -3,21 +3,21 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageKeyboardTest do
+defmodule Playwright.Page.PageKeyboardTest do
   @upstream "tests/page/page-keyboard.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  alias PlaywrightEx.ElementHandle
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.JSHandle
-  alias PlaywrightEx.Keyboard
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Mouse
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Utils
+  alias Playwright.ElementHandle
+  alias Playwright.Expect
+  alias Playwright.Frame
+  alias Playwright.JSHandle
+  alias Playwright.Keyboard
+  alias Playwright.Locator
+  alias Playwright.Mouse
+  alias Playwright.Page
+  alias Playwright.Utils
 
   @moduletag :page
 

@@ -3,17 +3,17 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.Chromium.DisableWebSecurityTest do
+defmodule Playwright.Library.Chromium.DisableWebSecurityTest do
   @upstream "tests/library/chromium/disable-web-security.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.TestServer
+  alias Playwright.BrowserContext
+  alias Playwright.BrowserType
+  alias Playwright.Expect
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.TestServer
 
   @moduletag :page
   @moduletag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: chromium only")

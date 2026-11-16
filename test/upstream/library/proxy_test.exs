@@ -2,18 +2,18 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.ProxyTest do
+defmodule Playwright.Library.ProxyTest do
   @upstream "tests/library/proxy.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Request
-  alias PlaywrightEx.Response
-  alias PlaywrightEx.TestProxy
-  alias PlaywrightEx.TestServer
+  alias Playwright.Browser
+  alias Playwright.BrowserType
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Request
+  alias Playwright.Response
+  alias Playwright.TestProxy
+  alias Playwright.TestServer
 
   @browser_name System.get_env("BROWSER", "chromium")
 
@@ -197,7 +197,7 @@ defmodule PlaywrightEx.Library.ProxyTest do
       end
 
     # isHeadlessShell is headless chromium (no channel).
-    if browser_name == "chromium" and not PlaywrightEx.TestBrowser.headless() do
+    if browser_name == "chromium" and not Playwright.TestBrowser.headless() do
       # Branded Chromium shows a login dialog for the 401 and fails the navigation.
       assert response_or_error.message =~ "net::ERR_INVALID_AUTH_CREDENTIALS"
     else

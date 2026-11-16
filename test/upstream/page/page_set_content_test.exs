@@ -3,17 +3,17 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageSetContentTest do
+defmodule Playwright.Page.PageSetContentTest do
   @upstream "tests/page/page-set-content.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TestServer
-  alias PlaywrightEx.TimeoutError
+  alias Playwright.Frame
+  alias Playwright.Page
+  alias Playwright.Runtime
+  alias Playwright.TestServer
+  alias Playwright.TimeoutError
 
   @moduletag :page
 

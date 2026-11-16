@@ -3,20 +3,20 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.EmulationFocusTest do
+defmodule Playwright.Library.EmulationFocusTest do
   @upstream "tests/library/emulation-focus.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.Keyboard
-  alias PlaywrightEx.Mouse
-  alias PlaywrightEx.Page
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.BrowserType
+  alias Playwright.Frame
+  alias Playwright.Keyboard
+  alias Playwright.Mouse
+  alias Playwright.Page
 
-  import PlaywrightEx.UpstreamSnapshot
-  import PlaywrightEx.Utils, only: [attach_frame: 3]
+  import Playwright.UpstreamSnapshot
+  import Playwright.Utils, only: [attach_frame: 3]
 
   @moduletag :page
 

@@ -1,11 +1,10 @@
 # Testing with ExUnit
 
-PlaywrightEx is the library, ExUnit is the test runner. `PlaywrightEx.Test` adds what Playwright
+This library is the client, ExUnit is the test runner. `Playwright.Test` adds what Playwright
 Test's worker gives each test: a browser, a fresh context with Playwright Test's defaults, and
 traces, screenshots and videos of failures. This guide tests an app that runs somewhere and is
 reached through a base URL, whatever it is written in. For Phoenix feature tests (with the Ecto
-sandbox), see [Fluffy](https://hex.pm/packages/fluffy). Snippets alias `PlaywrightEx.{Page,
-Locator, ...}`.
+sandbox), see [Fluffy](https://hex.pm/packages/fluffy). Snippets alias `Playwright.{Page, Locator, ...}`.
 
 ## Setup
 
@@ -13,17 +12,17 @@ Configure the runner in `config/test.exs`:
 
 ```elixir
 # config/test.exs
-config :playwright_ex, :test,
+config :playwright, :test,
   context_options: [base_url: "http://localhost:4000"],
   trace: :retain_on_failure,
   screenshot: :only_on_failure
 ```
 
-A test module uses `PlaywrightEx.Case`, which gives each test a `context` and a `page`:
+A test module uses `Playwright.Case`, which gives each test a `context` and a `page`:
 
 ```elixir
 defmodule MyApp.SignUpTest do
-  use PlaywrightEx.Case, async: true
+  use Playwright.Case, async: true
 
   test "signs up", %{page: page} do
     Page.goto!(page, "/sign-up")
@@ -34,13 +33,13 @@ defmodule MyApp.SignUpTest do
 end
 ```
 
-`PlaywrightEx.Case` is a case template of three pieces, the same as:
+`Playwright.Case` is a case template of three pieces, the same as:
 
 ```elixir
 use ExUnit.Case, async: true
-use PlaywrightEx.Test
-alias PlaywrightEx.{Browser, BrowserContext, Expect, Locator, Page}
-alias PlaywrightEx.Test.BrowserPool
+use Playwright.Test
+alias Playwright.{Browser, BrowserContext, Expect, Locator, Page}
+alias Playwright.Test.BrowserPool
 
 setup_all do
   %{browser: BrowserPool.browser()}
@@ -52,13 +51,13 @@ setup %{browser: browser} do
 end
 ```
 
-`use PlaywrightEx.Test` goes after `use ExUnit.Case`. It registers each test, so the contexts it
+`use Playwright.Test` goes after `use ExUnit.Case`. It registers each test, so the contexts it
 creates get Playwright Test's defaults and are recorded, and imports a `test` macro that marks
 the end of each test's body, so the recording knows whether the test passed (ExUnit reports
 failures as before). Doctests and other macros' tests count as failed for their artifacts, and a
 failure only in an `on_exit` callback counts as passed.
 
-`PlaywrightEx.Test.BrowserPool.browser/1` is Playwright Test's `browser` fixture, and the pool
+`Playwright.Test.BrowserPool.browser/1` is Playwright Test's `browser` fixture, and the pool
 is its worker model: called in `setup_all`, it gives the module a driver and browser of its own
 while it runs, as Playwright Test runs a file in one worker. At most `workers` of them run at
 once (config, default half the schedulers, as Playwright Test's `workers`); other modules wait
@@ -73,8 +72,8 @@ than a few big ones.
 
 Options go in as arguments, merged over the config: `BrowserPool.browser(browser_name: :webkit)`,
 `Browser.new_context!(browser, locale: "de-DE")`. `launch_options` are those of
-`PlaywrightEx.BrowserType.launch/2`, `context_options` those of
-`PlaywrightEx.Browser.new_context/2`. Every context a test creates on a pooled browser starts from
+`Playwright.BrowserType.launch/2`, `context_options` those of
+`Playwright.Browser.new_context/2`. Every context a test creates on a pooled browser starts from
 Playwright Test's defaults (`locale: "en-US"`, a 1280x720 viewport, `color_scheme: :light`, ...),
 then the config's `context_options`; the options the call gives win. A context created outside a
 test (in `setup_all`, or a process of no test), or on a driver you started yourself, gets no
@@ -92,7 +91,7 @@ Playwright, `0` never means "fail at once" ([API conventions](api-conventions.md
 
 ## Your own case template
 
-To add setup after the page's, use `PlaywrightEx.Case` in your template's `using` and put the
+To add setup after the page's, use `Playwright.Case` in your template's `using` and put the
 setup after it there; a template's own `setup` runs before the ones its `using` brings in:
 
 ```elixir
@@ -102,10 +101,10 @@ defmodule MyApp.BrowserCase do
 
   using do
     quote do
-      use PlaywrightEx.Case
+      use Playwright.Case
 
       setup %{context: context} do
-        PlaywrightEx.BrowserContext.set_default_timeout(context, 5_000)
+        Playwright.BrowserContext.set_default_timeout(context, 5_000)
         :ok
       end
     end
@@ -114,22 +113,22 @@ end
 ```
 
 To change a piece, say context options from your own tags, write the template from the pieces.
-Its own `setup` runs before those of its `using`, so make `use PlaywrightEx.Test` the first line
+Its own `setup` runs before those of its `using`, so make `use Playwright.Test` the first line
 of its body: the test is then registered before the template's `setup` creates a context (a
 context created before the registration makes it raise, saying so):
 
 ```elixir
 defmodule MyApp.BrowserCase do
   use ExUnit.CaseTemplate
-  use PlaywrightEx.Test
+  use Playwright.Test
 
-  alias PlaywrightEx.{Browser, BrowserContext}
-  alias PlaywrightEx.Test.BrowserPool
+  alias Playwright.{Browser, BrowserContext}
+  alias Playwright.Test.BrowserPool
 
   using do
     quote do
-      use PlaywrightEx.Test
-      alias PlaywrightEx.{Browser, BrowserContext, Expect, Locator, Page}
+      use Playwright.Test
+      alias Playwright.{Browser, BrowserContext, Expect, Locator, Page}
     end
   end
 
@@ -145,14 +144,14 @@ defmodule MyApp.BrowserCase do
 end
 ```
 
-`use PlaywrightEx.Test` imports only `test`; the rest is called qualified, as Playwright Test's
-`test.info()` and `test.step()`: `PlaywrightEx.Test.info/0`, `output_path/1`, `snapshot_path/2`,
+`use Playwright.Test` imports only `test`; the rest is called qualified, as Playwright Test's
+`test.info()` and `test.step()`: `Playwright.Test.info/0`, `output_path/1`, `snapshot_path/2`,
 `step/3`. So a wrapper library's own `step` doesn't clash.
 
 ## Assertions
 
-`PlaywrightEx.Expect` has the web-first assertions: they retry until the page matches or the
-timeout passes. The bang forms raise `PlaywrightEx.ExpectError` with the expected and received
+`Playwright.Expect` has the web-first assertions: they retry until the page matches or the
+timeout passes. The bang forms raise `Playwright.ExpectError` with the expected and received
 values and the call log:
 
 ```elixir
@@ -166,7 +165,7 @@ Prefer them to `assert Locator.text_content!(...) == ...`, which reads once and 
 Their timeout is 5 seconds; set it for the suite in `config/test.exs`:
 
 ```elixir
-config :playwright_ex, :expect, timeout: 10_000
+config :playwright, :expect, timeout: 10_000
 ```
 
 A soft assertion (Playwright Test's `expect.soft`) doesn't stop the test: it fails the test once
@@ -185,7 +184,7 @@ defmodule MyApp.Assertions do
   def assert_expect(fun) do
     fun.()
   rescue
-    e in PlaywrightEx.ExpectError ->
+    e in Playwright.ExpectError ->
       reraise ExUnit.AssertionError, [message: Exception.message(e)], __STACKTRACE__
   end
 end
@@ -210,8 +209,8 @@ Expect.to_match_aria_snapshot!(Page.locator(page, "body"))
 A missing snapshot is written, and fails the test once its body has run, so CI catches a
 snapshot nobody committed; ExUnit reports all of the test's errors. `snapshot_dir` and
 `snapshot_path_template` (Playwright Test's `snapshotDir`, `snapshotPathTemplate`) move them,
-`PlaywrightEx.Test.snapshot_path("home.png", kind: :screenshot)` returns a path, and `update_snapshots` in
-`config :playwright_ex, :expect` (`:all`, `:changed`, `:missing`, `:none`) rewrites them. A
+`Playwright.Test.snapshot_path("home.png", kind: :screenshot)` returns a path, and `update_snapshots` in
+`config :playwright, :expect` (`:all`, `:changed`, `:missing`, `:none`) rewrites them. A
 failed comparison leaves `-actual`, `-expected`, `-previous` and `-diff` images in the test's dir
 under `test-results/`.
 
@@ -271,7 +270,7 @@ All three contexts are recorded into the test's one trace, and each gets its own
 ## Devices
 
 Playwright Test's `test.use({ ...devices['iPhone 13'] })` is a context of the device's options.
-`PlaywrightEx.Playwright.devices/1` takes the pooled browser's Playwright and returns each
+`Playwright.devices/1` takes the pooled browser's Playwright and returns each
 device's options as a map, which `Browser.new_context!/2` takes as they are or with more:
 
 ```elixir
@@ -294,10 +293,10 @@ Playwright Test's `projects`, one run per browser and device, are ExUnit's `para
 ```elixir
 defmodule MyApp.BrowserCase do
   use ExUnit.CaseTemplate
-  use PlaywrightEx.Test
+  use Playwright.Test
 
-  alias PlaywrightEx.{Browser, BrowserContext, Playwright}
-  alias PlaywrightEx.Test.BrowserPool
+  alias Playwright.{Browser, BrowserContext}
+  alias Playwright.Test.BrowserPool
 
   @devices %{chromium: "Desktop Chrome", firefox: "Desktop Firefox", webkit: "Desktop Safari"}
 
@@ -305,8 +304,8 @@ defmodule MyApp.BrowserCase do
 
   using do
     quote do
-      use PlaywrightEx.Test
-      alias PlaywrightEx.{Browser, BrowserContext, Expect, Locator, Page}
+      use Playwright.Test
+      alias Playwright.{Browser, BrowserContext, Expect, Locator, Page}
     end
   end
 
@@ -345,18 +344,18 @@ test-results/sign_up-signs-up-5d41a/test-failed-1.png
 
 A failed test also gets Playwright Test's `error-context.md`: its errors, its source and an aria
 snapshot of its page, for you or an agent to read. A failed test that keeps a trace prints how
-to open it: `mix playwright_ex.cli show-trace test-results/.../trace.zip`. More in the
+to open it: `mix playwright.cli show-trace test-results/.../trace.zip`. More in the
 [Debugging and CI](debugging-and-ci.md) guide.
 
 `trace`, `screenshot` and `video` are `:off` by default, as in Playwright Test.
 `:retain_on_failure` (trace, video) and `:only_on_failure` (screenshot) record every test and
 keep the files of failures; a passing test's are dropped at its end. The config sets them for
-the suite, `use PlaywrightEx.Test`'s options for a module (Playwright Test's file-level
+the suite, `use Playwright.Test`'s options for a module (Playwright Test's file-level
 `test.use({ trace: 'on' })`), and tags for a module, a describe block or a test, as `true`,
 `false` or a mode, each over the one before:
 
 ```elixir
-use PlaywrightEx.Test, trace: :retain_on_failure
+use Playwright.Test, trace: :retain_on_failure
 @moduletag video: :retain_on_failure
 
 @tag trace: :on
@@ -366,7 +365,7 @@ end
 ```
 
 So `trace`, `screenshot` and `video` are reserved tags: a `@tag :screenshot` label turns
-screenshots on, and an invalid value raises. `use PlaywrightEx.Test, tags: false` leaves a
+screenshots on, and an invalid value raises. `use Playwright.Test, tags: false` leaves a
 module's tags to you: the modes then come from the config and the `use` options only. As in
 Playwright Test, each takes options too, with the mode as `:mode`: `trace: [mode: :on,
 snapshots: false]`, `screenshot: [mode: :only_on_failure, full_page: true]`, `video: [mode: :on,
@@ -374,23 +373,23 @@ size: %{width: 640, height: 480}, fps: 10, show: %{test: %{level: "step"}}]` (`s
 the test's title and steps over the video). Each replaces the value under it as a whole; an
 unknown `use` option or an invalid value fails the module's compilation.
 
-`use PlaywrightEx.Case, async: true, trace: :on` takes them next to ExUnit's options. A module's
+`use Playwright.Case, async: true, trace: :on` takes them next to ExUnit's options. A module's
 `use`s merge per key, the later winning, and ExUnit.Case's keys are ignored, so a template
 forwards its options as is, after its own defaults. They go in `using`: a `use` in the
 template's body takes none. Options of the template's own are unknown to `use
-PlaywrightEx.Test` and raise: pop them before forwarding the rest.
+Playwright.Test` and raise: pop them before forwarding the rest.
 
 ```elixir
 defmodule MyApp.BrowserCase do
   use ExUnit.CaseTemplate
-  use PlaywrightEx.Test
+  use Playwright.Test
 
   using opts do
     {sandbox, opts} = Keyword.pop(opts, :sandbox, true)
 
     quote do
-      use PlaywrightEx.Test, screenshot: :only_on_failure
-      use PlaywrightEx.Test, unquote(opts)
+      use Playwright.Test, screenshot: :only_on_failure
+      use Playwright.Test, unquote(opts)
       @moduletag sandbox: unquote(sandbox)
     end
   end
@@ -405,12 +404,12 @@ end
 
 Tracing slows every test. Playwright Test's answer is to trace only the retry of a failure
 (`on-first-retry`). ExUnit has no retries in a run, but `mix test --failed` is one: under it a
-test is Playwright Test's retry (`PlaywrightEx.Test.info().retry` is 1, then 2 on the next
+test is Playwright Test's retry (`Playwright.Test.info().retry` is 1, then 2 on the next
 `--failed`), and the retry modes go by it. So trace only the rerun:
 
 ```elixir
 # config/test.exs
-config :playwright_ex, :test, trace: :on_first_retry
+config :playwright, :test, trace: :on_first_retry
 ```
 
 and rerun the failures in CI, only on exit status 2 (tests failed; a crash or a missed
@@ -435,8 +434,8 @@ test-results/sign_up-signs-up-5d41a-retry1/trace.zip
 
 A run without `--failed` deletes the test's `-retryN` dirs too. The dirs of tests that don't
 run stay, where Playwright Test empties `test-results/` at the start of a run. Files of your own go in the test's dir with
-`PlaywrightEx.Test.output_path("export.csv")`; they stay when the test passes.
-`PlaywrightEx.Test.attach("export", path: path)` (or `body:`) also shows one in the trace, as
+`Playwright.Test.output_path("export.csv")`; they stay when the test passes.
+`Playwright.Test.attach("export", path: path)` (or `body:`) also shows one in the trace, as
 Playwright Test's `testInfo.attach`. Config `preserve_output` is Playwright Test's
 `preserveOutput`: `:failures_only` deletes a passing test's dir at its end, `:never` every
 test's. The retry is counted from the `-retryN` dirs on disk, so under `:never` each `--failed`
@@ -445,25 +444,25 @@ own too, `:retain_on_failure_and_retries`.
 
 The files are written in the test's `on_exit`, which ExUnit runs in reverse order of
 registration. An `on_exit` that reads them (to check a `trace.zip`, say) must therefore be
-registered before the recording's: in a `setup` above `use PlaywrightEx.Test`. `info/0` raises in
-`on_exit`, which runs in a process of its own; `PlaywrightEx.Test.info(test_pid)` works there, with
+registered before the recording's: in a `setup` above `use Playwright.Test`. `info/0` raises in
+`on_exit`, which runs in a process of its own; `Playwright.Test.info(test_pid)` works there, with
 the test's result as Playwright Test's `testInfo` has it in teardown (`status`, `errors`,
 `duration`):
 
 ```elixir
 setup %{test_pid: test_pid} do
   on_exit(fn ->
-    %{status: status, output_dir: dir} = PlaywrightEx.Test.info(test_pid)
+    %{status: status, output_dir: dir} = Playwright.Test.info(test_pid)
     if status != :passed, do: MyApp.CI.upload(Path.join(dir, "trace.zip"))
   end)
 end
 
-use PlaywrightEx.Test
+use Playwright.Test
 ```
 
 ## Steps
 
-`PlaywrightEx.Test.step/3` groups a test's actions under a title, as Playwright Test's `test.step`: the trace
+`Playwright.Test.step/3` groups a test's actions under a title, as Playwright Test's `test.step`: the trace
 (`test.trace` in `trace.zip`) shows the steps, nested, with each matcher call and each driver call
 as a step of its own, and the test's errors. A step returns its body's value and works in a `Task` of the test too:
 
@@ -499,7 +498,7 @@ end
 
 A step runs in the calling process, so `assert_receive` works in it. It takes no `timeout:`, as a
 running body can't be interrupted: the test's timeout bounds it. `step_skip` declares a step
-without running it. `Test` is `PlaywrightEx.Test`, which `PlaywrightEx.Case` aliases.
+without running it. `Test` is `Playwright.Test`, which `Playwright.Case` aliases.
 
 ## Route handlers and listeners
 
@@ -539,14 +538,14 @@ setup %{page: page} = ctx do
 end
 ```
 
-The recording counts such a failure as a pass (see `PlaywrightEx.Test`).
+The recording counts such a failure as a pass (see `Playwright.Test`).
 
 ## Workers
 
 A worker, Playwright Test's, is a driver and its browser, held by the module (`setup_all`) or
 test that calls `BrowserPool.browser/1`: reused warm after a passing scope, replaced after a
-failing one (`PlaywrightEx.Test.BrowserPool` has the rules). That needs the tests' results, so
-`use PlaywrightEx.Test`: without it a module counts as passed. To set up each new driver
+failing one (`Playwright.Test.BrowserPool` has the rules). That needs the tests' results, so
+`use Playwright.Test`: without it a module counts as passed. To set up each new driver
 (register selectors, say), pass `on_start: &MyApp.Selectors.register/1`: the driver's state then
 holds for every scope that gets it.
 
@@ -556,7 +555,7 @@ suite, as Playwright Test's `testIdAttribute`; each pooled driver gets it:
 
 ```elixir
 # config/test.exs
-config :playwright_ex, :test, test_id_attribute: "data-pw"
+config :playwright, :test, test_id_attribute: "data-pw"
 ```
 
 At most `workers` drivers run at once; the others wait, first come first served, inside
@@ -621,11 +620,11 @@ for the Inspector: `PWDEBUG=1 mix test --trace test/my_app/sign_up_test.exs:12` 
 
 To run the browsers elsewhere (Playwright's Docker image, a grid), pass `connect_options`,
 Playwright Test's `connectOptions`: the pool then connects to a Playwright server instead of
-launching. It takes `ws_endpoint` and the options of `PlaywrightEx.BrowserType.connect/3`:
+launching. It takes `ws_endpoint` and the options of `Playwright.BrowserType.connect/3`:
 
 ```elixir
 # config/test.exs
-config :playwright_ex, :test,
+config :playwright, :test,
   connect_options: [ws_endpoint: "ws://localhost:3000/", expose_network: "<loopback>"]
 ```
 
@@ -645,7 +644,7 @@ a suite from the shell, read an env var in the config:
 
 ```elixir
 # config/test.exs
-config :playwright_ex, :test,
+config :playwright, :test,
   connect_options: if(url = System.get_env("PW_TEST_CONNECT_WS_ENDPOINT"), do: [ws_endpoint: url])
 ```
 
@@ -657,14 +656,14 @@ so the server tunnels `localhost` to your machine.
 
 ## The running test
 
-`PlaywrightEx.Test.info/0` is Playwright Test's `test.info()`: the running test's `test_pid`,
+`Playwright.Test.info/0` is Playwright Test's `test.info()`: the running test's `test_pid`,
 `file`, `test_name`, `output_dir`, `timeout` (ExUnit's, `:infinity` for none), `deadline`
 (when ExUnit's timeout ends it, in `System.monotonic_time(:millisecond)`) and `close_deadline`
 (when the runner closes the test's contexts, just before), in the test's process and in
 processes with it in `$callers` (a `Task`, a route handler). A library that owns resources per
 test (an Ecto sandbox owner, a session) finds the test from a `Task` with it:
-`PlaywrightEx.Test.info().test_pid`. Outside a registered test `info/0` raises;
-`PlaywrightEx.Test.in_registered_test?/0` tells first.
+`Playwright.Test.info().test_pid`. Outside a registered test `info/0` raises;
+`Playwright.Test.in_registered_test?/0` tells first.
 
 ## Polling and waiting
 
@@ -707,14 +706,14 @@ Most of a spec ports call for call. What differs (and see [Not supported](#not-s
 - JS `null` is `:null` (`undefined` is `nil`), and objects from `evaluate` are maps with string
   keys (`result["entry"]["foo"]`).
 - A JS regex literal PCRE rejects (`/\patched/`: `\p` is `p` in JS without `u`) needs
-  `PlaywrightEx.RegExp.new/1`, which sends the JS source as it is.
+  `Playwright.RegExp.new/1`, which sends the JS source as it is.
 - `elementHandle.evaluate(...)` is `JSHandle.evaluate!(element_handle, ...)`: an `ElementHandle`
   takes the `JSHandle` functions.
 - Module-level `let` state reset in `beforeEach` becomes per-test state, returned from `setup` or
   kept in an `Agent` (unlinked when an `on_exit` reads it, see "A check after the test").
 - `expect(fn).toPass()` is `Expect.to_pass!/2`, `expect.poll(fn).toBe(x)` is
   `Expect.poll!(fn, &assert(&1 == x))`, and a call started now and awaited later
-  (`const p = locator.evaluate(...)`) is `PlaywrightEx.Promise.async/1` (see
+  (`const p = locator.evaluate(...)`) is `Playwright.Promise.async/1` (see
   [Concurrency](concurrency.md)).
 
 ## Not supported
@@ -734,7 +733,7 @@ Playwright Test features ExUnit can't host, or that ExUnit and Elixir already co
 | trace annotations | ExUnit has no annotations | none: a trace's `annotations` are `[]` |
 | `json`, `junit` reporters | ExUnit formatters cover them | an ExUnit formatter, such as the `junit_formatter` Hex package |
 | `list`, `line`, `dot` reporters | ExUnit's output covers them | ExUnit's CLI formatter |
-| reporter plugins (monocart coverage, ...) | there are no reporters to plug into | none: `PlaywrightEx.Coverage` collects, your code reports |
+| reporter plugins (monocart coverage, ...) | there are no reporters to plug into | none: `Playwright.Coverage` collects, your code reports |
 | `webServer` | `test_helper.exs` starts what a run needs | start the endpoint in `test_helper.exs`, or `server: true` in the test config |
 
 Not yet: the HTML reporter with `blob` and `merge-reports`

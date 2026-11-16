@@ -2,17 +2,16 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.BrowsertypeLaunchSeleniumTest do
+defmodule Playwright.Library.BrowsertypeLaunchSeleniumTest do
   @upstream "tests/library/browsertype-launch-selenium.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Playwright
-  alias PlaywrightEx.RemoteServer.ChildProcess
-  alias PlaywrightEx.Runtime.Facade
+  alias Playwright.Browser
+  alias Playwright.BrowserType
+  alias Playwright.Expect
+  alias Playwright.Page
+  alias Playwright.RemoteServer.ChildProcess
+  alias Playwright.Runtime.Facade
 
   @browser_name System.get_env("BROWSER", "chromium")
 
@@ -106,7 +105,7 @@ defmodule PlaywrightEx.Library.BrowsertypeLaunchSeleniumTest do
   # the launch's default args (`--headless` included) in goog:chromeOptions: Chrome runs headless.
   defp launch(browser_type, test_hook_selenium_remote_url) do
     Facade.async("browserType.launch", browser_type, fn ->
-      PlaywrightEx.Client.BrowserType.launch(browser_type, %{__testHookSeleniumRemoteURL: test_hook_selenium_remote_url})
+      Playwright.Client.BrowserType.launch(browser_type, %{__testHookSeleniumRemoteURL: test_hook_selenium_remote_url})
     end)
   end
 
@@ -307,12 +306,12 @@ defmodule PlaywrightEx.Library.BrowsertypeLaunchSeleniumTest do
     name = :selenium_run_driver
 
     start_supervised!(
-      {PlaywrightEx.Supervisor,
+      {Playwright.Supervisor,
        name: name, env: [{"PWTEST_UNDER_TEST", "1"}, {"SELENIUM_REMOTE_URL", "http://127.0.0.1:#{port}/wd/hub"}]},
       id: name
     )
 
-    pw = PlaywrightEx.playwright(name)
+    pw = Playwright.instance(name)
     browser = BrowserType.launch!(Playwright.chromium(pw))
     page = Browser.new_page!(browser)
     Page.set_content!(page, "<title>Hello world</title><div>Get Started</div>")

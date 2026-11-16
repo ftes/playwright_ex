@@ -2,29 +2,29 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.BrowsercontextHarTest do
+defmodule Playwright.Library.BrowsercontextHarTest do
   @upstream "tests/library/browsercontext-har.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Request
-  alias PlaywrightEx.Response
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TestServer
-  alias PlaywrightEx.Utils
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.Expect
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Request
+  alias Playwright.Response
+  alias Playwright.Route
+  alias Playwright.Runtime
+  alias Playwright.TestServer
+  alias Playwright.Utils
 
   # browserTest's `context` fixture.
   @moduletag :page
 
   # testInfo.outputPath(): a fresh directory per test.
   setup do
-    dir = Path.join(System.tmp_dir!(), "playwright_ex-har-#{System.unique_integer([:positive])}")
+    dir = Path.join(System.tmp_dir!(), "playwright-har-#{System.unique_integer([:positive])}")
     File.mkdir_p!(dir)
     on_exit(fn -> File.rm_rf!(dir) end)
     %{output_path: &Path.join(dir, &1)}

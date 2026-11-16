@@ -3,24 +3,24 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.WorkersTest do
+defmodule Playwright.Page.WorkersTest do
   @upstream "tests/page/workers.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Expect
+  alias Playwright.Expect
 
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.ConsoleMessage
-  alias PlaywrightEx.JSHandle
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Request
-  alias PlaywrightEx.Response
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TestServer
-  alias PlaywrightEx.Utils
-  alias PlaywrightEx.Worker
+  alias Playwright.BrowserContext
+  alias Playwright.ConsoleMessage
+  alias Playwright.JSHandle
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Request
+  alias Playwright.Response
+  alias Playwright.Route
+  alias Playwright.Runtime
+  alias Playwright.TestServer
+  alias Playwright.Utils
+  alias Playwright.Worker
 
   @moduletag :page
 

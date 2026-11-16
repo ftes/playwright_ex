@@ -2,19 +2,19 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.ScreencastOverlayTest do
+defmodule Playwright.Library.ScreencastOverlayTest do
   @upstream "tests/library/screencast-overlay.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   import Bitwise
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Disposable
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Screencast
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.Disposable
+  alias Playwright.Expect
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Screencast
 
   # test.skip(({ mode }) => mode !== 'default', 'Overlay uses an open shadow root only in default mode');  -- always default mode
 

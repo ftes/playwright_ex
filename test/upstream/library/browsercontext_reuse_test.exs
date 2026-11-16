@@ -2,26 +2,26 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.BrowsercontextReuseTest do
+defmodule Playwright.Library.BrowsercontextReuseTest do
   @upstream "tests/library/browsercontext-reuse.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  import PlaywrightEx.Utils, only: [verify_viewport: 3]
+  import Playwright.Utils, only: [verify_viewport: 3]
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Client
-  alias PlaywrightEx.Clock
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Mouse
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.RemoteServer.LaunchServer
-  alias PlaywrightEx.Runtime.Api
-  alias PlaywrightEx.TestServer
-  alias PlaywrightEx.Tracing
-  alias PlaywrightEx.WebSocketRoute
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.BrowserType
+  alias Playwright.Client
+  alias Playwright.Clock
+  alias Playwright.Expect
+  alias Playwright.Mouse
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.RemoteServer.LaunchServer
+  alias Playwright.Runtime.Api
+  alias Playwright.TestServer
+  alias Playwright.Tracing
+  alias Playwright.WebSocketRoute
 
   # class LaunchScenario: `browser._disconnectFromReusedContext` / `_newContextForReuse` are
   # internal client methods (not in the facade), called inside an API scope as the facade does.

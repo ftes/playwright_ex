@@ -3,15 +3,15 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageClickTimeout4Test do
+defmodule Playwright.Page.PageClickTimeout4Test do
   @upstream "tests/page/page-click-timeout-4.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  import PlaywrightEx.Utils, only: [rafraf: 1]
+  import Playwright.Utils, only: [rafraf: 1]
 
-  alias PlaywrightEx.ElementHandle
-  alias PlaywrightEx.JSHandle
-  alias PlaywrightEx.Page
+  alias Playwright.ElementHandle
+  alias Playwright.JSHandle
+  alias Playwright.Page
 
   @moduletag :page
 

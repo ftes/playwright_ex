@@ -1,4 +1,4 @@
-defmodule PlaywrightEx.ExampleCase do
+defmodule Playwright.ExampleCase do
   @moduledoc """
   Case template for the Elixir translations of the facade docs' JS examples (`test/examples`).
 
@@ -8,8 +8,8 @@ defmodule PlaywrightEx.ExampleCase do
         Page.get_by_role(page, :button) |> Locator.click!()
       end
 
-  Each `example` is a test, and `mix playwright_ex.gen.api` renders its body (the source between
-  `do` and `end`, see `Mix.PlaywrightEx.Examples`) in place of the upstream block equal to `js:`.
+  Each `example` is a test, and `mix playwright.gen.api` renders its body (the source between
+  `do` and `end`, see `Mix.Playwright.Examples`) in place of the upstream block equal to `js:`.
   So a translation compiles and runs before it is shown, and an upstream change to the JS leaves a
   stale example the generator reports.
 
@@ -30,43 +30,43 @@ defmodule PlaywrightEx.ExampleCase do
   A body that is one `test "name", %{page: page} do ... end` (upstream's test-runner examples)
   runs that block, its pattern matched against those four. Output (`IO.puts`) is captured.
 
-  `browser` is the module's `PlaywrightEx.Test.BrowserPool.browser/1`, on `UpstreamCase`'s
-  driver (`PlaywrightEx.UpstreamCase.pool_options/0`, see `PlaywrightEx.DriverCleanup`), and
+  `browser` is the module's `Playwright.Test.BrowserPool.browser/1`, on `UpstreamCase`'s
+  driver (`Playwright.UpstreamCase.pool_options/0`, see `Playwright.DriverCleanup`), and
   `playwright` its driver's.
   """
   use ExUnit.CaseTemplate
   # First: the template's own `setup` creates the context.
-  use PlaywrightEx.Test
+  use Playwright.Test
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Client.ClientInstrumentation
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.Runtime.Heap
-  alias PlaywrightEx.Test.BrowserPool
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.Client.ClientInstrumentation
+  alias Playwright.Page
+  alias Playwright.Route
+  alias Playwright.Runtime.Heap
+  alias Playwright.Test.BrowserPool
 
   @html "<!doctype html><title>Example</title>"
 
   using do
     quote do
       # `example` is a `test`.
-      use PlaywrightEx.Test
-      import PlaywrightEx.ExampleCase, only: [example: 3]
+      use Playwright.Test
+      import Playwright.ExampleCase, only: [example: 3]
 
       # The docs' examples use the short names.
-      alias PlaywrightEx.{Browser, BrowserContext, BrowserType, Expect, Frame, FrameLocator, Keyboard, Locator, Mouse}
-      alias PlaywrightEx.{Page, Playwright, Request, Response, Route, Selectors}
+      alias Playwright.{Browser, BrowserContext, BrowserType, Expect, Frame, FrameLocator, Keyboard, Locator, Mouse}
+      alias Playwright.{Page, Request, Response, Route, Selectors}
     end
   end
 
   setup_all do
-    browser = BrowserPool.browser(PlaywrightEx.UpstreamCase.pool_options())
+    browser = BrowserPool.browser(Playwright.UpstreamCase.pool_options())
     %{playwright: BrowserPool.playwright(browser), browser: browser}
   end
 
   setup %{playwright: playwright, browser: browser},
-    do: PlaywrightEx.DriverCleanup.track_test(playwright, keep: [browser])
+    do: Playwright.DriverCleanup.track_test(playwright, keep: [browser])
 
   setup %{playwright: playwright, browser: browser} = tags do
     context = Browser.new_context!(browser)

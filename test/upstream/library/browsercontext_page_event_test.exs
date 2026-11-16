@@ -3,16 +3,16 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.BrowsercontextPageEventTest do
+defmodule Playwright.Library.BrowsercontextPageEventTest do
   @upstream "tests/library/browsercontext-page-event.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TestServer
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Runtime
+  alias Playwright.TestServer
 
   test "BC-062 should have url", %{browser: browser, server: server} do
     context = Browser.new_context!(browser)

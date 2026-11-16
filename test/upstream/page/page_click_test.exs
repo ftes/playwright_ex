@@ -3,28 +3,28 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageClickTest do
+defmodule Playwright.Page.PageClickTest do
   @upstream "tests/page/page-click.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  import PlaywrightEx.Utils, only: [attach_frame: 3, rafraf: 2, rafraf: 1]
+  import Playwright.Utils, only: [attach_frame: 3, rafraf: 2, rafraf: 1]
 
-  alias PlaywrightEx.AbortController
-  alias PlaywrightEx.ConsoleMessage
-  alias PlaywrightEx.ElementHandle
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.FrameLocator
-  alias PlaywrightEx.JSHandle
-  alias PlaywrightEx.Keyboard
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Mouse
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TestServer
+  alias Playwright.AbortController
+  alias Playwright.ConsoleMessage
+  alias Playwright.ElementHandle
+  alias Playwright.Expect
+  alias Playwright.Frame
+  alias Playwright.FrameLocator
+  alias Playwright.JSHandle
+  alias Playwright.Keyboard
+  alias Playwright.Locator
+  alias Playwright.Mouse
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Runtime
+  alias Playwright.TestServer
 
   @moduletag :page
 

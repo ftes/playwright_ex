@@ -2,14 +2,14 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.PdfTest do
+defmodule Playwright.Library.PdfTest do
   @upstream "tests/library/pdf.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Page
+  alias Playwright.BrowserContext
+  alias Playwright.Page
 
   @tag :tmp_dir
   @tag skip:

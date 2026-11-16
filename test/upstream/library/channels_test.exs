@@ -3,14 +3,14 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.ChannelsTest do
+defmodule Playwright.Library.ChannelsTest do
   @upstream "tests/library/channels.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.WebSocket
+  alias Playwright.Browser
+  alias Playwright.BrowserType
+  alias Playwright.Page
+  alias Playwright.WebSocket
 
   # expectScopeState compares the client's and the server's (toImplInWorkerScope) object trees.
 

@@ -2,14 +2,14 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.LocatorWaitForFunctionTest do
+defmodule Playwright.Page.LocatorWaitForFunctionTest do
   @upstream "tests/page/locator-wait-for-function.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.AbortController
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Runtime
+  alias Playwright.AbortController
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Runtime
 
   @moduletag :page
 

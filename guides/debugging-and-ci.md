@@ -1,10 +1,10 @@
 # Debugging and CI
 
-Snippets alias `PlaywrightEx.{Page, BrowserContext, Tracing, ...}`.
+Snippets alias `Playwright.{Page, BrowserContext, Tracing, ...}`.
 
 ## Errors and call logs
 
-A failed call says what it waited for. The message of a `PlaywrightEx.TimeoutError` ends with
+A failed call says what it waited for. The message of a `Playwright.TimeoutError` ends with
 the call log, the steps the driver took; `error.log` has them as a list:
 
 ```
@@ -13,7 +13,7 @@ Call log:
   - waiting for getByRole('button', { name: 'Save' })
 ```
 
-A failed `Expect.*` bang raises `PlaywrightEx.ExpectError` with the expected and received values and
+A failed `Expect.*` bang raises `Playwright.ExpectError` with the expected and received values and
 the same log. Most failures are clear from that alone.
 
 ## Traces
@@ -31,13 +31,13 @@ Tracing.stop!(tracing, path: "tmp/trace.zip")
 Open it in the trace viewer (it opens a browser window):
 
 ```sh
-mix playwright_ex.cli show-trace tmp/trace.zip
+mix playwright.cli show-trace tmp/trace.zip
 ```
 
 or drop the file on [trace.playwright.dev](https://trace.playwright.dev).
-[`Tracing.group!/3`](`PlaywrightEx.Tracing.group!/3`) and
-[`Tracing.group_end!/1`](`PlaywrightEx.Tracing.group_end!/1`) name a group of steps. In tests,
-`PlaywrightEx.Test` traces failing tests, on a rerun or retained on failure ([Testing with
+[`Tracing.group!/3`](`Playwright.Tracing.group!/3`) and
+[`Tracing.group_end!/1`](`Playwright.Tracing.group_end!/1`) name a group of steps. In tests,
+`Playwright.Test` traces failing tests, on a rerun or retained on failure ([Testing with
 ExUnit](testing-with-exunit.md#traces-screenshots-and-videos)).
 
 ## Screenshots and videos
@@ -75,10 +75,10 @@ them: send them to the test process and `refute_received` at the end.
 ## Watching it run
 
 Headless is the default. Locally, run a headed browser slowed down, and
-[`Page.pause!/1`](`PlaywrightEx.Page.pause!/1`) to stop in the Playwright Inspector:
+[`Page.pause!/1`](`Playwright.Page.pause!/1`) to stop in the Playwright Inspector:
 
 ```elixir
-PlaywrightEx.playwright() |> Playwright.chromium() |> BrowserType.launch!(headless: false, slow_mo: 500)
+Playwright.instance() |> Playwright.chromium() |> BrowserType.launch!(headless: false, slow_mo: 500)
 ```
 
 `PWDEBUG=1` opens the Playwright Inspector, as in Playwright Test. Run one test with
@@ -95,7 +95,7 @@ contexts close.
 The driver's own logs go to stderr with `DEBUG=pw:api` in its environment:
 
 ```elixir
-{PlaywrightEx.Supervisor, env: [{"DEBUG", "pw:api"}]}
+{Playwright.Supervisor, env: [{"DEBUG", "pw:api"}]}
 ```
 
 ## GitHub Actions
@@ -103,7 +103,7 @@ The driver's own logs go to stderr with `DEBUG=pw:api` in its environment:
 Install the browsers with their system packages (`--with-deps` runs `apt-get`):
 
 ```yaml
-- run: mix playwright_ex.install -- chromium --with-deps
+- run: mix playwright.install -- chromium --with-deps
 - run: mix test
 - uses: actions/upload-artifact@v7
   if: failure()
@@ -113,7 +113,7 @@ Install the browsers with their system packages (`--with-deps` runs `apt-get`):
 ```
 
 As upstream advises, don't cache the browsers: restoring takes about as long as downloading,
-and the system packages can't be cached. To cache them anyway, cache `~/.cache/playwright_ex`
+and the system packages can't be cached. To cache them anyway, cache `~/.cache/playwright`
 and `~/.cache/ms-playwright` against `hashFiles('mix.lock')`, which pins the driver version. If
 the runner's apt mirror stalls, this repository's
 [workflow](https://github.com/ftes/playwright_ex/blob/main/.github/workflows/elixir.yml) retries
@@ -123,7 +123,7 @@ and caches the `.deb` files.
 
 Or run the job in Playwright's image, which has every browser (at `PLAYWRIGHT_BROWSERS_PATH`)
 and its system packages, so only the driver is installed. The image's version must match the
-driver's (`PlaywrightEx.Driver.version/0`). `erlef/setup-beam` needs `unzip`, `ImageOS` and
+driver's (`Playwright.Driver.version/0`). `erlef/setup-beam` needs `unzip`, `ImageOS` and
 `HOME` there. It pays off with WebKit or many browser jobs. The image is about 2 GB, pulled per
 job on hosted runners, and it is Ubuntu 24.04: a `_build` (with NIFs) or a cached OTP from a job
 on `ubuntu-latest` may not run in it, so build in the image too. Services are reached by name,
@@ -144,13 +144,13 @@ steps:
       elixir-version: "1.20"
       otp-version: "29"
   - run: mix deps.get
-  - run: mix playwright_ex.install --no-browsers
+  - run: mix playwright.install --no-browsers
   - run: mix test
 ```
 
 ### Annotations
 
-`PlaywrightEx.Test.GitHubFormatter` is Playwright Test's `github` reporter: annotations for the
+`Playwright.Test.GitHubFormatter` is Playwright Test's `github` reporter: annotations for the
 failed tests (at their line), failed `setup_all`s and slow files, and a summary. It prints
 only those, so name `ExUnit.CLIFormatter` next to it (`--formatter` replaces the configured
 formatters). When failures are rerun, pass it to the first run only, or a test failing twice is
@@ -166,7 +166,7 @@ them off:
     otp-version: "29"
     disable_problem_matchers: true
 - run: |
-    mix test --formatter ExUnit.CLIFormatter --formatter PlaywrightEx.Test.GitHubFormatter ||
+    mix test --formatter ExUnit.CLIFormatter --formatter Playwright.Test.GitHubFormatter ||
       { [ $? -eq 2 ] && mix test --failed; }
 ```
 
@@ -179,7 +179,7 @@ FROM elixir:1.20
 WORKDIR /app
 COPY mix.exs mix.lock ./
 RUN mix local.hex --force && mix deps.get && mix deps.compile
-RUN mix playwright_ex.install -- chromium --with-deps
+RUN mix playwright.install -- chromium --with-deps
 COPY . .
 CMD ["mix", "test"]
 ```
@@ -188,7 +188,7 @@ CMD ["mix", "test"]
 
 When the tests can't run in Playwright's image (local development on macOS, or an app's own
 image), run only the browsers there and connect to them. The image's version must match the
-driver's (`PlaywrightEx.Driver.version/0`):
+driver's (`Playwright.Driver.version/0`):
 
 ```sh
 docker run -p 3000:3000 --rm --init -it mcr.microsoft.com/playwright:v1.65.0-noble \
@@ -197,14 +197,14 @@ docker run -p 3000:3000 --rm --init -it mcr.microsoft.com/playwright:v1.65.0-nob
 
 ```elixir
 browser =
-  PlaywrightEx.playwright()
+  Playwright.instance()
   |> Playwright.chromium()
   |> BrowserType.connect!("ws://localhost:3000/", expose_network: "<loopback>")
 ```
 
 The local driver still runs; only the browser is remote. `expose_network: "<loopback>"` lets the
 remote browser reach `localhost` on your machine, where the app under test runs. For the pooled
-browsers of `PlaywrightEx.Test`, set `connect_options`
+browsers of `Playwright.Test`, set `connect_options`
 ([Remote browsers](testing-with-exunit.md#remote-browsers)).
 
 More: [trace viewer](https://playwright.dev/python/docs/trace-viewer-intro),

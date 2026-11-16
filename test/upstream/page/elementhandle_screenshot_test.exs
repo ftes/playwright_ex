@@ -3,17 +3,17 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.ElementhandleScreenshotTest do
+defmodule Playwright.Page.ElementhandleScreenshotTest do
   @upstream "tests/page/elementhandle-screenshot.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  import PlaywrightEx.UpstreamSnapshot
-  import PlaywrightEx.Utils
+  import Playwright.UpstreamSnapshot
+  import Playwright.Utils
 
-  alias PlaywrightEx.ElementHandle
-  alias PlaywrightEx.JSHandle
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Runtime
+  alias Playwright.ElementHandle
+  alias Playwright.JSHandle
+  alias Playwright.Page
+  alias Playwright.Runtime
 
   @moduletag :page
 

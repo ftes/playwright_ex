@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { chromium } = require(process.env.PW_CORE);
 // Upstream's test assets: the host's checkout, else the one the test suite downloaded.
-const assets = (process.env.PLAYWRIGHT_EX_UPSTREAM || path.join(process.env.PW_CORE, '../../upstream')) + '/tests/assets';
+const assets = (process.env.PW_UPSTREAM || path.join(process.env.PW_CORE, '../../upstream')) + '/tests/assets';
 
 async function attachFrame(page, frameId, url) {
   const handle = await page.evaluateHandle(async ({ frameId, url }) => {

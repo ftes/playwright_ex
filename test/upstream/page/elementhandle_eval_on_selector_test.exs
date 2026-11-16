@@ -3,12 +3,12 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.ElementhandleEvalOnSelectorTest do
+defmodule Playwright.Page.ElementhandleEvalOnSelectorTest do
   @upstream "tests/page/elementhandle-eval-on-selector.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.ElementHandle
-  alias PlaywrightEx.Page
+  alias Playwright.ElementHandle
+  alias Playwright.Page
 
   @moduletag :page
 

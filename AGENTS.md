@@ -1,22 +1,24 @@
-# PlaywrightEx
+# Playwright
 
 A statement-by-statement port of the Playwright JS client to Elixir. The rules are in
 [`PORTING.md`](PORTING.md) (how to port) and [`docs/architecture.md`](docs/architecture.md) (why).
 Read them before changing ported code.
 
+- Names: the modules are `Playwright.*`, the app `:playwright` (`config :playwright`,
+  `mix playwright.*`); only the Hex package and the GitHub repo are `playwright_ex`.
 - Deviate only where the port requires it. For an edge case upstream's client shares, keep
   upstream's behaviour, even when it looks wrong, and don't add a special case.
 - Upstream's sources at the pin (client, server, injected script, specs, API docs) are the
-  reference: `mix playwright_ex.upstream` (part of `mix setup`) downloads them and prints their
+  reference: `mix playwright.upstream` (part of `mix setup`) downloads them and prints their
   directory, `<cache_dir>/<version>/upstream`.
-- `PlaywrightEx.Test` (ExUnit runner and browser pool, `lib/playwright_ex/test*`) is a native runner, with no
+- `Playwright.Test` (ExUnit runner and browser pool, `lib/playwright/test*`) is a native runner, with no
   port markers. Only what the ported matchers and traces need is ported: testInfo, `test.trace`
-  and `step` (`PlaywrightEx.Test.{TestInfo, TestTracing}`, `test.ex`), with upstream source
+  and `step` (`Playwright.Test.{TestInfo, TestTracing}`, `test.ex`), with upstream source
   references and `-- not ported`/`# deviation:` comments, but no `@upstream`: parity covers the
   client API, not the runner.
 - `mix check` is the full verification (format, credo, compile, dialyzer, parity, tests).
-- Files marked "do not edit manually" are generated: run `mix playwright_ex.gen.api`
-  (`mix playwright_ex.gen.protocol` for the protocol) instead of editing them.
+- Files marked "do not edit manually" are generated: run `mix playwright.gen.api`
+  (`mix playwright.gen.protocol` for the protocol) instead of editing them.
 - The block marked `usage_rules` below is generated: after updating deps run
   `mix usage_rules.sync --yes`; `mix check` fails when it's stale. On Renovate's PRs a workflow
   commits it.

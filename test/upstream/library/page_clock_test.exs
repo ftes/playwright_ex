@@ -2,18 +2,18 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.PageClockTest do
+defmodule Playwright.Library.PageClockTest do
   @upstream "tests/library/page-clock.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Clock
-  alias PlaywrightEx.ConsoleMessage
-  alias PlaywrightEx.JSHandle
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TestServer
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.Clock
+  alias Playwright.ConsoleMessage
+  alias Playwright.JSHandle
+  alias Playwright.Page
+  alias Playwright.Runtime
+  alias Playwright.TestServer
 
   @moduletag :page
 
@@ -886,6 +886,6 @@ defmodule PlaywrightEx.Library.PageClockTest do
 
     wait_for_done = Page.wait_for_event(page, :console, &(ConsoleMessage.text(&1) == "done"))
     Page.goto!(page, server.prefix <> "/repro.html")
-    PlaywrightEx.Promise.await!(wait_for_done)
+    Playwright.Promise.await!(wait_for_done)
   end
 end

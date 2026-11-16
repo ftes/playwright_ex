@@ -2,12 +2,12 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Examples.RequestTest do
+defmodule Playwright.Examples.RequestTest do
   # Elixir translations of upstream's JS examples, rendered into the facade docs (see ExampleCase).
-  use PlaywrightEx.ExampleCase, async: true
+  use Playwright.ExampleCase, async: true
 
   # The redirect is a fulfilled route, which WebKit doesn't follow (upstream's page-route.spec.ts).
-  @redirect if(PlaywrightEx.TestBrowser.name() == "webkit", do: "WebKit can't fulfill a route with a redirect")
+  @redirect if(Playwright.TestBrowser.name() == "webkit", do: "WebKit can't fulfill a route with a redirect")
 
   example "Request.frame",
     js: ~S"""
@@ -83,7 +83,7 @@ defmodule PlaywrightEx.Examples.RequestTest do
     """ do
     request_finished_promise = Page.wait_for_event(page, :request_finished)
     Page.goto!(page, "http://example.com")
-    request = PlaywrightEx.Promise.await!(request_finished_promise)
+    request = Playwright.Promise.await!(request_finished_promise)
     Request.timing(request)
     # => %{startTime: 1730000000000.0, domainLookupStart: -1, ...}
   end

@@ -1,6 +1,6 @@
 # Cheatsheet
 
-Frequent calls, JS first, Elixir below. Snippets alias `PlaywrightEx.{Page, Locator, ...}`;
+Frequent calls, JS first, Elixir below. Snippets alias `Playwright.{Page, Locator, ...}`;
 [From playwright.dev to Elixir](api-conventions.md) explains the rules behind them.
 
 ## Setup
@@ -15,7 +15,7 @@ const page = await context.newPage();
 ```
 
 ```elixir
-browser = PlaywrightEx.playwright() |> Playwright.chromium() |> BrowserType.launch!()
+browser = Playwright.instance() |> Playwright.chromium() |> BrowserType.launch!()
 context = Browser.new_context!(browser, base_url: "http://localhost:4000")
 page = BrowserContext.new_page!(context)
 ```

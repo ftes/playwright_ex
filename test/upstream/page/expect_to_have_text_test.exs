@@ -2,13 +2,13 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.ExpectToHaveTextTest do
+defmodule Playwright.Page.ExpectToHaveTextTest do
   @upstream "tests/page/expect-to-have-text.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
+  alias Playwright.Expect
+  alias Playwright.Locator
+  alias Playwright.Page
 
   @moduletag :page
 

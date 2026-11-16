@@ -2,14 +2,14 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.EmulationCoopTest do
+defmodule Playwright.Library.EmulationCoopTest do
   @upstream "tests/library/emulation-coop.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.TestServer
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.Page
+  alias Playwright.TestServer
 
   defp setup_routes(server) do
     for {path, coop} <- [{"/plain.html", false}, {"/coop.html", true}] do
