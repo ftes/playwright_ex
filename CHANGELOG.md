@@ -28,8 +28,8 @@ those of the release candidates below. From an earlier release, also read the se
   Move every library you depend on that uses PlaywrightEx in the same bump: while one still
   declares `:playwright_ex`, Mix fetches both packages, which compile side by side without a
   warning, and that library keeps driving PlaywrightEx and ignores `config :playwright`. Check that
-  `mix deps.tree` lists no `playwright_ex`, then drop its stale lock entry with
-  `mix deps.unlock --unused` (`mix deps.unlock --check-unused` fails on it).
+  `mix deps.tree` lists no `playwright_ex`, then remove it from `mix.lock`, `deps/` and `_build/`
+  with `mix deps.clean --unused --unlock` (`mix deps.unlock --check-unused` fails on the lock entry).
 
   In a module that aliases a `Playwright` of its own (`alias MyApp.Playwright`),
   `Playwright.instance()` and `Playwright.Page` silently resolve to that module: alias it

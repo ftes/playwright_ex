@@ -29,8 +29,8 @@ the links go to the other `playwright` library's docs.
 Upgrade every library you depend on that uses PlaywrightEx at the same time. While one still
 declares `:playwright_ex`, Mix fetches both packages, and they compile side by side without a
 warning: that library keeps driving PlaywrightEx and ignores `config :playwright`. Check that
-`mix deps.tree` lists no `playwright_ex`, then run `mix deps.unlock --unused` to drop its lock
-entry. The driver cache moves from `<user cache>/playwright_ex` to `<user cache>/playwright`;
+`mix deps.tree` lists no `playwright_ex`, then run `mix deps.clean --unused --unlock` to remove
+it from `mix.lock`, `deps/` and `_build/`. The driver cache moves from `<user cache>/playwright_ex` to `<user cache>/playwright`;
 delete the old one.
 
 ## Handles, not guids
