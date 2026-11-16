@@ -10,6 +10,8 @@ those of the release candidates below. From an earlier release, also read the se
 
 ## [Unreleased]
 
+## [0.17.0-rc.6] 2026-11-16
+
 ### Breaking
 - `PlaywrightEx` is renamed `Playwright`; the Hex package stays `playwright_ex`. Upstream's
   `Playwright` class is the root module `Playwright` (no `Playwright.Playwright`).
