@@ -141,7 +141,7 @@ defmodule PlaywrightEx.Isomorphic.ProtocolFormatter do
   defp deep_param(params, name) do
     current =
       Enum.reduce_while(String.split(name, "."), params, fn token, current ->
-        if is_map(current) and not is_struct(current), do: {:cont, param(current, token)}, else: {:halt, nil}
+        if object?(current), do: {:cont, property(current, token)}, else: {:halt, nil}
       end)
 
     if current != nil, do: js_string(current)
@@ -217,7 +217,7 @@ defmodule PlaywrightEx.Isomorphic.ProtocolFormatter do
 
     value =
       Enum.reduce_while(String.split(path, "."), params, fn token, value ->
-        if is_map(value) and not is_struct(value), do: {:cont, param(value, token)}, else: {:halt, nil}
+        if object?(value), do: {:cont, property(value, token)}, else: {:halt, nil}
       end)
 
     cond do
@@ -291,6 +291,20 @@ defmodule PlaywrightEx.Isomorphic.ProtocolFormatter do
         end
     end
   end
+
+  # `typeof value === 'object' && value !== null`: a plain map or a list (an array).
+  defp object?(value), do: (is_map(value) and not is_struct(value)) or is_list(value)
+
+  # `value[token]`: a list's index or `length`.
+  defp property(value, token) when is_list(value) do
+    cond do
+      token == "length" -> length(value)
+      Regex.match?(~r/^(0|[1-9][0-9]*)$/, token) -> Enum.at(value, String.to_integer(token))
+      true -> nil
+    end
+  end
+
+  defp property(value, token), do: param(value, token)
 
   # `String(value)`.
   defp js_string(value) when is_list(value),
