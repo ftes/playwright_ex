@@ -215,10 +215,6 @@ end
 
 Then run `mix usage_rules.sync`, and again after upgrading.
 
-With [Fluffy](https://hex.pm/packages/fluffy), don't add this skill: sync these rules in Fluffy's
-composed `phoenix-feature-tests` skill of `[:fluffy, :playwright]`, as Fluffy's installation guide
-("Usage rules for coding agents") describes, since Fluffy's rules build on these.
-
 ## Next
 
 [From playwright.dev to Elixir](api-conventions.md) shows how a JS call reads in Elixir, and the
