@@ -208,11 +208,22 @@ defmodule Playwright.MixProject do
       )
   end
 
-  # `mix usage_rules.sync --yes` rewrites the managed block of AGENTS.md from this list.
-  # Without the package's elixir and otp sub-rules: ported code follows PORTING.md instead
+  # `mix usage_rules.sync --yes` writes these skills to `.agents/skills` (`.claude/skills` links
+  # there). Without the package's elixir and otp sub-rules: ported code follows PORTING.md instead
   # (`is_connected`, raising for control flow).
   defp usage_rules do
-    [file: "AGENTS.md", usage_rules: [{:usage_rules, sub_rules: []}]]
+    [
+      skills: [
+        location: ".agents/skills",
+        build: [
+          "usage-rules": [
+            description:
+              "Use when looking up docs for Elixir, OTP or a dependency: `mix usage_rules.docs` and `mix usage_rules.search_docs`.",
+            usage_rules: [{:usage_rules, sub_rules: []}]
+          ]
+        ]
+      ]
+    ]
   end
 
   defp aliases do
