@@ -49,11 +49,12 @@ defmodule PlaywrightEx.Test do
 
   In a case template, `use PlaywrightEx.Test` may also be the first line of the template's
   body: a template's own `setup` callbacks run before those its `using` brings in, so the test
-  is registered before them, and their contexts are recorded too. It does nothing more when
-  `using` brings it again. A context that a test process creates before its registration (a
-  template's `setup` with no `use` in the body) makes the registration raise, with that fix. A
-  context created outside a test (in `setup_all`, in a module without `use PlaywrightEx.Test`,
-  on a driver you started yourself) gets no defaults and no recording.
+  is registered before them, and their contexts are recorded too. A module's later `use`s (a
+  template's `using` and the module's own) only add their options (see "Artifacts"). A context
+  that a test process creates before its registration (a template's `setup` with no `use` in the
+  body) makes the registration raise, with that fix. A context created outside a test (in
+  `setup_all`, in a module without `use PlaywrightEx.Test`, on a driver you started yourself)
+  gets no defaults and no recording.
 
   The rest is called qualified, as upstream's `test.info()` and `test.step()`: `info/0`
   (`info/1` in `on_exit`, with the test's result), `output_path/1`, `attach/2`, `snapshot_path/2`, `step/2,3` and `step_skip/2,3`. They work in the test's
@@ -85,13 +86,13 @@ defmodule PlaywrightEx.Test do
       the first page of the first context closed after the failure (upstream's `didFinishTest`
       and `buildErrorContext`), whatever the modes.
 
-  The modes are config, and tags over it (a test's `@tag` over its `@describetag` over the
-  module's `@moduletag` over the config): `trace` and `video` `:off` (default), `:on`,
-  `:retain_on_failure` or a retry mode, `screenshot` `:off`, `:on`, `:only_on_failure` or
-  `:on_first_failure`, and `true` (`:on`) or `false` (`:off`). Each is also the `:mode` of a
-  keyword list (or map) of options, as upstream's object forms: `trace: [mode: :on, snapshots:
-  false]`, `screenshot: [mode: :on, full_page: true]`, `video: [mode: :on, size: %{width: 640,
-  height: 480}]`. The trace's `:snapshots` (a boolean or `%{dom: _, aria: _, screen: _}`),
+  The modes are config, the module's `use` options over it, and tags over those (a test's
+  `@tag` over its `@describetag` over the module's `@moduletag`): `trace` and `video` `:off`
+  (default), `:on`, `:retain_on_failure` or a retry mode, `screenshot` `:off`, `:on`,
+  `:only_on_failure` or `:on_first_failure`, and `true` (`:on`) or `false` (`:off`). Each is
+  also the `:mode` of a keyword list (or map) of options, as upstream's object forms: `trace:
+  [mode: :on, snapshots: false]`, `screenshot: [mode: :on, full_page: true]`, `video: [mode:
+  :on, size: %{width: 640, height: 480}]`. The trace's `:snapshots` (a boolean or `%{dom: _, aria: _, screen: _}`),
   `:screenshots` and `:sources` are `PlaywrightEx.Tracing.start/2`'s, `true` by default, as is
   `:attachments` (those of `attach/2` in `trace.zip`); the
   screenshot's `:full_page` and `:omit_background` are `PlaywrightEx.Page.screenshot/2`'s; the
@@ -100,8 +101,18 @@ defmodule PlaywrightEx.Test do
   _}}` overlays the test's title and its steps' (`level` `"file"`, `"title"` or `"step"`) on
   each page of its contexts. With it, don't call `step/2,3` in a route handler that holds a
   page's navigation (a document request): the step's overlay waits for that navigation, so the
-  test hangs until its timeout, as upstream's does. So `trace`, `screenshot` and `video` are reserved tags: a
-  `@tag :screenshot` label turns screenshots on, and an invalid value raises at registration.
+  test hangs until its timeout, as upstream's does.
+
+  `use PlaywrightEx.Test, trace: :on` is upstream's file-level `test.use({ trace: 'on' })` (the
+  modes are worker-scoped options there), with the values the config takes; an unknown option or
+  an invalid value raises at compile time. A module's `use`s merge per key, the later winning,
+  and those of a `use` in a case template's body apply to each module of the template, under the
+  module's own. A template forwards its options from `using opts`: `use PlaywrightEx.Test,
+  unquote(Keyword.take(opts, [:trace, :screenshot, :video, :tags]))`, as `PlaywrightEx.Case`
+  does. The tags take the same values, so `trace`, `screenshot` and `video` are reserved tags: a
+  `@tag :screenshot` label turns screenshots on, and an invalid value raises at registration,
+  unless the module has `use PlaywrightEx.Test, tags: false` (default `true`): then tags don't
+  set the modes.
 
   The `*_on_failure` modes record every test and keep the files of failed ones, as upstream
   (files you write to `output_path/1` stay). A failing artifact step is logged; the test's
@@ -250,12 +261,6 @@ defmodule PlaywrightEx.Test do
   @info_keys [:test_pid, :file, :test_name, :output_dir, :retry]
 
   defmacro __using__(opts) do
-    if opts != [] do
-      raise ArgumentError,
-            "use PlaywrightEx.Test takes no options, got: #{Macro.to_string(opts)}; the recording modes are " <>
-              "config and tags (`@tag trace: :on`), the browser's options BrowserPool's"
-    end
-
     macros = __CALLER__.macros
 
     cond do
@@ -267,18 +272,19 @@ defmodule PlaywrightEx.Test do
           import PlaywrightEx.Test, only: [test: 1, test: 2, test: 3]
           require PlaywrightEx.Test
 
-          if PlaywrightEx.Test.__use__(__MODULE__) do
+          if PlaywrightEx.Test.__use__(__MODULE__, unquote(opts)) do
             PlaywrightEx.Test.__clock__(__MODULE__)
             setup({PlaywrightEx.Test, :__setup__})
           end
         end
 
-      # The body of a case template: its `setup` callbacks run before those of its `using`.
+      # The body of a case template: its `setup` callbacks run before those of its `using`. The
+      # registration reads the template's options under the test module's.
       {:using, 1} in Keyword.get(macros, ExUnit.CaseTemplate, []) ->
         quote do
-          if PlaywrightEx.Test.__use__(__MODULE__) do
+          if PlaywrightEx.Test.__use__(__MODULE__, unquote(opts)) do
             PlaywrightEx.Test.__clock__(__MODULE__)
-            setup({PlaywrightEx.Test, :__setup__})
+            setup(context, do: PlaywrightEx.Test.__setup__(context, __MODULE__))
           end
         end
 
@@ -291,14 +297,34 @@ defmodule PlaywrightEx.Test do
   end
 
   @doc false
-  # `true` on a module's first `use PlaywrightEx.Test`, as `ExUnit.Case.__register__/2` sets up
-  # a module once: a template's `using` and the module itself may both bring it.
-  def __use__(module) do
-    if Module.has_attribute?(module, :playwright_ex_test) do
-      false
-    else
-      Module.put_attribute(module, :playwright_ex_test, true)
-      true
+  # Validates the options of a `use PlaywrightEx.Test` and merges them over the module's earlier
+  # ones (a template's `using` and the module itself may both bring it), the later `use` winning
+  # per key, as `ExUnit.Case.__register__/2` merges `use ExUnit.Case`'s. `true` on the module's
+  # first `use`, which sets it up.
+  def __use__(module, opts) do
+    options = Options.use_options(opts)
+
+    case Module.get_attribute(module, :playwright_ex_test) do
+      nil ->
+        Module.put_attribute(module, :playwright_ex_test, options)
+        Module.put_attribute(module, :before_compile, __MODULE__)
+        true
+
+      past ->
+        Module.put_attribute(module, :playwright_ex_test, Map.merge(past, options))
+        false
+    end
+  end
+
+  @doc false
+  # The module's merged `use` options, for its registration (`__register__/2`): a function, so the
+  # test's context stays the test author's.
+  defmacro __before_compile__(env) do
+    options = Module.get_attribute(env.module, :playwright_ex_test)
+
+    quote do
+      @doc false
+      def __playwright_ex_test__(:options), do: unquote(Macro.escape(options))
     end
   end
 
@@ -445,8 +471,9 @@ defmodule PlaywrightEx.Test do
 
   @doc false
   # The per-test `setup` of `use PlaywrightEx.Test`: registers the test, once (a case
-  # template's body and its `using` may both bring it).
-  def __setup__(%{test_pid: test_pid} = context) do
+  # template's body and its `using` may both bring it). `template` is the case template whose
+  # body brought it.
+  def __setup__(%{test_pid: test_pid} = context, template \\ nil) do
     Pool.ensure_started()
 
     cond do
@@ -460,7 +487,7 @@ defmodule PlaywrightEx.Test do
                 "recording: add `use PlaywrightEx.Test` as the first line of the case template's body"
 
       true ->
-        test = __register__(context)
+        test = __register__(context, template)
         timeout = test.test_timeout
         # Each `on_exit` callback gets the test's timeout: half of it for the artifacts.
         budget = if is_integer(timeout), do: div(timeout, 2), else: :infinity
@@ -470,12 +497,14 @@ defmodule PlaywrightEx.Test do
   end
 
   @doc false
-  # The registration of the test of `context` (its `test_pid`), without its `on_exit`.
-  def __register__(context) do
+  # The registration of the test of `context` (its `test_pid`), without its `on_exit`, with the
+  # `use` options of its module over those of the case template `template`'s body.
+  def __register__(context, template \\ nil) do
     # Read and validated once.
     config = Options.config()
     test_info = TestInfo.new(context, config.output_dir)
-    modes = Options.artifacts(context, config)
+    options = Map.merge(use_options(template), use_options(context[:module]))
+    modes = Options.artifacts(context, config, options)
     # Upstream's `testTracing.startIfNeeded` and `_contextFactory`'s `captureVideo`, by the retry.
     modes = %{
       modes
@@ -511,6 +540,13 @@ defmodule PlaywrightEx.Test do
     # The steps of `test.trace` go to the recorder.
     if modes.trace[:mode] != :off, do: Results.recorder(test.test_pid)
     test
+  end
+
+  # The merged options of a module's `use PlaywrightEx.Test` (`__before_compile__/1`).
+  defp use_options(module) do
+    if module && function_exported?(module, :__playwright_ex_test__, 1),
+      do: module.__playwright_ex_test__(:options),
+      else: %{}
   end
 
   # ExUnit's clock starts as it spawns the test process: the test's first `setup` callback

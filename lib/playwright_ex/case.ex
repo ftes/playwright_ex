@@ -14,6 +14,9 @@ defmodule PlaywrightEx.Case do
         end
       end
 
+  It takes `use PlaywrightEx.Test`'s options next to ExUnit.Case's: `use PlaywrightEx.Case,
+  async: true, trace: :on`.
+
   It only puts the pieces together, so it is a recipe as much as an API: `use PlaywrightEx.Test`
   first in the body, so the test is registered before the context is created, the browser in
   `setup_all`, then the context and page from the plain API. To add setup that runs after these, `use
@@ -42,9 +45,9 @@ defmodule PlaywrightEx.Case do
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Test.BrowserPool
 
-  using do
+  using opts do
     quote do
-      use PlaywrightEx.Test
+      use PlaywrightEx.Test, unquote(Keyword.take(opts, [:trace, :screenshot, :video, :tags]))
 
       alias PlaywrightEx.{Browser, BrowserContext, Expect, Locator, Page, Test}
       alias PlaywrightEx.Test.BrowserPool

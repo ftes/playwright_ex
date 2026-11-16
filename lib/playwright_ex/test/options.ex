@@ -1,13 +1,15 @@
 defmodule PlaywrightEx.Test.Options do
   @moduledoc false
   # The options of `PlaywrightEx.Test` and `PlaywrightEx.Test.BrowserPool`: defaults, the merge
-  # over `config :playwright_ex, :test`, the recording modes from tags over the config, and
-  # validation. Unknown keys and bad values raise `ArgumentError`, as the facade's do.
+  # over `config :playwright_ex, :test`, the recording modes from tags and `use` options over the
+  # config, and validation. Unknown keys and bad values raise `ArgumentError`, as the facade's do.
 
   alias PlaywrightEx.Runtime.Facade
 
   @pool_keys [:browser_name, :launch_options, :connect_options, :driver, :on_start]
   @artifact_keys [:trace, :screenshot, :video]
+  # `use PlaywrightEx.Test`'s: upstream's worker-scoped options of `test.use`.
+  @use_keys @artifact_keys ++ [:tags]
   @config_only_keys [
     :context_options,
     :action_timeout,
@@ -78,14 +80,42 @@ defmodule PlaywrightEx.Test.Options do
   end
 
   @doc """
-  The recording modes of a test: its tags (`@moduletag`, `@describetag`, `@tag`, which ExUnit
-  merges in that order) over the config. `true` is `:on`, `false` is `:off`.
+  The options of `use PlaywrightEx.Test`, validated, as a map: the recording modes as the config
+  takes them, and `tags` (a boolean, `true` by default) whether the test's tags set them.
   """
-  def artifacts(tags, config \\ config()) do
+  def use_options(opts) do
+    if !Keyword.keyword?(opts),
+      do: raise(ArgumentError, "use PlaywrightEx.Test expects a keyword list of options, got: #{inspect(opts)}")
+
+    case Keyword.keys(opts) -- @use_keys do
+      [] ->
+        :ok
+
+      unknown ->
+        raise ArgumentError,
+              "unknown options #{inspect(unknown)} for use PlaywrightEx.Test, expected one of #{inspect(@use_keys)} " <>
+                "(the browser's options are BrowserPool.browser/1's, the rest config's)"
+    end
+
+    Map.new(opts, fn
+      {:tags, tags} when is_boolean(tags) -> {:tags, tags}
+      {:tags, tags} -> raise ArgumentError, "invalid tags: #{inspect(tags)}, expected a boolean"
+      {key, value} -> {key, validate!(key, value)}
+    end)
+  end
+
+  @doc """
+  The recording modes of a test: its tags (`@moduletag`, `@describetag`, `@tag`, which ExUnit
+  merges in that order) over the module's `use` options (`use_options/1`) over the config;
+  without its tags under `tags: false`. `true` is `:on`, `false` is `:off`.
+  """
+  def artifacts(tags, config \\ config(), options \\ %{}) do
+    tags = if Map.get(options, :tags, true), do: tags, else: %{}
+
     Map.new(@artifact_keys, fn key ->
       case tags do
         %{^key => value} -> {key, validate!(key, value)}
-        _ -> {key, config[key]}
+        _ -> {key, Map.get(options, key, config[key])}
       end
     end)
   end

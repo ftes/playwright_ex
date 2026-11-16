@@ -15,7 +15,7 @@ those of the release candidates below. From an earlier release, also read the se
   converting a `Regex` as Playwright does (PCRE-only syntax raises `ArgumentError`). It inspects as
   `#PlaywrightEx.RegExp</source/flags>`.
 - `PlaywrightEx.Case`: a case template giving each module a `browser` and each test a `context`
-  and a `page` of it.
+  and a `page` of it, taking `use PlaywrightEx.Test`'s options.
 - `PlaywrightEx.Test.BrowserPool`: Playwright Test's worker browser and worker model.
   `browser/1` is held by the module (`setup_all`) or test that calls it, at most `workers` at
   once (half the schedulers, as Playwright Test's default), each one driver and one browser of
@@ -31,7 +31,9 @@ those of the release candidates below. From an earlier release, also read the se
   then the config's `context_options`, and is recorded: traces (of its contexts, their
   `request`s and the test's request contexts, which are disposed at its end), screenshots and
   videos (with `fps` and `show`, the test's title and steps over each page), with Playwright
-  Test's modes and their options, from config and tags (`@tag trace: :on`), kept for failures,
+  Test's modes and their options, from config, `use` options (`use PlaywrightEx.Test, trace:
+  :on`, Playwright Test's file-level `test.use`, merged over a case template's; `tags: false`
+  ignores the tags) and tags (`@tag trace: :on`), kept for failures,
   plus Playwright Test's `error-context.md` of each failed test and a `show-trace` hint. Each
   test's output dir is emptied before it runs, a test under `mix test --failed` writes to
   Playwright Test's `-retryN` dirs, with Playwright Test's retry modes (`trace: :on_first_retry`,

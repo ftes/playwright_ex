@@ -279,7 +279,8 @@ fixture the facade can't provide is a pooled browser, so it is an explicit modul
 pages come from the plain API, and the user owns the ExUnit context map. Everything about the
 test (recording, context defaults, soft errors, output and snapshot paths, steps) is found
 through the calling process or its `$callers`, as the Ecto sandbox finds its owner. Settings with
-no call site (the recording modes) are config plus ExUnit tags; the rest are arguments.
+no call site (the recording modes) are config, `use` options (compiled into a function of the
+module, not put in the context) and ExUnit tags; the rest are arguments.
 
 | upstream | here |
 |---|---|
@@ -293,7 +294,7 @@ no call site (the recording modes) are config plus ExUnit tags; the rest are arg
 | `_combinedContextOptions` (`{...contextOptions, ...options}`) | Playwright Test's defaults, then config `context_options`, then the call's (`key in options`) |
 | `actionTimeout`, `navigationTimeout` (default 0) | config `action_timeout`, `navigation_timeout` (default `:infinity`), set on each context |
 | test timeout, `closeReason` "Test timeout of Nms exceeded." | ExUnit's timeout; the recorder closes the test's contexts with that reason just before it |
-| `test.use({ trace, screenshot, video })` | `@moduletag`/`@describetag`/`@tag` over config |
+| `test.use({ trace, screenshot, video })` (worker-scoped, file level) | `use PlaywrightEx.Test, trace: _` over config, `@moduletag`/`@describetag`/`@tag` over it (`tags: false`: none) |
 | `testIdAttribute` (per test) | config `test_id_attribute`, set on each pooled driver: the client's value is global to the VM, not to a worker |
 | `--trace <mode>` | `TRACE` read in `config/test.exs` |
 | `test.info()` | `info/0` (`test_pid`, `file`, `test_name`, `output_dir`, `retry`, `timeout`), raises outside a test |

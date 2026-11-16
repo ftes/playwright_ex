@@ -295,7 +295,7 @@ defmodule PlaywrightEx.Test.RegistrationTest.TwiceTest do
   use PlaywrightEx.Test.RegistrationTest.TemplateCase, async: true
   use PlaywrightEx.Test
 
-  test "a second use is a no-op" do
+  test "a second use registers the test once" do
     assert_received {:options, %{locale: "en-US"}}
     assert [_] = :ets.lookup(PlaywrightEx.Test.Results.table(), {:test, self()})
   end

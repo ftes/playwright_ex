@@ -44,15 +44,4 @@ defmodule PlaywrightEx.Test.TestMacroTest do
       Code.compile_string("defmodule PlaywrightEx.Test.TestMacroTest.Early, do: use(PlaywrightEx.Test)")
     end
   end
-
-  test "use PlaywrightEx.Test takes no options" do
-    assert_raise ArgumentError, ~r/use PlaywrightEx.Test takes no options, got: \[trace: :on\]/, fn ->
-      Code.compile_string("""
-      defmodule PlaywrightEx.Test.TestMacroTest.Options do
-        use ExUnit.Case
-        use PlaywrightEx.Test, trace: :on
-      end
-      """)
-    end
-  end
 end

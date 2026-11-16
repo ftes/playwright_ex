@@ -818,3 +818,109 @@ defmodule PlaywrightEx.Test.ArtifactsTest.TagsTest do
     end
   end
 end
+
+defmodule PlaywrightEx.Test.ArtifactsTest.UseOptionsTest do
+  # The modes from `use PlaywrightEx.Test`'s options (upstream's `test.use({ trace: 'on' })`): over
+  # the config, under the tags.
+  use ExUnit.Case, async: true
+  use PlaywrightEx.Test, trace: :retain_on_failure, screenshot: :only_on_failure, video: true
+
+  alias PlaywrightEx.Test.Recorder
+
+  @moduletag screenshot: [mode: :only_on_failure, full_page: true]
+
+  @trace_defaults [snapshots: true, screenshots: true, sources: true, attachments: true]
+
+  def modes, do: Map.take(Recorder.registration(self()), [:trace, :screenshot, :video])
+
+  test "the use options over the config, the module's tags over them" do
+    assert modes() == %{
+             trace: [mode: :retain_on_failure] ++ @trace_defaults,
+             screenshot: [mode: :only_on_failure, full_page: true],
+             video: [mode: :on]
+           }
+  end
+
+  @tag video: false
+  test "the test's tag over them" do
+    assert %{trace: [mode: :retain_on_failure] ++ _, video: [mode: :off]} = modes()
+  end
+
+  defp compile(opts) do
+    Code.compile_string("""
+    defmodule PlaywrightEx.Test.ArtifactsTest.UseOptionsTest.Invalid do
+      use ExUnit.Case
+      use PlaywrightEx.Test, #{opts}
+    end
+    """)
+  end
+
+  test "an unknown option or an invalid value raises at compile time" do
+    assert_raise ArgumentError, ~r/unknown options \[:browser_name\] for use PlaywrightEx.Test, expected one of/, fn ->
+      compile("browser_name: :webkit")
+    end
+
+    assert_raise ArgumentError, ~r/invalid trace: :retry_with_trace, expected one of/, fn ->
+      compile("trace: :retry_with_trace")
+    end
+
+    assert_raise ArgumentError, ~r/unknown video options \[:full_page\]/, fn ->
+      compile("video: [mode: :on, full_page: true]")
+    end
+
+    assert_raise ArgumentError, ~r/invalid tags: :off, expected a boolean/, fn -> compile("tags: :off") end
+  end
+end
+
+defmodule PlaywrightEx.Test.ArtifactsTest.UseTagsOffTest do
+  # `tags: false`: the tags set no mode, a `@tag :screenshot` is only a label.
+  use ExUnit.Case, async: true
+  use PlaywrightEx.Test, tags: false, trace: :retain_on_failure
+
+  import PlaywrightEx.Test.ArtifactsTest.UseOptionsTest, only: [modes: 0]
+
+  @moduletag :screenshot
+
+  @tag trace: :on, video: true
+  test "the use options and the config, not the tags", ctx do
+    assert %{trace: [mode: :retain_on_failure] ++ _, screenshot: [mode: :off], video: [mode: :off]} = modes()
+    assert %{screenshot: true, trace: :on, video: true} = ctx
+  end
+end
+
+defmodule PlaywrightEx.Test.ArtifactsTest.UseOptionsCase do
+  # A template with options in its body, and forwarding its own to the `use` in its `using`.
+  use ExUnit.CaseTemplate
+  use PlaywrightEx.Test, trace: :retain_on_failure, screenshot: :only_on_failure, video: true
+
+  using opts do
+    quote do
+      use PlaywrightEx.Test, unquote(Keyword.take(opts, [:trace, :screenshot, :video, :tags]))
+    end
+  end
+end
+
+defmodule PlaywrightEx.Test.ArtifactsTest.UseTemplateTest do
+  # The template body's options under the module's, which merge per key, the later `use` winning.
+  use PlaywrightEx.Test.ArtifactsTest.UseOptionsCase, async: true, video: false, screenshot: :on
+  use PlaywrightEx.Test, screenshot: :off
+
+  import PlaywrightEx.Test.ArtifactsTest.UseOptionsTest, only: [modes: 0]
+
+  test "the module's uses merged, over the template body's" do
+    assert %{trace: [mode: :retain_on_failure] ++ _, screenshot: [mode: :off], video: [mode: :off]} = modes()
+    assert __MODULE__.__playwright_ex_test__(:options) == %{video: [mode: :off], screenshot: [mode: :off]}
+  end
+end
+
+defmodule PlaywrightEx.Test.ArtifactsTest.UseCaseTest do
+  # `PlaywrightEx.Case` forwards the options.
+  use PlaywrightEx.Case, async: true, trace: :retain_on_failure
+
+  import PlaywrightEx.Test.ArtifactsTest.UseOptionsTest, only: [modes: 0]
+
+  test "the options of use PlaywrightEx.Case", %{page: page} do
+    assert %Page{} = page
+    assert %{trace: [mode: :retain_on_failure] ++ _, video: [mode: :off]} = modes()
+  end
+end

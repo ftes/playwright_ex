@@ -351,9 +351,12 @@ to open it: `mix playwright_ex.cli show-trace test-results/.../trace.zip`. More 
 `trace`, `screenshot` and `video` are `:off` by default, as in Playwright Test.
 `:retain_on_failure` (trace, video) and `:only_on_failure` (screenshot) record every test and
 keep the files of failures; a passing test's are dropped at its end. The config sets them for
-the suite, and tags for a module, a describe block or a test, as `true`, `false` or a mode:
+the suite, `use PlaywrightEx.Test`'s options for a module (Playwright Test's file-level
+`test.use({ trace: 'on' })`), and tags for a module, a describe block or a test, as `true`,
+`false` or a mode, each over the one before:
 
 ```elixir
+use PlaywrightEx.Test, trace: :retain_on_failure
 @moduletag video: :retain_on_failure
 
 @tag trace: :on
@@ -363,11 +366,37 @@ end
 ```
 
 So `trace`, `screenshot` and `video` are reserved tags: a `@tag :screenshot` label turns
-screenshots on, and an invalid value raises. As in Playwright Test, each takes options too, with
-the mode as `:mode`: `trace: [mode: :on, snapshots: false]`, `screenshot: [mode: :only_on_failure,
-full_page: true]`, `video: [mode: :on, size: %{width: 640, height: 480}, fps: 10, show: %{test:
-%{level: "step"}}]` (`show.test` writes the test's title and steps over the video). A tag replaces the
-config's value as a whole.
+screenshots on, and an invalid value raises. `use PlaywrightEx.Test, tags: false` leaves a
+module's tags to you: the modes then come from the config and the `use` options only. As in
+Playwright Test, each takes options too, with the mode as `:mode`: `trace: [mode: :on,
+snapshots: false]`, `screenshot: [mode: :only_on_failure, full_page: true]`, `video: [mode: :on,
+size: %{width: 640, height: 480}, fps: 10, show: %{test: %{level: "step"}}]` (`show.test` writes
+the test's title and steps over the video). Each replaces the value under it as a whole; an
+unknown `use` option or an invalid value fails the module's compilation.
+
+`use PlaywrightEx.Case, async: true, trace: :on` takes them next to ExUnit's options. A module's
+`use`s merge per key, the later winning, so a template can forward its own from `using` (keep
+the ExUnit options out), and a `use` with options in a template's body applies to each of its
+modules, under the module's own:
+
+```elixir
+defmodule MyApp.BrowserCase do
+  use ExUnit.CaseTemplate
+  use PlaywrightEx.Test, screenshot: :only_on_failure
+
+  using opts do
+    quote do
+      use PlaywrightEx.Test, unquote(Keyword.take(opts, [:trace, :screenshot, :video, :tags]))
+    end
+  end
+
+  # ...
+end
+
+defmodule MyApp.CheckoutTest do
+  use MyApp.BrowserCase, async: true, trace: :on
+end
+```
 
 Tracing slows every test. Playwright Test's answer is to trace only the retry of a failure
 (`on-first-retry`). ExUnit has no retries in a run, but `mix test --failed` is one: under it a

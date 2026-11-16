@@ -68,9 +68,10 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.BrowserCase do
   alias PlaywrightEx.Guides.TestingWithExUnit.App
   alias PlaywrightEx.Test.BrowserPool
 
-  using do
+  # Its options forwarded, as "Traces, screenshots and videos" shows.
+  using opts do
     quote do
-      use PlaywrightEx.Test
+      use PlaywrightEx.Test, unquote(Keyword.take(opts, [:trace, :screenshot, :video, :tags]))
       alias PlaywrightEx.{Browser, BrowserContext, Expect, Locator, Page, Test}
       alias PlaywrightEx.Test.BrowserPool
     end
@@ -279,6 +280,21 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.ArtifactsTest do
   test "signs up", %{page: page} do
     Page.goto!(page, "/sign-up")
     Page.get_by_label(page, "Email") |> Locator.fill!("ada@example.com")
+  end
+end
+
+defmodule PlaywrightEx.Guides.TestingWithExUnit.UseOptionsTest do
+  # "Traces, screenshots and videos": the modes of the template's options, under the tags.
+  # Deviation: `retain_on_failure`, so the passing test leaves no files.
+  use PlaywrightEx.Guides.TestingWithExUnit.BrowserCase, async: true, trace: :retain_on_failure, video: :on
+
+  @moduletag video: :retain_on_failure
+
+  test "checks out", %{page: page} do
+    Page.goto!(page, "/sign-up")
+    registration = PlaywrightEx.Test.Recorder.registration(self())
+    assert [mode: :retain_on_failure] ++ _ = registration.trace
+    assert registration.video == [mode: :retain_on_failure]
   end
 end
 
