@@ -9,7 +9,7 @@ Code written for 0.16 or earlier (guids, `Frame.click(frame.guid, selector: ...)
 
 ## Setup
 
-- Depend on `{:playwright, "~> 1.65.0-rc.1", hex: :playwright_ex}` (the README has the current version). `hex: :playwright_ex` is required. Versions are Playwright's major.minor with our own patch, so `~> 1.65.0` takes our fixes for Playwright 1.65; while releases are RCs, keep the `-rc.N`: `~> 1.65.0` matches no RC. If only tests use it, prefer `only: [:dev, :test]` to `only: :test`, so its mix tasks work in `:dev`.
+- Depend on `{:playwright, "~> 1.65.0-rc.1", hex: :playwright_ex}` (the README has the current version). `hex: :playwright_ex` is required. Versions are Playwright's major.minor with our own patch, so `~> 1.65.0` takes our fixes for Playwright 1.65. If only tests use it, prefer `only: [:dev, :test]` to `only: :test`, so its mix tasks work in `:dev`.
 - The app is `:playwright`, the modules `Playwright.*`. Until this library takes over the `playwright` name on Hex, the Hex package `playwright` (hexdocs.pm/playwright) is another Elixir library, playwright-elixir, with another API: don't use its docs or examples (`Playwright.launch(:chromium)`, `Playwright.Page.click(page, selector)`). This library's docs are at hexdocs.pm/playwright_ex.
 - `mix playwright.install` installs the pinned driver (Node.js and `playwright-core`) and browsers. Do not add npm `playwright`.
 - `mix playwright.install -- chromium --with-deps` installs one browser and its system packages on Linux CI. `--no-browsers` installs only the driver, for a browser launched with `:executable_path` or `:channel`. Run the task again after upgrading the dependency.

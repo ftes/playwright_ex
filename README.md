@@ -37,7 +37,7 @@ mix playwright.install
 
 The major.minor is Playwright's and the patch is ours, as in playwright-python: `1.65.x` drives
 Playwright 1.65, and this release pins driver 1.65.0. Our own breaking changes ship only with a
-Playwright minor, so depend on `~> 1.65.0` (`~> 1.65.0-rc.1` while it's a release candidate).
+Playwright minor, so depend on `~> 1.65.0`.
 
 ## Example
 
