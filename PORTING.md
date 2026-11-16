@@ -277,6 +277,11 @@ Problems upstream's own client has too; re-check on each bump, drop what's fixed
   `Page.fileChooserOpened`. A waiter that unsubscribes on arrival can disable it first, so a native
   picker opens and the input's next click opens none. Upstream's client fails it too (2/20 on a
   just-launched Firefox), GH #149, reported as microsoft/playwright#44143.
+- **WebKit empty body after a cut-off request** (NE-143, skipped on WebKit): after
+  `loadingFailed(cancelled)`, WebKit usually answers `Network.getResponseBody` with "Missing content
+  of resource", which the server turns into the "navigated away" error, but sometimes with
+  `{"body": ""}`, so `text()` resolves `""`. Upstream's client does too (1/910 alone, 2/708 under
+  load). microsoft/playwright#43508's fix covers Chromium only. GH #245.
 - **`toMatchAriaSnapshot` with `.not` and a missing file**: with `updateSnapshots` `none`, `all` or
   `changed` the matcher compares an empty template, which never matches, so it passes.
   `toHaveScreenshot` rejects this case with `handleMissingNegated`.

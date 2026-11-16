@@ -177,6 +177,11 @@ defmodule Playwright.Page.PageEventNetworkTest do
              ]
   end
 
+  @tag skip:
+         if(@browser_name == "webkit",
+           do:
+             "flaky: WebKit sometimes returns an empty body for a request cut off by a navigation, as with upstream's client: https://github.com/ftes/playwright_ex/issues/245"
+         )
   test "NE-143 should resolve responses after a same-process navigation", %{
     page: page,
     server: server,
