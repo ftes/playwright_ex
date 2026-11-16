@@ -2,7 +2,8 @@
 
 A statement-by-statement port of the Playwright JS client to Elixir. The rules are in
 [`PORTING.md`](PORTING.md) (how to port) and [`docs/architecture.md`](docs/architecture.md) (why).
-Read them before changing ported code.
+Read them before changing ported code. When reviewing a change or fixing review findings, follow
+[Reviewing](README.md#reviewing).
 
 - Names: the modules are `Playwright.*`, the app `:playwright` (`config :playwright`,
   `mix playwright.*`); only the Hex package and the GitHub repo are `playwright_ex`.
