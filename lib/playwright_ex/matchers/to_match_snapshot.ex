@@ -268,7 +268,7 @@ defmodule PlaywrightEx.Matchers.ToMatchSnapshot do
     # `testInfo`; the path option works outside a test (`SnapshotHelper.new/7`).
 
     if Expect.expect_config()[:ignoreSnapshots] do
-      %{pass: !this.isNot, message: fn -> "" end, name: "toHaveScreenshot", expected: options[:name] || options[:path]}
+      %{pass: !this.isNot, message: fn -> "" end, name: "toHaveScreenshot", expected: options}
     else
       MatcherHint.expect_types(page_or_locator, ["Page", "Locator"], "toHaveScreenshot")
 
