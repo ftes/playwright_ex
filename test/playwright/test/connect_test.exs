@@ -41,7 +41,7 @@ defmodule Playwright.Test.ConnectTest do
             test: :"test #{name}",
             file: __ENV__.file,
             line: 1,
-            playwright_ex: :marked
+            playwright_test: :marked
           })
 
         send(parent, {:registered, Playwright.Test.__register__(context)})

@@ -1,6 +1,6 @@
 defmodule Playwright.Runtime.Facade do
   @moduledoc """
-  Runtime support (not ported from upstream) for the facade that `mix playwright_ex.gen.api`
+  Runtime support (not ported from upstream) for the facade that `mix playwright.gen.api`
   generates from `api.json` (`Playwright.Browser`, ...).
 
   The facade converts Elixir arguments to the shapes the ported client expects, then runs the

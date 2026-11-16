@@ -28,7 +28,7 @@ defmodule Playwright.Test.GitHubFormatter do
       `file:line › describe › test`, with ExUnit's failure text.
     * an `::error` for each failed `setup_all`; its tests count as not run.
     * a `Slow Test` `::warning` for each of the 5 slowest files whose tests took more than
-      5 minutes (upstream's `reportSlowTests`; `config :playwright_ex, #{inspect(__MODULE__)},
+      5 minutes (upstream's `reportSlowTests`; `config :playwright, #{inspect(__MODULE__)},
       report_slow_tests: [max: 5, threshold: 300_000]` in ms, `nil` for none).
     * a `🎭 Playwright Run Summary` `::notice`: the failed tests, the counts of skipped, not run
       and passed tests, and the run's duration.
@@ -73,9 +73,9 @@ defmodule Playwright.Test.GitHubFormatter do
 
   # constructor: `omitTags`  -- not ported: ExUnit's tags are not Playwright's `@tag`s
   @doc false
-  # Elixir only: `config :playwright_ex, Playwright.Test.GitHubFormatter`, validated as upstream's
+  # Elixir only: `config :playwright, Playwright.Test.GitHubFormatter`, validated as upstream's
   # configLoader validates `reportSlowTests` (also at application start).
-  def config(env \\ Application.get_env(:playwright_ex, __MODULE__, []))
+  def config(env \\ Application.get_env(:playwright, __MODULE__, []))
 
   def config(env) when is_list(env) do
     env =
@@ -85,11 +85,11 @@ defmodule Playwright.Test.GitHubFormatter do
 
         {:error, unknown} ->
           raise ArgumentError,
-                "unknown keys #{inspect(unknown)} in config :playwright_ex, #{inspect(__MODULE__)}, expected one of [:report_slow_tests]"
+                "unknown keys #{inspect(unknown)} in config :playwright, #{inspect(__MODULE__)}, expected one of [:report_slow_tests]"
 
         false ->
           raise ArgumentError,
-                "config :playwright_ex, #{inspect(__MODULE__)} must be a keyword list, got: #{inspect(env)}"
+                "config :playwright, #{inspect(__MODULE__)} must be a keyword list, got: #{inspect(env)}"
       end
 
     %{report_slow_tests: report_slow_tests(env[:report_slow_tests])}
@@ -97,7 +97,7 @@ defmodule Playwright.Test.GitHubFormatter do
 
   def config(env),
     do:
-      raise(ArgumentError, "config :playwright_ex, #{inspect(__MODULE__)} must be a keyword list, got: #{inspect(env)}")
+      raise(ArgumentError, "config :playwright, #{inspect(__MODULE__)} must be a keyword list, got: #{inspect(env)}")
 
   defp report_slow_tests(nil), do: nil
 
@@ -358,7 +358,7 @@ defmodule Playwright.Test.GitHubFormatter do
   defp user_code?(deps, module) do
     case :application.get_application(module) do
       :undefined -> true
-      {:ok, :playwright_ex} -> false
+      {:ok, :playwright} -> false
       {:ok, app} -> !(under?(:code.lib_dir(app), system_roots()) or dependency?(deps, app))
     end
   end

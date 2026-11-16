@@ -38,7 +38,7 @@ defmodule Playwright.UpstreamCase do
 
   `test` skips a test that a rule in `test/upstream_not_ported.txt` rules out (`skip: "not
   ported: <reason>"`, over the test's own skip tags), so a bodiless test needs no tag of its own.
-  See `Mix.PlaywrightEx.TestRegistry`. With `PW_UNSKIP=env,flaky`, it drops the test's own
+  See `Mix.Playwright.TestRegistry`. With `PW_UNSKIP=env,flaky`, it drops the test's own
   `@tag skip:` reasons with those prefixes, so the tests they skip run (ExUnit runs no skipped
   test, `--include skip` neither): `PW_UNSKIP=env,flaky mix test <files>` re-checks them on a bump.
   """
@@ -46,7 +46,7 @@ defmodule Playwright.UpstreamCase do
   # First: the template's own `setup` callbacks create contexts.
   use Playwright.Test
 
-  alias Mix.PlaywrightEx.TestRegistry
+  alias Mix.Playwright.TestRegistry
   alias Playwright.APIRequest
   alias Playwright.APIRequestContext
   alias Playwright.Browser

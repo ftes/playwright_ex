@@ -3,7 +3,7 @@
 # `remote-server-impl.js`, a `Playwright.ClientProcess` BEAM), prints "(ready=>true)" and idles
 # until the test kills it with SIGKILL.
 #
-# Runs as `elixir -pa <playwright_ex ebin> no_orphan_processes_impl.exs <browser name>`.
+# Runs as `elixir -pa <playwright ebin> no_orphan_processes_impl.exs <browser name>`.
 
 alias Playwright.Browser
 alias Playwright.BrowserType

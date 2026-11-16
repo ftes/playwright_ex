@@ -529,12 +529,12 @@ defmodule Playwright.Test.TestInfo do
     {:current_stacktrace, [_process_info | stacktrace]} = Process.info(self(), :current_stacktrace)
 
     Enum.drop_while(stacktrace, fn {module, _fun, _arity, _location} ->
-      :application.get_application(module) == {:ok, :playwright_ex}
+      :application.get_application(module) == {:ok, :playwright}
     end)
   end
 
   # The library, ExUnit, and OTP's and Elixir's own apps (`ClientStackTrace`'s internal ones).
-  @runner_apps [{:ok, :playwright_ex}, {:ok, :ex_unit}, {:ok, :elixir}, {:ok, :stdlib}, {:ok, :kernel}]
+  @runner_apps [{:ok, :playwright}, {:ok, :ex_unit}, {:ok, :elixir}, {:ok, :stdlib}, {:ok, :kernel}]
 
   @doc "utils `captureRawStack`: the caller's stacktrace (from its caller's frame)."
   def capture_raw_stack do

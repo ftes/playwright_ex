@@ -15,7 +15,7 @@ defmodule Playwright.Test.GitHubFormatterTest do
 
     on_exit(fn ->
       if workspace, do: System.put_env("GITHUB_WORKSPACE", workspace), else: System.delete_env("GITHUB_WORKSPACE")
-      Application.delete_env(:playwright_ex, GitHubFormatter)
+      Application.delete_env(:playwright, GitHubFormatter)
     end)
   end
 
@@ -208,7 +208,7 @@ defmodule Playwright.Test.GitHubFormatterTest do
   end
 
   test "slow files: the slowest over the threshold, of one module each" do
-    Application.put_env(:playwright_ex, GitHubFormatter, report_slow_tests: [max: 2, threshold: 1000])
+    Application.put_env(:playwright, GitHubFormatter, report_slow_tests: [max: 2, threshold: 1000])
     project_file = Path.join(File.cwd!(), "test/project_test.exs")
 
     events = [
@@ -225,7 +225,7 @@ defmodule Playwright.Test.GitHubFormatterTest do
     assert project_warning == "::warning title=Slow Test,file=test/project_test.exs::test/project_test.exs took 3.0s"
     assert warning == "::warning title=Slow Test,file=#{@file_path}::#{@file_path} took 2.5s"
 
-    Application.put_env(:playwright_ex, GitHubFormatter, report_slow_tests: nil)
+    Application.put_env(:playwright, GitHubFormatter, report_slow_tests: nil)
     refute run(events) =~ "::warning"
   end
 

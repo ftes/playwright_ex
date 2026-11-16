@@ -90,7 +90,7 @@ defmodule Playwright.Guides.GettingStartedTest do
   end
 
   test "logging" do
-    on_exit(fn -> Logger.delete_application_level(:playwright_ex) end)
-    assert :ok = Logger.put_application_level(:playwright_ex, :info)
+    on_exit(fn -> Logger.delete_application_level(:playwright) end)
+    assert :ok = Logger.put_application_level(:playwright, :info)
   end
 end

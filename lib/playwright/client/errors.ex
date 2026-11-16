@@ -64,14 +64,14 @@ defmodule Playwright.Client.Errors do
   @doc false
   # Elixir only: the driver renders CLI hints for sdkLanguage "javascript"
   # (architecture: Driver language and rendering). Exact-match rewrite of the install command,
-  # `npx playwright install [args]` to `mix playwright_ex.install [-- args]`; inside an ASCII box
+  # `npx playwright install [args]` to `mix playwright.install [-- args]`; inside an ASCII box
   # (`║ ... ║`) the padding absorbs the longer command.
   def rewrite_driver_hints(message) do
     if String.contains?(message, "npx playwright install") do
       Regex.replace(~r/npx playwright install(?![\w-])((?: [^\s"'`║]+)*)(?:( +)(?=║))?/u, message, fn _,
                                                                                                       args,
                                                                                                       padding ->
-        command = "mix playwright_ex.install" <> if(args != "", do: " --" <> args, else: "")
+        command = "mix playwright.install" <> if(args != "", do: " --" <> args, else: "")
         extra = String.length(command) - String.length("npx playwright install" <> args)
         command <> if(String.length(padding) > extra, do: String.slice(padding, extra..-1//1), else: padding)
       end)

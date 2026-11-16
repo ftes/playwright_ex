@@ -15,7 +15,7 @@ defmodule Playwright.Test.BrowserPool do
         %{context: context, page: BrowserContext.new_page!(context)}
       end
 
-  `browser/1` takes these options, merged over `config :playwright_ex, :test` (`launch_options`
+  `browser/1` takes these options, merged over `config :playwright, :test` (`launch_options`
   and `driver` one level deep):
 
     * `:browser_name` - `:chromium` (default), `:firefox` or `:webkit`.

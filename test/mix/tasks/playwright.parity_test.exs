@@ -1,7 +1,7 @@
-defmodule Mix.Tasks.PlaywrightEx.ParityTest do
+defmodule Mix.Tasks.Playwright.ParityTest do
   use ExUnit.Case, async: true
 
-  alias Mix.Tasks.PlaywrightEx.Parity
+  alias Mix.Tasks.Playwright.Parity
 
   test "ts_members/1: class methods and top-level functions, in order" do
     source = """

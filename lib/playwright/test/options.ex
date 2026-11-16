@@ -1,7 +1,7 @@
 defmodule Playwright.Test.Options do
   @moduledoc false
   # The options of `Playwright.Test` and `Playwright.Test.BrowserPool`: defaults, the merge
-  # over `config :playwright_ex, :test`, the recording modes from tags and `use` options over the
+  # over `config :playwright, :test`, the recording modes from tags and `use` options over the
   # config, and validation. Unknown keys and bad values raise `ArgumentError`, as the facade's do.
 
   alias Playwright.Runtime.Facade
@@ -184,12 +184,12 @@ defmodule Playwright.Test.Options do
 
   defp merge_value(_key, _config, value), do: value
 
-  @doc "`config :playwright_ex, :test`, validated, with each key's default (`Playwright.Test.config/0`)."
+  @doc "`config :playwright, :test`, validated, with each key's default (`Playwright.Test.config/0`)."
   def config do
-    config = Application.get_env(:playwright_ex, :test, [])
+    config = Application.get_env(:playwright, :test, [])
 
     if !Keyword.keyword?(config),
-      do: raise(ArgumentError, "config :playwright_ex, :test must be a keyword list, got: #{inspect(config)}")
+      do: raise(ArgumentError, "config :playwright, :test must be a keyword list, got: #{inspect(config)}")
 
     case Keyword.keys(config) -- @config_keys do
       [] ->
@@ -197,7 +197,7 @@ defmodule Playwright.Test.Options do
 
       unknown ->
         raise ArgumentError,
-              "unknown keys #{inspect(unknown)} in config :playwright_ex, :test, expected one of #{inspect(@config_keys)}"
+              "unknown keys #{inspect(unknown)} in config :playwright, :test, expected one of #{inspect(@config_keys)}"
     end
 
     defaults()

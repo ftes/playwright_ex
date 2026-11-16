@@ -105,7 +105,7 @@ defmodule Playwright.Test.Pool do
   # Playwright Test's fixtures and artifacts.
   defp runner_modules do
     own =
-      for module <- Application.spec(:playwright_ex, :modules) || [],
+      for module <- Application.spec(:playwright, :modules) || [],
           name = Atom.to_string(module),
           name in ["Elixir.Playwright.Test", "Elixir.Playwright.Case"] or
             String.starts_with?(name, "Elixir.Playwright.Test."),
@@ -291,7 +291,7 @@ defmodule Playwright.Test.Pool do
 
   # `workers` of the config, validated when the config changed (a test may put it): `{env, workers}`.
   defp workers(state) do
-    env = Application.get_env(:playwright_ex, :test)
+    env = Application.get_env(:playwright, :test)
 
     case state.workers do
       {^env, _workers} -> state

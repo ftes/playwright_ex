@@ -8,8 +8,8 @@ defmodule Playwright.ExampleCase do
         Page.get_by_role(page, :button) |> Locator.click!()
       end
 
-  Each `example` is a test, and `mix playwright_ex.gen.api` renders its body (the source between
-  `do` and `end`, see `Mix.PlaywrightEx.Examples`) in place of the upstream block equal to `js:`.
+  Each `example` is a test, and `mix playwright.gen.api` renders its body (the source between
+  `do` and `end`, see `Mix.Playwright.Examples`) in place of the upstream block equal to `js:`.
   So a translation compiles and runs before it is shown, and an upstream change to the JS leaves a
   stale example the generator reports.
 

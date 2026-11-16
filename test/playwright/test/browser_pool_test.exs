@@ -243,7 +243,7 @@ defmodule Playwright.Test.BrowserPoolTest do
         file: __ENV__.file,
         line: 1,
         trace: :on,
-        playwright_ex: :marked
+        playwright_test: :marked
       })
 
       # A recorder that is blocked: the finish's budget runs out waiting for it.
@@ -269,16 +269,16 @@ defmodule Playwright.Test.BrowserPoolTest do
   # `workers` for the test (the idle seats of the modules before it restart, or are trimmed at a
   # release).
   defp put_workers(workers) do
-    config = Application.get_env(:playwright_ex, :test)
-    Application.put_env(:playwright_ex, :test, Keyword.put(config, :workers, workers))
+    config = Application.get_env(:playwright, :test)
+    Application.put_env(:playwright, :test, Keyword.put(config, :workers, workers))
   end
 
   describe "workers" do
     setup do
-      config = Application.get_env(:playwright_ex, :test)
+      config = Application.get_env(:playwright, :test)
       put_workers(2)
 
-      on_exit(fn -> Application.put_env(:playwright_ex, :test, config) end)
+      on_exit(fn -> Application.put_env(:playwright, :test, config) end)
     end
 
     test "read once per config, not on each lease and release" do

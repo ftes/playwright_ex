@@ -1,7 +1,7 @@
 defmodule Playwright.ApiDocsTest do
   # The prose of the generated facade's docs (code blocks aside) reads as Elixir: an upstream
-  # version that brings new JS-isms fails here. Fix them with a rule in `mix playwright_ex.gen.api`
-  # ("JS names in prose") or an override in `Mix.PlaywrightEx.ApiRules` (`@prose_overrides`).
+  # version that brings new JS-isms fails here. Fix them with a rule in `mix playwright.gen.api`
+  # ("JS names in prose") or an override in `Mix.Playwright.ApiRules` (`@prose_overrides`).
   use ExUnit.Case, async: true
 
   # Backticked camelCase names that are facade options too, but mean something else here.

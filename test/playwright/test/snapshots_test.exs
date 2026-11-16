@@ -2,7 +2,7 @@ defmodule Playwright.Test.SnapshotsTest do
   # Snapshot names of `Playwright.Test` tests (upstream's `testInfo._resolveSnapshotPaths`),
   # their outputs in the test's output dir, and a written snapshot as the test's error. How the
   # errors fail a test: `Playwright.Test.EndToEndTest`.
-  # `config :playwright_ex, :test` is global.
+  # `config :playwright, :test` is global.
   use Playwright.Case, async: false
 
   import ExUnit.CaptureIO
@@ -21,9 +21,9 @@ defmodule Playwright.Test.SnapshotsTest do
   end
 
   defp put_config(config) do
-    previous = Application.get_env(:playwright_ex, :test)
-    Application.put_env(:playwright_ex, :test, Keyword.merge(previous, config))
-    on_exit(fn -> Application.put_env(:playwright_ex, :test, previous) end)
+    previous = Application.get_env(:playwright, :test)
+    Application.put_env(:playwright, :test, Keyword.merge(previous, config))
+    on_exit(fn -> Application.put_env(:playwright, :test, previous) end)
   end
 
   defp platform do
@@ -67,11 +67,11 @@ defmodule Playwright.Test.SnapshotsTest do
                "|#{File.cwd!()}/test|playwright/test/snapshots_test.exs|snapshots_test.exs"
 
     # The matcher's own template wins.
-    previous = Application.get_env(:playwright_ex, :expect)
-    on_exit(fn -> Application.put_env(:playwright_ex, :expect, previous) end)
+    previous = Application.get_env(:playwright, :expect)
+    on_exit(fn -> Application.put_env(:playwright, :expect, previous) end)
 
     Application.put_env(
-      :playwright_ex,
+      :playwright,
       :expect,
       Keyword.put(previous, :to_match_aria_snapshot, %{pathTemplate: "{arg}{ext}"})
     )

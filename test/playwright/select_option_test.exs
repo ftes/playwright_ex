@@ -1,5 +1,5 @@
 defmodule Playwright.SelectOptionTest do
-  # Elixir only: `valueOrLabel` in an option map (`Mix.PlaywrightEx.ApiRules`).
+  # Elixir only: `valueOrLabel` in an option map (`Mix.Playwright.ApiRules`).
   use ExUnit.Case, async: true
 
   alias Playwright.Browser

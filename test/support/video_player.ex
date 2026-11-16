@@ -81,7 +81,7 @@ defmodule Playwright.VideoPlayer do
   """
   def decode_jpeg(buffer) do
     ffmpeg = ffmpeg() || raise "ffmpeg not found: #{skip_reason()}"
-    dir = Path.join(System.tmp_dir!(), "playwright_ex-jpeg-#{System.unique_integer([:positive])}")
+    dir = Path.join(System.tmp_dir!(), "playwright-jpeg-#{System.unique_integer([:positive])}")
     File.mkdir_p!(dir)
 
     try do
@@ -122,7 +122,7 @@ defmodule Playwright.VideoPlayer do
   @doc "`nil` when ffmpeg is available, else a skip reason."
   def skip_reason do
     if !ffmpeg(),
-      do: "env: no ffmpeg (Playwright installs it with any browser: mix playwright_ex.install; or put ffmpeg on PATH)"
+      do: "env: no ffmpeg (Playwright installs it with any browser: mix playwright.install; or put ffmpeg on PATH)"
   end
 
   defp parse_float(string) do

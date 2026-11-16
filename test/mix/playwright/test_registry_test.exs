@@ -1,7 +1,7 @@
-defmodule Mix.PlaywrightEx.TestRegistryTest do
+defmodule Mix.Playwright.TestRegistryTest do
   use ExUnit.Case, async: true
 
-  alias Mix.PlaywrightEx.TestRegistry
+  alias Mix.Playwright.TestRegistry
 
   @registry """
   ## Subsystems

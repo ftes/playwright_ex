@@ -54,7 +54,7 @@ defmodule Playwright.Test.ArtifactsTest do
             test: :"test #{name}",
             file: __ENV__.file,
             line: 1,
-            playwright_ex: if(marked?, do: :marked)
+            playwright_test: if(marked?, do: :marked)
           })
 
         send(parent, {:registered, Playwright.Test.__register__(context)})
@@ -569,7 +569,7 @@ defmodule Playwright.Test.ArtifactsTest do
     assert error_context =~ "```\nRuntimeError: on purpose\n```"
     assert error_context =~ ~s(heading "FIRST")
     refute error_context =~ "RUNNING" or error_context =~ "SECOND"
-    assert output =~ "mix playwright_ex.cli show-trace #{Path.relative_to_cwd(Path.join(test.dir, "trace.zip"))}"
+    assert output =~ "mix playwright.cli show-trace #{Path.relative_to_cwd(Path.join(test.dir, "trace.zip"))}"
     assert length(String.split(output, "show-trace")) == 2
   end
 

@@ -1,4 +1,4 @@
-defmodule Mix.PlaywrightEx.TestRegistry do
+defmodule Mix.Playwright.TestRegistry do
   @moduledoc """
   The upstream test registry and the tests we do not port, as playwright-python and
   playwright-java keep them (their `scripts/check_test_registry.py`).
@@ -14,7 +14,7 @@ defmodule Mix.PlaywrightEx.TestRegistry do
   Our mirrored tests are named as upstream's, which start with the identifier
   (`test "CH-017 should work"`): a test matches the row of its upstream file (`@upstream`) with
   that identifier. `Playwright.UpstreamCase` skips the tests a rule matches, and
-  `mix playwright_ex.parity` checks the rules against the tests.
+  `mix playwright.parity` checks the rules against the tests.
   """
 
   @registry "test/upstream_registry.md"

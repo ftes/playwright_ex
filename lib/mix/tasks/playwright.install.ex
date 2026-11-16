@@ -1,10 +1,10 @@
-defmodule Mix.Tasks.PlaywrightEx.Install do
+defmodule Mix.Tasks.Playwright.Install do
   @shortdoc "Installs the Playwright driver (Node + playwright-core) and browsers"
   @moduledoc """
-  Usage: `mix playwright_ex.install [--no-browsers] [--force] [-- BROWSER_ARGS...]`
+  Usage: `mix playwright.install [--no-browsers] [--force] [-- BROWSER_ARGS...]`
 
   Browser args are forwarded to `playwright install` (none: its default browsers, as
-  `npx playwright install`), e.g. `mix playwright_ex.install -- chromium firefox --with-deps`.
+  `npx playwright install`), e.g. `mix playwright.install -- chromium firefox --with-deps`.
   `--no-browsers` installs only the driver, for a browser launched with `:executable_path` or
   `:channel`.
 

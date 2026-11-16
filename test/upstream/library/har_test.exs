@@ -39,7 +39,7 @@ defmodule Playwright.Library.HarTest do
 
   # testInfo.outputPath(): a fresh directory per test.
   setup do
-    dir = Path.join(System.tmp_dir!(), "playwright_ex-har-#{System.unique_integer([:positive])}")
+    dir = Path.join(System.tmp_dir!(), "playwright-har-#{System.unique_integer([:positive])}")
     File.mkdir_p!(dir)
     on_exit(fn -> File.rm_rf!(dir) end)
     %{output_path: &Path.join(dir, &1)}

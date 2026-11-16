@@ -18,7 +18,7 @@ shift || true
 
 case $(uname -m) in arm64 | aarch64) host_arch=arm64 ;; *) host_arch=amd64 ;; esac
 platform=${PLATFORM:-linux/$host_arch}
-name=playwright_ex-linux-${platform#linux/}
+name=playwright-linux-${platform#linux/}
 # Each checkout gets its own dir in the container, so its _build and deps stay there.
 app=/app/$(basename "$src")-$(printf %s "$src" | cksum | cut -d' ' -f1)
 version=$(<"$src/DRIVER_VERSION")
@@ -26,9 +26,9 @@ version=$(<"$src/DRIVER_VERSION")
 # The host's cache (upstream sources) is mounted read-only; the test suite then skips the upstream
 # download, whose tar extraction fails under amd64 emulation (Function not implemented).
 if [[ $(uname) == Darwin ]]; then
-  host_cache=$HOME/Library/Caches/playwright_ex
+  host_cache=$HOME/Library/Caches/playwright
 else
-  host_cache=${XDG_CACHE_HOME:-$HOME/.cache}/playwright_ex
+  host_cache=${XDG_CACHE_HOME:-$HOME/.cache}/playwright
 fi
 host_cache=${PLAYWRIGHT_EX_CACHE_DIR:-$host_cache}
 
@@ -62,7 +62,7 @@ case $cmd in
     docker run -d --platform "$platform" --name "$name" --shm-size=2g "${mounts[@]}" "$name" \
       sleep infinity >/dev/null
     sync
-    in_container "mix deps.compile && mix playwright_ex.install -- ${*:-chromium} --with-deps"
+    in_container "mix deps.compile && mix playwright.install -- ${*:-chromium} --with-deps"
     ;;
   test) sync && in_container "xvfb-run --auto-servernum -- mix test $*" ;;
   exec) sync && in_container "$*" ;;

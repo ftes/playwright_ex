@@ -664,7 +664,7 @@ defmodule Playwright.Test.Recorder do
         Tracing.start!(
           tracing,
           Keyword.drop(opts.trace, [:mode, :attachments]) ++
-            [title: opts.title, name: "playwright_ex-#{System.unique_integer([:positive])}"]
+            [title: opts.title, name: "playwright-#{System.unique_integer([:positive])}"]
         )
       end,
       %{internal: true}

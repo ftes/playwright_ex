@@ -1,4 +1,4 @@
-defmodule Mix.PlaywrightEx.Notices do
+defmodule Mix.Playwright.Notices do
   @moduledoc """
   The copyright header of a file derived from upstream (Apache-2.0, section 4): its upstream
   files' copyright lines, a line stating that it was ported and modified, and the license, as a
@@ -12,12 +12,12 @@ defmodule Mix.PlaywrightEx.Notices do
   The sources of a file are its modules' `@upstream` paths (`.ex` and `.exs` under `lib`, `dev`
   and `test`), else `@derived` below. The copyright lines are those at the start of each
   upstream file's leading comment; the license is that comment's (Apache-2.0 or MIT). The
-  generators (`mix playwright_ex.gen.api`, `mix playwright_ex.gen.protocol`) put the header on
-  what they write, `mix playwright_ex.notices` on the other files, and `mix playwright_ex.parity`
+  generators (`mix playwright.gen.api`, `mix playwright.gen.protocol`) put the header on
+  what they write, `mix playwright.notices` on the other files, and `mix playwright.parity`
   checks both. `NOTICE` must name the copyright lines of every MIT source but Microsoft's.
   """
 
-  alias Mix.Tasks.PlaywrightEx.Parity
+  alias Mix.Tasks.Playwright.Parity
 
   @dirs ~w(lib dev test)
   @ported "Ported to Elixir and modified by the playwright_ex authors."
@@ -98,14 +98,14 @@ defmodule Mix.PlaywrightEx.Notices do
 
     headers =
       for {path, source} <- files, put(upstream, path, source) != source do
-        fix = if generated?(source), do: "regenerate it", else: "run mix playwright_ex.notices"
+        fix = if generated?(source), do: "regenerate it", else: "run mix playwright.notices"
         "#{path}: copyright header out of date, #{fix}"
       end
 
     stale =
       for {path, _} <- @derived,
           not File.regular?(path),
-          do: "#{path}: in Mix.PlaywrightEx.Notices @derived, but not found"
+          do: "#{path}: in Mix.Playwright.Notices @derived, but not found"
 
     mit =
       for {path, source} <- files,

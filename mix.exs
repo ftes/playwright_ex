@@ -9,7 +9,7 @@ defmodule Playwright.MixProject do
 
   def project do
     [
-      app: :playwright_ex,
+      app: :playwright,
       version: @version,
       description: @description,
       elixir: "~> 1.18",
@@ -60,6 +60,8 @@ defmodule Playwright.MixProject do
 
   defp package do
     [
+      # The Hex package keeps its name: `playwright` on Hex is another library.
+      name: "playwright_ex",
       # The port is Apache-2.0 (Playwright's, `NOTICE`).
       licenses: ["Apache-2.0"],
       links: %{"GitHub" => @source_url, "Changelog" => "https://hexdocs.pm/playwright_ex/#{@version}/changelog.html"},
@@ -215,14 +217,14 @@ defmodule Playwright.MixProject do
 
   defp aliases do
     [
-      setup: ["deps.get", "playwright_ex.install -- chromium", "playwright_ex.upstream"],
+      setup: ["deps.get", "playwright.install -- chromium", "playwright.upstream"],
       check: [
         "format --check-formatted",
         "credo",
         "compile --warnings-as-errors",
         "usage_rules.sync --check",
         "dialyzer --format github --format dialyxir",
-        "playwright_ex.parity",
+        "playwright.parity",
         "test --warnings-as-errors"
       ]
     ]

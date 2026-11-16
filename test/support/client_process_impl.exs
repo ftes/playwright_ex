@@ -5,7 +5,7 @@
 # idle (outside any Playwright call) until the test sends it a signal. It prints "(key=>value)"
 # lines, like upstream: (tempDir=>...), (ready=>true), (closed=>success).
 #
-# Runs as `elixir --erl +Bd -pa <playwright_ex ebin> client_process_impl.exs '<json options>'`.
+# Runs as `elixir --erl +Bd -pa <playwright ebin> client_process_impl.exs '<json options>'`.
 
 alias Playwright.Browser
 alias Playwright.BrowserType

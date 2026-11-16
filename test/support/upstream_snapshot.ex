@@ -156,7 +156,7 @@ defmodule Playwright.UpstreamSnapshot do
   defp mime_type(".webp"), do: "image/webp"
 
   defp tmp_dir do
-    dir = Path.join(System.tmp_dir!(), "playwright_ex-snapshot-#{System.unique_integer([:positive])}")
+    dir = Path.join(System.tmp_dir!(), "playwright-snapshot-#{System.unique_integer([:positive])}")
     File.mkdir_p!(dir)
     dir
   end

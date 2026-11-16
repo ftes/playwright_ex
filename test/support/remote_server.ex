@@ -77,7 +77,7 @@ defmodule Playwright.RemoteServer do
 
   # A `node_modules` with `playwright-core` (the driver package), for `NODE_PATH`.
   defp node_path(cli) do
-    dir = Path.join(System.tmp_dir!(), "playwright_ex-#{Playwright.Driver.version()}-node_modules")
+    dir = Path.join(System.tmp_dir!(), "playwright-#{Playwright.Driver.version()}-node_modules")
     link = Path.join(dir, "playwright-core")
 
     File.mkdir_p!(dir)
@@ -142,7 +142,7 @@ defmodule Playwright.RemoteServer do
     defstruct [:_process, :_wsEndpoint]
 
     def start(browser_name, options \\ %{}) do
-      config = Path.join(System.tmp_dir!(), "playwright_ex-launch-server-#{System.unique_integer([:positive])}.json")
+      config = Path.join(System.tmp_dir!(), "playwright-launch-server-#{System.unique_integer([:positive])}.json")
       File.write!(config, JSON.encode!(Map.new(options)))
       {program, args} = Playwright.Driver.ensure_installed()
 

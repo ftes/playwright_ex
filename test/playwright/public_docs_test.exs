@@ -8,7 +8,7 @@ defmodule Playwright.PublicDocsTest do
     filter = Mix.Project.config()[:docs][:filter_modules]
 
     modules =
-      for module <- Application.spec(:playwright_ex, :modules),
+      for module <- Application.spec(:playwright, :modules),
           source = to_string(module.module_info(:compile)[:source]),
           # `mix docs` runs in dev: lib/ and dev/, no test/support.
           not String.starts_with?(Path.relative_to_cwd(source), "test/"),
@@ -24,12 +24,12 @@ defmodule Playwright.PublicDocsTest do
     shown = Enum.map(modules, &elem(&1, 0))
     assert Playwright.Driver in shown
     assert Playwright.Page in shown
-    assert Mix.Tasks.PlaywrightEx.Install in shown
-    assert Mix.Tasks.PlaywrightEx.Cli in shown
+    assert Mix.Tasks.Playwright.Install in shown
+    assert Mix.Tasks.Playwright.Cli in shown
     refute Playwright.Client.Page in shown
     # dev/: maintainer tooling.
-    refute Mix.Tasks.PlaywrightEx.Parity in shown
-    refute Mix.PlaywrightEx.TestRegistry in shown
+    refute Mix.Tasks.Playwright.Parity in shown
+    refute Mix.Playwright.TestRegistry in shown
     refute Playwright.Upstream in shown
   end
 
@@ -38,7 +38,7 @@ defmodule Playwright.PublicDocsTest do
       shown? = &filter.(nil, %{source_path: Path.join(checkout, &1)})
       assert shown?.("lib/playwright/root.ex")
       assert shown?.("lib/playwright/page.ex")
-      assert shown?.("lib/mix/tasks/playwright_ex.install.ex")
+      assert shown?.("lib/mix/tasks/playwright.install.ex")
       refute shown?.("lib/playwright/client/page.ex")
       refute shown?.("lib/playwright/out_of_process.ex")
     end
@@ -47,9 +47,9 @@ defmodule Playwright.PublicDocsTest do
   test "the docs filter hides all of dev/, at any depth", %{filter: filter} do
     shown? = &filter.(nil, %{source_path: Path.join(File.cwd!(), &1)})
     refute shown?.("dev/playwright/upstream.ex")
-    refute shown?.("dev/mix/tasks/playwright_ex.parity.ex")
-    refute shown?.("dev/mix/playwright_ex/test_registry.ex")
-    refute shown?.("dev/mix/playwright_ex/api_rules/helpers.ex")
+    refute shown?.("dev/mix/tasks/playwright.parity.ex")
+    refute shown?.("dev/mix/playwright/test_registry.ex")
+    refute shown?.("dev/mix/playwright/api_rules/helpers.ex")
     refute shown?.("dev/mix/foo.ex")
     refute shown?.("dev/support.ex")
   end

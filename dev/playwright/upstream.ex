@@ -1,8 +1,8 @@
 defmodule Playwright.Upstream do
   @moduledoc """
   The microsoft/playwright sources at the pinned `Playwright.Driver.version/0`, for the
-  dev tasks (`mix playwright_ex.gen.protocol`, `mix playwright_ex.parity`), the tests (test server
-  assets) and reading (`mix playwright_ex.upstream`).
+  dev tasks (`mix playwright.gen.protocol`, `mix playwright.parity`), the tests (test server
+  assets) and reading (`mix playwright.upstream`).
 
   Downloads the release tarball once into `Playwright.Driver.cache_dir/1` and extracts only
   `@paths` (again when a path is missing, e.g. after one was added). `PLAYWRIGHT_EX_UPSTREAM` (or the `:dir` option) points at a checkout instead.

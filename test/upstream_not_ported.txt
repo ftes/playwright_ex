@@ -1,7 +1,7 @@
 # Upstream tests that playwright_ex does not port, with the reason.
 #
 # The registry of upstream tests is test/upstream_registry.md, a copy of tests/registry.md in
-# microsoft/playwright at the pin. `mix playwright_ex.parity` checks that every test
+# microsoft/playwright at the pin. `mix playwright.parity` checks that every test
 # in it that is at our pin is ported (a mirrored test with a body), left bodiless because
 # upstream skips it in our setup, or matches a rule here. One rule per line: a selector, then
 # the reason. A selector is a test identifier (CH-017), a subsystem code (CG), or an upstream
@@ -10,7 +10,7 @@
 # `Playwright.UpstreamCase` skips the mirrored tests a rule matches ("not ported: <reason>"),
 # so they stay bodiless, in spec order, without a skip tag.
 # Same format as playwright-python's tests/upstream_not_ported.txt and playwright-java's
-# upstream_not_ported.txt; `mix playwright_ex.parity --north-star` compares them.
+# upstream_not_ported.txt; `mix playwright.parity --north-star` compares them.
 
 # Upstream internals, not the client API.
 library/unit/android-webviews       server internals (Android)

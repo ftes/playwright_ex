@@ -1,6 +1,6 @@
-defmodule Mix.PlaywrightEx.ApiRules do
+defmodule Mix.Playwright.ApiRules do
   @moduledoc """
-  Elixir rules for `mix playwright_ex.gen.api`, applied to the JS view of `api.json`
+  Elixir rules for `mix playwright.gen.api`, applied to the JS view of `api.json`
   (the counterpart of the Python client's `python_rules`).
 
   Every class and member left after these rules is generated, and the facade calls the client
@@ -85,7 +85,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
       the snapshot file as a `path` option (`to_have_screenshot(page, path: "home.png")`), as does
       `toMatchAriaSnapshot`, in place of `expected` (`to_match_aria_snapshot(page, path: "a.aria.yml")`).
       Their option docs
-      name `config :playwright_ex, :expect` for the runner's `TestConfig.expect`.
+      name `config :playwright, :expect` for the runner's `TestConfig.expect`.
   """
 
   # BrowserServer: `launchServer` is out of scope (architecture: Generated facade), browsers run
@@ -142,13 +142,13 @@ defmodule Mix.PlaywrightEx.ApiRules do
 
   @timeout_doc "In Elixir, `:infinity` is the same as `0`: no timeout."
   @expect_timeout_doc "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `timeout` in " <>
-                        "`config :playwright_ex, :expect` (`5000` if not set, see the configuration in `Playwright.Expect`)."
+                        "`config :playwright, :expect` (`5000` if not set, see the configuration in `Playwright.Expect`)."
   @signal_doc "In Elixir, a `Playwright.AbortSignal` (`Playwright.AbortController.signal/1`)."
 
   # Assertion classes and the class of their receiver (`expect(receiver)`).
   @assertions %{"LocatorAssertions" => "Locator", "PageAssertions" => "Page", "APIResponseAssertions" => "APIResponse"}
 
-  # Prose the generic rules of `mix playwright_ex.gen.api` (JS names in prose, as Elixir has them)
+  # Prose the generic rules of `mix playwright.gen.api` (JS names in prose, as Elixir has them)
   # get wrong or cannot reach: "Class.member" (or "Class" for the class docs) => [{upstream text,
   # Elixir text}]. Each upstream text must still be there, so a version bump that changes it fails.
   @timeout_doc_from "The default value can be changed by using the [`method: BrowserContext.setDefaultTimeout`]."
@@ -478,7 +478,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
     end
   end
 
-  # Matcher options: the test runner's `TestConfig.expect` is `config :playwright_ex, :expect`.
+  # Matcher options: the test runner's `TestConfig.expect` is `config :playwright, :expect`.
   defp expect_options(%{"name" => "options", "type" => %{"properties" => props}} = options) do
     props =
       for prop <- props do
@@ -497,7 +497,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
       String.replace(
         text,
         "`TestConfig.expect`",
-        "`config :playwright_ex, :expect` (see the configuration in `Playwright.Expect`)"
+        "`config :playwright, :expect` (see the configuration in `Playwright.Expect`)"
       )
 
   defp expect_config_doc(spec) when is_list(spec), do: Enum.map(spec, &expect_config_doc/1)
@@ -759,7 +759,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
               text(
                 "Time to retry the callback for in milliseconds. Defaults to `0`: until the test's timeout (none outside " <>
                   "a `Playwright.Test` test), not the matchers' `timeout`. A default other than `0` is `:to_pass` in " <>
-                  "`config :playwright_ex, :expect` (see the configuration in `Playwright.Expect`). Within a test, it " <>
+                  "`config :playwright, :expect` (see the configuration in `Playwright.Expect`). Within a test, it " <>
                   "ends before the test's timeout."
               )
             ]

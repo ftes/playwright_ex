@@ -44,7 +44,7 @@ jobs:
       # May fail on a branch that doesn't compile; Claude then runs without them.
       - name: Install dependencies and upstream sources
         continue-on-error: true
-        run: mkdir -p ~/.cache/playwright_ex && mix "do" deps.get, deps.compile, playwright_ex.upstream
+        run: mkdir -p ~/.cache/playwright && mix "do" deps.get, deps.compile, playwright.upstream
 
       - name: Run Claude Code Review
         id: claude
@@ -74,7 +74,7 @@ jobs:
                input or scenario that fails. Drop anything you cannot substantiate, and skip
                style, naming and formatting nits.
                Ported code (`@upstream`) marks only its deviations, so unmarked statements match
-               upstream's client, under ~/.cache/playwright_ex/<version>/upstream at the pin. An
+               upstream's client, under ~/.cache/playwright/<version>/upstream at the pin. An
                edge case they share with upstream is not a defect of this PR: don't suggest a
                special case for it. Do flag a new deviation nothing requires.
             5. Don't repeat findings already posted on this PR
@@ -88,7 +88,7 @@ jobs:
           claude_args: |
             --model claude-opus-5-5
             --max-turns 80
-            --add-dir /home/runner/.cache/playwright_ex
+            --add-dir /home/runner/.cache/playwright
             --allowedTools "Read,Grep,Glob,Agent,Task,Write,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments:*),mcp__github_inline_comment__create_inline_comment"
       - name: Summarize Claude's result
         if: ${{ !cancelled() && steps.claude.outputs.execution_file != '' }}

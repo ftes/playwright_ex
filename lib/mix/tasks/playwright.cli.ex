@@ -1,11 +1,11 @@
-defmodule Mix.Tasks.PlaywrightEx.Cli do
+defmodule Mix.Tasks.Playwright.Cli do
   @shortdoc "Runs the Playwright CLI (show-trace, install --with-deps, codegen, ...)"
   @moduledoc """
-  Usage: `mix playwright_ex.cli ARGS...`
+  Usage: `mix playwright.cli ARGS...`
 
   Forwards `ARGS` to the driver's `playwright` CLI, like `python -m playwright ARGS` and Java's
-  `CLI`, e.g. `mix playwright_ex.cli show-trace trace.zip` or
-  `mix playwright_ex.cli install --with-deps chromium`. Installs the driver first if needed.
+  `CLI`, e.g. `mix playwright.cli show-trace trace.zip` or
+  `mix playwright.cli install --with-deps chromium`. Installs the driver first if needed.
   """
   use Mix.Task
 

@@ -267,11 +267,11 @@ defmodule Playwright.Guides.TestingWithExUnit.ArtifactsTest do
   alias Playwright.Test.TestInfo
 
   setup_all do
-    config = Application.get_env(:playwright_ex, :test)
-    Application.put_env(:playwright_ex, :test, Keyword.put(config, :trace, :on_first_retry))
+    config = Application.get_env(:playwright, :test)
+    Application.put_env(:playwright, :test, Keyword.put(config, :trace, :on_first_retry))
 
     on_exit(fn ->
-      Application.put_env(:playwright_ex, :test, config)
+      Application.put_env(:playwright, :test, config)
       dir = TestInfo.output_dir(%{module: __MODULE__, test: :"test signs up", file: __ENV__.file})
       traced = Path.wildcard(dir <> "*/trace.zip")
       if ExUnit.configuration()[:only_test_ids], do: assert([_ | _] = traced), else: assert(traced == [])
@@ -347,9 +347,9 @@ defmodule Playwright.Guides.TestingWithExUnit.SnapshotsTest do
   @moduletag :tmp_dir
 
   setup %{tmp_dir: tmp_dir} do
-    config = Application.get_env(:playwright_ex, :test)
-    Application.put_env(:playwright_ex, :test, Keyword.put(config, :snapshot_dir, tmp_dir))
-    on_exit(fn -> Application.put_env(:playwright_ex, :test, config) end)
+    config = Application.get_env(:playwright, :test)
+    Application.put_env(:playwright, :test, Keyword.put(config, :snapshot_dir, tmp_dir))
+    on_exit(fn -> Application.put_env(:playwright, :test, config) end)
   end
 
   test "signs up", %{page: page, tmp_dir: tmp_dir} do

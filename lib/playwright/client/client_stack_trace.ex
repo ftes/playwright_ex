@@ -5,7 +5,7 @@
 defmodule Playwright.Client.ClientStackTrace do
   @upstream "packages/playwright-core/src/client/clientStackTrace.ts"
   @moduledoc """
-  Port of `#{@upstream}`. Library frames are those of the `:playwright_ex` application's modules
+  Port of `#{@upstream}`. Library frames are those of the `:playwright` application's modules
   (the facade's and the matchers' too), instead of files under the core dir; each is left out,
   so a caller's frames below a library frame (a step's body, a callback's) stay.
 
@@ -82,7 +82,7 @@ defmodule Playwright.Client.ClientStackTrace do
   defp library_modules do
     case :persistent_term.get({__MODULE__, :library}, nil) do
       nil ->
-        case Application.spec(:playwright_ex, :modules) do
+        case Application.spec(:playwright, :modules) do
           nil ->
             %{}
 

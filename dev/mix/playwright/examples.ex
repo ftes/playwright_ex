@@ -1,8 +1,8 @@
-defmodule Mix.PlaywrightEx.Examples do
+defmodule Mix.Playwright.Examples do
   @moduledoc false
   # The Elixir translations of the facade docs' JS examples: the `example` tests in
   # `test/examples/*.exs` (`Playwright.ExampleCase`), read as source, not compiled.
-  # `mix playwright_ex.gen.api` renders a body in place of the upstream block equal to its `js:`.
+  # `mix playwright.gen.api` renders a body in place of the upstream block equal to its `js:`.
 
   @dir "test/examples"
 

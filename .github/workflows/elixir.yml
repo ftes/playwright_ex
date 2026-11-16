@@ -211,7 +211,7 @@ jobs:
           if [[ -f /etc/apt/apt-mirrors.txt ]]; then echo "http://archive.ubuntu.com/ubuntu/" | sudo tee -a /etc/apt/apt-mirrors.txt; fi
           if compgen -G ~/apt-cache/'*.deb' > /dev/null; then sudo cp ~/apt-cache/*.deb /var/cache/apt/archives/; fi
           for attempt in 1 2 3; do
-            if timeout 300 mix playwright_ex.install -- ${{ matrix.browser }} --with-deps; then
+            if timeout 300 mix playwright.install -- ${{ matrix.browser }} --with-deps; then
               sudo apt-get autoclean -qq
               rm -rf ~/apt-cache && mkdir -p ~/apt-cache && cp /var/cache/apt/archives/*.deb ~/apt-cache/ 2>/dev/null || true
               exit 0
@@ -230,7 +230,7 @@ jobs:
           path: ~/apt-cache
       - name: Check parity with upstream
         if: matrix.lane == 'newest' && matrix.browser == 'chromium' && matrix.partition == 1
-        run: mix playwright_ex.parity
+        run: mix playwright.parity
       # A display like upstream's CI (Linux firefox WebGL needs one): one Xvfb with xvfb-run's
       # defaults, left running for the job. Not xvfb-run: its teardown can exit 5 in place of mix's.
       - name: Start Xvfb

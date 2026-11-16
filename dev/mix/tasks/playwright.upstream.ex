@@ -1,7 +1,7 @@
-defmodule Mix.Tasks.PlaywrightEx.Upstream do
+defmodule Mix.Tasks.Playwright.Upstream do
   @shortdoc "Downloads the upstream sources at the pin and prints their directory"
   @moduledoc """
-  Usage: `mix playwright_ex.upstream`
+  Usage: `mix playwright.upstream`
 
   Runs `Playwright.Upstream.ensure!/0` and prints the directory: upstream's client, server,
   injected script, specs and API docs at the pinned `Playwright.Driver.version/0`, to read

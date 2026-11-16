@@ -109,7 +109,7 @@ defmodule Playwright.Supervisor do
     # test) modules load on first use, and that delay between two calls of one synchronous JS
     # section (`evaluate` sent, then the `console` subscription of `wait_for_event`) can let an
     # event the second one waits for pass unseen.
-    :code.ensure_modules_loaded(Application.spec(:playwright_ex, :modules) || [])
+    :code.ensure_modules_loaded(Application.spec(:playwright, :modules) || [])
     name = Keyword.fetch!(opts, :name)
     children = [{OutOfProcess, Keyword.merge(opts, name: out_of_process(name), supervisor: {name, self()})}]
 

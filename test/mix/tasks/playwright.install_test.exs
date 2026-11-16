@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.PlaywrightEx.InstallTest do
+defmodule Mix.Tasks.Playwright.InstallTest do
   use ExUnit.Case, async: true
 
   import ExUnit.CaptureIO
@@ -7,7 +7,7 @@ defmodule Mix.Tasks.PlaywrightEx.InstallTest do
     output =
       capture_io(fn ->
         assert_raise Mix.Error, ~r/^playwright install failed with exit status [1-9]/, fn ->
-          Mix.Tasks.PlaywrightEx.Install.run(["--", "no-such-browser"])
+          Mix.Tasks.Playwright.Install.run(["--", "no-such-browser"])
         end
       end)
 

@@ -1,9 +1,9 @@
 defmodule Playwright.Root do
   @moduledoc false
   # The hand-written part of the root module `Playwright`, whose facade (upstream's `Playwright`
-  # class, as `require('playwright')` is the Playwright object) `mix playwright_ex.gen.api`
+  # class, as `require('playwright')` is the Playwright object) `mix playwright.gen.api`
   # generates with `use Playwright.Root`. Its moduledoc's introduction is in
-  # `Mix.PlaywrightEx.ApiRules`.
+  # `Mix.Playwright.ApiRules`.
 
   defmacro __using__(_opts) do
     quote do

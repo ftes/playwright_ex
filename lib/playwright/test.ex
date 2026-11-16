@@ -6,7 +6,7 @@ defmodule Playwright.Test do
   contexts and pages from the plain API; `Playwright.Case` puts them together.
 
       # config/test.exs
-      config :playwright_ex, :test,
+      config :playwright, :test,
         trace: :on_first_retry,       # traced under `mix test --failed`
         screenshot: :only_on_failure,
         context_options: [base_url: "http://localhost:4000"]
@@ -76,7 +76,7 @@ defmodule Playwright.Test do
     * `trace.zip` - one trace of all its contexts, their `request`s and its request contexts
       (`Playwright.APIRequest.new_context/2`), recorded with screenshots, snapshots and
       sources unless the trace's options say otherwise. A failed test that keeps one prints
-      `mix playwright_ex.cli show-trace <path>`.
+      `mix playwright.cli show-trace <path>`.
     * `test-finished-N.png`, or `test-failed-N.png` for a failed test - a screenshot of every
       page open at the end of the test's body (before its `on_exit` callbacks), then of those
       open when their context closes (`timeout: 5000, caret: :initial`, as upstream).
@@ -186,7 +186,7 @@ defmodule Playwright.Test do
   `pays-1-<platform>.png` for a screenshot, `pays-1.aria.yml` for an aria snapshot.
   A name is sanitized for the file system, a list of path segments is not. `snapshot_dir` is
   `test/` by default; `snapshot_path_template` (or the matcher's `pathTemplate` in `config
-  :playwright_ex, :expect`) takes upstream's tokens: `{testDir}`, `{snapshotDir}`,
+  :playwright, :expect`) takes upstream's tokens: `{testDir}`, `{snapshotDir}`,
   `{testFileDir}`, `{testFileName}`, `{testFileBaseName}`, `{testFilePath}`, `{testName}`,
   `{arg}`, `{ext}`, `{platform}` and `{snapshotSuffix}` (the platform, as upstream's);
   `{projectName}` is accepted for upstream templates and is always empty. `snapshot_path/2`
@@ -216,7 +216,7 @@ defmodule Playwright.Test do
 
   ## Config
 
-      config :playwright_ex, :test,
+      config :playwright, :test,
         browser_name: :chromium,      # BrowserPool: :chromium | :firefox | :webkit
         launch_options: [],           # BrowserPool: Playwright.BrowserType.launch/2
         connect_options: nil,         # BrowserPool: [ws_endpoint: _, ...] to connect instead of launching
@@ -389,7 +389,7 @@ defmodule Playwright.Test do
         else: [do: block, catch: failed]
 
     quote do
-      @tag playwright_ex: :marked
+      @tag playwright_test: :marked
       ExUnit.Case.test(unquote(message), unquote(var), unquote(contents))
     end
   end
@@ -397,7 +397,7 @@ defmodule Playwright.Test do
   @doc "`ExUnit.Case.test/1`: a test that fails as not implemented."
   defmacro test(message) do
     quote do
-      @tag playwright_ex: :marked
+      @tag playwright_test: :marked
       ExUnit.Case.test(unquote(message))
     end
   end
@@ -533,7 +533,7 @@ defmodule Playwright.Test do
     }
 
     file = context.file
-    marked? = context[:playwright_ex] == :marked
+    marked? = context[:playwright_test] == :marked
     timeout = test_timeout(context)
 
     test =
@@ -548,7 +548,7 @@ defmodule Playwright.Test do
         context_options: Options.context_options(config),
         timeouts: Options.timeouts(config),
         preserve_output: Options.preserve_output(config),
-        tmp: Path.join(System.tmp_dir!(), "playwright_ex-test-#{System.unique_integer([:positive])}")
+        tmp: Path.join(System.tmp_dir!(), "playwright-test-#{System.unique_integer([:positive])}")
       })
 
     TestInfo.remove_output_dirs(test)
@@ -613,7 +613,7 @@ defmodule Playwright.Test do
     if verdict == :failed and trace,
       do:
         IO.puts(
-          "\nTrace of #{inspect(test.test_name)}: mix playwright_ex.cli show-trace #{Path.relative_to_cwd(trace)}"
+          "\nTrace of #{inspect(test.test_name)}: mix playwright.cli show-trace #{Path.relative_to_cwd(trace)}"
         )
 
     if !preserve_output?(test.preserve_output, verdict), do: File.rm_rf(test.output_dir)
@@ -761,12 +761,12 @@ defmodule Playwright.Test do
   end
 
   @doc """
-  The resolved `config :playwright_ex, :test` (see "Config" in the moduledoc), for libraries
+  The resolved `config :playwright, :test` (see "Config" in the moduledoc), for libraries
   that build on the runner: a map of every key, with its default filled in and its value
   validated, as the runner reads it. The recording modes are keyword lists with `:mode` first
   (`trace: [mode: :off, snapshots: true, ...]`), `context_options` are as configured (without
   Playwright Test's context defaults), and an unset `action_timeout` or `navigation_timeout` is
-  `:infinity`. `expect: %{timeout: ms}` is the matchers' timeout of `config :playwright_ex,
+  `:infinity`. `expect: %{timeout: ms}` is the matchers' timeout of `config :playwright,
   :expect` (5000 by default, `0` for none). Works outside a test too (at startup, in a module
   without `use Playwright.Test`); raises `ArgumentError` for an invalid config.
 

@@ -1,10 +1,10 @@
-defmodule Mix.Tasks.PlaywrightEx.Parity do
+defmodule Mix.Tasks.Playwright.Parity do
   @shortdoc "Compares ported modules and tests with their upstream sources"
   @moduledoc """
   Checks that every ported module still covers its upstream file, and every mirrored test
   module its upstream spec.
 
-      mix playwright_ex.parity [--extra] [--north-star [--python-rules PATH]]
+      mix playwright.parity [--extra] [--north-star [--python-rules PATH]]
 
   Sources: `Playwright.Upstream.ensure!/0` (the pinned upstream release).
 
@@ -12,7 +12,7 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
       module with `@upstream` for it (in `lib`, `dev` or `test/support`), unless listed with a reason in
       `@unported_client_files` in this module. An exclusion for a file that is not upstream, or
       that has a module after all, is stale. Review the list on a version roll.
-    * Test registry (`Mix.PlaywrightEx.TestRegistry`, as playwright-python's
+    * Test registry (`Mix.Playwright.TestRegistry`, as playwright-python's
       `check_test_registry.py`): every test of `test/upstream_registry.md` that is at the pin is
       ported (a mirrored test with a body), bodiless under a static `upstream ...` skip (upstream
       does not run it in our setup), or ruled out in `test/upstream_not_ported.txt`. Fails on a
@@ -42,13 +42,13 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
       checked: a reason citing a ported member that still cannot be used says what is missing
       in words (`not ported: Page.removeAllListeners behavior option`).
     * Rule reasons, as skip reasons (`not ported: <reason>`): a rule citing a ported member is stale.
-    * Copyright headers (`Mix.PlaywrightEx.Notices`): every file derived from upstream starts
-      with its upstream files' copyright lines and license, as `mix playwright_ex.notices` and the
+    * Copyright headers (`Mix.Playwright.Notices`): every file derived from upstream starts
+      with its upstream files' copyright lines and license, as `mix playwright.notices` and the
       generators write them, and `NOTICE` names its MIT sources.
-    * The generated facade (`mix playwright_ex.gen.api --check`): regenerating it from
+    * The generated facade (`mix playwright.gen.api --check`): regenerating it from
       `api.json` must give the committed files. It has every member, so a client function it
       calls that is missing is a compile warning.
-    * Function-typed parameters of the facade (`api.json` after `Mix.PlaywrightEx.ApiRules`, by
+    * Function-typed parameters of the facade (`api.json` after `Mix.Playwright.ApiRules`, by
       `Class.member(param)`, options by path) must be in `@function_params`, which says where the
       function runs (PORTING.md, `$callers`); an entry that is no such parameter is stale.
 
@@ -60,9 +60,9 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
   """
   use Mix.Task
 
-  alias Mix.PlaywrightEx.ApiRules
-  alias Mix.PlaywrightEx.TestRegistry
-  alias Mix.Tasks.PlaywrightEx.Gen.Api
+  alias Mix.Playwright.ApiRules
+  alias Mix.Playwright.TestRegistry
+  alias Mix.Tasks.Playwright.Gen.Api
 
   # Upstream names that have no Elixir function by convention (see PORTING.md).
   @by_convention ~w(constructor from fromNullable)
@@ -171,7 +171,7 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
         check_rule_reasons(registry.rules, &ported?/2) ++
         check_facade(upstream) ++
         check_function_params(function_params(upstream)) ++
-        Mix.PlaywrightEx.Notices.check(upstream)
+        Mix.Playwright.Notices.check(upstream)
 
     shell = Mix.shell()
     Enum.each(registry_info(registry), &shell.info/1)
@@ -221,7 +221,7 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
 
   defp check_facade(upstream) do
     for path <- Api.check(upstream),
-        do: "#{path}: out of date with api.json, run mix playwright_ex.gen.api"
+        do: "#{path}: out of date with api.json, run mix playwright.gen.api"
   end
 
   # --- function-typed parameters --------------------------------------------
@@ -463,7 +463,7 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
 
   @doc false
   def elixir_modules_of(source, file) do
-    generated = Mix.PlaywrightEx.Notices.generated?(source)
+    generated = Mix.Playwright.Notices.generated?(source)
     ast = Code.string_to_quoted!(source, file: file, columns: true, token_metadata: true)
     collect(ast, nil, nil, %{file: file, generated: generated})
   end

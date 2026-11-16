@@ -13,7 +13,7 @@ defmodule Playwright.Driver do
         LICENSE           Node.js license
         package/          playwright-core npm package (package/cli.js is the entry point)
 
-  `cache_dir` defaults to `:filename.basedir(:user_cache, "playwright_ex")`, overridable with
+  `cache_dir` defaults to `:filename.basedir(:user_cache, "playwright")`, overridable with
   the `:cache_dir` option or `PLAYWRIGHT_EX_CACHE_DIR`.
 
   Overrides (no download happens when one is set):
@@ -38,7 +38,7 @@ defmodule Playwright.Driver do
   @node_version @node_version_file |> File.read!() |> String.trim()
 
   if @checksums.driver_version != @driver_version or @checksums.node_version != @node_version do
-    raise "priv/driver_checksums.exs is stale; regenerate it with `mix playwright_ex.checksums` in the source repo"
+    raise "priv/driver_checksums.exs is stale; regenerate it with `mix playwright.checksums` in the source repo"
   end
 
   @platforms ~w(darwin-arm64 darwin-x64 linux-x64 linux-arm64 win-x64 win-arm64)
@@ -115,12 +115,12 @@ defmodule Playwright.Driver do
 
   @doc """
   The cache directory: the `:cache_dir` option, else `PLAYWRIGHT_EX_CACHE_DIR`, else the user cache
-  directory (`:filename.basedir(:user_cache, "playwright_ex")`).
+  directory (`:filename.basedir(:user_cache, "playwright")`).
   """
   @spec cache_dir([option()]) :: String.t()
   def cache_dir(opts \\ []) do
     opts[:cache_dir] || env("PLAYWRIGHT_EX_CACHE_DIR") ||
-      List.to_string(:filename.basedir(:user_cache, ~c"playwright_ex"))
+      List.to_string(:filename.basedir(:user_cache, ~c"playwright"))
   end
 
   @doc """

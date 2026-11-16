@@ -5,13 +5,13 @@ defmodule Playwright.Test.OptionsTest do
   alias Playwright.Test.Options
 
   describe "validation" do
-    test "config :playwright_ex takes :test, :expect and existing modules' keys" do
+    test "config :playwright takes :test, :expect and existing modules' keys" do
       formatter = Playwright.Test.GitHubFormatter
       assert Playwright.Application.validate_env!([{:test, []}, {:expect, []}, {formatter, []}]) == :ok
 
       for key <- [:tests, Not.A.Module] do
         assert_raise ArgumentError,
-                     "unknown keys [#{inspect(key)}] in config :playwright_ex, expected one of [:test, :expect] " <>
+                     "unknown keys [#{inspect(key)}] in config :playwright, expected one of [:test, :expect] " <>
                        "or a module's (Playwright.Test.GitHubFormatter)",
                      fn -> Playwright.Application.validate_env!([{key, []}]) end
       end
@@ -151,8 +151,8 @@ defmodule Playwright.Test.ConfigTest do
   alias Playwright.Test.Options
 
   setup do
-    config = Application.get_env(:playwright_ex, :test)
-    on_exit(fn -> Application.put_env(:playwright_ex, :test, config) end)
+    config = Application.get_env(:playwright, :test)
+    on_exit(fn -> Application.put_env(:playwright, :test, config) end)
     %{config: config}
   end
 
@@ -160,7 +160,7 @@ defmodule Playwright.Test.ConfigTest do
   # for the next test only: `context_options/0` is checked directly.
   test "the config's context_options win over Playwright Test's context defaults, converted", ctx do
     Application.put_env(
-      :playwright_ex,
+      :playwright,
       :test,
       Keyword.put(ctx.config, :context_options, locale: "de-DE", color_scheme: :dark, viewport: :null)
     )
@@ -169,7 +169,7 @@ defmodule Playwright.Test.ConfigTest do
   end
 
   test "a registered test's context gets the defaults, then the config's, then its own", ctx do
-    Application.put_env(:playwright_ex, :test, Keyword.put(ctx.config, :context_options, locale: "de-DE"))
+    Application.put_env(:playwright, :test, Keyword.put(ctx.config, :context_options, locale: "de-DE"))
     # The registration of this test read the config before: register a fake one in a process.
     test_pid = self()
     browser = BrowserPool.browser()
@@ -225,7 +225,7 @@ defmodule Playwright.Test.ConfigTest do
   end
 
   test "a registered test's contexts get the config's action_timeout and navigation_timeout", ctx do
-    Application.put_env(:playwright_ex, :test, ctx.config ++ [action_timeout: 300, navigation_timeout: 200])
+    Application.put_env(:playwright, :test, ctx.config ++ [action_timeout: 300, navigation_timeout: 200])
     test_pid = self()
     browser = BrowserPool.browser()
 
@@ -247,7 +247,7 @@ defmodule Playwright.Test.ConfigTest do
   end
 
   test "options merge over the config, option lists one level deep; tags over the config", %{config: config} do
-    Application.put_env(:playwright_ex, :test, config ++ [launch_options: [headless: false, slow_mo: 1], trace: :on])
+    Application.put_env(:playwright, :test, config ++ [launch_options: [headless: false, slow_mo: 1], trace: :on])
 
     assert %{launch_options: [headless: false, slow_mo: 50]} = Options.pool(launch_options: [slow_mo: 50])
     assert %{trace: [mode: :on] ++ _, video: [mode: :on]} = Options.artifacts(%{video: :on})
@@ -255,7 +255,7 @@ defmodule Playwright.Test.ConfigTest do
   end
 
   test "connect_options: the call's over the config's, nil launches", %{config: config} do
-    Application.put_env(:playwright_ex, :test, config ++ [connect_options: [ws_endpoint: "ws://config"]])
+    Application.put_env(:playwright, :test, config ++ [connect_options: [ws_endpoint: "ws://config"]])
     assert %{connect_options: [ws_endpoint: "ws://config"]} = Options.pool([])
 
     assert %{connect_options: [slow_mo: 1, ws_endpoint: "ws://call"]} =
@@ -267,7 +267,7 @@ defmodule Playwright.Test.ConfigTest do
   # Playwright Test's `testIdAttribute`: the client's value is the VM's, so this module is not
   # async, and resets it.
   test "test_id_attribute: each new pooled driver gets it, as the client does", %{config: config} do
-    Application.put_env(:playwright_ex, :test, config ++ [test_id_attribute: "data-pw"])
+    Application.put_env(:playwright, :test, config ++ [test_id_attribute: "data-pw"])
     browser = BrowserPool.browser(driver: [env: [{"PW_TEST_ID_ATTRIBUTE_TEST", "1"}]])
     selectors = Playwright.selectors(BrowserPool.playwright(browser))
     on_exit(fn -> Selectors.set_test_id_attribute(selectors, "data-testid") end)
@@ -279,7 +279,7 @@ defmodule Playwright.Test.ConfigTest do
   end
 
   test "the defaults", %{config: config} do
-    Application.delete_env(:playwright_ex, :test)
+    Application.delete_env(:playwright, :test)
 
     assert %{browser_name: :chromium, launch_options: [], connect_options: nil, driver: [], on_start: nil} =
              Options.pool([])
@@ -296,14 +296,14 @@ defmodule Playwright.Test.ConfigTest do
     assert Options.preserve_output() == :always
     assert Options.workers() == max(div(System.schedulers_online(), 2), 1)
     assert Options.test_id_attribute() == "data-testid"
-    Application.put_env(:playwright_ex, :test, config)
+    Application.put_env(:playwright, :test, config)
   end
 
   test "config/0: the resolved config, also outside a test", %{config: config} do
-    expect = Application.get_env(:playwright_ex, :expect)
-    on_exit(fn -> Application.put_env(:playwright_ex, :expect, expect) end)
-    Application.delete_env(:playwright_ex, :test)
-    Application.delete_env(:playwright_ex, :expect)
+    expect = Application.get_env(:playwright, :expect)
+    on_exit(fn -> Application.put_env(:playwright, :expect, expect) end)
+    Application.delete_env(:playwright, :test)
+    Application.delete_env(:playwright, :expect)
     test_pid = self()
     spawn(fn -> send(test_pid, {:config, Playwright.Test.config()}) end)
     assert_receive {:config, resolved}
@@ -329,57 +329,57 @@ defmodule Playwright.Test.ConfigTest do
              expect: %{timeout: 5000}
            }
 
-    Application.put_env(:playwright_ex, :test, config ++ [action_timeout: 0, context_options: [locale: "de-DE"]])
-    Application.put_env(:playwright_ex, :expect, timeout: 0)
+    Application.put_env(:playwright, :test, config ++ [action_timeout: 0, context_options: [locale: "de-DE"]])
+    Application.put_env(:playwright, :expect, timeout: 0)
 
     assert %{action_timeout: 0, context_options: [locale: "de-DE"], expect: %{timeout: 0}} =
              Playwright.Test.config()
 
-    Application.put_env(:playwright_ex, :test, config ++ [context_options: [lokale: "x"]])
+    Application.put_env(:playwright, :test, config ++ [context_options: [lokale: "x"]])
     assert_raise ArgumentError, fn -> Playwright.Test.config() end
-    Application.put_env(:playwright_ex, :test, Keyword.put(config, :workers, 0))
+    Application.put_env(:playwright, :test, Keyword.put(config, :workers, 0))
     assert_raise ArgumentError, ~r/invalid workers: 0/, fn -> Playwright.Test.config() end
   end
 
   test "a bad config raises", %{config: config} do
-    Application.put_env(:playwright_ex, :test, config ++ [tracing: :on])
+    Application.put_env(:playwright, :test, config ++ [tracing: :on])
 
     assert_raise ArgumentError,
-                 ~r/unknown keys \[:tracing\] in config :playwright_ex, :test, expected one of \[:browser_name, .*:test_id_attribute\]/,
+                 ~r/unknown keys \[:tracing\] in config :playwright, :test, expected one of \[:browser_name, .*:test_id_attribute\]/,
                  fn -> Options.artifacts(%{}) end
 
     # At the application's start, before anything reads it.
     assert_raise ArgumentError, ~r/unknown keys \[:tracing\]/, fn -> Playwright.Application.start(:normal, []) end
-    Application.put_env(:playwright_ex, :test, config ++ [context_options: [lokale: "x"]])
+    Application.put_env(:playwright, :test, config ++ [context_options: [lokale: "x"]])
     assert_raise ArgumentError, fn -> Playwright.Application.start(:normal, []) end
 
     # error-context.md has no switch, as upstream.
-    Application.put_env(:playwright_ex, :test, config ++ [error_context: true])
+    Application.put_env(:playwright, :test, config ++ [error_context: true])
     assert_raise ArgumentError, ~r/unknown keys \[:error_context\]/, fn -> Options.pool([]) end
 
-    Application.put_env(:playwright_ex, :test, config ++ [test_id_attribute: ""])
+    Application.put_env(:playwright, :test, config ++ [test_id_attribute: ""])
     assert_raise ArgumentError, ~r/invalid test_id_attribute: ""/, fn -> Options.test_id_attribute() end
 
-    Application.put_env(:playwright_ex, :test, config ++ [preserve_output: :on_failure])
+    Application.put_env(:playwright, :test, config ++ [preserve_output: :on_failure])
     assert_raise ArgumentError, ~r/invalid preserve_output: :on_failure/, fn -> Options.preserve_output() end
 
-    Application.put_env(:playwright_ex, :test, config ++ [trace: :sometimes])
+    Application.put_env(:playwright, :test, config ++ [trace: :sometimes])
     assert_raise ArgumentError, ~r/invalid trace: :sometimes/, fn -> Options.artifacts(%{}) end
 
-    Application.put_env(:playwright_ex, :test, config ++ [context_options: [lokale: "x"]])
+    Application.put_env(:playwright, :test, config ++ [context_options: [lokale: "x"]])
     assert_raise ArgumentError, fn -> Options.context_options() end
 
     for value <- [-1, 1.5, nil, "1000"] do
-      Application.put_env(:playwright_ex, :test, config ++ [action_timeout: value])
+      Application.put_env(:playwright, :test, config ++ [action_timeout: value])
 
       assert_raise ArgumentError, ~r/invalid action_timeout: #{Regex.escape(inspect(value))}/, fn ->
         Options.timeouts()
       end
     end
 
-    Application.put_env(:playwright_ex, :test, config ++ [navigation_timeout: :none])
+    Application.put_env(:playwright, :test, config ++ [navigation_timeout: :none])
     assert_raise ArgumentError, ~r/invalid navigation_timeout: :none/, fn -> Options.timeouts() end
-    Application.put_env(:playwright_ex, :test, config ++ [action_timeout: 0, navigation_timeout: 5000])
+    Application.put_env(:playwright, :test, config ++ [action_timeout: 0, navigation_timeout: 5000])
     assert Options.timeouts() == %{action_timeout: 0, navigation_timeout: 5000}
   end
 end

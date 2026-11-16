@@ -1,7 +1,7 @@
 # The child BEAM of `Playwright.Test.EndToEndTest`: a suite on `Playwright.Test`, run as
 # `mix test` runs one (`ExUnit.run/0`, then halt).
 #
-# Runs as `elixir -pa <playwright_ex ebin> test_runner_impl.exs <mode> <output dir> <browser> [<go file>]`:
+# Runs as `elixir -pa <playwright ebin> test_runner_impl.exs <mode> <output dir> <browser> [<go file>]`:
 #
 #   * `artifacts` - one passing and one failing test, `trace: :retain_on_failure, screenshot:
 #     :only_on_failure`. It prints "(ready=>true)" in the passing test and waits there until the
@@ -34,7 +34,7 @@ Logger.configure(level: :info)
 
 [mode, output_dir, browser_name | _] = System.argv()
 
-Application.put_env(:playwright_ex, :test,
+Application.put_env(:playwright, :test,
   browser_name: String.to_atom(browser_name),
   output_dir: output_dir,
   snapshot_dir: Path.join(Path.dirname(output_dir), "snapshots"),
@@ -45,7 +45,7 @@ Application.put_env(:playwright_ex, :test,
 )
 
 # The test build's .app lists the test-only deps: start the library's own tree.
-:ok = Application.load(:playwright_ex)
+:ok = Application.load(:playwright)
 {:ok, _} = Application.ensure_all_started(:crypto)
 {:ok, _} = Playwright.Application.start(:normal, [])
 

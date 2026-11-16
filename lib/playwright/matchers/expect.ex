@@ -8,7 +8,7 @@ defmodule Playwright.Matchers.Expect do
   The `expect` part of upstream's `playwright.config.ts`, read when a matcher runs (so an
   `Application.put_env/3` in `test_helper.exs` applies too):
 
-      config :playwright_ex, :expect, timeout: 10_000, update_snapshots: :missing
+      config :playwright, :expect, timeout: 10_000, update_snapshots: :missing
 
   The keys (other keys raise `ArgumentError`, at application start for the config files):
 
@@ -106,7 +106,7 @@ defmodule Playwright.Matchers.Expect do
   # Elixir only: the app env's `ExpectConfig`, built when the env changes (at application start,
   # which so validates it, or after an `Application.put_env/3` in a test helper).
   def app_env_expect_config do
-    env = Application.get_env(:playwright_ex, :expect, [])
+    env = Application.get_env(:playwright, :expect, [])
 
     case :persistent_term.get({__MODULE__, :app_env_expect_config}, nil) do
       {^env, config} ->
@@ -121,7 +121,7 @@ defmodule Playwright.Matchers.Expect do
 
   @config_keys [:timeout, :update_snapshots, :ignore_snapshots, :to_have_screenshot, :to_match_aria_snapshot, :to_pass]
 
-  # Elixir only: `config :playwright_ex, :expect, ...` as an `ExpectConfig`.
+  # Elixir only: `config :playwright, :expect, ...` as an `ExpectConfig`.
   @doc false
   def app_env_expect_config(env) do
     env =
@@ -131,7 +131,7 @@ defmodule Playwright.Matchers.Expect do
 
         {:error, unknown} ->
           raise ArgumentError,
-                "config :playwright_ex, :expect: unknown keys #{inspect(unknown)}, expected one of #{inspect(@config_keys)}"
+                "config :playwright, :expect: unknown keys #{inspect(unknown)}, expected one of #{inspect(@config_keys)}"
       end
 
     config = %{
@@ -160,7 +160,7 @@ defmodule Playwright.Matchers.Expect do
 
       _ ->
         raise ArgumentError,
-              "config :playwright_ex, :expect, :to_pass: expected a keyword list or map with the keys " <>
+              "config :playwright, :expect, :to_pass: expected a keyword list or map with the keys " <>
                 "#{inspect(@to_pass_keys)}, got: #{inspect(to_pass)}"
     end
   end
@@ -168,7 +168,7 @@ defmodule Playwright.Matchers.Expect do
   @default_expect_timeout 5000
 
   @doc false
-  # Elixir only: the matchers' timeout of `config :playwright_ex, :expect`, as `invoke_matcher`
+  # Elixir only: the matchers' timeout of `config :playwright, :expect`, as `invoke_matcher`
   # resolves it for a receiver without one (`Playwright.Test.config/0`).
   def config_timeout, do: app_env_expect_config()[:timeout] || @default_expect_timeout
 

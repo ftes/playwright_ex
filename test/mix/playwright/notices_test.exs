@@ -1,7 +1,7 @@
-defmodule Mix.PlaywrightEx.NoticesTest do
+defmodule Mix.Playwright.NoticesTest do
   use ExUnit.Case, async: true
 
-  alias Mix.PlaywrightEx.Notices
+  alias Mix.Playwright.Notices
 
   @moduletag :tmp_dir
 
