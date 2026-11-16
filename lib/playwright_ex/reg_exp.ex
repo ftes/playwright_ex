@@ -204,6 +204,11 @@ defmodule PlaywrightEx.RegExp do
                    Enum.reverse([{from, 0x10FFFF} | ranges])
                  end).()
 
+  @doc false
+  # JS `\s` as a PCRE class, `[...]`: also `trim()`'s and `Number(string)`'s white space
+  # (`StringUtils`, `SelectorParser`).
+  def __js_space_class__, do: "[" <> class_items(@js_space) <> "]"
+
   defp class_items(ranges) do
     item = fn
       cp when cp < 0x100 -> "\\x" <> String.pad_leading(Integer.to_string(cp, 16), 2, "0")

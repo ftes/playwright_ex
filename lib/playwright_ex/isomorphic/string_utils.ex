@@ -10,7 +10,7 @@ defmodule PlaywrightEx.Isomorphic.StringUtils do
 
   # JS `\s` and `trim()`, the same set (WhiteSpace and LineTerminator). PCRE's `\s` differs: it
   # also matches U+0085 and misses U+FEFF.
-  @js_white_space "[\\x{09}-\\x{0d}\\x{20}\\x{a0}\\x{1680}\\x{2000}-\\x{200a}\\x{2028}\\x{2029}\\x{202f}\\x{205f}\\x{3000}\\x{feff}]"
+  @js_white_space RegExp.__js_space_class__()
 
   def escape_with_quotes(text, char \\ "'") do
     stringified = JSON.encode!(text)
