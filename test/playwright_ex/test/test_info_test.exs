@@ -57,6 +57,21 @@ defmodule PlaywrightEx.Test.TestInfoTest do
       assert name =~ ~r/^my_app-checkout-very-long--[0-9a-f]{5}-y-long-name-very-long-name-$/
     end
 
+    test "trim_long_string counts UTF-16 code units, a pair cut in half is U+FFFD (as node writes it)" do
+      # The results of upstream's trimLongString, through Buffer.from(result).toString().
+      emoji = String.duplicate("😀", 40)
+      assert TestInfo.trim_long_string(emoji) == emoji
+
+      assert TestInfo.trim_long_string(emoji, 60) ==
+               String.duplicate("😀", 13) <> "-c0f1a-�" <> String.duplicate("😀", 13)
+
+      assert TestInfo.trim_long_string("a" <> emoji, 60) ==
+               "a" <> String.duplicate("😀", 12) <> "�-9808e-�" <> String.duplicate("😀", 13)
+
+      assert TestInfo.trim_long_string(String.duplicate("é", 70), 60) ==
+               String.duplicate("é", 26) <> "-392fc-" <> String.duplicate("é", 27)
+    end
+
     test "the suffix tells modules of one file and parameters apart" do
       file = Path.join(File.cwd!(), "test/my_app/checkout_test.exs")
 

@@ -73,7 +73,7 @@ defmodule PlaywrightEx.Test.TestInfo do
   @doc """
   A test's output dir under `root`, as upstream's `testInfo.outputDir`: the file relative to
   `test/` without `_test.exs`, `/` as `-`, then `-` and the sanitized test `name`, trimmed to 60
-  characters (`trimLongString`). Then `-` and a hash of the module and parameters, as upstream
+  UTF-16 code units (`trimLongString`). Then `-` and a hash of the module and parameters, as upstream
   appends the project: modules of a file, or parameter sets, may share a test name.
   """
   def output_dir(root, file, name, module, parameters) do
@@ -182,14 +182,39 @@ defmodule PlaywrightEx.Test.TestInfo do
   def sanitize_for_file_path(s), do: Regex.replace(~r/[\x00-\x2C\x2E-\x2F\x3A-\x40\x5B-\x60\x7B-\x7F]+/, s, "-")
 
   @doc "Upstream's `trimLongString` (`windowsFilesystemFriendlyLength` is 60)."
+  # `s.length`, `substring` and `slice` count UTF-16 code units.
   def trim_long_string(s, length \\ 100) do
-    if String.length(s) <= length do
+    utf16 = :unicode.characters_to_binary(s, :utf8, :utf16)
+
+    if div(byte_size(utf16), 2) <= length do
       s
     else
       middle = "-#{short_hash(s)}-"
-      start = div(length - String.length(middle), 2)
+      start = Integer.floor_div(length - String.length(middle), 2)
       ending = length - String.length(middle) - start
-      String.slice(s, 0, start) <> middle <> String.slice(s, -ending, ending)
+      js_substring(utf16, 0, start) <> middle <> js_slice(utf16, -ending)
+    end
+  end
+
+  # `s.substring(start, end)` and `s.slice(start)` of a UTF-16 binary.
+  defp js_substring(utf16, start, finish) do
+    [from, to] = Enum.sort(Enum.map([start, finish], &min(max(&1, 0), div(byte_size(utf16), 2))))
+    from_utf16(binary_part(utf16, 2 * from, 2 * (to - from)))
+  end
+
+  defp js_slice(utf16, start) do
+    units = div(byte_size(utf16), 2)
+    from = if start < 0, do: max(units + start, 0), else: min(start, units)
+    from_utf16(binary_part(utf16, 2 * from, 2 * (units - from)))
+  end
+
+  # deviation: a surrogate pair cut in half is U+FFFD, as Node writes the lone half to a path; a
+  # string of Elixir's (UTF-8) can't hold it.
+  defp from_utf16(utf16) do
+    case :unicode.characters_to_binary(utf16, :utf16, :utf8) do
+      string when is_binary(string) -> string
+      {:incomplete, string, _half} -> string <> "\uFFFD"
+      {:error, string, <<_half::16, rest::binary>>} -> string <> "\uFFFD" <> from_utf16(rest)
     end
   end
 

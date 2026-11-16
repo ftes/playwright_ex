@@ -87,6 +87,16 @@ defmodule PlaywrightEx.Isomorphic.ProtocolFormatterTest do
     assert ProtocolFormatter.render_params_for_call(%{type: "Frame", method: "click"}) == nil
   end
 
+  test "a param path indexes into lists, as into JS arrays" do
+    params = %{files: [%{name: "a.txt"}, %{name: "b.txt"}], tags: ["x", :null]}
+    assert ProtocolFormatter.format_protocol_param(params, "files.1.name") == "b.txt"
+    assert ProtocolFormatter.format_protocol_param(params, "files.length") == "2"
+    assert ProtocolFormatter.format_protocol_param(params, "tags.1") == "null"
+    assert ProtocolFormatter.format_protocol_param(params, "tags.2") == nil
+    assert ProtocolFormatter.format_protocol_param(params, "tags.01") == nil
+    assert ProtocolFormatter.format_protocol_param(params, "tags.0.length") == nil
+  end
+
   test "a group, of the methods that have one" do
     assert ProtocolFormatter.get_action_group(call("Frame", "isVisible")) == "getter"
     assert ProtocolFormatter.get_action_group(call("Frame", "click")) == nil
