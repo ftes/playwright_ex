@@ -12,7 +12,10 @@ defmodule Mix.Tasks.Playwright.Cli do
 
   @impl true
   def run(argv) do
-    Application.ensure_all_started([:inets, :ssl, :crypto])
+    # Mix prunes the code paths of OTP apps that no compiled app lists, so before the project is
+    # compiled `:public_key` (needed by `:ssl`) can be missing.
+    Enum.each([:inets, :ssl], &Mix.ensure_application!/1)
+    {:ok, _} = Application.ensure_all_started([:inets, :ssl])
     {program, prefix} = Playwright.Driver.ensure_installed()
 
     case System.cmd(program, prefix ++ argv,
