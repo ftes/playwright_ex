@@ -315,9 +315,10 @@ defmodule Playwright.Page.PageFilechooserTest do
   @tag skip:
          if(@browser_name == "firefox",
            do:
-             "flaky: since Firefox 1572 the second file chooser sometimes never fires. The JS client " <>
-               "passes 79/80, this client failed 13/24 locally: " <>
-               "https://github.com/ftes/playwright_ex/issues/149"
+             "flaky: Firefox 1572's Juggler checks file chooser interception again when it creates " <>
+               "the picker, after fileChooserOpened, so the waiter's updateSubscription(false) can let " <>
+               "a native picker open, and the second click opens none. Upstream's client hits it too " <>
+               "(mostly on a just-launched Firefox): https://github.com/microsoft/playwright/issues/44143"
          )
   test "FC-020 should be able to reset selected files with empty file list", %{page: page, asset: asset} do
     Page.set_content!(page, "<input type=file>")
