@@ -17,6 +17,7 @@ defmodule PlaywrightEx.Test.TestInfo do
   alias PlaywrightEx.Isomorphic.MimeType
   alias PlaywrightEx.Isomorphic.StringUtils
   alias PlaywrightEx.Matchers.Expect
+  alias PlaywrightEx.Runtime.Callers
   alias PlaywrightEx.Runtime.Zones
   alias PlaywrightEx.Test.ErrorContext
   alias PlaywrightEx.Test.Recorder
@@ -208,7 +209,7 @@ defmodule PlaywrightEx.Test.TestInfo do
   `$callers` (a `Task` of the test), else `nil`.
   """
   def current do
-    if Results.started?(), do: Enum.find_value([self() | List.wrap(Process.get(:"$callers"))], &lookup/1)
+    if Results.started?(), do: Enum.find_value(Callers.capture(), &lookup/1)
   end
 
   defp lookup(pid) do

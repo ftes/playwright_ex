@@ -37,6 +37,7 @@ defmodule PlaywrightEx.Test.Recorder do
   alias PlaywrightEx.Isomorphic.ProtocolFormatter
   alias PlaywrightEx.Isomorphic.StringUtils
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Runtime.Callers
   alias PlaywrightEx.Runtime.Invocation
   alias PlaywrightEx.Runtime.Promise
   alias PlaywrightEx.Runtime.Zones
@@ -66,7 +67,7 @@ defmodule PlaywrightEx.Test.Recorder do
   process or a process in its `$callers`, or `nil`.
   """
   def registration do
-    Enum.find_value([self() | List.wrap(Process.get(:"$callers"))], &registration/1)
+    Enum.find_value(Callers.capture(), &registration/1)
   end
 
   @doc "The registration of the test `test_pid`, or `nil`."
@@ -522,7 +523,7 @@ defmodule PlaywrightEx.Test.Recorder do
   end
 
   # The test process, the root of the `$callers`.
-  defp note_unregistered, do: Results.note_unregistered(List.last([self() | List.wrap(Process.get(:"$callers"))]))
+  defp note_unregistered, do: Results.note_unregistered(List.last(Callers.capture()))
 
   @doc false
   # `runAfterCreateBrowserContext`: `didCreateBrowserContext`, on the test's recorder, started on
