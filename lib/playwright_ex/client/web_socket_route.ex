@@ -5,11 +5,14 @@ defmodule PlaywrightEx.Client.WebSocketRoute do
 
   A message is a string, or `{:binary, bytes}` for a JS `Buffer` (architecture: Value mapping).
 
-  Deviation: `this._server` (an object literal implementing the same interface) is a handle
+  Deviations: `this._server` (an object literal implementing the same interface) is a handle
   of this module whose guid is the route's prefixed with `"server:"`; the public members
-  dispatch on it.
+  dispatch on it. The `on_message`/`on_close` handlers run on behalf of the process that set
+  them (`PlaywrightEx.Runtime.Callers`).
   """
   use PlaywrightEx.Client.ChannelOwner, struct: PlaywrightEx.WebSocketRoute
+
+  alias PlaywrightEx.Runtime.Callers
 
   def from(route) do
     route
@@ -133,22 +136,22 @@ defmodule PlaywrightEx.Client.WebSocketRoute do
   end
 
   def on_message(%{guid: "server:" <> _} = server, handler) do
-    put(_route(server), :_onServerMessage, handler)
+    put(_route(server), :_onServerMessage, Callers.bind_1(handler))
     nil
   end
 
   def on_message(this, handler) do
-    put(this, :_onPageMessage, handler)
+    put(this, :_onPageMessage, Callers.bind_1(handler))
     nil
   end
 
   def on_close(%{guid: "server:" <> _} = server, handler) do
-    put(_route(server), :_onServerClose, handler)
+    put(_route(server), :_onServerClose, Callers.bind_2(handler))
     nil
   end
 
   def on_close(this, handler) do
-    put(this, :_onPageClose, handler)
+    put(this, :_onPageClose, Callers.bind_2(handler))
     nil
   end
 

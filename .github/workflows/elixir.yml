@@ -245,7 +245,8 @@ jobs:
           exit 1
       # Test failures (exit 2) are retried once, as upstream retries on CI (`retries: 3`); compile
       # errors are not. The first run's failures (PlaywrightEx.FailuresFormatter) go to the job
-      # summary and annotations, so a green rerun does not hide them. The rerun takes no
+      # summary, and its annotations (PlaywrightEx.Test.GitHubFormatter, first run only) stay, so
+      # a green rerun does not hide them. The rerun takes no
       # --partitions: the failures manifest holds this partition's failures only, and --partitions
       # would split those files again. The 10 slowest modules (PlaywrightEx.ModuleTimesFormatter)
       # are the floor of a partition's time. Warnings fail the newest lane only.
@@ -253,6 +254,7 @@ jobs:
         env:
           PW_FAILURES_FILE: ${{ runner.temp }}/first-run-failures.txt
           PW_MODULE_TIMES_FILE: ${{ runner.temp }}/module-times.txt
+          PW_GITHUB_FORMATTER: "1"
           MIX_TEST_PARTITION: ${{ matrix.partition }}
           PARTITIONS: ${{ inputs.partitions || (matrix.browser == 'firefox' && 6 || 3) }}
         run: |
@@ -269,14 +271,9 @@ jobs:
               echo
               while IFS=$'\t' read -r location name; do echo "- \`$location\` $name"; done < "$PW_FAILURES_FILE"
             } >> "$GITHUB_STEP_SUMMARY"
-            while IFS=$'\t' read -r location name; do
-              message="First run failed ($label): $name"
-              message=${message//'%'/'%25'}
-              echo "::warning file=${location%:*},line=${location##*:}::$message"
-            done < "$PW_FAILURES_FILE"
           fi
           if [[ $status = 2 ]]; then
-            PW_FAILURES_FILE='' mix test --failed
+            PW_FAILURES_FILE='' PW_GITHUB_FORMATTER='' mix test --failed
           else
             exit $status
           fi

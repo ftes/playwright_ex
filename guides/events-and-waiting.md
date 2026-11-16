@@ -122,6 +122,14 @@ Expect.to_have_url!(page, ~r"/settings$")
 [`Page.wait_for_load_state!/2`](`PlaywrightEx.Page.wait_for_load_state!/2`) for a load state of the
 current page. Avoid `:networkidle` in tests; wait for what the user sees instead.
 
+`to_have_url` and `wait_for_url` take a glob, a `Regex` or a function, which gets the URL as a
+`URI` (`URI.parse/1`), as JS gets a `URL`:
+
+```elixir
+Page.wait_for_url!(page, &match?(%URI{path: "/authorize"}, &1))
+Page.wait_for_url!(page, fn uri -> match?(%{"login_hint" => "john@acme.org"}, URI.decode_query(uri.query || "")) end)
+```
+
 More on events: [playwright.dev/python/docs/events](https://playwright.dev/python/docs/events),
 [dialogs](https://playwright.dev/python/docs/dialogs),
 [downloads](https://playwright.dev/python/docs/downloads),

@@ -28,17 +28,6 @@ defmodule PlaywrightEx.Page.PageClickTest do
   # `const p = action().then(() => done = true)`: `done?(task)` tells whether it has settled.
   defp done?(promise), do: Runtime.Promise.settled?(promise)
 
-  # `expect.poll(fun).toEqual(expected)`: the last value of `fun`, polled until it equals `expected`.
-  defp poll(fun, expected, tries \\ 100) do
-    value = fun.()
-
-    cond do
-      value == expected -> value
-      tries == 0 -> value
-      true -> Process.sleep(100) && poll(fun, expected, tries - 1)
-    end
-  end
-
   # `const messages = []; page.on('console', msg => messages.push(msg.text()))`
   defp collect_console(page) do
     {:ok, agent} = Agent.start_link(fn -> [] end)
@@ -1181,7 +1170,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
     Locator.click!(Page.locator(page, "#inner"))
 
     expected = ["click inner", "promise inner", "click outer", "promise outer", "timeout inner", "timeout outer"]
-    assert poll(messages, expected) == expected
+    Expect.poll!(messages, &assert(&1 == expected))
   end
 
   test "CL-082 should click if opened select covers the button", %{page: page} do
@@ -1233,7 +1222,7 @@ defmodule PlaywrightEx.Page.PageClickTest do
         do: ["mousedown", "mouseup", "contextmenu"],
         else: ["mousedown", "contextmenu", "mouseup"]
 
-    assert poll(entries, expected) == expected
+    Expect.poll!(entries, &assert(&1 == expected))
   end
 
   test "CL-084 should click after a right click", %{page: page} do

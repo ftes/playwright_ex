@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Page.WorkersTest do
   @upstream "tests/page/workers.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.Expect
+
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.ConsoleMessage
   alias PlaywrightEx.JSHandle
@@ -409,13 +411,13 @@ defmodule PlaywrightEx.Page.WorkersTest do
     """
 
     Page.evaluate!(page, nested_worker, url)
-    Utils.poll(fn -> length(Agent.get(workers, & &1)) end, &assert(&1 == 1))
+    Expect.poll!(fn -> length(Agent.get(workers, & &1)) end, &assert(&1 == 1))
 
     workers |> Agent.get(&hd/1) |> Worker.evaluate!(nested_worker, url)
 
-    Utils.poll(fn -> length(Agent.get(workers, & &1)) end, &assert(&1 == 2))
+    Expect.poll!(fn -> length(Agent.get(workers, & &1)) end, &assert(&1 == 2))
 
-    Utils.poll(fn -> Agent.get(messages, & &1) end, &assert(&1 == [~s|{"foo":"not bar"}|, ~s|{"foo":"not bar"}|]))
+    Expect.poll!(fn -> Agent.get(messages, & &1) end, &assert(&1 == [~s|{"foo":"not bar"}|, ~s|{"foo":"not bar"}|]))
   end
 
   # annotation: issue 31747
@@ -450,10 +452,10 @@ defmodule PlaywrightEx.Page.WorkersTest do
     worker = Promise.await!(worker_promise)
     Promise.await!(console_promise)
     BrowserContext.set_offline!(Page.context(page), true)
-    Utils.poll(fn -> Worker.evaluate!(worker, "() => navigator.onLine") end, &assert(&1 == false))
+    Expect.poll!(fn -> Worker.evaluate!(worker, "() => navigator.onLine") end, &assert(&1 == false))
     assert Worker.evaluate!(worker, "() => fetch('/one-style.css').catch(e => 'error')") == "error"
     BrowserContext.set_offline!(Page.context(page), false)
-    Utils.poll(fn -> Worker.evaluate!(worker, "() => navigator.onLine") end, &assert(&1 == true))
+    Expect.poll!(fn -> Worker.evaluate!(worker, "() => navigator.onLine") end, &assert(&1 == true))
   end
 
   # annotation: issue 39948

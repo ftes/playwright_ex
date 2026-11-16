@@ -17,7 +17,7 @@ the existing ported code next to whatever you port.
    ```
    git init -q /tmp/playwright
    git -C /tmp/playwright fetch --depth=1 https://github.com/microsoft/playwright tag vFROM tag vTO
-   git -C /tmp/playwright diff --stat vFROM vTO -- packages/playwright-core/src/client tests/page tests/library packages/protocol/spec docs/src/api
+   git -C /tmp/playwright diff --stat vFROM vTO -- packages/playwright-core/src/client packages/playwright/src/matchers tests/page tests/library packages/protocol/spec docs/src/api
    ```
    Read the RELEASE notes too (`gh release view vTO --repo microsoft/playwright`).
 3. Follow PORTING.md "Bumping the pinned version", step by step:
@@ -33,16 +33,25 @@ the existing ported code next to whatever you port.
       gh pr create --draft --base main --head BRANCH --title "Update to Playwright TO" --body "Port in progress."
       ```
    3. Port every hunk of `git -C /tmp/playwright diff vFROM vTO -- packages/playwright-core/src/client
-      tests/page tests/library` 1:1, per PORTING's rules: same module per class, upstream order
+      packages/playwright/src/matchers tests/page tests/library` 1:1, per PORTING's rules: same module per class, upstream order
       and names, `-- not ported: <reason>` / `-- ported as <name>` markers, specs mirrored with
       identical names and order. Never edit the generated facade (`lib/playwright_ex/api/`) by
       hand. Use subagents for independent files when the diff is large.
-   4. `mix playwright_ex.parity` until it prints `parity: ok`, handling new, removed and renamed
+   4. Read the runner's diff, which is watched rather than ported 1:1 (PORTING step 3):
+      ```
+      git -C /tmp/playwright diff vFROM vTO -- packages/playwright/src/index.ts packages/playwright/src/common/config.ts packages/playwright/src/common/testType.ts packages/playwright/src/worker/testInfo.ts packages/playwright/src/worker/testTracing.ts packages/playwright/types/test.d.ts
+      ```
+      - Port the hunks that touch what `PlaywrightEx.Test` ports: `lib/playwright_ex/test.ex`
+        and `lib/playwright_ex/test/{test_info,test_tracing,recorder,error_context}.ex`.
+      - Don't port the rest: reporters, retries, projects, fixtures and the CLI.
+      - New options, fixtures or defaults go into the PR body under "Runner" as features to
+        adopt or skip.
+   5. `mix playwright_ex.parity` until it prints `parity: ok`, handling new, removed and renamed
       upstream files as PORTING says, and refresh `test/upstream_registry.md`.
-   5. Read `git -C /tmp/playwright diff vFROM vTO -- 'docs/src/*.md' ':!docs/src/api'` (upstream's
+   6. Read `git -C /tmp/playwright diff vFROM vTO -- 'docs/src/*.md' ':!docs/src/api'` (upstream's
       guides) and update `guides/` where it adds a pattern or caveat they should mention; list
       anything you left out in the PR body.
-   6. Re-check the `env:`/`flaky:` skips and PORTING's "Upstream issues to re-check" as PORTING
+   7. Re-check the `env:`/`flaky:` skips and PORTING's "Upstream issues to re-check" as PORTING
       step 6 says; drop skips that pass and list them in the PR body.
 4. Leave `@version` in `mix.exs` alone (releases are 0.17 candidates until versions mirror
    Playwright; GH #126). Under `## [Unreleased]` in `CHANGELOG.md`, in the style of the
@@ -61,7 +70,7 @@ the existing ported code next to whatever you port.
 6. Push the last commit and replace the PR's placeholder body, leaving it a draft:
    `gh pr edit BRANCH --body-file <file>`.
    The body, concise: the RELEASE link; the upstream diff stats (files, insertions, deletions of
-   client and specs); what was ported, in a few lines; a checklist of what's left (unported
+   client and specs); what was ported, in a few lines; "Runner": the runner hunks ported and the new runner features to adopt or skip; a checklist of what's left (unported
    hunks, skipped specs, decisions to review, anything needing a human); the verification
    results, one line each.
 

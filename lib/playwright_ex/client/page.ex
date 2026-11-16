@@ -45,6 +45,7 @@ defmodule PlaywrightEx.Client.Page do
   alias PlaywrightEx.Isomorphic.LongStandingScope
   alias PlaywrightEx.Isomorphic.StringUtils
   alias PlaywrightEx.Isomorphic.UrlMatch
+  alias PlaywrightEx.Runtime.Callers
   alias PlaywrightEx.TargetClosedError
 
   def from(page) do
@@ -390,9 +391,12 @@ defmodule PlaywrightEx.Client.Page do
   # Bindings take the source and the list of arguments: `(source, ...args) => ...`.
   # The statements after the await run on reply, before a bindingCall (`channel_call/5`).
   def expose_function(this, name, callback) do
+    # deviation: the `bindingCall` listener runs it on the registrant's behalf (`Runtime.Callers`).
+    callers = Callers.capture()
+
     result =
       channel_call(this, :exposeBinding, %{name: name}, TimeoutSettings.k_no_timeout(), fn _ ->
-        binding = fn _source, args -> ClientHelper.call_function(callback, args) end
+        binding = fn _source, args -> Callers.run_as(callers, fn -> ClientHelper.call_function(callback, args) end) end
         map_set(this, :_bindings, name, binding)
       end)
 
@@ -400,17 +404,28 @@ defmodule PlaywrightEx.Client.Page do
   end
 
   def expose_binding(this, name, callback) do
+    # deviation: the `bindingCall` listener runs it on the registrant's behalf (`Runtime.Callers`).
+    callers = Callers.capture()
+
     result =
       channel_call(this, :exposeBinding, %{name: name}, TimeoutSettings.k_no_timeout(), fn _ ->
         # this._bindings.set(name, callback): called with (source, ...args)
-        map_set(this, :_bindings, name, fn source, args -> ClientHelper.call_function(callback, [source | args]) end)
+        map_set(this, :_bindings, name, fn source, args ->
+          Callers.run_as(callers, fn -> ClientHelper.call_function(callback, [source | args]) end)
+        end)
       end)
 
     DisposableObject.from(result.disposable)
   end
 
   def _expose_callback_binding(this, name, callback) do
-    map_set(this, :_bindings, name, fn _source, args -> ClientHelper.call_function(callback, args) end)
+    # deviation: the `bindingCall` listener runs it on the registrant's behalf (`Runtime.Callers`).
+    callers = Callers.capture()
+
+    map_set(this, :_bindings, name, fn _source, args ->
+      Callers.run_as(callers, fn -> ClientHelper.call_function(callback, args) end)
+    end)
+
     result = channel_call(this, :exposeBinding, %{name: name, noGlobal: true}, TimeoutSettings.k_no_timeout())
     DisposableObject.from(result.disposable)
   end
@@ -478,6 +493,9 @@ defmodule PlaywrightEx.Client.Page do
     if options[:times] == 0 do
       nil
     else
+      # deviation: the handler runs on the registrant's behalf (`Runtime.Callers`).
+      callers = Callers.capture()
+
       # The statement after the await runs on reply, before a locatorHandlerTriggered (`channel_call/5`).
       channel_call(
         this,
@@ -485,7 +503,12 @@ defmodule PlaywrightEx.Client.Page do
         %{selector: locator._selector, noWaitAfter: options[:noWaitAfter]},
         TimeoutSettings.k_no_timeout(),
         fn %{uid: uid} ->
-          map_set(this, :_locatorHandlers, uid, %{locator: locator, handler: handler, times: options[:times]})
+          map_set(this, :_locatorHandlers, uid, %{
+            locator: locator,
+            handler: handler,
+            times: options[:times],
+            callers: callers
+          })
         end
       )
 
@@ -516,6 +539,8 @@ defmodule PlaywrightEx.Client.Page do
           end)
 
         if run do
+          # deviation: on the registrant's behalf, so its unhandled error fails its test (`Runtime.Callers`).
+          Callers.adopt(handler.callers)
           result = ClientHelper.call_function(handler.handler, [handler.locator])
           if is_struct(result, Promise), do: Promise.await(result)
         end

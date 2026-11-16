@@ -745,10 +745,17 @@ defmodule PlaywrightEx.FrameLocator do
     PlaywrightEx.Client.FrameLocator.owner(frame_locator)
   end
 
-  @doc false
+  @doc """
+  The options of `function`, an atom such as `:get_by_alt_text`, as
+  `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, for tools that build on the facade at
+  compile time; a function without options raises `FunctionClauseError`. Unstable: the shape
+  may change between releases.
+  """
   @spec __options__(atom()) :: [
           {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
         ]
+  def __options__(function)
+
   def __options__(:get_by_alt_text) do
     [
       exact: %{
@@ -911,4 +918,16 @@ defmodule PlaywrightEx.FrameLocator do
       }
     ]
   end
+
+  @doc false
+  # The type of `function`'s options, as `Facade.options!/3` converts them.
+  def __options_type__(function)
+
+  def __options_type__(:get_by_alt_text), do: @get_by_alt_text_options
+  def __options_type__(:get_by_label), do: @get_by_label_options
+  def __options_type__(:get_by_placeholder), do: @get_by_placeholder_options
+  def __options_type__(:get_by_role), do: @get_by_role_options
+  def __options_type__(:get_by_text), do: @get_by_text_options
+  def __options_type__(:get_by_title), do: @get_by_title_options
+  def __options_type__(:locator), do: @locator_options
 end

@@ -93,7 +93,11 @@ defmodule PlaywrightEx.UpstreamSnapshot do
     ext = Path.extname(name)
     base = String.slice(name, 0, String.length(name) - String.length(ext))
     browser_name = PlaywrightEx.TestBrowser.name()
-    Path.join(PlaywrightEx.Upstream.dir(), "#{spec}-snapshots/#{sanitize_for_file_path(base)}-#{browser_name}#{ext}")
+
+    Path.join(
+      PlaywrightEx.Upstream.dir(),
+      "#{spec}-snapshots/#{PlaywrightEx.Test.TestInfo.sanitize_for_file_path(base)}-#{browser_name}#{ext}"
+    )
   end
 
   @doc """
@@ -141,9 +145,6 @@ defmodule PlaywrightEx.UpstreamSnapshot do
       File.rm_rf!(dir)
     end
   end
-
-  # utils/fileUtils.ts sanitizeForFilePath
-  defp sanitize_for_file_path(s), do: String.replace(s, ~r/[\x00-\x2C\x2E-\x2F\x3A-\x40\x5B-\x60\x7B-\x7F]+/, "-")
 
   defp mime_type(".png"), do: "image/png"
   defp mime_type(".jpg"), do: "image/jpeg"

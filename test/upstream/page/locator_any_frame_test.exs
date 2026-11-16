@@ -9,7 +9,6 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Route
-  alias PlaywrightEx.Utils
 
   @moduletag :page
 
@@ -21,7 +20,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
   defp wait_for_all_frames(page, frame_count, selector) do
     # Wait for all child frames to load their content, so that the search
     # deterministically sees elements in all of them.
-    Utils.poll(fn -> length(Page.frames(page)) end, &assert(&1 == frame_count))
+    Expect.poll!(fn -> length(Page.frames(page)) end, &assert(&1 == frame_count))
 
     for frame <- Page.frames(page), frame != Page.main_frame(page) do
       Frame.wait_for_selector!(frame, selector, state: :attached)
@@ -313,7 +312,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     route_page(page, "b.html", ~s(<button>outside</button>))
     route_page(page, "c.html", ~s(<button>deep</button>))
     Page.goto!(page, server.empty_page)
-    Utils.poll(fn -> length(Page.frames(page)) end, &assert(&1 == 4))
+    Expect.poll!(fn -> length(Page.frames(page)) end, &assert(&1 == 4))
 
     for frame <- Page.frames(page),
         String.contains?(Frame.url(frame), "b.html") or String.contains?(Frame.url(frame), "c.html") do
@@ -336,7 +335,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     route_page(page, "a.html", ~s(<button>inside</button>))
     Page.route!(page, "**/stall.html", fn _route -> nil end)
     Page.goto!(page, server.empty_page, wait_until: :domcontentloaded)
-    Utils.poll(fn -> length(Page.frames(page)) end, &assert(&1 == 3))
+    Expect.poll!(fn -> length(Page.frames(page)) end, &assert(&1 == 3))
     scope = Page.query_selector!(page, "section")
     buttons = ElementHandle.query_selector_all!(scope, "internal:control=any-frame >> button")
     assert length(buttons) == 1
@@ -359,7 +358,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     route_page(page, "a.html", ~s(<iframe src="b.html"></iframe>))
     route_page(page, "b.html", ~s(<button>deep</button>))
     Page.goto!(page, server.empty_page)
-    Utils.poll(fn -> length(Page.frames(page)) end, &assert(&1 == 3))
+    Expect.poll!(fn -> length(Page.frames(page)) end, &assert(&1 == 3))
     deep_frame = find_frame(page, "b.html")
     Frame.wait_for_selector!(deep_frame, "button", state: :attached)
     # "section" lives in the main frame, while the button is two frames below it.
@@ -372,7 +371,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     route_page(page, "a.html", ~s(<iframe src="b.html"></iframe>))
     route_page(page, "b.html", ~s(<button>deep</button>))
     Page.goto!(page, server.empty_page)
-    Utils.poll(fn -> length(Page.frames(page)) end, &assert(&1 == 3))
+    Expect.poll!(fn -> length(Page.frames(page)) end, &assert(&1 == 3))
     deep_frame = find_frame(page, "b.html")
     Frame.wait_for_selector!(deep_frame, "button", state: :attached)
     middle_frame = find_frame(page, "a.html")
@@ -412,7 +411,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     route_page(page, "a.html", ~s(<iframe src="b.html"></iframe>))
     route_page(page, "b.html", ~s(<button>deep</button>))
     Page.goto!(page, server.empty_page)
-    Utils.poll(fn -> length(Page.frames(page)) end, &assert(&1 == 3))
+    Expect.poll!(fn -> length(Page.frames(page)) end, &assert(&1 == 3))
     # The entered frame itself has no button, and we do not look inside its nested frames.
     Expect.to_have_count!(
       page |> any_frame() |> FrameLocator.frame_locator("#target") |> FrameLocator.locator("button"),
@@ -472,7 +471,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     route_page(page, "a.html", ~s(<div>Nothing yet</div>))
     route_page(page, "b.html", ~s(<button>late</button>))
     Page.goto!(page, server.empty_page)
-    Utils.poll(fn -> length(Page.frames(page)) end, &assert(&1 == 2))
+    Expect.poll!(fn -> length(Page.frames(page)) end, &assert(&1 == 2))
 
     Frame.evaluate!(Enum.at(Page.frames(page), 1), """
     () => {
@@ -497,7 +496,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     route_page(page, "b.html", ~s(<iframe class="inner" src="c.html"></iframe>))
     route_page(page, "c.html", ~s(<button>Click me</button>))
     Page.goto!(page, server.empty_page)
-    Utils.poll(fn -> length(Page.frames(page)) end, &assert(&1 == 5))
+    Expect.poll!(fn -> length(Page.frames(page)) end, &assert(&1 == 5))
 
     for frame <- Page.frames(page), String.contains?(Frame.url(frame), "c.html") do
       Frame.wait_for_selector!(frame, "button", state: :attached)
@@ -623,7 +622,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     route_page(page, "a.html", ~s(<iframe id="f" src="b.html"></iframe>))
     route_page(page, "b.html", ~s(<div class="classname">first</div><button>second</button>))
     Page.goto!(page, server.empty_page)
-    Utils.poll(fn -> length(Page.frames(page)) end, &assert(&1 == 3))
+    Expect.poll!(fn -> length(Page.frames(page)) end, &assert(&1 == 3))
 
     Expect.to_have_text!(
       page
@@ -664,7 +663,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     route_page(page, "a.html", ~s(<button onclick="window.__clicked = true">Click me</button>))
     Page.route!(page, "**/stall.html", fn _route -> nil end)
     Page.goto!(page, server.empty_page, wait_until: :domcontentloaded)
-    Utils.poll(fn -> length(Page.frames(page)) end, &assert(&1 == 3))
+    Expect.poll!(fn -> length(Page.frames(page)) end, &assert(&1 == 3))
     page |> any_frame() |> FrameLocator.locator("button") |> Locator.click!()
     frame = find_frame(page, "a.html")
     assert Frame.evaluate!(frame, "() => window.__clicked") == true
@@ -675,7 +674,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     route_page(page, "a.html", ~s(<button>Click me</button>))
     Page.route!(page, "**/stall.html", fn _route -> nil end)
     Page.goto!(page, server.empty_page, wait_until: :domcontentloaded)
-    Utils.poll(fn -> length(Page.frames(page)) end, &assert(&1 == 3))
+    Expect.poll!(fn -> length(Page.frames(page)) end, &assert(&1 == 3))
     Expect.to_be_visible!(page |> any_frame() |> FrameLocator.locator("button"))
   end
 
@@ -684,7 +683,7 @@ defmodule PlaywrightEx.Page.LocatorAnyFrameTest do
     route_page(page, "a.html", ~s(<button>Click me</button>))
     Page.route!(page, "**/stall.html", fn _route -> nil end)
     Page.goto!(page, server.empty_page, wait_until: :domcontentloaded)
-    Utils.poll(fn -> length(Page.frames(page)) end, &assert(&1 == 3))
+    Expect.poll!(fn -> length(Page.frames(page)) end, &assert(&1 == 3))
     Expect.to_have_count!(page |> any_frame() |> FrameLocator.locator("button"), 1)
   end
 

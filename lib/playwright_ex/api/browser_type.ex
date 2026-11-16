@@ -928,10 +928,17 @@ defmodule PlaywrightEx.BrowserType do
     PlaywrightEx.Client.BrowserType.name(browser_type)
   end
 
-  @doc false
+  @doc """
+  The options of `function`, an atom such as `:connect`, as
+  `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, for tools that build on the facade at
+  compile time; a function without options raises `FunctionClauseError`. Unstable: the shape
+  may change between releases.
+  """
   @spec __options__(atom()) :: [
           {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
         ]
+  def __options__(function)
+
   def __options__(:connect) do
     [
       expose_network: %{
@@ -1525,4 +1532,13 @@ defmodule PlaywrightEx.BrowserType do
       }
     ]
   end
+
+  @doc false
+  # The type of `function`'s options, as `Facade.options!/3` converts them.
+  def __options_type__(function)
+
+  def __options_type__(:connect), do: @connect_options
+  def __options_type__(:connect_over_cdp), do: @connect_over_cdp_options
+  def __options_type__(:launch), do: @launch_options
+  def __options_type__(:launch_persistent_context), do: @launch_persistent_context_options
 end

@@ -584,7 +584,7 @@ defmodule PlaywrightEx.Isomorphic.SelectorParser do
   defp unquote_string(quoted), do: binary_part(quoted, 1, byte_size(quoted) - 2)
 
   # JS whitespace and line terminators, which Number(string) trims.
-  @js_space "[\\t\\n\\x0B\\f\\r \\x{00A0}\\x{1680}\\x{2000}-\\x{200A}\\x{2028}\\x{2029}\\x{202F}\\x{205F}\\x{3000}\\x{FEFF}]*"
+  @js_space RegExp.__js_space_class__() <> "*"
 
   @doc false
   # `+value`: JS Number(string). An integral result is an integer, a non-finite one `:nan`,

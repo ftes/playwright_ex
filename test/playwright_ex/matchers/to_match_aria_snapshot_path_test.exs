@@ -9,6 +9,7 @@ defmodule PlaywrightEx.Matchers.ToMatchAriaSnapshotPathTest do
   alias PlaywrightEx.Expect
   alias PlaywrightEx.ExpectError
   alias PlaywrightEx.Page
+  alias PlaywrightEx.Test.TestInfo
 
   @moduletag :page
   @moduletag :tmp_dir
@@ -32,9 +33,19 @@ defmodule PlaywrightEx.Matchers.ToMatchAriaSnapshotPathTest do
   test "writes a missing snapshot and compares against it afterwards", %{page: page, path: path} do
     Page.set_content!(page, "<h1>title</h1>")
 
-    assert capture_io(fn -> assert :ok = Expect.to_match_aria_snapshot(page, path: path) end) =~ "writing actual"
+    # In a test, the test's error; outside one, printed.
+    assert :ok = Expect.to_match_aria_snapshot(page, path: path)
+    assert [{:error, %RuntimeError{message: message}, _}] = TestInfo.take_errors(self())
+    assert message =~ "writing actual"
     assert File.read!(path) == ~s(- heading "title" [level=1])
     assert capture_io(fn -> assert :ok = Expect.to_match_aria_snapshot(page, path: path) end) == ""
+
+    File.rm!(path)
+
+    outside_test(fn ->
+      assert capture_io(fn -> assert :ok = Expect.to_match_aria_snapshot(page, path: path, timeout: 100) end) =~
+               "writing actual"
+    end)
 
     Page.set_content!(page, "<h1>other</h1>")
     assert {:error, %ExpectError{}} = Expect.to_match_aria_snapshot(page, path: path, timeout: 100)
@@ -142,7 +153,19 @@ defmodule PlaywrightEx.Matchers.ToMatchAriaSnapshotPathTest do
     assert {:error, error} = Expect.to_match_aria_snapshot(page, ~s(- heading "title"), path: path)
     assert Exception.message(error) =~ "not both"
 
-    assert {:error, error} = Expect.to_match_aria_snapshot(page)
-    assert Exception.message(error) =~ "requires the expected snapshot or the path option"
+    # In a test, neither is the test's anonymous snapshot (`PlaywrightEx.Test.SnapshotsTest`).
+    outside_test(fn ->
+      assert {:error, error} = Expect.to_match_aria_snapshot(page)
+      assert Exception.message(error) =~ "requires the expected snapshot or the path option"
+    end)
+  end
+
+  # Runs `fun` in a process of no test.
+  defp outside_test(fun) do
+    Task.async(fn ->
+      Process.delete(:"$callers")
+      fun.()
+    end)
+    |> Task.await(:infinity)
   end
 end

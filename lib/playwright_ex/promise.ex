@@ -20,10 +20,36 @@ defmodule PlaywrightEx.Promise do
 
   The same waits have a callback form, as in the other official clients
   (`PlaywrightEx.Page.expect_popup(page, fn -> ... end)`).
+
+  `async/1` starts any calls this way, as JS's `const p = locator.evaluate(...)` (see the
+  [Concurrency](concurrency.md) guide).
   """
 
   @typedoc "A promise handle."
   @type t :: %PlaywrightEx.Runtime.Promise{}
+
+  @doc """
+  Calls `fun` without waiting for it, as JS starts an async call without `await`
+  (`const p = locator.evaluate(...); ...; await p`). `fun` runs in a process of its own, and
+  `async/1` returns once `fun` returned or first waits on Playwright (for a call's reply, an
+  event), so the calls it made by then are sent before your next action, in order:
+
+      # The click comes after the evaluate is in place.
+      clicked = Promise.async(fn -> Page.evaluate!(page, "() => new Promise(r => onclick = () => r(1))") end)
+      Page.click!(page, "body")
+      1 = Promise.await!(clicked)
+
+  A `Task` gives no such order: its first call may be sent after the next action. Work before the
+  first Playwright call (a `Process.sleep/1`) delays the return.
+
+  The promise is owned by the calling process, as the waits' are: any process can await it, any
+  number of times, until that process exits. An error of `fun` is its result, raised by
+  `await!/1` (`await/1` returns a `t:PlaywrightEx.error/0`); one nobody awaits is dropped. The
+  process carries the caller's `$callers`, as a `Task`'s does, so `PlaywrightEx.Test` (soft
+  matchers, steps), the Ecto sandbox and Mox find the test.
+  """
+  @spec async((-> term())) :: t()
+  def async(fun) when is_function(fun, 0), do: PlaywrightEx.Runtime.Promise.async(fun, shared: true)
 
   @doc """
   Waits for the promise: `{:ok, value}`, or `{:error, exception}` if it is rejected with a

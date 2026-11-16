@@ -70,9 +70,18 @@ defmodule Mix.PlaywrightEx.ApiRules do
       both Locator and Page (`toMatchAriaSnapshot`) take either. The `not` property is the member
       `not_` (`"negate"`: the receiver classes), as `and_`/`or_`, Java's `not()`: it wraps the
       receiver, which the matchers take too (`locator |> Expect.not_() |> Expect.to_have_text("x")`).
+      `expect.soft` (not in api.json, a property of upstream's `expect` function) is the member
+      `soft` (`"soften"`, with the docs of upstream's soft assertions guide): it wraps the receiver
+      too, with `isSoft`, in either order with `not_`. `expect(x, message)` is the member `message`
+      (`"customMessage"`, with the docs of upstream's assertions guide), a receiver as well.
+      `expect(callback).toPass(options)` and
+      `expect.poll(actual, options)` (not in api.json either, the test runner's) are the matchers
+      `to_pass` and `poll` of a function receiver (`"Function"`, the variable `callback`), with the
+      docs of upstream's assertions guide. `poll` has no `not` form, and its matcher is an argument,
+      `assertion` (`"poll"`: `PlaywrightEx.Matchers.Expect.poll/3`), as the jest matchers are ExUnit's.
       Overloads are dropped, except that `toHaveAttribute(name, options)` makes `value` optional.
-      `toHaveScreenshot` takes the snapshot file as a `path` option instead of the `name` that
-      the test runner resolves (`to_have_screenshot(page, path: "home.png")`), as does
+      `toHaveScreenshot` takes `name` as an option, which a `PlaywrightEx.Test` test resolves, or
+      the snapshot file as a `path` option (`to_have_screenshot(page, path: "home.png")`), as does
       `toMatchAriaSnapshot`, in place of `expected` (`to_match_aria_snapshot(page, path: "a.aria.yml")`).
       Their option docs
       name `config :playwright_ex, :expect` for the runner's `TestConfig.expect`.
@@ -368,8 +377,14 @@ defmodule Mix.PlaywrightEx.ApiRules do
       |> Enum.map(&merge_receivers/1)
       |> Enum.flat_map(&[&1, not_matcher(&1)])
 
+    members = members ++ [to_pass(), not_matcher(to_pass()), poll()]
     receivers = members |> Enum.flat_map(& &1["matcher"]["receivers"]) |> Enum.uniq()
-    members = [negate(Enum.find(assertions, &(&1["name"] == "LocatorAssertions")), receivers) | members]
+
+    members = [
+      negate(Enum.find(assertions, &(&1["name"] == "LocatorAssertions")), receivers),
+      soften(receivers),
+      custom_message(receivers) | members
+    ]
 
     spec =
       [
@@ -384,7 +399,9 @@ defmodule Mix.PlaywrightEx.ApiRules do
           "text" =>
             "`expect(locator).toHaveText(expected)` is " <>
               "`to_have_text(locator, expected)`, `expect(locator).not.toHaveText(expected)` is " <>
-              "`not_to_have_text(locator, expected)` or `locator |> not_() |> to_have_text(expected)`. They retry until the expectation is met or the timeout " <>
+              "`not_to_have_text(locator, expected)` or `locator |> not_() |> to_have_text(expected)`, and " <>
+              "a soft assertion is `locator |> soft() |> to_have_text(expected)` (see `soft/1`). " <>
+              "They retry until the expectation is met or the timeout " <>
               "(5 seconds by default, see Configuration below) passes, then return `:ok` or `{:error, %PlaywrightEx.ExpectError{}}` " <>
               "whose `matcherResult` mirrors JS; the bang forms raise the `PlaywrightEx.ExpectError` " <>
               "([Testing with ExUnit](testing-with-exunit.md) shows how to wrap it in an `ExUnit.AssertionError`)."
@@ -457,25 +474,47 @@ defmodule Mix.PlaywrightEx.ApiRules do
   defp expect_config_doc(node) when is_map(node), do: Map.new(node, fn {k, v} -> {k, expect_config_doc(v)} end)
   defp expect_config_doc(value), do: value
 
-  # `toHaveScreenshot(name, options)`: no test runner resolves `name`, `path` is an option.
+  # `toHaveScreenshot(name, options)`: `name` is an option (the object form `{ name }` of
+  # upstream's `nameOrOptions`), and `path` its stand-in outside a `PlaywrightEx.Test` test.
   defp snapshot_path(%{"alias" => "toHaveScreenshot"} = member, args) do
     [%{"name" => "name"} = name, %{"name" => "options"} = options] = args
+
+    name_option =
+      Map.merge(name, %{
+        "alias" => "name",
+        "required" => false,
+        "spec" =>
+          name["spec"] ++
+            [
+              %{
+                "type" => "text",
+                "text" =>
+                  "In Elixir, a test of `PlaywrightEx.Test` resolves it to a file (see \"Snapshots\" in its " <>
+                    "docs), and with neither `:name` nor `:path` names the snapshot after the test. On failure the " <>
+                    "`-actual`, `-expected`, `-previous` and `-diff` images are written to the test's output dir."
+              }
+            ]
+      })
 
     path =
       path_option(
         name,
-        "Required. The snapshot file. Must have a `.png` or `.webp` extension, the screenshot is captured in the " <>
-          "corresponding format. Both formats are lossless. A missing snapshot is written (see `:update_snapshots` " <>
-          "in the configuration of `PlaywrightEx.Expect`); on failure the `-actual`, `-diff` and " <>
-          "`-previous` images are written next to it."
+        "The snapshot file, in place of `:name`, required outside a `PlaywrightEx.Test` test. Must have a `.png` " <>
+          "or `.webp` extension. A missing snapshot is written (see `:update_snapshots` in the configuration of " <>
+          "`PlaywrightEx.Expect`); on failure the `-actual`, `-expected`, `-previous` and `-diff` images are written next to it."
       )
 
-    options = update_in(options, ["type", "properties"], &[path | &1])
+    options = update_in(options, ["type", "properties"], &[name_option, path | &1])
 
     usage = %{
       "type" => "code",
       "codeLang" => "elixir",
-      "lines" => [~s{Expect.to_have_screenshot!(page, path: "test/snapshots/image.png")}]
+      "lines" => [
+        ~s{Expect.to_have_screenshot!(page, name: "image.png")},
+        "",
+        "# Outside a PlaywrightEx.Test test",
+        ~s{Expect.to_have_screenshot!(page, path: "test/snapshots/image.png")}
+      ]
     }
 
     spec =
@@ -486,25 +525,54 @@ defmodule Mix.PlaywrightEx.ApiRules do
     {%{member | "spec" => spec}, [options]}
   end
 
-  # `toMatchAriaSnapshot(options)`: the overload that reads a file, whose `name` no test runner resolves.
+  # `toMatchAriaSnapshot(options)`: the overload that reads a file, its `name` an option, and
+  # `path` its stand-in outside a `PlaywrightEx.Test` test.
   defp snapshot_path(%{"alias" => "toMatchAriaSnapshot"} = member, args) do
     [%{"name" => "expected"} = expected, %{"name" => "options"} = options] = args
+
+    name =
+      Map.merge(expected, %{
+        "name" => "name",
+        "alias" => "name",
+        "required" => false,
+        "type" => %{"expression" => "[string]", "name" => "string"},
+        "spec" => [
+          %{
+            "type" => "text",
+            "text" =>
+              "Name of the snapshot to store in the snapshot folder corresponding to this test. Generates " <>
+                "sequential names if not specified."
+          },
+          %{
+            "type" => "text",
+            "text" =>
+              "In Elixir, in place of `expected`: a test of `PlaywrightEx.Test` resolves it to a file (see " <>
+                "\"Snapshots\" in its docs), and with neither `expected`, `:name` nor `:path` names the snapshot " <>
+                "after the test."
+          }
+        ]
+      })
 
     path =
       path_option(
         expected,
-        "The snapshot file, in place of `expected`. Its content is the expected snapshot. A missing snapshot is " <>
-          "written, unless `:update_snapshots` is `:none` or the matcher is negated. With " <>
+        "The snapshot file, in place of `expected` or `:name`. Its content is the expected snapshot. A missing " <>
+          "snapshot is written, unless `:update_snapshots` is `:none` or the matcher is negated. With " <>
           "`:update_snapshots` set to `:all` it is always rewritten, with `:changed` when it differs (see the " <>
           "configuration of `PlaywrightEx.Expect`)."
       )
 
-    options = update_in(options, ["type", "properties"], &[path | &1])
+    options = update_in(options, ["type", "properties"], &[name, path | &1])
 
     usage = %{
       "type" => "code",
       "codeLang" => "elixir",
-      "lines" => [~s{Expect.to_match_aria_snapshot!(page, path: "test/snapshots/body.aria.yml")}]
+      "lines" => [
+        ~s{Expect.to_match_aria_snapshot!(page, name: "body.aria.yml")},
+        "",
+        "# Outside a PlaywrightEx.Test test",
+        ~s{Expect.to_match_aria_snapshot!(page, path: "test/snapshots/body.aria.yml")}
+      ]
     }
 
     {Map.update!(member, "spec", &(&1 ++ [usage])), [%{expected | "required" => false}, options]}
@@ -556,6 +624,254 @@ defmodule Mix.PlaywrightEx.ApiRules do
       "negate" => receivers
     })
   end
+
+  # `expect.soft(x)`: `soft(x)`, a soft receiver (`"soften"`). Not in api.json: the docs are
+  # upstream's soft assertions guide (`docs/src/test-assertions-js.md`).
+  defp soften(receivers) do
+    %{
+      "name" => "soft",
+      "alias" => "soft",
+      "kind" => "method",
+      "args" => [],
+      "type" => nil,
+      "langs" => %{},
+      "spec" => [
+        %{
+          "type" => "text",
+          "text" =>
+            "By default, failed assertion will terminate test execution. Playwright also supports *soft assertions*: " <>
+              "failed soft assertions **do not** terminate test execution, but mark the test as failed."
+        },
+        %{
+          "type" => "code",
+          "codeLang" => "js",
+          "lines" => [
+            "// Make a few checks that will not stop the test when failed...",
+            "await expect.soft(page.getByTestId('status')).toHaveText('Success');",
+            "await expect.soft(page.getByTestId('eta')).toHaveText('1 day');",
+            "",
+            "// ... and continue the test to check more things.",
+            "await page.getByRole('link', { name: 'next page' }).click();",
+            "await expect.soft(page.getByRole('heading', { name: 'Make another order' })).toBeVisible();"
+          ]
+        },
+        %{"type" => "text", "text" => "Note that soft assertions only work with Playwright test runner."},
+        %{
+          "type" => "text",
+          "text" =>
+            "In Elixir, `soft/1` wraps the receiver as `not_/1` does, in either order: " <>
+              "`locator |> Expect.soft() |> Expect.not_()` is `expect.soft(locator).not`, and the `not_to_*` matchers " <>
+              "take a soft receiver too. In a `PlaywrightEx.Test` test, a failed soft matcher returns `:ok` (the bang " <>
+              "form too) and the test fails at the end of its body with all its errors. Outside such a test it fails " <>
+              "as any matcher."
+        }
+      ],
+      "soften" => receivers
+    }
+  end
+
+  # `expect(x, message)`: `message(x, message)`, a receiver with a custom message
+  # (`"customMessage"`). Not in api.json: the docs are upstream's assertions guide
+  # (`docs/src/test-assertions-js.md`, "Custom expect message").
+  defp custom_message(receivers) do
+    %{
+      "name" => "message",
+      "alias" => "message",
+      "kind" => "method",
+      "args" => [],
+      "type" => nil,
+      "langs" => %{},
+      "spec" => [
+        %{"type" => "text", "text" => "You can specify a custom expect message, for example:"},
+        %{
+          "type" => "code",
+          "codeLang" => "js",
+          "lines" => ["await expect(page.getByText('Name'), 'should be logged in').toBeVisible();"]
+        },
+        %{
+          "type" => "text",
+          "text" =>
+            "This message will be shown in reporters, both for passing and failing expects, providing more context " <>
+              "about the assertion."
+        },
+        %{
+          "type" => "text",
+          "text" =>
+            "In Elixir, `message/2` wraps the receiver as `not_/1` and `soft/1` do, in any order with them: " <>
+              "`locator |> Expect.soft() |> Expect.message(\"my soft assertion\")` is a soft assertion with a " <>
+              "custom message. The message is the matcher's step title in a " <>
+              "`PlaywrightEx.Test` test and the first paragraph of its `PlaywrightEx.ExpectError`. A `:message` " <>
+              "option of `poll/3` wins over it."
+        }
+      ],
+      "customMessage" => receivers
+    }
+  end
+
+  # `expect(callback).toPass(options)`: not in api.json (the test runner's). The docs are upstream's
+  # assertions guide (`docs/src/test-assertions-js.md`, `expect.toPass`).
+  defp to_pass do
+    %{
+      "name" => "toPass",
+      "alias" => "toPass",
+      "kind" => "method",
+      "since" => "v1.29",
+      "langs" => %{},
+      "type" => %{"name" => "void"},
+      "args" => [
+        retry_options([
+          intervals_option(),
+          %{
+            "name" => "timeout",
+            "required" => false,
+            "type" => %{"name" => "float"},
+            "spec" => [
+              text(
+                "Time to retry the callback for in milliseconds. Defaults to `0`: until the test's timeout (none outside " <>
+                  "a `PlaywrightEx.Test` test), not the matchers' `timeout`. A default other than `0` is `:to_pass` in " <>
+                  "`config :playwright_ex, :expect` (see the configuration in `PlaywrightEx.Expect`). Within a test, it " <>
+                  "ends before the test's timeout."
+              )
+            ]
+          }
+        ])
+      ],
+      "spec" => [
+        text("You can retry blocks of code until they are passing successfully."),
+        js([
+          "await expect(async () => {",
+          "  const response = await page.request.get('https://api.example.com');",
+          "  expect(response.status()).toBe(200);",
+          "}).toPass();"
+        ]),
+        text("You can also specify custom timeout and retry intervals:"),
+        js([
+          "await expect(async () => {",
+          "  const response = await page.request.get('https://api.example.com');",
+          "  expect(response.status()).toBe(200);",
+          "}).toPass({",
+          "  // Probe, wait 1s, probe, wait 2s, probe, wait 10s, probe, wait 10s, probe",
+          "  // ... Defaults to [100, 250, 500, 1000].",
+          "  intervals: [1_000, 2_000, 10_000],",
+          "  timeout: 60_000",
+          "});"
+        ]),
+        text("Note that by default `toPass` has timeout 0 and does not respect custom expect timeout."),
+        text(
+          "In Elixir, the callback runs in the calling process and passes once it returns. A failure in it (a raise " <>
+            "such as an `ExUnit.AssertionError` or a `PlaywrightEx.ExpectError`, an exit) is retried; the last one is " <>
+            "in the timeout's message. A callback still running at the deadline is not interrupted. A soft receiver " <>
+            "(`callback |> Expect.soft() |> Expect.to_pass()`) works as for any matcher."
+        )
+      ],
+      "matcher" => %{"name" => "toPass", "isNot" => false, "receivers" => ["Function"]}
+    }
+  end
+
+  # `expect.poll(actual, options).toBe(expected)`: not in api.json (the test runner's). The docs
+  # are upstream's assertions guide (`expect.poll`).
+  defp poll do
+    %{
+      "name" => "poll",
+      "alias" => "poll",
+      "kind" => "method",
+      "since" => "v1.21",
+      "langs" => %{},
+      "type" => %{"name" => "void"},
+      "args" => [
+        %{
+          "name" => "assertion",
+          "required" => true,
+          "type" => %{"name" => "function", "args" => [%{"name" => "any"}]},
+          "spec" => [
+            text(
+              "Called with each value of `callback`, the place of a jest matcher (`.toBe(200)`): an ExUnit " <>
+                "assertion (`&assert(&1 == 200)`), which raises until the value is right."
+            )
+          ]
+        },
+        retry_options([
+          intervals_option(),
+          %{
+            "name" => "message",
+            "required" => false,
+            "type" => %{"name" => "string"},
+            "spec" => [text("A custom expect message, for the step title and the error.")]
+          },
+          %{
+            "name" => "timeout",
+            "required" => false,
+            "type" => %{"name" => "float"},
+            "spec" => [text(@expect_timeout_doc)]
+          }
+        ])
+      ],
+      "spec" => [
+        text("You can convert any synchronous `expect` to an asynchronous polling one using `expect.poll`."),
+        text("The following method will poll given function until it returns HTTP status 200:"),
+        js([
+          "await expect.poll(async () => {",
+          "  const response = await page.request.get('https://api.example.com');",
+          "  return response.status();",
+          "}, {",
+          "  // Custom expect message for reporting, optional.",
+          "  message: 'make sure API eventually succeeds',",
+          "  // Poll for 10 seconds; defaults to 5 seconds. Pass 0 to disable timeout.",
+          "  timeout: 10000,",
+          "}).toBe(200);"
+        ]),
+        text("You can also specify custom polling intervals:"),
+        js([
+          "await expect.poll(async () => {",
+          "  const response = await page.request.get('https://api.example.com');",
+          "  return response.status();",
+          "}, {",
+          "  // Probe, wait 1s, probe, wait 2s, probe, wait 10s, probe, wait 10s, probe",
+          "  // ... Defaults to [100, 250, 500, 1000].",
+          "  intervals: [1_000, 2_000, 10_000],",
+          "  timeout: 60_000",
+          "}).toBe(200);"
+        ]),
+        text(
+          "You can combine `expect.soft` with `expect.poll` to perform soft assertions in polling logic. This allows " <>
+            "the test to continue even if the assertion inside poll fails."
+        ),
+        js([
+          "await expect.soft.poll(async () => {",
+          "  const response = await page.request.get('https://api.example.com');",
+          "  return response.status();",
+          "}).toBe(200);"
+        ]),
+        text(
+          "In Elixir, the jest matcher is an `assertion` of the value, as Elixir's generic assertions are ExUnit's. " <>
+            "`callback` raising fails the poll at once, as upstream's; the assertion raising is retried, and its last " <>
+            "error is in the timeout's message. Both run in the calling process. Negate in the assertion " <>
+            "(`&refute(&1 == 200)`): a negated receiver raises `ArgumentError`."
+        )
+      ],
+      "matcher" => %{"name" => "poll", "isNot" => false, "receivers" => ["Function"], "poll" => true}
+    }
+  end
+
+  defp retry_options(props),
+    do: %{"name" => "options", "required" => false, "type" => %{"name" => "Object", "properties" => props}}
+
+  defp intervals_option do
+    %{
+      "name" => "intervals",
+      "required" => false,
+      "type" => %{"name" => "Array", "templates" => [%{"name" => "int"}]},
+      "spec" => [
+        text(
+          "Probe, wait 1s, probe, wait 2s, probe, wait 10s, probe, wait 10s, probe: `[1_000, 2_000, 10_000]`. " <>
+            "Defaults to `[100, 250, 500, 1000]`."
+        )
+      ]
+    }
+  end
+
+  defp text(text), do: %{"type" => "text", "text" => text}
+  defp js(lines), do: %{"type" => "code", "codeLang" => "js", "lines" => lines}
 
   # `expect(x).not.toHaveText(...)`: Python's `not_to_have_text`.
   defp not_matcher(member) do

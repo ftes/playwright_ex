@@ -3610,13 +3610,13 @@ defmodule PlaywrightEx.Frame do
           [
             signal: PlaywrightEx.AbortSignal.t(),
             timeout: number() | :infinity,
-            url: String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
+            url: String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (URI.t() -> boolean()),
             wait_until: :load | :domcontentloaded | :networkidle | :commit
           ]
           | %{
               optional(:signal) => PlaywrightEx.AbortSignal.t(),
               optional(:timeout) => number() | :infinity,
-              optional(:url) => String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
+              optional(:url) => String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (URI.t() -> boolean()),
               optional(:wait_until) => :load | :domcontentloaded | :networkidle | :commit
             }
 
@@ -3659,7 +3659,7 @@ defmodule PlaywrightEx.Frame do
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
-  * `:url` (`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0` | `(String.t() -> boolean())`) - A glob pattern, regex pattern, URL pattern, or predicate receiving `URL` to match while waiting for the navigation. Note that if
+  * `:url` (`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0` | `(URI.t() -> boolean())`) - A glob pattern, regex pattern, URL pattern, or predicate receiving `URI` to match while waiting for the navigation. Note that if
     the parameter is a string without wildcard characters, the method will wait for navigation to URL that is exactly
     equal to the string.
   * `:wait_until` (`:load` | `:domcontentloaded` | `:networkidle` | `:commit`) - When to consider operation succeeded, defaults to `:load`. Events can be either:
@@ -3900,7 +3900,7 @@ defmodule PlaywrightEx.Frame do
 
   ## Arguments
 
-  * `url` - A glob pattern, regex pattern, URL pattern, or predicate receiving `URL` to match while waiting for the navigation. Note that if
+  * `url` - A glob pattern, regex pattern, URL pattern, or predicate receiving `URI` to match while waiting for the navigation. Note that if
     the parameter is a string without wildcard characters, the method will wait for navigation to URL that is exactly
     equal to the string.
 
@@ -3927,7 +3927,7 @@ defmodule PlaywrightEx.Frame do
   """
   @spec wait_for_url(
           t(),
-          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (URI.t() -> boolean()),
           wait_for_url_options()
         ) :: :ok | {:error, PlaywrightEx.error()}
   def wait_for_url(frame, url, options \\ []) do
@@ -3938,7 +3938,7 @@ defmodule PlaywrightEx.Frame do
   @doc "Like `wait_for_url/3`, but returns the value and raises on error."
   @spec wait_for_url!(
           t(),
-          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
+          String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (URI.t() -> boolean()),
           wait_for_url_options()
         ) :: :ok
   def wait_for_url!(frame, url, options \\ []) do
@@ -3976,13 +3976,13 @@ defmodule PlaywrightEx.Frame do
   @type expect_navigation_options ::
           [
             timeout: number() | :infinity,
-            url: String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
+            url: String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (URI.t() -> boolean()),
             wait_until: :load | :domcontentloaded | :networkidle | :commit,
             signal: PlaywrightEx.AbortSignal.t()
           ]
           | %{
               optional(:timeout) => number() | :infinity,
-              optional(:url) => String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()),
+              optional(:url) => String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (URI.t() -> boolean()),
               optional(:wait_until) => :load | :domcontentloaded | :networkidle | :commit,
               optional(:signal) => PlaywrightEx.AbortSignal.t()
             }
@@ -4026,7 +4026,7 @@ defmodule PlaywrightEx.Frame do
     `PlaywrightEx.Page.set_default_timeout/2` methods.
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
-  * `:url` (`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0` | `(String.t() -> boolean())`) - A glob pattern, regex pattern, or predicate receiving `URL` to match while waiting for the navigation. Note that if
+  * `:url` (`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0` | `(URI.t() -> boolean())`) - A glob pattern, regex pattern, or predicate receiving `URI` to match while waiting for the navigation. Note that if
     the parameter is a string without wildcard characters, the method will wait for navigation to URL that is exactly
     equal to the string.
   * `:wait_until` (`:load` | `:domcontentloaded` | `:networkidle` | `:commit`) - When to consider operation succeeded, defaults to `:load`. Events can be either:
@@ -4069,10 +4069,17 @@ defmodule PlaywrightEx.Frame do
     )
   end
 
-  @doc false
+  @doc """
+  The options of `function`, an atom such as `:add_script_tag`, as
+  `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, for tools that build on the facade at
+  compile time; a function without options raises `FunctionClauseError`. Unstable: the shape
+  may change between releases.
+  """
   @spec __options__(atom()) :: [
           {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
         ]
+  def __options__(function)
+
   def __options__(:add_script_tag) do
     [
       content: %{
@@ -5512,11 +5519,11 @@ defmodule PlaywrightEx.Frame do
         spec: quote(do: number() | :infinity)
       },
       url: %{
-        type_doc: "`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0` | `(String.t() -> boolean())`",
+        type_doc: "`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0` | `(URI.t() -> boolean())`",
         doc:
-          "A glob pattern, regex pattern, URL pattern, or predicate receiving `URL` to match while waiting for the navigation. Note that if the parameter is a string without wildcard characters, the method will wait for navigation to URL that is exactly equal to the string.",
+          "A glob pattern, regex pattern, URL pattern, or predicate receiving `URI` to match while waiting for the navigation. Note that if the parameter is a string without wildcard characters, the method will wait for navigation to URL that is exactly equal to the string.",
         since: nil,
-        spec: quote(do: String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()))
+        spec: quote(do: String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (URI.t() -> boolean()))
       },
       wait_until: %{
         type_doc: "`:load` | `:domcontentloaded` | `:networkidle` | `:commit`",
@@ -5594,11 +5601,11 @@ defmodule PlaywrightEx.Frame do
         spec: quote(do: number() | :infinity)
       },
       url: %{
-        type_doc: "`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0` | `(String.t() -> boolean())`",
+        type_doc: "`t:String.t/0` | `t:Regex.t/0` | `t:PlaywrightEx.RegExp.t/0` | `(URI.t() -> boolean())`",
         doc:
-          "A glob pattern, regex pattern, or predicate receiving `URL` to match while waiting for the navigation. Note that if the parameter is a string without wildcard characters, the method will wait for navigation to URL that is exactly equal to the string.",
+          "A glob pattern, regex pattern, or predicate receiving `URI` to match while waiting for the navigation. Note that if the parameter is a string without wildcard characters, the method will wait for navigation to URL that is exactly equal to the string.",
         since: nil,
-        spec: quote(do: String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (String.t() -> boolean()))
+        spec: quote(do: String.t() | Regex.t() | PlaywrightEx.RegExp.t() | (URI.t() -> boolean()))
       },
       wait_until: %{
         type_doc: "`:load` | `:domcontentloaded` | `:networkidle` | `:commit`",
@@ -5615,4 +5622,56 @@ defmodule PlaywrightEx.Frame do
       }
     ]
   end
+
+  @doc false
+  # The type of `function`'s options, as `Facade.options!/3` converts them.
+  def __options_type__(function)
+
+  def __options_type__(:add_script_tag), do: @add_script_tag_options
+  def __options_type__(:add_style_tag), do: @add_style_tag_options
+  def __options_type__(:check), do: @check_options
+  def __options_type__(:click), do: @click_options
+  def __options_type__(:content), do: @content_options
+  def __options_type__(:dblclick), do: @dblclick_options
+  def __options_type__(:dispatch_event), do: @dispatch_event_options
+  def __options_type__(:drag_and_drop), do: @drag_and_drop_options
+  def __options_type__(:evaluate), do: @evaluate_options
+  def __options_type__(:evaluate_handle), do: @evaluate_handle_options
+  def __options_type__(:fill), do: @fill_options
+  def __options_type__(:focus), do: @focus_options
+  def __options_type__(:get_attribute), do: @get_attribute_options
+  def __options_type__(:get_by_alt_text), do: @get_by_alt_text_options
+  def __options_type__(:get_by_label), do: @get_by_label_options
+  def __options_type__(:get_by_placeholder), do: @get_by_placeholder_options
+  def __options_type__(:get_by_role), do: @get_by_role_options
+  def __options_type__(:get_by_text), do: @get_by_text_options
+  def __options_type__(:get_by_title), do: @get_by_title_options
+  def __options_type__(:goto), do: @goto_options
+  def __options_type__(:hover), do: @hover_options
+  def __options_type__(:inner_html), do: @inner_html_options
+  def __options_type__(:inner_text), do: @inner_text_options
+  def __options_type__(:input_value), do: @input_value_options
+  def __options_type__(:is_checked), do: @is_checked_options
+  def __options_type__(:is_disabled), do: @is_disabled_options
+  def __options_type__(:is_editable), do: @is_editable_options
+  def __options_type__(:is_enabled), do: @is_enabled_options
+  def __options_type__(:is_hidden), do: @is_hidden_options
+  def __options_type__(:is_visible), do: @is_visible_options
+  def __options_type__(:locator), do: @locator_options
+  def __options_type__(:press), do: @press_options
+  def __options_type__(:query_selector), do: @query_selector_options
+  def __options_type__(:select_option), do: @select_option_options
+  def __options_type__(:set_checked), do: @set_checked_options
+  def __options_type__(:set_content), do: @set_content_options
+  def __options_type__(:set_input_files), do: @set_input_files_options
+  def __options_type__(:tap), do: @tap_options
+  def __options_type__(:text_content), do: @text_content_options
+  def __options_type__(:type), do: @type_options
+  def __options_type__(:uncheck), do: @uncheck_options
+  def __options_type__(:wait_for_function), do: @wait_for_function_options
+  def __options_type__(:wait_for_load_state), do: @wait_for_load_state_options
+  def __options_type__(:wait_for_navigation), do: @wait_for_navigation_options
+  def __options_type__(:wait_for_selector), do: @wait_for_selector_options
+  def __options_type__(:wait_for_url), do: @wait_for_url_options
+  def __options_type__(:expect_navigation), do: @expect_navigation_options
 end

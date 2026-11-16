@@ -36,6 +36,29 @@ Playwright (`Process.sleep/1`, `receive`, an HTTP request, a `GenServer.call` to
 stalls every page on that connection, as blocking the event loop does in JS. Hand slow work to
 another process with `send/2` or `Task.start/1`.
 
+A handler that waits for the test (JS awaits a promise the test resolves later) hands the work to
+a process that waits instead, and returns:
+
+```elixir
+test_pid = self()
+
+Page.route(page, "**/api/data", fn route ->
+  # JS: `await released; await route.continue()`.
+  spawn(fn ->
+    send(test_pid, {:held, self()})
+
+    receive do
+      :release -> Route.continue!(route)
+    end
+  end)
+end)
+
+# ... the page requests /api/data ...
+assert_receive {:held, held}
+Expect.to_be_visible!(Page.get_by_text(page, "Loading"))
+send(held, :release)
+```
+
 ## Subscribe before you check
 
 In JS, nothing runs between two lines without an `await`, so "read state, then wait for the event
@@ -72,6 +95,32 @@ download = Page.wait_for_event(page, :download)
 Locator.click!(Page.get_by_text(page, "Export"))
 task = Task.async(fn -> Download.path!(Promise.await!(download)) end)
 ```
+
+## Calls you await later
+
+JS starts a call and awaits it later: `const p = locator.evaluate(...); ...; await p`. Which
+Elixir form fits depends on when the call completes:
+
+- `PlaywrightEx.Promise.async/1` when the call must be sent before your next action, say an
+  `evaluate` that resolves on a click. It returns once the call is sent; a `Task` may send it
+  after the click.
+
+  ```elixir
+  clicked = Promise.async(fn -> Page.evaluate!(page, "() => new Promise(r => onclick = () => r(true))") end)
+  Locator.click!(Page.get_by_role(page, :button))
+  true = Promise.await!(clicked)
+  ```
+
+- `Task.async/1` when the call only completes after a later action of yours, such as a `click`
+  that opens a dialog you then handle: awaiting it in line would deadlock, and the order of the
+  sends doesn't matter, as you wait for the event the call causes.
+
+  ```elixir
+  dialog = Page.wait_for_event(page, :dialog)
+  click = Task.async(fn -> Locator.click!(Page.get_by_role(page, :button)) end)
+  Dialog.accept!(Promise.await!(dialog))
+  Task.await(click)
+  ```
 
 ## Lifetimes after close
 

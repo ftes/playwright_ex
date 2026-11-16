@@ -40,7 +40,9 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
       string too for `"openEvents"` classes (`CDPSession`, see `Mix.PlaywrightEx.ApiRules`). The
       call runs in `PlaywrightEx.Runtime.Facade.listen/1`: the listener is a user listener.
     * Functions with options: `__options__(:click)` lists the options with their doc and type, for
-      wrappers that pass them on.
+      wrappers that pass them on (documented as unstable). `__options_type__(:click)` (`@doc
+      false`) is their type, as `PlaywrightEx.Runtime.Facade.options!/3` converts them: the
+      config's `context_options` of `PlaywrightEx.Test`.
 
   `--check` writes nothing and fails if a file is out of date (`mix playwright_ex.parity` runs it).
   """
@@ -218,6 +220,10 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   defp impl(class_name), do: Module.concat(PlaywrightEx.Client, class_name)
   defp facade(class_name), do: Module.concat(PlaywrightEx, class_name)
 
+  # A matcher receiver's type: a function for `toPass` and `expect.poll` (`"Function"`).
+  defp receiver_type("Function"), do: "(-> term())"
+  defp receiver_type(class_name), do: "#{inspect(facade(class_name))}.t()"
+
   # The matcher's function in `customAsyncMatchers`, with the JS arity (this, receiver, arguments).
   defp matcher_function(%{"matcher" => %{"name" => name}} = member) do
     fun = PlaywrightEx.Matchers.Expect.custom_async_matchers()[name]
@@ -344,24 +350,53 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
 
   # --- members -----------------------------------------------------------------
 
-  # `expect(x).not` (`"negate"`, see `Mix.PlaywrightEx.ApiRules`): the struct of a negated receiver.
+  # `expect(x).not` (`"negate"`, see `Mix.PlaywrightEx.ApiRules`): the struct of a negated, soft
+  # or messaged receiver, upstream's `ExpectMetaInfo` `isNot`, `isSoft` and `message`.
   defp member_source(ctx, _class, %{"negate" => receivers} = member, _receiver) do
-    receiver_spec = Enum.map_join(receivers, " | ", &"#{inspect(facade(&1))}.t()")
+    receiver_spec = Enum.map_join(receivers, " | ", &receiver_type/1)
 
     """
-    @typedoc "A negated receiver (`not_/1`): `expect(actual).not` in JS."
-    @type t(actual) :: %__MODULE__{actual: actual, isNot: true}
-    @typedoc "A negated receiver of any matcher."
+    @typedoc "A negated (`not_/1`), soft (`soft/1`) or messaged (`message/2`) receiver: `expect(actual).not`, `expect.soft(actual)`, `expect(actual, message)` in JS."
+    @type t(actual) :: %__MODULE__{actual: actual, isNot: boolean(), isSoft: boolean(), message: String.t() | nil}
+    @typedoc "A negated, soft or messaged receiver of any matcher."
     @type t :: t(#{receiver_spec})
 
-    defstruct [:actual, isNot: true]
+    defstruct [:actual, isNot: false, isSoft: false, message: nil]
 
     @doc #{doc(member_doc(ctx, member, []))}
-    @spec not_(actual) :: t(actual) when actual: #{receiver_spec}
-    def not_(%__MODULE__{}),
+    @spec not_(actual | t(actual)) :: t(actual) when actual: #{receiver_spec}
+    def not_(%__MODULE__{isNot: true}),
       do: raise(ArgumentError, "expect.not: the receiver is negated already (JS has no expect(x).not.not)")
 
-    def not_(actual), do: %__MODULE__{actual: actual}
+    def not_(%__MODULE__{} = expect), do: %{expect | isNot: true}
+    def not_(actual), do: %__MODULE__{actual: actual, isNot: true}
+    """
+  end
+
+  # `expect.soft(x)` (`"soften"`, see `Mix.PlaywrightEx.ApiRules`): a soft receiver. Upstream's
+  # getter returns a soft `expect` as it is.
+  defp member_source(ctx, _class, %{"soften" => receivers} = member, _receiver) do
+    receiver_spec = Enum.map_join(receivers, " | ", &receiver_type/1)
+
+    """
+    @doc #{doc(member_doc(ctx, member, []))}
+    @spec soft(actual | t(actual)) :: t(actual) when actual: #{receiver_spec}
+    def soft(%__MODULE__{} = expect), do: %{expect | isSoft: true}
+    def soft(actual), do: %__MODULE__{actual: actual, isSoft: true}
+    """
+  end
+
+  # `expect(x, message)` (`"customMessage"`, see `Mix.PlaywrightEx.ApiRules`): a receiver with a
+  # custom message. A later message replaces an earlier one, as `expect(x, message)` replaces
+  # `expect.configure({ message })`'s.
+  defp member_source(ctx, _class, %{"customMessage" => receivers} = member, _receiver) do
+    receiver_spec = Enum.map_join(receivers, " | ", &receiver_type/1)
+
+    """
+    @doc #{doc(member_doc(ctx, member, []))}
+    @spec message(actual | t(actual), String.t()) :: t(actual) when actual: #{receiver_spec}
+    def message(%__MODULE__{} = expect, message) when is_binary(message), do: %{expect | message: message}
+    def message(actual, message) when is_binary(message), do: %__MODULE__{actual: actual, message: message}
     """
   end
 
@@ -373,24 +408,32 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     vars = Enum.map(member["args"], &arg_var/1)
     attrs = for {arg, var} <- Enum.zip(member["args"], vars), schema = arg_schema(ctx, arg), do: {arg, var, schema}
     params = [receiver | Enum.map(Enum.zip(member["args"], vars), &param/1)]
-    fun = matcher_function(member)
-    info = Function.info(fun)
-    capture = "&#{inspect(info[:module])}.#{info[:name]}/#{info[:arity]}"
 
     call =
-      "#{inspect(impl(class["name"]))}.create_matcher(#{inspect(matcher["name"])}, %{isNot: is_not}, " <>
-        "#{receiver}, #{capture}).([#{Enum.join(vars, ", ")}])"
+      if matcher["poll"] do
+        # `expect.poll(actual, options)`, then its matcher (`assertion`).
+        [assertion, options] = vars
+        "#{inspect(impl(class["name"]))}.poll(info, #{receiver}, #{options}).([#{assertion}])"
+      else
+        fun = matcher_function(member)
+        info = Function.info(fun)
+        capture = "&#{inspect(info[:module])}.#{info[:name]}/#{info[:arity]}"
+
+        "#{inspect(impl(class["name"]))}.create_matcher(#{inspect(matcher["name"])}, info, " <>
+          "#{receiver}, #{capture}).([#{Enum.join(vars, ", ")}])"
+      end
 
     m = %{params: params, function: nil, or_options: or_options(member["args"], vars)}
-    receiver_spec = Enum.map_join(matcher["receivers"], " | ", &"#{inspect(facade(&1))}.t()")
-    # A negated receiver (`not_/1`) takes the place of the receiver, not of a negated one.
-    receiver_spec = if matcher["isNot"], do: receiver_spec, else: "#{receiver_spec} | t(#{receiver_spec})"
+    receiver_spec = Enum.map_join(matcher["receivers"], " | ", &receiver_type/1)
+    # A negated or soft receiver (`not_/1`, `soft/1`) takes the place of the receiver (a `not_to_*`
+    # matcher raises for a negated one).
+    receiver_spec = "#{receiver_spec} | t(#{receiver_spec})"
     m = Map.put(m, :spec_args, [receiver_spec | Enum.map(member["args"], &arg_spec(ctx, &1, name))])
 
     conversions =
       Enum.join(
         [
-          "{#{receiver}, is_not} = Facade.negated(#{receiver}, #{matcher["isNot"]}, #{inspect(api_name)})"
+          "{#{receiver}, info} = Facade.matcher_info(#{receiver}, #{matcher["isNot"]}, #{inspect(api_name)})"
           | Enum.map(attrs, &conversion(name, api_name, &1))
         ],
         "\n"
@@ -942,19 +985,39 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   # `__options__(:click)`: the options of `click/2` and `click!/2` as their docs show them, for
   # wrappers that pass them on. Only functions with options have a clause.
   defp options_metadata_source(ctx, members) do
-    clauses =
-      for member <- members,
-          %{"name" => "options"} = options <- member["args"],
-          do: options_metadata_clause(ctx, member, options)
+    members = for member <- members, %{"name" => "options"} = options <- member["args"], do: {member, options}
+    clauses = for {member, options} <- members, do: options_metadata_clause(ctx, member, options)
 
-    if clauses != [],
-      do: """
-      @doc false
+    if clauses != [] do
+      name = members |> hd() |> elem(0) |> Map.fetch!("alias") |> snake()
+
+      types =
+        for {member, options} <- members do
+          name = snake(member["alias"])
+          "def __options_type__(#{inspect(String.to_atom(name))}), do: @#{name}_#{arg_var(options)}"
+        end
+
+      """
+      @doc \"\"\"
+      The options of `function`, an atom such as `:#{name}`, as
+      `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, for tools that build on the facade at
+      compile time; a function without options raises `FunctionClauseError`. Unstable: the shape
+      may change between releases.
+      \"\"\"
       @spec __options__(atom()) :: [
               {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
             ]
+      def __options__(function)
+
       #{Enum.join(clauses, "\n\n")}
+
+      @doc false
+      # The type of `function`'s options, as `Facade.options!/3` converts them.
+      def __options_type__(function)
+
+      #{Enum.join(types, "\n")}
       """
+    end
   end
 
   # `doc` is the first paragraph of the option's bullet (`member_doc/3`) after its admonitions
@@ -1061,7 +1124,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   @simple %{
     "string" => "String.t()",
     "path" => "String.t()",
-    "URL" => "String.t()",
+    "URL" => "URI.t()",
     "boolean" => "boolean()",
     "int" => "integer()",
     "long" => "integer()",
@@ -1192,6 +1255,7 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
     "#{String.downcase(head)}#{rest}.#{member}"
   end
 
+  defp matcher_receiver(["Function"]), do: "callback"
   defp matcher_receiver(receivers), do: receivers |> Enum.map_join("_or_", &snake/1)
 
   # The receiver is named after the class (`locator`); an argument of the same name
@@ -1303,10 +1367,12 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Api do
   # (`[Promise]`), in one pass so that code and link texts are left alone.
   @inline ~r/\[`(method|property|event): (\w+)\.(\w+)(?:#\w+)?`\]|\[([^\]]*)\]\(([^)]*)\)|`([^`]+)`|\[([A-Za-z](?:[\w.]*\w)?)\]/
 
-  # Refs to web APIs and terms, as MDN links.
+  # Refs to web APIs and terms, as MDN links, or as the Elixir counterpart a port passes (`URL`:
+  # URL matchers get a `URI`, see @simple).
   @web_refs %{
     "UIEvent.detail" => "[`UIEvent.detail`](https://developer.mozilla.org/en-US/docs/Web/API/UIEvent/detail)",
-    "origin" => "[origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin)"
+    "origin" => "[origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin)",
+    "URL" => "`URI`"
   }
 
   # Upstream joins the lines of a paragraph with `↵` (soft line breaks).

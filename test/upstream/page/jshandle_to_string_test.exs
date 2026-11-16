@@ -4,10 +4,11 @@ defmodule PlaywrightEx.Page.JshandleToStringTest do
 
   @browser_name System.get_env("BROWSER", "chromium")
 
+  alias PlaywrightEx.Expect
+
   alias PlaywrightEx.ConsoleMessage
   alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Page
-  alias PlaywrightEx.Utils
 
   @moduletag :page
 
@@ -68,7 +69,7 @@ defmodule PlaywrightEx.Page.JshandleToStringTest do
     assert to_string(Page.evaluate_handle!(page, "[]")) =~ "Array"
     assert to_string(Page.evaluate_handle!(page, "null")) == "null"
     body_handle = Page.evaluate_handle!(page, "document.body")
-    Utils.poll(fn -> to_string(body_handle) end, &assert(&1 == "JSHandle@<body></body>"))
+    Expect.poll!(fn -> to_string(body_handle) end, &assert(&1 == "JSHandle@<body></body>"))
     assert to_string(Page.evaluate_handle!(page, "new WeakMap()")) == "WeakMap"
     assert to_string(Page.evaluate_handle!(page, "new WeakSet()")) == "WeakSet"
     assert to_string(Page.evaluate_handle!(page, "new Error()")) =~ "Error"

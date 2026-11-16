@@ -139,8 +139,10 @@ for what the user sees. More: [locators](https://playwright.dev/python/docs/loca
 
 ## Timeouts
 
-Actions and navigations time out after 30 seconds. Set defaults per context (or page) instead
-of a `timeout:` per call:
+Actions and navigations time out after 30 seconds (in a `PlaywrightEx.Test` test, as in
+Playwright Test, only the test's timeout bounds them, see
+[Testing with ExUnit](../testing-with-exunit.md#setup)). Set defaults per context (or page)
+instead of a `timeout:` per call:
 
 ```elixir
 BrowserContext.set_default_timeout(context, 5_000)

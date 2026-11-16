@@ -33,7 +33,8 @@ defmodule PlaywrightEx.MixProject do
   def application do
     [
       mod: {PlaywrightEx.Application, []},
-      # inets/ssl/public_key: driver download (`PlaywrightEx.Driver`).
+      # inets/ssl/public_key: driver download (`PlaywrightEx.Driver`). No ex_unit, which
+      # `PlaywrightEx.Test` calls: listed (even `:optional`), it would ship in releases and start.
       extra_applications: [:logger, :inets, :ssl, :crypto, :public_key]
     ]
   end
@@ -111,6 +112,8 @@ defmodule PlaywrightEx.MixProject do
       nest_modules_by_prefix: [PlaywrightEx],
       # The changelog names functions of the API before the restructure.
       skip_undefined_reference_warnings_on: ["CHANGELOG.md"],
+      # ExUnit hides its formatter modules from its docs.
+      skip_code_autolink_to: ["ExUnit.CLIFormatter"],
       # Internals keep their moduledocs (read in the source; docs/architecture.md) but stay out of
       # hexdocs: the user API is the generated facade, the errors and the runtime entry points.
       filter_modules: fn _, metadata -> not internal_source?(to_string(metadata.source_path)) end,
@@ -153,6 +156,12 @@ defmodule PlaywrightEx.MixProject do
           PlaywrightEx.Worker
         ],
         Assertions: [PlaywrightEx.Expect, PlaywrightEx.ExpectError],
+        Testing: [
+          PlaywrightEx.Case,
+          PlaywrightEx.Test,
+          PlaywrightEx.Test.BrowserPool,
+          PlaywrightEx.Test.GitHubFormatter
+        ],
         Network: [
           PlaywrightEx.Request,
           PlaywrightEx.Response,

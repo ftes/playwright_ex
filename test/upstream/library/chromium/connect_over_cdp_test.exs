@@ -20,7 +20,6 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
   alias PlaywrightEx.TestProxy
   alias PlaywrightEx.TestServer
   alias PlaywrightEx.Tracing
-  alias PlaywrightEx.Utils
   alias PlaywrightEx.Worker
 
   # Deviations:
@@ -746,7 +745,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
       # The inspector stays attached, so the worker target lingers without a browser context.
       Page.close!(page)
 
-      Utils.poll(
+      Expect.poll!(
         fn ->
           %{"targetInfos" => target_infos} = CDPSession.send!(inspector, "Target.getTargets")
           Enum.any?(target_infos, &(&1["targetId"] == worker_target_id))

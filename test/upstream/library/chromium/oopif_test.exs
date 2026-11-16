@@ -3,7 +3,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
   use PlaywrightEx.UpstreamCase, async: true
 
   import PlaywrightEx.UpstreamSnapshot
-  import PlaywrightEx.Utils, only: [attach_frame: 3, poll: 2, rafraf: 1]
+  import PlaywrightEx.Utils, only: [attach_frame: 3, rafraf: 1]
 
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
@@ -375,7 +375,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
     assert_oopif_count(browser, 1)
     handle1 = Frame.query_selector!(Enum.at(Page.frames(page), 1), ".box:nth-of-type(13)")
 
-    poll(fn -> ElementHandle.bounding_box!(handle1) end, fn box ->
+    Expect.poll!(fn -> ElementHandle.bounding_box!(handle1) end, fn box ->
       assert box == %{x: 100 + 42, y: 50 + 17, width: 50, height: 50}
     end)
 
@@ -385,7 +385,7 @@ defmodule PlaywrightEx.Library.Chromium.OopifTest do
     assert_oopif_count(browser, 0)
     handle2 = Frame.query_selector!(Enum.at(Page.frames(page), 1), ".box:nth-of-type(13)")
 
-    poll(fn -> ElementHandle.bounding_box!(handle2) end, fn box ->
+    Expect.poll!(fn -> ElementHandle.bounding_box!(handle2) end, fn box ->
       assert box == %{x: 100 + 42, y: 50 + 17, width: 50, height: 50}
     end)
   end

@@ -419,10 +419,17 @@ defmodule PlaywrightEx.Route do
     PlaywrightEx.Client.Route.request(route)
   end
 
-  @doc false
+  @doc """
+  The options of `function`, an atom such as `:continue`, as
+  `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, for tools that build on the facade at
+  compile time; a function without options raises `FunctionClauseError`. Unstable: the shape
+  may change between releases.
+  """
   @spec __options__(atom()) :: [
           {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
         ]
+  def __options__(function)
+
   def __options__(:continue) do
     [
       headers: %{
@@ -587,4 +594,13 @@ defmodule PlaywrightEx.Route do
       }
     ]
   end
+
+  @doc false
+  # The type of `function`'s options, as `Facade.options!/3` converts them.
+  def __options_type__(function)
+
+  def __options_type__(:continue), do: @continue_options
+  def __options_type__(:fallback), do: @fallback_options
+  def __options_type__(:fetch), do: @fetch_options
+  def __options_type__(:fulfill), do: @fulfill_options
 end

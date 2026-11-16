@@ -892,7 +892,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
     Page.evaluate!(page, "() => window['contextMenuPromise']")
 
     Keyboard.insert_text!(Page.keyboard(page), "嗨")
-    Utils.poll(fn -> Locator.input_value!(Page.locator(page, "textarea")) end, &assert(&1 == "嗨"))
+    Expect.poll!(fn -> Locator.input_value!(Page.locator(page, "textarea")) end, &assert(&1 == "嗨"))
   end
 
   @tag skip:
@@ -916,7 +916,7 @@ defmodule PlaywrightEx.Page.PageKeyboardTest do
 
     Keyboard.down!(Page.keyboard(page), "ArrowDown")
 
-    Utils.poll(fn -> Page.evaluate!(page, "window.keys") end, &assert(&1 == ["ArrowDown"]))
+    Expect.poll!(fn -> Page.evaluate!(page, "window.keys") end, &assert(&1 == ["ArrowDown"]))
   end
 
   test "KB-052 should have correct Keydown/Keyup order when pressing Escape key", %{page: page, server: server} do

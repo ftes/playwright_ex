@@ -3,9 +3,11 @@ defmodule PlaywrightEx.UpstreamCase do
   Case template for tests mirrored from upstream `tests/` (see `PORTING.md`).
 
   Fixtures, as upstream's `tests/config/{baseTest,serverFixtures,browserTest}.ts` provide them.
-  Upstream's worker-scoped fixtures are a worker's (`PlaywrightEx.TestWorkers`): the module has it
-  to itself while it runs, and the next module gets it after (a fresh one after a failure).
-  `@moduletag :own_worker` gives a module a driver and browser of its own instead:
+  Upstream's worker-scoped `playwright` and `browser` come from
+  `PlaywrightEx.Test.BrowserPool.browser/1` in `setup_all`, upstream's worker: a driver under
+  test (`PWTEST_UNDER_TEST`) and browser of the module's while it runs, reused by the next
+  module (a fresh one after a failure). `PlaywrightEx.DriverCleanup` closes what a test or
+  module created. `@moduletag :own_worker` starts a driver for the module alone:
 
     * `playwright`, `browser_name` (`BROWSER` env, default `"chromium"`), `headless` (`HEADED`
       env, see `PlaywrightEx.TestBrowser.headless/0`), `browser_type`, `browser` (the worker's,
@@ -41,6 +43,8 @@ defmodule PlaywrightEx.UpstreamCase do
   test, `--include skip` neither): `PW_UNSKIP=env,flaky mix test <files>` re-checks them on a bump.
   """
   use ExUnit.CaseTemplate
+  # First: the template's own `setup` callbacks create contexts.
+  use PlaywrightEx.Test
 
   alias Mix.PlaywrightEx.TestRegistry
   alias PlaywrightEx.APIRequest
@@ -48,18 +52,21 @@ defmodule PlaywrightEx.UpstreamCase do
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Client
   alias PlaywrightEx.Client.ClientInstrumentation
+  alias PlaywrightEx.Client.Locator
   alias PlaywrightEx.Playwright
   alias PlaywrightEx.Runtime.Api
   alias PlaywrightEx.Runtime.Heap
   alias PlaywrightEx.Selectors
+  alias PlaywrightEx.Test.BrowserPool
   alias PlaywrightEx.TestBrowser
   alias PlaywrightEx.TestServer
 
   using do
     quote do
+      # Registered by the template's body; `test` is ours, on `PlaywrightEx.Test.test/3`.
       import ExUnit.Case, only: [describe: 2]
+      require PlaywrightEx.Test
 
       import PlaywrightEx.UpstreamCase,
         only: [test: 1, test: 2, test: 3, start_playwright: 2, expected_failure: 2, default_same_site_cookie_value: 1]
@@ -141,44 +148,25 @@ defmodule PlaywrightEx.UpstreamCase do
     end
   end
 
-  @doc "`ExUnit.Case.test/1`, skipped when a rule rules it out."
+  @doc "`PlaywrightEx.Test.test/1`, skipped when a rule rules it out."
   defmacro test(message) do
     quote do
       PlaywrightEx.UpstreamCase.__unskip__(__MODULE__)
       PlaywrightEx.UpstreamCase.__not_ported__(__MODULE__, unquote(message))
-      ExUnit.Case.test(unquote(message))
+      PlaywrightEx.Test.test(unquote(message))
     end
   end
 
-  @doc "`ExUnit.Case.test/3`, skipped when a rule rules it out."
+  @doc "`PlaywrightEx.Test.test/3`, skipped when a rule rules it out."
   defmacro test(message, var \\ quote(do: _), contents) do
     quote do
       PlaywrightEx.UpstreamCase.__unskip__(__MODULE__)
       PlaywrightEx.UpstreamCase.__not_ported__(__MODULE__, unquote(message))
-      ExUnit.Case.test(unquote(message), unquote(var), unquote(contents))
+      PlaywrightEx.Test.test(unquote(message), unquote(var), unquote(contents))
     end
   end
 
   @root Path.expand("../..", __DIR__)
-
-  # Playwright Test's option fixtures with no value given (`packages/playwright/src/index.ts`
-  # `playwrightFixtures`, as `_combinedContextOptions` collects them): `contextOptions` is `{}`.
-  @context_defaults %{
-    acceptDownloads: true,
-    bypassCSP: false,
-    colorScheme: "light",
-    contrast: "no-preference",
-    forcedColors: "none",
-    hasTouch: false,
-    ignoreHTTPSErrors: false,
-    isMobile: false,
-    javaScriptEnabled: true,
-    locale: "en-US",
-    offline: false,
-    reducedMotion: "no-preference",
-    viewport: %{width: 1280, height: 720},
-    serviceWorkers: "allow"
-  }
 
   @doc """
   Sets up a Playwright instance as Playwright Test's fixtures do (`packages/playwright/src/index.ts`):
@@ -195,7 +183,7 @@ defmodule PlaywrightEx.UpstreamCase do
   `artifacts_dir` stands in for the worker's artifacts dir (`artifacts_dir/0`), the caller removes it.
   """
   def setup_playwright(playwright, artifacts_dir) do
-    defaults = context_defaults()
+    defaults = PlaywrightEx.Test.Options.context_defaults()
 
     Api.call(nil, playwright, fn ->
       Heap.put(playwright, :_defaultContextTimeout, 0)
@@ -229,19 +217,41 @@ defmodule PlaywrightEx.UpstreamCase do
     playwright
   end
 
-  @doc "A fresh artifacts dir (`testInfo._tracing.artifactsDir()`), for `setup_playwright/2`."
-  def artifacts_dir do
-    dir = Path.join(System.tmp_dir!(), "playwright-ex-artifacts-#{System.unique_integer([:positive])}")
-    File.mkdir_p!(Path.join(dir, "traces"))
-    dir
+  @doc """
+  The options of the module's `PlaywrightEx.Test.BrowserPool` driver: under test, set up as
+  Playwright Test's fixtures (`on_start/1`). `ExampleCase` shares them, so both templates' modules
+  reuse each other's drivers.
+  """
+  def pool_options, do: [driver: [env: [{"PWTEST_UNDER_TEST", "1"}]], on_start: {__MODULE__, :on_start, []}]
+
+  @doc """
+  The `on_start` of the module's driver (`PlaywrightEx.Test.BrowserPool`), on each new driver:
+  `setup_playwright/2` with an artifacts dir of the driver's, removed when its connection goes
+  (a driver stopped or restarted). `test_helper.exs` removes `artifacts_root/0` after the suite.
+  """
+  def on_start(playwright) do
+    artifacts_dir = artifacts_dir()
+    conn = playwright.conn
+
+    spawn(fn ->
+      ref = Process.monitor(conn)
+
+      receive do
+        {:DOWN, ^ref, :process, _, _} -> File.rm_rf(artifacts_dir)
+      end
+    end)
+
+    setup_playwright(playwright, artifacts_dir)
   end
 
-  # `baseURL` is `process.env.PLAYWRIGHT_TEST_BASE_URL`.
-  defp context_defaults do
-    case System.get_env("PLAYWRIGHT_TEST_BASE_URL") do
-      nil -> @context_defaults
-      base_url -> Map.put(@context_defaults, :baseURL, base_url)
-    end
+  @doc "The parent of the run's artifacts dirs."
+  def artifacts_root, do: Path.join(System.tmp_dir!(), "playwright-ex-artifacts-#{System.pid()}")
+
+  @doc "A fresh artifacts dir (`testInfo._tracing.artifactsDir()`), for `setup_playwright/2`."
+  def artifacts_dir do
+    dir = Path.join(artifacts_root(), "#{System.unique_integer([:positive])}")
+    File.mkdir_p!(Path.join(dir, "traces"))
+    dir
   end
 
   @doc false
@@ -281,8 +291,8 @@ defmodule PlaywrightEx.UpstreamCase do
   end
 
   setup_all %{module: module} = tags do
-    # Upstream runs its tests with the driver "under test" (`window.builtins`, ...). A worker's
-    # (`PlaywrightEx.TestWorkers`), unless the module is tagged `:own_worker`.
+    # Upstream runs its tests with the driver "under test" (`window.builtins`, ...): the pool's,
+    # or one it starts with `:own_worker`.
     {playwright, browser} =
       if tags[:own_worker] do
         start_supervised!({PlaywrightEx.Supervisor, name: module, env: [{"PWTEST_UNDER_TEST", "1"}]})
@@ -292,9 +302,12 @@ defmodule PlaywrightEx.UpstreamCase do
         setup_playwright(playwright, artifacts_dir)
         {playwright, BrowserType.launch!(TestBrowser.browser_type(playwright))}
       else
-        %{playwright: playwright, browser: browser} = PlaywrightEx.TestWorkers.checkout(:upstream, module)
-        {playwright, browser}
+        browser = BrowserPool.browser(pool_options())
+        {BrowserPool.playwright(browser), browser}
       end
+
+    # The browsers and contexts the module's own `setup_all` creates (a `browser` of its own).
+    PlaywrightEx.DriverCleanup.track_module(playwright, keep: [browser])
 
     browser_name = TestBrowser.name()
     browser_type = TestBrowser.browser_type(playwright)
@@ -338,22 +351,26 @@ defmodule PlaywrightEx.UpstreamCase do
   end
 
   # `_setupContextOptions`: `selectors.setTestIdAttribute(testIdAttribute)` (default
-  # `data-testid`) before each test, so a test's own attribute does not leak into the next.
+  # `data-testid`) before each test, so a test's own attribute does not leak into the next. Only
+  # when it differs: it updates every context of the driver.
   setup %{playwright: playwright} do
-    Selectors.set_test_id_attribute(Playwright.selectors(playwright), "data-testid")
+    selectors = Playwright.selectors(playwright)
+    current = Api.call(nil, playwright, fn -> Heap.get(selectors, :_testIdAttributeName) end)
+
+    if current != "data-testid" or Locator.test_id_attribute_name() != "data-testid",
+      do: Selectors.set_test_id_attribute(selectors, "data-testid")
+
     :ok
   end
 
-  # Upstream restarts the worker after a failed test; here the module's driver lives on. Close
-  # the contexts a test left open (say, a browser it launched and never closed), or one still
-  # tracing would add its stacks to the traces of the next tests.
-  setup %{playwright: playwright} do
-    contexts = fn -> Api.call(nil, playwright, fn -> Client.Playwright._all_contexts(playwright) end) end
-    before = contexts.()
-    on_exit(fn -> for context <- contexts.() -- before, do: BrowserContext.close(context) end)
+  # Upstream restarts the worker after a failed test; here the driver lives on. Close the
+  # contexts and browsers the test left open, or one still tracing would add its stacks to the
+  # traces of the next tests. Only the test's: the module's stay.
+  setup %{playwright: playwright, browser: browser} do
+    PlaywrightEx.DriverCleanup.track_test(playwright, keep: [browser])
   end
 
-  setup %{browser: browser} do
+  setup %{browser: browser} = tags do
     {:ok, contexts} = Agent.start(fn -> [] end)
 
     context_factory = fn options ->
@@ -362,14 +379,21 @@ defmodule PlaywrightEx.UpstreamCase do
       context
     end
 
-    # `context.close({ reason: closeReason })`; on a timeout upstream's reason is "Test timeout of
-    # <n>ms exceeded." (ExUnit's on_exit does not know the test's status).
+    # `context.close({ reason: closeReason })`.
     on_exit(fn ->
-      for context <- Agent.get(contexts, & &1), do: BrowserContext.close(context, reason: "Test ended.")
+      reason = close_reason(tags)
+      for context <- Agent.get(contexts, & &1), do: BrowserContext.close(context, reason: reason)
       Agent.stop(contexts)
     end)
 
     %{context_factory: context_factory}
+  end
+
+  # `testInfo.status === 'timedOut' ? ... : 'Test ended.'`.
+  defp close_reason(tags) do
+    if PlaywrightEx.Test.info(tags.test_pid).status == :timed_out,
+      do: "Test timeout of #{tags[:timeout] || ExUnit.configuration()[:timeout]}ms exceeded.",
+      else: "Test ended."
   end
 
   setup %{context_factory: context_factory} = tags do

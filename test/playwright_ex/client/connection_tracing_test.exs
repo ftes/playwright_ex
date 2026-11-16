@@ -1,4 +1,5 @@
-defmodule PlaywrightEx.Client.ConnectionTracingTest do
+# Outside `PlaywrightEx.Client.*`: frames of those modules are the library's, not the caller's.
+defmodule PlaywrightEx.ConnectionTracingTest do
   # Not async: `capture_log` sees the logs of tests running concurrently (event_loop_test logs on purpose).
   use ExUnit.Case, async: false
 

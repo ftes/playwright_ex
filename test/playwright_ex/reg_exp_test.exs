@@ -34,6 +34,22 @@ defmodule PlaywrightEx.RegExpTest do
     assert RegExp.to_js("a") == {nil, nil}
   end
 
+  test "under u, a Regex's redundant escapes lose their backslash, which JS's u mode rejects" do
+    # node: new RegExp("\\#", "u") throws; "[\\-]", "\\/" and syntax-character escapes don't.
+    assert RegExp.to_js(~r/^#{Regex.escape("Owl #1 - Hedwig!")}$/u) == {"^Owl #1 - Hedwig!$", "u"}
+    assert RegExp.to_js(~r"[\#\ \-a]\./\-\@\\"u) == {"[# \\-a]\\./-@\\\\", "u"}
+    assert RegExp.to_js(~r/\#\-/) == {"\\#\\-", ""}
+    assert RegExp.new(~r/\#/, "u") |> RegExp.source() == "#"
+    assert RegExp.new(~r/\#/u, "") |> RegExp.source() == "\\#"
+  end
+
+  @tag :page
+  test "Regex.escape output under u works in the browser", %{page: page} do
+    Page.set_content!(page, "<div>Owl #1 - Hedwig (snowy)</div>")
+    label = Regex.escape("Owl #1 - Hedwig (snowy)")
+    Expect.to_have_count!(Page.get_by_text(page, ~r/^#{label}$/u), 1)
+  end
+
   test "a JS regex always parses to a RegExp, losslessly" do
     for {p, f} <- [
           {"a\\/b.c", "imsu"},
@@ -96,6 +112,60 @@ defmodule PlaywrightEx.RegExpTest do
     end
 
     assert RegExp.regex_flags(~r/a/imsu) == "imsu"
+  end
+
+  test "new/2 takes a regex as JS's constructor does: its source, its flags unless given" do
+    assert RegExp.new(~r"a/b"imsu) == %RegExp{source: "a\\/b", flags: "imsu"}
+    assert RegExp.new(~r"a/b"i, "g") == %RegExp{source: "a\\/b", flags: "g"}
+    assert RegExp.new(~r//) == %RegExp{source: "(?:)", flags: ""}
+
+    re = RegExp.new("a[^]/b", "v")
+    assert RegExp.new(re) == re
+    assert RegExp.new(re, "i") == %RegExp{source: "a[^]\\/b", flags: "i"}
+
+    # As the facade converts one, and Elixir then matches it as the browser does.
+    assert RegExp.new(~r"^/users/\d+$") |> RegExp.compile!() |> Regex.match?("/users/12")
+  end
+
+  test "compile!: \\s and \\S are JS's whitespace, also in classes, with or without u (as node)" do
+    js_space =
+      [" ", "\t", "\n", "\v", "\f", "\r", "\u00a0", "\u1680", "\u2000", "\u200a", "\u2028", "\u2029"] ++
+        ["\u202f", "\u205f", "\u3000", "\ufeff"]
+
+    not_space = ["a", "-", "\u200b", "\u180e", "\u0085"]
+    match? = fn source, flags, string -> Regex.match?(RegExp.compile!(RegExp.new(source, flags)), string) end
+
+    for flags <- ["", "u", "i"] do
+      for c <- js_space do
+        assert match?.("^\\s$", flags, c) and match?.("^[\\s]$", flags, c) and match?.("^[a\\s]$", flags, c)
+        refute match?.("^\\S$", flags, c) or match?.("^[^\\s]$", flags, c) or match?.("^[a\\S]$", flags, c)
+        assert match?.("^[^a\\S]$", flags, c)
+      end
+
+      for c <- not_space do
+        refute match?.("^\\s$", flags, c) or match?.("^[\\s]$", flags, c)
+        assert match?.("^\\S$", flags, c) and match?.("^[^\\s]$", flags, c) and match?.("^[\\S]$", flags, c)
+      end
+
+      assert match?.("^\\s*a\\s+b\\s*$", flags, "\u00a0a\u2003b\ufeff")
+      # \\w stays ASCII, as in JS, from OTP 28 (OTP 27's PCRE has Latin-1 tables; see the moduledoc).
+      if String.to_integer(System.otp_release()) >= 28, do: refute(match?.("^\\w$", flags, "é"))
+    end
+
+    # Without u, `-` after a class escape is literal.
+    assert match?.("^[\\s-a]$", "", "-") and match?.("^[\\s-a]$", "", "a") and match?.("^[\\s-a]$", "", "\u00a0")
+    refute match?.("^[\\s-a]$", "", "b")
+  end
+
+  test "inspect shows the JS form" do
+    assert inspect(RegExp.new("a/b", "iv")) == "#PlaywrightEx.RegExp</a\\/b/iv>"
+  end
+
+  test "new/2 raises for a Regex JS cannot run, flags given or not" do
+    for re <- [~r/a/x, ~r/\Aa\z/, ~r/(?>a)/, ~r/(?i)a/] do
+      assert_raise ArgumentError, fn -> RegExp.new(re) end
+      assert_raise ArgumentError, fn -> RegExp.new(re, "i") end
+    end
   end
 
   test "options JS cannot run raise" do

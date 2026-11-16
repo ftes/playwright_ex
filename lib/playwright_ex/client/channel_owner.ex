@@ -28,6 +28,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
   alias PlaywrightEx.Protocol.Validator
   alias PlaywrightEx.Protocol.ValidatorPrimitives.ValidationError
   alias PlaywrightEx.Runtime.Heap
+  alias PlaywrightEx.Runtime.ProcessOwner
   alias PlaywrightEx.Runtime.Zones
   alias PlaywrightEx.TargetClosedError
 
@@ -426,11 +427,15 @@ defmodule PlaywrightEx.Client.ChannelOwner do
           # Reporting/tracing/logging this api call for the first time.
           api_zone = Zones.update(:apiZone, &%{&1 | reported: true}) || api_zone
 
-          ClientInstrumentation.on_api_call_begin(get(this, :_instrumentation), api_zone, %{
-            type: type,
-            method: method,
-            params: if(is_function(params, 0), do: params.(), else: params)
-          })
+          # Elixir only: the listeners return what they assign (`data.callId = ...`).
+          assigned =
+            ClientInstrumentation.on_api_call_begin(get(this, :_instrumentation), api_zone, %{
+              type: type,
+              method: method,
+              params: if(is_function(params, 0), do: params.(), else: params)
+            })
+
+          api_zone = _assign(api_zone, assigned)
 
           log_api_call(get(this, :_logger), "=> #{api_zone.apiName} started")
 
@@ -479,8 +484,10 @@ defmodule PlaywrightEx.Client.ChannelOwner do
         frames: stack_trace.frames,
         internal: options[:internal] || false,
         reported: false,
-        # Elixir only: `reported` shared by the processes the call starts (see `_report/1`).
-        _reportedCell: :atomics.new(1, []),
+        # Elixir only: `reported` and the listeners' fields, shared by the processes the call
+        # starts (see `_report/1`, `_assign/2`).
+        _reportedCell: :atomics.new(2, []),
+        _pid: self(),
         userData: nil,
         callId: nil
       }
@@ -490,7 +497,7 @@ defmodule PlaywrightEx.Client.ChannelOwner do
 
         if !options[:internal] do
           log_api_call(logger, "<= #{api_zone.apiName} succeeded")
-          ClientInstrumentation.on_api_call_end(instrumentation, api_zone)
+          ClientInstrumentation.on_api_call_end(instrumentation, _assigned(api_zone))
         end
 
         result
@@ -500,18 +507,29 @@ defmodule PlaywrightEx.Client.ChannelOwner do
           e =
             if api_zone.apiName != "" and !String.contains?(api_zone.apiName, "<anonymous>") and
                  Map.has_key?(e, :message),
-               do: %{e | message: api_zone.apiName <> ": " <> Exception.message(e)},
+               do: Map.put(e, :message, api_zone.apiName <> ": " <> Exception.message(e)),
                else: e
 
           # const stackFrames = ...; e.stack = ...  -- not ported: stack rewriting
 
           if !options[:internal] do
-            api_zone = Map.put(api_zone, :error, e)
+            api_zone = Map.put(_assigned(api_zone), :error, e)
             log_api_call(logger, "<= #{api_zone.apiName} failed")
             ClientInstrumentation.on_api_call_end(instrumentation, api_zone)
           end
 
           reraise e, __STACKTRACE__
+      catch
+        # Elixir only: an exit or throw, as JS's `catch` gets any thrown value: `error` is
+        # `{kind, reason}`.
+        kind, reason ->
+          if !options[:internal] do
+            api_zone = Map.put(_assigned(api_zone), :error, {kind, reason})
+            log_api_call(logger, "<= #{api_zone.apiName} failed")
+            ClientInstrumentation.on_api_call_end(instrumentation, api_zone)
+          end
+
+          :erlang.raise(kind, reason, __STACKTRACE__)
       end
     end
   end
@@ -522,6 +540,57 @@ defmodule PlaywrightEx.Client.ChannelOwner do
   # shared cell, set once: true for the first caller only.
   def _report(%{_reportedCell: cell}), do: :atomics.compare_exchange(cell, 1, 0, 1) == :ok
   def _report(api_zone), do: !api_zone.reported
+
+  @doc false
+  # Elixir only: what the `onApiCallBegin` listeners assign (`data.callId = ...`, `data.userData =
+  # ...`; `ClientInstrumentation.on_api_call_begin/3` returns it), set on the zone's one object in
+  # JS, where the call's message and `onApiCallEnd` read it. Here it goes into the calling
+  # process's copy of the zone, and for `_wrapApiCall`'s `onApiCallEnd` (`_assigned/1`) into the
+  # zone's process dictionary, or into the `PlaywrightEx.Runtime.ProcessOwner.zones/0` table
+  # when another process reported the call (`_report/1`), keyed `{zone's pid, cell}`. The
+  # `_reportedCell`'s second slot is 1 once it is in the table, 2 once the call ended: a call
+  # reported after it ended (not awaited) drops it, as JS's `onApiCallEnd` came first. The table
+  # drops the rows of a zone's process that exits before its call ends (killed): its call never
+  # ends, as a JS call that never settles, whose step stays open.
+  def _assign(api_zone, nil), do: api_zone
+
+  def _assign(api_zone, assigned) do
+    api_zone = Zones.update(:apiZone, &Map.merge(&1, assigned)) || Map.merge(api_zone, assigned)
+
+    case api_zone do
+      %{_reportedCell: cell, _pid: pid} when pid == self() ->
+        Process.put({__MODULE__, cell}, assigned)
+
+      %{_reportedCell: cell, _pid: pid} ->
+        :ets.insert(ProcessOwner.zones(), {{pid, cell}, assigned})
+        ProcessOwner.monitor_zones(pid)
+        if :atomics.compare_exchange(cell, 2, 0, 1) != :ok, do: :ets.delete(ProcessOwner.zones(), {pid, cell})
+
+      _api_zone ->
+        nil
+    end
+
+    api_zone
+  end
+
+  # The zone `onApiCallEnd` gets: with what the listeners assigned (see `_assign/2`).
+  defp _assigned(%{_reportedCell: cell} = api_zone) do
+    in_table? = :atomics.exchange(cell, 2, 2) == 1
+
+    case Process.delete({__MODULE__, cell}) do
+      nil when in_table? ->
+        case :ets.take(ProcessOwner.zones(), {self(), cell}) do
+          [{_cell, assigned}] -> Map.merge(api_zone, assigned)
+          [] -> api_zone
+        end
+
+      nil ->
+        api_zone
+
+      assigned ->
+        Map.merge(api_zone, assigned)
+    end
+  end
 
   # toJSON  -- not ported (Inspect shows the handle)
 

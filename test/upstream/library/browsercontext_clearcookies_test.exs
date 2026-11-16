@@ -4,12 +4,12 @@ defmodule PlaywrightEx.Library.BrowsercontextClearcookiesTest do
 
   @browser_name System.get_env("BROWSER", "chromium")
 
+  alias PlaywrightEx.Expect
+
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.JSHandle
   alias PlaywrightEx.Page
-
-  import PlaywrightEx.Utils, only: [poll: 2]
 
   @moduletag :page
 
@@ -147,7 +147,7 @@ defmodule PlaywrightEx.Library.BrowsercontextClearcookiesTest do
       """)
 
     BrowserContext.clear_cookies!(context, name: "delete_me")
-    poll(fn -> JSHandle.json_value!(events_handle) end, &assert(&1 == ["deleted delete_me"]))
+    Expect.poll!(fn -> JSHandle.json_value!(events_handle) end, &assert(&1 == ["deleted delete_me"]))
     assert Page.evaluate!(page, "document.cookie") == "keep_me=1"
   end
 

@@ -16,6 +16,8 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. The why
 | `packages/protocol/src/serializers.ts`, `validatorPrimitives.ts` | `lib/playwright_ex/protocol/`, ported by hand |
 | `tests/page/*.spec.ts`, `tests/library/*.spec.ts` | `test/upstream/{page,library}/`, ported by hand |
 | Node's single thread, `AsyncLocalStorage`, Node built-ins | `PlaywrightEx.Runtime.*` (Elixir only), see Shims |
+| `packages/playwright/src/index.ts` (fixtures, artifacts) | not ported: `PlaywrightEx.Test` is native, after the non-JS clients' test plugins, with its own `test` macro for the result ([why](docs/architecture.md#test-runner)) |
+| `packages/playwright/src/worker/{testInfo,testTracing}.ts`, `test.step` | `PlaywrightEx.Test.{TestInfo, TestTracing}`, `PlaywrightEx.Test.step/3`: what the matchers and traces need, ported by hand without `@upstream` (parity covers the client, not the runner) |
 
 ## Rules
 
@@ -31,7 +33,8 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. The why
   `mix playwright_ex.parity` reads both markers: a method named on such a line counts as covered,
   and a module-level marker line counts for the upstream order.
   Markers are per line. Upstream `TODO:` comments become `Upstream to-do:` (credo fails on TODO).
-- Deviate only where the port requires it: the OTP runtime, no test runner, Elixir's public API.
+- Deviate only where the port requires it: the OTP runtime, testInfo only in a `PlaywrightEx.Test`
+  test (`PlaywrightEx.Test.TestInfo`), Elixir's public API.
   Check upstream at the pin before handling an edge case. If its client has the same behaviour,
   keep that, even when it looks wrong, and don't add a special case for it: every deviation is
   carried through each version bump. If it matters, report it upstream and list it under "Upstream
@@ -109,6 +112,12 @@ single thread. Use each only where the JS code needs it, with its marker.
   `# deviation: subscribe-first (OTP runtime)` (`Client.Frame._wait_for_navigation/3`). The same
   applies to test ports.
 
+- **`$callers`** ([why](docs/architecture.md#runtime)). A user callback the client runs in a
+  listener process (a handler stored at registration) runs on the registrant's behalf: capture
+  `Callers.capture()` where it is registered (in the caller, not in an `on_reply` fun) and
+  `Callers.adopt/1` or `run_as/2` before calling it, marked `# deviation:`
+  (`Client.RouteHandler`, `Client.Page.add_locator_handler/4`).
+
 ## Traps
 
 - A listener runs in a process of its own while the connection waits for it to return or first
@@ -131,9 +140,11 @@ single thread. Use each only where the JS code needs it, with its marker.
   playwright-java `playwright/src/test/upstream_not_ported.txt` (rules against upstream's
   `tests/registry.md`, same format as ours); a spec they run (e.g. via the driver's
   `launch-server` CLI) we run too.
-- Drivers and browsers are shared per worker, as upstream's are (`PlaywrightEx.TestWorkers`): a
-  spec that needs other launch options launches its own browser, as upstream's do; one that
-  changes driver-wide state (selectors, test id attribute) resets it in `on_exit`.
+- Drivers and browsers come from `PlaywrightEx.Test.BrowserPool.browser/1` in `setup_all`,
+  upstream's worker: a driver and browser of the module's while it runs, reused by the next
+  module after a pass. A spec that needs other launch options launches its own browser, as
+  upstream's do. `PlaywrightEx.DriverCleanup` closes the contexts and browsers a test or module
+  created.
 - Mirror upstream spec files: one module per file, `@upstream "tests/page/page-goto.spec.ts"`
   then `use PlaywrightEx.UpstreamCase` (which tags the module with it: `mix test --only
   upstream:tests/page/page-goto.spec.ts`), test names identical to upstream, which start with
@@ -200,8 +211,8 @@ single thread. Use each only where the JS code needs it, with its marker.
 - Assertions in listeners become `send/2` to the test process and `assert_receive` (10 s
   default, `test_helper.exs`); listener state that JS keeps in an array is an `Agent`.
 - JS truthiness (`expect(x).toBeTruthy()`) is `Utils.assert_truthy/1`/`assert_falsy/1`, not a
-  bare `assert` (`:null` is truthy in Elixir). `expect.poll` and `toPass` are `Utils.poll/3` and
-  `Utils.to_pass/2`.
+  bare `assert` (`:null` is truthy in Elixir). `expect.poll(fn).toBe(x)` and `toPass` are
+  `Expect.poll!(fn, &assert(&1 == x))` and `Expect.to_pass!/2`.
 - Local file access: `path.resolve` is `Path.expand/1`, `fs` calls are `File.*!` (raising
   `File.Error`). Don't imitate system or Node error texts: assert the Elixir error and mark it
   `# deviation: Elixir's File error, not Node's text.` Errors the driver sends stay verbatim.
@@ -218,7 +229,14 @@ to that PR, the workflow also pushes fixes for its CI failures. The mix tasks be
 1. `mix playwright_ex.checksums <driver> <node>` (Node bumped only if Python's `NODE_VERSION`
    was): writes the repo-root `DRIVER_VERSION` and `NODE_VERSION` and the checksums.
 2. `mix playwright_ex.gen.protocol` and `mix playwright_ex.gen.api`, commit the generated diff.
-3. `git diff vA vB -- packages/playwright-core/src/client tests/page tests/library` in upstream; port the hunks.
+3. `git diff vA vB -- packages/playwright-core/src/client packages/playwright/src/matchers tests/page tests/library`
+   in upstream; port the hunks.
+   - Read the runner's diff as well:
+     `git diff vA vB -- packages/playwright/src/index.ts packages/playwright/src/common/config.ts packages/playwright/src/common/testType.ts packages/playwright/src/worker/testInfo.ts packages/playwright/src/worker/testTracing.ts packages/playwright/types/test.d.ts`.
+     `PlaywrightEx.Test` is watched, not parity-tracked.
+   - Port the hunks that touch what it ports: testInfo's snapshot paths, errors and steps,
+     `test.trace`, `test.step`, error-context and the artifact recording.
+   - List new options, fixtures and defaults as features to adopt or skip.
 4. `mix playwright_ex.parity` until clean, then `mix test`. New upstream client or spec files
    show up as missing, removed or since-ported ones as stale exclusions: port or mirror them, or
    update `@unported_client_files` / `test/upstream_not_ported.txt`. Copy upstream's

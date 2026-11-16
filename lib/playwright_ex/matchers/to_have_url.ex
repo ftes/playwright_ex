@@ -1,7 +1,7 @@
 defmodule PlaywrightEx.Matchers.ToHaveURL do
   @upstream "packages/playwright/src/matchers/toHaveURL.ts"
   @moduledoc """
-  Port of `#{@upstream}`. The predicate gets the URL string (as `UrlMatch` matchers do).
+  Port of `#{@upstream}`. A predicate gets the URL as a `URI` (as `UrlMatch` matchers do).
   """
 
   alias PlaywrightEx.Client.Connection
@@ -25,7 +25,7 @@ defmodule PlaywrightEx.Matchers.ToHaveURL do
       Frame.wait_for_url(
         Page.main_frame(page),
         fn url ->
-          last_checked_url_string = Heap.put(last_checked, :value, url)
+          last_checked_url_string = Heap.put(last_checked, :value, URI.to_string(url))
 
           if options[:ignoreCase] do
             # The LocalUtils comes first: globs become regexes through the driver (UrlMatch).

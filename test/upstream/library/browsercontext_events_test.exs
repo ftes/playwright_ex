@@ -4,6 +4,8 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
 
   @browser_name System.get_env("BROWSER", "chromium")
 
+  alias PlaywrightEx.Expect
+
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.ConsoleMessage
   alias PlaywrightEx.Dialog
@@ -15,7 +17,6 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
   alias PlaywrightEx.Promise
   alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
-  alias PlaywrightEx.Utils
   alias PlaywrightEx.WebError
 
   @moduletag :page
@@ -224,7 +225,7 @@ defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
     assert Dialog.page(dialog) == popup
     Dialog.accept!(dialog, "hello")
     Runtime.Promise.await(task)
-    Utils.poll(fn -> Page.evaluate!(popup, "window.result") end, &assert(&1 == "hello"))
+    Expect.poll!(fn -> Page.evaluate!(popup, "window.result") end, &assert(&1 == "hello"))
   end
 
   test "BC-043 weberror event should work", %{page: page} do

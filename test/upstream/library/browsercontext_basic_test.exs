@@ -21,15 +21,6 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
 
   import PlaywrightEx.Utils, only: [verify_viewport: 3]
 
-  # expect.poll(fun).toEqual(expected)
-  defp poll(fun, expected, tries \\ 100) do
-    cond do
-      fun.() == expected -> true
-      tries == 0 -> false
-      true -> Process.sleep(100) && poll(fun, expected, tries - 1)
-    end
-  end
-
   test "BC-001 should create new context @smoke", %{browser: browser} do
     assert Browser.contexts(browser) == []
     context = Browser.new_context!(browser)
@@ -486,9 +477,9 @@ defmodule PlaywrightEx.Library.BrowsercontextBasicTest do
 
     BrowserContext.set_offline!(context, true)
     # await expect.poll(() => events.jsonValue()).toEqual([...])
-    assert poll(fn -> JSHandle.json_value!(events) end, ["offline"])
+    Expect.poll!(fn -> JSHandle.json_value!(events) end, &assert(&1 == ["offline"]))
     BrowserContext.set_offline!(context, false)
-    assert poll(fn -> JSHandle.json_value!(events) end, ["offline", "online"])
+    Expect.poll!(fn -> JSHandle.json_value!(events) end, &assert(&1 == ["offline", "online"]))
     BrowserContext.close!(context)
   end
 

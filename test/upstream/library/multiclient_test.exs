@@ -2,7 +2,7 @@ defmodule PlaywrightEx.Library.MulticlientTest do
   @upstream "tests/library/multiclient.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
-  import PlaywrightEx.Utils, only: [ensure_some_frames: 1, poll: 2]
+  import PlaywrightEx.Utils, only: [ensure_some_frames: 1]
 
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
@@ -94,7 +94,7 @@ defmodule PlaywrightEx.Library.MulticlientTest do
 
     context_b2 = Browser.new_context!(browser_b, base_url: server.prefix)
     assert Browser.contexts(browser_b) == [context_b1, context_b2]
-    poll(fn -> length(Browser.contexts(browser_a)) end, &assert(&1 == 2))
+    Expect.poll!(fn -> length(Browser.contexts(browser_a)) end, &assert(&1 == 2))
     context_a2 = Enum.at(Browser.contexts(browser_a), 1)
     assert Browser.contexts(browser_a) == [context_a1, context_a2]
 
@@ -120,7 +120,8 @@ defmodule PlaywrightEx.Library.MulticlientTest do
     browser_b = connect.(LaunchServer.ws_endpoint(remote_server))
     context_b = Browser.new_context!(browser_b)
 
-    [event] = poll(fn -> Agent.get(events, & &1) end, &assert(length(&1) == 1))
+    Expect.poll!(fn -> Agent.get(events, & &1) end, &assert(length(&1) == 1))
+    [event] = Agent.get(events, & &1)
     assert Browser.contexts(browser_a) == [event]
     assert event != context_b
   end
@@ -147,11 +148,11 @@ defmodule PlaywrightEx.Library.MulticlientTest do
   test "MC-004 should receive viewport size changes", %{page_a: page_a, page_b: page_b} do
     Page.set_viewport_size!(page_a, %{width: 567, height: 456})
     assert Page.viewport_size(page_a) == %{width: 567, height: 456}
-    poll(fn -> Page.viewport_size(page_b) end, &assert(&1 == %{width: 567, height: 456}))
+    Expect.poll!(fn -> Page.viewport_size(page_b) end, &assert(&1 == %{width: 567, height: 456}))
 
     Page.set_viewport_size!(page_b, %{width: 456, height: 567})
     assert Page.viewport_size(page_b) == %{width: 456, height: 567}
-    poll(fn -> Page.viewport_size(page_a) end, &assert(&1 == %{width: 456, height: 567}))
+    Expect.poll!(fn -> Page.viewport_size(page_a) end, &assert(&1 == %{width: 456, height: 567}))
   end
 
   @tag :two_pages
@@ -439,7 +440,8 @@ defmodule PlaywrightEx.Library.MulticlientTest do
     )
 
     # Second client should receive the cached last frame without waiting for a browser repaint.
-    [first_b | _] = poll(fn -> Agent.get(frames_b, & &1) end, &assert(&1 != []))
+    Expect.poll!(fn -> Agent.get(frames_b, & &1) end, &assert(&1 != []))
+    [first_b | _] = Agent.get(frames_b, & &1)
     assert first_b == last_frame_a
 
     Screencast.stop!(Page.screencast(page_a))

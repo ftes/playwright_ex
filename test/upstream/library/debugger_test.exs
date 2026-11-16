@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Library.DebuggerTest do
   @upstream "tests/library/debugger.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.Expect
+
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Debugger
   alias PlaywrightEx.Page
@@ -160,7 +162,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     end
 
     click_call = fn -> calls.() |> Map.values() |> Enum.find(&(&1.title =~ "Click")) end
-    Utils.poll(fn -> click_call.()[:status] end, &assert(&1 == "success"))
+    Expect.poll!(fn -> click_call.()[:status] end, &assert(&1 == "success"))
 
     call = click_call.()
     assert call.location.file =~ "debugger_test"
@@ -191,7 +193,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
       |> Enum.find(&(&1.title =~ "Click"))
     end
 
-    Utils.poll(fn -> click_call.()[:status] end, &assert(&1 == "error"))
+    Expect.poll!(fn -> click_call.()[:status] end, &assert(&1 == "error"))
     Utils.assert_truthy(click_call.().error)
   end
 
@@ -207,7 +209,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
     # A normal call is still streamed.
     Page.click!(page, "button")
 
-    Utils.poll(fn -> Enum.any?(Agent.get(updates, & &1), &(&1.title =~ "Click")) end, &assert(&1 == true))
+    Expect.poll!(fn -> Enum.any?(Agent.get(updates, & &1), &(&1.title =~ "Click")) end, &assert(&1 == true))
     click_ids = for c <- Agent.get(updates, & &1), c.title =~ "Click", uniq: true, do: c.id
     assert length(click_ids) == 1
   end
@@ -285,7 +287,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
         enable(dbg)
 
         click_call = fn -> Enum.find(Agent.get(updates, & &1), &(&1.title =~ "Click")) end
-        Utils.poll(fn -> click_call.()[:status] end, &assert(&1 == "running"))
+        Expect.poll!(fn -> click_call.()[:status] end, &assert(&1 == "running"))
 
         once_paused(dbg)
         Debugger.resume!(dbg)

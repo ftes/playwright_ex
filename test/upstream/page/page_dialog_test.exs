@@ -2,10 +2,11 @@ defmodule PlaywrightEx.Page.PageDialogTest do
   @upstream "tests/page/page-dialog.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.Expect
+
   alias PlaywrightEx.Dialog
   alias PlaywrightEx.Page
   alias PlaywrightEx.Promise
-  alias PlaywrightEx.Utils
 
   @moduletag :page
 
@@ -32,7 +33,7 @@ defmodule PlaywrightEx.Page.PageDialogTest do
     end)
 
     Page.evaluate!(page, "() => alert('yo')")
-    Utils.poll(fn -> length(Agent.get(closed, & &1)) end, &assert(&1 == 1))
+    Expect.poll!(fn -> length(Agent.get(closed, & &1)) end, &assert(&1 == 1))
     assert_received {:opened, opened}
     assert hd(Agent.get(closed, & &1)) == opened
     # Perform some roundtrips to ensure the event does not fire twice.

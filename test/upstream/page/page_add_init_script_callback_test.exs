@@ -3,23 +3,12 @@ defmodule PlaywrightEx.Page.PageAddInitScriptCallbackTest do
   use PlaywrightEx.UpstreamCase, async: true
 
   alias PlaywrightEx.Disposable
+  alias PlaywrightEx.Expect
   alias PlaywrightEx.Page
 
   @moduletag :page
 
   # Callbacks report to the test process: `received.push(n)` is `send(test, {:received, n})`.
-
-  # await expect.poll(() => page.evaluate(expression)).toBe(expected)
-  defp poll(page, expression, tries \\ 100) do
-    case Page.evaluate!(page, expression) do
-      nil when tries > 0 ->
-        Process.sleep(100)
-        poll(page, expression, tries - 1)
-
-      value ->
-        value
-    end
-  end
 
   test "IS-012 should drop functions without the exposeFunctions option", %{page: page, server: server} do
     Page.add_init_script!(
@@ -82,7 +71,7 @@ defmodule PlaywrightEx.Page.PageAddInitScriptCallbackTest do
     )
 
     Page.goto!(page, server.empty_page)
-    assert poll(page, "() => window.result") == "ab"
+    Expect.poll!(fn -> Page.evaluate!(page, "() => window.result") end, &assert(&1 == "ab"))
   end
 
   test "IS-016 should pass arguments to the callback", %{page: page, server: server} do
@@ -113,7 +102,7 @@ defmodule PlaywrightEx.Page.PageAddInitScriptCallbackTest do
     )
 
     Page.goto!(page, server.empty_page)
-    assert poll(page, "() => window.result") == 42
+    Expect.poll!(fn -> Page.evaluate!(page, "() => window.result") end, &assert(&1 == 42))
   end
 
   test "IS-018 should propagate callback errors to the page", %{page: page, server: server} do
@@ -134,7 +123,7 @@ defmodule PlaywrightEx.Page.PageAddInitScriptCallbackTest do
     )
 
     Page.goto!(page, server.empty_page)
-    assert poll(page, "() => window.result") =~ "boom"
+    Expect.poll!(fn -> Page.evaluate!(page, "() => window.result") end, &assert(&1 =~ "boom"))
   end
 
   test "IS-019 should support multiple callbacks", %{page: page, server: server} do
@@ -150,7 +139,7 @@ defmodule PlaywrightEx.Page.PageAddInitScriptCallbackTest do
     )
 
     Page.goto!(page, server.empty_page)
-    assert poll(page, "() => window.result") == 11
+    Expect.poll!(fn -> Page.evaluate!(page, "() => window.result") end, &assert(&1 == 11))
   end
 
   test "IS-020 should survive a navigation and keep working", %{page: page, server: server} do
@@ -222,7 +211,7 @@ defmodule PlaywrightEx.Page.PageAddInitScriptCallbackTest do
     )
 
     Page.goto!(page, server.empty_page)
-    assert poll(page, "() => window.result") == []
+    Expect.poll!(fn -> Page.evaluate!(page, "() => window.result") end, &assert(&1 == []))
   end
 
   test "IS-023 should remove exposed functions after dispose", %{page: page, server: server} do

@@ -2,12 +2,13 @@ defmodule PlaywrightEx.Library.BrowsercontextCspTest do
   @upstream "tests/library/browsercontext-csp.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.Expect
+
   alias PlaywrightEx.Browser
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.Frame
   alias PlaywrightEx.Page
   alias PlaywrightEx.TestServer
-  alias PlaywrightEx.Utils
 
   import PlaywrightEx.Utils, only: [attach_frame: 3]
 
@@ -104,7 +105,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCspTest do
     Page.goto!(page, server.empty_page)
     Page.set_content!(page, ~s|<a id="a" href="javascript:window.__clicked = true">click</a>|)
     Page.click!(page, "#a")
-    Utils.poll(fn -> Page.evaluate!(page, ~s|() => window['__clicked']|) end, &assert(&1 == true))
+    Expect.poll!(fn -> Page.evaluate!(page, ~s|() => window['__clicked']|) end, &assert(&1 == true))
     refute_received :crashed
     BrowserContext.close!(context)
   end

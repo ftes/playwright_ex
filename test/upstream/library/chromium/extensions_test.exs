@@ -2,6 +2,8 @@ defmodule PlaywrightEx.Library.Chromium.ExtensionsTest do
   @upstream "tests/library/chromium/extensions.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
 
+  alias PlaywrightEx.Expect
+
   alias PlaywrightEx.BrowserContext
   alias PlaywrightEx.BrowserType
   alias PlaywrightEx.CDPSession
@@ -12,7 +14,6 @@ defmodule PlaywrightEx.Library.Chromium.ExtensionsTest do
   alias PlaywrightEx.Response
   alias PlaywrightEx.Runtime
   alias PlaywrightEx.TestServer
-  alias PlaywrightEx.Utils
   alias PlaywrightEx.Worker
 
   if System.get_env("BROWSER", "chromium") != "chromium", do: @moduletag(skip: "upstream skip: chromium only")
@@ -125,7 +126,7 @@ defmodule PlaywrightEx.Library.Chromium.ExtensionsTest do
       service_worker = service_worker(context)
       assert service_worker
       assert service_worker in BrowserContext.service_workers(context)
-      Utils.poll(fn -> Worker.evaluate!(service_worker, "() => globalThis.MAGIC") end, &assert(&1 == 42))
+      Expect.poll!(fn -> Worker.evaluate!(service_worker, "() => globalThis.MAGIC") end, &assert(&1 == 42))
       BrowserContext.close!(context)
       assert BrowserContext.background_pages(context) == []
     end
@@ -141,7 +142,7 @@ defmodule PlaywrightEx.Library.Chromium.ExtensionsTest do
       service_worker = service_worker(context)
       assert service_worker
       assert service_worker in BrowserContext.service_workers(context)
-      Utils.poll(fn -> Worker.evaluate!(service_worker, "() => globalThis.MAGIC") end, &assert(&1 == 42))
+      Expect.poll!(fn -> Worker.evaluate!(service_worker, "() => globalThis.MAGIC") end, &assert(&1 == 42))
       BrowserContext.close!(context)
     end
 

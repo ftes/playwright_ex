@@ -17,13 +17,6 @@ defmodule PlaywrightEx.FailuresFormatter do
 
   def handle_cast({:module_finished, %ExUnit.TestModule{state: {:failed, _}} = module}, path) do
     write(path, "#{Path.relative_to_cwd(module.file)}:1", "#{inspect(module.name)}: setup_all failed")
-    PlaywrightEx.TestWorkers.module_finished(module.name, true)
-    {:noreply, path}
-  end
-
-  def handle_cast({:module_finished, %ExUnit.TestModule{} = module}, path) do
-    failed? = Enum.any?(module.tests, &match?(%{state: {:failed, _}}, &1))
-    PlaywrightEx.TestWorkers.module_finished(module.name, failed?)
     {:noreply, path}
   end
 
