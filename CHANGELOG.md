@@ -81,7 +81,7 @@ those of the release candidates below. From an earlier release, also read the se
 ### Changed
 - The package is licensed under Apache-2.0, as the port of Playwright's client it is (was MIT):
   `LICENSE`, Playwright's `NOTICE`, and each ported file carries its upstream file's copyright
-  header. `LICENSE-MIT.md` keeps the MIT license of the code from before the port.
+  header. 0.16 and earlier stay MIT.
 - `%PlaywrightEx.Expect{}` also carries `isSoft`, and `isNot` defaults to `false`: build a
   negated receiver with `Expect.not_/1`.
 - The facade's `__options__/1` is documented as unstable: its shape may change between releases.

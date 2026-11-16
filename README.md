@@ -77,6 +77,4 @@ Feedback of any shape and size is welcome: [get in touch](https://ftes.de).
 
 Apache-2.0 ([`LICENSE`](https://github.com/ftes/playwright_ex/blob/main/LICENSE)), as the client is a
 port of Playwright's: see [`NOTICE`](https://github.com/ftes/playwright_ex/blob/main/NOTICE). Each
-ported file starts with its upstream file's copyright header. The code from before the port (0.16
-and earlier) was released under MIT ([`LICENSE-MIT.md`](https://github.com/ftes/playwright_ex/blob/main/LICENSE-MIT.md)),
-which still applies to it.
+ported file starts with its upstream file's copyright header. Releases up to 0.16 were MIT.
