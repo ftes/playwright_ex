@@ -1,3 +1,7 @@
+# Copyright (c) Microsoft Corporation.
+# Ported to Elixir and modified by the playwright_ex authors.
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule Mix.Tasks.PlaywrightEx.Gen.Protocol do
   @shortdoc "Generates the protocol validator and metainfo from upstream protocol specs"
   @upstream "utils/generate_channels.js"

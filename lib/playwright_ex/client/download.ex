@@ -1,3 +1,7 @@
+# Copyright (c) Microsoft Corporation.
+# Ported to Elixir and modified by the playwright_ex authors.
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule PlaywrightEx.Client.Download do
   @upstream "packages/playwright-core/src/client/download.ts"
   @moduledoc "Port of `#{@upstream}`. No mutable state: a plain struct."

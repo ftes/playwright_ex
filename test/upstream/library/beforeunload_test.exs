@@ -1,3 +1,8 @@
+# Copyright 2017 Google Inc. All rights reserved.
+# Modifications copyright (c) Microsoft Corporation.
+# Ported to Elixir and modified by the playwright_ex authors.
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule PlaywrightEx.Library.BeforeunloadTest do
   @upstream "tests/library/beforeunload.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true

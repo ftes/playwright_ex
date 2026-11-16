@@ -1,3 +1,8 @@
+# Copyright 2018 Google Inc. All rights reserved.
+# Modifications copyright (c) Microsoft Corporation.
+# Ported to Elixir and modified by the playwright_ex authors.
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule PlaywrightEx.Page.PageDialogTest do
   @upstream "tests/page/page-dialog.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true

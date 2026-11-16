@@ -1,3 +1,7 @@
+# Copyright (c) Microsoft Corporation.
+# Ported to Elixir and modified by the playwright_ex authors.
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule PlaywrightEx.Library.DownloadsPathTest do
   @upstream "tests/library/downloads-path.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true

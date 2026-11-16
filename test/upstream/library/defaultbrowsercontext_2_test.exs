@@ -1,3 +1,8 @@
+# Copyright 2017 Google Inc. All rights reserved.
+# Modifications copyright (c) Microsoft Corporation.
+# Ported to Elixir and modified by the playwright_ex authors.
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule PlaywrightEx.Library.Defaultbrowsercontext2Test do
   @upstream "tests/library/defaultbrowsercontext-2.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true

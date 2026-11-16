@@ -1,3 +1,7 @@
+# Copyright (c) Microsoft Corporation.
+# Ported to Elixir and modified by the playwright_ex authors.
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule PlaywrightEx.Isomorphic.LocatorUtils do
   @upstream "packages/isomorphic/locatorUtils.ts"
   @moduledoc "Port of `#{@upstream}`. Options are maps with the JS keys (`ByRoleOptions`)."

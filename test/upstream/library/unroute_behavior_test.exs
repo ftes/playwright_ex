@@ -1,3 +1,7 @@
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Ported to Elixir and modified by the playwright_ex authors.
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
   @upstream "tests/library/unroute-behavior.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true

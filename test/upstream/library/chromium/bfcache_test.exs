@@ -1,3 +1,7 @@
+# Copyright Microsoft Corporation. All rights reserved.
+# Ported to Elixir and modified by the playwright_ex authors.
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule PlaywrightEx.Library.Chromium.BfcacheTest do
   @upstream "tests/library/chromium/bfcache.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true

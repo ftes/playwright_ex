@@ -1,3 +1,7 @@
+# Copyright Microsoft Corporation. All rights reserved.
+# Ported to Elixir and modified by the playwright_ex authors.
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule PlaywrightEx.Test.TestTracing do
   @moduledoc false
   # Upstream's `TestTracing` (`packages/playwright/src/worker/testTracing.ts`): the test's own
