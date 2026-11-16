@@ -279,6 +279,23 @@ defmodule Mix.Tasks.PlaywrightEx.ParityTest do
     assert Parity.check_files(~w(a.ts b.ts), claimed, %{"b.ts" => "type-only"}, "no module") == []
   end
 
+  test "check_function_params/2: unclassified params, stale entries, a registrant without Callers" do
+    params = ~w[Page.route(url) Page.onX(handler) Page.waitForX(predicate) Page.onY(handler)]
+
+    table = %{
+      "Page.route(url)" => {:registrant, PlaywrightEx.Client.RouteHandler},
+      "Page.waitForX(predicate)" => :caller,
+      "Page.onY(handler)" => {:registrant, PlaywrightEx.Client.Mouse},
+      "Page.gone(handler)" => :caller
+    }
+
+    assert Parity.check_function_params(params, table) == [
+             "Page.onX(handler): function-typed, say where the client calls it in @function_params (PORTING.md, `$callers`)",
+             "Page.gone(handler): in @function_params but no function-typed parameter at this pin, drop it",
+             "Page.onY(handler): PlaywrightEx.Client.Mouse does not run it under `$callers` (`Runtime.Callers`)"
+           ]
+  end
+
   @tag :tmp_dir
   test "check_registry/1: tests at the pin ported, upstream-skipped or ruled out; rules that match", %{tmp_dir: dir} do
     write = fn path, content ->

@@ -11,6 +11,7 @@ defmodule PlaywrightEx.Test.CallersTest do
   alias PlaywrightEx.Locator
   alias PlaywrightEx.Page
   alias PlaywrightEx.Route
+  alias PlaywrightEx.Screencast
   alias PlaywrightEx.Test.Results
   alias PlaywrightEx.Test.TestInfo
   alias PlaywrightEx.WebSocketRoute
@@ -143,6 +144,40 @@ defmodule PlaywrightEx.Test.CallersTest do
     log = capture_log(fn -> await_error(self()) end)
     assert [{:error, %RuntimeError{message: "ws message boom"}, _}] = TestInfo.take_errors(self())
     refute log =~ "ws message boom"
+  end
+
+  test "a route's or WebSocket route's URL predicate finds the test (#239)", %{page: page} do
+    test_pid = self()
+
+    url = fn tag ->
+      fn _url ->
+        send(test_pid, {tag, owner([test_pid])})
+        true
+      end
+    end
+
+    Page.route!(page, url.(:route), &Route.fulfill!(&1, body: "ok"))
+    Page.route_web_socket!(page, url.(:ws), fn _ws -> :ok end)
+    Page.goto!(page, @url)
+
+    Page.evaluate!(page, """
+    async () => {
+      const ws = new WebSocket('ws://callers.test/');
+      await new Promise(f => ws.addEventListener('open', f));
+    }
+    """)
+
+    assert_receive {:route, ^test_pid}
+    assert_receive {:ws, ^test_pid}
+  end
+
+  test "a screencast's onFrame finds the test", %{page: page} do
+    test_pid = self()
+    Screencast.start!(Page.screencast(page), on_frame: fn _ -> send(test_pid, {:frame, owner([test_pid])}) end)
+    Page.evaluate!(page, "() => document.body.style.backgroundColor = 'red'")
+    Page.screenshot!(page)
+    assert_receive {:frame, ^test_pid}
+    Screencast.stop!(Page.screencast(page))
   end
 
   test "an unhandled error of a route handler or a listener fails the test", %{page: page} do

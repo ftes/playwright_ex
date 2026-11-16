@@ -113,11 +113,12 @@ single thread. Use each only where the JS code needs it, with its marker.
   `# deviation: subscribe-first (OTP runtime)` (`Client.Frame._wait_for_navigation/3`). The same
   applies to test ports.
 
-- **`$callers`** ([why](docs/architecture.md#runtime)). A user callback the client runs in a
-  listener process (a handler stored at registration) runs on the registrant's behalf: capture
-  `Callers.capture()` where it is registered (in the caller, not in an `on_reply` fun) and
-  `Callers.adopt/1` or `run_as/2` before calling it, marked `# deviation:`
-  (`Client.RouteHandler`, `Client.Page.add_locator_handler/4`).
+- **`$callers`** ([why](docs/architecture.md#runtime)). Any user function the client stores and
+  calls later from another process (a handler, a URL matcher, a predicate, `onFrame`) runs on the
+  registrant's behalf: capture `Callers.capture()` where it is registered (in the caller, not in
+  an `on_reply` fun) and `Callers.adopt/1` or `run_as/2` before each call, marked `# deviation:`
+  (`Client.RouteHandler`, `Client.Page.add_locator_handler/4`). `mix playwright_ex.parity` lists
+  api.json's function-typed parameters and fails on one missing from its `@function_params`.
 
 ## Traps
 
@@ -240,10 +241,11 @@ to that PR, the workflow also pushes fixes for its CI failures. The mix tasks be
    - List new options, fixtures and defaults as features to adopt or skip.
 4. `mix playwright_ex.parity` until clean, then `mix test`. New upstream client or spec files
    show up as missing, removed or since-ported ones as stale exclusions: port or mirror them, or
-   update `@unported_client_files` / `test/upstream_not_ported.txt`. Copy upstream's
-   `tests/registry.md` to `test/upstream_registry.md`. Parity sees new, renamed and removed
-   tests (a test named at runtime, in a loop, by its identifier only), not changed bodies: port
-   those from the spec diff.
+   update `@unported_client_files` / `test/upstream_not_ported.txt`. A new function-typed
+   parameter shows up too: classify it in `@function_params` (`$callers` under Shims). Copy
+   upstream's `tests/registry.md` to `test/upstream_registry.md`. Parity sees new, renamed and
+   removed tests (a test named at runtime, in a loop, by its identifier only), not changed
+   bodies: port those from the spec diff.
 5. Skim `git diff vA vB -- 'docs/src/*.md' ':!docs/src/api'` (upstream's guides) for new patterns
    or caveats the guides in `guides/` should mention. Nothing checks their prose against upstream;
    their snippets are tests in `test/guides`.
