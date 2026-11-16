@@ -591,6 +591,7 @@ defmodule PlaywrightEx.Test do
     Results.finishing(test_pid)
     {verdict, _failures} = result = Results.result(test_pid, budget)
     {test, recorder} = Results.take(test_pid)
+    if !test, do: raise("its registration is gone (the pool restarted since)")
     # For `info/1` in the `on_exit` callbacks that run after this one.
     Results.keep_info(test_pid, Map.merge(info_of(test), result_info(test_pid, result, recorder)))
 

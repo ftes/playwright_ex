@@ -100,7 +100,7 @@ defmodule PlaywrightEx.Test.Results do
     end
   end
 
-  @doc "Unregisters the test `test_pid`: its registration row and its recorder (or `nil`)."
+  @doc "Unregisters the test `test_pid`: its registration row and its recorder (each `nil` if none)."
   def take(test_pid), do: GenServer.call(Pool, {:take, test_pid}, :infinity)
 
   @doc "Notes `pid` as a process that created a context before it was registered, until it exits."
@@ -171,10 +171,11 @@ defmodule PlaywrightEx.Test.Results do
     {:reply, reply, state}
   end
 
+  # Without its row (the pool restarted since its registration): `{nil, nil}`.
   def handle_call({:take, test_pid}, _from, state) do
-    [test] = for {_key, test} <- :ets.take(table(), {:test, test_pid}), do: test
+    test = for {_key, test} <- :ets.take(table(), {:test, test_pid}), do: test
     recorder = for {_key, pid} <- :ets.take(table(), {:recorder, test_pid}), do: pid
-    {:reply, {test, List.first(recorder)}, state}
+    {:reply, {List.first(test), List.first(recorder)}, state}
   end
 
   @doc "The ExUnit runner of the ended test `pid` (`watch/2`'s), `nil` if unknown."

@@ -132,4 +132,18 @@ defmodule PlaywrightEx.Test.ResultTest do
 
     for pid <- [passed, killed, unmarked], do: on_exit_callbacks(pid, fn -> nil end, fn -> nil end)
   end
+
+  test "the finish of a test whose registration row is gone (the pool restarted) leaves the pool running" do
+    pid = fake_test()
+    end_test(pid, [&{:passed, &1}], :shutdown)
+    pool = Process.whereis(Pool)
+    :ets.delete(Results.table(), {:test, pid})
+
+    assert Results.take(pid) == {nil, nil}
+
+    assert ExUnit.CaptureLog.capture_log(fn -> on_exit_callbacks(pid, fn -> nil end, fn -> nil end) end) =~
+             "could not finish the test: its registration is gone (the pool restarted since)"
+
+    assert Process.whereis(Pool) == pool
+  end
 end
