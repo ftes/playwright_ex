@@ -2,7 +2,7 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.UpstreamSnapshot do
+defmodule Playwright.UpstreamSnapshot do
   @upstream "packages/playwright/src/matchers/toMatchSnapshot.ts"
   @moduledoc """
   The test runner's `expect(buffer).toMatchSnapshot(name, options)` (`#{@upstream}`) for the
@@ -17,7 +17,7 @@ defmodule PlaywrightEx.UpstreamSnapshot do
 
   The comparison is upstream's own: `utils.getComparator(mimeType)` of the driver package's
   `lib/coreBundle.js` (as upstream's `tests/config/comparator.ts` requires it), run by the
-  driver's node (`PlaywrightEx.Driver.executable/0`), so `threshold`, `maxDiffPixels`,
+  driver's node (`Playwright.Driver.executable/0`), so `threshold`, `maxDiffPixels`,
   `maxDiffPixelRatio` and `comparator` (options with the JS keys) behave as upstream's.
 
   Deviations: there is no `updateSnapshots`, a missing snapshot fails (the runner's `"none"`
@@ -59,7 +59,7 @@ defmodule PlaywrightEx.UpstreamSnapshot do
     spec = Module.get_attribute(__CALLER__.module, :upstream) || raise "to_match_snapshot/3 needs @upstream"
 
     quote do
-      PlaywrightEx.UpstreamSnapshot.match!(unquote(spec), unquote(buffer), unquote(name), unquote(options))
+      Playwright.UpstreamSnapshot.match!(unquote(spec), unquote(buffer), unquote(name), unquote(options))
     end
   end
 
@@ -96,11 +96,11 @@ defmodule PlaywrightEx.UpstreamSnapshot do
   def snapshot_path(spec, name) do
     ext = Path.extname(name)
     base = String.slice(name, 0, String.length(name) - String.length(ext))
-    browser_name = PlaywrightEx.TestBrowser.name()
+    browser_name = Playwright.TestBrowser.name()
 
     Path.join(
-      PlaywrightEx.Upstream.dir(),
-      "#{spec}-snapshots/#{PlaywrightEx.Test.TestInfo.sanitize_for_file_path(base)}-#{browser_name}#{ext}"
+      Playwright.Upstream.dir(),
+      "#{spec}-snapshots/#{Playwright.Test.TestInfo.sanitize_for_file_path(base)}-#{browser_name}#{ext}"
     )
   end
 
@@ -170,7 +170,7 @@ defmodule PlaywrightEx.UpstreamSnapshot do
   # Runs `script` with `args`, `fs`, the driver package's `utils` (`lib/coreBundle.js`), the
   # `utilsBundle` path and `out(value)` (prints JSON) in scope; returns the decoded output.
   defp node!(script, args) do
-    {node, [cli | _]} = PlaywrightEx.Driver.executable()
+    {node, [cli | _]} = Playwright.Driver.executable()
     lib = Path.join(Path.dirname(cli), "lib")
 
     prelude = """

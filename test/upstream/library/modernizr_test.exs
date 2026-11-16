@@ -2,14 +2,13 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.ModernizrTest do
+defmodule Playwright.Library.ModernizrTest do
   @upstream "tests/library/modernizr.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Playwright
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.Page
 
   @browser_name System.get_env("BROWSER", "chromium")
   # it.skip(browserName === 'webkit' && platform === 'darwin' && os.arch() === 'x64')

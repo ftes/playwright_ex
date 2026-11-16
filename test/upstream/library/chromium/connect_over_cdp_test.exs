@@ -3,29 +3,28 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
+defmodule Playwright.Library.Chromium.ConnectOverCdpTest do
   @upstream "tests/library/chromium/connect-over-cdp.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.APIRequest
-  alias PlaywrightEx.APIRequestContext
-  alias PlaywrightEx.APIResponse
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.CDPSession
-  alias PlaywrightEx.Download
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Playwright
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.RemoteServer.LaunchServer
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TestProxy
-  alias PlaywrightEx.TestServer
-  alias PlaywrightEx.Tracing
-  alias PlaywrightEx.Worker
+  alias Playwright.APIRequest
+  alias Playwright.APIRequestContext
+  alias Playwright.APIResponse
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.BrowserType
+  alias Playwright.CDPSession
+  alias Playwright.Download
+  alias Playwright.Expect
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.RemoteServer.LaunchServer
+  alias Playwright.Runtime
+  alias Playwright.TestProxy
+  alias Playwright.TestServer
+  alias Playwright.Tracing
+  alias Playwright.Worker
 
   # Deviations:
   #   * `connectOverCDP({ endpointURL })` is `connect_over_cdp(browser_type, endpoint_url, options)`:
@@ -447,7 +446,7 @@ defmodule PlaywrightEx.Library.Chromium.ConnectOverCdpTest do
 
     request = Task.await(request, :infinity)
     # `getUserAgent()` of the driver (the test can't compute it): `Playwright/<version> (<os>) ...`.
-    assert header(request, "user-agent") =~ ~r"^Playwright/#{PlaywrightEx.Driver.version()} \(.+\) "
+    assert header(request, "user-agent") =~ ~r"^Playwright/#{Playwright.Driver.version()} \(.+\) "
     assert header(request, "foo") == "bar"
   end
 

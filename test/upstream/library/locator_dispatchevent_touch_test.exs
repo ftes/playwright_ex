@@ -2,13 +2,13 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.LocatorDispatcheventTouchTest do
+defmodule Playwright.Library.LocatorDispatcheventTouchTest do
   @upstream "tests/library/locator-dispatchevent-touch.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
+  alias Playwright.BrowserContext
+  alias Playwright.Locator
+  alias Playwright.Page
 
   # it.use({ hasTouch: true })
   setup %{context_factory: context_factory} do

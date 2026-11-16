@@ -3,20 +3,20 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageMouseTest do
+defmodule Playwright.Page.PageMouseTest do
   @upstream "tests/page/page-mouse.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  alias PlaywrightEx.Expect
+  alias Playwright.Expect
 
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.Keyboard
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Mouse
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Utils
+  alias Playwright.Frame
+  alias Playwright.Keyboard
+  alias Playwright.Locator
+  alias Playwright.Mouse
+  alias Playwright.Page
+  alias Playwright.Utils
 
   @moduletag :page
 

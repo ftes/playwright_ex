@@ -2,14 +2,14 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.HeapTest do
+defmodule Playwright.Library.HeapTest do
   @upstream "tests/library/heap.spec.ts"
   # test.describe.configure({ mode: 'serial' })
-  use PlaywrightEx.UpstreamCase, async: false
+  use Playwright.UpstreamCase, async: false
 
-  alias PlaywrightEx.ElementHandle
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Runtime
+  alias Playwright.ElementHandle
+  alias Playwright.Page
+  alias Playwright.Runtime
 
   # queryObjectCount (node:inspector Runtime.queryObjects on this process' V8 heap) and the
   # beforeAll that records client classes  -- not ported: in-process heap inspection

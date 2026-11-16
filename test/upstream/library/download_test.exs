@@ -2,26 +2,26 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.DownloadTest do
+defmodule Playwright.Library.DownloadTest do
   @upstream "tests/library/download.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  alias PlaywrightEx.APIRequestContext
-  alias PlaywrightEx.APIResponse
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Client.ChannelOwner
-  alias PlaywrightEx.Download
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.Runtime.Api
-  alias PlaywrightEx.TestServer
+  alias Playwright.APIRequestContext
+  alias Playwright.APIResponse
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.BrowserType
+  alias Playwright.Client.ChannelOwner
+  alias Playwright.Download
+  alias Playwright.Frame
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Route
+  alias Playwright.Runtime.Api
+  alias Playwright.TestServer
 
   # config/errors.ts
   @k_target_closed_error_message "Target page, context or browser has been closed"

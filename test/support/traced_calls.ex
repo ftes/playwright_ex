@@ -1,4 +1,4 @@
-defmodule PlaywrightEx.TracedCalls do
+defmodule Playwright.TracedCalls do
   @moduledoc """
   The calls of a function by one process, from `:erlang.trace/3`'s messages sent to the test
   process: unlike `call_count`, not the calls of other async tests' traced processes.

@@ -2,11 +2,11 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageCacheStorageTest do
+defmodule Playwright.Page.PageCacheStorageTest do
   @upstream "tests/page/page-cache-storage.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Page
+  alias Playwright.Page
 
   @moduletag :page
 

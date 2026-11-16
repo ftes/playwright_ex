@@ -2,18 +2,18 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.DebuggerTest do
+defmodule Playwright.Library.DebuggerTest do
   @upstream "tests/library/debugger.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Expect
+  alias Playwright.Expect
 
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Debugger
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.Runtime.Api
-  alias PlaywrightEx.Utils
+  alias Playwright.BrowserContext
+  alias Playwright.Debugger
+  alias Playwright.Page
+  alias Playwright.Runtime
+  alias Playwright.Runtime.Api
+  alias Playwright.Utils
 
   @moduletag :page
 
@@ -44,16 +44,16 @@ defmodule PlaywrightEx.Library.DebuggerTest do
   end
 
   # `dbg._enable()` and the `apicallsupdated` event are internal (not in the facade).
-  defp enable(dbg), do: Api.call("debugger._enable", dbg, fn -> PlaywrightEx.Client.Debugger._enable(dbg) end)
+  defp enable(dbg), do: Api.call("debugger._enable", dbg, fn -> Playwright.Client.Debugger._enable(dbg) end)
 
   defp on_api_calls_updated(dbg) do
     test_pid = self()
-    PlaywrightEx.Client.Debugger.on(dbg, "apicallsupdated", fn api_calls -> send(test_pid, {:api_calls, api_calls}) end)
+    Playwright.Client.Debugger.on(dbg, "apicallsupdated", fn api_calls -> send(test_pid, {:api_calls, api_calls}) end)
   end
 
   # `page._wrapApiCall(fn, { internal: true })`, internal too.
   defp internal_call(page, fun) do
-    Api.call(nil, page, fn -> PlaywrightEx.Client.Page._wrap_api_call(page, fn _ -> fun.() end, %{internal: true}) end)
+    Api.call(nil, page, fn -> Playwright.Client.Page._wrap_api_call(page, fn _ -> fun.() end, %{internal: true}) end)
   end
 
   # `dbg.on('apicallsupdated', apiCalls => all.push(...apiCalls))`: an Agent of all updates (cast:
@@ -61,7 +61,7 @@ defmodule PlaywrightEx.Library.DebuggerTest do
   defp collect_api_calls(dbg) do
     {:ok, updates} = Agent.start_link(fn -> [] end)
 
-    PlaywrightEx.Client.Debugger.on(dbg, "apicallsupdated", fn api_calls ->
+    Playwright.Client.Debugger.on(dbg, "apicallsupdated", fn api_calls ->
       Agent.cast(updates, &(&1 ++ api_calls))
     end)
 

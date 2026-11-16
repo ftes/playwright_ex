@@ -1,7 +1,6 @@
-defmodule PlaywrightEx.TestBrowser do
+defmodule Playwright.TestBrowser do
   @moduledoc "The browser under test: `BROWSER` env (`chromium`, `firefox` or `webkit`), default `chromium`."
-  alias PlaywrightEx.Driver
-  alias PlaywrightEx.Playwright
+  alias Playwright.Driver
 
   def name, do: System.get_env("BROWSER", "chromium")
 

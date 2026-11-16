@@ -3,13 +3,13 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.ElementhandleMiscTest do
+defmodule Playwright.Page.ElementhandleMiscTest do
   @upstream "tests/page/elementhandle-misc.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.ElementHandle
-  alias PlaywrightEx.JSHandle
-  alias PlaywrightEx.Page
+  alias Playwright.ElementHandle
+  alias Playwright.JSHandle
+  alias Playwright.Page
 
   @moduletag :page
 

@@ -3,15 +3,14 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.SelectorsRegisterTest do
+defmodule Playwright.Library.SelectorsRegisterTest do
   @upstream "tests/library/selectors-register.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Playwright
-  alias PlaywrightEx.Selectors
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.Page
+  alias Playwright.Selectors
 
   # Selector engines are JS source: `(${createTagSelector.toString()})()` (no function serialization).
   @create_tag_selector """

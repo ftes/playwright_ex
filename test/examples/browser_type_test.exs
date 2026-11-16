@@ -2,12 +2,12 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Examples.BrowserTypeTest do
+defmodule Playwright.Examples.BrowserTypeTest do
   # Elixir translations of upstream's JS examples, rendered into the facade docs (see ExampleCase).
-  use PlaywrightEx.ExampleCase, async: true
+  use Playwright.ExampleCase, async: true
 
   # The examples launch Chromium: they run where it is the browser under test.
-  @chromium_only if(PlaywrightEx.TestBrowser.name() != "chromium", do: "launches chromium, not the browser under test")
+  @chromium_only if(Playwright.TestBrowser.name() != "chromium", do: "launches chromium, not the browser under test")
 
   example "BrowserType",
     js: ~S"""

@@ -3,18 +3,18 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.Defaultbrowsercontext1Test do
+defmodule Playwright.Library.Defaultbrowsercontext1Test do
   @upstream "tests/library/defaultbrowsercontext-1.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  import PlaywrightEx.Utils
+  import Playwright.Utils
 
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Download
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Response
-  alias PlaywrightEx.TestServer
+  alias Playwright.BrowserContext
+  alias Playwright.Download
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Response
+  alias Playwright.TestServer
 
   defp header(conn, name), do: List.first(Plug.Conn.get_req_header(conn, name))
 

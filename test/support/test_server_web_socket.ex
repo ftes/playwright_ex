@@ -1,7 +1,7 @@
-defmodule PlaywrightEx.TestServer.WebSocket do
+defmodule Playwright.TestServer.WebSocket do
   @moduledoc """
   The `ws` package's `WebSocket` (RFC 6455 framing, no extensions, as `ws` with
-  `perMessageDeflate: false`): the server socket of `PlaywrightEx.TestServer`, and the upgrade
+  `perMessageDeflate: false`): the server socket of `Playwright.TestServer`, and the upgrade
   `socket` before it (`write/2`, `destroy/1`), both the pid of the Bandit connection process;
   or a client (`new/3`, ws:// only), a process linked to its caller.
 
@@ -11,7 +11,7 @@ defmodule PlaywrightEx.TestServer.WebSocket do
   it is set (Node: listeners set in the same tick as `new WebSocket()` get every event).
   """
 
-  alias PlaywrightEx.TestServer
+  alias Playwright.TestServer
 
   @listeners {__MODULE__, :listeners}
   @held {__MODULE__, :held}

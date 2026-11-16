@@ -3,16 +3,16 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.SelectorsTextTest do
+defmodule Playwright.Page.SelectorsTextTest do
   @upstream "tests/page/selectors-text.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.ElementHandle
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.JSHandle
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Runtime
+  alias Playwright.ElementHandle
+  alias Playwright.Expect
+  alias Playwright.JSHandle
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Runtime
 
   @moduletag :page
 

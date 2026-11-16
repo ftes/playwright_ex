@@ -3,14 +3,14 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.GeolocationTest do
+defmodule Playwright.Library.GeolocationTest do
   @upstream "tests/library/geolocation.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.ConsoleMessage
-  alias PlaywrightEx.Page
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.ConsoleMessage
+  alias Playwright.Page
 
   @get_current_position """
   () => new Promise(resolve => navigator.geolocation.getCurrentPosition(position => {

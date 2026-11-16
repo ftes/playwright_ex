@@ -3,20 +3,20 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageFillTest do
+defmodule Playwright.Page.PageFillTest do
   @upstream "tests/page/page-fill.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  import PlaywrightEx.Utils, only: [rafraf: 2]
+  import Playwright.Utils, only: [rafraf: 2]
 
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.FrameLocator
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Runtime
+  alias Playwright.Expect
+  alias Playwright.FrameLocator
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Runtime
 
   @moduletag :page
 

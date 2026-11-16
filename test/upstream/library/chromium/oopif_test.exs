@@ -2,32 +2,31 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.Chromium.OopifTest do
+defmodule Playwright.Library.Chromium.OopifTest do
   @upstream "tests/library/chromium/oopif.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  import PlaywrightEx.UpstreamSnapshot
-  import PlaywrightEx.Utils, only: [attach_frame: 3, rafraf: 1]
+  import Playwright.UpstreamSnapshot
+  import Playwright.Utils, only: [attach_frame: 3, rafraf: 1]
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.CDPSession
-  alias PlaywrightEx.ConsoleMessage
-  alias PlaywrightEx.ElementHandle
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.FrameLocator
-  alias PlaywrightEx.JSHandle
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Playwright
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Request
-  alias PlaywrightEx.Response
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.TestServer
-  alias PlaywrightEx.Worker
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.BrowserType
+  alias Playwright.CDPSession
+  alias Playwright.ConsoleMessage
+  alias Playwright.ElementHandle
+  alias Playwright.Expect
+  alias Playwright.Frame
+  alias Playwright.FrameLocator
+  alias Playwright.JSHandle
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Request
+  alias Playwright.Response
+  alias Playwright.Route
+  alias Playwright.TestServer
+  alias Playwright.Worker
 
   @chromium_only if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: Chromium only")
   @moduletag skip: @chromium_only

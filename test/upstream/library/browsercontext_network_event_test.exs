@@ -3,18 +3,18 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.BrowsercontextNetworkEventTest do
+defmodule Playwright.Library.BrowsercontextNetworkEventTest do
   @upstream "tests/library/browsercontext-network-event.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Request
-  alias PlaywrightEx.Response
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TestServer
+  alias Playwright.BrowserContext
+  alias Playwright.Frame
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Request
+  alias Playwright.Response
+  alias Playwright.Runtime
+  alias Playwright.TestServer
 
   @moduletag :page
 
@@ -112,7 +112,7 @@ defmodule PlaywrightEx.Library.BrowsercontextNetworkEventTest do
            ]
   end
 
-  @headless PlaywrightEx.TestBrowser.headless()
+  @headless Playwright.TestBrowser.headless()
   @tag skip:
          if(@headless and @browser_name != "firefox",
            do: "upstream skip: headless browsers, except firefox, do not request favicons"

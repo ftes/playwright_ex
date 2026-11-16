@@ -3,14 +3,14 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.WebSocketTest do
+defmodule Playwright.Library.WebSocketTest do
   @upstream "tests/library/web-socket.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.TestServer
-  alias PlaywrightEx.WebSocket
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.TestServer
+  alias Playwright.WebSocket
 
   @moduletag :page
 

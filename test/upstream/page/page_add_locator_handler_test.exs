@@ -2,15 +2,15 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageAddLocatorHandlerTest do
+defmodule Playwright.Page.PageAddLocatorHandlerTest do
   @upstream "tests/page/page-add-locator-handler.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.FrameLocator
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Runtime
+  alias Playwright.Expect
+  alias Playwright.FrameLocator
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Runtime
 
   @moduletag :page
 
@@ -165,7 +165,7 @@ defmodule PlaywrightEx.Page.PageAddLocatorHandlerTest do
     Page.add_locator_handler!(page, Page.get_by_text(page, "This interstitial covers the button"), fn ->
       send(test, :called)
       # Deliberately timeout.
-      PlaywrightEx.Promise.await!(release_handler)
+      Playwright.Promise.await!(release_handler)
 
       result =
         case Locator.click(Page.locator(page, "#close"), timeout: 3000) do
@@ -195,7 +195,7 @@ defmodule PlaywrightEx.Page.PageAddLocatorHandlerTest do
     assert called() == 1
 
     Runtime.Promise.resolve(release_handler, nil)
-    assert PlaywrightEx.Promise.await!(handler_finished) == nil
+    assert Playwright.Promise.await!(handler_finished) == nil
   end
 
   test "LH-006 should work with toBeVisible", %{page: page, server: server} do
@@ -278,7 +278,7 @@ defmodule PlaywrightEx.Page.PageAddLocatorHandlerTest do
 
     File.cp!(
       Path.join(
-        PlaywrightEx.Upstream.dir(),
+        Playwright.Upstream.dir(),
         "tests/page/page-add-locator-handler.spec.ts-snapshots/screenshot-grid-#{browser_name}.png"
       ),
       path

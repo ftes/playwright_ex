@@ -3,17 +3,17 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.JshandleToStringTest do
+defmodule Playwright.Page.JshandleToStringTest do
   @upstream "tests/page/jshandle-to-string.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  alias PlaywrightEx.Expect
+  alias Playwright.Expect
 
-  alias PlaywrightEx.ConsoleMessage
-  alias PlaywrightEx.JSHandle
-  alias PlaywrightEx.Page
+  alias Playwright.ConsoleMessage
+  alias Playwright.JSHandle
+  alias Playwright.Page
 
   @moduletag :page
 

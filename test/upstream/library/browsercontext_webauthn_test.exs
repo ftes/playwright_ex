@@ -2,15 +2,15 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.BrowsercontextWebauthnTest do
+defmodule Playwright.Library.BrowsercontextWebauthnTest do
   @upstream "tests/library/browsercontext-webauthn.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   import Bitwise
 
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Credentials
-  alias PlaywrightEx.Page
+  alias Playwright.BrowserContext
+  alias Playwright.Credentials
+  alias Playwright.Page
 
   # Runs an assertion ceremony with a discoverable credential, returns the signature counter from the authenticator data.
   defp assert_and_get_sign_count(page, rp_id) do

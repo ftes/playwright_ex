@@ -3,17 +3,17 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
+defmodule Playwright.Page.PageWaitForFunctionTest do
   @upstream "tests/page/page-wait-for-function.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.ConsoleMessage
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.JSHandle
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TimeoutError
-  alias PlaywrightEx.Utils
+  alias Playwright.ConsoleMessage
+  alias Playwright.Frame
+  alias Playwright.JSHandle
+  alias Playwright.Page
+  alias Playwright.Runtime
+  alias Playwright.TimeoutError
+  alias Playwright.Utils
 
   @moduletag :page
 
@@ -148,7 +148,7 @@ defmodule PlaywrightEx.Page.PageWaitForFunctionTest do
   end
 
   test "WA-011 should work with strict CSP policy", %{page: page, server: server} do
-    PlaywrightEx.TestServer.set_csp(server, "/empty.html", "script-src " <> server.prefix)
+    Playwright.TestServer.set_csp(server, "/empty.html", "script-src " <> server.prefix)
     Page.goto!(page, server.empty_page)
 
     p =

@@ -2,21 +2,21 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.BrowsercontextServiceWorkerPolicyTest do
+defmodule Playwright.Library.BrowsercontextServiceWorkerPolicyTest do
   @upstream "tests/library/browsercontext-service-worker-policy.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.ConsoleMessage
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.FrameLocator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Response
-  alias PlaywrightEx.TestServer
-  alias PlaywrightEx.Utils
+  alias Playwright.BrowserContext
+  alias Playwright.ConsoleMessage
+  alias Playwright.Expect
+  alias Playwright.FrameLocator
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Response
+  alias Playwright.TestServer
+  alias Playwright.Utils
 
   @moduletag :page
 

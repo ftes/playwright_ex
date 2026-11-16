@@ -244,11 +244,11 @@ jobs:
           cat "$RUNNER_TEMP/xvfb.log"
           exit 1
       # Test failures (exit 2) are retried once, as upstream retries on CI (`retries: 3`); compile
-      # errors are not. The first run's failures (PlaywrightEx.FailuresFormatter) go to the job
-      # summary, and its annotations (PlaywrightEx.Test.GitHubFormatter, first run only) stay, so
+      # errors are not. The first run's failures (Playwright.FailuresFormatter) go to the job
+      # summary, and its annotations (Playwright.Test.GitHubFormatter, first run only) stay, so
       # a green rerun does not hide them. The rerun takes no
       # --partitions: the failures manifest holds this partition's failures only, and --partitions
-      # would split those files again. The 10 slowest modules (PlaywrightEx.ModuleTimesFormatter)
+      # would split those files again. The 10 slowest modules (Playwright.ModuleTimesFormatter)
       # are the floor of a partition's time. Warnings fail the newest lane only.
       - name: Run tests
         env:
@@ -302,7 +302,7 @@ jobs:
           export PATH=$JAVA_HOME_17_X64/bin:$PATH PWTEST_SELENIUM=$HOME/selenium PWTEST_CHROMEDRIVER=$CHROMEWEBDRIVER/chromedriver
           mix test test/upstream/library/browsertype_launch_selenium_test.exs || if [[ $? = 2 ]]; then mix test --failed; else false; fi
       # Upstream runs headed-only tests (headful.spec.ts, `test.skip(headless)`) in its headed runs
-      # (`--headed`); HEADED=1 is that `headless: false` (PlaywrightEx.TestBrowser). Only the tests
+      # (`--headed`); HEADED=1 is that `headless: false` (Playwright.TestBrowser). Only the tests
       # tagged :headed, under the same xvfb and in this job (no extra setup): ~10-20 s of tests.
       # Blocking as the job is: green on all three browsers.
       - name: Run headful tests

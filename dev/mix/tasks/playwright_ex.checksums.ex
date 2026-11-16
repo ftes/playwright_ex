@@ -6,13 +6,13 @@ defmodule Mix.Tasks.PlaywrightEx.Checksums do
   Reads the npm `dist.integrity` (sha512 SRI) of `playwright-core@<driver>` from the registry
   and Node's `SHASUMS256.txt` from nodejs.org, then writes `priv/driver_checksums.exs`. Given
   versions, it also writes them to the `DRIVER_VERSION` and `NODE_VERSION` files that
-  `PlaywrightEx.Driver` reads: that is the bump (editing the files first fails compilation, so
+  `Playwright.Driver` reads: that is the bump (editing the files first fails compilation, so
   this task could not run). Trust is anchored at roll time; installs only compare against the
   committed values.
   """
   use Mix.Task
 
-  alias PlaywrightEx.Driver
+  alias Playwright.Driver
 
   @impl true
   def run(args) do

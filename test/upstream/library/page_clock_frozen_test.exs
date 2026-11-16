@@ -2,11 +2,11 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.PageClockFrozenTest do
+defmodule Playwright.Library.PageClockFrozenTest do
   @upstream "tests/library/page-clock.frozen.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Page
+  alias Playwright.Page
 
   @moduletag :page
 

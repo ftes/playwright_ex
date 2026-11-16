@@ -1,16 +1,16 @@
-defmodule PlaywrightEx.Guides.GettingStartedTest do
+defmodule Playwright.Guides.GettingStartedTest do
   # The snippets of `guides/introduction/getting-started.md`, routed instead of the network. Not
   # async: the first script starts the supervisor under its default name, and the logging
   # snippet sets a global level.
   use ExUnit.Case, async: false
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.TestBrowser
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.BrowserType
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Route
+  alias Playwright.TestBrowser
 
   @moduletag :tmp_dir
 
@@ -25,18 +25,18 @@ defmodule PlaywrightEx.Guides.GettingStartedTest do
 
   test "supervision tree" do
     children = [
-      {PlaywrightEx.Supervisor, name: MyApp.Playwright}
+      {Playwright.Supervisor, name: MyApp.Playwright}
     ]
 
     {:ok, _} = start_supervised(%{id: MyApp, start: {Supervisor, :start_link, [children, [strategy: :one_for_one]]}})
-    playwright = PlaywrightEx.playwright(MyApp.Playwright)
-    assert %PlaywrightEx.Playwright{} = playwright
+    playwright = Playwright.instance(MyApp.Playwright)
+    assert %Playwright{} = playwright
   end
 
   test "first script (default supervisor name)", %{tmp_dir: tmp_dir} do
-    {:ok, _} = start_supervised(PlaywrightEx.Supervisor)
+    {:ok, _} = start_supervised(Playwright.Supervisor)
     # The guide uses `Playwright.chromium()`; the suite runs the browser under test.
-    browser = PlaywrightEx.playwright() |> TestBrowser.browser_type() |> BrowserType.launch!()
+    browser = Playwright.instance() |> TestBrowser.browser_type() |> BrowserType.launch!()
     page = Browser.new_page!(browser)
     serve(page, "<title>Playwright</title>")
     Page.goto!(page, "https://playwright.dev/")
@@ -59,8 +59,8 @@ defmodule PlaywrightEx.Guides.GettingStartedTest do
   end
 
   test "finding elements" do
-    {:ok, _} = start_supervised(PlaywrightEx.Supervisor)
-    browser = PlaywrightEx.playwright() |> TestBrowser.browser_type() |> BrowserType.launch!()
+    {:ok, _} = start_supervised(Playwright.Supervisor)
+    browser = Playwright.instance() |> TestBrowser.browser_type() |> BrowserType.launch!()
     page = Browser.new_page!(browser)
 
     serve(page, """
@@ -82,7 +82,7 @@ defmodule PlaywrightEx.Guides.GettingStartedTest do
 
     assert Page.title!(page) == "apple"
 
-    assert {:error, %PlaywrightEx.PlaywrightError{message: message}} =
+    assert {:error, %Playwright.PlaywrightError{message: message}} =
              Page.get_by_role(page, :button, name: "Buy") |> Locator.click(timeout: 1_000)
 
     assert message =~ "strict mode violation"

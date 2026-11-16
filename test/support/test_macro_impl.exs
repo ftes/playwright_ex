@@ -1,14 +1,14 @@
-# The child BEAM of `PlaywrightEx.Test.TestMacroTest`: one test module, as plain ExUnit compiles
-# it (`plain`) or with `use PlaywrightEx.Test` (`ours`), from one source with the same lines.
+# The child BEAM of `Playwright.Test.TestMacroTest`: one test module, as plain ExUnit compiles
+# it (`plain`) or with `use Playwright.Test` (`ours`), from one source with the same lines.
 #
 # Runs as `elixir -pa <playwright_ex ebin> test_macro_impl.exs <plain|ours> <run|breakpoints>`:
 # `run` runs the module (seed 0); `breakpoints` compiles it as `mix test --breakpoints` does and
 # prints how many breakpoints each test function has: `(breakpoints=>%{...})`.
 
-PlaywrightEx.ClientProcess.halt_on_stdin_eof()
+Playwright.ClientProcess.halt_on_stdin_eof()
 
 [variant, mode] = System.argv()
-use_line = if variant == "ours", do: "use ExUnit.Case; use PlaywrightEx.Test", else: "use ExUnit.Case"
+use_line = if variant == "ours", do: "use ExUnit.Case; use Playwright.Test", else: "use ExUnit.Case"
 
 source = """
 defmodule TestMacroSample do

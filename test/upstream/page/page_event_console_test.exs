@@ -3,18 +3,18 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageEventConsoleTest do
+defmodule Playwright.Page.PageEventConsoleTest do
   @upstream "tests/page/page-event-console.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  alias PlaywrightEx.Expect
+  alias Playwright.Expect
 
-  alias PlaywrightEx.ConsoleMessage
-  alias PlaywrightEx.JSHandle
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.TestServer
+  alias Playwright.ConsoleMessage
+  alias Playwright.JSHandle
+  alias Playwright.Page
+  alias Playwright.TestServer
 
   @moduletag :page
 
@@ -61,8 +61,8 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
     inspect = fn value -> send(test, {:event, inspect(value)}) end
     Page.on(page, :console, inspect)
     Page.evaluate!(page, "() => console.log('Hello world')")
-    # Deviation: Inspect wraps text() as `#PlaywrightEx.ConsoleMessage<...>`, like Locator's.
-    assert received() == ["#PlaywrightEx.ConsoleMessage<Hello world>"]
+    # Deviation: Inspect wraps text() as `#Playwright.ConsoleMessage<...>`, like Locator's.
+    assert received() == ["#Playwright.ConsoleMessage<Hello world>"]
   end
 
   test "CM-004 should work for different console API calls", %{page: page} do

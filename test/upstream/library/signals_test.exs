@@ -3,14 +3,14 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.SignalsTest do
+defmodule Playwright.Library.SignalsTest do
   @upstream "tests/library/signals.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.ClientProcess
+  alias Playwright.ClientProcess
 
   # Upstream runs a Node.js client in a child process and sends signals to it. Here the child is
-  # a BEAM that uses the Elixir client (`PlaywrightEx.ClientProcess`), as Python runs a Python
+  # a BEAM that uses the Elixir client (`Playwright.ClientProcess`), as Python runs a Python
   # client: `start_remote_server.("launchServer", options)` starts it. As upstream's
   # `process.kill(pid, signal)`, the tests send the signals to the BEAM only. The driver closes
   # the browser when the BEAM goes away.

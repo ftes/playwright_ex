@@ -2,15 +2,14 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.GlobalFetchTest do
+defmodule Playwright.Library.GlobalFetchTest do
   @upstream "tests/library/global-fetch.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.APIRequest
-  alias PlaywrightEx.APIRequestContext
-  alias PlaywrightEx.APIResponse
-  alias PlaywrightEx.Playwright
-  alias PlaywrightEx.TestServer
+  alias Playwright.APIRequest
+  alias Playwright.APIRequestContext
+  alias Playwright.APIResponse
+  alias Playwright.TestServer
 
   # const it = base.extend({ context: ... throw })  -- no `context`/`page` fixture without the `:page` tag
   # it.skip(({ mode }) => mode !== 'default');  -- always the default mode
@@ -451,7 +450,7 @@ defmodule PlaywrightEx.Library.GlobalFetchTest do
       server_request
       |> header("user-agent")
       |> String.replace(node_arch(), "<ARCH>", global: false)
-      |> String.replace(PlaywrightEx.Driver.version(), "X.X.X", global: false)
+      |> String.replace(Playwright.Driver.version(), "X.X.X", global: false)
       |> String.replace(~r/\d+/, "X")
 
     tokens = if System.get_env("CI") in [nil, ""], do: [], else: ["CI/X"]

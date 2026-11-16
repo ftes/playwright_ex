@@ -2,26 +2,26 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.BrowsercontextEventsTest do
+defmodule Playwright.Library.BrowsercontextEventsTest do
   @upstream "tests/library/browsercontext-events.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  alias PlaywrightEx.Expect
+  alias Playwright.Expect
 
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.ConsoleMessage
-  alias PlaywrightEx.Dialog
-  alias PlaywrightEx.Download
-  alias PlaywrightEx.ElementHandle
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.JSHandle
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TestServer
-  alias PlaywrightEx.WebError
+  alias Playwright.BrowserContext
+  alias Playwright.ConsoleMessage
+  alias Playwright.Dialog
+  alias Playwright.Download
+  alias Playwright.ElementHandle
+  alias Playwright.Frame
+  alias Playwright.JSHandle
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Runtime
+  alias Playwright.TestServer
+  alias Playwright.WebError
 
   @moduletag :page
 

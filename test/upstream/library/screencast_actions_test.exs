@@ -2,18 +2,18 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.ScreencastActionsTest do
+defmodule Playwright.Library.ScreencastActionsTest do
   @upstream "tests/library/screencast-actions.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Disposable
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.Screencast
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.Disposable
+  alias Playwright.Expect
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Runtime
+  alias Playwright.Screencast
 
   # test.skip(({ mode }) => mode !== 'default', ...)  -- we run in default mode
 

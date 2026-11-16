@@ -1,4 +1,4 @@
-defmodule PlaywrightEx.MixProject do
+defmodule Playwright.MixProject do
   use Mix.Project
 
   @version "0.17.0-rc.5"
@@ -16,7 +16,7 @@ defmodule PlaywrightEx.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
       package: package(),
-      name: "PlaywrightEx",
+      name: "Playwright",
       source_url: @source_url,
       docs: docs(),
       aliases: aliases(),
@@ -32,14 +32,14 @@ defmodule PlaywrightEx.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      mod: {PlaywrightEx.Application, []},
-      # inets/ssl/public_key: driver download (`PlaywrightEx.Driver`). No ex_unit, which
-      # `PlaywrightEx.Test` calls: listed (even `:optional`), it would ship in releases and start.
+      mod: {Playwright.Application, []},
+      # inets/ssl/public_key: driver download (`Playwright.Driver`). No ex_unit, which
+      # `Playwright.Test` calls: listed (even `:optional`), it would ship in releases and start.
       extra_applications: [:logger, :inets, :ssl, :crypto, :public_key]
     ]
   end
 
-  # dev/: maintainer tooling (generators, parity, checksums, `PlaywrightEx.Upstream`), not in the package.
+  # dev/: maintainer tooling (generators, parity, checksums, `Playwright.Upstream`), not in the package.
   defp elixirc_paths(:dev), do: ["lib", "dev"]
   defp elixirc_paths(:test), do: ["lib", "test/support", "dev"]
   defp elixirc_paths(_), do: ["lib"]
@@ -64,7 +64,7 @@ defmodule PlaywrightEx.MixProject do
       licenses: ["Apache-2.0"],
       links: %{"GitHub" => @source_url, "Changelog" => "https://hexdocs.pm/playwright_ex/#{@version}/changelog.html"},
       # Hex's default files, plus `usage-rules.md` for `mix usage_rules.sync`, the pinned versions
-      # `PlaywrightEx.Driver` reads when compiling, and the licenses and notices.
+      # `Playwright.Driver` reads when compiling, and the licenses and notices.
       files:
         ~w(lib priv .formatter.exs mix.exs README.md usage-rules.md LICENSE NOTICE CHANGELOG.md DRIVER_VERSION NODE_VERSION),
       exclude_patterns: ~w(priv/plts)
@@ -110,7 +110,7 @@ defmodule PlaywrightEx.MixProject do
         ],
         Upgrading: ["guides/migration.md", "CHANGELOG.md"]
       ],
-      nest_modules_by_prefix: [PlaywrightEx],
+      nest_modules_by_prefix: [Playwright],
       # The changelog names functions of the API before the restructure.
       skip_undefined_reference_warnings_on: ["CHANGELOG.md"],
       # ExUnit hides its formatter modules from its docs.
@@ -121,71 +121,70 @@ defmodule PlaywrightEx.MixProject do
       # playwright.dev's API sidebar, roughly; internals are filtered out above.
       groups_for_modules: [
         Core: [
-          PlaywrightEx,
-          PlaywrightEx.Supervisor,
-          PlaywrightEx.Driver,
-          PlaywrightEx.Promise,
-          PlaywrightEx.Playwright,
-          PlaywrightEx.BrowserType,
-          PlaywrightEx.Browser,
-          PlaywrightEx.BrowserContext,
-          PlaywrightEx.Selectors,
-          PlaywrightEx.Clock,
-          PlaywrightEx.Credentials,
-          PlaywrightEx.Disposable,
-          PlaywrightEx.RegExp,
-          PlaywrightEx.AbortController,
-          PlaywrightEx.AbortSignal
+          Playwright,
+          Playwright.Supervisor,
+          Playwright.Driver,
+          Playwright.Promise,
+          Playwright.BrowserType,
+          Playwright.Browser,
+          Playwright.BrowserContext,
+          Playwright.Selectors,
+          Playwright.Clock,
+          Playwright.Credentials,
+          Playwright.Disposable,
+          Playwright.RegExp,
+          Playwright.AbortController,
+          Playwright.AbortSignal
         ],
         Pages: [
-          PlaywrightEx.Page,
-          PlaywrightEx.Frame,
-          PlaywrightEx.Locator,
-          PlaywrightEx.FrameLocator,
-          PlaywrightEx.ElementHandle,
-          PlaywrightEx.JSHandle,
-          PlaywrightEx.Keyboard,
-          PlaywrightEx.Mouse,
-          PlaywrightEx.Touchscreen,
-          PlaywrightEx.Dialog,
-          PlaywrightEx.Download,
-          PlaywrightEx.FileChooser,
-          PlaywrightEx.ConsoleMessage,
-          PlaywrightEx.WebError,
-          PlaywrightEx.WebStorage,
-          PlaywrightEx.WebMCP,
-          PlaywrightEx.Worker
+          Playwright.Page,
+          Playwright.Frame,
+          Playwright.Locator,
+          Playwright.FrameLocator,
+          Playwright.ElementHandle,
+          Playwright.JSHandle,
+          Playwright.Keyboard,
+          Playwright.Mouse,
+          Playwright.Touchscreen,
+          Playwright.Dialog,
+          Playwright.Download,
+          Playwright.FileChooser,
+          Playwright.ConsoleMessage,
+          Playwright.WebError,
+          Playwright.WebStorage,
+          Playwright.WebMCP,
+          Playwright.Worker
         ],
-        Assertions: [PlaywrightEx.Expect, PlaywrightEx.ExpectError],
+        Assertions: [Playwright.Expect, Playwright.ExpectError],
         Testing: [
-          PlaywrightEx.Case,
-          PlaywrightEx.Test,
-          PlaywrightEx.Test.BrowserPool,
-          PlaywrightEx.Test.GitHubFormatter
+          Playwright.Case,
+          Playwright.Test,
+          Playwright.Test.BrowserPool,
+          Playwright.Test.GitHubFormatter
         ],
         Network: [
-          PlaywrightEx.Request,
-          PlaywrightEx.Response,
-          PlaywrightEx.Route,
-          PlaywrightEx.WebSocket,
-          PlaywrightEx.WebSocketRoute,
-          PlaywrightEx.APIRequest,
-          PlaywrightEx.APIRequestContext,
-          PlaywrightEx.APIResponse
+          Playwright.Request,
+          Playwright.Response,
+          Playwright.Route,
+          Playwright.WebSocket,
+          Playwright.WebSocketRoute,
+          Playwright.APIRequest,
+          Playwright.APIRequestContext,
+          Playwright.APIResponse
         ],
         "Artifacts and debugging": [
-          PlaywrightEx.Tracing,
-          PlaywrightEx.Video,
-          PlaywrightEx.Screencast,
-          PlaywrightEx.Coverage,
-          PlaywrightEx.CDPSession,
-          PlaywrightEx.Debugger
+          Playwright.Tracing,
+          Playwright.Video,
+          Playwright.Screencast,
+          Playwright.Coverage,
+          Playwright.CDPSession,
+          Playwright.Debugger
         ],
         Errors: [
-          PlaywrightEx.PlaywrightError,
-          PlaywrightEx.TimeoutError,
-          PlaywrightEx.TargetClosedError,
-          PlaywrightEx.AbortError
+          Playwright.PlaywrightError,
+          Playwright.TimeoutError,
+          Playwright.TargetClosedError,
+          Playwright.AbortError
         ]
       ]
     ]
@@ -200,8 +199,8 @@ defmodule PlaywrightEx.MixProject do
     String.starts_with?(Path.relative_to(path, __DIR__), "dev/") or
       Enum.any?(
         [
-          ~r"/lib/playwright_ex/(client|matchers|protocol|runtime|transport|isomorphic)/[^/]+\.ex$",
-          ~r"/lib/playwright_ex/out_of_process\.ex$"
+          ~r"/lib/playwright/(client|matchers|protocol|runtime|transport|isomorphic)/[^/]+\.ex$",
+          ~r"/lib/playwright/out_of_process\.ex$"
         ],
         &(path =~ &1)
       )

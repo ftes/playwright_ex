@@ -8,8 +8,8 @@ defmodule Mix.Tasks.PlaywrightEx.Install do
   `--no-browsers` installs only the driver, for a browser launched with `:executable_path` or
   `:channel`.
 
-  The task doesn't see the options of `PlaywrightEx.Supervisor` (`:cache_dir`, `:executable`,
-  `:node`); it reads the environment variables instead (see `PlaywrightEx.Driver`):
+  The task doesn't see the options of `Playwright.Supervisor` (`:cache_dir`, `:executable`,
+  `:node`); it reads the environment variables instead (see `Playwright.Driver`):
 
     * `PLAYWRIGHT_EX_CACHE_DIR` - where the driver is installed.
     * `PLAYWRIGHT_EX_EXECUTABLE`, `PLAYWRIGHT_NODEJS_PATH` - the CLI, or the Node binary, that
@@ -32,11 +32,11 @@ defmodule Mix.Tasks.PlaywrightEx.Install do
     {opts, _} = OptionParser.parse!(own, strict: [browsers: :boolean, force: :boolean])
     Application.ensure_all_started([:inets, :ssl, :crypto])
 
-    :ok = PlaywrightEx.Driver.install(force: Keyword.get(opts, :force, false))
-    Mix.shell().info("Driver installed in #{PlaywrightEx.Driver.install_dir()}")
+    :ok = Playwright.Driver.install(force: Keyword.get(opts, :force, false))
+    Mix.shell().info("Driver installed in #{Playwright.Driver.install_dir()}")
 
     if Keyword.get(opts, :browsers, true) do
-      case PlaywrightEx.Driver.install_browsers(browser_args) do
+      case Playwright.Driver.install_browsers(browser_args) do
         :ok -> :ok
         {:error, {:exit_status, status}} -> Mix.raise("playwright install failed with exit status #{status}")
       end

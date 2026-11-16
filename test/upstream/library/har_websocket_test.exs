@@ -3,21 +3,21 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.HarWebsocketTest do
+defmodule Playwright.Library.HarWebsocketTest do
   @upstream "tests/library/har-websocket.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TestBrowser
-  alias PlaywrightEx.TestServer
-  alias PlaywrightEx.Utils
-  alias PlaywrightEx.WebSocket
-  alias PlaywrightEx.WebSocketRoute
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.BrowserType
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Runtime
+  alias Playwright.TestBrowser
+  alias Playwright.TestServer
+  alias Playwright.Utils
+  alias Playwright.WebSocket
+  alias Playwright.WebSocketRoute
 
   # Browser-reported message times are derived from a wall-clock baseline plus
   # monotonic timestamps in the browser process, so they can drift by a few

@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Servers of the spec below (outside its module: nested modules would inherit its `@upstream`).
-defmodule PlaywrightEx.Library.ClientCertificatesTest.CCServer do
+defmodule Playwright.Library.ClientCertificatesTest.CCServer do
   @moduledoc false
   @behaviour Plug
 
@@ -52,7 +52,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest.CCServer do
   end
 end
 
-defmodule PlaywrightEx.Library.ClientCertificatesTest.Respond do
+defmodule Playwright.Library.ClientCertificatesTest.Respond do
   @moduledoc false
   @behaviour Plug
 
@@ -67,26 +67,25 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest.Respond do
   end
 end
 
-defmodule PlaywrightEx.Library.ClientCertificatesTest do
+defmodule Playwright.Library.ClientCertificatesTest do
   @upstream "tests/library/client-certificates.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  alias PlaywrightEx.APIRequest
-  alias PlaywrightEx.APIRequestContext
-  alias PlaywrightEx.APIResponse
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Playwright
-  alias PlaywrightEx.RemoteServer.ChildProcess
-  alias PlaywrightEx.Response
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.TestProxy
-  alias PlaywrightEx.TestServer
+  alias Playwright.APIRequest
+  alias Playwright.APIRequestContext
+  alias Playwright.APIResponse
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.BrowserType
+  alias Playwright.Expect
+  alias Playwright.Page
+  alias Playwright.RemoteServer.ChildProcess
+  alias Playwright.Response
+  alias Playwright.Route
+  alias Playwright.TestProxy
+  alias Playwright.TestServer
 
   setup {TestProxy, :proxy_server}
 
@@ -110,7 +109,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       pid =
         start_supervised!(
           {Bandit,
-           plug: {PlaywrightEx.Library.ClientCertificatesTest.CCServer, ca: ca |> File.read!() |> pem_der()},
+           plug: {Playwright.Library.ClientCertificatesTest.CCServer, ca: ca |> File.read!() |> pem_der()},
            scheme: :https,
            ip: {127, 0, 0, 1},
            port: 0,
@@ -187,9 +186,9 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
   # The server of "should handle TLS renegotiation with client certificates", a Node.js process
   # (stopped after the test): its port.
   defp start_tls_renegotiation_server do
-    {node, _cli} = PlaywrightEx.Driver.ensure_installed()
+    {node, _cli} = Playwright.Driver.ensure_installed()
     script = Path.expand("../../support/tls_renegotiation_server.js", __DIR__)
-    assets = Path.join(PlaywrightEx.Upstream.ensure!(), "tests/assets")
+    assets = Path.join(Playwright.Upstream.ensure!(), "tests/assets")
     {node, args, env} = ChildProcess.exit_on_stdin_eof({node, [script, assets]})
     process = ChildProcess.start(node, args, env)
     on_exit(fn -> ChildProcess.stop(process) end)
@@ -278,7 +277,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
         start_supervised!(
           {Bandit,
            plug:
-             {PlaywrightEx.Library.ClientCertificatesTest.Respond,
+             {Playwright.Library.ClientCertificatesTest.Respond,
               status: 302, headers: [{"location", target_url}], body: ""},
            scheme: :https,
            ip: {127, 0, 0, 1},
@@ -643,7 +642,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       name = :client_certificates_https_proxy_from_env
 
       playwright = start_playwright(name, [{"HTTPS_PROXY", "http://localhost:#{proxy_server.port}"}])
-      browser = BrowserType.launch!(PlaywrightEx.TestBrowser.browser_type(playwright), env: System.get_env())
+      browser = BrowserType.launch!(Playwright.TestBrowser.browser_type(playwright), env: System.get_env())
 
       server_url = start_cc_server.(use_fake_localhost: fake_localhost?(browser_name))
       TestProxy.forward_to(proxy_server, URI.parse(server_url).port, allow_connect_requests: true)
@@ -678,7 +677,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
       playwright =
         start_playwright(name, [{"HTTPS_PROXY", "http://this-should-not-taken-into-account:4242"}])
 
-      browser = BrowserType.launch!(PlaywrightEx.TestBrowser.browser_type(playwright), env: System.get_env())
+      browser = BrowserType.launch!(Playwright.TestBrowser.browser_type(playwright), env: System.get_env())
 
       server_url = start_cc_server.(use_fake_localhost: fake_localhost?(browser_name))
       TestProxy.forward_to(proxy_server, URI.parse(server_url).port, allow_connect_requests: true)
@@ -1128,7 +1127,7 @@ defmodule PlaywrightEx.Library.ClientCertificatesTest do
         start_supervised!(
           {Bandit,
            plug:
-             {PlaywrightEx.Library.ClientCertificatesTest.Respond,
+             {Playwright.Library.ClientCertificatesTest.Respond,
               status: 200, headers: [{"content-type", "text/html"}], body: "Hello world"},
            scheme: :https,
            ip: {127, 0, 0, 1},

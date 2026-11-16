@@ -2,21 +2,21 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageDragTest do
+defmodule Playwright.Page.PageDragTest do
   @upstream "tests/page/page-drag.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.JSHandle
-  alias PlaywrightEx.Keyboard
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Mouse
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.Utils
+  alias Playwright.Expect
+  alias Playwright.Frame
+  alias Playwright.JSHandle
+  alias Playwright.Keyboard
+  alias Playwright.Locator
+  alias Playwright.Mouse
+  alias Playwright.Page
+  alias Playwright.Route
+  alias Playwright.Utils
 
   @moduletag :page
 

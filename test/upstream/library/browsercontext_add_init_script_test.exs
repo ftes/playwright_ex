@@ -3,13 +3,13 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.BrowsercontextAddInitScriptTest do
+defmodule Playwright.Library.BrowsercontextAddInitScriptTest do
   @upstream "tests/library/browsercontext-add-init-script.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Disposable
-  alias PlaywrightEx.Page
+  alias Playwright.BrowserContext
+  alias Playwright.Disposable
+  alias Playwright.Page
 
   # contextTest: a fresh context per test. Function scripts are JS source; without an `arg`
   # a string is the script itself (`() => window.temp = 123` becomes `window.temp = 123`).

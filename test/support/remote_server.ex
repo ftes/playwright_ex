@@ -2,7 +2,7 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.RemoteServer do
+defmodule Playwright.RemoteServer do
   @upstream "tests/config/remoteServer.ts"
   @moduledoc """
   Port of upstream `#{@upstream}`: `RunServer` (the driver's `run-server` command) and
@@ -19,13 +19,13 @@ defmodule PlaywrightEx.RemoteServer do
   `N` that ends the process gives `128 + N`, not `null` and the signal.
   """
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.RemoteServer.ChildProcess
+  alias Playwright.Browser
+  alias Playwright.BrowserType
+  alias Playwright.Page
+  alias Playwright.RemoteServer.ChildProcess
 
-  # export interface PlaywrightServer  -- ported as PlaywrightEx.RemoteServer.PlaywrightServer
-  # export class RunServer  -- ported as PlaywrightEx.RemoteServer.RunServer
+  # export interface PlaywrightServer  -- ported as Playwright.RemoteServer.PlaywrightServer
+  # export class RunServer  -- ported as Playwright.RemoteServer.RunServer
   # export type RemoteServerOptions: a map with the JS keys (`stallOnClose`, `url`, ...).
 
   # export class RemoteServer
@@ -33,8 +33,8 @@ defmodule PlaywrightEx.RemoteServer do
 
   def _start(browser_type, remote_server_options \\ %{}) do
     browser_options =
-      PlaywrightEx.Runtime.Api.call(nil, browser_type, fn ->
-        PlaywrightEx.Runtime.Heap.get(PlaywrightEx.Runtime.Heap.get(browser_type, :_playwright), :_defaultLaunchOptions)
+      Playwright.Runtime.Api.call(nil, browser_type, fn ->
+        Playwright.Runtime.Heap.get(Playwright.Runtime.Heap.get(browser_type, :_playwright), :_defaultLaunchOptions)
       end) || %{}
 
     # JSON.stringify drops the `undefined` ones.
@@ -58,8 +58,8 @@ defmodule PlaywrightEx.RemoteServer do
         Map.new(remote_server_options)
       )
 
-    {node, [cli]} = PlaywrightEx.Driver.ensure_installed()
-    impl = Path.join(PlaywrightEx.Upstream.ensure!(), "tests/config/remote-server-impl.js")
+    {node, [cli]} = Playwright.Driver.ensure_installed()
+    impl = Path.join(Playwright.Upstream.ensure!(), "tests/config/remote-server-impl.js")
     {node, args, env} = ChildProcess.exit_on_stdin_eof({node, [impl, JSON.encode!(options)]})
     process = ChildProcess.start(node, args, Map.put(env, "NODE_PATH", node_path(cli)))
     this = %__MODULE__{_process: process, _browserType: browser_type}
@@ -77,7 +77,7 @@ defmodule PlaywrightEx.RemoteServer do
 
   # A `node_modules` with `playwright-core` (the driver package), for `NODE_PATH`.
   defp node_path(cli) do
-    dir = Path.join(System.tmp_dir!(), "playwright_ex-#{PlaywrightEx.Driver.version()}-node_modules")
+    dir = Path.join(System.tmp_dir!(), "playwright_ex-#{Playwright.Driver.version()}-node_modules")
     link = Path.join(dir, "playwright-core")
 
     File.mkdir_p!(dir)
@@ -137,14 +137,14 @@ defmodule PlaywrightEx.RemoteServer do
     `launchServer(options).catch(e => e)`. `close/1` sends SIGINT (the server closes the browser,
     `handleSIGINT`), `kill/1` SIGKILL.
     """
-    alias PlaywrightEx.RemoteServer.ChildProcess
+    alias Playwright.RemoteServer.ChildProcess
 
     defstruct [:_process, :_wsEndpoint]
 
     def start(browser_name, options \\ %{}) do
       config = Path.join(System.tmp_dir!(), "playwright_ex-launch-server-#{System.unique_integer([:positive])}.json")
       File.write!(config, JSON.encode!(Map.new(options)))
-      {program, args} = PlaywrightEx.Driver.ensure_installed()
+      {program, args} = Playwright.Driver.ensure_installed()
 
       {program, args, env} =
         ChildProcess.exit_on_stdin_eof(
@@ -217,7 +217,7 @@ defmodule PlaywrightEx.RemoteServer do
     The BEAM runs no code when it is killed (`kill -9`, a crash), so the children exit by
     themselves when their stdin, the BEAM end of the port's pipe, closes: Node.js children
     preload `exit_on_stdin_eof.js` (`exit_on_stdin_eof/1`), the child BEAM of
-    `PlaywrightEx.ClientProcess` reads its stdin until EOF.
+    `Playwright.ClientProcess` reads its stdin until EOF.
     """
     use GenServer
 
@@ -225,7 +225,7 @@ defmodule PlaywrightEx.RemoteServer do
 
     @doc """
     The command `{program, args}` of a Node.js process (`node` or the driver,
-    `PlaywrightEx.Driver.executable/0`) with `exit_on_stdin_eof.js` preloaded, and the env for
+    `Playwright.Driver.executable/0`) with `exit_on_stdin_eof.js` preloaded, and the env for
     that: `{program, args, env}`. A driver that is no `node` binary (`PLAYWRIGHT_EX_EXECUTABLE`)
     gets the preload in `NODE_OPTIONS`.
     """
@@ -284,7 +284,7 @@ defmodule PlaywrightEx.RemoteServer do
         for {name, value} <- Map.merge(%{"PWTEST_UNDER_TEST" => "1"}, env),
             do: {String.to_charlist(name), (value && String.to_charlist(value)) || false}
 
-      driver_env = Enum.map(PlaywrightEx.Driver.driver_env(), fn {k, v} -> {~c"#{k}", ~c"#{v}"} end)
+      driver_env = Enum.map(Playwright.Driver.driver_env(), fn {k, v} -> {~c"#{k}", ~c"#{v}"} end)
 
       port =
         Port.open({:spawn_executable, program}, [
@@ -359,19 +359,19 @@ defmodule PlaywrightEx.RemoteServer do
 
   defmodule RunServer do
     @moduledoc """
-    `run-server` started with the pinned driver (as `PlaywrightEx.Driver` runs `run-driver`).
+    `run-server` started with the pinned driver (as `Playwright.Driver` runs `run-driver`).
 
     Deviation: `close/1` kills the process with `kill -9`: `run-server` ignores SIGTERM, and
     an Erlang port can only close stdin. It exits when its stdin closes, see
-    `PlaywrightEx.RemoteServer.ChildProcess`: when the test BEAM dies, or the test process that
+    `Playwright.RemoteServer.ChildProcess`: when the test BEAM dies, or the test process that
     owns the port exits (before the `on_exit` callbacks).
     """
-    alias PlaywrightEx.RemoteServer.ChildProcess
+    alias Playwright.RemoteServer.ChildProcess
 
     defstruct [:port, :os_pid, :_wsEndpoint]
 
     def start(options \\ %{}) do
-      {program, args} = PlaywrightEx.Driver.ensure_installed()
+      {program, args} = Playwright.Driver.ensure_installed()
       command = args ++ ["run-server"]
       command = if options[:mode] == "extension", do: command ++ ["--mode=extension"], else: command
 
@@ -394,7 +394,7 @@ defmodule PlaywrightEx.RemoteServer do
           :exit_status,
           :stderr_to_stdout,
           args: command,
-          env: env ++ Enum.map(PlaywrightEx.Driver.driver_env(), fn {k, v} -> {~c"#{k}", ~c"#{v}"} end)
+          env: env ++ Enum.map(Playwright.Driver.driver_env(), fn {k, v} -> {~c"#{k}", ~c"#{v}"} end)
         ])
 
       {:os_pid, os_pid} = Port.info(port, :os_pid)
@@ -448,8 +448,8 @@ defmodule PlaywrightEx.RemoteServer do
   # After RunServer: Elixir 1.18 cannot expand %RunServer{} before it is defined.
   defmodule PlaywrightServer do
     @moduledoc "Upstream's `interface PlaywrightServer`: `wsEndpoint()` and `close()` of either kind."
-    alias PlaywrightEx.RemoteServer
-    alias PlaywrightEx.RemoteServer.RunServer
+    alias Playwright.RemoteServer
+    alias Playwright.RemoteServer.RunServer
 
     def ws_endpoint(%RunServer{} = server), do: RunServer.ws_endpoint(server)
     def ws_endpoint(%RemoteServer{} = server), do: RemoteServer.ws_endpoint(server)

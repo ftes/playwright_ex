@@ -2,19 +2,19 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.CoverageTest do
+defmodule Playwright.Library.CoverageTest do
   @upstream "tests/library/coverage.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Runtime.Api
-  alias PlaywrightEx.Tracing
-  alias PlaywrightEx.Utils
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Runtime.Api
+  alias Playwright.Tracing
+  alias Playwright.Utils
 
-  import PlaywrightEx.Utils, only: [parse_trace_coverage: 2]
+  import Playwright.Utils, only: [parse_trace_coverage: 2]
 
   @moduletag :tmp_dir
 
@@ -39,7 +39,7 @@ defmodule PlaywrightEx.Library.CoverageTest do
   # context.tracing.start({ _coverage: true } as any): the facade rejects `_coverage`, call the client.
   defp start_coverage(context) do
     tracing = BrowserContext.tracing(context)
-    Api.call("tracing.start", tracing, fn -> PlaywrightEx.Client.Tracing.start(tracing, %{_coverage: true}) end)
+    Api.call("tracing.start", tracing, fn -> Playwright.Client.Tracing.start(tracing, %{_coverage: true}) end)
   end
 
   defp tracing(context), do: BrowserContext.tracing(context)

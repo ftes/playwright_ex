@@ -2,7 +2,7 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.VideoPlayer do
+defmodule Playwright.VideoPlayer do
   @upstream "tests/library/videoPlayer.ts"
   @moduledoc """
   Port of upstream `#{@upstream}`: extracts the frames of a recorded video with ffmpeg and
@@ -15,7 +15,7 @@ defmodule PlaywrightEx.VideoPlayer do
 
   import Bitwise
 
-  alias PlaywrightEx.TestBrowser
+  alias Playwright.TestBrowser
 
   # `cache`  -- not ported: frames are decoded on demand (immutable struct)
   defstruct [:fileName, :output, :duration, :frames, :videoWidth, :videoHeight, :fps]

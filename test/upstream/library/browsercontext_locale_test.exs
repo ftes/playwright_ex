@@ -3,16 +3,16 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.BrowsercontextLocaleTest do
+defmodule Playwright.Library.BrowsercontextLocaleTest do
   @upstream "tests/library/browsercontext-locale.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.ConsoleMessage
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.TestServer
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.ConsoleMessage
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.TestServer
 
   defp header(conn, name), do: conn |> Plug.Conn.get_req_header(name) |> List.first()
 

@@ -2,16 +2,15 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
+defmodule Playwright.Library.GlobalFetchCookieTest do
   @upstream "tests/library/global-fetch-cookie.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.APIRequest
-  alias PlaywrightEx.APIRequestContext
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Playwright
-  alias PlaywrightEx.TestProxy
-  alias PlaywrightEx.TestServer
+  alias Playwright.APIRequest
+  alias Playwright.APIRequestContext
+  alias Playwright.Expect
+  alias Playwright.TestProxy
+  alias Playwright.TestServer
 
   # The spec overrides the `request` fixture: `playwright.request.newContext({ ignoreHTTPSErrors: true })`.
   @moduletag request: [ignore_https_errors: true]

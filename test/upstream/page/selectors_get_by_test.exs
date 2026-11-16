@@ -2,19 +2,18 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.SelectorsGetByTest do
+defmodule Playwright.Page.SelectorsGetByTest do
   @upstream "tests/page/selectors-get-by.spec.ts"
   # Not async: `selectors.setTestIdAttribute` sets the client's global test id attribute (module
   # state in JS), which would leak into `getByTestId` of concurrently running modules.
-  use PlaywrightEx.UpstreamCase, async: false
+  use Playwright.UpstreamCase, async: false
 
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Playwright
-  alias PlaywrightEx.RegExp
-  alias PlaywrightEx.Selectors
+  alias Playwright.Expect
+  alias Playwright.Frame
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.RegExp
+  alias Playwright.Selectors
 
   @moduletag :page
 

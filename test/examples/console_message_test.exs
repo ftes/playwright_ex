@@ -2,13 +2,13 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Examples.ConsoleMessageTest do
+defmodule Playwright.Examples.ConsoleMessageTest do
   # Elixir translations of upstream's JS examples, rendered into the facade docs (see ExampleCase).
-  use PlaywrightEx.ExampleCase, async: true
+  use Playwright.ExampleCase, async: true
 
-  alias PlaywrightEx.ConsoleMessage
-  alias PlaywrightEx.JSHandle
-  alias PlaywrightEx.Promise
+  alias Playwright.ConsoleMessage
+  alias Playwright.JSHandle
+  alias Playwright.Promise
 
   example "ConsoleMessage",
     js: ~S"""

@@ -13,7 +13,7 @@ defmodule Mix.PlaywrightEx.TestRegistry do
 
   Our mirrored tests are named as upstream's, which start with the identifier
   (`test "CH-017 should work"`): a test matches the row of its upstream file (`@upstream`) with
-  that identifier. `PlaywrightEx.UpstreamCase` skips the tests a rule matches, and
+  that identifier. `Playwright.UpstreamCase` skips the tests a rule matches, and
   `mix playwright_ex.parity` checks the rules against the tests.
   """
 

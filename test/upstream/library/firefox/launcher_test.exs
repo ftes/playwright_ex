@@ -2,15 +2,15 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.Firefox.LauncherTest do
+defmodule Playwright.Library.Firefox.LauncherTest do
   @upstream "tests/library/firefox/launcher.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.TestServer
+  alias Playwright.Browser
+  alias Playwright.BrowserType
+  alias Playwright.Expect
+  alias Playwright.Page
+  alias Playwright.TestServer
 
   @moduletag skip: if(System.get_env("BROWSER", "chromium") != "firefox", do: "upstream skip: Firefox only")
 

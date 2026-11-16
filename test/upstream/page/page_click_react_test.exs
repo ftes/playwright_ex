@@ -3,13 +3,13 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageClickReactTest do
+defmodule Playwright.Page.PageClickReactTest do
   @upstream "tests/page/page-click-react.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Dialog
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
+  alias Playwright.Dialog
+  alias Playwright.Page
+  alias Playwright.Promise
 
   @moduletag :page
 

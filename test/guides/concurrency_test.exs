@@ -1,10 +1,10 @@
-defmodule PlaywrightEx.Guides.ConcurrencyTest do
+defmodule Playwright.Guides.ConcurrencyTest do
   # The snippets of `guides/concurrency.md` that run against a page.
-  use PlaywrightEx.Case, async: true
+  use Playwright.Case, async: true
 
-  alias PlaywrightEx.Dialog
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Route
+  alias Playwright.Dialog
+  alias Playwright.Promise
+  alias Playwright.Route
 
   test "calls you await later: Promise.async before the action", %{page: page} do
     Page.set_content!(page, "<button>Go</button>")

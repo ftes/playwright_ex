@@ -24,7 +24,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
       protocol-only fields (`_crHasCrossSiteAncestor`) and must round-trip.
     * A positional `timeout` is a duration (`"duration"`: `waitForTimeout(timeout)`, no `:infinity`)
       unless its member sets a default timeout (`@timeout_args`: `setDefaultTimeout(timeout)`).
-    * Documents the Elixir forms of `timeout` and `signal` (a `PlaywrightEx.AbortSignal`), and
+    * Documents the Elixir forms of `timeout` and `signal` (a `Playwright.AbortSignal`), and
       drops notes that recommend the test runner's options instead (`Tracing`).
     * Page functions (`expression`, a `[function]|[string]` in JS) and init scripts (`script`)
       are JS source strings.
@@ -53,6 +53,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
       (`rpId`, which the positional argument overrides in the client too).
     * An option map of `selectOption` also takes `valueOrLabel`: the protocol and the JS client
       accept it and only JS's types leave it out, and a list can't mix strings with option maps.
+    * An Elixir introduction to a class's module docs (`@intros`: the root module `Playwright`).
     * Elixir notes appended to a member's docs (`@notes`: `getProperties` returns a map, which
       does not keep the property order).
     * Prose the generator's rules for JS names in docs cannot fix (`@prose_overrides`: JS calls
@@ -63,7 +64,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
       none in JS (`@callback_events`).
 
     * Assertions: `LocatorAssertions`, `PageAssertions` and `APIResponseAssertions` become one
-      class, `Expect` (`PlaywrightEx.Expect`): `expect(locator).toHaveText(...)` is
+      class, `Expect` (`Playwright.Expect`): `expect(locator).toHaveText(...)` is
       `Expect.to_have_text(locator, ...)`, as upstream's matchers are one set of functions on the
       receiver. Each matcher has a `"matcher"` (its JS name, `isNot`, the receiver classes) and a
       `not` form (`not_to_have_text`, the Python name of `expect(x).not.toHaveText`). Matchers of
@@ -78,9 +79,9 @@ defmodule Mix.PlaywrightEx.ApiRules do
       `expect.poll(actual, options)` (not in api.json either, the test runner's) are the matchers
       `to_pass` and `poll` of a function receiver (`"Function"`, the variable `callback`), with the
       docs of upstream's assertions guide. `poll` has no `not` form, and its matcher is an argument,
-      `assertion` (`"poll"`: `PlaywrightEx.Matchers.Expect.poll/3`), as the jest matchers are ExUnit's.
+      `assertion` (`"poll"`: `Playwright.Matchers.Expect.poll/3`), as the jest matchers are ExUnit's.
       Overloads are dropped, except that `toHaveAttribute(name, options)` makes `value` optional.
-      `toHaveScreenshot` takes `name` as an option, which a `PlaywrightEx.Test` test resolves, or
+      `toHaveScreenshot` takes `name` as an option, which a `Playwright.Test` test resolves, or
       the snapshot file as a `path` option (`to_have_screenshot(page, path: "home.png")`), as does
       `toMatchAriaSnapshot`, in place of `expected` (`to_match_aria_snapshot(page, path: "a.aria.yml")`).
       Their option docs
@@ -104,7 +105,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
   # BrowserServer, its result.
   @dropped_members ~w(BrowserType.launchServer)
 
-  # Exceptions (`PlaywrightEx.TimeoutError`), JS classes in api.json.
+  # Exceptions (`Playwright.TimeoutError`), JS classes in api.json.
   @exception_classes ~w(TimeoutError)
 
   # `session.on("Network.requestWillBeSent", ...)`: types.d.ts overloads `on` per CDP event.
@@ -141,8 +142,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
 
   @timeout_doc "In Elixir, `:infinity` is the same as `0`: no timeout."
   @expect_timeout_doc "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `timeout` in " <>
-                        "`config :playwright_ex, :expect` (`5000` if not set, see the configuration in `PlaywrightEx.Expect`)."
-  @signal_doc "In Elixir, a `PlaywrightEx.AbortSignal` (`PlaywrightEx.AbortController.signal/1`)."
+                        "`config :playwright_ex, :expect` (`5000` if not set, see the configuration in `Playwright.Expect`)."
+  @signal_doc "In Elixir, a `Playwright.AbortSignal` (`Playwright.AbortController.signal/1`)."
 
   # Assertion classes and the class of their receiver (`expect(receiver)`).
   @assertions %{"LocatorAssertions" => "Locator", "PageAssertions" => "Page", "APIResponseAssertions" => "APIResponse"}
@@ -217,6 +218,34 @@ defmodule Mix.PlaywrightEx.ApiRules do
       "In Elixir, the result is a map of property name to handle; unlike JS's `Map`, it does not keep the property order."
   }
 
+  # Class => an Elixir introduction to its module docs, before upstream's: the root module
+  # `Playwright` (upstream's `Playwright` class) introduces the library.
+  @intros %{
+    "Playwright" => """
+    Elixir client for Playwright, ported 1:1 from the official JavaScript client.
+
+    Start a driver with `Playwright.Supervisor`, then get the root object:
+
+        {:ok, _} = Playwright.Supervisor.start_link()
+        playwright = Playwright.instance()
+        {:ok, browser} = Playwright.BrowserType.launch(Playwright.chromium(playwright))
+        :ok = Playwright.Browser.close(browser)
+
+    > #### `timeout: 0` means no timeout {: .warning}
+    >
+    > As in Playwright JS, `timeout: 0` waits forever instead of failing at once. `:infinity` is
+    > the same and reads better in Elixir.
+
+    The public API (`Playwright`, `Playwright.BrowserType`, ...) is generated from
+    upstream's docs, so the docs at playwright.dev apply; the
+    [Getting started](getting-started.md) and
+    [From playwright.dev to Elixir](api-conventions.md) guides show how. Coming from 0.16: see
+    the [migration guide](migration.md).
+
+    ## The Playwright object\
+    """
+  }
+
   # Member name => inline code the prose rules leave alone: `getByRole`'s `disabled` is also the
   # HTML attribute.
   @prose_keep %{"getByRole" => ~w(disabled)}
@@ -270,7 +299,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
       Map.merge(class, %{
         "spec" => class["spec"] |> runner_notes() |> prose_overrides(class["name"]),
         "members" => members ++ callbacks,
-        "openEvents" => class["name"] in @open_events
+        "openEvents" => class["name"] in @open_events,
+        "intro" => @intros[class["name"]]
       })
     end
   end
@@ -402,12 +432,12 @@ defmodule Mix.PlaywrightEx.ApiRules do
               "`not_to_have_text(locator, expected)` or `locator |> not_() |> to_have_text(expected)`, and " <>
               "a soft assertion is `locator |> soft() |> to_have_text(expected)` (see `soft/1`). " <>
               "They retry until the expectation is met or the timeout " <>
-              "(5 seconds by default, see Configuration below) passes, then return `:ok` or `{:error, %PlaywrightEx.ExpectError{}}` " <>
-              "whose `matcherResult` mirrors JS; the bang forms raise the `PlaywrightEx.ExpectError` " <>
+              "(5 seconds by default, see Configuration below) passes, then return `:ok` or `{:error, %Playwright.ExpectError{}}` " <>
+              "whose `matcherResult` mirrors JS; the bang forms raise the `Playwright.ExpectError` " <>
               "([Testing with ExUnit](testing-with-exunit.md) shows how to wrap it in an `ExUnit.AssertionError`)."
         }
         | Enum.find(assertions, &(&1["name"] == "LocatorAssertions"))["spec"]
-      ] ++ [%{"type" => "text", "text" => "## Configuration\n\n" <> PlaywrightEx.Matchers.Expect.__config_doc__()}]
+      ] ++ [%{"type" => "text", "text" => "## Configuration\n\n" <> Playwright.Matchers.Expect.__config_doc__()}]
 
     others ++ [%{"name" => "Expect", "since" => "v1.17", "spec" => spec, "extends" => nil, "members" => members}]
   end
@@ -467,7 +497,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
       String.replace(
         text,
         "`TestConfig.expect`",
-        "`config :playwright_ex, :expect` (see the configuration in `PlaywrightEx.Expect`)"
+        "`config :playwright_ex, :expect` (see the configuration in `Playwright.Expect`)"
       )
 
   defp expect_config_doc(spec) when is_list(spec), do: Enum.map(spec, &expect_config_doc/1)
@@ -475,7 +505,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
   defp expect_config_doc(value), do: value
 
   # `toHaveScreenshot(name, options)`: `name` is an option (the object form `{ name }` of
-  # upstream's `nameOrOptions`), and `path` its stand-in outside a `PlaywrightEx.Test` test.
+  # upstream's `nameOrOptions`), and `path` its stand-in outside a `Playwright.Test` test.
   defp snapshot_path(%{"alias" => "toHaveScreenshot"} = member, args) do
     [%{"name" => "name"} = name, %{"name" => "options"} = options] = args
 
@@ -489,7 +519,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
               %{
                 "type" => "text",
                 "text" =>
-                  "In Elixir, a test of `PlaywrightEx.Test` resolves it to a file (see \"Snapshots\" in its " <>
+                  "In Elixir, a test of `Playwright.Test` resolves it to a file (see \"Snapshots\" in its " <>
                     "docs), and with neither `:name` nor `:path` names the snapshot after the test. On failure the " <>
                     "`-actual`, `-expected`, `-previous` and `-diff` images are written to the test's output dir."
               }
@@ -499,9 +529,9 @@ defmodule Mix.PlaywrightEx.ApiRules do
     path =
       path_option(
         name,
-        "The snapshot file, in place of `:name`, required outside a `PlaywrightEx.Test` test. Must have a `.png` " <>
+        "The snapshot file, in place of `:name`, required outside a `Playwright.Test` test. Must have a `.png` " <>
           "or `.webp` extension. A missing snapshot is written (see `:update_snapshots` in the configuration of " <>
-          "`PlaywrightEx.Expect`); on failure the `-actual`, `-expected`, `-previous` and `-diff` images are written next to it."
+          "`Playwright.Expect`); on failure the `-actual`, `-expected`, `-previous` and `-diff` images are written next to it."
       )
 
     options = update_in(options, ["type", "properties"], &[name_option, path | &1])
@@ -512,7 +542,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
       "lines" => [
         ~s{Expect.to_have_screenshot!(page, name: "image.png")},
         "",
-        "# Outside a PlaywrightEx.Test test",
+        "# Outside a Playwright.Test test",
         ~s{Expect.to_have_screenshot!(page, path: "test/snapshots/image.png")}
       ]
     }
@@ -526,7 +556,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
   end
 
   # `toMatchAriaSnapshot(options)`: the overload that reads a file, its `name` an option, and
-  # `path` its stand-in outside a `PlaywrightEx.Test` test.
+  # `path` its stand-in outside a `Playwright.Test` test.
   defp snapshot_path(%{"alias" => "toMatchAriaSnapshot"} = member, args) do
     [%{"name" => "expected"} = expected, %{"name" => "options"} = options] = args
 
@@ -546,7 +576,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
           %{
             "type" => "text",
             "text" =>
-              "In Elixir, in place of `expected`: a test of `PlaywrightEx.Test` resolves it to a file (see " <>
+              "In Elixir, in place of `expected`: a test of `Playwright.Test` resolves it to a file (see " <>
                 "\"Snapshots\" in its docs), and with neither `expected`, `:name` nor `:path` names the snapshot " <>
                 "after the test."
           }
@@ -559,7 +589,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
         "The snapshot file, in place of `expected` or `:name`. Its content is the expected snapshot. A missing " <>
           "snapshot is written, unless `:update_snapshots` is `:none` or the matcher is negated. With " <>
           "`:update_snapshots` set to `:all` it is always rewritten, with `:changed` when it differs (see the " <>
-          "configuration of `PlaywrightEx.Expect`)."
+          "configuration of `Playwright.Expect`)."
       )
 
     options = update_in(options, ["type", "properties"], &[name, path | &1])
@@ -570,7 +600,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
       "lines" => [
         ~s{Expect.to_match_aria_snapshot!(page, name: "body.aria.yml")},
         "",
-        "# Outside a PlaywrightEx.Test test",
+        "# Outside a Playwright.Test test",
         ~s{Expect.to_match_aria_snapshot!(page, path: "test/snapshots/body.aria.yml")}
       ]
     }
@@ -661,7 +691,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
           "text" =>
             "In Elixir, `soft/1` wraps the receiver as `not_/1` does, in either order: " <>
               "`locator |> Expect.soft() |> Expect.not_()` is `expect.soft(locator).not`, and the `not_to_*` matchers " <>
-              "take a soft receiver too. In a `PlaywrightEx.Test` test, a failed soft matcher returns `:ok` (the bang " <>
+              "take a soft receiver too. In a `Playwright.Test` test, a failed soft matcher returns `:ok` (the bang " <>
               "form too) and the test fails at the end of its body with all its errors. Outside such a test it fails " <>
               "as any matcher."
         }
@@ -700,7 +730,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
             "In Elixir, `message/2` wraps the receiver as `not_/1` and `soft/1` do, in any order with them: " <>
               "`locator |> Expect.soft() |> Expect.message(\"my soft assertion\")` is a soft assertion with a " <>
               "custom message. The message is the matcher's step title in a " <>
-              "`PlaywrightEx.Test` test and the first paragraph of its `PlaywrightEx.ExpectError`. A `:message` " <>
+              "`Playwright.Test` test and the first paragraph of its `Playwright.ExpectError`. A `:message` " <>
               "option of `poll/3` wins over it."
         }
       ],
@@ -728,8 +758,8 @@ defmodule Mix.PlaywrightEx.ApiRules do
             "spec" => [
               text(
                 "Time to retry the callback for in milliseconds. Defaults to `0`: until the test's timeout (none outside " <>
-                  "a `PlaywrightEx.Test` test), not the matchers' `timeout`. A default other than `0` is `:to_pass` in " <>
-                  "`config :playwright_ex, :expect` (see the configuration in `PlaywrightEx.Expect`). Within a test, it " <>
+                  "a `Playwright.Test` test), not the matchers' `timeout`. A default other than `0` is `:to_pass` in " <>
+                  "`config :playwright_ex, :expect` (see the configuration in `Playwright.Expect`). Within a test, it " <>
                   "ends before the test's timeout."
               )
             ]
@@ -759,7 +789,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
         text("Note that by default `toPass` has timeout 0 and does not respect custom expect timeout."),
         text(
           "In Elixir, the callback runs in the calling process and passes once it returns. A failure in it (a raise " <>
-            "such as an `ExUnit.AssertionError` or a `PlaywrightEx.ExpectError`, an exit) is retried; the last one is " <>
+            "such as an `ExUnit.AssertionError` or a `Playwright.ExpectError`, an exit) is retried; the last one is " <>
             "in the timeout's message. A callback still running at the deadline is not interrupted. A soft receiver " <>
             "(`callback |> Expect.soft() |> Expect.to_pass()`) works as for any matcher."
         )
@@ -1015,7 +1045,7 @@ defmodule Mix.PlaywrightEx.ApiRules do
         %{
           "type" => "text",
           "text" =>
-            "Ignored: the browser type of a device descriptor (`PlaywrightEx.Playwright.devices/1`), so one can be passed as options."
+            "Ignored: the browser type of a device descriptor (`Playwright.devices/1`), so one can be passed as options."
         }
       ]
     }

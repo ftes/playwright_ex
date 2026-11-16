@@ -1,0 +1,51 @@
+# Copyright (c) Microsoft Corporation.
+# Ported to Elixir and modified by the playwright_ex authors.
+# SPDX-License-Identifier: Apache-2.0
+
+defmodule Playwright.Client.CDPSession do
+  @upstream "packages/playwright-core/src/client/cdpSession.ts"
+  @moduledoc """
+  Port of `#{@upstream}`. CDP events are emitted under their method names
+  (`"Network.requestWillBeSent"`) with the raw params (string keys, JSON as the driver sends it).
+  """
+  use Playwright.Client.ChannelOwner, struct: Playwright.CDPSession
+
+  def from(cdp_session) do
+    cdp_session
+  end
+
+  def new(parent, type, guid, initializer) do
+    this = ChannelOwner.new(__MODULE__, parent, type, guid, initializer)
+
+    # Elixir only: on_sync, a pure state update.
+    EventEmitter.on_sync(_channel(this), "event", fn event ->
+      emit(this, event.method, event[:params])
+      emit(this, "event", event)
+    end)
+
+    # Elixir only: on_sync, a pure state update.
+    EventEmitter.on_sync(_channel(this), "close", fn _ ->
+      emit(this, "close", this)
+    end)
+
+    # this.on = super.on; this.addListener = ...; this.off = super.removeListener; ...  -- not ported: TS overload plumbing
+    this
+  end
+
+  def send(this, method, params \\ nil, options \\ %{}) do
+    options = options || %{}
+
+    result =
+      channel_call(this, :send, %{method: method, params: params}, %{
+        signal: options[:signal],
+        timeout: if(options[:timeout] == nil, do: 0, else: options.timeout)
+      })
+
+    result.result
+  end
+
+  def detach(this) do
+    channel_call(this, :detach, %{}, TimeoutSettings.k_no_timeout())
+    nil
+  end
+end

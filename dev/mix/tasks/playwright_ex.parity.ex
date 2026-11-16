@@ -6,7 +6,7 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
 
       mix playwright_ex.parity [--extra] [--north-star [--python-rules PATH]]
 
-  Sources: `PlaywrightEx.Upstream.ensure!/0` (the pinned upstream release).
+  Sources: `Playwright.Upstream.ensure!/0` (the pinned upstream release).
 
     * Completeness: every upstream client file (`packages/playwright-core/src/client/*.ts`) needs a
       module with `@upstream` for it (in `lib`, `dev` or `test/support`), unless listed with a reason in
@@ -37,7 +37,7 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
       `<>`, `if`/`case`/`cond` branches and module attributes): a reason that only lists API
       names, `not ported: <name>[ (<note>)][, <name>...]` (also joined with `and`), says those
       are missing. A `Class.member` among them (outside parentheses) whose class module
-      (`PlaywrightEx.Client.<Class>` or the facade `PlaywrightEx.<Class>`) exports the
+      (`Playwright.Client.<Class>` or the facade `Playwright.<Class>`) exports the
       snake_case function is a stale skip. Any other wording is an explanation and is not
       checked: a reason citing a ported member that still cannot be used says what is missing
       in words (`not ported: Page.removeAllListeners behavior option`).
@@ -90,12 +90,12 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
     "Browser.newContext(options.logger.log)" => :caller,
     "Browser.newPage(options.logger.isEnabled)" => :caller,
     "Browser.newPage(options.logger.log)" => :caller,
-    "BrowserContext.exposeBinding(callback)" => {:registrant, PlaywrightEx.Client.BrowserContext},
-    "BrowserContext.exposeFunction(callback)" => {:registrant, PlaywrightEx.Client.BrowserContext},
-    "BrowserContext.route(handler)" => {:registrant, PlaywrightEx.Client.RouteHandler},
-    "BrowserContext.route(url)" => {:registrant, PlaywrightEx.Client.RouteHandler},
-    "BrowserContext.routeWebSocket(handler)" => {:registrant, PlaywrightEx.Client.WebSocketRouteHandler},
-    "BrowserContext.routeWebSocket(url)" => {:registrant, PlaywrightEx.Client.WebSocketRouteHandler},
+    "BrowserContext.exposeBinding(callback)" => {:registrant, Playwright.Client.BrowserContext},
+    "BrowserContext.exposeFunction(callback)" => {:registrant, Playwright.Client.BrowserContext},
+    "BrowserContext.route(handler)" => {:registrant, Playwright.Client.RouteHandler},
+    "BrowserContext.route(url)" => {:registrant, Playwright.Client.RouteHandler},
+    "BrowserContext.routeWebSocket(handler)" => {:registrant, Playwright.Client.WebSocketRouteHandler},
+    "BrowserContext.routeWebSocket(url)" => {:registrant, Playwright.Client.WebSocketRouteHandler},
     "BrowserContext.unroute(handler)" => :caller,
     "BrowserContext.unroute(url)" => :caller,
     "BrowserContext.waitForConsoleMessage(options.predicate)" => :caller,
@@ -110,14 +110,14 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
     "Expect.toHaveURL(url)" => :caller,
     "Frame.waitForNavigation(options.url)" => :caller,
     "Frame.waitForURL(url)" => :caller,
-    "Page.addLocatorHandler(handler)" => {:registrant, PlaywrightEx.Client.Page},
-    "Page.exposeBinding(callback)" => {:registrant, PlaywrightEx.Client.Page},
-    "Page.exposeFunction(callback)" => {:registrant, PlaywrightEx.Client.Page},
+    "Page.addLocatorHandler(handler)" => {:registrant, Playwright.Client.Page},
+    "Page.exposeBinding(callback)" => {:registrant, Playwright.Client.Page},
+    "Page.exposeFunction(callback)" => {:registrant, Playwright.Client.Page},
     "Page.frame(frameSelector.url)" => :caller,
-    "Page.route(handler)" => {:registrant, PlaywrightEx.Client.RouteHandler},
-    "Page.route(url)" => {:registrant, PlaywrightEx.Client.RouteHandler},
-    "Page.routeWebSocket(handler)" => {:registrant, PlaywrightEx.Client.WebSocketRouteHandler},
-    "Page.routeWebSocket(url)" => {:registrant, PlaywrightEx.Client.WebSocketRouteHandler},
+    "Page.route(handler)" => {:registrant, Playwright.Client.RouteHandler},
+    "Page.route(url)" => {:registrant, Playwright.Client.RouteHandler},
+    "Page.routeWebSocket(handler)" => {:registrant, Playwright.Client.WebSocketRouteHandler},
+    "Page.routeWebSocket(url)" => {:registrant, Playwright.Client.WebSocketRouteHandler},
     "Page.unroute(handler)" => :caller,
     "Page.unroute(url)" => :caller,
     "Page.waitForConsoleMessage(options.predicate)" => :caller,
@@ -132,17 +132,17 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
     "Page.waitForURL(url)" => :caller,
     "Page.waitForWebSocket(options.predicate)" => :caller,
     "Page.waitForWorker(options.predicate)" => :caller,
-    "Screencast.start(options.onFrame)" => {:registrant, PlaywrightEx.Client.Screencast},
+    "Screencast.start(options.onFrame)" => {:registrant, Playwright.Client.Screencast},
     "WebSocket.waitForEvent(options.predicate)" => :caller,
-    "WebSocketRoute.onClose(handler)" => {:registrant, PlaywrightEx.Client.WebSocketRoute},
-    "WebSocketRoute.onMessage(handler)" => {:registrant, PlaywrightEx.Client.WebSocketRoute},
+    "WebSocketRoute.onClose(handler)" => {:registrant, Playwright.Client.WebSocketRoute},
+    "WebSocketRoute.onMessage(handler)" => {:registrant, Playwright.Client.WebSocketRoute},
     "Worker.waitForEvent(options.predicate)" => :caller
   }
 
   @impl true
   def run(argv) do
     {opts, _} = OptionParser.parse!(argv, strict: [extra: :boolean, north_star: :boolean, python_rules: :string])
-    upstream = PlaywrightEx.Upstream.ensure!()
+    upstream = Playwright.Upstream.ensure!()
     Mix.Task.run("compile")
 
     lib_modules =
@@ -830,7 +830,7 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
 
   defp python_rules(nil) do
     path = Path.join(System.tmp_dir!(), "playwright-python-upstream_not_ported.txt")
-    PlaywrightEx.Driver.download!(@python_rules, path)
+    Playwright.Driver.download!(@python_rules, path)
     python_rules(path)
   end
 
@@ -964,7 +964,7 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
   def ported?(class, member) do
     name = underscore(member)
 
-    Enum.any?([PlaywrightEx.Client, PlaywrightEx], fn namespace ->
+    Enum.any?([Playwright.Client, Playwright], fn namespace ->
       module = Module.concat(namespace, class)
 
       Code.ensure_loaded?(module) and

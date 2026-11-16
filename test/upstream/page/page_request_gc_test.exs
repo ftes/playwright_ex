@@ -2,12 +2,12 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageRequestGcTest do
+defmodule Playwright.Page.PageRequestGcTest do
   @upstream "tests/page/page-request-gc.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
+  alias Playwright.Locator
+  alias Playwright.Page
 
   @moduletag :page
 

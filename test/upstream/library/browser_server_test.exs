@@ -2,16 +2,16 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.BrowserServerTest do
+defmodule Playwright.Library.BrowserServerTest do
   @upstream "tests/library/browser-server.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.TestBrowser
-  alias PlaywrightEx.Utils
+  alias Playwright.Browser
+  alias Playwright.BrowserType
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.TestBrowser
+  alias Playwright.Utils
 
   # it.skip(({ mode }) => mode !== 'default')  -- always default mode
 

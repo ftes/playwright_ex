@@ -3,27 +3,26 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
+defmodule Playwright.Library.Chromium.ChromiumTest do
   @upstream "tests/library/chromium/chromium.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Expect
+  alias Playwright.Expect
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.CDPSession
-  alias PlaywrightEx.ConsoleMessage
-  alias PlaywrightEx.JSHandle
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Playwright
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Request
-  alias PlaywrightEx.Response
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TestServer
-  alias PlaywrightEx.Worker
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.BrowserType
+  alias Playwright.CDPSession
+  alias Playwright.ConsoleMessage
+  alias Playwright.JSHandle
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Request
+  alias Playwright.Response
+  alias Playwright.Route
+  alias Playwright.Runtime
+  alias Playwright.TestServer
+  alias Playwright.Worker
 
   @chromium_only if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: chromium only")
   @moduletag skip: @chromium_only
@@ -60,8 +59,8 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     do: BrowserContext.wait_for_event(context, :response, predicate)
 
   # `r.url().endsWith(suffix)` of a request or response.
-  defp url_ends_with?(%PlaywrightEx.Request{} = r, suffix), do: String.ends_with?(Request.url(r), suffix)
-  defp url_ends_with?(%PlaywrightEx.Response{} = r, suffix), do: String.ends_with?(Response.url(r), suffix)
+  defp url_ends_with?(%Playwright.Request{} = r, suffix), do: String.ends_with?(Request.url(r), suffix)
+  defp url_ends_with?(%Playwright.Response{} = r, suffix), do: String.ends_with?(Response.url(r), suffix)
 
   defp js_response(conn, body) do
     conn |> Plug.Conn.put_resp_header("content-type", "text/javascript") |> Plug.Conn.send_resp(200, body)
@@ -864,7 +863,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     @tag :headed
     @tag skip:
            @chromium_only ||
-             if(PlaywrightEx.TestBrowser.headless(), do: "upstream skip: WebUI pages are not available in headless")
+             if(Playwright.TestBrowser.headless(), do: "upstream skip: WebUI pages are not available in headless")
     test "CR-029 should navigate to WebUI pages that work in an isolated context", %{page: page} do
       response = Page.goto!(page, "chrome://version")
       assert Response.status(response) == 200
@@ -873,7 +872,7 @@ defmodule PlaywrightEx.Library.Chromium.ChromiumTest do
     @tag :headed
     @tag skip:
            @chromium_only ||
-             if(PlaywrightEx.TestBrowser.headless(), do: "upstream skip: WebUI pages are not available in headless")
+             if(Playwright.TestBrowser.headless(), do: "upstream skip: WebUI pages are not available in headless")
     test "CR-030 should navigate to any WebUI page in a persistent context", %{
       browser_type: browser_type,
       create_user_data_dir: create_user_data_dir

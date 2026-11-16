@@ -2,24 +2,24 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.RouteWebSocketTest do
+defmodule Playwright.Library.RouteWebSocketTest do
   @upstream "tests/library/route-web-socket.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Expect
+  alias Playwright.Expect
 
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.TestServer
-  alias PlaywrightEx.Utils
-  alias PlaywrightEx.WebSocketRoute
+  alias Playwright.BrowserContext
+  alias Playwright.Frame
+  alias Playwright.Page
+  alias Playwright.TestServer
+  alias Playwright.Utils
+  alias Playwright.WebSocketRoute
 
   @moduletag :page
 
   # `target: Page | Frame`
   defp setup_ws(target, server, binary_type, protocols \\ nil, relative_url \\ false) do
-    facade = if is_struct(target, PlaywrightEx.Frame), do: Frame, else: Page
+    facade = if is_struct(target, Playwright.Frame), do: Frame, else: Page
     facade.goto!(target, server.empty_page)
     ws_url = if relative_url, do: "/ws", else: "ws://" <> server.host <> "/ws"
 

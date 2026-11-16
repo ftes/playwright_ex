@@ -2,15 +2,15 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageEvaluateCallbackTest do
+defmodule Playwright.Page.PageEvaluateCallbackTest do
   @upstream "tests/page/page-evaluate-callback.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.JSHandle
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Utils
+  alias Playwright.Frame
+  alias Playwright.JSHandle
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Utils
 
   @moduletag :page
 
@@ -338,7 +338,7 @@ defmodule PlaywrightEx.Page.PageEvaluateCallbackTest do
     Frame.evaluate!(frame, "() => { document.body.innerHTML = '<div id=target>in-frame</div>'; }")
 
     Page.frame_locator(page, "#frame1")
-    |> PlaywrightEx.FrameLocator.locator("#target")
+    |> Playwright.FrameLocator.locator("#target")
     |> Locator.evaluate!("async (element, { cb }) => { await cb(element.textContent); }", %{cb: push(self())},
       expose_functions: true
     )

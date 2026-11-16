@@ -3,15 +3,15 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageDialogTest do
+defmodule Playwright.Page.PageDialogTest do
   @upstream "tests/page/page-dialog.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Expect
+  alias Playwright.Expect
 
-  alias PlaywrightEx.Dialog
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
+  alias Playwright.Dialog
+  alias Playwright.Page
+  alias Playwright.Promise
 
   @moduletag :page
 

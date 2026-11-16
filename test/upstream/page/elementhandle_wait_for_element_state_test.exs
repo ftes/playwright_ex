@@ -3,16 +3,16 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.ElementhandleWaitForElementStateTest do
+defmodule Playwright.Page.ElementhandleWaitForElementStateTest do
   @upstream "tests/page/elementhandle-wait-for-element-state.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  import PlaywrightEx.Utils, only: [rafraf: 1, rafraf: 2]
+  import Playwright.Utils, only: [rafraf: 1, rafraf: 2]
 
-  alias PlaywrightEx.ElementHandle
-  alias PlaywrightEx.JSHandle
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Runtime
+  alias Playwright.ElementHandle
+  alias Playwright.JSHandle
+  alias Playwright.Page
+  alias Playwright.Runtime
 
   @moduletag :page
 

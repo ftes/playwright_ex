@@ -3,22 +3,22 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.ScreenshotTest do
+defmodule Playwright.Library.ScreenshotTest do
   @upstream "tests/library/screenshot.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  import PlaywrightEx.UpstreamSnapshot
+  import Playwright.UpstreamSnapshot
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.ElementHandle
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.TestServer
-  alias PlaywrightEx.Utils
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.ElementHandle
+  alias Playwright.Expect
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.TestServer
+  alias Playwright.Utils
 
   # PNG.sync.read (pngjs): enough of a decoder for the browsers' screenshots (8-bit, not
   # interlaced, RGB or RGBA).
@@ -589,7 +589,7 @@ defmodule PlaywrightEx.Library.ScreenshotTest do
 
       File.cp!(
         Path.join(
-          PlaywrightEx.Upstream.dir(),
+          Playwright.Upstream.dir(),
           "tests/library/screenshot.spec.ts-snapshots/element-screenshot-SS-094-page-screenshot-should-capture-css-transform-with-device-pixels-1-#{browser_name}.png"
         ),
         path

@@ -2,13 +2,13 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.NetworkPostDataTest do
+defmodule Playwright.Page.NetworkPostDataTest do
   @upstream "tests/page/network-post-data.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Request
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Request
 
   @moduletag :page
 

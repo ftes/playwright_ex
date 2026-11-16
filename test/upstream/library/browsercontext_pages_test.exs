@@ -3,23 +3,22 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.BrowsercontextPagesTest do
+defmodule Playwright.Library.BrowsercontextPagesTest do
   @upstream "tests/library/browsercontext-pages.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
   import ExUnit.CaptureLog
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.ElementHandle
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.JSHandle
-  alias PlaywrightEx.Mouse
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Playwright
-  alias PlaywrightEx.Utils
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.ElementHandle
+  alias Playwright.Frame
+  alias Playwright.JSHandle
+  alias Playwright.Mouse
+  alias Playwright.Page
+  alias Playwright.Utils
 
   test "BC-051 should not be visible in context.pages", %{context_factory: context_factory} do
     context = context_factory.([])

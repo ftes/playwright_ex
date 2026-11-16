@@ -1,29 +1,28 @@
-defmodule PlaywrightEx.Guides.MigrationTest do
+defmodule Playwright.Guides.MigrationTest do
   # The snippets of `guides/migration.md`, run against the facade.
   use ExUnit.Case, async: true
 
-  alias PlaywrightEx.AbortController
-  alias PlaywrightEx.AbortError
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.ConsoleMessage
-  alias PlaywrightEx.Dialog
-  alias PlaywrightEx.Download
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Mouse
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Playwright
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Request
-  alias PlaywrightEx.Response
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.Selectors
-  alias PlaywrightEx.TestBrowser
-  alias PlaywrightEx.TimeoutError
-  alias PlaywrightEx.Tracing
-  alias PlaywrightEx.WebError
+  alias Playwright.AbortController
+  alias Playwright.AbortError
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.BrowserType
+  alias Playwright.ConsoleMessage
+  alias Playwright.Dialog
+  alias Playwright.Download
+  alias Playwright.Expect
+  alias Playwright.Locator
+  alias Playwright.Mouse
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Request
+  alias Playwright.Response
+  alias Playwright.Route
+  alias Playwright.Selectors
+  alias Playwright.TestBrowser
+  alias Playwright.TimeoutError
+  alias Playwright.Tracing
+  alias Playwright.WebError
 
   @moduletag :tmp_dir
 
@@ -42,8 +41,8 @@ defmodule PlaywrightEx.Guides.MigrationTest do
   """
 
   setup_all do
-    start_supervised!({PlaywrightEx.Supervisor, name: __MODULE__})
-    playwright = PlaywrightEx.playwright(__MODULE__)
+    start_supervised!({Playwright.Supervisor, name: __MODULE__})
+    playwright = Playwright.instance(__MODULE__)
     browser = BrowserType.launch!(TestBrowser.browser_type(playwright))
     %{playwright: playwright, browser: browser}
   end
@@ -132,10 +131,10 @@ defmodule PlaywrightEx.Guides.MigrationTest do
     Page.get_by_label(page, "Accept") |> Locator.set_checked!(false)
 
     chooser = Page.expect_file_chooser!(page, fn -> Locator.click!(Page.locator(page, "input[type=file]")) end)
-    PlaywrightEx.FileChooser.set_files!(chooser, %{name: "a.txt", mimeType: "text/plain", buffer: "x"})
+    Playwright.FileChooser.set_files!(chooser, %{name: "a.txt", mimeType: "text/plain", buffer: "x"})
 
-    PlaywrightEx.Clock.install!(BrowserContext.clock(context))
-    PlaywrightEx.Clock.fast_forward!(BrowserContext.clock(context), 1000)
+    Playwright.Clock.install!(BrowserContext.clock(context))
+    Playwright.Clock.fast_forward!(BrowserContext.clock(context), 1000)
   end
 
   test "js logger recipe", %{context: context, page: page} do
@@ -183,7 +182,7 @@ defmodule PlaywrightEx.Guides.MigrationTest do
 
     popup = Page.wait_for_event(page, :popup)
     Page.get_by_text(page, "Open") |> Locator.click!()
-    assert %PlaywrightEx.Page{} = Promise.await!(popup)
+    assert %Playwright.Page{} = Promise.await!(popup)
 
     {:ok, popup} = Page.expect_popup(page, fn -> Page.get_by_text(page, "Open") |> Locator.click!() end)
     assert Page.url(popup) == "http://app.test/popup"

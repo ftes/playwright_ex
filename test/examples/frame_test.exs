@@ -2,13 +2,13 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Examples.FrameTest do
+defmodule Playwright.Examples.FrameTest do
   # Elixir translations of upstream's JS examples, rendered into the facade docs (see ExampleCase).
-  use PlaywrightEx.ExampleCase, async: true
+  use Playwright.ExampleCase, async: true
 
-  alias PlaywrightEx.ElementHandle
-  alias PlaywrightEx.JSHandle
-  alias PlaywrightEx.TestBrowser
+  alias Playwright.ElementHandle
+  alias Playwright.JSHandle
+  alias Playwright.TestBrowser
 
   @select """
   <select id="colors" multiple>

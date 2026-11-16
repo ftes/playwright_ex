@@ -7,7 +7,7 @@
 # the reason. A selector is a test identifier (CH-017), a subsystem code (CG), or an upstream
 # file glob without ".spec.ts" (library/unit/*). The checker fails on a rule that matches no
 # test at the pin, and on a test that is ported and also matches a rule.
-# `PlaywrightEx.UpstreamCase` skips the mirrored tests a rule matches ("not ported: <reason>"),
+# `Playwright.UpstreamCase` skips the mirrored tests a rule matches ("not ported: <reason>"),
 # so they stay bodiless, in spec order, without a skip tag.
 # Same format as playwright-python's tests/upstream_not_ported.txt and playwright-java's
 # upstream_not_ported.txt; `mix playwright_ex.parity --north-star` compares them.

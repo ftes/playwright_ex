@@ -3,19 +3,19 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageWaitForSelector2Test do
+defmodule Playwright.Page.PageWaitForSelector2Test do
   @upstream "tests/page/page-wait-for-selector-2.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.ElementHandle
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.JSHandle
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TimeoutError
-  alias PlaywrightEx.Utils
+  alias Playwright.ElementHandle
+  alias Playwright.Expect
+  alias Playwright.Frame
+  alias Playwright.JSHandle
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Runtime
+  alias Playwright.TimeoutError
+  alias Playwright.Utils
 
   @moduletag :page
 

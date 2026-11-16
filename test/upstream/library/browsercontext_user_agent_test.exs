@@ -3,24 +3,23 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.BrowsercontextUserAgentTest do
+defmodule Playwright.Library.BrowsercontextUserAgentTest do
   @upstream "tests/library/browsercontext-user-agent.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Playwright
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Request
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TestServer
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Request
+  alias Playwright.Route
+  alias Playwright.Runtime
+  alias Playwright.TestServer
 
-  import PlaywrightEx.Utils, only: [attach_frame: 3]
+  import Playwright.Utils, only: [attach_frame: 3]
 
   defp header(conn, name), do: List.first(Plug.Conn.get_req_header(conn, name))
 

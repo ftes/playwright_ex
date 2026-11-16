@@ -2,12 +2,12 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.ExpectMatcherResultTest do
+defmodule Playwright.Page.ExpectMatcherResultTest do
   @upstream "tests/page/expect-matcher-result.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Page
+  alias Playwright.Expect
+  alias Playwright.Page
 
   @moduletag :page
 
@@ -326,7 +326,7 @@ defmodule PlaywrightEx.Page.ExpectMatcherResultTest do
 
     File.cp!(
       Path.join(
-        PlaywrightEx.Upstream.dir(),
+        Playwright.Upstream.dir(),
         "tests/page/expect-matcher-result.spec.ts-snapshots/screenshot-sanity-#{browser_name}.png"
       ),
       path

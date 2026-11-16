@@ -2,19 +2,18 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.FetchProxyTest do
+defmodule Playwright.Library.FetchProxyTest do
   @upstream "tests/library/fetch-proxy.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.APIRequest
-  alias PlaywrightEx.APIRequestContext
-  alias PlaywrightEx.APIResponse
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Playwright
-  alias PlaywrightEx.TestProxy
-  alias PlaywrightEx.TestServer
+  alias Playwright.APIRequest
+  alias Playwright.APIRequestContext
+  alias Playwright.APIResponse
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.BrowserType
+  alias Playwright.TestProxy
+  alias Playwright.TestServer
 
   # it.skip(({ mode }) => mode !== 'default');  -- always the default mode
 

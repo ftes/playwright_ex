@@ -2,16 +2,16 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
+defmodule Playwright.Library.UnrouteBehaviorTest do
   @upstream "tests/library/unroute-behavior.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Request
-  alias PlaywrightEx.Response
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.Runtime
+  alias Playwright.BrowserContext
+  alias Playwright.Page
+  alias Playwright.Request
+  alias Playwright.Response
+  alias Playwright.Route
+  alias Playwright.Runtime
 
   @moduletag :page
 
@@ -31,7 +31,7 @@ defmodule PlaywrightEx.Library.UnrouteBehaviorTest do
 
   # `await new Promise(() => {})`: never settles (a wait that never fires, ended by the close).
   defp await_forever(page) do
-    PlaywrightEx.Promise.await(Page.wait_for_event(page, :console, predicate: fn _ -> false end, timeout: 0))
+    Playwright.Promise.await(Page.wait_for_event(page, :console, predicate: fn _ -> false end, timeout: 0))
   end
 
   test "RO-186 context.unroute should not wait for pending handlers to complete",

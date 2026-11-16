@@ -3,9 +3,9 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageClickDuringNavigationTest do
+defmodule Playwright.Page.PageClickDuringNavigationTest do
   @upstream "tests/page/page-click-during-navigation.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @moduletag :page
 

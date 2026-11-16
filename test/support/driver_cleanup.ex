@@ -1,6 +1,6 @@
-defmodule PlaywrightEx.DriverCleanup do
+defmodule Playwright.DriverCleanup do
   @moduledoc """
-  The suite's cleanup on `PlaywrightEx.Test`'s pooled drivers (`UpstreamCase`, `ExampleCase`),
+  The suite's cleanup on `Playwright.Test`'s pooled drivers (`UpstreamCase`, `ExampleCase`),
   which a passing module hands on, warm, to the next: it touches only what a test or module
   created.
 
@@ -10,11 +10,11 @@ defmodule PlaywrightEx.DriverCleanup do
   process (a `setup_all` that launches a browser). Upstream leaves both to the worker's end;
   here a worker outlives its module. Option `:keep`: the browsers not to close, the module's.
   """
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Client
-  alias PlaywrightEx.Runtime.Api
-  alias PlaywrightEx.Runtime.Heap
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.Client
+  alias Playwright.Runtime.Api
+  alias Playwright.Runtime.Heap
 
   require Logger
 

@@ -43,12 +43,12 @@ defmodule Mix.Tasks.PlaywrightEx.ParityTest do
 
   test "root_module/2: the only declaring module, else the one named after the file" do
     mod = &%{name: &1, declares_upstream: &2}
-    request = mod.(PlaywrightEx.Client.Request, true)
-    network = mod.(PlaywrightEx.Client.Network, true)
-    root = mod.(PlaywrightEx.Client.Connection.Root, false)
-    connection = mod.(PlaywrightEx.Client.Connection, true)
-    keyboard = mod.(PlaywrightEx.Client.Keyboard, true)
-    mouse = mod.(PlaywrightEx.Client.Mouse, true)
+    request = mod.(Playwright.Client.Request, true)
+    network = mod.(Playwright.Client.Network, true)
+    root = mod.(Playwright.Client.Connection.Root, false)
+    connection = mod.(Playwright.Client.Connection, true)
+    keyboard = mod.(Playwright.Client.Keyboard, true)
+    mouse = mod.(Playwright.Client.Mouse, true)
 
     assert Parity.root_module("src/client/network.ts", [request, network]) == network
     assert Parity.root_module("src/client/connection.ts", [root, connection]) == connection
@@ -283,16 +283,16 @@ defmodule Mix.Tasks.PlaywrightEx.ParityTest do
     params = ~w[Page.route(url) Page.onX(handler) Page.waitForX(predicate) Page.onY(handler)]
 
     table = %{
-      "Page.route(url)" => {:registrant, PlaywrightEx.Client.RouteHandler},
+      "Page.route(url)" => {:registrant, Playwright.Client.RouteHandler},
       "Page.waitForX(predicate)" => :caller,
-      "Page.onY(handler)" => {:registrant, PlaywrightEx.Client.Mouse},
+      "Page.onY(handler)" => {:registrant, Playwright.Client.Mouse},
       "Page.gone(handler)" => :caller
     }
 
     assert Parity.check_function_params(params, table) == [
              "Page.onX(handler): function-typed, say where the client calls it in @function_params (PORTING.md, `$callers`)",
              "Page.gone(handler): in @function_params but no function-typed parameter at this pin, drop it",
-             "Page.onY(handler): PlaywrightEx.Client.Mouse does not run it under `$callers` (`Runtime.Callers`)"
+             "Page.onY(handler): Playwright.Client.Mouse does not run it under `$callers` (`Runtime.Callers`)"
            ]
   end
 

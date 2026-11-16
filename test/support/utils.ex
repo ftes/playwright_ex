@@ -2,13 +2,13 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Utils do
+defmodule Playwright.Utils do
   @upstream "tests/config/utils.ts"
   @moduledoc "Port of upstream `#{@upstream}`: helpers of the mirrored specs, on the public API."
 
-  alias PlaywrightEx.ElementHandle
-  alias PlaywrightEx.JSHandle
-  alias PlaywrightEx.Page
+  alias Playwright.ElementHandle
+  alias Playwright.JSHandle
+  alias Playwright.Page
 
   def attach_frame(page, frame_id, url) do
     handle =
@@ -190,7 +190,7 @@ defmodule PlaywrightEx.Utils do
 
   # isomorphic/protocolFormatter.ts renderFullTitleForCall({ ...action, type: action.class })
   defp render_full_title_for_call(action, handle) do
-    meta = PlaywrightEx.Protocol.Metainfo.get_metainfo(%{type: action["class"], method: action["method"]}) || %{}
+    meta = Playwright.Protocol.Metainfo.get_metainfo(%{type: action["class"], method: action["method"]}) || %{}
     title = render_format(action["title"] || meta[:title] || action["method"], action["params"], handle)
 
     subtitle =
@@ -250,11 +250,11 @@ defmodule PlaywrightEx.Utils do
   end
 
   defp as_locator_description(handle, selector) do
-    import PlaywrightEx.Runtime.Heap
-    local_utils = PlaywrightEx.Client.Connection.local_utils(get(handle, :_connection))
+    import Playwright.Runtime.Heap
+    local_utils = Playwright.Client.Connection.local_utils(get(handle, :_connection))
 
-    PlaywrightEx.Runtime.Api.call(nil, local_utils, fn ->
-      PlaywrightEx.Client.ChannelOwner.channel_call(local_utils, :asLocatorDescription, %{
+    Playwright.Runtime.Api.call(nil, local_utils, fn ->
+      Playwright.Client.ChannelOwner.channel_call(local_utils, :asLocatorDescription, %{
         selector: selector,
         sdkLanguage: "javascript"
       }).description
@@ -262,7 +262,7 @@ defmodule PlaywrightEx.Utils do
   end
 
   @doc """
-  `expect(value).toBeTruthy()` on a value decoded from JS (`PlaywrightEx.Protocol.Serializers`):
+  `expect(value).toBeTruthy()` on a value decoded from JS (`Playwright.Protocol.Serializers`):
   `:null` (`null`) and `:nan` (`NaN`) are truthy in Elixir, falsy in JS, as are `0`, `-0` and `""`.
   """
   def assert_truthy(value) do

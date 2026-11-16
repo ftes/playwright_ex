@@ -4,16 +4,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # The `dummyServerPort` / `ipV6ServerPort` servers: every request gets the body.
-defmodule PlaywrightEx.Library.BrowsertypeConnectTest.BodyPlug do
+defmodule Playwright.Library.BrowsertypeConnectTest.BodyPlug do
   @moduledoc false
   @behaviour Plug
   def init(body), do: body
   def call(conn, body), do: Plug.Conn.send_resp(conn, 200, body)
 end
 
-defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
+defmodule Playwright.Library.BrowsertypeConnectTest do
   @upstream "tests/library/browsertype-connect.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
@@ -22,34 +22,33 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
   # out the partitions, but it stays one file to mirror upstream's spec.
   @moduletag timeout: @slow_timeout
 
-  import PlaywrightEx.Utils, only: [ensure_some_frames: 1, parse_trace_raw: 2]
+  import Playwright.Utils, only: [ensure_some_frames: 1, parse_trace_raw: 2]
 
-  alias PlaywrightEx.APIRequest
-  alias PlaywrightEx.APIRequestContext
-  alias PlaywrightEx.APIResponse
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Download
-  alias PlaywrightEx.ElementHandle
-  alias PlaywrightEx.JSHandle
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Playwright
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.RemoteServer
-  alias PlaywrightEx.RemoteServer.PlaywrightServer
-  alias PlaywrightEx.RemoteServer.RunServer
-  alias PlaywrightEx.Response
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.Runtime.Facade
-  alias PlaywrightEx.Runtime.Heap
-  alias PlaywrightEx.Selectors
-  alias PlaywrightEx.TestServer
-  alias PlaywrightEx.Tracing
-  alias PlaywrightEx.Utils
-  alias PlaywrightEx.Video
+  alias Playwright.APIRequest
+  alias Playwright.APIRequestContext
+  alias Playwright.APIResponse
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.BrowserType
+  alias Playwright.Download
+  alias Playwright.ElementHandle
+  alias Playwright.JSHandle
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.RemoteServer
+  alias Playwright.RemoteServer.PlaywrightServer
+  alias Playwright.RemoteServer.RunServer
+  alias Playwright.Response
+  alias Playwright.Route
+  alias Playwright.Runtime
+  alias Playwright.Runtime.Facade
+  alias Playwright.Runtime.Heap
+  alias Playwright.Selectors
+  alias Playwright.TestServer
+  alias Playwright.Tracing
+  alias Playwright.Utils
+  alias Playwright.Video
 
   # Deviations:
   #   * `remoteServer.close()` kills `run-server` with `kill -9` (it ignores SIGTERM).
@@ -108,7 +107,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
               do: {js, options[key]}
 
         Facade.async("browserType.connect", browser_type, fn ->
-          PlaywrightEx.Client.BrowserType.connect(browser_type, ws_endpoint, params)
+          Playwright.Client.BrowserType.connect(browser_type, ws_endpoint, params)
         end)
       end
 
@@ -433,7 +432,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         # deviation: `connect({ wsEndpoint, ...options })`, a types.d.ts overload, is not in api.json
         # (the facade has no object form): the test calls the client's.
         Facade.promise("browserType.connect", browser_type, fn ->
-          PlaywrightEx.Client.BrowserType.connect(browser_type, %{
+          Playwright.Client.BrowserType.connect(browser_type, %{
             wsEndpoint: "ws://localhost:#{server.port}/ws",
             headers: %{"User-Agent" => "Playwright", "foo" => "bar"},
             timeout: 3000
@@ -454,7 +453,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         connect(browser_type, "ws://localhost:#{server.port}/ws", headers: %{"foo" => "bar"}, timeout: 100)
         request = Task.await(request, :infinity)
         # `getUserAgent()` of the driver (the test can't compute it): `Playwright/<version> (<os>) ...`.
-        assert header(request, "user-agent") =~ ~r"^Playwright/#{PlaywrightEx.Driver.version()} \(.+\) "
+        assert header(request, "user-agent") =~ ~r"^Playwright/#{Playwright.Driver.version()} \(.+\) "
         assert header(request, "x-playwright-browser") == browser_name
         assert header(request, "foo") == "bar"
       end
@@ -697,7 +696,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         # under load it settled a few ms after `disconnected`. The listener awaits the wait: it is
         # rejected by the disconnect (TargetClosedError, not its 30 s timeout).
         Browser.on(browser, :disconnected, fn _ ->
-          if match?({:error, %PlaywrightEx.TargetClosedError{}}, Promise.await(promise)),
+          if match?({:error, %Playwright.TargetClosedError{}}, Promise.await(promise)),
             do: send(test, {:log, "rejected"})
 
           send(test, {:log, "disconnected"})
@@ -946,8 +945,8 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
 
         ref = disconnected(browser)
         # This closes the websocket.
-        connection = PlaywrightEx.Runtime.Heap.get(browser, :_connection)
-        PlaywrightEx.Runtime.Api.call(nil, browser, fn -> PlaywrightEx.Client.Connection.close(connection) end)
+        connection = Playwright.Runtime.Heap.get(browser, :_connection)
+        Playwright.Runtime.Api.call(nil, browser, fn -> Playwright.Client.Connection.close(connection) end)
         assert_receive {^ref, _}
         assert Browser.is_connected(browser) == false
 
@@ -1012,15 +1011,15 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
         tmp_dir: tmp_dir
       } do
         traces_dir = Path.join(tmp_dir, "traces")
-        playwright = PlaywrightEx.Runtime.Heap.get(browser_type, :_playwright)
-        old_traces_dir = PlaywrightEx.Runtime.Heap.get(playwright, :_defaultTracesDir)
-        PlaywrightEx.Runtime.Heap.put(playwright, :_defaultTracesDir, traces_dir)
+        playwright = Playwright.Runtime.Heap.get(browser_type, :_playwright)
+        old_traces_dir = Playwright.Runtime.Heap.get(playwright, :_defaultTracesDir)
+        Playwright.Runtime.Heap.put(playwright, :_defaultTracesDir, traces_dir)
         remote_server = start_remote_server.(kind, %{})
         browser = connect!(browser_type, PlaywrightServer.ws_endpoint(remote_server))
         page = Browser.new_page!(browser)
         Page.goto!(page, server.empty_page)
         Browser.close!(browser)
-        PlaywrightEx.Runtime.Heap.put(playwright, :_defaultTracesDir, old_traces_dir)
+        Playwright.Runtime.Heap.put(playwright, :_defaultTracesDir, old_traces_dir)
         assert File.exists?(traces_dir) == false
       end
 
@@ -1593,7 +1592,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
       remote_server = start_remote_server.("launchServer", %{})
       browser = connect!(browser_type, RemoteServer.ws_endpoint(remote_server))
       # `browser._parent`: the remote BrowserType.
-      parent = PlaywrightEx.Runtime.Heap.get(browser, :_parent)
+      parent = Playwright.Runtime.Heap.get(browser, :_parent)
       {:error, error} = BrowserType.launch(parent, timeout: 0)
       assert Exception.message(error) =~ "Launching more browsers is not allowed."
     end
@@ -1605,7 +1604,7 @@ defmodule PlaywrightEx.Library.BrowsertypeConnectTest do
     RunServer.close(server)
     assert Exception.message(error) =~ "Playwright version mismatch"
     assert Exception.message(error) =~ "server version: v1.2"
-    [major, minor | _] = String.split(PlaywrightEx.Driver.version(), ".")
+    [major, minor | _] = String.split(Playwright.Driver.version(), ".")
     assert Exception.message(error) =~ "client version: v#{major}.#{minor}"
   end
 

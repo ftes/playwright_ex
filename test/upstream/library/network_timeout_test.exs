@@ -2,9 +2,9 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.NetworkTimeoutTest do
+defmodule Playwright.Library.NetworkTimeoutTest do
   @upstream "tests/library/network-timeout.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   # test.skip(({ mode }) => mode !== 'default');
 

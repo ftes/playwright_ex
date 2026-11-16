@@ -3,11 +3,9 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.LauncherTest do
+defmodule Playwright.Library.LauncherTest do
   @upstream "tests/library/launcher.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
-
-  alias PlaywrightEx.Playwright
+  use Playwright.UpstreamCase, async: true
 
   test "BT-018 should have an errors object", %{playwright: playwright} do
     assert inspect(Playwright.errors(playwright)."TimeoutError") =~ "TimeoutError"
@@ -27,7 +25,7 @@ defmodule PlaywrightEx.Library.LauncherTest do
     browser_type: browser_type
   } do
     {:error, error} =
-      PlaywrightEx.BrowserType.launch(browser_type, headless: false, env: Map.delete(System.get_env(), "DISPLAY"))
+      Playwright.BrowserType.launch(browser_type, headless: false, env: Map.delete(System.get_env(), "DISPLAY"))
 
     assert is_exception(error)
     assert Exception.message(error) =~ ~r/Looks like you launched a headed browser without having a XServer running./

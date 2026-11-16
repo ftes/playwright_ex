@@ -3,12 +3,12 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageAddScriptTagTest do
+defmodule Playwright.Page.PageAddScriptTagTest do
   @upstream "tests/page/page-add-script-tag.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.JSHandle
-  alias PlaywrightEx.Page
+  alias Playwright.JSHandle
+  alias Playwright.Page
 
   @moduletag :page
 

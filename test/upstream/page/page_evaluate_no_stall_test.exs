@@ -2,9 +2,9 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageEvaluateNoStallTest do
+defmodule Playwright.Page.PageEvaluateNoStallTest do
   @upstream "tests/page/page-evaluate-no-stall.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @moduletag :page
 

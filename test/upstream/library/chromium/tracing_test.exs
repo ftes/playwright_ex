@@ -2,14 +2,14 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.Chromium.TracingTest do
+defmodule Playwright.Library.Chromium.TracingTest do
   @upstream "tests/library/chromium/tracing.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  import PlaywrightEx.Utils, only: [rafraf: 1, rafraf: 2]
+  import Playwright.Utils, only: [rafraf: 1, rafraf: 2]
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.Page
+  alias Playwright.Browser
+  alias Playwright.Page
 
   if System.get_env("BROWSER", "chromium") != "chromium", do: @moduletag(skip: "upstream skip: chromium only")
 

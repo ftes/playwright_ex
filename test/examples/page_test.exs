@@ -2,14 +2,14 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Examples.PageTest do
+defmodule Playwright.Examples.PageTest do
   # Elixir translations of upstream's JS examples, rendered into the facade docs (see ExampleCase).
-  use PlaywrightEx.ExampleCase, async: true
+  use Playwright.ExampleCase, async: true
 
-  alias PlaywrightEx.{ConsoleMessage, Dialog, ElementHandle, FileChooser, JSHandle, Promise, Screencast}
-  alias PlaywrightEx.{WebMCP, WebSocketRoute, WebStorage}
+  alias Playwright.{ConsoleMessage, Dialog, ElementHandle, FileChooser, JSHandle, Promise, Screencast}
+  alias Playwright.{WebMCP, WebSocketRoute, WebStorage}
 
-  @chromium_only if PlaywrightEx.TestBrowser.name() != "chromium", do: "chromium only"
+  @chromium_only if Playwright.TestBrowser.name() != "chromium", do: "chromium only"
   @own_browser "launches a browser of its own"
   @own_page "navigates a page of its own: not offline"
 

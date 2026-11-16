@@ -219,7 +219,7 @@ jobs:
           # The owner forbids attribution; the prompt says so too.
           settings: |
             {"includeCoAuthoredBy": false, "attribution": {"commit": "", "pr": ""}}
-          # --add-dir: the driver cache holding the upstream sources (PlaywrightEx.Upstream).
+          # --add-dir: the driver cache holding the upstream sources (Playwright.Upstream).
           claude_args: |
             --model claude-opus-5-5
             --max-turns 60
@@ -387,10 +387,10 @@ jobs:
         # By day of the year, so successive nights look at different parts of the code.
         run: |
           areas=(
-            "the runtime and top-level modules (ours): lib/playwright_ex/runtime/, transport/ and lib/playwright_ex/*.ex"
-            "the ported API modules: lib/playwright_ex/api/"
-            "the ported client modules: lib/playwright_ex/client/"
-            "the ported isomorphic, protocol and matcher modules: lib/playwright_ex/isomorphic/, protocol/, matchers/"
+            "the runtime and top-level modules (ours): lib/playwright/runtime/, transport/ and lib/playwright/*.ex"
+            "the ported API modules: lib/playwright/api/"
+            "the ported client modules: lib/playwright/client/"
+            "the ported isomorphic, protocol and matcher modules: lib/playwright/isomorphic/, protocol/, matchers/"
             "tooling (ours): lib/mix/ and dev/ (generators, parity)"
             "the tests: test/support/, test/upstream/ (ported) and the tests outside it"
           )
@@ -460,7 +460,7 @@ jobs:
           # The owner forbids attribution; the prompt says so too.
           settings: |
             {"includeCoAuthoredBy": false, "attribution": {"commit": "", "pr": ""}}
-          # --add-dir: the driver cache holding the upstream sources (PlaywrightEx.Upstream).
+          # --add-dir: the driver cache holding the upstream sources (Playwright.Upstream).
           claude_args: |
             --model claude-opus-5-5
             --max-turns 150

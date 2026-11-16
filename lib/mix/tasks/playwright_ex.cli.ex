@@ -12,10 +12,10 @@ defmodule Mix.Tasks.PlaywrightEx.Cli do
   @impl true
   def run(argv) do
     Application.ensure_all_started([:inets, :ssl, :crypto])
-    {program, prefix} = PlaywrightEx.Driver.ensure_installed()
+    {program, prefix} = Playwright.Driver.ensure_installed()
 
     case System.cmd(program, prefix ++ argv,
-           env: PlaywrightEx.Driver.driver_env(),
+           env: Playwright.Driver.driver_env(),
            into: IO.stream(),
            stderr_to_stdout: true
          ) do

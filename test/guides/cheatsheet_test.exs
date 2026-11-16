@@ -1,4 +1,4 @@
-defmodule PlaywrightEx.Guides.CheatsheetTest do
+defmodule Playwright.Guides.CheatsheetTest do
   # The Elixir snippets of `guides/introduction/cheatsheet.cheatmd`, against a local server.
   # Files the cheatsheet writes to the working directory go to the test's tmp dir here.
   use ExUnit.Case, async: true
@@ -8,25 +8,25 @@ defmodule PlaywrightEx.Guides.CheatsheetTest do
 
   require Logger
 
-  alias PlaywrightEx.APIRequestContext
-  alias PlaywrightEx.APIResponse
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.ConsoleMessage
-  alias PlaywrightEx.Dialog
-  alias PlaywrightEx.Download
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.FrameLocator
-  alias PlaywrightEx.Keyboard
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Mouse
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Request
-  alias PlaywrightEx.Response
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.TestBrowser
-  alias PlaywrightEx.TestServer
+  alias Playwright.APIRequestContext
+  alias Playwright.APIResponse
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.BrowserType
+  alias Playwright.ConsoleMessage
+  alias Playwright.Dialog
+  alias Playwright.Download
+  alias Playwright.Expect
+  alias Playwright.FrameLocator
+  alias Playwright.Keyboard
+  alias Playwright.Locator
+  alias Playwright.Mouse
+  alias Playwright.Page
+  alias Playwright.Request
+  alias Playwright.Response
+  alias Playwright.Route
+  alias Playwright.TestBrowser
+  alias Playwright.TestServer
 
   @moduletag :tmp_dir
 
@@ -57,8 +57,8 @@ defmodule PlaywrightEx.Guides.CheatsheetTest do
     TestServer.set_content(server, "/report.csv", "a,b", "text/csv")
     TestServer.set_content(server, "/api/user", ~s({"name":"Ada"}), "application/json")
 
-    start_supervised!({PlaywrightEx.Supervisor, name: __MODULE__})
-    playwright = PlaywrightEx.playwright(__MODULE__)
+    start_supervised!({Playwright.Supervisor, name: __MODULE__})
+    playwright = Playwright.instance(__MODULE__)
     %{server: server, playwright: playwright}
   end
 

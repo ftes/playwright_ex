@@ -30,19 +30,19 @@ defmodule Mix.PlaywrightEx.Notices do
   # Files derived from upstream without `@upstream` (parity does not compare them method by
   # method), path => upstream paths or `{lines, license}`.
   @derived %{
-    "lib/playwright_ex/abort_error.ex" => ["packages/playwright-core/src/client/errors.ts"],
-    "lib/playwright_ex/playwright_error.ex" => ["packages/playwright-core/src/client/errors.ts"],
-    "lib/playwright_ex/target_closed_error.ex" => ["packages/playwright-core/src/client/errors.ts"],
-    "lib/playwright_ex/timeout_error.ex" => ["packages/playwright-core/src/client/errors.ts"],
-    "lib/playwright_ex/expect_error.ex" => ["packages/playwright/src/matchers/matcherHint.ts"],
-    "lib/playwright_ex/matchers/matcher_utils.ex" => @jest,
-    "lib/playwright_ex/test/error_context.ex" => ["packages/playwright/src/errorContext.ts"],
-    "lib/playwright_ex/test/github_formatter.ex" => ["packages/playwright/src/reporters/github.ts"],
-    "lib/playwright_ex/test/test_info.ex" => ["packages/playwright/src/worker/testInfo.ts"],
-    "lib/playwright_ex/test/test_tracing.ex" => ["packages/playwright/src/worker/testTracing.ts"]
+    "lib/playwright/abort_error.ex" => ["packages/playwright-core/src/client/errors.ts"],
+    "lib/playwright/playwright_error.ex" => ["packages/playwright-core/src/client/errors.ts"],
+    "lib/playwright/target_closed_error.ex" => ["packages/playwright-core/src/client/errors.ts"],
+    "lib/playwright/timeout_error.ex" => ["packages/playwright-core/src/client/errors.ts"],
+    "lib/playwright/expect_error.ex" => ["packages/playwright/src/matchers/matcherHint.ts"],
+    "lib/playwright/matchers/matcher_utils.ex" => @jest,
+    "lib/playwright/test/error_context.ex" => ["packages/playwright/src/errorContext.ts"],
+    "lib/playwright/test/github_formatter.ex" => ["packages/playwright/src/reporters/github.ts"],
+    "lib/playwright/test/test_info.ex" => ["packages/playwright/src/worker/testInfo.ts"],
+    "lib/playwright/test/test_tracing.ex" => ["packages/playwright/src/worker/testTracing.ts"]
   }
   # The generated facade and the translations of its examples, from upstream's docs.
-  @derived_dirs %{"lib/playwright_ex/api/" => @docs, "test/examples/" => @docs}
+  @derived_dirs %{"lib/playwright/api/" => @docs, "test/examples/" => @docs}
 
   @header ~r/\A# [^\n]*[Cc]opyright[^\n]*\n(?:# [^\n]*\n)*?# SPDX-License-Identifier: [^\n]*\n\n/
 

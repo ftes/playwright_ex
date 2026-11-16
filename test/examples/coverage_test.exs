@@ -2,13 +2,13 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Examples.CoverageTest do
+defmodule Playwright.Examples.CoverageTest do
   # Elixir translations of upstream's JS examples, rendered into the facade docs (see ExampleCase).
-  use PlaywrightEx.ExampleCase, async: true
+  use Playwright.ExampleCase, async: true
 
-  alias PlaywrightEx.Coverage
+  alias Playwright.Coverage
 
-  @chromium_only if(PlaywrightEx.TestBrowser.name() != "chromium", do: "JS coverage is Chromium-only")
+  @chromium_only if(Playwright.TestBrowser.name() != "chromium", do: "JS coverage is Chromium-only")
 
   example "Coverage",
     js: ~S"""

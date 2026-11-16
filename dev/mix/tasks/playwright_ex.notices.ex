@@ -14,7 +14,7 @@ defmodule Mix.Tasks.PlaywrightEx.Notices do
   alias Mix.PlaywrightEx.Notices
 
   @impl Mix.Task
-  def run([]), do: run([PlaywrightEx.Upstream.ensure!()])
+  def run([]), do: run([Playwright.Upstream.ensure!()])
 
   def run([upstream]) do
     for path <- Notices.files(),

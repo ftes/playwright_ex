@@ -1,4 +1,4 @@
-defmodule PlaywrightEx.ClientProcess do
+defmodule Playwright.ClientProcess do
   @moduledoc """
   The Elixir client in a child process, for `tests/library/signals.spec.ts`: its
   `startRemoteServer('launchServer')` fixture for the Elixir client, as Python's
@@ -10,14 +10,14 @@ defmodule PlaywrightEx.ClientProcess do
   browser. `+Bd`: SIGINT ends the BEAM (no BREAK menu).
 
   The child halts when its stdin closes (`halt_on_stdin_eof/0`): the test BEAM went away, see
-  `PlaywrightEx.RemoteServer.ChildProcess`.
+  `Playwright.RemoteServer.ChildProcess`.
 
   `out/2` returns what the child reported, like `RemoteServer.out()`. The script prints
   `tempDir`, `ready` and `closed`; the rest comes from the driver's `pw:browser` log (the child
   runs with `DEBUG=pw:browser`): `pid` of the browser process, `exitCode` and `signal` of its
   exit, which upstream gets from the `close` event of `BrowserServer`.
   """
-  alias PlaywrightEx.RemoteServer.ChildProcess
+  alias Playwright.RemoteServer.ChildProcess
 
   defstruct [:_process, :_temp_dir]
 
@@ -33,7 +33,7 @@ defmodule PlaywrightEx.ClientProcess do
     File.mkdir_p!(temp_dir)
 
     options = Map.merge(%{browserTypeName: browser_name}, Map.new(options))
-    ebin = Path.dirname(:code.which(PlaywrightEx))
+    ebin = Path.dirname(:code.which(Playwright))
     script = Path.join(__DIR__, "client_process_impl.exs")
 
     process =

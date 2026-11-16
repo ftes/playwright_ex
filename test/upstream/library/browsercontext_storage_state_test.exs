@@ -3,23 +3,23 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.BrowsercontextStorageStateTest do
+defmodule Playwright.Library.BrowsercontextStorageStateTest do
   @upstream "tests/library/browsercontext-storage-state.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  import PlaywrightEx.Utils, only: [attach_frame: 3]
+  import Playwright.Utils, only: [attach_frame: 3]
 
-  alias PlaywrightEx.APIRequestContext
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Client.ClientHelper
-  alias PlaywrightEx.Credentials
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.TestServer
+  alias Playwright.APIRequestContext
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.Client.ClientHelper
+  alias Playwright.Credentials
+  alias Playwright.Expect
+  alias Playwright.Frame
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Route
+  alias Playwright.TestServer
 
   @browser_name System.get_env("BROWSER", "chromium")
 

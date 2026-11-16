@@ -3,19 +3,19 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageNetworkResponseTest do
+defmodule Playwright.Page.PageNetworkResponseTest do
   @upstream "tests/page/page-network-response.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Request
-  alias PlaywrightEx.Response
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TestServer
+  alias Playwright.Frame
+  alias Playwright.Page
+  alias Playwright.Request
+  alias Playwright.Response
+  alias Playwright.Route
+  alias Playwright.Runtime
+  alias Playwright.TestServer
 
   @moduletag :page
 
@@ -157,7 +157,7 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     server_request = TestServer.wait_for_request(server, "/get")
     Page.evaluate!(page, "() => fetch('./get', { method: 'GET' })")
     Task.await(server_request, :infinity)
-    page_response = PlaywrightEx.Promise.await!(response_promise)
+    page_response = Playwright.Promise.await!(response_promise)
 
     assert_receive {:server_response, server_response}, 5000
     assert page_response
@@ -223,7 +223,7 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     bytes_received =
       Page.evaluate!(page, "url => fetch(url).then(r => r.bytes())", server.prefix <> "/binary-as-text")
 
-    response = PlaywrightEx.Promise.await!(response_promise)
+    response = Playwright.Promise.await!(response_promise)
     body = Response.body!(response)
     assert body == buffer
     # `Array.from(bytesReceived)`: a Uint8Array serializes as an array.
@@ -464,7 +464,7 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
       }
       """)
 
-      response = PlaywrightEx.Promise.await!(resp_promise)
+      response = Playwright.Promise.await!(resp_promise)
       assert Response.status(response) == 200
       requests = count.("/api", requests)
       assert requests == i + 1
@@ -486,7 +486,7 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
       }
       """)
 
-      response = PlaywrightEx.Promise.await!(resp_promise)
+      response = Playwright.Promise.await!(resp_promise)
       assert Response.status(response) == 200
       requests = count.("/frame/api", requests)
       assert requests == i + 1
@@ -512,7 +512,7 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     request_promise = Page.wait_for_event(page, :request)
     server_request = TestServer.wait_for_request(server, "/get")
     Page.evaluate!(page, "() => { void fetch('./get', { method: 'GET' }); }")
-    request = PlaywrightEx.Promise.await!(request_promise)
+    request = Playwright.Promise.await!(request_promise)
     Task.await(server_request, :infinity)
     assert_receive {:server_response, server_response}, 5000
 
@@ -523,7 +523,7 @@ defmodule PlaywrightEx.Page.PageNetworkResponseTest do
     # (the wait starts first: the server ends the response in another process)
     response_promise = Page.wait_for_event(page, :response)
     send(server_response, :end)
-    PlaywrightEx.Promise.await!(response_promise)
+    Playwright.Promise.await!(response_promise)
 
     # After response is received, existingResponse should return the response
     existing_response = Request.existing_response(request)

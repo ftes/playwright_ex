@@ -3,17 +3,17 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.BrowsercontextExposeFunctionTest do
+defmodule Playwright.Library.BrowsercontextExposeFunctionTest do
   @upstream "tests/library/browsercontext-expose-function.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Disposable
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.TestServer
+  alias Playwright.BrowserContext
+  alias Playwright.Disposable
+  alias Playwright.Frame
+  alias Playwright.Page
+  alias Playwright.TestServer
 
   # contextTest: a fresh context per test.
   setup %{context_factory: context_factory} do

@@ -2,11 +2,11 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.BrowsercontextStrictTest do
+defmodule Playwright.Library.BrowsercontextStrictTest do
   @upstream "tests/library/browsercontext-strict.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Page
+  alias Playwright.Page
 
   @moduletag :page
 
@@ -19,7 +19,7 @@ defmodule PlaywrightEx.Library.BrowsercontextStrictTest do
     # it.use({ contextOptions: { ...contextOptions, strictSelectors: true } })
     setup %{context_factory: context_factory} do
       context = context_factory.(strict_selectors: true)
-      %{context: context, page: PlaywrightEx.BrowserContext.new_page!(context)}
+      %{context: context, page: Playwright.BrowserContext.new_page!(context)}
     end
 
     test "SM-012 should fail page.textContent in strict mode", %{page: page} do

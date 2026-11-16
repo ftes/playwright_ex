@@ -3,20 +3,20 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageEvaluateTest do
+defmodule Playwright.Page.PageEvaluateTest do
   @upstream "tests/page/page-evaluate.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  import PlaywrightEx.Utils, only: [attach_frame: 3, detach_frame: 2]
+  import Playwright.Utils, only: [attach_frame: 3, detach_frame: 2]
 
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.JSHandle
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Protocol.Serializers.JSError
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TestServer
+  alias Playwright.Frame
+  alias Playwright.JSHandle
+  alias Playwright.Page
+  alias Playwright.Protocol.Serializers.JSError
+  alias Playwright.Runtime
+  alias Playwright.TestServer
 
   @moduletag :page
 
@@ -600,7 +600,7 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
       }, 0))
       """)
 
-    PlaywrightEx.Promise.await!(navigation_promise)
+    Playwright.Promise.await!(navigation_promise)
     assert message(error) =~ "navigation"
   end
 
@@ -795,7 +795,7 @@ defmodule PlaywrightEx.Page.PageEvaluateTest do
   test "EV-082 should roundtrip regex", %{page: page} do
     regex = ~r/hello/im
     result = Page.evaluate!(page, "regex => regex", regex)
-    # expect(result.toString()).toBe(String(regex)): a JS regex comes back as a PlaywrightEx.RegExp
+    # expect(result.toString()).toBe(String(regex)): a JS regex comes back as a Playwright.RegExp
     assert to_string(result) == "/hello/im"
   end
 

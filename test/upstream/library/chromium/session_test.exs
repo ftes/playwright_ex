@@ -2,20 +2,20 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.Chromium.SessionTest do
+defmodule Playwright.Library.Chromium.SessionTest do
   @upstream "tests/library/chromium/session.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.AbortController
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.CDPSession
-  alias PlaywrightEx.Coverage
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TimeoutError
-  alias PlaywrightEx.Utils
+  alias Playwright.AbortController
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.CDPSession
+  alias Playwright.Coverage
+  alias Playwright.Frame
+  alias Playwright.Page
+  alias Playwright.Runtime
+  alias Playwright.TimeoutError
+  alias Playwright.Utils
 
   @moduletag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: Chromium only")
 

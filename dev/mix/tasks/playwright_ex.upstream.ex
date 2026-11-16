@@ -3,12 +3,12 @@ defmodule Mix.Tasks.PlaywrightEx.Upstream do
   @moduledoc """
   Usage: `mix playwright_ex.upstream`
 
-  Runs `PlaywrightEx.Upstream.ensure!/0` and prints the directory: upstream's client, server,
-  injected script, specs and API docs at the pinned `PlaywrightEx.Driver.version/0`, to read
+  Runs `Playwright.Upstream.ensure!/0` and prints the directory: upstream's client, server,
+  injected script, specs and API docs at the pinned `Playwright.Driver.version/0`, to read
   alongside the port.
   """
   use Mix.Task
 
   @impl true
-  def run([]), do: Mix.shell().info(PlaywrightEx.Upstream.ensure!())
+  def run([]), do: Mix.shell().info(Playwright.Upstream.ensure!())
 end

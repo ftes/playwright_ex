@@ -3,14 +3,14 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageAddInitScriptTest do
+defmodule Playwright.Page.PageAddInitScriptTest do
   @upstream "tests/page/page-add-init-script.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.ConsoleMessage
-  alias PlaywrightEx.Disposable
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.TestServer
+  alias Playwright.ConsoleMessage
+  alias Playwright.Disposable
+  alias Playwright.Page
+  alias Playwright.TestServer
 
   @moduletag :page
 

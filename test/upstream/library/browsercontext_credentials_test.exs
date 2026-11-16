@@ -3,20 +3,20 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.BrowsercontextCredentialsTest do
+defmodule Playwright.Library.BrowsercontextCredentialsTest do
   @upstream "tests/library/browsercontext-credentials.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Response
-  alias PlaywrightEx.TestServer
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.Page
+  alias Playwright.Response
+  alias Playwright.TestServer
 
   # base.extend({ failsOn401: browserName === 'chromium' && !isHeadlessShell }):
   # isHeadlessShell is headless chromium (no channel).
   setup do
-    %{fails_on_401: @browser_name == "chromium" and not PlaywrightEx.TestBrowser.headless()}
+    %{fails_on_401: @browser_name == "chromium" and not Playwright.TestBrowser.headless()}
   end
 
   # page.goto(url).catch(e => e)

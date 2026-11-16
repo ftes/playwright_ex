@@ -3,24 +3,24 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageScreenshotTest do
+defmodule Playwright.Page.PageScreenshotTest do
   @upstream "tests/page/page-screenshot.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  import PlaywrightEx.Utils
-  import PlaywrightEx.UpstreamSnapshot
+  import Playwright.Utils
+  import Playwright.UpstreamSnapshot
 
-  alias PlaywrightEx.ConsoleMessage
-  alias PlaywrightEx.ElementHandle
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.FrameLocator
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TestServer
+  alias Playwright.ConsoleMessage
+  alias Playwright.ElementHandle
+  alias Playwright.Expect
+  alias Playwright.FrameLocator
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Route
+  alias Playwright.Runtime
+  alias Playwright.TestServer
 
   @moduletag :page
 
@@ -939,7 +939,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
 
       console = Page.wait_for_event(page, :console, &(ConsoleMessage.text(&1) == "transitionend"))
       Page.screenshot!(page, animations: :disabled)
-      PlaywrightEx.Promise.await!(console)
+      Playwright.Promise.await!(console)
       assert Page.evaluate!(page, "() => window._EVENTS") == ["onfinish", "transitionend"]
     end
 
@@ -964,7 +964,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
 
       console = Page.wait_for_event(page, :console, &(ConsoleMessage.text(&1) == "animationcancel"))
       Page.screenshot!(page, animations: :disabled)
-      PlaywrightEx.Promise.await!(console)
+      Playwright.Promise.await!(console)
       assert Page.evaluate!(page, "() => window._EVENTS") == ["oncancel", "animationcancel"]
     end
 
@@ -997,7 +997,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
 
       console = Page.wait_for_event(page, :console, &(ConsoleMessage.text(&1) == "animationend"))
       Page.screenshot!(page, animations: :disabled)
-      PlaywrightEx.Promise.await!(console)
+      Playwright.Promise.await!(console)
       assert Page.evaluate!(page, "() => window._EVENTS") == ["onfinish", "animationend"]
     end
 
@@ -1139,7 +1139,7 @@ defmodule PlaywrightEx.Page.PageScreenshotTest do
 
     File.cp!(
       Path.join(
-        PlaywrightEx.Upstream.dir(),
+        Playwright.Upstream.dir(),
         "tests/page/page-screenshot.spec.ts-snapshots/#{name}-#{browser_name}.png"
       ),
       path

@@ -1,9 +1,9 @@
-# The snippets of `guides/testing-with-exunit.md`, run against an app on `PlaywrightEx.TestServer`.
+# The snippets of `guides/testing-with-exunit.md`, run against an app on `Playwright.TestServer`.
 # Deviations from the guide: each module starts its own app, and the browser is `BROWSER`'s.
 
-defmodule PlaywrightEx.Guides.TestingWithExUnit.App do
+defmodule Playwright.Guides.TestingWithExUnit.App do
   @moduledoc false
-  alias PlaywrightEx.TestServer
+  alias Playwright.TestServer
 
   @pages %{
     "/sign-up" => """
@@ -56,27 +56,27 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.App do
   end
 end
 
-defmodule PlaywrightEx.Guides.TestingWithExUnit.BrowserCase do
+defmodule Playwright.Guides.TestingWithExUnit.BrowserCase do
   @moduledoc false
   # The guide's case template from the pieces. Deviation: `base_url` is the module's own app,
   # not the config's.
   use ExUnit.CaseTemplate
-  use PlaywrightEx.Test
+  use Playwright.Test
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Guides.TestingWithExUnit.App
-  alias PlaywrightEx.Test.BrowserPool
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.Guides.TestingWithExUnit.App
+  alias Playwright.Test.BrowserPool
 
   # Its options forwarded, its own popped first, as "Traces, screenshots and videos" shows.
   using opts do
     {sandbox, opts} = Keyword.pop(opts, :sandbox, true)
 
     quote do
-      use PlaywrightEx.Test, unquote(opts)
+      use Playwright.Test, unquote(opts)
       @moduletag sandbox: unquote(sandbox)
-      alias PlaywrightEx.{Browser, BrowserContext, Expect, Locator, Page, Test}
-      alias PlaywrightEx.Test.BrowserPool
+      alias Playwright.{Browser, BrowserContext, Expect, Locator, Page, Test}
+      alias Playwright.Test.BrowserPool
     end
   end
 
@@ -94,21 +94,21 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.BrowserCase do
   end
 end
 
-defmodule PlaywrightEx.Guides.TestingWithExUnit.Assertions do
+defmodule Playwright.Guides.TestingWithExUnit.Assertions do
   @moduledoc false
   @doc "Runs `fun`, re-raising a failed matcher as an `ExUnit.AssertionError`."
   def assert_expect(fun) do
     fun.()
   rescue
-    e in PlaywrightEx.ExpectError ->
+    e in Playwright.ExpectError ->
       reraise ExUnit.AssertionError, [message: Exception.message(e)], __STACKTRACE__
   end
 end
 
-defmodule PlaywrightEx.Guides.TestingWithExUnit.SignUpTest do
-  use PlaywrightEx.Guides.TestingWithExUnit.BrowserCase, async: true
+defmodule Playwright.Guides.TestingWithExUnit.SignUpTest do
+  use Playwright.Guides.TestingWithExUnit.BrowserCase, async: true
 
-  alias PlaywrightEx.Guides.TestingWithExUnit.Assertions
+  alias Playwright.Guides.TestingWithExUnit.Assertions
 
   test "signs up", %{page: page} do
     Page.goto!(page, "/sign-up")
@@ -141,7 +141,6 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.SignUpTest do
 
   # "Devices". Deviation: the browser is `BROWSER`'s.
   test "on a phone" do
-    alias PlaywrightEx.Playwright
     browser = BrowserPool.browser()
     iphone = Playwright.devices(BrowserPool.playwright(browser))["iPhone 13"]
     page = BrowserContext.new_page!(Browser.new_context!(browser, Map.put(iphone, :locale, "de-DE")))
@@ -159,22 +158,22 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.SignUpTest do
   end
 end
 
-defmodule PlaywrightEx.Guides.TestingWithExUnit.LoggedInTest do
+defmodule Playwright.Guides.TestingWithExUnit.LoggedInTest do
   # "Logging in once", without the case template.
   use ExUnit.Case, async: true
 
-  use PlaywrightEx.Test
+  use Playwright.Test
 
-  alias PlaywrightEx.APIRequestContext
-  alias PlaywrightEx.APIResponse
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.ConsoleMessage
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Guides.TestingWithExUnit.App
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Test.BrowserPool
+  alias Playwright.APIRequestContext
+  alias Playwright.APIResponse
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.ConsoleMessage
+  alias Playwright.Expect
+  alias Playwright.Guides.TestingWithExUnit.App
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Test.BrowserPool
 
   setup_all do
     server = App.start!(Path.join(System.tmp_dir!(), "guide-app-#{System.unique_integer([:positive])}"))
@@ -260,12 +259,12 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.LoggedInTest do
   end
 end
 
-defmodule PlaywrightEx.Guides.TestingWithExUnit.ArtifactsTest do
+defmodule Playwright.Guides.TestingWithExUnit.ArtifactsTest do
   # "Traces, screenshots and videos": the config's `trace: :on_first_retry`, which traces the
   # test under `mix test --failed` only. Not async: it sets the config.
-  use PlaywrightEx.Guides.TestingWithExUnit.BrowserCase, async: false
+  use Playwright.Guides.TestingWithExUnit.BrowserCase, async: false
 
-  alias PlaywrightEx.Test.TestInfo
+  alias Playwright.Test.TestInfo
 
   setup_all do
     config = Application.get_env(:playwright_ex, :test)
@@ -286,10 +285,10 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.ArtifactsTest do
   end
 end
 
-defmodule PlaywrightEx.Guides.TestingWithExUnit.UseOptionsTest do
+defmodule Playwright.Guides.TestingWithExUnit.UseOptionsTest do
   # "Traces, screenshots and videos": the modes of the template's options, under the tags.
   # Deviation: `retain_on_failure`, so the passing test leaves no files.
-  use PlaywrightEx.Guides.TestingWithExUnit.BrowserCase,
+  use Playwright.Guides.TestingWithExUnit.BrowserCase,
     async: true,
     trace: :retain_on_failure,
     video: :on,
@@ -300,15 +299,15 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.UseOptionsTest do
   test "checks out", %{page: page} = ctx do
     refute ctx.sandbox
     Page.goto!(page, "/sign-up")
-    registration = PlaywrightEx.Test.Recorder.registration(self())
+    registration = Playwright.Test.Recorder.registration(self())
     assert [mode: :retain_on_failure] ++ _ = registration.trace
     assert registration.video == [mode: :retain_on_failure]
   end
 end
 
-defmodule PlaywrightEx.Guides.TestingWithExUnit.StepsTest do
+defmodule Playwright.Guides.TestingWithExUnit.StepsTest do
   # "Steps".
-  use PlaywrightEx.Guides.TestingWithExUnit.BrowserCase, async: true
+  use Playwright.Guides.TestingWithExUnit.BrowserCase, async: true
 
   test "signs up in steps", %{page: page} do
     Test.step "fill in the form" do
@@ -339,11 +338,11 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.StepsTest do
   end
 end
 
-defmodule PlaywrightEx.Guides.TestingWithExUnit.SnapshotsTest do
+defmodule Playwright.Guides.TestingWithExUnit.SnapshotsTest do
   # "Snapshots", with `snapshot_dir` in a temporary dir. Not async: it sets the config.
-  use PlaywrightEx.Guides.TestingWithExUnit.BrowserCase, async: false
+  use Playwright.Guides.TestingWithExUnit.BrowserCase, async: false
 
-  alias PlaywrightEx.Test.TestInfo
+  alias Playwright.Test.TestInfo
 
   @moduletag :tmp_dir
 
@@ -368,7 +367,7 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.SnapshotsTest do
   end
 end
 
-defmodule PlaywrightEx.Guides.TestingWithExUnit.ResultInOnExitTest do
+defmodule Playwright.Guides.TestingWithExUnit.ResultInOnExitTest do
   # "Traces, screenshots and videos": the result in an `on_exit` that runs after the recording.
   # Deviation: it asserts where the guide uploads a failure's trace.
   use ExUnit.Case, async: true
@@ -377,29 +376,29 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.ResultInOnExitTest do
 
   setup %{test_pid: test_pid} do
     on_exit(fn ->
-      %{status: status, output_dir: dir} = PlaywrightEx.Test.info(test_pid)
+      %{status: status, output_dir: dir} = Playwright.Test.info(test_pid)
       assert status == :passed
       refute File.exists?(Path.join(dir, "trace.zip"))
     end)
   end
 
-  use PlaywrightEx.Test
+  use Playwright.Test
 
   test "passes" do
     page =
-      PlaywrightEx.BrowserContext.new_page!(PlaywrightEx.Browser.new_context!(PlaywrightEx.Test.BrowserPool.browser()))
+      Playwright.BrowserContext.new_page!(Playwright.Browser.new_context!(Playwright.Test.BrowserPool.browser()))
 
-    PlaywrightEx.Page.set_content!(page, "<h1>Hi</h1>")
+    Playwright.Page.set_content!(page, "<h1>Hi</h1>")
   end
 end
 
-defmodule PlaywrightEx.Guides.TestingWithExUnit.WorkersTest do
+defmodule Playwright.Guides.TestingWithExUnit.WorkersTest do
   # "Workers".
   use ExUnit.Case, async: true
-  use PlaywrightEx.Test
+  use Playwright.Test
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.Test.BrowserPool
+  alias Playwright.Browser
+  alias Playwright.Test.BrowserPool
 
   setup_all do
     %{browser: BrowserPool.browser()}
@@ -411,15 +410,15 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.WorkersTest do
   end
 end
 
-defmodule PlaywrightEx.Guides.TestingWithExUnit.DebugTest do
+defmodule Playwright.Guides.TestingWithExUnit.DebugTest do
   # "Debugging one test". Deviation: `BROWSER`'s.
   use ExUnit.Case, async: true
-  use PlaywrightEx.Test
+  use Playwright.Test
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Test.BrowserPool
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.Page
+  alias Playwright.Test.BrowserPool
 
   @moduletag :debug
   @moduletag :headed
@@ -439,19 +438,19 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.DebugTest do
   end
 end
 
-defmodule PlaywrightEx.Guides.TestingWithExUnit.RemoteTest do
+defmodule Playwright.Guides.TestingWithExUnit.RemoteTest do
   # "Remote browsers": the config's `connect_options` (its env var line) as the call's, on a
   # `run-server`.
   use ExUnit.Case, async: true
-  use PlaywrightEx.Test
+  use Playwright.Test
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Guides.TestingWithExUnit.App
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.RemoteServer.RunServer
-  alias PlaywrightEx.Test.BrowserPool
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.Expect
+  alias Playwright.Guides.TestingWithExUnit.App
+  alias Playwright.Page
+  alias Playwright.RemoteServer.RunServer
+  alias Playwright.Test.BrowserPool
 
   setup_all do
     server = RunServer.start()
@@ -471,9 +470,9 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.RemoteTest do
   end
 end
 
-defmodule PlaywrightEx.Guides.TestingWithExUnit.PageChecksTest do
+defmodule Playwright.Guides.TestingWithExUnit.PageChecksTest do
   # "A check after the test" and the listener lifetimes of "Route handlers and listeners".
-  use PlaywrightEx.Case, async: true
+  use Playwright.Case, async: true
 
   setup %{page: page} = ctx do
     {:ok, errors} = Agent.start(fn -> [] end)
@@ -498,7 +497,7 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.PageChecksTest do
 
   test "a listener sends to the test process: a late event is dropped with it", %{page: page} do
     test_pid = self()
-    Page.on(page, :console, &send(test_pid, {:console, PlaywrightEx.ConsoleMessage.text(&1)}))
+    Page.on(page, :console, &send(test_pid, {:console, Playwright.ConsoleMessage.text(&1)}))
     Page.evaluate!(page, "console.log('now')")
     assert_receive {:console, "now"}
     # Fires after the test process exited, as the context closes in the test's last `on_exit`.
@@ -506,23 +505,23 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.PageChecksTest do
   end
 end
 
-defmodule PlaywrightEx.Guides.TestingWithExUnit.ProjectsCase do
+defmodule Playwright.Guides.TestingWithExUnit.ProjectsCase do
   @moduledoc false
   # "Projects". Deviation: `BROWSER`'s browser only.
   use ExUnit.CaseTemplate
-  use PlaywrightEx.Test
+  use Playwright.Test
 
-  alias PlaywrightEx.{Browser, BrowserContext, Playwright}
-  alias PlaywrightEx.Test.BrowserPool
+  alias Playwright.{Browser, BrowserContext}
+  alias Playwright.Test.BrowserPool
 
   @devices %{chromium: "Desktop Chrome", firefox: "Desktop Firefox", webkit: "Desktop Safari"}
 
-  def projects, do: for(name <- [String.to_atom(PlaywrightEx.TestBrowser.name())], do: %{browser_name: name})
+  def projects, do: for(name <- [String.to_atom(Playwright.TestBrowser.name())], do: %{browser_name: name})
 
   using do
     quote do
-      use PlaywrightEx.Test
-      alias PlaywrightEx.{Browser, BrowserContext, Expect, Locator, Page}
+      use Playwright.Test
+      alias Playwright.{Browser, BrowserContext, Expect, Locator, Page}
     end
   end
 
@@ -537,10 +536,10 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.ProjectsCase do
   end
 end
 
-defmodule PlaywrightEx.Guides.TestingWithExUnit.ProjectsTest do
-  use PlaywrightEx.Guides.TestingWithExUnit.ProjectsCase,
+defmodule Playwright.Guides.TestingWithExUnit.ProjectsTest do
+  use Playwright.Guides.TestingWithExUnit.ProjectsCase,
     async: true,
-    parameterize: PlaywrightEx.Guides.TestingWithExUnit.ProjectsCase.projects()
+    parameterize: Playwright.Guides.TestingWithExUnit.ProjectsCase.projects()
 
   @user_agents %{chromium: "Chrome", firefox: "Firefox", webkit: "Safari"}
 
@@ -550,18 +549,18 @@ defmodule PlaywrightEx.Guides.TestingWithExUnit.ProjectsTest do
   end
 end
 
-defmodule PlaywrightEx.Guides.TestingWithExUnit.PortingTest do
+defmodule Playwright.Guides.TestingWithExUnit.PortingTest do
   # "Porting Playwright Test specs".
-  use PlaywrightEx.Case, async: true
+  use Playwright.Case, async: true
 
-  alias PlaywrightEx.JSHandle
+  alias Playwright.JSHandle
 
   test "null, objects, regexes and element handles", %{page: page} do
     assert Page.evaluate!(page, "() => ({ entry: { foo: null }, gone: undefined })") ==
              %{"entry" => %{"foo" => :null}, "gone" => nil}
 
     Page.set_content!(page, "<p>patched=true</p>")
-    Expect.to_have_text!(Page.locator(page, "p"), PlaywrightEx.RegExp.new("\\patched=true"))
+    Expect.to_have_text!(Page.locator(page, "p"), Playwright.RegExp.new("\\patched=true"))
 
     element_handle = Page.query_selector!(page, "p")
     assert JSHandle.evaluate!(element_handle, "e => e.textContent") == "patched=true"

@@ -3,13 +3,13 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.BrowsertypeBasicTest do
+defmodule Playwright.Library.BrowsertypeBasicTest do
   @upstream "tests/library/browsertype-basic.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  alias PlaywrightEx.BrowserType
+  alias Playwright.BrowserType
 
   test "BT-001 browserType.executablePath should work", %{browser_type: browser_type} do
     executable_path = BrowserType.executable_path(browser_type)

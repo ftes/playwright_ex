@@ -3,26 +3,25 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.Defaultbrowsercontext2Test do
+defmodule Playwright.Library.Defaultbrowsercontext2Test do
   @upstream "tests/library/defaultbrowsercontext-2.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.Client.ChannelOwner
-  alias PlaywrightEx.Coverage
-  alias PlaywrightEx.Dialog
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Playwright
-  alias PlaywrightEx.Response
-  alias PlaywrightEx.Selectors
-  alias PlaywrightEx.TestServer
-  alias PlaywrightEx.Utils
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.BrowserType
+  alias Playwright.Client.ChannelOwner
+  alias Playwright.Coverage
+  alias Playwright.Dialog
+  alias Playwright.Expect
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Response
+  alias Playwright.Selectors
+  alias Playwright.TestServer
+  alias Playwright.Utils
 
   defp header(conn, name), do: List.first(Plug.Conn.get_req_header(conn, name))
 
@@ -273,7 +272,7 @@ defmodule PlaywrightEx.Library.Defaultbrowsercontext2Test do
   # `(browser as any)._channel.defaultUserAgentForTest()`: the client's channel call.
   test "DC-038 user agent is up to date", %{launch_persistent: launch_persistent, browser: browser} do
     %{userAgent: user_agent} =
-      PlaywrightEx.Runtime.Api.call(nil, browser, fn ->
+      Playwright.Runtime.Api.call(nil, browser, fn ->
         ChannelOwner.channel_call(browser, :defaultUserAgentForTest, %{})
       end)
 

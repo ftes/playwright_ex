@@ -3,21 +3,21 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.PageNetworkRequestTest do
+defmodule Playwright.Page.PageNetworkRequestTest do
   @upstream "tests/page/page-network-request.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Request
-  alias PlaywrightEx.Response
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TestServer
-  alias PlaywrightEx.Utils
+  alias Playwright.BrowserContext
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Request
+  alias Playwright.Response
+  alias Playwright.Route
+  alias Playwright.Runtime
+  alias Playwright.TestServer
+  alias Playwright.Utils
 
   @moduletag :page
 
@@ -190,7 +190,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
         )
 
       assert text == "done"
-      response = PlaywrightEx.Promise.await!(response_promise)
+      response = Playwright.Promise.await!(response_promise)
       headers = Request.all_headers!(Response.request(response))
       assert_received {:server_request, server_request}
       assert headers == adjust_server_headers(server_headers(server_request), browser_name)
@@ -376,7 +376,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     })
     """)
 
-    assert Request.post_data_json(PlaywrightEx.Promise.await!(request_promise)) == %{"foo" => "bar", "baz" => "123"}
+    assert Request.post_data_json(Playwright.Promise.await!(request_promise)) == %{"foo" => "bar", "baz" => "123"}
   end
 
   test "NE-019 should get |undefined| with postDataJSON() when there is no post data", %{page: page, server: server} do
@@ -403,7 +403,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     }
     """)
 
-    request = PlaywrightEx.Promise.await!(request_promise)
+    request = Playwright.Promise.await!(request_promise)
     content_type = Request.header_value!(request, "Content-Type")
     re = ~r/^multipart\/form-data; boundary=(.*)$/
     assert content_type =~ re
@@ -559,7 +559,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
     request_promise = BrowserContext.wait_for_event(Page.context(page), :request)
     popup_promise = BrowserContext.wait_for_event(Page.context(page), :page)
     clicked = Runtime.Promise.async(fn -> page |> Page.get_by_text("click me") |> Locator.click!() end)
-    request = PlaywrightEx.Promise.await!(request_promise)
+    request = Playwright.Promise.await!(request_promise)
 
     assert Request.is_navigation_request(request) == true
 
@@ -575,7 +575,7 @@ defmodule PlaywrightEx.Page.PageNetworkRequestTest do
 
     response = Request.response!(request)
     Response.finished!(response)
-    PlaywrightEx.Promise.await!(popup_promise)
+    Playwright.Promise.await!(popup_promise)
     Runtime.Promise.await(clicked)
   end
 

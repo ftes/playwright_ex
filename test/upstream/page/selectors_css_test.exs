@@ -3,15 +3,15 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Page.SelectorsCssTest do
+defmodule Playwright.Page.SelectorsCssTest do
   @upstream "tests/page/selectors-css.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.ElementHandle
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.JSHandle
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
+  alias Playwright.ElementHandle
+  alias Playwright.Expect
+  alias Playwright.JSHandle
+  alias Playwright.Locator
+  alias Playwright.Page
 
   @moduletag :page
 

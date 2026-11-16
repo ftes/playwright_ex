@@ -2,14 +2,14 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Examples.BrowserContextTest do
+defmodule Playwright.Examples.BrowserContextTest do
   # Elixir translations of upstream's JS examples, rendered into the facade docs (see ExampleCase).
-  use PlaywrightEx.ExampleCase, async: true
+  use Playwright.ExampleCase, async: true
 
-  alias PlaywrightEx.{ConsoleMessage, Dialog, JSHandle, Promise, WebSocketRoute}
+  alias Playwright.{ConsoleMessage, Dialog, JSHandle, Promise, WebSocketRoute}
 
   # The examples that launch webkit run where it is the browser under test.
-  @browser PlaywrightEx.TestBrowser.name()
+  @browser Playwright.TestBrowser.name()
   @webkit_only if(@browser != "webkit", do: "launches webkit, not the browser under test")
 
   example "BrowserContext",
@@ -327,5 +327,5 @@ defmodule PlaywrightEx.Examples.BrowserContextTest do
   end
 
   # A browser of the example's own, as it closes it.
-  defp own_browser(playwright), do: BrowserType.launch!(PlaywrightEx.TestBrowser.browser_type(playwright))
+  defp own_browser(playwright), do: BrowserType.launch!(Playwright.TestBrowser.browser_type(playwright))
 end

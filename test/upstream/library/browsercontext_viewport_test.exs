@@ -3,20 +3,19 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.BrowsercontextViewportTest do
+defmodule Playwright.Library.BrowsercontextViewportTest do
   @upstream "tests/library/browsercontext-viewport.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
   @browser_name System.get_env("BROWSER", "chromium")
 
-  import PlaywrightEx.Utils, only: [verify_viewport: 3]
+  import Playwright.Utils, only: [verify_viewport: 3]
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Mouse
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Playwright
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.Locator
+  alias Playwright.Mouse
+  alias Playwright.Page
 
   @moduletag :page
 
@@ -198,7 +197,7 @@ defmodule PlaywrightEx.Library.BrowsercontextViewportTest do
 
   # it.skip(browserName !== 'webkit' || headless || !isWindows, 'Not relevant for this browser');
   @tag skip:
-         if(@browser_name != "webkit" or PlaywrightEx.TestBrowser.headless() or !match?({:win32, _}, :os.type()),
+         if(@browser_name != "webkit" or Playwright.TestBrowser.headless() or !match?({:win32, _}, :os.type()),
            do: "upstream skip: Not relevant for this browser (webkit headed on Windows only)"
          )
   test "VP-015 WebKit Windows headed should have a minimal viewport", %{

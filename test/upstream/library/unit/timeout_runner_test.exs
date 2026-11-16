@@ -2,13 +2,13 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.Unit.TimeoutRunnerTest do
+defmodule Playwright.Library.Unit.TimeoutRunnerTest do
   @upstream "tests/library/unit/timeout-runner.spec.ts"
   # Deviation: plain ExUnit case, this spec tests the isomorphic TimeoutRunner without a browser.
   use ExUnit.Case, async: true
 
-  alias PlaywrightEx.Isomorphic.TimeoutRunner
-  alias PlaywrightEx.Runtime.Promise
+  alias Playwright.Isomorphic.TimeoutRunner
+  alias Playwright.Runtime.Promise
 
   @moduletag upstream: @upstream
 

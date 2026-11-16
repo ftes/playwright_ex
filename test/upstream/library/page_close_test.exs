@@ -3,21 +3,21 @@
 # Ported to Elixir and modified by the playwright_ex authors.
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule PlaywrightEx.Library.PageCloseTest do
+defmodule Playwright.Library.PageCloseTest do
   @upstream "tests/library/page-close.spec.ts"
-  use PlaywrightEx.UpstreamCase, async: true
+  use Playwright.UpstreamCase, async: true
 
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.Frame
-  alias PlaywrightEx.Mouse
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Request
-  alias PlaywrightEx.Response
-  alias PlaywrightEx.Route
-  alias PlaywrightEx.Runtime
-  alias PlaywrightEx.TestServer
-  alias PlaywrightEx.Utils
+  alias Playwright.Expect
+  alias Playwright.Frame
+  alias Playwright.Mouse
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Request
+  alias Playwright.Response
+  alias Playwright.Route
+  alias Playwright.Runtime
+  alias Playwright.TestServer
+  alias Playwright.Utils
 
   @moduletag :page
 
@@ -62,7 +62,7 @@ defmodule PlaywrightEx.Library.PageCloseTest do
       Page.close!(page, reason: "custom reason")
     end)
 
-    PlaywrightEx.Locator.hover!(Page.locator(page, "#aside"))
+    Playwright.Locator.hover!(Page.locator(page, "#aside"))
 
     Page.evaluate!(page, """
     () => {
@@ -71,7 +71,7 @@ defmodule PlaywrightEx.Library.PageCloseTest do
     }
     """)
 
-    error = PlaywrightEx.Locator.click(Page.locator(page, "#target"))
+    error = Playwright.Locator.click(Page.locator(page, "#target"))
     assert message(error) =~ "custom reason"
   end
 

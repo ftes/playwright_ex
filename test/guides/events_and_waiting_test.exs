@@ -1,21 +1,21 @@
-defmodule PlaywrightEx.Guides.EventsAndWaitingTest do
-  # The snippets of `guides/events-and-waiting.md`, against `PlaywrightEx.TestServer`.
+defmodule Playwright.Guides.EventsAndWaitingTest do
+  # The snippets of `guides/events-and-waiting.md`, against `Playwright.TestServer`.
   use ExUnit.Case, async: true
 
-  alias PlaywrightEx.Browser
-  alias PlaywrightEx.BrowserContext
-  alias PlaywrightEx.BrowserType
-  alias PlaywrightEx.ConsoleMessage
-  alias PlaywrightEx.Dialog
-  alias PlaywrightEx.Download
-  alias PlaywrightEx.Expect
-  alias PlaywrightEx.FileChooser
-  alias PlaywrightEx.Locator
-  alias PlaywrightEx.Page
-  alias PlaywrightEx.Promise
-  alias PlaywrightEx.Request
-  alias PlaywrightEx.TestBrowser
-  alias PlaywrightEx.TestServer
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.BrowserType
+  alias Playwright.ConsoleMessage
+  alias Playwright.Dialog
+  alias Playwright.Download
+  alias Playwright.Expect
+  alias Playwright.FileChooser
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Promise
+  alias Playwright.Request
+  alias Playwright.TestBrowser
+  alias Playwright.TestServer
 
   @moduletag :tmp_dir
 
@@ -32,7 +32,7 @@ defmodule PlaywrightEx.Guides.EventsAndWaitingTest do
   """
 
   setup_all do
-    start_supervised!({PlaywrightEx.Supervisor, name: __MODULE__})
+    start_supervised!({Playwright.Supervisor, name: __MODULE__})
     dir = Path.join(System.tmp_dir!(), "guide-events-#{System.unique_integer([:positive])}")
     File.mkdir_p!(dir)
     server = TestServer.server(start_supervised!({TestServer, dir_path: dir}))
@@ -48,7 +48,7 @@ defmodule PlaywrightEx.Guides.EventsAndWaitingTest do
       |> Plug.Conn.send_resp(200, "a,b")
     end)
 
-    browser = PlaywrightEx.playwright(__MODULE__) |> TestBrowser.browser_type() |> BrowserType.launch!()
+    browser = Playwright.instance(__MODULE__) |> TestBrowser.browser_type() |> BrowserType.launch!()
     %{browser: browser, base_url: server.prefix}
   end
 

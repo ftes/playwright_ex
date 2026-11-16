@@ -14,11 +14,11 @@ available under the Apache 2.0 license (https://github.com/puppeteer/puppeteer/b
 
 This software also contains code derived from the following MIT-licensed sources:
 
-- Node.js `events`, through Playwright's eventEmitter.ts (`PlaywrightEx.Client.EventEmitter`):
+- Node.js `events`, through Playwright's eventEmitter.ts (`Playwright.Client.EventEmitter`):
   Copyright Joyent, Inc. and other Node contributors.
   Modifications copyright (c) Microsoft Corporation.
 
-- Jest's jest-matcher-utils, pretty-format and jest-diff (`PlaywrightEx.Matchers.MatcherUtils`):
+- Jest's jest-matcher-utils, pretty-format and jest-diff (`Playwright.Matchers.MatcherUtils`):
   Copyright (c) Meta Platforms, Inc. and affiliates.
 
 - axios, through Playwright's tests/library/browsercontext-fetch-algorithms.spec.ts (its test):
