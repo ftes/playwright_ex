@@ -80,10 +80,10 @@ BrowserContext.add_cookies!(context, [
 Page.set_extra_http_headers!(page, %{"x-request-id" => "42"})
 ```
 
-> #### `timeout: 0` means no timeout {: .warning}
+> #### For no timeout, pass `timeout: :infinity` {: .warning}
 >
-> As in Playwright JS, `timeout: 0` waits forever instead of failing at once. `:infinity` is
-> the same and reads better in Elixir.
+> Unlike Elixir's `receive ... after 0`, `timeout: 0` here means no timeout, as in Playwright
+> JS: it waits forever. Don't use it for an immediate check.
 
 A wrapper that passes options on can document and check them with `__options__/1`. It lists
 the options of a function (both forms) in order, as its docs show them: `doc` is the first

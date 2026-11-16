@@ -3,7 +3,7 @@
 This library (`Playwright`, Hex package `playwright_ex`) is a 1:1 Elixir port of the Playwright client. Its API is generated from upstream's
 docs, so playwright.dev applies; the Python docs are the closest read.
 
-**`timeout: 0` (or `:infinity`) means no timeout, not an immediate one.** As in Playwright JS, the call waits forever.
+**For no timeout, pass `timeout: :infinity`.** Unlike Elixir's convention, where `0` means don't wait (`receive ... after 0`), `timeout: 0` here means no timeout, as in Playwright JS: never use it for an immediate check.
 
 Code written for 0.16 or earlier (guids, `Frame.click(frame.guid, selector: ...)`, `Selector`, `EventWaiter`, `launch_browser/2`) uses the removed API: port it with the [migration guide](https://hexdocs.pm/playwright_ex/migration.html).
 

@@ -155,10 +155,10 @@ BrowserContext.set_default_timeout(context, 5_000)
 BrowserContext.set_default_navigation_timeout(context, 10_000)
 ```
 
-> #### `timeout: 0` means no timeout {: .warning}
+> #### For no timeout, pass `timeout: :infinity` {: .warning}
 >
-> As in Playwright JS, `timeout: 0` waits forever instead of failing at once. `:infinity` is
-> the same and reads better in Elixir.
+> Unlike Elixir's `receive ... after 0`, `timeout: 0` here means no timeout, as in Playwright
+> JS: it waits forever. Don't use it for an immediate check.
 
 A call's `timeout:` option wins. Assertions (`Playwright.Expect`) retry for 5 seconds by
 default:
