@@ -68,6 +68,7 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. The why
 | `await p` | `Promise.await(p)` (an await point: a listener's or async function's caller continues) |
 | async function called without `await` | `Promise.async(fn -> ... end)` (local), `owner: obj` / `shared: true` for a latch; `Promise.void/1` when nothing awaits it |
 | `new Promise(executor)`, `.then`, `.catch`, `Promise.race/all` | `Promise.new/0,1` (local) or `Promise.new(owner[, executor])` (latch), `then_/2`, `catch_/2`, `race/1`, `all/1` |
+| `Date.now()` | `System.os_time(:millisecond)`: OS time, which the browser reads (`System.system_time/1` can lag it under the VM's time correction) |
 | `setTimeout` / `clearTimeout` | `Promise.timer/1` (+ `Promise.free/1`), or `Promise.void/1` around a sleep |
 | `currentZone().data(...)`, `.with(...).run(...)` | `Zones.data/1`, `Zones.with/3` |
 | `throw` / `try {} catch` / `instanceof` | `raise` / `rescue` / struct match (`Errors.is_playwright_error/1`); `new Error(msg)` is `raise msg` (`RuntimeError`) |

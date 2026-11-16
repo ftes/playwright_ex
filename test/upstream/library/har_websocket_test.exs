@@ -74,7 +74,7 @@ defmodule PlaywrightEx.Library.HarWebsocketTest do
     end
   end
 
-  defp now_ms, do: System.system_time(:millisecond)
+  defp now_ms, do: System.os_time(:millisecond)
 
   defp date_ms(iso) do
     {:ok, dt, _} = DateTime.from_iso8601(iso)

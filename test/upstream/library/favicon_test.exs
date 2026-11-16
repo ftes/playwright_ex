@@ -19,7 +19,7 @@ defmodule PlaywrightEx.Library.FaviconTest do
   test "FA-001 should load svg favicon with prefer-color-scheme", %{page: page, server: server, asset: asset} do
     # Browsers aggressively cache favicons, so force bust with the
     # `d` parameter to make iterating on this test more predictable and isolated.
-    favicon = "/favicon.svg?d=#{System.system_time(:millisecond)}"
+    favicon = "/favicon.svg?d=#{System.os_time(:millisecond)}"
 
     TestServer.set_route(server, favicon, fn conn ->
       TestServer.serve_file(server, conn, asset.("media-query-prefers-color-scheme.svg"))

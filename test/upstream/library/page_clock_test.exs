@@ -492,33 +492,33 @@ defmodule PlaywrightEx.Library.PageClockTest do
   describe "while running" do
     test "CK-035 should progress time", %{page: page} do
       Clock.install!(Page.clock(page), time: 0)
-      start_real_time = System.system_time(:millisecond)
+      start_real_time = System.os_time(:millisecond)
       Page.goto!(page, "data:text/html,")
       Page.wait_for_timeout!(page, 1000)
       now = Page.evaluate!(page, "() => Date.now()")
-      real_elapsed = System.system_time(:millisecond) - start_real_time
+      real_elapsed = System.os_time(:millisecond) - start_real_time
       assert now >= 1000
       assert now <= real_elapsed + 1000
     end
 
     test "CK-036 should runFor", %{page: page} do
       Clock.install!(Page.clock(page), time: 0)
-      start_real_time = System.system_time(:millisecond)
+      start_real_time = System.os_time(:millisecond)
       Page.goto!(page, "data:text/html,")
       Clock.run_for!(Page.clock(page), 10_000)
       now = Page.evaluate!(page, "() => Date.now()")
-      real_elapsed = System.system_time(:millisecond) - start_real_time
+      real_elapsed = System.os_time(:millisecond) - start_real_time
       assert now >= 10_000
       assert now <= 10_000 + real_elapsed + 1000
     end
 
     test "CK-037 should fastForward", %{page: page} do
       Clock.install!(Page.clock(page), time: 0)
-      start_real_time = System.system_time(:millisecond)
+      start_real_time = System.os_time(:millisecond)
       Page.goto!(page, "data:text/html,")
       Clock.fast_forward!(Page.clock(page), 10_000)
       now = Page.evaluate!(page, "() => Date.now()")
-      real_elapsed = System.system_time(:millisecond) - start_real_time
+      real_elapsed = System.os_time(:millisecond) - start_real_time
       assert now >= 10_000
       assert now <= 10_000 + real_elapsed + 1000
     end

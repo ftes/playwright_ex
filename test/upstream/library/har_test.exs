@@ -69,7 +69,7 @@ defmodule PlaywrightEx.Library.HarTest do
 
   defp header(headers, name), do: Enum.find(headers, &(String.downcase(&1["name"]) == name))
 
-  defp now_ms, do: System.system_time(:millisecond)
+  defp now_ms, do: System.os_time(:millisecond)
 
   defp date_ms(iso) do
     {:ok, dt, _} = DateTime.from_iso8601(iso)
@@ -83,7 +83,7 @@ defmodule PlaywrightEx.Library.HarTest do
     do: Plug.Conn.prepend_resp_headers(conn, Enum.map(cookies, &{"set-cookie", &1}))
 
   defp busy_loop(until) do
-    if System.system_time(:millisecond) < until, do: busy_loop(until)
+    if System.os_time(:millisecond) < until, do: busy_loop(until)
   end
 
   test "HA-001 should have version and creator", %{

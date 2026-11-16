@@ -164,7 +164,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     response = APIRequestContext.get!(BrowserContext.request(context), "http://localhost:#{http_server.port}/")
     assert APIResponse.ok(response)
     timing = APIResponse.timing(response)
-    assert abs(timing.startTime - System.system_time(:millisecond)) < 5000
+    assert abs(timing.startTime - System.os_time(:millisecond)) < 5000
     assert timing.domainLookupStart == 0
     assert timing.domainLookupEnd >= timing.domainLookupStart
     assert timing.connectStart == timing.domainLookupEnd
@@ -195,7 +195,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
 
     assert APIResponse.ok(response)
     timing = APIResponse.timing(response)
-    assert abs(timing.startTime - System.system_time(:millisecond)) < 5000
+    assert abs(timing.startTime - System.os_time(:millisecond)) < 5000
     assert timing.domainLookupStart == 0
     assert timing.domainLookupEnd >= timing.domainLookupStart
     assert timing.connectStart == timing.domainLookupEnd
@@ -481,7 +481,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
   } do
     APIRequestContext.add_cookies!(Page.request(page), [
       %{name: "a", value: "b", url: server.empty_page},
-      %{name: "c", value: "d", domain: "localhost", path: "/", expires: System.system_time(:second) + 3600}
+      %{name: "c", value: "d", domain: "localhost", path: "/", expires: System.os_time(:second) + 3600}
     ])
 
     assert context
@@ -584,7 +584,7 @@ defmodule PlaywrightEx.Library.BrowsercontextFetchTest do
     end)
 
     TestServer.set_route(server, "/removecookie.html", fn conn ->
-      max_age = -2 * System.system_time(:millisecond)
+      max_age = -2 * System.os_time(:millisecond)
       conn |> set_cookies(["a=v; max-age=#{max_age}", "b=v; max-age=-1"]) |> Plug.Conn.send_resp(200, "")
     end)
 

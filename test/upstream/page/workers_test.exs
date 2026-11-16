@@ -98,7 +98,7 @@ defmodule PlaywrightEx.Page.WorkersTest do
   test "WO-005 should have timestamp on worker console messages", %{page: page} do
     # it.skip(isAndroid, ...), it.skip(channel === 'webkit-wsl', ...)
     # Account for the rounding of fractional timestamps.
-    before = System.system_time(:millisecond) - 1
+    before = System.os_time(:millisecond) - 1
 
     message =
       Page.expect_event!(page, :console, fn ->
@@ -109,7 +109,7 @@ defmodule PlaywrightEx.Page.WorkersTest do
       end)
 
     # Account for the rounding of fractional timestamps.
-    after_ = System.system_time(:millisecond) + 1
+    after_ = System.os_time(:millisecond) + 1
     assert ConsoleMessage.text(message) == "ts"
     assert ConsoleMessage.timestamp(message) >= before
     assert ConsoleMessage.timestamp(message) <= after_
