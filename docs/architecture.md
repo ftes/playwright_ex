@@ -351,9 +351,10 @@ by the next scope of its key unless the scope failed, else stopped (upstream rep
 a failure). A scope with no known result (no registered test, a doctest) counts as passed: upstream
 always knows, and discarding the unknown would start a driver per module of a plain `ExUnit.Case`
 suite. At most `workers` seats are held (upstream's, default half the cores,
-`packages/playwright/src/common/config.ts:111`); waiters are served first come first served from the
-head, as `_findFirstJobToRun` takes the queue's first job (its locks and per-project limits are not
-ported). A seat of another key restarts in place, its stop awaited by the new holder's `browser/1`,
+`packages/playwright/src/common/config.ts:111`); waiters are served first come first served, as
+`_findFirstJobToRun` takes the queue's first job that can run (its locks and per-project limits are
+not ported): a waiter whose scope got a seat while it waited (its scope's earlier caller) goes past
+those that hold none, which wait on in order. A seat of another key restarts in place, its stop awaited by the new holder's `browser/1`,
 as `_runJobInWorker` awaits `worker.stop()` before it starts a worker of another hash
 (`packages/playwright/src/runner/dispatcher.ts:153`). A stop is fast (a median 28 ms, at most 120
 ms, over 97 in the test suite), so where it is awaited barely matters; the seats keep upstream's

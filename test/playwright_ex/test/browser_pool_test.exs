@@ -412,6 +412,31 @@ defmodule PlaywrightEx.Test.BrowserPoolTest do
       finish(second, [], :boom)
     end
 
+    test "a waiter whose scope got a seat while it waited is served, also behind a scope that waits on" do
+      put_workers(1)
+      opts = opts()
+      [holder, t, u] = for _ <- 1..3, do: fake_test()
+      a = lease(holder, opts)
+      waiting = fn n -> wait_until(fn -> length(:sys.get_state(Pool).waiting) == n end) end
+      t_first = Task.async(fn -> lease(t, opts) end)
+      waiting.(1)
+      u_waiter = Task.async(fn -> lease(u, opts) end)
+      waiting.(2)
+      t_second = Task.async(fn -> lease(t, opts) end)
+      waiting.(3)
+
+      # `t`'s first call takes the seat, so its second is a repeated call: not left behind `u`,
+      # which waits for `t`.
+      finish(holder, [passed()], :shutdown)
+      assert Task.await(t_first, 30_000) == a
+      assert Task.yield(t_second, 1_000) == {:ok, a}
+      assert Task.yield(u_waiter, 200) == nil
+
+      finish(t, [passed()], :shutdown)
+      assert Task.await(u_waiter, 30_000) == a
+      finish(u, [], :boom)
+    end
+
     test "a scope with no known result (a doctest's, an unregistered test's) goes back warm; a crash stops it" do
       opts = opts()
       [unknown, unwatched, crashed] = [fake_test(false), spawn(fn -> :ok end), fake_test(false)]

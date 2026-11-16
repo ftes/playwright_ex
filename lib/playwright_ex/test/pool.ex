@@ -18,8 +18,9 @@ defmodule PlaywrightEx.Test.Pool do
   #   * `scopes`: `%{scope => %{runner, failed?}}` of the scopes that hold seats: `runner` is a
   #     `setup_all` scope's ExUnit runner (whose tests' results are the scope's), else `nil`.
   #   * `workers`: `{env, workers}`, config `workers` and the config it was read from.
-  #   * `waiting`: callers whose scope holds no seat while `workers` are held, monitored, first come
-  #     first served. A waiter that exits, or whose scope was released, is dropped.
+  #   * `waiting`: callers whose scope held no seat while `workers` were held, monitored, first come
+  #     first served (`serve_waiting/1`). A waiter that exits, or whose scope was released, is
+  #     dropped.
   #
   # Started unlinked on first use (`ensure_started/0`), never with the application (a release
   # has no ExUnit): its lifetime is the run. It registers the `ExUnit.after_suite/1` that stops
@@ -319,18 +320,25 @@ defmodule PlaywrightEx.Test.Pool do
     end
   end
 
-  # The waiting callers, first come first served, while a seat is free for the first.
-  defp serve_waiting(%{waiting: [waiter | rest]} = state) do
-    case lease(%{state | waiting: rest}, waiter) do
-      {:ok, seat, state} ->
-        Process.demonitor(waiter.ref, [:flush])
-        GenServer.reply(waiter.from, {seat, waiter.key})
-        serve_waiting(state)
+  # The waiting callers, first come first served, as `_findFirstJobToRun` picks the first job that
+  # can run: every one `lease/2` serves, the others wait on in order. One whose scope got a seat
+  # here (its scope's earlier caller) is served, past those that wait. A scope with no seat is
+  # `:full` while `workers` are held, of any key, and serving only takes seats: once one waits,
+  # the later ones do, so their order holds.
+  defp serve_waiting(state) do
+    {waiting, state} =
+      Enum.flat_map_reduce(state.waiting, state, fn waiter, state ->
+        case lease(state, waiter) do
+          {:ok, seat, state} ->
+            Process.demonitor(waiter.ref, [:flush])
+            GenServer.reply(waiter.from, {seat, waiter.key})
+            {[], state}
 
-      :full ->
-        state
-    end
+          :full ->
+            {[waiter], state}
+        end
+      end)
+
+    %{state | waiting: waiting}
   end
-
-  defp serve_waiting(state), do: state
 end
