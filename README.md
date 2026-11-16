@@ -10,7 +10,7 @@ end-to-end tests, web scraping, agentic AI.
 
 It is a 1:1 port of the official JavaScript client. Its API is generated from
 Playwright's docs, so the docs at playwright.dev apply. The driver (Node.js and `playwright-core`)
-is pinned and installed by Mix, no npm needed. This release drives Playwright 1.65.
+is pinned and installed by Mix, no npm needed. This release drives Playwright 1.65.0.
 
 For Phoenix feature tests with the Ecto sandbox, use [Fluffy](https://hex.pm/packages/fluffy),
 which is built on this library.
@@ -20,7 +20,7 @@ which is built on this library.
 ```elixir
 def deps do
   [
-    {:playwright, "~> 0.17.0-rc.6", hex: :playwright_ex}
+    {:playwright, "~> 1.65.0-rc.1", hex: :playwright_ex}
   ]
 end
 ```
@@ -32,6 +32,12 @@ The Hex package is `playwright_ex`, the app and modules are `playwright` and `Pl
 mix deps.get
 mix playwright.install
 ```
+
+## Versioning
+
+The major.minor is Playwright's and the patch is ours, as in playwright-python: `1.65.x` drives
+Playwright 1.65, and this release pins driver 1.65.0. Our own breaking changes ship only with a
+Playwright minor, so depend on `~> 1.65.0` (`~> 1.65.0-rc.1` while it's a release candidate).
 
 ## Example
 

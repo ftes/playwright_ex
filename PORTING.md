@@ -262,6 +262,9 @@ to that PR, the workflow also pushes fixes for its CI failures. The mix tasks be
    (`grep -rlE '"(env|flaky):' test/upstream`) with `PW_UNSKIP=env,flaky mix test <files>` on the
    browser they name (ExUnit runs no skipped test, `--include skip` neither), drop each skip that
    passes, and re-check "Upstream issues to re-check" below.
+7. The release then takes the version (upstream's major.minor, our patch; docs/architecture.md
+   "Port and versions"): an upstream minor gives X.Y.0, a driver patch bump our patch + 1, as
+   does a release of only our fixes. Its CHANGELOG entry names the exact driver.
 
 ### Upstream issues to re-check
 

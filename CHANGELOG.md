@@ -1,19 +1,62 @@
-# Changelog
+# Changelog for v1
 
-All notable changes to this project will be documented in this file.
+1.x is a statement-by-statement port of Playwright's JavaScript client. It needs Elixir 1.18 or
+later (CI tests down to OTP 27). Its major.minor is Playwright's and the patch is ours: depend on
+`~> 1.65.0`. Upgrading from 0.16: read the [migration guide](guides/migration.md).
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-<!-- and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). -->
 
-Upgrading from 0.16: the [migration guide](guides/migration.md) covers the changes, including
-those of the release candidates below. From an earlier release, also read the sections up to 0.16.
+## The JS-client port
+
+The client ports the official JS client at a pinned driver version, and its public API is
+generated from Playwright's docs, so [playwright.dev](https://playwright.dev/docs/api/class-playwright)
+applies: `page.getByRole(...)` is `Playwright.Page.get_by_role/3`. Calls take the arguments and
+options upstream does, with a tuple form (`{:ok, _} | {:error, e}`) and a bang form; waits JS
+starts without `await` return a `Playwright.Promise`.
+
+## The rename to `Playwright`
+
+The modules are `Playwright.*` and the app is `:playwright`; the Hex package stays
+`playwright_ex`: `{:playwright, "~> 1.65.0-rc.1", hex: :playwright_ex}`. `hex:` is required,
+as `playwright` on Hex is another library.
+
+## `Playwright.Test`
+
+`use Playwright.Test` brings Playwright Test's runner to ExUnit: pooled worker browsers
+(`Playwright.Test.BrowserPool`), context defaults, traces, screenshots and videos, steps,
+snapshot paths, soft assertions and timeouts. `Playwright.Case` gives each test a `page`. See
+[Testing with ExUnit](guides/testing-with-exunit.md).
+
+## Versioning
+
+`1.65.x` drives Playwright 1.65; the patch counts our releases (our fixes and driver patch
+bumps), and each release below names its exact driver. Our breaking changes ship only with an
+upstream minor, so `~> 1.65.0` is safe.
+
+## Backwards-incompatible changes
+
+1.x is a clean cut from 0.16: the guid-based modules, `Selector`, `EventWaiter` and the other
+0.16 APIs are gone. The [migration guide](guides/migration.md) covers every change, including
+those of the release candidates below. From before 0.16, also read the sections up to 0.16.
 
 ## [Unreleased]
 
+## [1.65.0-rc.1] 2026-11-16
+
+Drives [Playwright 1.65.0](https://github.com/microsoft/playwright/releases/tag/v1.65.0).
+
 ### Changed
+- **Versions follow Playwright's:** major.minor is Playwright's, the patch is ours (our fixes and
+  driver patch bumps), as playwright-python does. This release follows `0.17.0-rc.6` with no
+  other API change. Update the dependency line to
+  `{:playwright, "~> 1.65.0-rc.1", hex: :playwright_ex}` (`~> 1.65.0` once 1.65.0 is out).
 - `usage-rules.md` covers the port's specifics: the dependency line and the other `playwright` on
   Hex, `Playwright.Test` (fixtures, workers, timeouts, artifacts, steps, snapshots), alias
   shadowing, config in place of `playwright.config.ts`, and upstream's locator order in one line.
+
+## 0.17 release candidates
+
+The pre-releases of 1.x, numbered as 0.17.0-rc.N before versions followed Playwright's.
 
 ## [0.17.0-rc.6] 2026-11-16
 
@@ -255,6 +298,8 @@ Drives Playwright 1.64.
 ### Added
 - [Concurrency](guides/concurrency.md) guide: listeners in processes, subscribing before
   checking state, promise lifetimes, differences from JS.
+
+## 0.16 and earlier
 
 ## [0.16.0] 2026-11-04
 

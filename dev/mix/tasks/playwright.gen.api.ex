@@ -931,8 +931,8 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
 
   defp semver(since), do: since |> version() |> Kernel.<>(".0") |> Version.parse!()
 
-  # The Playwright version that added a class or member, as text: our versions are not
-  # Playwright's yet, so no `@doc since:`.
+  # The Playwright version that added a class or member, as text, not `@doc since:`: our
+  # versions match Playwright's only from 1.65, so an older one names no release of ours.
   defp since(%{"since" => since}) when is_binary(since), do: since_text(since)
   defp since(_member), do: nil
 

@@ -54,10 +54,10 @@ the existing ported code next to whatever you port.
       anything you left out in the PR body.
    7. Re-check the `env:`/`flaky:` skips and PORTING's "Upstream issues to re-check" as PORTING
       step 6 says; drop skips that pass and list them in the PR body.
-4. Leave `@version` in `mix.exs` alone (releases are 0.17 candidates until versions mirror
-   Playwright; GH #126). Under `## [Unreleased]` in `CHANGELOG.md`, in the style of the
-   existing entries: "Drive Playwright TO" with the RELEASE link, then the API added or changed by
-   the port.
+4. Leave `@version` in `mix.exs` alone: the release PR sets it to VERSION (an upstream minor
+   gives X.Y.0, a patch bump our patch + 1; PORTING step 7). Under `## [Unreleased]` in
+   `CHANGELOG.md`, in the style of the existing entries: "Drives Playwright TO" with the RELEASE
+   link, then the API added or changed by the port.
 5. Verify; all must pass (CI on the PR runs Dialyzer, the docs build and the other browsers):
    ```
    mix format

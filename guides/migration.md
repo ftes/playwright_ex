@@ -7,9 +7,11 @@ docs apply: `page.getByRole(...)` is `Playwright.Page.get_by_role/3`, `locator.c
 `Playwright.Expect.to_be_visible/2`.
 
 This is a clean cut: the guid-based modules, `Selector`, `EventWaiter`, `launch_browser/2`,
-`subscribe/2` and `JsLogger` are gone. This guide covers the changes from 0.16, including those
-of the release candidates. From an earlier release, also read the [changelog](../CHANGELOG.md)
-up to 0.16. Snippets below alias `Playwright.{Page, Locator, ...}`.
+`subscribe/2` and `JsLogger` are gone. Versions now follow Playwright's (major.minor is
+Playwright's, the patch ours), so 0.16 is followed by 1.65. This guide covers the changes from
+0.16 to 1.65, including those of the release candidates (the earlier ones numbered
+0.17.0-rc.N). From an earlier release, also read the [changelog](../CHANGELOG.md) up to 0.16.
+Snippets below alias `Playwright.{Page, Locator, ...}`.
 
 ## Names
 
