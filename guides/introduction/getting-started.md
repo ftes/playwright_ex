@@ -20,7 +20,7 @@ mix playwright.install
 The driver is Node.js plus the `playwright-core` package, both pinned and checksum-verified, so
 no Node.js or npm is needed beforehand. It goes to the user cache directory
 (`config :playwright, :driver, cache_dir: ...` overrides it, see `Playwright.Driver`; to take it
-from an environment variable, read that in `config/runtime.exs`) and installs itself on first
+from an environment variable, locally or in CI, read that in `config/config.exs`) and installs itself on first
 start if missing. Browsers
 go to Playwright's [browser cache](https://playwright.dev/docs/browsers#managing-browser-binaries).
 Arguments after `--` go to `playwright install`:

@@ -12,8 +12,6 @@ defmodule Mix.Tasks.Playwright.Cli do
 
   @impl true
   def run(argv) do
-    # `config :playwright, :driver`, also from config/runtime.exs.
-    Mix.Task.run("app.config")
     Application.ensure_all_started([:inets, :ssl, :crypto])
     {program, prefix} = Playwright.Driver.ensure_installed()
 

@@ -30,13 +30,19 @@ defmodule Playwright.Driver do
 
       config :playwright, :driver, cache_dir: "/cache"
 
-  The library reads no environment variables of its own (the Playwright CLI reads its own, such
-  as `PLAYWRIGHT_BROWSERS_PATH`). To take an option from one of your choice, read it in
-  `config/runtime.exs`:
+  Put it in `config/config.exs` (or a file it imports, such as `config/test.exs`), not
+  `config/runtime.exs`: `mix playwright.install` doesn't compile the project, so it doesn't read
+  `config/runtime.exs`. Mix evaluates `config/config.exs` on every run, so an environment variable
+  read there takes effect each time, locally and in CI. The library reads no environment variables
+  of its own (the Playwright CLI reads its own, such as `PLAYWRIGHT_BROWSERS_PATH`). To take an
+  option from one of your choice:
 
       if dir = System.get_env("PLAYWRIGHT_CACHE_DIR") do
         config :playwright, :driver, cache_dir: dir
       end
+
+  A release evaluates `config/config.exs` when it's built, so a release that sets these at boot
+  reads them in `config/runtime.exs`, which `Playwright.Supervisor` sees.
   """
 
   @checksums_file Path.join([__DIR__, "..", "..", "priv", "driver_checksums.exs"])

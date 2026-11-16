@@ -22,7 +22,7 @@ those of the release candidates below. From an earlier release, also read the se
   | `config :playwright_ex, ...` | `config :playwright, ...` |
   | `mix playwright_ex.install`, `playwright_ex.cli` | `mix playwright.install`, `playwright.cli` (also in aliases) |
   | `usage_rules: [:playwright_ex]` | `usage_rules: [:playwright]` |
-  | `PLAYWRIGHT_EX_CACHE_DIR`, `PLAYWRIGHT_EX_EXECUTABLE`, `PLAYWRIGHT_NODEJS_PATH` | `config :playwright, :driver, cache_dir: ..., executable: ..., node: ...` (read an env var in `config/runtime.exs` if you need one) |
+  | `PLAYWRIGHT_EX_CACHE_DIR`, `PLAYWRIGHT_EX_EXECUTABLE`, `PLAYWRIGHT_NODEJS_PATH` | `config :playwright, :driver, cache_dir: ..., executable: ..., node: ...` (read an env var in `config/config.exs` if you need one, locally or in CI) |
   | driver cache `<user cache>/playwright_ex` | `<user cache>/playwright` (the driver downloads again) |
 
   In a module that aliases a `Playwright` of its own (`alias MyApp.Playwright`),

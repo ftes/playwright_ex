@@ -9,7 +9,8 @@ defmodule Mix.Tasks.Playwright.Install do
   `:channel`.
 
   The task doesn't see the options of `Playwright.Supervisor`; it reads their defaults,
-  `config :playwright, :driver` (see `Playwright.Driver`), with `config/runtime.exs`:
+  `config :playwright, :driver` (see `Playwright.Driver`). It doesn't compile the project, so it
+  sees `config/config.exs` and the files it imports, not `config/runtime.exs`:
 
     * `:cache_dir` - where the driver is installed.
     * `:executable`, `:node` - the CLI, or the Node binary, that installs the browsers. The pinned
@@ -31,8 +32,6 @@ defmodule Mix.Tasks.Playwright.Install do
       end
 
     {opts, _} = OptionParser.parse!(own, strict: [browsers: :boolean, force: :boolean])
-    # `config :playwright, :driver`, also from config/runtime.exs.
-    Mix.Task.run("app.config")
     Application.ensure_all_started([:inets, :ssl, :crypto])
 
     :ok = Playwright.Driver.install(force: Keyword.get(opts, :force, false))
