@@ -62,8 +62,8 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Protocol do
     ctx = %{channels: channels, mixins: mixins, derived: derived}
     {schemes, metainfo} = generate(ctx, protocol)
 
-    write(@validator, validator_source(schemes))
-    write(@metainfo, metainfo_source(metainfo))
+    write(repo, @validator, validator_source(schemes))
+    write(repo, @metainfo, metainfo_source(metainfo))
   end
 
   def run(_), do: Mix.raise("Usage: mix playwright_ex.gen.protocol [<playwright-repo>]")
@@ -271,9 +271,11 @@ defmodule Mix.Tasks.PlaywrightEx.Gen.Protocol do
 
   defp map_body(info), do: Enum.map_join(info, ", ", fn {k, v} -> "#{k}: #{inspect(v)}" end)
 
-  defp write(path, source) do
+  # Under the copyright header of the `@upstream` file (`Mix.PlaywrightEx.Notices`).
+  defp write(repo, path, source) do
+    source = IO.iodata_to_binary([Code.format_string!(source, line_length: 120), "\n"])
     File.mkdir_p!(Path.dirname(path))
-    File.write!(path, [Code.format_string!(source, line_length: 120), "\n"])
+    File.write!(path, Mix.PlaywrightEx.Notices.put(repo, path, source))
     Mix.shell().info("Wrote #{path}")
   end
 
