@@ -51,6 +51,26 @@ defmodule PlaywrightEx.Test.TimeoutsTest do
     assert Recorder.test_timeout_margin(3000) == 150
   end
 
+  test "the timer firing after the test exited, before its DOWN, closes nothing" do
+    test_pid = spawn(fn -> receive do: (:stop -> :ok) end)
+    tmp = Path.join(System.tmp_dir!(), "recorder-#{System.unique_integer([:positive])}")
+    deadline = System.monotonic_time(:millisecond) + 60_000
+
+    {:ok, recorder} =
+      GenServer.start(Recorder, %{test_pid: test_pid, deadline: deadline, test_timeout: 60_000, tmp: tmp})
+
+    # The timer's message, then the test's DOWN, in the recorder's mailbox.
+    :sys.suspend(recorder)
+    send(recorder, :test_timeout)
+    ref = Process.monitor(test_pid)
+    send(test_pid, :stop)
+    assert_receive {:DOWN, ^ref, :process, _, _}
+    :sys.resume(recorder)
+
+    refute Recorder.timed_out?(recorder)
+    GenServer.stop(recorder)
+  end
+
   @tag timeout: :infinity
   test "a test without a timeout has no timer", ctx do
     Browser.new_context!(ctx.browser)

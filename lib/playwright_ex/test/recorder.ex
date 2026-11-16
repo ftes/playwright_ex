@@ -386,7 +386,22 @@ defmodule PlaywrightEx.Test.Recorder do
     do: %{state | overlay_queue: [{pid, mref, :running} | queue]}
 
   @impl true
+  # The test exited before the timer fired, its `:DOWN` not handled yet: it finished in time.
   def handle_info(:test_timeout, state) do
+    if Process.alive?(state.test_pid), do: time_out(state), else: {:noreply, %{state | timer: nil}}
+  end
+
+  # An update's process exited before it was done: the next one's turn.
+  def handle_info({:DOWN, mref, :process, _pid, _reason} = down, state) do
+    case List.keytake(state.overlay_queue, mref, 1) do
+      {_update, queue} -> {:noreply, grant(%{state | overlay_queue: queue})}
+      nil -> process_down(down, state)
+    end
+  end
+
+  def handle_info(_message, state), do: {:noreply, state}
+
+  defp time_out(state) do
     reason = "Test timeout of #{state.opts.test_timeout}ms exceeded."
     open = for %{guid: guid, context: context} <- state.contexts, guid not in state.closed, do: context
 
@@ -402,16 +417,6 @@ defmodule PlaywrightEx.Test.Recorder do
 
     {:noreply, %{state | timer: nil, timed_out: true, closing: closing}}
   end
-
-  # An update's process exited before it was done: the next one's turn.
-  def handle_info({:DOWN, mref, :process, _pid, _reason} = down, state) do
-    case List.keytake(state.overlay_queue, mref, 1) do
-      {_update, queue} -> {:noreply, grant(%{state | overlay_queue: queue})}
-      nil -> process_down(down, state)
-    end
-  end
-
-  def handle_info(_message, state), do: {:noreply, state}
 
   # Its `finish/3` was killed (ExUnit's timeout of the `on_exit` callback): it stops.
   defp process_down({:DOWN, _ref, :process, pid, reason}, %{finisher: pid} = state)
