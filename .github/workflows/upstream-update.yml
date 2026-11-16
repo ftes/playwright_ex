@@ -84,7 +84,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup languages
-        uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
+        uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
       - name: Install dependencies
         run: mix "do" deps.get, deps.compile
       # The FROM driver; Claude reinstalls after bumping (--with-deps covers the OS packages).
@@ -190,7 +190,7 @@ jobs:
           ref: ${{ matrix.pr.branch }}
           fetch-depth: 0
       - name: Setup languages
-        uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
+        uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
       - name: Install dependencies
         run: mix "do" deps.get, deps.compile
       # May fail on a branch that doesn't compile; Claude then runs without them.
