@@ -296,6 +296,6 @@ defmodule Playwright.Guides.MigrationTest do
     end)
 
     {:error, %AbortError{cause: "user cancelled"}} =
-      Page.locator(page, "#x") |> Locator.click(signal: AbortController.signal(controller), timeout: 0)
+      Page.locator(page, "#x") |> Locator.click(signal: AbortController.signal(controller), timeout: :infinity)
   end
 end
