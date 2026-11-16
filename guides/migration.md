@@ -19,7 +19,7 @@ app, `{:playwright, "~> ...", hex: :playwright_ex}`: `hex: :playwright_ex` is re
 `playwright` on Hex is another library. Then `config :playwright, ...`, `mix playwright.install`
 (in aliases too), `usage_rules: [:playwright]`. In a module that aliases a `Playwright` of its own
 (`alias MyApp.Playwright`), `Playwright.Page` and `Playwright.instance()` resolve to that module.
-Simplest: don't alias it where you use ours, and call it in full (`MyApp.Playwright.x(...)`).
+Simplest: don't alias it where you use ours: call it in full (`MyApp.Playwright.x(...)`), or `import` it.
 Otherwise write `alias MyApp.Playwright, as: MyPlaywright`, or `Elixir.Playwright.Page`. A sorted alias
 list (as Styler sorts it) puts `alias MyApp.Playwright` before `alias Playwright.Page`, which then
 expands to `MyApp.Playwright.Page`: write `alias Elixir.Playwright.Page` there. ex_doc links a
@@ -410,3 +410,6 @@ Task.start(fn -> Process.sleep(1_000); AbortController.abort(controller, "user c
 ## Known gaps
 
 - Not ported: `launchServer`, `connectOverCDP` with a transport, `toMatchSnapshot`.
+- `to_have_url` with a string doesn't percent-encode it as JS's `new URL` does (relative or
+  absolute, with or without a base URL): pass non-ASCII characters and spaces encoded
+  (`"/cr%C3%A9atures"`, `"?q=Felix%20Felicis"`).
