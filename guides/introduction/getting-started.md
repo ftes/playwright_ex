@@ -187,20 +187,33 @@ notes](https://playwright.dev/docs/release-notes). From 0.16, follow the
 
 The package ships `usage-rules.md`, rules for coding agents: setup and config, the API's shape,
 locators in Playwright's order, web-first assertions, timeouts, `Playwright.Test`, events and
-concurrency.
-They are generic, so add your app's own rules on top. With the
-[`usage_rules`](https://hexdocs.pm/usage_rules) package, list `:playwright` in its config and
-run `mix usage_rules.sync` to copy them into your `AGENTS.md`; sync again after upgrading.
+concurrency. They are generic, so add your app's own rules on top.
+
+Install them as a skill with the [`usage_rules`](https://hexdocs.pm/usage_rules) package. A skill
+loads only when an agent needs it, while `AGENTS.md` is read in every session. Give it a
+`description:` that says when to use it: without one it gets the package's Hex description,
+which says what the package is, not when to load it.
 
 ```elixir
 # mix.exs
 def project do
   [
     # ...
-    usage_rules: [file: "AGENTS.md", usage_rules: [:playwright]]
+    usage_rules: [
+      skills: [
+        build: [
+          playwright: [
+            description: "Use when writing browser automation or tests with Playwright.",
+            usage_rules: [:playwright]
+          ]
+        ]
+      ]
+    ]
   ]
 end
 ```
+
+Then run `mix usage_rules.sync`, and again after upgrading.
 
 ## Next
 
