@@ -260,7 +260,10 @@ having no such struct. It is not WHATWG-normalized and has no `searchParams`
 local port of `urlMatch` with a reduced WHATWG URL was tried and reverted: 417 more lines to keep
 exact for no user-visible gain.
 `toHaveURL` with a base URL uses `URI.merge` plus lowercasing, less exact than WHATWG on
-default ports, IDN and percent-encoding.
+default ports, IDN and percent-encoding. A relative URL isn't percent-encoded as `new URL(given,
+base)` encodes it, so it never matches the browser's encoded URL when it holds non-ASCII
+characters or spaces: pass those encoded (`/cr%C3%A9atures`, `?q=Felix%20Felicis`). Encoding them
+would be a partial WHATWG port for one matcher (#229).
 
 ## Driver language and rendering
 
