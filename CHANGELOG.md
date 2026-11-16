@@ -10,6 +10,11 @@ those of the release candidates below. From an earlier release, also read the se
 
 ## [Unreleased]
 
+### Changed
+- `usage-rules.md` covers the port's specifics: the dependency line and the other `playwright` on
+  Hex, `Playwright.Test` (fixtures, workers, timeouts, artifacts, steps, snapshots), alias
+  shadowing, config in place of `playwright.config.ts`, and upstream's locator order in one line.
+
 ## [0.17.0-rc.6] 2026-11-16
 
 ### Breaking

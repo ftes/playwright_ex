@@ -12,6 +12,9 @@ It is a 1:1 port of the official JavaScript client. Its API is generated from
 Playwright's docs, so the docs at playwright.dev apply. The driver (Node.js and `playwright-core`)
 is pinned and installed by Mix, no npm needed. This release drives Playwright 1.65.
 
+For Phoenix feature tests with the Ecto sandbox, use [Fluffy](https://hex.pm/packages/fluffy),
+which is built on this library.
+
 ## Installation
 
 ```elixir
@@ -45,8 +48,8 @@ Expect.to_have_title!(page, ~r/Install/)
 Supervisor.stop(Playwright)
 ```
 
-**`timeout: 0` means no timeout.** As in Playwright JS, it waits forever instead of failing at
-once. `:infinity` is the same and reads better in Elixir.
+**For no timeout, pass `timeout: :infinity`;** `0` also means no timeout, unlike Elixir's convention
+([details](https://hexdocs.pm/playwright_ex/api-conventions.html#no-timeout)).
 
 ## Reading playwright.dev
 
@@ -56,7 +59,8 @@ names match Python's: snake_case, keyword options, `expect_popup`, `eval_on_sele
 
 ## Guides
 
-- [Getting started](guides/introduction/getting-started.md): install, the driver, a first script.
+- [Getting started](guides/introduction/getting-started.md): install, the driver, a first script, usage rules
+  for coding agents.
 - [From playwright.dev to Elixir](guides/introduction/api-conventions.md): how a JS call reads in
   Elixir.
 - [Cheatsheet](guides/introduction/cheatsheet.cheatmd): frequent calls, JS next to Elixir.

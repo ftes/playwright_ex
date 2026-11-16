@@ -3,8 +3,8 @@
 This library is the client, ExUnit is the test runner. `Playwright.Test` adds what Playwright
 Test's worker gives each test: a browser, a fresh context with Playwright Test's defaults, and
 traces, screenshots and videos of failures. This guide tests an app that runs somewhere and is
-reached through a base URL, whatever it is written in. For Phoenix feature tests (with the Ecto
-sandbox), see [Fluffy](https://hex.pm/packages/fluffy). Snippets alias `Playwright.{Page, Locator, ...}`.
+reached through a base URL, whatever it is written in. Snippets alias
+`Playwright.{Page, Locator, ...}`.
 
 ## Setup
 

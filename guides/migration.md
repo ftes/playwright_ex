@@ -360,13 +360,13 @@ controller = AbortController.new()
 Task.start(fn -> Process.sleep(1_000); AbortController.abort(controller, "user cancelled") end)
 
 {:error, %AbortError{cause: "user cancelled"}} =
-  Page.locator(page, "#x") |> Locator.click(signal: AbortController.signal(controller), timeout: 0)
+  Page.locator(page, "#x") |> Locator.click(signal: AbortController.signal(controller), timeout: :infinity)
 ```
 
 ## Behaviour changes
 
-- `timeout: 0` means no timeout (as in JS), not "don't wait", and `:infinity` is the same
-  (`wait_for_timeout/2` rejects it: its argument is how long to wait). To check without waiting,
+- For no timeout, pass `timeout: :infinity`; `0` also means no timeout, unlike Elixir's convention ([details](introduction/api-conventions.md#no-timeout)).
+  `wait_for_timeout/2` rejects `:infinity`: its argument is how long to wait. To check without waiting,
   read once (`Locator.is_visible/2`, `Locator.count/1`) or pass a short timeout.
 - Nested maps use the JS keys both ways: `add_cookies` takes `%{sameSite: "Strict", httpOnly: true}`,
   and `cookies`, `storage_state` and the other results return them (`sameSite`, `localStorage`),
