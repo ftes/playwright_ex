@@ -8,24 +8,32 @@ docs apply: `page.getByRole(...)` is `Playwright.Page.get_by_role/3`, `locator.c
 
 This is a clean cut: the guid-based modules, `Selector`, `EventWaiter`, `launch_browser/2`,
 `subscribe/2` and `JsLogger` are gone. Versions now follow Playwright's (major.minor is
-Playwright's, the patch ours), so 0.16 is followed by 1.65. This guide covers the changes from
-0.16 to 1.65, including those of the release candidates (the earlier ones numbered
-0.17.0-rc.N). From an earlier release, also read the [changelog](../CHANGELOG.md) up to 0.16.
+Playwright's, the patch ours), so 0.16 is followed by 1.65.0. This guide covers the changes from
+0.16 to 1.65.0. From an earlier release, also read the [changelog](../CHANGELOG.md) up to 0.16.
 Snippets below alias `Playwright.{Page, Locator, ...}`.
 
 ## Names
 
-The modules are `Playwright.*` (were `PlaywrightEx.*`) and the app is `:playwright` (was
-`:playwright_ex`); the Hex package keeps the name `playwright_ex`. Name the dependency after the
-app, `{:playwright, "~> ...", hex: :playwright_ex}`: `hex: :playwright_ex` is required, as
-`playwright` on Hex is another library. Then `config :playwright, ...`, `mix playwright.install`
-(in aliases too), `usage_rules: [:playwright]`. In a module that aliases a `Playwright` of its own
-(`alias MyApp.Playwright`), `Playwright.Page` and `Playwright.instance()` resolve to that module.
-Simplest: don't alias it where you use ours: call it in full (`MyApp.Playwright.x(...)`), or `import` it.
-Otherwise write `alias MyApp.Playwright, as: MyPlaywright`, or `Elixir.Playwright.Page`. A sorted alias
-list (as Styler sorts it) puts `alias MyApp.Playwright` before `alias Playwright.Page`, which then
-expands to `MyApp.Playwright.Page`: write `alias Elixir.Playwright.Page` there. ex_doc links a
-dependency's docs by app name, so if your docs link to ours, add
+The modules are `Playwright.*` and the app is `:playwright`; the Hex package keeps the name
+`playwright_ex`.
+
+| 0.16 | 1.65 |
+| --- | --- |
+| `{:playwright_ex, "~> 0.16"}` | `{:playwright, "~> 1.65.0", hex: :playwright_ex}` |
+| `PlaywrightEx.*` | `Playwright.*` |
+| `config :playwright_ex, ...` | `config :playwright, ...` |
+
+`hex: :playwright_ex` is required, as `playwright` on Hex is another library. What's new goes by
+the app's name too: `mix playwright.install` (in aliases too), `usage_rules: [:playwright]`.
+
+In a module that aliases a `Playwright` of its own (`alias MyApp.Playwright`), `Playwright.Page`
+and `Playwright.instance()` resolve to that module. Simplest: don't alias it where you use ours:
+call it in full (`MyApp.Playwright.x(...)`), or `import` it. Otherwise write
+`alias MyApp.Playwright, as: MyPlaywright`, or `Elixir.Playwright.Page`. A sorted alias list (as
+Styler sorts it) puts `alias MyApp.Playwright` before `alias Playwright.Page`, which then expands
+to `MyApp.Playwright.Page`: write `alias Elixir.Playwright.Page` there.
+
+ex_doc links a dependency's docs by app name, so if your docs link to ours, add
 `docs: [deps: [playwright: "https://hexdocs.pm/playwright_ex"]]` to your `mix.exs`: without it,
 the links go to the other `playwright` library's docs.
 
@@ -33,8 +41,8 @@ Upgrade every library you depend on that uses PlaywrightEx at the same time. Whi
 declares `:playwright_ex`, Mix fetches both packages, and they compile side by side without a
 warning: that library keeps driving PlaywrightEx and ignores `config :playwright`. Check that
 `mix deps.tree` lists no `playwright_ex`, then run `mix deps.clean --unused --unlock` to remove
-it from `mix.lock`, `deps/` and `_build/`. The driver cache moves from `<user cache>/playwright_ex` to `<user cache>/playwright`;
-delete the old one.
+it from `mix.lock`, `deps/` and `_build/` (`mix deps.unlock --check-unused` fails on the lock
+entry until then).
 
 ## Handles, not guids
 
@@ -80,8 +88,9 @@ page = BrowserContext.new_page!(context)
   `mix playwright.install` (`-- chromium firefox --with-deps` for CI), so the npm `playwright`
   package can go. Its version (`Playwright.Driver.version/0`) may be newer than the one you ran:
   read Playwright's [release notes](https://playwright.dev/docs/release-notes) (1.65 breaks some
-  tests: actions wait for the element to be not inert, cookie matching follows RFC 6265, and text
-  the browser doesn't render leaves accessible names). `executable:`
+  tests: actions wait for the element to be not inert, cookie matching follows RFC 6265, proxy
+  credentials only answer proxy challenges, and text the browser doesn't render leaves accessible
+  names and aria snapshots). `executable:`
   takes a Playwright 1.65 CLI such as `node_modules/.bin/playwright`, not `cli.js`: a path (not
   looked up in `$PATH`), whose version nothing checks.
 - Prefer `only: [:dev, :test]` to `only: :test`, so that the mix tasks and `mix usage_rules.sync`
