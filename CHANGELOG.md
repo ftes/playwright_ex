@@ -2,7 +2,7 @@
 
 1.x is a statement-by-statement port of Playwright's JavaScript client. It needs Elixir 1.18 or
 later (CI tests down to OTP 27). Its major.minor is Playwright's and the patch is ours: depend on
-`~> 1.65.0`. Upgrading from 0.16: read the [migration guide](guides/migration.md).
+`~> 1.65.0`. Upgrading from 0.16: read the [upgrading guide](guides/upgrading.md).
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
@@ -36,7 +36,7 @@ upstream minor, so `~> 1.65.0` is safe.
 ## Backwards-incompatible changes
 
 1.x is a clean cut from 0.16: the guid-based modules, `Selector`, `EventWaiter` and the other
-0.16 APIs are gone. The [migration guide](guides/migration.md) covers every change, including
+0.16 APIs are gone. The [upgrading guide](guides/upgrading.md) covers every change, including
 those of the release candidates below. From before 0.16, also read the sections up to 0.16.
 
 ## [Unreleased]
@@ -278,7 +278,7 @@ Drives Playwright 1.64.
 
 ### Changed
 - Rewritten as a 1:1 port of the official JavaScript client (breaking).
-  See the [migration guide](guides/migration.md).
+  See the [upgrading guide](guides/upgrading.md).
 - Tuple forms return `{:error, e}` only for the errors upstream rejects with
   (`PlaywrightEx.error()`); other exceptions (bugs, misuse) raise in both forms.
 - `PlaywrightEx.Supervisor`'s child id is its `:name`: drivers of different names can share a

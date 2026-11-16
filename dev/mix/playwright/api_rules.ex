@@ -240,7 +240,7 @@ defmodule Mix.Playwright.ApiRules do
     upstream's docs, so the docs at playwright.dev apply; the
     [Getting started](getting-started.md) and
     [From playwright.dev to Elixir](api-conventions.md) guides show how. Coming from 0.16: see
-    the [migration guide](migration.md).
+    the [upgrading guide](upgrading.md).
 
     ## The Playwright object\
     """

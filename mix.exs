@@ -86,6 +86,8 @@ defmodule Playwright.MixProject do
   defp docs do
     [
       main: "readme",
+      # The upgrading guide was migration.md; published links point there.
+      redirects: %{"migration" => "upgrading"},
       source_ref: "v#{@version}",
       extra_section: "GUIDES",
       extras: [
@@ -98,7 +100,7 @@ defmodule Playwright.MixProject do
         "guides/network.md": [title: "Network"],
         "guides/debugging-and-ci.md": [title: "Debugging and CI"],
         "guides/concurrency.md": [title: "Concurrency"],
-        "guides/migration.md": [title: "Migrating from 0.16"],
+        "guides/upgrading.md": [title: "Upgrading from 0.16"],
         "CHANGELOG.md": [title: "Changelog"]
       ],
       groups_for_extras: [
@@ -110,7 +112,7 @@ defmodule Playwright.MixProject do
           "guides/debugging-and-ci.md",
           "guides/concurrency.md"
         ],
-        Upgrading: ["guides/migration.md", "CHANGELOG.md"]
+        Upgrading: ["guides/upgrading.md", "CHANGELOG.md"]
       ],
       nest_modules_by_prefix: [Playwright],
       # The changelog names functions of the API before the restructure.

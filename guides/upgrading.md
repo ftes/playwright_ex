@@ -1,4 +1,4 @@
-# Migrating from 0.16
+# Upgrading from 0.16
 
 The library is now a 1:1 port of the official JavaScript client, and its public API is generated
 from Playwright's own docs. The [playwright.dev](https://playwright.dev/docs/api/class-playwright)

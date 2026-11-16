@@ -75,7 +75,7 @@ names match Python's: snake_case, keyword options, `expect_popup`, `eval_on_sele
 - [Events and waiting](guides/events-and-waiting.md), [Network](guides/network.md),
   [Debugging and CI](guides/debugging-and-ci.md).
 - [Concurrency](guides/concurrency.md): listeners, promises and processes.
-- [Migrating from 0.16](guides/migration.md).
+- [Upgrading from 0.16](guides/upgrading.md).
 
 Feedback of any shape and size is welcome: [get in touch](https://ftes.de).
 
