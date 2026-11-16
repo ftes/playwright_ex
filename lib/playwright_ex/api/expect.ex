@@ -37,7 +37,7 @@ defmodule PlaywrightEx.Expect do
       matcher fails with the new snapshot in its message.
     * `:ignore_snapshots` - Skip the snapshot matchers. Defaults to `false`.
     * `:to_pass` - Defaults of `PlaywrightEx.Expect.to_pass/2`, `%{timeout: 10_000, intervals: [1000]}`. Its timeout
-      defaults to `0`, no limit of its own (the test's timeout bounds it), not `:timeout`.
+      defaults to `0`, no limit of its own (the test's timeout bounds it), not `:timeout`; `:infinity` is `0`.
     * `:to_have_screenshot`, `:to_match_aria_snapshot` - Defaults for their options, maps with
       the JS keys (`%{maxDiffPixels: 10}`, `%{children: "equal"}`), as upstream's config, and
       their `pathTemplate` (see "Snapshots" in `PlaywrightEx.Test`).

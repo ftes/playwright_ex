@@ -20,7 +20,7 @@ defmodule PlaywrightEx.Matchers.Expect do
       matcher fails with the new snapshot in its message.
     * `:ignore_snapshots` - Skip the snapshot matchers. Defaults to `false`.
     * `:to_pass` - Defaults of `PlaywrightEx.Expect.to_pass/2`, `%{timeout: 10_000, intervals: [1000]}`. Its timeout
-      defaults to `0`, no limit of its own (the test's timeout bounds it), not `:timeout`.
+      defaults to `0`, no limit of its own (the test's timeout bounds it), not `:timeout`; `:infinity` is `0`.
     * `:to_have_screenshot`, `:to_match_aria_snapshot` - Defaults for their options, maps with
       the JS keys (`%{maxDiffPixels: 10}`, `%{children: "equal"}`), as upstream's config, and
       their `pathTemplate` (see "Snapshots" in `PlaywrightEx.Test`).
@@ -136,10 +136,29 @@ defmodule PlaywrightEx.Matchers.Expect do
       ignoreSnapshots: env[:ignore_snapshots],
       toHaveScreenshot: env[:to_have_screenshot],
       toMatchAriaSnapshot: env[:to_match_aria_snapshot],
-      toPass: if(env[:to_pass] != nil, do: Map.new(env[:to_pass]))
+      toPass: if(env[:to_pass] != nil, do: to_pass_config(env[:to_pass]))
     }
 
     Map.merge(@default_expect_config, Map.reject(config, fn {_key, value} -> value == nil end))
+  end
+
+  @to_pass_keys [:timeout, :intervals]
+
+  defp to_pass_config(to_pass) do
+    pairs = if is_map(to_pass), do: Map.to_list(to_pass), else: to_pass
+
+    case Keyword.keyword?(pairs) && Keyword.validate(pairs, @to_pass_keys) do
+      {:ok, pairs} ->
+        Map.new(pairs, fn
+          {:timeout, :infinity} -> {:timeout, 0}
+          pair -> pair
+        end)
+
+      _ ->
+        raise ArgumentError,
+              "config :playwright_ex, :expect, :to_pass: expected a keyword list or map with the keys " <>
+                "#{inspect(@to_pass_keys)}, got: #{inspect(to_pass)}"
+    end
   end
 
   @default_expect_timeout 5000
