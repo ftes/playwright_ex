@@ -58,6 +58,16 @@ defmodule PlaywrightEx.Test.GitHubFormatterTest do
              "\n::error file=#{@file_path},title=#{@file_path}%3A10 › fails::  1) #{@file_path}:10 › fails "
   end
 
+  test "Erlang/OTP's and Elixir's frames are skipped, of any of their apps" do
+    {:error, error, [{:crypto, :hash, _, _} = crypto | _]} = failure(fn -> :crypto.hash(:nope, "x") end)
+    :ok = Application.ensure_loaded(:eex)
+    eex = {EEx.Engine, :handle_body, 2, file: ~c"lib/eex/engine.ex", line: 1}
+    user = {__MODULE__, :check!, 0, file: String.to_charlist(@file_path), line: 7}
+    test = test_struct("test fails", state: {:failed, [{:error, error, [eex, crypto, user]}]})
+
+    assert run([{:test_finished, test}]) =~ "\n::error file=#{@file_path},title=#{@file_path}%3A10 › fails,line=7::"
+  end
+
   test "a dependency's frames under the deps path are skipped, a path dependency's are the user's" do
     # As an app in a subdirectory of the workspace with a path dependency next to it.
     cwd = File.cwd!()

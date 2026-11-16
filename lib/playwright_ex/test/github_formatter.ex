@@ -348,15 +348,26 @@ defmodule PlaywrightEx.Test.GitHubFormatter do
   end
 
   # A module of no app (a test's `.exs`) or of the project is the user's, not the runner's or the
-  # client's; a dependency's is when its source is outside the deps path (a path dependency, an
+  # client's, nor Erlang/OTP's or Elixir's (an app under either's root, apart in a mise or asdf
+  # install); a dependency's is when its source is outside the deps path (a path dependency, an
   # umbrella sibling).
   defp user_code?(deps, module) do
     case :application.get_application(module) do
       :undefined -> true
-      {:ok, app} when app in [:playwright_ex, :ex_unit, :elixir, :stdlib, :kernel] -> false
-      {:ok, app} -> !(deps && deps.paths[app] && String.starts_with?(deps.paths[app] <> "/", deps.path <> "/"))
+      {:ok, :playwright_ex} -> false
+      {:ok, app} -> !(under?(:code.lib_dir(app), system_roots()) or dependency?(deps, app))
     end
   end
+
+  defp system_roots, do: [:code.root_dir(), Path.dirname(to_string(:code.lib_dir(:elixir)))]
+
+  defp under?({:error, :bad_name}, _roots), do: false
+  defp under?(dir, roots), do: Enum.any?(roots, &String.starts_with?(Path.expand(dir) <> "/", Path.expand(&1) <> "/"))
+
+  defp dependency?(nil, _app), do: false
+
+  defp dependency?(deps, app),
+    do: deps.paths[app] != nil and String.starts_with?(deps.paths[app] <> "/", deps.path <> "/")
 
   # A frame's file is relative to its app's root (a path dependency's `lib/x.ex`): the module's
   # absolute source, when the frame is in it (not in code a macro of another file brought in).
