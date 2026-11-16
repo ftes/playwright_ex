@@ -18,6 +18,7 @@ defmodule PlaywrightEx.Client.Screencast do
   alias PlaywrightEx.Client.DisposableStub
   alias PlaywrightEx.Client.EventEmitter
   alias PlaywrightEx.Client.TimeoutSettings
+  alias PlaywrightEx.Runtime.Callers
   alias PlaywrightEx.Runtime.Promise
 
   # Elixir only: the handle is the facade's struct, `%PlaywrightEx.Screencast{}` (gen.api copies these fields).
@@ -66,7 +67,8 @@ defmodule PlaywrightEx.Client.Screencast do
     options = options || %{}
     if get(this, :_started), do: raise("Screencast is already started")
     put(this, :_started, true)
-    if options[:onFrame], do: put(this, :_onFrame, options.onFrame)
+    # deviation: the frame listener's process calls it on the registrant's behalf (`Runtime.Callers`).
+    if options[:onFrame], do: put(this, :_onFrame, Callers.bind_1(&ClientHelper.call_function(options.onFrame, [&1])))
 
     result =
       channel_call(

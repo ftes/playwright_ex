@@ -2,9 +2,10 @@ defmodule PlaywrightEx.Runtime.Callers do
   @moduledoc """
   Runtime support (not ported from upstream): a process the client starts on one caller's behalf
   (an async function, a user listener's process, a listener process running a user callback:
-  routes, WebSocket routes, bindings, locator handlers) carries the `$callers` of that caller or
-  of the callback's registrant, as a `Task` carries its caller's (ExUnit's docs suggest
-  forwarding them so, `start_supervised/2`). Shared processes (the connection) get none.
+  routes and their URL matchers, WebSocket routes, bindings, locator handlers, screencast frames)
+  carries the `$callers` of that caller or of the callback's registrant, as a `Task` carries its
+  caller's (ExUnit's docs suggest forwarding them so, `start_supervised/2`). Shared processes
+  (the connection) get none.
   Upstream's `expect`, `test.step` and `testInfo` work in them, as its worker runs one test at a
   time (`currentTestInfo()`); here `PlaywrightEx.Test.TestInfo`, the Ecto sandbox, Mox and
   `Req.Test` find the test through `$callers`.

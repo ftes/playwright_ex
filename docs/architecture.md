@@ -126,15 +126,15 @@ run in the awaiter; `race`/`all` are selective receives.
 A process the client starts on one caller's behalf carries that caller's `$callers`, as a `Task`
 does (`PlaywrightEx.Runtime.Callers`): an async function's (`Promise.start`), a user listener's
 subscription process, and the listener processes that run a user callback (routes, WebSocket
-routes and their handlers, bindings, locator handlers), which adopt the registrant's `$callers`,
-captured at registration as `RouteHandler` captures its zone. So `testInfo`, the Ecto sandbox and
-Mox find the test there, and an error nothing handles (the listener sink) fails the test of the
-process's `$callers`, as upstream's worker fails its current test (`workerMain.ts`
-`unhandledError`); elsewhere it is logged. Shared processes (the connection, transport, pool,
-supervisors, async functions started in the connection) get none. Rejected: `$callers` in the
-zone, as upstream finds the test through the worker's global, not the zone, a saved zone's `run`
-ends before the error reaches the sink, and listeners, bindings and locator handlers have no
-saved zone upstream.
+routes and their handlers and URL matchers, bindings, locator handlers, screencast frames),
+which adopt the registrant's `$callers`, captured at registration as `RouteHandler` captures its
+zone. So `testInfo`, the Ecto sandbox and Mox find the test there, and an error nothing handles
+(the listener sink) fails the test of the process's `$callers`, as upstream's worker fails its
+current test (`workerMain.ts` `unhandledError`); elsewhere it is logged. Shared processes (the
+connection, transport, pool, supervisors, async functions started in the connection) get none.
+Rejected: `$callers` in the zone, as upstream finds the test through the worker's global, not
+the zone, a saved zone's `run` ends before the error reaches the sink, and listeners, bindings
+and locator handlers have no saved zone upstream.
 
 Outgoing messages are buffered and written once per turn of the connection process, which
 replaces per-message writes (a subscription update arrived ~1 ms after the call it precedes) and

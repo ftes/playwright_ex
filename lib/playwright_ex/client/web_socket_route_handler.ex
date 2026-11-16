@@ -5,7 +5,7 @@ defmodule PlaywrightEx.Client.WebSocketRouteHandler do
 
   Deviations: the constructor takes the `LocalUtils` first, as string globs become regexes
   through the driver (`PlaywrightEx.Isomorphic.UrlMatch`). `_callers` is the registrant's
-  `$callers`: the handler runs on its behalf (`PlaywrightEx.Runtime.Callers`).
+  `$callers`: the handler and a function `url` run on its behalf (`PlaywrightEx.Runtime.Callers`).
   """
   alias PlaywrightEx.Client.ClientHelper
   alias PlaywrightEx.Client.WebSocketRoute
@@ -42,8 +42,11 @@ defmodule PlaywrightEx.Client.WebSocketRouteHandler do
   end
 
   def matches(this, ws_url) do
-    # The LocalUtils comes first: globs become regexes through the driver (UrlMatch).
-    UrlMatch.url_matches(this._localUtils, this._baseURL, ws_url, this.url, true)
+    # deviation: a function `url` is a user callback too, run on the registrant's behalf
+    # (`Runtime.Callers`). The LocalUtils comes first: globs become regexes through the driver (UrlMatch).
+    Callers.run_as(this._callers, fn ->
+      UrlMatch.url_matches(this._localUtils, this._baseURL, ws_url, this.url, true)
+    end)
   end
 
   def handle(this, web_socket_route) do

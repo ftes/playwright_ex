@@ -54,8 +54,11 @@ defmodule PlaywrightEx.Client.RouteHandler do
   end
 
   def matches(this, request_url) do
-    # The LocalUtils comes first: globs become regexes through the driver (UrlMatch).
-    UrlMatch.url_matches(get(this, :_localUtils), get(this, :_baseURL), request_url, get(this, :url))
+    # deviation: a function `url` is a user callback too, run on the registrant's behalf
+    # (`Runtime.Callers`). The LocalUtils comes first: globs become regexes through the driver (UrlMatch).
+    Callers.run_as(get(this, :_callers), fn ->
+      UrlMatch.url_matches(get(this, :_localUtils), get(this, :_baseURL), request_url, get(this, :url))
+    end)
   end
 
   def handle(this, route) do

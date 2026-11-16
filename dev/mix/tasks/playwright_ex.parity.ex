@@ -45,6 +45,9 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
     * The generated facade (`mix playwright_ex.gen.api --check`): regenerating it from
       `api.json` must give the committed files. It has every member, so a client function it
       calls that is missing is a compile warning.
+    * Function-typed parameters of the facade (`api.json` after `Mix.PlaywrightEx.ApiRules`, by
+      `Class.member(param)`, options by path) must be in `@function_params`, which says where the
+      function runs (PORTING.md, `$callers`); an entry that is no such parameter is stale.
 
   Fails when anything is missing. `--extra` also lists public functions with no upstream
   counterpart (informational: Elixir-only helpers are expected). `--north-star` compares our
@@ -54,7 +57,9 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
   """
   use Mix.Task
 
+  alias Mix.PlaywrightEx.ApiRules
   alias Mix.PlaywrightEx.TestRegistry
+  alias Mix.Tasks.PlaywrightEx.Gen.Api
 
   # Upstream names that have no Elixir function by convention (see PORTING.md).
   @by_convention ~w(constructor from fromNullable)
@@ -70,6 +75,65 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
     "packages/playwright-core/src/client/electron.ts" =>
       "not in the JS api.json at this pin (Connection maps Electron* to DummyChannelOwner)",
     "packages/playwright-core/src/client/types.ts" => "type-only"
+  }
+
+  # Every function-typed parameter of the facade (`function_params/1`), by where the client calls
+  # it (PORTING.md, `$callers`): `{:registrant, module}`, stored and called later in another
+  # process, which `module` runs under the registrant's `$callers`; `:caller`, in the calling
+  # process (or one started on its behalf; `logger`: of each API call, as upstream), or never
+  # (`unroute` compares it). A version bump that adds one fails until it is listed.
+  @function_params %{
+    "Browser.newContext(options.logger.isEnabled)" => :caller,
+    "Browser.newContext(options.logger.log)" => :caller,
+    "Browser.newPage(options.logger.isEnabled)" => :caller,
+    "Browser.newPage(options.logger.log)" => :caller,
+    "BrowserContext.exposeBinding(callback)" => {:registrant, PlaywrightEx.Client.BrowserContext},
+    "BrowserContext.exposeFunction(callback)" => {:registrant, PlaywrightEx.Client.BrowserContext},
+    "BrowserContext.route(handler)" => {:registrant, PlaywrightEx.Client.RouteHandler},
+    "BrowserContext.route(url)" => {:registrant, PlaywrightEx.Client.RouteHandler},
+    "BrowserContext.routeWebSocket(handler)" => {:registrant, PlaywrightEx.Client.WebSocketRouteHandler},
+    "BrowserContext.routeWebSocket(url)" => {:registrant, PlaywrightEx.Client.WebSocketRouteHandler},
+    "BrowserContext.unroute(handler)" => :caller,
+    "BrowserContext.unroute(url)" => :caller,
+    "BrowserContext.waitForConsoleMessage(options.predicate)" => :caller,
+    "BrowserContext.waitForEvent(options.predicate)" => :caller,
+    "BrowserContext.waitForPage(options.predicate)" => :caller,
+    "BrowserType.launch(options.logger.isEnabled)" => :caller,
+    "BrowserType.launch(options.logger.log)" => :caller,
+    "BrowserType.launchPersistentContext(options.logger.isEnabled)" => :caller,
+    "BrowserType.launchPersistentContext(options.logger.log)" => :caller,
+    "Expect.notToHaveURL(url)" => :caller,
+    "Expect.poll(assertion)" => :caller,
+    "Expect.toHaveURL(url)" => :caller,
+    "Frame.waitForNavigation(options.url)" => :caller,
+    "Frame.waitForURL(url)" => :caller,
+    "Page.addLocatorHandler(handler)" => {:registrant, PlaywrightEx.Client.Page},
+    "Page.exposeBinding(callback)" => {:registrant, PlaywrightEx.Client.Page},
+    "Page.exposeFunction(callback)" => {:registrant, PlaywrightEx.Client.Page},
+    "Page.frame(frameSelector.url)" => :caller,
+    "Page.route(handler)" => {:registrant, PlaywrightEx.Client.RouteHandler},
+    "Page.route(url)" => {:registrant, PlaywrightEx.Client.RouteHandler},
+    "Page.routeWebSocket(handler)" => {:registrant, PlaywrightEx.Client.WebSocketRouteHandler},
+    "Page.routeWebSocket(url)" => {:registrant, PlaywrightEx.Client.WebSocketRouteHandler},
+    "Page.unroute(handler)" => :caller,
+    "Page.unroute(url)" => :caller,
+    "Page.waitForConsoleMessage(options.predicate)" => :caller,
+    "Page.waitForDownload(options.predicate)" => :caller,
+    "Page.waitForEvent(options.predicate)" => :caller,
+    "Page.waitForFileChooser(options.predicate)" => :caller,
+    "Page.waitForNavigation(options.url)" => :caller,
+    "Page.waitForPopup(options.predicate)" => :caller,
+    "Page.waitForRequest(urlOrPredicate)" => :caller,
+    "Page.waitForRequestFinished(options.predicate)" => :caller,
+    "Page.waitForResponse(urlOrPredicate)" => :caller,
+    "Page.waitForURL(url)" => :caller,
+    "Page.waitForWebSocket(options.predicate)" => :caller,
+    "Page.waitForWorker(options.predicate)" => :caller,
+    "Screencast.start(options.onFrame)" => {:registrant, PlaywrightEx.Client.Screencast},
+    "WebSocket.waitForEvent(options.predicate)" => :caller,
+    "WebSocketRoute.onClose(handler)" => {:registrant, PlaywrightEx.Client.WebSocketRoute},
+    "WebSocketRoute.onMessage(handler)" => {:registrant, PlaywrightEx.Client.WebSocketRoute},
+    "Worker.waitForEvent(options.predicate)" => :caller
   }
 
   @impl true
@@ -102,7 +166,8 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
         check_slow(upstream, registry.tests) ++
         check_skips(Path.wildcard("test/upstream/**/*_test.exs"), &ported?/2) ++
         check_rule_reasons(registry.rules, &ported?/2) ++
-        check_facade(upstream)
+        check_facade(upstream) ++
+        check_function_params(function_params(upstream))
 
     shell = Mix.shell()
     Enum.each(registry_info(registry), &shell.info/1)
@@ -151,8 +216,64 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
   # --- facade ----------------------------------------------------------------
 
   defp check_facade(upstream) do
-    for path <- Mix.Tasks.PlaywrightEx.Gen.Api.check(upstream),
+    for path <- Api.check(upstream),
         do: "#{path}: out of date with api.json, run mix playwright_ex.gen.api"
+  end
+
+  # --- function-typed parameters --------------------------------------------
+
+  # `Class.member(param)` for each function-typed parameter of the facade: api.json after the
+  # rules (page functions are strings there, `logger` an object of functions).
+  defp function_params(upstream) do
+    classes = ApiRules.apply(Api.api_json(upstream), Api.api_json(upstream, "python"))
+
+    for class <- classes,
+        member <- class["members"],
+        arg <- member["args"] || [],
+        path <- function_paths(arg["type"], arg["name"]),
+        uniq: true,
+        do: "#{class["name"]}.#{member["name"]}(#{path})"
+  end
+
+  defp function_paths(%{"name" => "function"}, path), do: [path]
+
+  defp function_paths(%{} = type, path) do
+    Enum.flat_map((type["union"] || []) ++ (type["templates"] || []), &function_paths(&1, path)) ++
+      Enum.flat_map(type["properties"] || [], &function_paths(&1["type"], "#{path}.#{&1["name"]}"))
+  end
+
+  defp function_paths(_type, _path), do: []
+
+  @doc false
+  # Problems for function-typed `params` that `table` (`@function_params`) does not classify,
+  # for its stale entries, and for a `{:registrant, module}` whose module never uses `Callers`.
+  def check_function_params(params, table \\ @function_params) do
+    unlisted =
+      for param <- Enum.sort(params),
+          not Map.has_key?(table, param),
+          do: "#{param}: function-typed, say where the client calls it in @function_params (PORTING.md, `$callers`)"
+
+    listed = for {param, kind} <- Enum.sort(table), problem = listed_problem(param, kind, params), do: problem
+    unlisted ++ listed
+  end
+
+  defp listed_problem(param, kind, params) do
+    if param in params,
+      do: kind_problem(param, kind),
+      else: "#{param}: in @function_params but no function-typed parameter at this pin, drop it"
+  end
+
+  defp kind_problem(_param, :caller), do: nil
+
+  defp kind_problem(param, {:registrant, module}) do
+    if !uses_callers?(module), do: "#{param}: #{inspect(module)} does not run it under `$callers` (`Runtime.Callers`)"
+  end
+
+  defp kind_problem(param, kind), do: "#{param}: unknown kind #{inspect(kind)} in @function_params"
+
+  defp uses_callers?(module) do
+    source = Code.ensure_loaded?(module) && module.module_info(:compile)[:source]
+    !!source and File.read!(source) =~ "Callers."
   end
 
   # --- modules ---------------------------------------------------------------
