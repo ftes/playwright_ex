@@ -1,3 +1,7 @@
+# Copyright (c) Microsoft Corporation.
+# Ported to Elixir and modified by the playwright_ex authors.
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule PlaywrightEx.Protocol.Serializers do
   @upstream "packages/protocol/src/serializers.ts"
   @moduledoc """

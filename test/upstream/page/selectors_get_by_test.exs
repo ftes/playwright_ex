@@ -1,3 +1,7 @@
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Ported to Elixir and modified by the playwright_ex authors.
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule PlaywrightEx.Page.SelectorsGetByTest do
   @upstream "tests/page/selectors-get-by.spec.ts"
   # Not async: `selectors.setTestIdAttribute` sets the client's global test id attribute (module

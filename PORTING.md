@@ -26,7 +26,10 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. The why
   (`waitForEvent` is `wait_for_event`, `_wrapApiCall` is `_wrap_api_call`, `isConnected` is
   `is_connected`). Fields keep their JS spelling (`:_mainFrame`).
 - Every module states its source: `@upstream "packages/playwright-core/src/client/page.ts"`.
-  No line numbers.
+  No line numbers. Its file starts with the upstream file's copyright lines, a "Ported to Elixir
+  and modified" line and the license (Apache-2.0, section 4): `mix playwright_ex.notices` writes
+  them, the generators write their own, `mix playwright_ex.parity` checks them. A file ported
+  without `@upstream` (the test runner's) is listed in `@derived` in `Mix.PlaywrightEx.Notices`.
 - Comment only deviations. A skipped statement or method keeps its upstream text with a marker,
   `# this._instrumentation.onApiCallEnd(apiZone);  -- not ported`, optionally `-- not ported: <reason>`.
   A method under another name says so: `# send  -- ported as send_message/2 (Kernel.send/2)`.
@@ -242,10 +245,12 @@ to that PR, the workflow also pushes fixes for its CI failures. The mix tasks be
 4. `mix playwright_ex.parity` until clean, then `mix test`. New upstream client or spec files
    show up as missing, removed or since-ported ones as stale exclusions: port or mirror them, or
    update `@unported_client_files` / `test/upstream_not_ported.txt`. A new function-typed
-   parameter shows up too: classify it in `@function_params` (`$callers` under Shims). Copy
-   upstream's `tests/registry.md` to `test/upstream_registry.md`. Parity sees new, renamed and
-   removed tests (a test named at runtime, in a loop, by its identifier only), not changed
-   bodies: port those from the spec diff.
+   parameter shows up too: classify it in `@function_params` (`$callers` under Shims).
+   `mix playwright_ex.notices` gives new files their copyright headers (parity fails on a missing
+   or stale one); an MIT source's copyright goes in `NOTICE` too. Copy upstream's
+   `tests/registry.md` to `test/upstream_registry.md`. Parity sees new, renamed and removed
+   tests (a test named at runtime, in a loop, by its identifier only), not changed bodies: port
+   those from the spec diff.
 5. Skim `git diff vA vB -- 'docs/src/*.md' ':!docs/src/api'` (upstream's guides) for new patterns
    or caveats the guides in `guides/` should mention. Nothing checks their prose against upstream;
    their snippets are tests in `test/guides`.

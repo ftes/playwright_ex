@@ -1,3 +1,7 @@
+# Copyright (c) Microsoft Corporation.
+# Ported to Elixir and modified by the playwright_ex authors.
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule PlaywrightEx.Examples.ClockTest do
   # Elixir translations of upstream's JS examples, rendered into the facade docs (see ExampleCase).
   use PlaywrightEx.ExampleCase, async: true

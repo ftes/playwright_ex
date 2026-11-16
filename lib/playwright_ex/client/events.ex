@@ -1,3 +1,8 @@
+# Copyright 2019 Google Inc. All rights reserved.
+# Modifications copyright (c) Microsoft Corporation.
+# Ported to Elixir and modified by the playwright_ex authors.
+# SPDX-License-Identifier: Apache-2.0
+
 # `Events.Page.Close` becomes `Events.Page.close()`.
 defmodule PlaywrightEx.Client.Events do
   @upstream "packages/playwright-core/src/client/events.ts"

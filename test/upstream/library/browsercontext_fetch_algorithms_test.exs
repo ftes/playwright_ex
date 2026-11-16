@@ -1,3 +1,8 @@
+# Copyright (c) 2014-present Matt Zabriskie
+# Modifications copyright (c) Microsoft Corporation.
+# Ported to Elixir and modified by the playwright_ex authors.
+# SPDX-License-Identifier: MIT
+
 defmodule PlaywrightEx.Library.BrowsercontextFetchAlgorithmsTest do
   @upstream "tests/library/browsercontext-fetch-algorithms.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true

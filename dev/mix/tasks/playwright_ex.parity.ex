@@ -42,6 +42,9 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
       checked: a reason citing a ported member that still cannot be used says what is missing
       in words (`not ported: Page.removeAllListeners behavior option`).
     * Rule reasons, as skip reasons (`not ported: <reason>`): a rule citing a ported member is stale.
+    * Copyright headers (`Mix.PlaywrightEx.Notices`): every file derived from upstream starts
+      with its upstream files' copyright lines and license, as `mix playwright_ex.notices` and the
+      generators write them, and `NOTICE` names its MIT sources.
     * The generated facade (`mix playwright_ex.gen.api --check`): regenerating it from
       `api.json` must give the committed files. It has every member, so a client function it
       calls that is missing is a compile warning.
@@ -167,7 +170,8 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
         check_skips(Path.wildcard("test/upstream/**/*_test.exs"), &ported?/2) ++
         check_rule_reasons(registry.rules, &ported?/2) ++
         check_facade(upstream) ++
-        check_function_params(function_params(upstream))
+        check_function_params(function_params(upstream)) ++
+        Mix.PlaywrightEx.Notices.check(upstream)
 
     shell = Mix.shell()
     Enum.each(registry_info(registry), &shell.info/1)
@@ -455,9 +459,11 @@ defmodule Mix.Tasks.PlaywrightEx.Parity do
 
   @doc false
   # Modules in `file`, with their effective `@upstream`, and the functions defined directly in them.
-  def elixir_modules(file) do
-    source = File.read!(file)
-    generated = String.starts_with?(source, "# This file is generated")
+  def elixir_modules(file), do: elixir_modules_of(File.read!(file), file)
+
+  @doc false
+  def elixir_modules_of(source, file) do
+    generated = Mix.PlaywrightEx.Notices.generated?(source)
     ast = Code.string_to_quoted!(source, file: file, columns: true, token_metadata: true)
     collect(ast, nil, nil, %{file: file, generated: generated})
   end

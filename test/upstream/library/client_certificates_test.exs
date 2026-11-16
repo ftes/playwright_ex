@@ -1,3 +1,7 @@
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Ported to Elixir and modified by the playwright_ex authors.
+# SPDX-License-Identifier: Apache-2.0
+
 # Servers of the spec below (outside its module: nested modules would inherit its `@upstream`).
 defmodule PlaywrightEx.Library.ClientCertificatesTest.CCServer do
   @moduledoc false

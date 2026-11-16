@@ -1,3 +1,7 @@
+# Copyright 2017 Google Inc. All rights reserved.
+# Ported to Elixir and modified by the playwright_ex authors.
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule PlaywrightEx.Library.Chromium.TracingTest do
   @upstream "tests/library/chromium/tracing.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true

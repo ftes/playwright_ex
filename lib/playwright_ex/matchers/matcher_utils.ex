@@ -1,3 +1,7 @@
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+# Ported to Elixir and modified by the playwright_ex authors.
+# SPDX-License-Identifier: MIT
+
 defmodule PlaywrightEx.Matchers.MatcherUtils do
   @moduledoc """
   The parts of `jest-matcher-utils` (with `pretty-format` and `jest-diff`) that the matchers use

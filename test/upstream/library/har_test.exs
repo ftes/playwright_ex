@@ -1,3 +1,8 @@
+# Copyright 2018 Google Inc. All rights reserved.
+# Modifications copyright (c) Microsoft Corporation.
+# Ported to Elixir and modified by the playwright_ex authors.
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule PlaywrightEx.Library.HarTest.Http2Plug do
   # The createHttp2Server handler of "should contain http2 for http2 requests".
   @moduledoc false

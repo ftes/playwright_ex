@@ -1,3 +1,7 @@
+# Copyright Microsoft Corporation. All rights reserved.
+# Ported to Elixir and modified by the playwright_ex authors.
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule PlaywrightEx.Utils do
   @upstream "tests/config/utils.ts"
   @moduledoc "Port of upstream `#{@upstream}`: helpers of the mirrored specs, on the public API."

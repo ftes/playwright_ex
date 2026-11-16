@@ -2,7 +2,7 @@
 
 [![Hex.pm Version](https://img.shields.io/hexpm/v/playwright_ex)](https://hex.pm/packages/playwright_ex)
 [![Hex Docs](https://img.shields.io/badge/hex-docs-lightgreen.svg)](https://hexdocs.pm/playwright_ex/)
-[![License](https://img.shields.io/hexpm/l/playwright_ex.svg)](https://github.com/ftes/playwright_ex/blob/main/LICENSE.md)
+[![License](https://img.shields.io/hexpm/l/playwright_ex.svg)](https://github.com/ftes/playwright_ex/blob/main/LICENSE)
 [![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/ftes/playwright_ex/elixir.yml)](https://github.com/ftes/playwright_ex/actions)
 
 Elixir client for [Playwright](https://playwright.dev). Automate Chromium, Firefox and WebKit:
@@ -72,3 +72,9 @@ Feedback of any shape and size is welcome: [get in touch](https://ftes.de).
 2. `mix test`, or `mix check` for everything CI runs.
 3. Porting rules: [`PORTING.md`](https://github.com/ftes/playwright_ex/blob/main/PORTING.md); the why behind the design:
    [`docs/architecture.md`](https://github.com/ftes/playwright_ex/blob/main/docs/architecture.md).
+
+## License
+
+Apache-2.0 ([`LICENSE`](https://github.com/ftes/playwright_ex/blob/main/LICENSE)), as the client is a
+port of Playwright's: see [`NOTICE`](https://github.com/ftes/playwright_ex/blob/main/NOTICE). Each
+ported file starts with its upstream file's copyright header. Releases up to 0.16 were MIT.

@@ -1,3 +1,7 @@
+# Copyright (c) Microsoft Corporation.
+# Ported to Elixir and modified by the playwright_ex authors.
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule PlaywrightEx.Isomorphic.AbortSignal do
   @upstream "packages/isomorphic/abortSignal.ts"
   @moduledoc "Port of `#{@upstream}`. `null`/`undefined` is `nil` (and `:null`), `String(reason)` is `to_string/1` or `inspect/1`."

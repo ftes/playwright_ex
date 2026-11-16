@@ -1,3 +1,7 @@
+# Copyright 2024 Adobe Inc. All rights reserved.
+# Ported to Elixir and modified by the playwright_ex authors.
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule PlaywrightEx.Page.PageRequestGcTest do
   @upstream "tests/page/page-request-gc.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true

@@ -1,3 +1,7 @@
+# Copyright Microsoft Corporation. All rights reserved.
+# Ported to Elixir and modified by the playwright_ex authors.
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule PlaywrightEx.Matchers.ToMatchSnapshot do
   @upstream "packages/playwright/src/matchers/toMatchSnapshot.ts"
   @moduledoc """

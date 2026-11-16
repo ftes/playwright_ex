@@ -1,3 +1,8 @@
+# Copyright Joyent, Inc. and other Node contributors.
+# Modifications copyright (c) Microsoft Corporation.
+# Ported to Elixir and modified by the playwright_ex authors.
+# SPDX-License-Identifier: MIT
+
 defmodule PlaywrightEx.Client.EventEmitter do
   @upstream "packages/playwright-core/src/client/eventEmitter.ts"
   @moduledoc """

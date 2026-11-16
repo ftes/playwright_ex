@@ -1,3 +1,7 @@
+# Copyright Microsoft Corporation. All rights reserved.
+# Ported to Elixir and modified by the playwright_ex authors.
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule PlaywrightEx.Library.LocatorHighlightTest do
   @upstream "tests/library/locator-highlight.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true

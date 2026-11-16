@@ -1,3 +1,7 @@
+# Copyright Microsoft Corporation. All rights reserved.
+# Ported to Elixir and modified by the playwright_ex authors.
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule PlaywrightEx.Test.TestInfo do
   @moduledoc false
   # What the runner and the ported matchers need of upstream's `TestInfoImpl`

@@ -1,3 +1,7 @@
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Ported to Elixir and modified by the playwright_ex authors.
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule PlaywrightEx.Page.ToMatchAriaSnapshotTest do
   @upstream "tests/page/to-match-aria-snapshot.spec.ts"
   use PlaywrightEx.UpstreamCase, async: true
