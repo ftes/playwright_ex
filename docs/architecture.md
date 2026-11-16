@@ -28,9 +28,14 @@ client is the source because it is the reference implementation: the other langu
 lag it and differ among themselves. Modules carry `@upstream "<path>"`, keep upstream's method
 order (parity checks it) and mark only deviations.
 
-Versions will mirror upstream major.minor once the port is stable (`1.64.x` drives Playwright
-1.64; the patch is ours), as playwright-python does; upstream's `since` is then ours. Until then
-releases are 0.17 release candidates (GH #126).
+Versions take upstream's major.minor with our own patch, as playwright-python does (GH #126):
+`1.65.x` drives Playwright 1.65, the patch counts our fixes and driver patch bumps, and an
+upstream minor gives X.Y.0. Upstream's patch can't be tracked exactly, as Hex takes strict
+SemVer: `1.65.1.1` doesn't parse, `+build` doesn't order versions and `1.65.1-1` sorts before
+`1.65.1`. So the README and each CHANGELOG entry name the exact driver. Our own breaking changes
+ship only with an upstream minor, so `~> 1.65.0` is safe to depend on. Going to 1.x after the
+0.17 release candidates also keeps them outside phoenix_test_playwright's published
+`playwright_ex ~> 0.15`, which a final 0.x would have matched and broken.
 
 The driver is pinned too: `Playwright.Driver` downloads `playwright-core@<pin>` from npm
 (sha512) and Node from nodejs.org (SHASUMS256, committed for six platforms; no musl, like
@@ -80,8 +85,8 @@ a running supervisor's root object, and the `error` type), `@intros` in `ApiRule
   `expect_*`, and get the callback form too (`expect_popup(page, action)`, C#'s order). Bang
   waits exist but await at once.
 - Docs render from the `spec` AST, not `comment` (admonitions, nested option bullets,
-  `*Since Playwright 1.x.*` as text, not `since:` metadata while our versions differ, events as
-  moduledoc headings). Non-JS doc variants replace JS-only text where
+  `*Since Playwright 1.x.*` as text, not `since:` metadata, as our versions match upstream's
+  only from 1.65 and an older `since` names no release of ours; events as moduledoc headings). Non-JS doc variants replace JS-only text where
   the type matches. A JS example with an Elixir translation in `test/examples` (tests, so each
   compiles and runs; `Playwright.ExampleCase`) is rendered in Elixir, keyed by the JS text; the
   rest stay JS until translated. Rejected: `iex>` doctests (scripts with no printable results or

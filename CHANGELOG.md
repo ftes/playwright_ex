@@ -1,260 +1,98 @@
-# Changelog
+# Changelog for v1
 
-All notable changes to this project will be documented in this file.
+1.x is a statement-by-statement port of Playwright's JavaScript client. It needs Elixir 1.18 or
+later (CI tests down to OTP 27). Its major.minor is Playwright's and the patch is ours: depend on
+`~> 1.65.0`. Upgrading from 0.16: read the [upgrading guide](guides/upgrading.md).
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-<!-- and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). -->
 
-Upgrading from 0.16: the [migration guide](guides/migration.md) covers the changes, including
-those of the release candidates below. From an earlier release, also read the sections up to 0.16.
+## The JS-client port
+
+The client ports the official JS client at a pinned driver version, and its public API is
+generated from Playwright's docs, so [playwright.dev](https://playwright.dev/docs/api/class-playwright)
+applies: `page.getByRole(...)` is `Playwright.Page.get_by_role/3`. Calls take the arguments and
+options upstream does, with a tuple form (`{:ok, _} | {:error, e}`) and a bang form; waits JS
+starts without `await` return a `Playwright.Promise`.
+
+## The rename to `Playwright`
+
+The modules are `Playwright.*` and the app is `:playwright`; the Hex package stays
+`playwright_ex`: `{:playwright, "~> 1.65.0", hex: :playwright_ex}`. `hex:` is required,
+as `playwright` on Hex is another library.
+
+## `Playwright.Test`
+
+`use Playwright.Test` brings Playwright Test's runner to ExUnit: pooled worker browsers
+(`Playwright.Test.BrowserPool`), context defaults, traces, screenshots and videos, steps,
+snapshot paths, soft assertions and timeouts. `Playwright.Case` gives each test a `page`. See
+[Testing with ExUnit](guides/testing-with-exunit.md).
+
+## Versioning
+
+`1.65.x` drives Playwright 1.65; the patch counts our releases (our fixes and driver patch
+bumps), and each release below names its exact driver. Our breaking changes ship only with an
+upstream minor, so `~> 1.65.0` is safe.
+
+## Backwards-incompatible changes
+
+1.x is a clean cut from 0.16: the guid-based modules, `Selector`, `EventWaiter` and the other
+0.16 APIs are gone. The [upgrading guide](guides/upgrading.md) covers every change. From before
+0.16, also read the sections up to 0.16.
 
 ## [Unreleased]
 
+## [1.65.0-rc.1] 2026-11-16
+
+Drives [Playwright 1.65.0](https://github.com/microsoft/playwright/releases/tag/v1.65.0). The
+[upgrading guide](guides/upgrading.md) has the recipe for each breaking change.
+
 ### Changed
-- `usage-rules.md` covers the port's specifics: the dependency line and the other `playwright` on
-  Hex, `Playwright.Test` (fixtures, workers, timeouts, artifacts, steps, snapshots), alias
-  shadowing, config in place of `playwright.config.ts`, and upstream's locator order in one line.
+- **Breaking:** rewritten as a port of Playwright's JS client, its API generated from Playwright's
+  docs: structs in place of guids, locators in place of `Selector`, `on/3` and `expect_*` in
+  place of `subscribe/2` and `EventWaiter`, exceptions named after the JS errors.
+- **Breaking:** `PlaywrightEx` is renamed `Playwright` and the app `:playwright`; the Hex package
+  stays `playwright_ex`, so the dependency needs `hex: :playwright_ex`. Move every library that
+  uses PlaywrightEx in the same bump.
+- **Breaking:** the client installs its pinned driver (Node and `playwright-core`) on first start
+  or with `mix playwright.install`, in place of the npm `playwright` package. `executable:` takes
+  a Playwright 1.65 CLI.
+- **Breaking:** behaviour follows upstream: unknown options raise, nested maps use the JS keys
+  (`sameSite`), JS `null` is `:null`, tuple forms return `{:error, e}` only for Playwright's
+  errors, failed bang matchers raise `Playwright.ExpectError`, dialogs without a listener are
+  dismissed. See [Behaviour changes](guides/upgrading.md#behaviour-changes).
+- **Breaking:** Playwright 1.65's own: actions wait for the element to be not inert, cookie
+  matching follows RFC 6265, proxy credentials only answer proxy challenges, and text the browser
+  doesn't render leaves accessible names and aria snapshots.
+- Versions follow Playwright's: major.minor is Playwright's, the patch ours, so 0.16 is followed
+  by 1.65.0.
+- Licensed under Apache-2.0 (was MIT), as the port of Playwright's client; 0.16 and earlier stay
+  MIT.
+- No runtime dependencies: `nimble_options`, `mime` and `websockex` are gone.
 
-## [0.17.0-rc.6] 2026-11-16
-
-### Breaking
-- `PlaywrightEx` is renamed `Playwright`; the Hex package stays `playwright_ex`. Upstream's
-  `Playwright` class is the root module `Playwright` (no `Playwright.Playwright`).
-
-  | Before | After |
-  | --- | --- |
-  | `{:playwright_ex, "~> ..."}` | `{:playwright, "~> ...", hex: :playwright_ex}` (`hex:` is required: `playwright` on Hex is another library) |
-  | `PlaywrightEx.*`, `PlaywrightEx.Playwright` | `Playwright.*`, `Playwright` |
-  | `PlaywrightEx.playwright/0,1` | `Playwright.instance/0,1` |
-  | `config :playwright_ex, ...` | `config :playwright, ...` |
-  | `mix playwright_ex.install`, `playwright_ex.cli` | `mix playwright.install`, `playwright.cli` (also in aliases) |
-  | `usage_rules: [:playwright_ex]` | `usage_rules: [:playwright]` |
-  | `PLAYWRIGHT_EX_CACHE_DIR`, `PLAYWRIGHT_EX_EXECUTABLE`, `PLAYWRIGHT_NODEJS_PATH` | `config :playwright, :driver, cache_dir: ..., executable: ..., node: ...` (read an env var in `config/config.exs` if you need one, locally or in CI) |
-  | driver cache `<user cache>/playwright_ex` | `<user cache>/playwright` (the driver downloads again; delete the old one) |
-
-  Move every library you depend on that uses PlaywrightEx in the same bump: while one still
-  declares `:playwright_ex`, Mix fetches both packages, which compile side by side without a
-  warning, and that library keeps driving PlaywrightEx and ignores `config :playwright`. Check that
-  `mix deps.tree` lists no `playwright_ex`, then remove it from `mix.lock`, `deps/` and `_build/`
-  with `mix deps.clean --unused --unlock` (`mix deps.unlock --check-unused` fails on the lock entry).
-
-  In a module that aliases a `Playwright` of its own (`alias MyApp.Playwright`),
-  `Playwright.instance()` and `Playwright.Page` silently resolve to that module. Simplest: don't
-  alias it where you use ours: call it in full (`MyApp.Playwright.x(...)`), or `import` it. Otherwise alias it
-  `as: MyPlaywright`, or write `Elixir.Playwright...`. A sorted alias list (as Styler sorts it) puts
-  `alias MyApp.Playwright` before `alias Playwright.Page`, which then expands to
-  `MyApp.Playwright.Page`: write `alias Elixir.Playwright.Page` there.
-
-  ex_doc links a dependency's docs by app name, so links to `:playwright` go to the other
-  library's docs: if your docs link to ours, add `docs: [deps: [playwright: "https://hexdocs.pm/playwright_ex"]]`.
+### Removed
+- **Breaking:** `launch_browser/2`, `subscribe/2`, `send/2`, `EventWaiter`, `Selector`,
+  `JsLogger`, the `connection:` option, the supervisor's `timeout:`, `js_logger:`, `ws_endpoint:`
+  (use `BrowserType.connect/3`) and `:fail_on_unknown_opts`, and `Tracing`'s `coverage:`.
 
 ### Added
-- `Playwright.RegExp.new/1,2` takes a `Regex` or `RegExp` as JS's `new RegExp(re, flags)` does,
-  converting a `Regex` as Playwright does (PCRE-only syntax raises `ArgumentError`). It inspects as
-  `#Playwright.RegExp</source/flags>`.
-- `Playwright.Case`: a case template giving each module a `browser` and each test a `context`
-  and a `page` of it, taking `use Playwright.Test`'s options.
-- `Playwright.Test.BrowserPool`: Playwright Test's worker browser and worker model.
-  `browser/1` is held by the module (`setup_all`) or test that calls it, at most `workers` at
-  once (half the schedulers, as Playwright Test's default), each one driver and one browser of
-  its options (Playwright Test's worker hash), reused after a passing scope and replaced after a
-  failing one. `on_start` runs once per new driver (e.g. to register
-  selectors). `connect_options` is Playwright Test's `connectOptions`: pooled browsers on a
-  remote Playwright server, with the context defaults and the recording. `test_id_attribute` in
-  `config :playwright, :test` is Playwright Test's `testIdAttribute`, set on each pooled
-  driver: the client's is global to the VM, so set it suite-wide.
-- `Playwright.Test`: `use Playwright.Test` after `use ExUnit.Case` (or first in a case
-  template's body) registers each test. Every context it creates on a pooled browser, also in a
-  `Task`, gets Playwright Test's context defaults (`locale: "en-US"`, a 1280x720 viewport, ...),
-  then the config's `context_options`, and is recorded: traces (of its contexts, their
-  `request`s and the test's request contexts, which are disposed at its end), screenshots and
-  videos (with `fps` and `show`, the test's title and steps over each page), with Playwright
-  Test's modes and their options, from config, `use` options (`use Playwright.Test, trace:
-  :on`, Playwright Test's file-level `test.use`, which a case template forwards from `using` as
-  is; `tags: false` ignores the tags) and tags (`@tag trace: :on`), kept for failures,
-  plus Playwright Test's `error-context.md` of each failed test and a `show-trace` hint. Each
-  test's output dir is emptied before it runs, a test under `mix test --failed` writes to
-  Playwright Test's `-retryN` dirs, with Playwright Test's retry modes (`trace: :on_first_retry`,
-  ...) and `info/0`'s `retry` going by it, and `preserve_output` is `preserveOutput`. As in
-  Playwright Test, the recording's tracing, screenshots and page snapshots are internal calls,
-  and each driver call in a test is a `pw:api` step of the step or `Tracing.group` it runs in (a
-  matcher's driver call is the matcher's step). `info/0` and `output_path/1`
-  are Playwright Test's `test.info()` (with `testInfo.timeout`) and `testInfo.outputPath`;
-  `info/0` also has `deadline` (ExUnit's kill time) and `close_deadline` (when the contexts
-  close, upstream's internal `testInfo._deadline()`), for libraries that wait on their own, and
-  `in_registered_test?/0` tells whether `info/0` finds a test. `info/1` takes the test's pid and
-  works in `on_exit`, with `testInfo.status`, `errors`, `expectedStatus` and `duration`.
-  `attach/2` is `testInfo.attach` (a `test.attach` step in the trace). In a test, the snapshot
-  matchers take upstream's `name:` (or none), resolved by Playwright Test's path templates
-  (`snapshot_dir`, `snapshot_path_template`, `snapshot_path/2`, which takes path segments too)
-  with their `-actual`, `-expected`, `-previous` and `-diff` files in the test's output dir, and
-  a snapshot they write fails the test at the end of its body, with all its errors reported.
-  `step` is Playwright Test's `test.step` (`box`, `location`, `params`, `subtitle`; no
-  `timeout`), `step_skip` its `test.step.skip`, and each matcher call is a step: the trace's
-  `test.trace` has the test's steps, nested, and its errors. `Expect.soft/1` is `expect.soft`:
-  in a test, a failed soft matcher returns and fails the test at the end of its body, as does an
-  error a route handler, listener or locator handler raises; the test's listeners don't run as
-  its contexts close after its `on_exit` callbacks. As in Playwright Test, a test's
-  contexts have no action or navigation timeout unless the config's `action_timeout` and
-  `navigation_timeout` set one, and just before ExUnit's test timeout the test's contexts are
-  closed, so a hanging call fails with "Test timeout of Nms exceeded." and its call log, its
-  artifacts kept. `config/0` returns the resolved config (defaults filled in, validated, the
-  expect timeout), for libraries building on the runner. `Playwright.Test.GitHubFormatter`,
-  an ExUnit formatter for any suite, is Playwright Test's `github` reporter: GitHub Actions
-  annotations for failures, slow files and the run's summary. See the
-  [Testing with ExUnit](guides/testing-with-exunit.md) guide.
-- `Expect.to_pass/2` and `Expect.poll/3`: `expect(fn).toPass()` and `expect.poll(fn).toBe(x)`
-  (`Expect.poll(fn, &assert(&1 == x))`), with upstream's intervals and timeouts (`toPass`: until
-  the test's timeout), steps, soft receivers and `config :playwright, :expect, to_pass: ...`.
-- `Expect.message/2` is `expect(actual, message)`: a receiver with a custom message, which is the
-  matcher's step title and the first paragraph of its error.
-- `Playwright.Promise.async/1`: starts calls now, awaited later (JS's
-  `const p = locator.evaluate(...); ...; await p`). It returns once the calls are sent, so they
-  come before your next action, which a `Task` doesn't ensure.
-- The debugging guide covers `PWDEBUG=1 mix test --trace`, the Playwright Inspector for one test.
-- The ExUnit guide covers porting Playwright Test specs, `projects` as `parameterize:` with
-  devices, teardown checks that fail the test, and listener lifetimes; the concurrency guide,
-  route handlers that wait for the test.
+- Playwright's whole client API, with a tuple and a bang form per call: `Playwright.Promise` for
+  calls JS starts without `await` (`Promise.async/1`), `Playwright.RegExp` for JS regexes,
+  `AbortController` signals, API requests, `CDPSession`, `Clock`, `Credentials` and the rest.
+- User callbacks (route handlers, listeners, exposed functions, locator handlers) run with the
+  registering process's `$callers`, so the Ecto sandbox, Mox and `Req.Test` find the test.
+- `Playwright.Test`: Playwright Test's runner for ExUnit, with pooled worker browsers
+  (`Playwright.Test.BrowserPool`), context defaults, traces, screenshots and videos, steps,
+  snapshot paths, soft assertions, timeouts and `info/0`. `Playwright.Case` gives each test a
+  `page`; `Playwright.Test.GitHubFormatter` is the `github` reporter.
+- `Expect.to_pass/2`, `Expect.poll/3`, `Expect.soft/1` and `Expect.message/2`, beside upstream's
+  matchers.
+- `mix playwright.install` (`--no-browsers` for the driver only) and `mix playwright.cli`.
+- `__options__/1` on the facade modules, for wrappers (its shape is unstable).
+- `usage-rules.md` ships in the package: `usage_rules: [:playwright]`.
+- Guides: getting started, from playwright.dev to Elixir, cheatsheet, testing with ExUnit,
+  events and waiting, network, debugging and CI, concurrency, upgrading from 0.16.
 
-### Changed
-- The package is licensed under Apache-2.0, as the port of Playwright's client it is (was MIT):
-  `LICENSE`, Playwright's `NOTICE`, and each ported file carries its upstream file's copyright
-  header. 0.16 and earlier stay MIT.
-- `%Playwright.Expect{}` also carries `isSoft`, and `isNot` defaults to `false`: build a
-  negated receiver with `Expect.not_/1`.
-- The facade's `__options__/1` is documented as unstable: its shape may change between releases.
-- **Breaking:** function URL matchers (`wait_for_url`, `wait_for_navigation`, routes, WebSocket
-  routes, `Page.frame/2`, `to_have_url`) get the URL as a `URI` (`URI.parse/1`) instead of the
-  string, as upstream passes a `URL`: `&(&1.path == "/api/users")`.
-- User callbacks run on behalf of the process that registered them, with its `$callers`, as a
-  `Task` does: route and WebSocket route handlers (and their `on_message`/`on_close`), event
-  listeners, exposed functions and bindings, locator handlers, and the processes the client
-  starts for a call (wait predicates). So the Ecto sandbox, Mox and `Req.Test` find the test in
-  them.
-
-### Fixed
-- Matching a JS regex in Elixir (`RegExp.compile!/1`, `wait_for_url`, routes): `\s` and `\S` follow JS's
-  whitespace (NBSP, U+2003, U+FEFF, …), not PCRE's ASCII one.
-- A `Regex` with `u` whose source escapes punctuation (as `Regex.escape/1` does: `\#`, `\ `, `\-`)
-  works in locators and matchers: JS's `u` mode rejects those escapes, so the redundant backslash
-  is dropped.
-- The stack an API call records (its trace stack and location) leaves out OTP's and Elixir's
-  frames, as upstream's leaves out Node's, and in a `Playwright.Test` test ExUnit's and the
-  runner's, as Playwright Test leaves out its own. Their sources are the build machine's paths,
-  which the driver looked up for every frame when saving a trace (about 12 ms each on macOS).
-  A call in a callback the library runs (a step's body, `Expect.to_pass/2`'s) is located at its
-  own line, not at the library call around it: only the library's frames are left out.
-- On Unix, stopping `Playwright.Supervisor` waits until the driver has exited (at most 31 s).
-  When the supervisor is stopped before the VM halts, the driver no longer resets the terminal
-  afterwards (↑ printing `OA` in the shell after `mix test`). `mix test` and `mix run` halt
-  without stopping it, so the guides now stop it in `ExUnit.after_suite/1` or at the end of the
-  script.
-
-## [0.17.0-rc.5] 2026-11-10
-
-### Changed
-- `Page.wait_for_timeout/2` and `Frame.wait_for_timeout/2` reject `:infinity` (a
-  `ValidationError`): their timeout is how long to wait, and `:infinity` used to wait 0 ms.
-
-### Fixed
-- `off`, `remove_listener` and `remove_all_listeners` no longer raise `TargetClosedError` once the
-  driver is lost, as upstream's never throw.
-
-## [0.17.0-rc.4] 2026-11-09
-
-### Added
-- `Expect.to_match_aria_snapshot/3` takes a `path:` option in place of the expected snapshot, as
-  `to_have_screenshot` does: the file is the expected snapshot, and is written when missing or
-  updating according to `:update_snapshots`.
-- `usage-rules.md` ships in the Hex package, so consumers get it through `mix usage_rules.sync`.
-
-### Changed
-- `to_have_screenshot` and `to_match_aria_snapshot` print a notice when they write a missing
-  snapshot under the default `:update_snapshots`, instead of passing without a word.
-
-## [0.17.0-rc.3] 2026-11-08
-
-### Added
-- `select_option` option maps take `valueOrLabel`, so one list can mix matches by value or label
-  with `index`: `[%{valueOrLabel: "red"}, %{index: 2}]`.
-
-### Changed
-- A disposable is a `%PlaywrightEx.Disposable{}` handle, and `PlaywrightEx.Disposable.t()` says so
-  (it was `term()`).
-
-## [0.17.0-rc.2] 2026-11-07
-
-Drives [Playwright 1.65](https://github.com/microsoft/playwright/releases/tag/v1.65.0).
-
-### Added
-- `CDPSession.send/4` takes `:timeout` and `:signal`.
-
-### Changed
-- JSON values from the driver keep JSON `null` as `:null`, as `JSON.parse` does, instead of
-  `nil`: `CDPSession.send/4` results and events, `Locator.aria_snapshot_json/2`, IndexedDB values
-  in `storage_state`. Storage state files are read the same way: a `null` in an optional field
-  (`"sameSite": null`) fails validation, as it does upstream.
-- An error raised by a `CDPSession` listener is emitted as `"error"` when the session has an
-  `"error"` listener.
-- Upstream's breaking changes in 1.65: actions wait for the element to be not inert, cookie
-  matching follows RFC 6265, proxy credentials only answer proxy challenges, text the browser
-  does not render is no longer part of accessible names and aria snapshots, and `params` given
-  as a string or keyword list are appended to the URL's query.
-
-### Fixed
-- A request body is JSON for `content-type: application/json; charset=utf-8` too.
-- HAR paths ending in `.ZIP` are zip files.
-- MIME types are looked up by file extension case-insensitively (`.JPG` screenshots).
-- `Expect.to_have_screenshot/2` raises the driver's error when it fails for another reason than
-  a mismatch.
-
-## [0.17.0-rc.1] 2026-11-07
-
-### Added
-- `__options__/1` on the facade modules: the options of a function with their doc, since,
-  rendered type and typespec, for wrappers that pass them on (`Locator.__options__(:click)`).
-
-### Changed
-- The maintainer-only mix tasks (`gen.api`, `gen.protocol`, `parity`, `checksums`) and their
-  helpers moved out of `lib` into `dev/` and no longer ship in the Hex package.
-
-### Fixed
-- `PlaywrightEx.Supervisor.start_link/1` fails instead of hanging when the driver exits before it initializes.
-- A driver install no longer deletes the complete install of a concurrent one unless `force: true`.
-- A driver install with a file missing is repaired by `ensure_installed/1` and `install/1`.
-- No stray message after `BrowserType.connect` times out, or after a navigation wait fails while
-  waiting for the response.
-- A call whose sending raises leaves no monitor or callback behind.
-- `remove_all_listeners(..., behavior: :wait)` no longer sends errors of later listeners to the caller.
-- Calls raise `TargetClosedError` for every exit of the connection process (`:killed` too).
-- A message that cannot be encoded as JSON fails its call instead of restarting the driver.
-
-## [0.17.0-rc.0] 2026-11-06
-
-Drives Playwright 1.64.
-
-### Changed
-- Rewritten as a 1:1 port of the official JavaScript client (breaking).
-  See the [migration guide](guides/migration.md).
-- Tuple forms return `{:error, e}` only for the errors upstream rejects with
-  (`PlaywrightEx.error()`); other exceptions (bugs, misuse) raise in both forms.
-- `PlaywrightEx.Supervisor`'s child id is its `:name`: drivers of different names can share a
-  supervision tree.
-- `mix playwright_ex.install` fails with the CLI's exit status instead of a `MatchError`.
-- Unknown keys in `config :playwright_ex, :expect` raise `ArgumentError` at application start.
-- Failed bang matchers raise `PlaywrightEx.ExpectError`, not `ExUnit.AssertionError` (see
-  [Testing with ExUnit](guides/testing-with-exunit.md#assertions) to wrap them).
-- A lost driver closes its objects as a lost `BrowserType.connect` connection does: pages and
-  contexts emit `close`, browsers `disconnected`, and waits on them fail with
-  `PlaywrightEx.TargetClosedError` instead of hanging, as do waits on anything else (a worker)
-  once the old connection stops. `PlaywrightEx.playwright/1` waits for the restarted driver.
-  Handles of the lost driver keep reading their last state while the processes that created
-  them live, closing them returns `:ok`, and the loss is logged as an error with the driver's
-  exit status.
-
-### Added
-- [Concurrency](guides/concurrency.md) guide: listeners in processes, subscribing before
-  checking state, promise lifetimes, differences from JS.
+## 0.16 and earlier
 
 ## [0.16.0] 2026-11-04
 

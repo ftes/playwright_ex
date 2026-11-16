@@ -1,5 +1,5 @@
-defmodule Playwright.Guides.MigrationTest do
-  # The snippets of `guides/migration.md`, run against the facade.
+defmodule Playwright.Guides.UpgradingTest do
+  # The snippets of `guides/upgrading.md`, run against the facade.
   use ExUnit.Case, async: true
 
   alias Playwright.AbortController
@@ -97,7 +97,7 @@ defmodule Playwright.Guides.MigrationTest do
 
     assert Page.locator(page, "css=.flash >> internal:text=\"Deleted\"i") |> Locator.count!() == 1
 
-    file = Path.join(System.tmp_dir!(), "migration_guide_avatar.txt")
+    file = Path.join(System.tmp_dir!(), "upgrading_guide_avatar.txt")
     File.write!(file, "x")
     Page.locator(page, "input[type=file]") |> Locator.set_input_files!(file)
 
