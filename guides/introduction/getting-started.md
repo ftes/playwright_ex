@@ -185,8 +185,9 @@ notes](https://playwright.dev/docs/release-notes). From 0.16, follow the
 
 ## Usage rules for coding agents
 
-The package ships `usage-rules.md`, rules for coding agents: setup, the API's shape, locators
-in Playwright's recommended order, web-first assertions, timeouts, events and concurrency.
+The package ships `usage-rules.md`, rules for coding agents: setup and config, the API's shape,
+locators in Playwright's order, web-first assertions, timeouts, `Playwright.Test`, events and
+concurrency.
 They are generic, so add your app's own rules on top. With the
 [`usage_rules`](https://hexdocs.pm/usage_rules) package, list `:playwright` in its config and
 run `mix usage_rules.sync` to copy them into your `AGENTS.md`; sync again after upgrading.
