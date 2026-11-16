@@ -1,8 +1,7 @@
 # Playwright usage rules
 
 This library (`Playwright`, Hex package `playwright_ex`) is a 1:1 Elixir port of the Playwright client. Its API is generated from upstream's
-docs, so playwright.dev applies; the Python docs are the closest read. For Phoenix feature tests
-with the Ecto sandbox, use [Fluffy](https://hex.pm/packages/fluffy), which is built on this library.
+docs, so playwright.dev applies; the Python docs are the closest read.
 
 **`timeout: 0` (or `:infinity`) means no timeout, not an immediate one.** As in Playwright JS, the call waits forever.
 

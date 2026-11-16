@@ -12,6 +12,9 @@ It is a 1:1 port of the official JavaScript client. Its API is generated from
 Playwright's docs, so the docs at playwright.dev apply. The driver (Node.js and `playwright-core`)
 is pinned and installed by Mix, no npm needed. This release drives Playwright 1.65.
 
+For Phoenix feature tests with the Ecto sandbox, use [Fluffy](https://hex.pm/packages/fluffy),
+which is built on this library.
+
 ## Installation
 
 ```elixir
