@@ -277,12 +277,12 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
   test "CM-014 should have timestamp", %{page: page} do
     # Generous slack to absorb host wall-clock resolution (e.g. ~15.6ms on Windows)
     # vs sub-millisecond browser timestamps.
-    before = System.system_time(:millisecond) - 100
+    before = System.os_time(:millisecond) - 100
 
     message =
       Page.expect_event!(page, :console, fn -> Page.evaluate!(page, "() => console.log('timestamp test')") end)
 
-    after_ = System.system_time(:millisecond) + 100
+    after_ = System.os_time(:millisecond) + 100
     assert ConsoleMessage.timestamp(message) >= before
     assert ConsoleMessage.timestamp(message) <= after_
   end
@@ -309,9 +309,9 @@ defmodule PlaywrightEx.Page.PageEventConsoleTest do
   test "CM-016 should have timestamp in consoleMessages", %{page: page} do
     # Generous slack to absorb host wall-clock resolution (e.g. ~15.6ms on Windows)
     # vs sub-millisecond browser timestamps.
-    before = System.system_time(:millisecond) - 100
+    before = System.os_time(:millisecond) - 100
     Page.evaluate!(page, "() => console.log('stored message')")
-    after_ = System.system_time(:millisecond) + 100
+    after_ = System.os_time(:millisecond) + 100
     messages = Page.console_messages!(page)
     assert messages != []
     last = List.last(messages)

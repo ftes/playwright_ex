@@ -415,7 +415,7 @@ defmodule PlaywrightEx.Library.GlobalFetchCookieTest do
     end)
 
     TestServer.set_route(server, "/removecookie.html", fn conn ->
-      max_age = -2 * System.system_time(:millisecond)
+      max_age = -2 * System.os_time(:millisecond)
       set_cookie(conn, ["a=v; max-age=#{max_age}", "b=v; max-age=-1"])
     end)
 

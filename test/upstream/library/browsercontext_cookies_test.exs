@@ -115,7 +115,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesTest do
     five_minutes = 1000 * 60 * 5
 
     assert hd(cookies).expires >
-             (System.system_time(:millisecond) + four_hundred_days - five_minutes) / 1000
+             (System.os_time(:millisecond) + four_hundred_days - five_minutes) / 1000
   end
 
   test "CO-004 should allow adding cookies with >400 days expiration", %{
@@ -125,7 +125,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesTest do
     # Browsers start to cap cookies with 400 days max expires value.
     # See https://github.com/httpwg/http-extensions/pull/1732
     # Chromium patch: https://chromium.googlesource.com/chromium/src/+/aaa5d2b55478eac2ee642653dcd77a50ac3faff6
-    expire = System.system_time(:millisecond) / 1000 + 401 * 24 * 3600
+    expire = System.os_time(:millisecond) / 1000 + 401 * 24 * 3600
 
     BrowserContext.add_cookies!(context, [
       %{
@@ -376,7 +376,7 @@ defmodule PlaywrightEx.Library.BrowsercontextCookiesTest do
   end
 
   test "CO-015 should add cookies with an expiration", %{context: context} do
-    expires = floor(System.system_time(:millisecond) / 1000) + 3600
+    expires = floor(System.os_time(:millisecond) / 1000) + 3600
 
     BrowserContext.add_cookies!(context, [
       %{url: "https://foo.com", name: "doggo", value: "woofs", sameSite: "None", expires: expires}
