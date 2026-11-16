@@ -18,8 +18,9 @@ The modules are `Playwright.*` (were `PlaywrightEx.*`) and the app is `:playwrig
 app, `{:playwright, "~> ...", hex: :playwright_ex}`: `hex: :playwright_ex` is required, as
 `playwright` on Hex is another library. Then `config :playwright, ...`, `mix playwright.install`
 (in aliases too), `usage_rules: [:playwright]`. In a module that aliases a `Playwright` of its own
-(`alias MyApp.Playwright`), `Playwright.Page` and `Playwright.instance()` resolve to that module:
-write `alias MyApp.Playwright, as: MyPlaywright` there, or `Elixir.Playwright.Page`. A sorted alias
+(`alias MyApp.Playwright`), `Playwright.Page` and `Playwright.instance()` resolve to that module.
+Simplest: don't alias it where you use ours, and call it in full (`MyApp.Playwright.x(...)`).
+Otherwise write `alias MyApp.Playwright, as: MyPlaywright`, or `Elixir.Playwright.Page`. A sorted alias
 list (as Styler sorts it) puts `alias MyApp.Playwright` before `alias Playwright.Page`, which then
 expands to `MyApp.Playwright.Page`: write `alias Elixir.Playwright.Page` there. ex_doc links a
 dependency's docs by app name, so if your docs link to ours, add
