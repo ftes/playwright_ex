@@ -611,10 +611,7 @@ defmodule Playwright.Test do
 
     # The list reporter's `npx playwright show-trace <path>`.
     if verdict == :failed and trace,
-      do:
-        IO.puts(
-          "\nTrace of #{inspect(test.test_name)}: mix playwright.cli show-trace #{Path.relative_to_cwd(trace)}"
-        )
+      do: IO.puts("\nTrace of #{inspect(test.test_name)}: mix playwright.cli show-trace #{Path.relative_to_cwd(trace)}")
 
     if !preserve_output?(test.preserve_output, verdict), do: File.rm_rf(test.output_dir)
   rescue

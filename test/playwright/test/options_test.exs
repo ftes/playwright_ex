@@ -5,13 +5,13 @@ defmodule Playwright.Test.OptionsTest do
   alias Playwright.Test.Options
 
   describe "validation" do
-    test "config :playwright takes :test, :expect and existing modules' keys" do
+    test "config :playwright takes :test, :expect, :driver and existing modules' keys" do
       formatter = Playwright.Test.GitHubFormatter
-      assert Playwright.Application.validate_env!([{:test, []}, {:expect, []}, {formatter, []}]) == :ok
+      assert Playwright.Application.validate_env!([{:test, []}, {:expect, []}, {:driver, []}, {formatter, []}]) == :ok
 
       for key <- [:tests, Not.A.Module] do
         assert_raise ArgumentError,
-                     "unknown keys [#{inspect(key)}] in config :playwright, expected one of [:test, :expect] " <>
+                     "unknown keys [#{inspect(key)}] in config :playwright, expected one of [:test, :expect, :driver] " <>
                        "or a module's (Playwright.Test.GitHubFormatter)",
                      fn -> Playwright.Application.validate_env!([{key, []}]) end
       end

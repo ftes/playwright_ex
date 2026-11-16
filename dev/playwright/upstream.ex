@@ -5,7 +5,7 @@ defmodule Playwright.Upstream do
   assets) and reading (`mix playwright.upstream`).
 
   Downloads the release tarball once into `Playwright.Driver.cache_dir/1` and extracts only
-  `@paths` (again when a path is missing, e.g. after one was added). `PLAYWRIGHT_EX_UPSTREAM` (or the `:dir` option) points at a checkout instead.
+  `@paths` (again when a path is missing, e.g. after one was added). `PW_UPSTREAM` (or the `:dir` option) points at a checkout instead.
   """
   alias Playwright.Driver
 
@@ -89,5 +89,5 @@ defmodule Playwright.Upstream do
     end
   end
 
-  defp env, do: "PLAYWRIGHT_EX_UPSTREAM" |> System.get_env() |> then(&if(&1 in [nil, ""], do: nil, else: &1))
+  defp env, do: "PW_UPSTREAM" |> System.get_env() |> then(&if(&1 in [nil, ""], do: nil, else: &1))
 end

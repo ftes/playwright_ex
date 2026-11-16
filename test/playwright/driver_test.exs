@@ -56,3 +56,34 @@ defmodule Playwright.DriverTest do
     end
   end
 end
+
+defmodule Playwright.DriverConfigTest do
+  # Not async: the app env is global.
+  use ExUnit.Case, async: false
+
+  alias Playwright.Driver
+
+  setup do
+    previous = Application.fetch_env(:playwright, :driver)
+
+    on_exit(fn ->
+      case previous do
+        {:ok, config} -> Application.put_env(:playwright, :driver, config)
+        :error -> Application.delete_env(:playwright, :driver)
+      end
+    end)
+  end
+
+  test "config :playwright, :driver sets the options' defaults" do
+    Application.put_env(:playwright, :driver, cache_dir: "/c", node: "/usr/local/bin/node")
+    assert Driver.cache_dir() == "/c"
+    assert Driver.cache_dir(cache_dir: "/d") == "/d"
+    assert {"/usr/local/bin/node", ["/c/" <> _]} = Driver.executable()
+
+    Application.put_env(:playwright, :driver, cachedir: "/c")
+
+    assert_raise ArgumentError, ~r/^unknown keys \[:cachedir\] in config :playwright, :driver/, fn ->
+      Driver.cache_dir()
+    end
+  end
+end

@@ -8,7 +8,8 @@ defmodule Playwright.Supervisor do
   Options:
 
     * `:name` - defaults to `Playwright`.
-    * `:executable`, `:node`, `:cache_dir` - see `Playwright.Driver`.
+    * `:executable`, `:node`, `:cache_dir` - see `Playwright.Driver`; by default
+      `config :playwright, :driver`.
     * `:env` - extra environment variables for the driver process.
 
   Child: the driver connection (the driver's pipe and the connection process), the OTP form of

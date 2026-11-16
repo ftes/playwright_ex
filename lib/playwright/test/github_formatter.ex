@@ -96,8 +96,7 @@ defmodule Playwright.Test.GitHubFormatter do
   end
 
   def config(env),
-    do:
-      raise(ArgumentError, "config :playwright, #{inspect(__MODULE__)} must be a keyword list, got: #{inspect(env)}")
+    do: raise(ArgumentError, "config :playwright, #{inspect(__MODULE__)} must be a keyword list, got: #{inspect(env)}")
 
   defp report_slow_tests(nil), do: nil
 

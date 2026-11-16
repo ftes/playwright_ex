@@ -5,12 +5,15 @@ defmodule Mix.Tasks.Playwright.Cli do
 
   Forwards `ARGS` to the driver's `playwright` CLI, like `python -m playwright ARGS` and Java's
   `CLI`, e.g. `mix playwright.cli show-trace trace.zip` or
-  `mix playwright.cli install --with-deps chromium`. Installs the driver first if needed.
+  `mix playwright.cli install --with-deps chromium`. Installs the driver first if needed, as
+  `config :playwright, :driver` sets (see `mix playwright.install`).
   """
   use Mix.Task
 
   @impl true
   def run(argv) do
+    # `config :playwright, :driver`, also from config/runtime.exs.
+    Mix.Task.run("app.config")
     Application.ensure_all_started([:inets, :ssl, :crypto])
     {program, prefix} = Playwright.Driver.ensure_installed()
 

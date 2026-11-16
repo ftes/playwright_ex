@@ -11,5 +11,5 @@ ENV ERL_FLAGS=$ERL_FLAGS
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
       git xvfb xauth ca-certificates rsync procps && rm -rf /var/lib/apt/lists/*
 RUN mix local.hex --force && mix local.rebar --force
-ENV MIX_ENV=test CI=true LANG=C.UTF-8 PLAYWRIGHT_EX_CACHE_DIR=/cache
+ENV MIX_ENV=test CI=true LANG=C.UTF-8 PW_CACHE_DIR=/cache
 WORKDIR /app

@@ -8,13 +8,14 @@ defmodule Mix.Tasks.Playwright.Install do
   `--no-browsers` installs only the driver, for a browser launched with `:executable_path` or
   `:channel`.
 
-  The task doesn't see the options of `Playwright.Supervisor` (`:cache_dir`, `:executable`,
-  `:node`); it reads the environment variables instead (see `Playwright.Driver`):
+  The task doesn't see the options of `Playwright.Supervisor`; it reads their defaults,
+  `config :playwright, :driver` (see `Playwright.Driver`), with `config/runtime.exs`:
 
-    * `PLAYWRIGHT_EX_CACHE_DIR` - where the driver is installed.
-    * `PLAYWRIGHT_EX_EXECUTABLE`, `PLAYWRIGHT_NODEJS_PATH` - the CLI, or the Node binary, that
-      installs the browsers. The pinned driver is downloaded all the same.
-    * `HTTPS_PROXY`, `HTTP_PROXY` - the proxy for the driver download.
+    * `:cache_dir` - where the driver is installed.
+    * `:executable`, `:node` - the CLI, or the Node binary, that installs the browsers. The pinned
+      driver is downloaded all the same.
+
+  `HTTPS_PROXY` and `HTTP_PROXY` set the proxy for the driver download.
 
   The Playwright CLI reads its own: `PLAYWRIGHT_BROWSERS_PATH` (where browsers go),
   `PLAYWRIGHT_DOWNLOAD_HOST`, `HTTPS_PROXY`, ...
@@ -30,6 +31,8 @@ defmodule Mix.Tasks.Playwright.Install do
       end
 
     {opts, _} = OptionParser.parse!(own, strict: [browsers: :boolean, force: :boolean])
+    # `config :playwright, :driver`, also from config/runtime.exs.
+    Mix.Task.run("app.config")
     Application.ensure_all_started([:inets, :ssl, :crypto])
 
     :ok = Playwright.Driver.install(force: Keyword.get(opts, :force, false))

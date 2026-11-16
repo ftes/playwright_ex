@@ -26,7 +26,7 @@ defmodule Playwright.Library.Chromium.ConnectToWorkerTest do
   defp exec_path do
     case Playwright.Driver.executable() do
       {node, [_cli]} -> node
-      # PLAYWRIGHT_EX_EXECUTABLE: a driver binary, not node.
+      # The :executable option: a driver binary, not node.
       {_driver, []} -> System.find_executable("node")
     end
   end

@@ -14,14 +14,29 @@ defmodule Playwright.Driver do
         package/          playwright-core npm package (package/cli.js is the entry point)
 
   `cache_dir` defaults to `:filename.basedir(:user_cache, "playwright")`, overridable with
-  the `:cache_dir` option or `PLAYWRIGHT_EX_CACHE_DIR`.
+  the `:cache_dir` option.
 
   Overrides (no download happens when one is set):
 
-    * `executable: path` / `PLAYWRIGHT_EX_EXECUTABLE` - an npm-managed `playwright` CLI
-      (e.g. `node_modules/.bin/playwright`), run as `path run-driver`.
-    * `node: path` / `PLAYWRIGHT_NODEJS_PATH` - like Python: use this Node binary with the
-      cached `package/cli.js` (the package is still installed if missing).
+    * `executable: path` - an npm-managed `playwright` CLI (e.g. `node_modules/.bin/playwright`),
+      run as `path run-driver`.
+    * `node: path` - like Python: use this Node binary with the cached `package/cli.js` (the
+      package is still installed if missing).
+
+  ## Configuration
+
+  The options default to `config :playwright, :driver`, which `Playwright.Supervisor` and
+  `mix playwright.install` both read:
+
+      config :playwright, :driver, cache_dir: "/cache"
+
+  The library reads no environment variables of its own (the Playwright CLI reads its own, such
+  as `PLAYWRIGHT_BROWSERS_PATH`). To take an option from one of your choice, read it in
+  `config/runtime.exs`:
+
+      if dir = System.get_env("PLAYWRIGHT_CACHE_DIR") do
+        config :playwright, :driver, cache_dir: dir
+      end
   """
 
   @checksums_file Path.join([__DIR__, "..", "..", "priv", "driver_checksums.exs"])
@@ -44,7 +59,7 @@ defmodule Playwright.Driver do
   @platforms ~w(darwin-arm64 darwin-x64 linux-x64 linux-arm64 win-x64 win-arm64)
 
   @typedoc """
-  An option, overriding its environment variable (see the module docs). `:platform` (nodejs.org
+  An option, overriding `config :playwright, :driver` (see the module docs). `:platform` (nodejs.org
   naming, `"linux-x64"`) installs or locates the driver of another platform than the host's.
   """
   @type option ::
@@ -70,10 +85,10 @@ defmodule Playwright.Driver do
   @spec executable([option()]) :: {String.t(), [String.t()]}
   def executable(opts \\ []) do
     cond do
-      exe = opts[:executable] || env("PLAYWRIGHT_EX_EXECUTABLE") ->
+      exe = option(opts, :executable) ->
         {Path.expand(exe), []}
 
-      node = opts[:node] || env("PLAYWRIGHT_NODEJS_PATH") ->
+      node = option(opts, :node) ->
         {Path.expand(node), [cli_path(opts)]}
 
       true ->
@@ -88,11 +103,11 @@ defmodule Playwright.Driver do
   @spec ensure_installed([option()]) :: {String.t(), [String.t()]}
   def ensure_installed(opts \\ []) do
     cond do
-      opts[:executable] || env("PLAYWRIGHT_EX_EXECUTABLE") ->
+      option(opts, :executable) ->
         :ok
 
       File.regular?(cli_path(opts)) and
-          (opts[:node] || env("PLAYWRIGHT_NODEJS_PATH") || File.regular?(node_path(opts))) ->
+          (option(opts, :node) || File.regular?(node_path(opts))) ->
         :ok
 
       true ->
@@ -114,12 +129,12 @@ defmodule Playwright.Driver do
   def install_dir(opts \\ []), do: Path.join([cache_dir(opts), @driver_version, opts[:platform] || platform!()])
 
   @doc """
-  The cache directory: the `:cache_dir` option, else `PLAYWRIGHT_EX_CACHE_DIR`, else the user cache
+  The cache directory: the `:cache_dir` option (or config), else the user cache
   directory (`:filename.basedir(:user_cache, "playwright")`).
   """
   @spec cache_dir([option()]) :: String.t()
   def cache_dir(opts \\ []) do
-    opts[:cache_dir] || env("PLAYWRIGHT_EX_CACHE_DIR") ||
+    option(opts, :cache_dir) ||
       List.to_string(:filename.basedir(:user_cache, ~c"playwright"))
   end
 
@@ -316,8 +331,8 @@ defmodule Playwright.Driver do
     Playwright cannot download a driver for this platform (#{desc}).
     Supported: #{Enum.join(@platforms, ", ")}.
     Install Playwright yourself (`npm i playwright@#{@driver_version}`) and pass
-    `executable: "node_modules/.bin/playwright"` (or set PLAYWRIGHT_EX_EXECUTABLE),
-    or point PLAYWRIGHT_NODEJS_PATH at a Node.js binary.\
+    `executable: "node_modules/.bin/playwright"` (or `config :playwright, :driver, executable: ...`),
+    or point `node:` at a Node.js binary.\
     """
   end
 
@@ -393,7 +408,27 @@ defmodule Playwright.Driver do
     end
   end
 
-  defp env(name), do: name |> System.get_env() |> then(&if(&1 in [nil, ""], do: nil, else: &1))
+  @config_keys [:executable, :node, :cache_dir]
+
+  @doc false
+  # `config :playwright, :driver`, validated: the defaults of the options.
+  def config do
+    config = Application.get_env(:playwright, :driver, [])
+
+    if !Keyword.keyword?(config),
+      do: raise(ArgumentError, "config :playwright, :driver must be a keyword list, got: #{inspect(config)}")
+
+    case Keyword.keys(config) -- @config_keys do
+      [] ->
+        config
+
+      unknown ->
+        raise ArgumentError,
+              "unknown keys #{inspect(unknown)} in config :playwright, :driver, expected one of #{inspect(@config_keys)}"
+    end
+  end
+
+  defp option(opts, key), do: opts[key] || config()[key]
 end
 
 defmodule Playwright.Driver.ChecksumError do

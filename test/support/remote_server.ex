@@ -226,7 +226,7 @@ defmodule Playwright.RemoteServer do
     @doc """
     The command `{program, args}` of a Node.js process (`node` or the driver,
     `Playwright.Driver.executable/0`) with `exit_on_stdin_eof.js` preloaded, and the env for
-    that: `{program, args, env}`. A driver that is no `node` binary (`PLAYWRIGHT_EX_EXECUTABLE`)
+    that: `{program, args, env}`. A driver that is no `node` binary (the `:executable` option)
     gets the preload in `NODE_OPTIONS`.
     """
     def exit_on_stdin_eof({program, args}) do

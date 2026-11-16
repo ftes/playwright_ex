@@ -9,6 +9,7 @@ defmodule Playwright.Application do
   def start(_type, _args) do
     # A bad config fails here, not at the first test or matcher.
     validate_env!(Application.get_all_env(:playwright))
+    Playwright.Driver.config()
     Playwright.Matchers.Expect.app_env_expect_config()
     Playwright.Test.Options.context_options(Playwright.Test.Options.config())
     Playwright.Test.GitHubFormatter.config()
@@ -17,8 +18,9 @@ defmodule Playwright.Application do
   end
 
   # The keys of `config :playwright, ...` the library reads (`Playwright.Test`'s, the
-  # matchers'), and the modules that read their own (`Playwright.Test.GitHubFormatter`).
-  @keys [:test, :expect]
+  # matchers', `Playwright.Driver`'s), and the modules that read their own
+  # (`Playwright.Test.GitHubFormatter`).
+  @keys [:test, :expect, :driver]
 
   @doc false
   # Raises `ArgumentError` for a key of `env` (the app env) that is neither one of `@keys` nor a

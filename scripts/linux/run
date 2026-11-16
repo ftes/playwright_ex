@@ -30,12 +30,12 @@ if [[ $(uname) == Darwin ]]; then
 else
   host_cache=${XDG_CACHE_HOME:-$HOME/.cache}/playwright
 fi
-host_cache=${PLAYWRIGHT_EX_CACHE_DIR:-$host_cache}
+host_cache=${PW_CACHE_DIR:-$host_cache}
 
 envs=(-e BROWSER="${BROWSER:-chromium}" -e DEBUG="${DEBUG:-}")
 for v in ${PASS_ENV:-}; do envs+=(-e "$v=${!v:-}"); done
 if [[ -d $host_cache/$version/upstream ]]; then
-  envs+=(-e PLAYWRIGHT_EX_UPSTREAM="/host-cache/$version/upstream")
+  envs+=(-e PW_UPSTREAM="/host-cache/$version/upstream")
 fi
 
 in_container() { docker exec "${envs[@]}" -w "$app" "$name" bash -c "$1"; }
