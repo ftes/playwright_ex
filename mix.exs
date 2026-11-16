@@ -60,12 +60,13 @@ defmodule PlaywrightEx.MixProject do
 
   defp package do
     [
-      licenses: ["MIT"],
+      # The port is Apache-2.0 (Playwright's, `NOTICE`); LICENSE-MIT.md covers the code from before it.
+      licenses: ["Apache-2.0"],
       links: %{"GitHub" => @source_url, "Changelog" => "https://hexdocs.pm/playwright_ex/#{@version}/changelog.html"},
-      # Hex's default files, plus `usage-rules.md` for `mix usage_rules.sync` and the pinned versions
-      # `PlaywrightEx.Driver` reads when compiling.
+      # Hex's default files, plus `usage-rules.md` for `mix usage_rules.sync`, the pinned versions
+      # `PlaywrightEx.Driver` reads when compiling, and the licenses and notices.
       files:
-        ~w(lib priv .formatter.exs mix.exs README.md usage-rules.md LICENSE.md CHANGELOG.md DRIVER_VERSION NODE_VERSION),
+        ~w(lib priv .formatter.exs mix.exs README.md usage-rules.md LICENSE LICENSE-MIT.md NOTICE CHANGELOG.md DRIVER_VERSION NODE_VERSION),
       exclude_patterns: ~w(priv/plts)
     ]
   end
