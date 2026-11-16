@@ -23,7 +23,13 @@ those of the release candidates below. From an earlier release, also read the se
   | `mix playwright_ex.install`, `playwright_ex.cli` | `mix playwright.install`, `playwright.cli` (also in aliases) |
   | `usage_rules: [:playwright_ex]` | `usage_rules: [:playwright]` |
   | `PLAYWRIGHT_EX_CACHE_DIR`, `PLAYWRIGHT_EX_EXECUTABLE`, `PLAYWRIGHT_NODEJS_PATH` | `config :playwright, :driver, cache_dir: ..., executable: ..., node: ...` (read an env var in `config/config.exs` if you need one, locally or in CI) |
-  | driver cache `<user cache>/playwright_ex` | `<user cache>/playwright` (the driver downloads again) |
+  | driver cache `<user cache>/playwright_ex` | `<user cache>/playwright` (the driver downloads again; delete the old one) |
+
+  Move every library you depend on that uses PlaywrightEx in the same bump: while one still
+  declares `:playwright_ex`, Mix fetches both packages, which compile side by side without a
+  warning, and that library keeps driving PlaywrightEx and ignores `config :playwright`. Check that
+  `mix deps.tree` lists no `playwright_ex`, then drop its stale lock entry with
+  `mix deps.unlock --unused` (`mix deps.unlock --check-unused` fails on it).
 
   In a module that aliases a `Playwright` of its own (`alias MyApp.Playwright`),
   `Playwright.instance()` and `Playwright.Page` silently resolve to that module: alias it

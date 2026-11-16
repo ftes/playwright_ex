@@ -21,6 +21,13 @@ app, `{:playwright, "~> ...", hex: :playwright_ex}`: `hex: :playwright_ex` is re
 (`alias MyApp.Playwright`), `Playwright.Page` and `Playwright.instance()` resolve to that module:
 write `alias MyApp.Playwright, as: MyPlaywright` there, or `Elixir.Playwright.Page`.
 
+Upgrade every library you depend on that uses PlaywrightEx at the same time. While one still
+declares `:playwright_ex`, Mix fetches both packages, and they compile side by side without a
+warning: that library keeps driving PlaywrightEx and ignores `config :playwright`. Check that
+`mix deps.tree` lists no `playwright_ex`, then run `mix deps.unlock --unused` to drop its lock
+entry. The driver cache moves from `<user cache>/playwright_ex` to `<user cache>/playwright`;
+delete the old one.
+
 ## Handles, not guids
 
 Functions take and return structs (`%Playwright.Page{}`, typed `Playwright.Page.t()`). Each
