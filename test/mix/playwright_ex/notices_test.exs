@@ -68,7 +68,14 @@ defmodule Mix.PlaywrightEx.NoticesTest do
     refute Notices.generated?("defmodule A do\nend\n")
   end
 
-  test "an upstream file without a header is under upstream's root license", %{tmp_dir: upstream} do
-    assert Notices.notice(upstream, "c.ts") == {[], "Apache-2.0"}
+  test "an upstream file without a header is under upstream's root license and NOTICE", %{tmp_dir: upstream} do
+    assert Notices.notice(upstream, "c.ts") == {["Copyright (c) Microsoft Corporation."], "Apache-2.0"}
+  end
+
+  test "put/3 is idempotent for a header-less upstream file", %{tmp_dir: upstream} do
+    source = "defmodule A do\n  @upstream \"c.ts\"\nend\n"
+    once = Notices.put(upstream, "lib/a.ex", source)
+    assert once =~ "# Copyright (c) Microsoft Corporation.\n"
+    assert Notices.put(upstream, "lib/a.ex", once) == once
   end
 end

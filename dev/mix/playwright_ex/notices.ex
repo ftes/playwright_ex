@@ -129,12 +129,13 @@ defmodule Mix.PlaywrightEx.Notices do
     lines = Enum.filter(comment, &Regex.match?(~r/^(Modifications |Portions )?copyright\b/i, &1))
     text = Enum.join(comment, " ")
 
-    # A file without a header, or without license text, is under upstream's root LICENSE (Apache-2.0),
-    # whose NOTICE we ship: there is nothing more of its own to retain.
+    # A file without a header, or without license text, is under upstream's root LICENSE (Apache-2.0)
+    # and NOTICE (Microsoft's copyright), which we ship. Every header keeps a copyright line:
+    # `strip/1` finds headers by it.
     license =
       if text =~ "Permission is hereby granted" or text =~ ~r/MIT license/i, do: "MIT", else: "Apache-2.0"
 
-    {lines, license}
+    {if(lines == [], do: [@microsoft], else: lines), license}
   end
 
   # The lines of the first `/* */` or `#` comment, past a shebang, without the comment marks.
