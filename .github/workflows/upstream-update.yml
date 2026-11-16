@@ -114,7 +114,7 @@ jobs:
             echo "PROMPT_EOF"
           } >> "$GITHUB_OUTPUT"
       - name: Port the release
-        uses: anthropics/claude-code-action@61a9c274fa7110a66dfafc1bbbced03833eb25fe # v1.0.269
+        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # No github_token input: that makes the action use the Claude App token (see above).
@@ -208,7 +208,7 @@ jobs:
           mkdir -p tmp
           gh run view "$run" --log-failed | tail -n 5000 > tmp/ci-failed.log
       - name: Fix the port
-        uses: anthropics/claude-code-action@61a9c274fa7110a66dfafc1bbbced03833eb25fe # v1.0.269
+        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
