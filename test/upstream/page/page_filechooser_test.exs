@@ -318,7 +318,7 @@ defmodule Playwright.Page.PageFilechooserTest do
              "flaky: Firefox 1572's Juggler checks file chooser interception again when it creates " <>
                "the picker, after fileChooserOpened, so the waiter's updateSubscription(false) can let " <>
                "a native picker open, and the second click opens none. Upstream's client hits it too " <>
-               "(mostly on a just-launched Firefox): https://github.com/ftes/playwright_ex/issues/149"
+               "(mostly on a just-launched Firefox): https://github.com/microsoft/playwright/issues/44143"
          )
   test "FC-020 should be able to reset selected files with empty file list", %{page: page, asset: asset} do
     Page.set_content!(page, "<input type=file>")
