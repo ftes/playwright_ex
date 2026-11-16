@@ -837,14 +837,14 @@ defmodule PlaywrightEx.Test.Recorder do
     GenServer.cast(pid, {:finisher, self()})
     task = Task.async(fn -> step("finish the recording", fn -> collect_all(pid, result) end) end)
 
-    case Task.yield(task, budget) do
+    # A collect that finishes between the yield's timeout and the shutdown is kept.
+    case Task.yield(task, budget) || Task.shutdown(task, :brutal_kill) do
       {:ok, trace} ->
         forget_rows(pid)
         step("stop the recorder", fn -> GenServer.stop(pid) end)
         trace
 
       nil ->
-        Task.shutdown(task, :brutal_kill)
         forget_rows(pid)
         log("finish the recording", "it took over #{budget} ms")
 
