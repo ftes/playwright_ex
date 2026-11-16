@@ -736,6 +736,13 @@ Playwright Test features ExUnit can't host, or that ExUnit and Elixir already co
 | reporter plugins (monocart coverage, ...) | there are no reporters to plug into | none: `Playwright.Coverage` collects, your code reports |
 | `webServer` | `test_helper.exs` starts what a run needs | start the endpoint in `test_helper.exs`, or `server: true` in the test config |
 
-Not yet: the HTML reporter with `blob` and `merge-reports`
-([#225](https://github.com/ftes/playwright_ex/issues/225)), and rebaselining inline snapshots
-([#226](https://github.com/ftes/playwright_ex/issues/226)).
+Not ported yet ([open an issue](https://github.com/ftes/playwright_ex/issues) if you need one):
+
+- the HTML reporter, with `blob` and `merge-reports` for partitioned runs;
+- rebaselining inline aria snapshots into the test source (`--update-source-method`);
+- `_defaultLaunchOptions`: a `BrowserType.launch` inside a test doesn't inherit the browser's
+  `launch_options`;
+- contexts created in `setup_all` get no context defaults, trace chunks or leftover screenshots
+  (only contexts created during a test are recorded);
+- the video's step overlay keeps the title of a process killed inside `step/2,3`, and shows an
+  IPv6 host with a zone id as `fe80`.
