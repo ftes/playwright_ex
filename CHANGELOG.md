@@ -32,9 +32,10 @@ those of the release candidates below. From an earlier release, also read the se
   with `mix deps.clean --unused --unlock` (`mix deps.unlock --check-unused` fails on the lock entry).
 
   In a module that aliases a `Playwright` of its own (`alias MyApp.Playwright`),
-  `Playwright.instance()` and `Playwright.Page` silently resolve to that module: alias it
-  `as: MyPlaywright` there, or write `Elixir.Playwright...`. A sorted alias list (as Styler sorts
-  it) puts `alias MyApp.Playwright` before `alias Playwright.Page`, which then expands to
+  `Playwright.instance()` and `Playwright.Page` silently resolve to that module. Simplest: don't
+  alias it where you use ours, and call it in full (`MyApp.Playwright.x(...)`). Otherwise alias it
+  `as: MyPlaywright`, or write `Elixir.Playwright...`. A sorted alias list (as Styler sorts it) puts
+  `alias MyApp.Playwright` before `alias Playwright.Page`, which then expands to
   `MyApp.Playwright.Page`: write `alias Elixir.Playwright.Page` there.
 
   ex_doc links a dependency's docs by app name, so links to `:playwright` go to the other
