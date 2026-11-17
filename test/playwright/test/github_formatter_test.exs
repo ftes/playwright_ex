@@ -132,7 +132,7 @@ defmodule Playwright.Test.GitHubFormatterTest do
 
     test = %{
       test
-      | parameters: Map.put(Playwright.Test.parameters(context_options: [locale: "de-DE"]), :browser, :chromium)
+      | parameters: Playwright.Test.parameters(context_options: [locale: "de-DE"], browser_name: :chromium)
     }
 
     assert run([{:test_finished, test}]) =~ "::  1) [chromium] › #{@file_path}:10 › fails ─"

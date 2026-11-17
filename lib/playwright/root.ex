@@ -8,19 +8,20 @@ defmodule Playwright.Root do
   # A descriptor's JS keys as the option keys of `Playwright.Browser.new_context/2`, as the
   # generated `Playwright.devices/1` converts the driver's.
   @doc false
+  # Converted once per VM.
   def devices do
-    {:object, schema} = Playwright.Browser.__options_type__(:new_context)
-    keys = Map.new(schema, fn {key, {js_key, _type}} -> {js_key, key} end)
+    case :persistent_term.get(__MODULE__, nil) do
+      nil ->
+        {:object, schema} = Playwright.Browser.__options_type__(:new_context)
+        keys = Map.new(schema, fn {key, {js_key, _type}} -> {js_key, key} end)
+        descriptors = Playwright.Isomorphic.DeviceDescriptors.device_descriptors()
+        devices = Playwright.Runtime.Facade.options_dictionary(descriptors, keys)
+        :persistent_term.put(__MODULE__, devices)
+        devices
 
-    Playwright.Runtime.Facade.options_dictionary(Playwright.Isomorphic.DeviceDescriptors.device_descriptors(), keys)
-  end
-
-  # The device names for the docs of `devices/0`: without the `landscape` variants, and those
-  # that have none.
-  defp device_names do
-    names = Playwright.Isomorphic.DeviceDescriptors.device_descriptors() |> Map.keys() |> Enum.sort()
-    {landscape, names} = Enum.split_with(names, &String.ends_with?(&1, " landscape"))
-    {names, Enum.reject(names, &((&1 <> " landscape") in landscape))}
+      devices ->
+        devices
+    end
   end
 
   @doc false
@@ -42,6 +43,14 @@ defmodule Playwright.Root do
                 if(closest == [], do: "", else: ", did you mean #{Enum.map_join(closest, ", ", &inspect/1)}?") <>
                 " (the docs of Playwright.devices/0 list the names)"
     end
+  end
+
+  # The device names for the docs of `devices/0`: without the `landscape` variants, and those
+  # that have none.
+  defp device_names do
+    names = Playwright.Isomorphic.DeviceDescriptors.device_descriptors() |> Map.keys() |> Enum.sort()
+    {landscape, names} = Enum.split_with(names, &String.ends_with?(&1, " landscape"))
+    {names, Enum.reject(names, &((&1 <> " landscape") in landscape))}
   end
 
   defmacro __using__(_opts) do

@@ -94,7 +94,7 @@ end
   - file: `use Playwright.Case, context_options: [locale: "de-DE"], trace: :on` (also `browser_name: :webkit`);
   - `test.describe`: `@describetag Test.use(context_options: [timezone_id: "Europe/Berlin"])`;
   - one test: `@tag Test.use(trace: :on)`;
-  - project: `use Playwright.Case, parameterize: [Test.parameters(context_options: Playwright.device("Desktop Firefox")), ...]` (`Test.parameters/1` and the module's `use` also take the worker's `browser_name`, `launch_options`, `connect_options`; add your own parameters with `Map.put/3`).
+  - project: `use Playwright.Case, parameterize: [Playwright.Test.parameters(context_options: Playwright.device("Desktop Firefox")), ...]` (the `Test` alias only exists after the `use`) (`Test.parameters/1` and the module's `use` also take the worker's `browser_name`, `launch_options`, `connect_options`; add your own parameters with `Map.put/3`).
 - Where each option can be set:
 
 | Option | Config | Project (`Test.parameters/1`) | Module (`use`) | Describe, test (`Test.use/1`) |

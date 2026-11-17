@@ -295,18 +295,21 @@ defmodule Playwright.Test.Options do
   else the config's if it sets one. Else the `default_browser_type` of a device in their
   `context_options` (the module's, the project's, the config's), as upstream's `browserName`
   defaults to its `defaultBrowserType`, else the config's default, `:chromium`. Tags don't
-  count: the browser is the worker's.
+  count: the browser is the worker's. Whether the config sets one is the application env's:
+  `config` has the default filled in.
   """
   def browser_name(config \\ config(), project \\ %{}, use_options \\ %{}) do
     env = Application.get_env(:playwright, :test, [])
     configured = if Keyword.keyword?(env) and Keyword.has_key?(env, :browser_name), do: config.browser_name
-    config_options = context_options!(config.context_options, "config :playwright, :test: ")
 
-    Enum.find(
-      [use_options[:browser_name], project[:browser_name], configured] ++
-        Enum.map([use_options[:context_options], project[:context_options], config_options], &device_browser/1),
+    Enum.find_value(
+      [
+        fn -> use_options[:browser_name] || project[:browser_name] || configured end,
+        fn -> device_browser(use_options[:context_options]) || device_browser(project[:context_options]) end,
+        fn -> device_browser(context_options!(config.context_options, "config :playwright, :test: ")) end
+      ],
       config.browser_name,
-      & &1
+      & &1.()
     )
   end
 

@@ -985,7 +985,7 @@ defmodule Playwright.Test do
         async: true,
         parameterize:
           for device <- ["Desktop Chrome", "Desktop Firefox", "Desktop Safari"],
-              do: Test.parameters(context_options: Playwright.device(device))
+              do: Playwright.Test.parameters(context_options: Playwright.device(device))
 
   The project's options are under the module's `use` and over the config's, for every context
   of the module's run, `setup_all`'s included. Its browser is its `browser_name`, else its

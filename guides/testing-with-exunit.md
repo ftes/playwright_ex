@@ -85,7 +85,7 @@ its own, each over the one before per option:
 | Playwright Test | Here |
 |---|---|
 | `use: { ... }` in the config | `config :playwright, :test, context_options: [...]` |
-| a project's `use` | `parameterize: [Test.parameters(context_options: [...])]`, see "Projects" |
+| a project's `use` | `parameterize: [Playwright.Test.parameters(context_options: [...])]`, see "Projects" |
 | `test.use({ ... })` at a file's top | `use Playwright.Case, context_options: [locale: "de-DE"]` |
 | `test.use({ ... })` in a `test.describe` | `@describetag Test.use(context_options: [...])` |
 | (a describe around one test) | `@tag Test.use(context_options: [...])` |
@@ -395,8 +395,8 @@ any of those wins (`use Playwright.Case, browser_name: :chromium, context_option
 `config :playwright, :test, browser_name: :chromium`).
 
 For a describe block, Playwright Test's `test.use` in a `test.describe`, tag it with
-`Playwright.Test.use/1`, which takes the `use` options `context_options`, `trace`, `screenshot`
-and `video`:
+`Playwright.Test.use/1`, which takes the `use` options `context_options`, `action_timeout`,
+`navigation_timeout`, `trace`, `screenshot` and `video`:
 
 ```elixir
 describe "in Berlin" do
@@ -452,7 +452,8 @@ end
 
 Playwright Test's `projects: [{ use: { ...devices['Desktop Chrome'] } }, ...]`, one run per
 browser and device, are ExUnit's `parameterize:` with a `Playwright.Test.parameters/1` map per
-project. It takes `Test.use/1`'s options and `browser_name`:
+project. It takes `Test.use/1`'s options and the worker's (`browser_name`, `launch_options`,
+`connect_options`):
 
 ```elixir
 defmodule MyApp.Projects do
@@ -478,7 +479,8 @@ Firefox and WebKit here (not with a `browser_name` in the config, which wins ove
 give the projects one, `Test.parameters(browser_name: :firefox, context_options: ...)`). A
 module adds its own options over the project's (`use Playwright.Case, parameterize:
 MyApp.Projects.all(), context_options: [locale: "de-DE"]`), and parameters of your own go next
-to them: `Map.put(Test.parameters(...), :role, :admin)`. A test reads its browser from the
+to them: `Map.put(Test.parameters(...), :role, :admin)`. They also name the project in
+`Playwright.Test.GitHubFormatter`'s report, as its `browser_name` does (`[firefox]`). A test reads its browser from the
 `browser`: `Playwright.BrowserType.name(Browser.browser_type(browser))`. ExUnit's filters don't see
 `parameterize:` values, so to run one project, read an env var where the list is built, as
 above.
