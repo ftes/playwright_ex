@@ -111,7 +111,14 @@ Elixir form fits depends on when the call completes:
   true = Promise.await!(clicked)
   ```
 
-  `Promise.all([a, b])` is a `Promise.async/1` for each, then a `Promise.await!/1` for each.
+  `Promise.all([...])`, `Promise.race([...])` and `Promise.any([...])` are `Promise.all/1`,
+  `Promise.race/1` and `Promise.any/1`, of `async/1` calls and waits:
+
+  ```elixir
+  # JS: await Promise.all([page.waitForNavigation(), page.click('a')])
+  Promise.all([Page.wait_for_navigation(page), Promise.async(fn -> Page.click!(page, "a") end)])
+  |> Promise.await!()
+  ```
 
 - `Task.async/1` when the call only completes after a later action of yours, such as a `click`
   that opens a dialog you then handle: awaiting it in line would deadlock, and the order of the

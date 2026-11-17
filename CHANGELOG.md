@@ -44,6 +44,11 @@ upstream minor, so `~> 1.65.0` is safe.
 Drives [Playwright 1.65.1](https://github.com/microsoft/playwright/releases/tag/v1.65.1), on
 Node 26.13.1. No upstream API changes.
 
+### Added
+
+- `Playwright.Promise.all/1`, `race/1` and `any/1`, as JS's `Promise.all`, `Promise.race` and
+  `Promise.any` (with `Playwright.AggregateError`).
+
 ### Changed
 
 - **RC only:** **Breaking:** `mix playwright.install` forwards its args to `playwright install`
