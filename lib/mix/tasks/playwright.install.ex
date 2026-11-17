@@ -1,7 +1,7 @@
 defmodule Mix.Tasks.Playwright.Install do
   @shortdoc "Installs the Playwright driver (Node + playwright-core) and browsers"
   @moduledoc """
-  Usage: `mix playwright.install [BROWSER...] [OPTIONS...]`
+  Usage: `mix playwright.install [ARGS...]` (browsers and flags, in any order)
 
   Installs the driver, then runs its `playwright install` with the args, as
   `npx playwright install` would (none: its default browsers), e.g.
@@ -10,9 +10,9 @@ defmodule Mix.Tasks.Playwright.Install do
 
     * `--no-browsers` - installs only the driver, for a browser launched with `:executable_path`
       or `:channel`. It takes no other args but `--force`.
-    * `--force` - reinstalls the driver (unless `--dry-run`, `--list` or `--help` asks
-      `playwright install` to install nothing), and is forwarded, so it reinstalls the browsers
-      too.
+    * `--force` - reinstalls the driver (not with `--dry-run`, `--list` or `--help`, which
+      need no new driver), and is forwarded, so it reinstalls the browsers too. To reinstall
+      only a browser, run `mix playwright.cli install --force <browser>`.
 
   Every other arg is forwarded in order. A `--` raises: the args need none.
 
@@ -50,21 +50,26 @@ defmodule Mix.Tasks.Playwright.Install do
   end
 
   @own_flags ["--no-browsers", "--force"]
-  # The flags with which `playwright install` installs nothing. Mirrors `playwright install --help`
-  # at the pinned driver: recheck on each bump (PORTING.md "Bumping the pinned version").
-  @install_nothing ["--dry-run", "--list", "--help", "-h"]
+  # The `playwright install` flags for which `--force` needn't reinstall the driver: they install
+  # no browsers (`--list --with-deps` still installs OS packages). Mirrors
+  # `playwright install --help` at the pinned driver: recheck on each bump (PORTING.md "Bumping
+  # the pinned version").
+  @no_driver_reinstall ["--dry-run", "--list", "--help", "-h"]
 
   @doc false
   # Splits argv into the task's flags and the args for `playwright install`:
   # `{browsers?, force?, args}`.
   def parse_args(argv) do
-    if "--" in argv, do: Mix.raise("`--` is no longer needed: `mix playwright.install chromium --with-deps`")
+    if "--" in argv do
+      args = with [] <- Enum.reject(argv, &(&1 == "--")), do: ~w(chromium --with-deps)
+      Mix.raise("`--` is no longer needed: `mix playwright.install #{Enum.join(args, " ")}`")
+    end
 
     {own, others} = Enum.split_with(argv, &(&1 in @own_flags))
 
     cond do
       "--no-browsers" not in own ->
-        {true, "--force" in own and not Enum.any?(others, &(&1 in @install_nothing)), argv}
+        {true, "--force" in own and not Enum.any?(others, &(&1 in @no_driver_reinstall)), argv}
 
       others == [] ->
         {false, "--force" in own, []}

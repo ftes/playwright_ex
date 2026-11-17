@@ -33,7 +33,7 @@ mix deps.get
 mix playwright.install
 ```
 
-Arguments go to `playwright install`, as with `npx playwright install`:
+Arguments are `playwright install`'s, with no `--`:
 `mix playwright.install chromium --with-deps`.
 
 ## Versioning

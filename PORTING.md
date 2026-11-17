@@ -258,8 +258,8 @@ to that PR, the workflow also pushes fixes for its CI failures. The mix tasks be
      `usage-rules.md` ("Locators and assertions"): `locators.md` "Quick Guide" and "Locating
      elements", and `best-practices-js.md` "Prefer user-facing attributes to XPath or CSS
      selectors".
-   - Check that `@install_nothing` in `lib/mix/tasks/playwright.install.ex` still lists the
-     `mix playwright.cli install --help` flags that install nothing.
+   - Check that `@no_driver_reinstall` in `lib/mix/tasks/playwright.install.ex` still lists the
+     `mix playwright.cli install --help` flags that install no browsers.
 6. Re-check skips that may be gone: run the spec files with `env:` or `flaky:` skips
    (`grep -rlE '"(env|flaky):' test/upstream`) with `PW_UNSKIP=env,flaky mix test <files>` on the
    browser they name (ExUnit runs no skipped test, `--include skip` neither), drop each skip that
