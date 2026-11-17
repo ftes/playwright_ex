@@ -355,9 +355,10 @@ makes the registration raise with the fix. The module's `setup_all` process regi
 contexts (and those of processes with it in `$callers`) get the defaults and timeouts, and are
 kept as the module's, keyed by its ExUnit runner, which spawns its tests too. Each test's
 registration adopts those still open (upstream's `willStartTest` over the worker's existing
-contexts): its recorder records them, a chunk of its own, but leaves them open. One outside a
-test and a module gets no defaults and no recording. The driver also adds every call's stack to each trace on its connection, so the trace
-merge keeps a chunk's own actions' stacks and sources.
+contexts): its recorder records them, a chunk of its own, but leaves them open. A context
+created outside both a test and a module's `setup_all` (no process of either in its `$callers`)
+gets no defaults and no recording. The driver also adds every call's stack to each trace on its
+connection, so the trace merge keeps a chunk's own actions' stacks and sources.
 
 The pool is upstream's worker model. `browser/1` is held by the scope that calls it: `setup_all`'s
 module (upstream runs a file in one worker), or the test (a `Task` resolves to it through

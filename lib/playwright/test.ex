@@ -52,11 +52,14 @@ defmodule Playwright.Test do
   is registered before them, and their contexts are recorded too. That `use` takes no options
   (they go in `using`); a module's later `use`s (a template's `using` and the module's own) only
   add their options (see "Artifacts"). A context that a test process creates before its
-  registration (a template's `setup` or `setup_all` with no `use` in the body) makes the
-  registration raise, with that fix. It registers the module's `setup_all` too, as upstream runs its `beforeAll`
-  hooks with its `all-hooks-included` fixtures: see "Contexts of `setup_all`". A context created
-  outside both (in an `on_exit` callback, in a module without `use Playwright.Test`, on a driver
-  you started yourself) gets no defaults and no recording.
+  registration (a template's `setup` with no `use` in the body) makes the registration raise,
+  with that fix. It registers the module's `setup_all` process too, as upstream runs its
+  `beforeAll` hooks with its `all-hooks-included` fixtures: see "Contexts of `setup_all`". A
+  `setup_all` runs in that process, not a test's, so one that creates a context before the
+  registration (a template's own `setup_all`, or one above the module's `use`) makes the
+  module's `setup_all` raise, with the fix, and fails all its tests. A context created outside
+  both (in an `on_exit` callback, in a module without `use Playwright.Test`, in a process with
+  neither in its `$callers`, on a driver you started yourself) gets no defaults and no recording.
 
   The rest is called qualified, as upstream's `test.info()` and `test.step()`: `info/0`
   (`info/1` in `on_exit`, with the test's result), `output_path/1`, `attach/2`, `snapshot_path/2`, `step/2,3` and `step_skip/2,3`. They work in the test's
@@ -159,6 +162,12 @@ defmodule Playwright.Test do
   a process with it in `$callers` creates, gets the context defaults and the config's
   `context_options` (so `base_url`), merged as a test's, and the config's timeouts. Not the
   video, as upstream's comes with the `context` fixture.
+
+  Only processes with `$callers` count: a `Task`, or a process that sets them itself
+  (`Process.put(:"$callers", callers)`). A `spawn`, a `GenServer` or `Agent` start, and
+  `start_supervised` don't set them, so their contexts get no defaults. A long-lived process
+  started in `setup_all` that has them gets the module's defaults for every context it creates
+  later, during a test too, as upstream's worker-scoped fixtures do.
 
   Each test then records those still open as upstream's `willStartTest` does a worker's existing
   contexts: their actions during the test go to its `trace.zip` (a trace chunk of its own), their
@@ -532,7 +541,7 @@ defmodule Playwright.Test do
       raise ArgumentError,
             "this module's setup_all created a context before `use Playwright.Test` registered it (a case " <>
               "template's own `setup_all` runs before the `use` in its `using`, and a module's `setup_all` " <>
-              "before its `use Playwright.Test` runs first), so the context has no defaults and no recording: " <>
+              "before its `use Playwright.Test` runs first), so the context got no context defaults: " <>
               "add `use Playwright.Test` as the first line of the case template's body, or move the " <>
               "`setup_all` after the module's `use Playwright.Test`"
     end
