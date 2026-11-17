@@ -110,7 +110,17 @@ Page.emulate_media!(page, color_scheme: :dark)
 Page.emulate_media!(page, color_scheme: :null)
 ```
 
-`evaluate` and `json` results follow the same rule.
+`evaluate` and `json` results follow the same rule. A call that returns `X | null` in JS returns
+`nil` for none: `Locator.get_attribute!/2` of a missing attribute, `Locator.text_content!/2`.
+
+`JSON.encode!/1` turns `:null` into the string `"null"`, so pass such values to the page as an
+`evaluate` argument, which sends `:null` as `null` at any depth, and stringify them there if the
+page needs JSON:
+
+```elixir
+Page.evaluate!(page, "x => JSON.stringify(x)", %{"z" => :null})
+# "{\"z\":null}"
+```
 
 ## Optional arguments
 
@@ -163,9 +173,9 @@ locator |> Expect.not_() |> Expect.to_have_text!("Error")
 ```
 
 Matchers retry until they pass or time out (5 seconds, `config :playwright, :expect`). They
-return `:ok` or `{:error, %Playwright.ExpectError{}}`; the bang forms raise the
-`Playwright.ExpectError`, which fails an ExUnit test as any exception does. Unknown keys in the
-`:expect` config raise `ArgumentError`.
+return `:ok` (`to_pass` `{:ok, value}`, its callback's) or `{:error, %Playwright.ExpectError{}}`;
+the bang forms raise the `Playwright.ExpectError`, which fails an ExUnit test as any exception
+does. Unknown keys in the `:expect` config raise `ArgumentError`.
 
 ## Errors
 

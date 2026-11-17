@@ -100,24 +100,37 @@ The driver's own logs go to stderr with `DEBUG=pw:api` in its environment:
 
 ## GitHub Actions
 
-Install the browsers with their system packages (`--with-deps` runs `apt-get`):
+Install the browsers with their system packages (`--with-deps` runs `apt-get`). Set `MIX_ENV`
+for the whole job, so every task shares the test build: the install in `:dev` would compile the
+dev deps too.
 
 ```yaml
-- run: mix playwright.install -- chromium --with-deps
-- run: mix test
-- uses: actions/upload-artifact@v7
-  if: failure()
-  with:
-    name: test-results
-    path: tmp/test-results
+env:
+  MIX_ENV: test
+steps:
+  # ... checkout, erlef/setup-beam
+  - run: mix deps.get
+  - run: mix playwright.install -- chromium --with-deps
+  - run: mix test
+  - uses: actions/upload-artifact@v7
+    if: failure()
+    with:
+      name: test-results
+      path: test-results
 ```
 
-As upstream advises, don't cache the browsers: restoring takes about as long as downloading,
-and the system packages can't be cached. To cache them anyway, cache `~/.cache/playwright`
-and `~/.cache/ms-playwright` against `hashFiles('mix.lock')`, which pins the driver version. If
-the runner's apt mirror stalls, this repository's
-[workflow](https://github.com/ftes/playwright_ex/blob/main/.github/workflows/elixir.yml) retries
-and caches the `.deb` files.
+Cache neither the driver, the browsers nor the apt packages. On `ubuntu-latest` (26.04) a cold
+driver download takes about 2 s and Chromium about 8 s, while restoring a cache of both takes
+about 3 s: it saves roughly 6 s per job and churns the cache on every Playwright bump. With the
+system libraries already on the image, `--with-deps` installs only 9 font packages (21 MB), and
+caching them (`cache-apt-pkgs-action`, or the `.deb` files) didn't speed up the roughly 14 s
+step, which `apt-get update` and dpkg dominate. Upstream
+[advises the same](https://playwright.dev/docs/ci): restoring a browser cache takes about as
+long as downloading, and operating system dependencies aren't cacheable. For reference, if your
+network is slow or you run offline: the driver goes to `~/.cache/playwright`
+(`~/Library/Caches/playwright` on macOS; the `:cache_dir` option moves it), the browsers to
+`~/.cache/ms-playwright` (`~/Library/Caches/ms-playwright` on macOS, or
+`PLAYWRIGHT_BROWSERS_PATH`).
 
 ### In Playwright's image
 
@@ -134,6 +147,7 @@ runs-on: ubuntu-24.04
 container:
   image: mcr.microsoft.com/playwright:v1.65.1-noble
 env:
+  MIX_ENV: test
   ImageOS: ubuntu22
   HOME: /root
 steps:
@@ -176,6 +190,7 @@ Browsers need system libraries, so install them in the image:
 
 ```dockerfile
 FROM elixir:1.20
+ENV MIX_ENV=test
 WORKDIR /app
 COPY mix.exs mix.lock ./
 RUN mix local.hex --force && mix deps.get && mix deps.compile

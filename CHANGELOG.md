@@ -49,10 +49,17 @@ Node 26.13.1. No upstream API changes.
 - `Playwright.Promise.all/1`, `race/1` and `any/1`, as JS's `Promise.all`, `Promise.race` and
   `Promise.any` (with `Playwright.AggregateError`).
 
+### Changed
+
+- **RC only:** `Expect.to_pass!/2` returns the callback's value from the attempt that passed,
+  which JS assigns to an outer `let`. **Breaking:** `Expect.to_pass/2` returns `{:ok, value}`,
+  not `:ok`.
+
 ### Fixed
 
-- `mix playwright.install` and `mix playwright.cli` failed with "module :public_key is not
-  available" when run before the project was compiled (e.g. right after `mix deps.get` in CI).
+- **RC only:** `mix playwright.install` and `mix playwright.cli` failed with "module :public_key
+  is not available" when run before the project was compiled (e.g. right after `mix deps.get` in
+  CI).
 
 ## [1.65.0-rc.1] 2026-11-16
 

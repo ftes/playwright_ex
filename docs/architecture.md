@@ -443,7 +443,9 @@ and a helper per suite drifted from upstream's intervals, deadlines and steps. B
 they get `expect.soft`, steps and the expect config for free; `poll`'s matcher is an ExUnit
 assertion (`Expect.poll(fn -> v end, &assert(&1 == 3))`), as the jest matchers are not ported. Their
 callbacks run in the calling process, not raced against the deadline (a running callback overruns
-it), for the reason a step has no timeout.
+it), for the reason a step has no timeout. `to_pass` returns the passing attempt's value (`{:ok,
+value}`, the bang form the value), where upstream resolves to `void`: a JS callback assigns what the
+test reads after it to an outer `let`, which an Elixir closure can't rebind.
 
 Rejected: porting the rest of Playwright Test, `createExpect` (`expect.configure`; `expect.soft`
 and `expect(x, message)` are fields of the receiver, `soft/1` and `message/2`, not a configured
