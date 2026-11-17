@@ -92,7 +92,7 @@ defmodule Playwright.Test.Pool do
   # The next call starts them anew.
   def after_suite(_stats) do
     if Process.whereis(__MODULE__) do
-      print_held_output()
+      print_held(GenServer.call(__MODULE__, :take_held, :infinity))
 
       __MODULE__
       |> GenServer.call(:take_all, :infinity)
@@ -109,18 +109,16 @@ defmodule Playwright.Test.Pool do
   after the test's `on_exit` callbacks. Without the callback (no ExUnit run), at once.
   """
   def print_after_suite(text) do
-    if Results.started?() and :ets.member(Results.table(), :after_suite),
-      do: :ets.insert(Results.table(), {{:after_suite_output, System.unique_integer([:monotonic])}, text}),
-      else: IO.puts(text)
-
+    if !(Process.whereis(__MODULE__) && GenServer.call(__MODULE__, {:hold, text}, :infinity)), do: IO.puts(text)
     :ok
+  catch
+    # The pool stopped meanwhile.
+    :exit, _ -> IO.puts(text)
   end
 
-  defp print_held_output do
-    rows = :ets.match_object(Results.table(), {{:after_suite_output, :_}, :_})
-    for {key, _text} <- rows, do: :ets.delete(Results.table(), key)
-    if rows != [], do: IO.puts(["\n" | Enum.map_intersperse(Enum.sort(rows), "\n", &elem(&1, 1))])
-  end
+  # The held lines, in the order they came, after a blank line.
+  defp print_held([]), do: :ok
+  defp print_held(held), do: IO.puts(["\n" | Enum.intersperse(Enum.reverse(held), "\n")])
 
   # ExUnit's modules, the runner here, and this layer's (`Playwright.Test`, `Playwright.Case`),
   # Playwright Test's fixtures and artifacts.
@@ -143,12 +141,14 @@ defmodule Playwright.Test.Pool do
     # `setBoxedStackPrefixes([packageRoot])` (`packages/playwright/src/common/process.ts`).
     ClientStackTrace.set_boxed_stack_prefixes(runner_modules())
 
-    if Code.ensure_loaded?(ExUnit) and is_list(Application.get_env(:ex_unit, :after_suite)) do
-      ExUnit.after_suite(&__MODULE__.after_suite/1)
-      :ets.insert(Results.table(), {:after_suite, true})
-    end
+    # `held`: the lines `print_after_suite/1` holds, newest first; `nil` without the callback.
+    held =
+      if Code.ensure_loaded?(ExUnit) and is_list(Application.get_env(:ex_unit, :after_suite)) do
+        ExUnit.after_suite(&__MODULE__.after_suite/1)
+        []
+      end
 
-    {:ok, %{seats: %{}, scopes: %{}, waiting: [], results: results, workers: nil}}
+    {:ok, %{seats: %{}, scopes: %{}, waiting: [], results: results, workers: nil, held: held}}
   end
 
   @impl true
@@ -174,6 +174,12 @@ defmodule Playwright.Test.Pool do
     do: {:reply, :ok, fail_scopes(state, test_pid, Results.runner(state.results, test_pid))}
 
   def handle_call(:started, _from, state), do: {:reply, :ok, state}
+
+  def handle_call({:hold, text}, _from, %{held: held} = state) when is_list(held),
+    do: {:reply, true, %{state | held: [text | held]}}
+
+  def handle_call({:hold, _text}, _from, state), do: {:reply, false, state}
+  def handle_call(:take_held, _from, state), do: {:reply, state.held || [], %{state | held: state.held && []}}
 
   def handle_call(:take_all, _from, state) do
     for waiter <- state.waiting, do: GenServer.reply(waiter.from, :stopped)
@@ -226,6 +232,10 @@ defmodule Playwright.Test.Pool do
   end
 
   def handle_info(message, state), do: {:noreply, %{state | results: Results.handle_info(message, state.results)}}
+
+  # Stopped or crashed before the suite's end: the held lines print now, not never.
+  @impl true
+  def terminate(_reason, state), do: print_held(state.held || [])
 
   # Ends the leases of `scope`: its waiters get `:released`, its seats go back idle (reset when it
   # failed).

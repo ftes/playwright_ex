@@ -573,14 +573,19 @@ defmodule Playwright.Test.ArtifactsTest do
     refute output =~ "show-trace"
     trace = Path.relative_to_cwd(Path.join(test.dir, "trace.zip"))
 
-    held =
-      for {{:after_suite_output, _} = key, text} <- :ets.tab2list(Results.table()), text =~ trace do
-        :ets.delete(Results.table(), key)
-        text
-      end
-
-    assert [hint] = held
+    # Taken back, so this suite's end doesn't print it.
+    {mine, others} = Enum.split_with(:sys.get_state(Pool).held, &(&1 =~ trace))
+    :sys.replace_state(Pool, &%{&1 | held: &1.held -- mine})
+    assert [hint] = mine
+    refute Enum.any?(others, &(&1 =~ trace))
     assert hint =~ ~r/^Trace of ".*": mix playwright.cli show-trace #{Regex.escape(trace)}$/
+  end
+
+  test "held trace hints print after the suite in their order, or when the pool stops before" do
+    assert capture_io(fn -> Pool.terminate(:shutdown, %{held: ["second", "first"]}) end) == "\nfirst\nsecond\n"
+    assert capture_io(fn -> Pool.terminate(:shutdown, %{held: []}) end) == ""
+    # Without ExUnit's after_suite callback, nothing is held.
+    assert capture_io(fn -> Pool.terminate(:shutdown, %{held: nil}) end) == ""
   end
 
   # Upstream's `_takePageSnapshot` as a context closes: `testInfo.errors` has the soft ones.
