@@ -3,7 +3,7 @@
 Manual tooling (not run by CI, `mix test` or any alias) for failures that only show on CI's
 Linux runners, and for flake rates under load. The image matches CI's test job: Elixir/OTP from
 `.tool-versions`, xvfb, the driver and browsers installed by
-`mix playwright.install -- <browsers> --with-deps`.
+`mix playwright.install <browsers> --with-deps`.
 
 The checkout (default: this repo; `-C <path>` for another, e.g. a jj workspace) is rsynced into a
 long-lived container on each command; its `_build` and `deps` stay in the container.

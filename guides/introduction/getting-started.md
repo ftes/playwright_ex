@@ -22,12 +22,15 @@ no Node.js or npm is needed beforehand. It goes to the user cache directory
 from an environment variable, locally or in CI, read that in `config/config.exs`) and installs itself on first
 start if missing. Browsers
 go to Playwright's [browser cache](https://playwright.dev/docs/browsers#managing-browser-binaries).
-Arguments after `--` go to `playwright install`:
+Arguments are `playwright install`'s, with no `--`:
 
 ```sh
-mix playwright.install -- chromium              # one browser
-mix playwright.install -- chromium --with-deps  # and its system packages (Linux CI)
+mix playwright.install chromium              # one browser
+mix playwright.install chromium --with-deps  # and its system packages (Linux CI)
 ```
+
+In CI, run it in the tests' env, as [Debugging and CI](../debugging-and-ci.md#github-actions)
+shows.
 
 To run a browser you already have, such as a system or Nix Chrome, install only the driver and
 launch the browser with `:executable_path` or `:channel`:
@@ -42,7 +45,7 @@ BrowserType.launch!(Playwright.chromium(playwright), executable_path: "/path/to/
 ```
 
 The library needs Elixir 1.18 or later. The browsers run where Playwright's do: Windows 11+,
-macOS 14+, Debian 12 and 13, Ubuntu 22.04 and 24.04
+macOS 14+, Debian 12 and 13, Ubuntu 22.04, 24.04 and 26.04
 ([system requirements](https://playwright.dev/docs/intro#system-requirements)).
 
 ## Starting the driver

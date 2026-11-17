@@ -4,8 +4,7 @@ defmodule Playwright.Test.BrowserPool do
   worker-scoped `browser` and `playwright` fixtures, and its worker model. Contexts and pages
   come from the plain API (`Playwright.Browser.new_context!/2`,
   `Playwright.BrowserContext.new_page!/1`), and a test of `use Playwright.Test` records the
-  contexts it (or its module's `setup_all`) creates on a pooled browser and gives them
-  Playwright Test's defaults.
+  contexts it creates on a pooled browser and gives them Playwright Test's defaults.
 
       setup_all do
         %{browser: BrowserPool.browser()}

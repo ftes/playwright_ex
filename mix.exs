@@ -186,7 +186,8 @@ defmodule Playwright.MixProject do
           Playwright.PlaywrightError,
           Playwright.TimeoutError,
           Playwright.TargetClosedError,
-          Playwright.AbortError
+          Playwright.AbortError,
+          Playwright.AggregateError
         ]
       ]
     ]
@@ -228,7 +229,7 @@ defmodule Playwright.MixProject do
 
   defp aliases do
     [
-      setup: ["deps.get", "playwright.install -- chromium", "playwright.upstream"],
+      setup: ["deps.get", "playwright.install chromium", "playwright.upstream"],
       check: [
         "format --check-formatted",
         "credo",

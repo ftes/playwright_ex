@@ -44,7 +44,7 @@ defmodule Playwright.Case do
   for each test's `context` and `page`, about 40 ms per test on Chromium and 120 ms on Firefox:
   skip `Playwright.Case` and write the few lines yourself. The `setup_all` context gets the
   defaults, the config's and the module's static `context_options` (not a function's) and the
-  timeouts, and each test traces its own use of it:
+  timeouts, but no test records it (it is in no trace, screenshot or `error-context.md`):
 
       use ExUnit.Case, async: true
       use Playwright.Test

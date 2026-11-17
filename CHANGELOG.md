@@ -42,7 +42,39 @@ upstream minor, so `~> 1.65.0` is safe.
 ## [Unreleased]
 
 Drives [Playwright 1.65.1](https://github.com/microsoft/playwright/releases/tag/v1.65.1), on
-Node 26.13.1. No API changes.
+Node 26.13.1. No upstream API changes.
+
+### Added
+
+- `Playwright.Promise.all/1`, `race/1` and `any/1`, as JS's `Promise.all`, `Promise.race` and
+  `Promise.any` (with `Playwright.AggregateError`).
+
+### Changed
+
+- **RC only:** **Breaking:** `mix playwright.install` forwards its args to `playwright install`
+  as they are, without `--`: `mix playwright.install chromium --with-deps`. A `--` now raises,
+  naming that fix.
+- **RC only:** **Breaking:** `mix playwright.install --force` also reinstalls the browsers, as
+  it's forwarded to `playwright install`.
+- **RC only:** **Breaking:** `mix playwright.install --no-browsers` with other args than `--force`
+  raises.
+- **RC only:** `Expect.to_pass!/2` returns the callback's value from the attempt that passed,
+  which JS assigns to an outer `let`. **Breaking:** `Expect.to_pass/2` returns `{:ok, value}`,
+  not `:ok`.
+- **RC only:** **Breaking:** a context created in `setup_all` before `use Playwright.Test`
+  registered the module (a case template's own `setup_all` with the `use` only in its `using`,
+  or a `setup_all` above the module's `use`) makes the module's `setup_all` raise, naming the
+  fix, as such a context in `setup` already does.
+- **RC only:** **Breaking:** contexts and request contexts created in a module's `setup_all` (or
+  a process with it in `$callers`) get the context defaults and the config's `context_options`
+  (`base_url` too), as Playwright Test's `beforeAll` does (#257). A context gets the config's
+  `action_timeout` and `navigation_timeout`, a request context `timeout:` the `action_timeout`
+  (`0` for `:infinity`) and no navigation timeout: no limit by default, where they had the
+  client's 30 s.
+- **RC only:** **Breaking:** a module's `setup_all` callbacks fail past ExUnit's timeout of the
+  module (`@moduletag timeout:`, else `mix test --timeout`), with `"setup_all" hook timeout of
+  60000ms exceeded.`, as Playwright Test's `beforeAll` hook times out (#257). A longer
+  `setup_all` needs a `@moduletag timeout:`.
 
 ### Added
 
@@ -56,18 +88,9 @@ Node 26.13.1. No API changes.
 
 ### Fixed
 
-- `mix playwright.install` and `mix playwright.cli` failed with "module :public_key is not
-  available" when run before the project was compiled (e.g. right after `mix deps.get` in CI).
-- Contexts and request contexts created in a module's `setup_all` get the context defaults, the
-  config's `context_options` (`base_url` too) and timeouts, as Playwright Test's `beforeAll`
-  does, and each test records those still open in its trace and screenshots (#257).
-- A context created in `setup_all` before `use Playwright.Test` registered the module (a case
-  template's own `setup_all` with the `use` only in its `using`, or a `setup_all` above the
-  module's `use`) makes the module's `setup_all` raise, naming the fix, as such a context in
-  `setup` already does.
-- A module's `setup_all` that hangs fails past ExUnit's timeout of the module, with
-  `"setup_all" hook timeout of 60000ms exceeded.`, as Playwright Test's `beforeAll` hook
-  times out (#257).
+- **RC only:** `mix playwright.install` and `mix playwright.cli` failed with "module :public_key
+  is not available" when run before the project was compiled (e.g. right after `mix deps.get` in
+  CI).
 
 ## [1.65.0-rc.1] 2026-11-16
 

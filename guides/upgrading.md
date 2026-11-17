@@ -85,7 +85,7 @@ page = BrowserContext.new_page!(context)
 ```
 
 - The driver (Node and `playwright-core`) is pinned and downloaded on first start, or with
-  `mix playwright.install` (`-- chromium firefox --with-deps` for CI), so the npm `playwright`
+  `mix playwright.install` (`chromium firefox --with-deps` for CI), so the npm `playwright`
   package can go. Its version (`Playwright.Driver.version/0`) may be newer than the one you ran:
   read Playwright's [release notes](https://playwright.dev/docs/release-notes) (1.65 breaks some
   tests: actions wait for the element to be not inert, cookie matching follows RFC 6265, proxy
@@ -106,8 +106,8 @@ page = BrowserContext.new_page!(context)
 - `mix playwright.install --no-browsers` installs only the driver, for a browser launched with
   `executable_path:` or `channel:`.
 - The driver is cached under `:filename.basedir(:user_cache, "playwright")`, moved with
-  `config :playwright, :driver, cache_dir: ...` or the supervisor's `cache_dir:`; cache it in CI
-  ([GitHub Actions](debugging-and-ci.md#github-actions)).
+  `config :playwright, :driver, cache_dir: ...` or the supervisor's `cache_dir:`; CI needn't
+  cache it ([GitHub Actions](debugging-and-ci.md#github-actions)).
 - `minimum_supported_version/0`: `Playwright.Driver.version/0`.
 
 ### Context, page, navigation

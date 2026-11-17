@@ -5,7 +5,7 @@ defmodule Playwright.Test.Results do
   # these requests), so a test's end reaches the pool before its scope's release: one mailbox.
   #
   # A module's registration (`register_module/2`): its `setup_all` process, for the context
-  # defaults of the contexts it creates, and for its tests to find those contexts.
+  # defaults of the contexts it creates.
   #
   # A test's result (`watch/2`, `result/2`): passed when the `test` macro marked the end of its
   # body (`{:passed, pid}`) and its process then exited `:shutdown`, as ExUnit's runner ends it.
@@ -114,94 +114,26 @@ defmodule Playwright.Test.Results do
 
   @doc """
   Registers the `setup_all` process `pid` of a module (`use Playwright.Test`) with `defaults`
-  (its `context_options` and `timeouts`), once, until it exits; the module of its ExUnit runner
-  from now on (`runner_module/1`), as a runner runs its modules one after another.
+  (its `context_options` and `timeouts`), once, until it exits.
   """
   def register_module(pid, defaults) do
-    runner = Pool.parent(pid)
-
     # Once (a case template's body and its `using` may both bring it).
-    if :ets.insert_new(table(), {{:module, pid}, Map.merge(defaults, %{module_pid: pid, runner: runner})}) do
-      if runner, do: :ets.insert(table(), {{:runner_module, runner}, pid})
-      GenServer.cast(Pool, {:monitor, pid})
-    end
+    if :ets.insert_new(table(), {{:module, pid}, defaults}),
+      do: GenServer.cast(Pool, {:monitor, pid})
 
     :ok
-  end
-
-  @doc "The registration of the module whose `setup_all` process is `pid`, or `nil`."
-  def module(pid) do
-    case started?() && :ets.lookup(table(), {:module, pid}) do
-      [{_key, module}] -> module
-      _ -> nil
-    end
-  end
-
-  @doc "The `setup_all` process of the module the ExUnit runner `runner` runs, or `nil`."
-  def runner_module(runner) do
-    case runner && :ets.lookup(table(), {:runner_module, runner}) do
-      [{_key, pid}] -> pid
-      _ -> nil
-    end
   end
 
   @doc """
-  The table of the contexts and request contexts of the modules' `setup_all` processes, a bag
-  by process: `{owner, order, guid, object}`. Each also has a row `{{:shared, guid}, owner,
-  tracing}` in `table/0`, `tracing` `:off`, `:idle` (started, no chunk) or `:recording` (a
-  test's chunk).
+  The registration of `pid` tagged by its kind: `{:test, test}` for a running test,
+  `{:module, module}` for a module's `setup_all` process, or `nil`.
   """
-  def shared_table, do: __MODULE__.Shared
+  def scope(pid) do
+    # One select, a key lookup per clause.
+    match = for tag <- [:test, :module], do: {{{tag, pid}, :"$1"}, [], [{{tag, :"$1"}}]}
 
-  @doc "Shares `object` (a context or request context) of the module's `setup_all` process `owner`."
-  def share(owner, object) do
-    :ets.insert(table(), {{:shared, object.guid}, owner, :off})
-    :ets.insert(shared_table(), {owner, System.unique_integer([:monotonic]), object.guid, object})
-    :ok
-  end
-
-  @doc "The shared objects of `owner` still open, in creation order: `[{object, tracing}]`."
-  def shared(owner) do
-    for {_owner, _order, guid, object} <- Enum.sort_by(:ets.lookup(shared_table(), owner), &elem(&1, 1)),
-        [{_key, _owner, tracing}] <- [:ets.lookup(table(), {:shared, guid})],
-        do: {object, tracing}
-  end
-
-  @doc "The tracing state of the shared object `guid` (`share/2`), `nil` once it closed."
-  def tracing(guid) do
-    case :ets.lookup(table(), {:shared, guid}) do
-      [{_key, _owner, tracing}] -> tracing
-      [] -> nil
-    end
-  end
-
-  @doc "Notes `test_pid` as the running test of the module whose `setup_all` process is `owner`."
-  def set_module_test(owner, test_pid) do
-    :ets.insert(table(), {{:module_test, owner}, test_pid})
-    :ok
-  end
-
-  @doc "The test of the module of `owner` that runs (or ran last), or `nil`."
-  def module_test(owner) do
-    case :ets.lookup(table(), {:module_test, owner}) do
-      [{_key, test_pid}] -> test_pid
-      [] -> nil
-    end
-  end
-
-  @doc "Notes the tracing state of the shared object `guid`, if still open."
-  def set_tracing(guid, tracing) do
-    :ets.update_element(table(), {:shared, guid}, {3, tracing})
-    :ok
-  end
-
-  @doc "Forgets the shared object `guid` (it closed): its tracing state, `nil` if it is none."
-  def unshare(guid) do
-    with true <- started?(),
-         [{_key, owner, tracing}] <- :ets.take(table(), {:shared, guid}) do
-      :ets.match_delete(shared_table(), {owner, :_, guid, :_})
-      tracing
-    else
+    case started?() && :ets.select(table(), match) do
+      [scope] -> scope
       _ -> nil
     end
   end
@@ -215,7 +147,6 @@ defmodule Playwright.Test.Results do
   """
   def new do
     :ets.new(table(), [:named_table, :public, :set])
-    :ets.new(shared_table(), [:named_table, :public, :bag])
     %{tests: %{}, results: %{}, kept: %{}}
   end
 
@@ -322,7 +253,7 @@ defmodule Playwright.Test.Results do
   """
   def down(state, pid, reason) do
     :ets.delete(table(), {:unregistered, pid})
-    for {_key, module} <- :ets.take(table(), {:module, pid}), do: module_ended(module)
+    :ets.delete(table(), {:module, pid})
 
     case pop_in(state.kept[pid]) do
       {nil, state} ->
@@ -336,13 +267,6 @@ defmodule Playwright.Test.Results do
         tests = for test_pid <- kept, do: {test_pid, runner(state, test_pid)}
         {{:finished, tests}, %{state | results: Map.drop(state.results, kept)}}
     end
-  end
-
-  # The module's rows: its runner's, unless a later module's replaced it, and its contexts'.
-  defp module_ended(%{module_pid: pid, runner: runner}) do
-    if runner, do: :ets.delete_object(table(), {{:runner_module, runner}, pid})
-    :ets.delete(table(), {:module_test, pid})
-    for {_owner, _order, guid, _object} <- :ets.take(shared_table(), pid), do: :ets.delete(table(), {:shared, guid})
   end
 
   defp test_ended(state, pid, test, reason) do

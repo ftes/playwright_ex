@@ -110,7 +110,17 @@ Page.emulate_media!(page, color_scheme: :dark)
 Page.emulate_media!(page, color_scheme: :null)
 ```
 
-`evaluate` and `json` results follow the same rule.
+`evaluate` and `json` results follow the same rule. A call that returns `X | null` in JS returns
+`nil` for none: `Locator.get_attribute!/2` of a missing attribute, `Locator.text_content!/2`.
+
+`JSON.encode!/1` turns `:null` into the string `"null"`, so pass such values to the page as an
+`evaluate` argument, which sends `:null` as `null` at any depth, and stringify them there if the
+page needs JSON:
+
+```elixir
+Page.evaluate!(page, "x => JSON.stringify(x)", %{"z" => :null})
+# "{\"z\":null}"
+```
 
 ## Optional arguments
 
@@ -163,16 +173,17 @@ locator |> Expect.not_() |> Expect.to_have_text!("Error")
 ```
 
 Matchers retry until they pass or time out (5 seconds, `config :playwright, :expect`). They
-return `:ok` or `{:error, %Playwright.ExpectError{}}`; the bang forms raise the
-`Playwright.ExpectError`, which fails an ExUnit test as any exception does. Unknown keys in the
-`:expect` config raise `ArgumentError`.
+return `:ok` (`to_pass` `{:ok, value}`, its callback's) or `{:error, %Playwright.ExpectError{}}`;
+the bang forms raise the `Playwright.ExpectError`, which fails an ExUnit test as any exception
+does. Unknown keys in the `:expect` config raise `ArgumentError`.
 
 ## Errors
 
 Errors are exceptions named after the JS classes: `Playwright.PlaywrightError` (JS `Error`),
 `Playwright.TimeoutError`, `Playwright.TargetClosedError`, `Playwright.AbortError` and
 `Playwright.ExpectError`. Where the JS client throws a plain `new Error(message)` itself, it is
-a `RuntimeError`; local file errors are `File.Error`. `t:Playwright.error/0` lists them all.
+a `RuntimeError`; local file errors are `File.Error`. `t:Playwright.error/0` lists them all;
+`Playwright.Promise.any/1` rejects with a `Playwright.AggregateError` of them.
 The message is JS's, starting with the API name, and `log` holds the call log:
 
 ```elixir
