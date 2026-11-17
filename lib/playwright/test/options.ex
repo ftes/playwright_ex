@@ -114,14 +114,16 @@ defmodule Playwright.Test.Options do
   end
 
   # `context_options:` of `use Playwright.Test` (upstream's `test.use({ locale: 'de-DE' })`, or an
-  # option fixture's function): the options, a keyword list or a map, validated as the
-  # registration converts them, or a function of the test's ExUnit context returning them. The
-  # options are evaluated at compile time and kept in the module, so the function is an external
-  # capture (`&Mod.fun/1`) or `{Mod, :fun}`: an anonymous one can't be stored.
+  # option fixture's function), as a list of what the module's `use`s give, in order: the options
+  # (a keyword list or a map), converted as the registration's, or a function of the test's ExUnit
+  # context returning them. The `use` options are evaluated at compile time and kept in the
+  # module, so the function is an external capture (`&Mod.fun/1`) or `{Mod, :fun}`: an anonymous
+  # one can't be stored. Whether the function exists is checked at the registration: its module
+  # may not be compiled yet.
   defp use_context_options!(fun) when is_function(fun, 1) do
     case Function.info(fun, :type) do
       {:type, :external} ->
-        fun
+        [fun]
 
       _local ->
         raise ArgumentError,
@@ -130,13 +132,10 @@ defmodule Playwright.Test.Options do
     end
   end
 
-  defp use_context_options!({module, function} = mf) when is_atom(module) and is_atom(function), do: mf
+  defp use_context_options!({module, function} = mf) when is_atom(module) and is_atom(function), do: [mf]
 
-  defp use_context_options!(options) when is_list(options) or (is_map(options) and not is_struct(options)) do
-    options = to_keyword(:context_options, options)
-    convert_context_options!(options)
-    options
-  end
+  defp use_context_options!(options) when is_list(options) or (is_map(options) and not is_struct(options)),
+    do: [context_options!(options, "invalid context_options: ")]
 
   defp use_context_options!(options),
     do:
@@ -147,29 +146,70 @@ defmodule Playwright.Test.Options do
       )
 
   @doc """
+  The `context_options` of two `use`s of a module (`use_options/1`), the later's after the
+  earlier's: each applies over those before it, per key, as upstream's `test.use` calls (each
+  option its own fixture).
+  """
+  def merge_context_options(past, options), do: past ++ options
+
+  @doc """
   The module's `use` option `context_options` (`use_options/1`) for the test of the ExUnit
-  `context`: the options, or the function's result for `context`, as a keyword list. For a
-  module's `setup_all` (`context` `nil`) only the options: a function is of a test's context.
+  `context`, converted: the options and the functions' results for `context`, each over those
+  before it. For a module's `setup_all` (`context` `nil`) only the options: a function is of a
+  test's context.
   """
   def use_context_options(options, context) do
-    case {options[:context_options], context} do
-      {nil, _context} -> []
-      {static, _context} when is_list(static) -> static
-      {_function, nil} -> []
-      {fun, context} when is_function(fun) -> context_options_result!(fun.(context), fun)
-      {{module, function} = mf, context} -> context_options_result!(apply(module, function, [context]), mf)
+    options
+    |> Map.get(:context_options, [])
+    |> Enum.reduce(%{}, fn
+      %{} = static, acc -> Map.merge(acc, static)
+      _function, acc when context == nil -> acc
+      function, acc -> Map.merge(acc, call_context_options!(function, context))
+    end)
+  end
+
+  defp call_context_options!(function, context) do
+    {module, name} = function_name(function)
+    label = "#{inspect(module)}.#{name}/1"
+
+    if !(Code.ensure_loaded?(module) and function_exported?(module, name, 1)),
+      do: raise(ArgumentError, "context_options: #{inspect(function)} is undefined (no #{label})")
+
+    case apply(module, name, [context]) do
+      options when is_list(options) or (is_map(options) and not is_struct(options)) ->
+        context_options!(options, "context_options: #{label} returned an invalid option: ")
+
+      options ->
+        raise ArgumentError,
+              "context_options: #{label} returned #{inspect(options)}, expected a keyword list or a map"
     end
   end
 
-  defp context_options_result!(options, function) do
-    if is_list(options) or (is_map(options) and not is_struct(options)) do
-      options = to_keyword(:context_options, options)
-      convert_context_options!(options)
-      options
-    else
-      raise ArgumentError,
-            "the context_options function #{inspect(function)} returned #{inspect(options)}, " <>
-              "expected a keyword list or a map"
+  defp function_name({module, name}), do: {module, name}
+
+  defp function_name(fun) do
+    {:module, module} = Function.info(fun, :module)
+    {:name, name} = Function.info(fun, :name)
+    {module, name}
+  end
+
+  # Options (a keyword list or a map) as the client takes them, without the `nil` ones, which fall
+  # back to the options under them, as `_combinedContextOptions` skips `undefined`; an invalid one
+  # raises with `prefix`.
+  defp context_options!(options, prefix) do
+    options =
+      cond do
+        is_map(options) and not is_struct(options) -> Enum.to_list(options)
+        is_list(options) and Keyword.keyword?(options) -> options
+        true -> raise ArgumentError, prefix <> "expected a keyword list or a map, got: #{inspect(options)}"
+      end
+
+    options = Enum.reject(options, fn {_key, value} -> value == nil end)
+
+    try do
+      Facade.options!(options, Playwright.Browser.__options_type__(:new_context), "browser.newContext")
+    rescue
+      error in ArgumentError -> reraise ArgumentError, prefix <> Exception.message(error), __STACKTRACE__
     end
   end
 
@@ -203,18 +243,16 @@ defmodule Playwright.Test.Options do
 
   @doc """
   `_combinedContextOptions`, as the client takes them: Playwright Test's context defaults, then
-  the config's `context_options`, then the module's (`use_context_options/2`), each a key over
-  the one before (facade options, converted as `Playwright.Browser.new_context/2` converts them).
+  the config's `context_options`, then the module's (`use_context_options/2`, converted), each a
+  key over the one before (facade options, converted as `Playwright.Browser.new_context/2`
+  converts them); a `nil` one falls back to the one under it.
   Upstream's `PLAYWRIGHT_TEST_BASE_URL` default is not read: config only.
   """
-  def context_options(config \\ config(), module_options \\ []) do
+  def context_options(config \\ config(), module_options \\ %{}) do
     @context_defaults
-    |> Map.merge(convert_context_options!(config[:context_options]))
-    |> Map.merge(convert_context_options!(module_options))
+    |> Map.merge(context_options!(config[:context_options], "invalid context_options in config :playwright, :test: "))
+    |> Map.merge(module_options)
   end
-
-  defp convert_context_options!(options),
-    do: Facade.options!(options, Playwright.Browser.__options_type__(:new_context), "browser.newContext")
 
   @doc """
   Playwright Test's `actionTimeout` and `navigationTimeout` (config `action_timeout`,

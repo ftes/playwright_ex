@@ -46,11 +46,13 @@ Node 26.13.1. No API changes.
 
 ### Added
 
-- `use Playwright.Test` (and `use Playwright.Case`) takes `context_options:`, Playwright Test's
-  `test.use({ locale: 'de-DE' })`: the options, or a function of the test's context
-  (`&Mod.fun/1`, e.g. over your `parameterize:` values), over the config's per key, under the
-  call's, for every context of the module's tests (#257).
-- `use Playwright.Case` also aliases `Playwright.Keyboard` and `Playwright.Mouse`.
+- **RC only:** `use Playwright.Test` (and `use Playwright.Case`) takes `context_options:`,
+  Playwright Test's `test.use({ locale: 'de-DE' })`: the options, or a function of the test's
+  context (`&Mod.fun/1`, e.g. over your `parameterize:` values), over the config's per key, under
+  the call's, for every context of the module's tests (#257). A `nil` option there or in the
+  config falls back to the default under it, as upstream skips `undefined` ones.
+- **RC only:** `use Playwright.Case` also aliases `Playwright.Keyboard` and `Playwright.Mouse`, so
+  `Keyboard` and `Mouse` in such a module now resolve to Playwright's modules.
 
 ### Fixed
 

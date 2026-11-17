@@ -58,25 +58,49 @@ defmodule Playwright.Test.ContextOptionsTest do
     end
   end
 
-  test "a module's uses merge them per key, a function replaces them" do
-    assert __MODULE__.Merged.__playwright_test__(:options).context_options == [color_scheme: :dark, locale: "fr-FR"]
+  defp resolve(module, context \\ %{lang: "it-IT"}),
+    do: Options.use_context_options(module.__playwright_test__(:options), context)
 
-    assert __MODULE__.Replaced.__playwright_test__(:options).context_options ==
-             {Playwright.Test.ContextOptionsTest, :options}
+  test "a module's uses apply in order, each over the earlier per key, a function's result too" do
+    assert resolve(__MODULE__.Merged) == %{colorScheme: "dark", locale: "fr-FR"}
+    # The function after the options, and before them.
+    assert resolve(__MODULE__.FunctionLast) == %{colorScheme: "dark", locale: "it-IT"}
+    assert resolve(__MODULE__.FunctionFirst) == %{colorScheme: "dark", locale: "de-DE"}
+    # In `setup_all`, the options only.
+    assert resolve(__MODULE__.FunctionLast, nil) == %{colorScheme: "dark", locale: "de-DE"}
+  end
+
+  test "a nil option falls back to the one under it, the config's to the default" do
+    module_options = resolve(__MODULE__.NilOption)
+    assert module_options == %{colorScheme: "dark"}
+
+    assert %{locale: "de-DE", colorScheme: "dark"} =
+             Options.context_options(%{context_options: [locale: "de-DE"]}, module_options)
+
+    assert %{locale: "en-US"} = Options.context_options(%{context_options: [locale: nil]})
   end
 
   def options(%{lang: lang}), do: %{locale: lang}
   def invalid(_context), do: :dark
+  def unknown(_context), do: [lokale: "de-DE"]
 
-  test "{module, function} is called with the test's context, its result checked" do
-    assert Options.use_context_options(%{context_options: {__MODULE__, :options}}, %{lang: "fr-FR"}) ==
-             [locale: "fr-FR"]
+  test "a function is called with the test's context, its existence and result checked" do
+    assert Options.use_context_options(%{context_options: [{__MODULE__, :options}]}, %{lang: "fr-FR"}) ==
+             %{locale: "fr-FR"}
 
-    assert_raise ArgumentError, ~r/the context_options function .*invalid.* returned :dark/, fn ->
-      Options.use_context_options(%{context_options: &__MODULE__.invalid/1}, %{})
+    assert_raise ArgumentError, ~r/context_options: Playwright.Test.ContextOptionsTest.invalid\/1 returned :dark/, fn ->
+      Options.use_context_options(%{context_options: [&__MODULE__.invalid/1]}, %{})
     end
 
-    assert Options.use_context_options(%{context_options: {__MODULE__, :options}}, nil) == []
+    assert_raise ArgumentError,
+                 ~r/context_options: Playwright.Test.ContextOptionsTest.unknown\/1 returned an invalid option: .*lokale/,
+                 fn -> Options.use_context_options(%{context_options: [&__MODULE__.unknown/1]}, %{}) end
+
+    assert_raise ArgumentError,
+                 ~r/context_options: \{Playwright.Test.ContextOptionsTest, :missing\} is undefined \(no Playwright.Test.ContextOptionsTest.missing\/1\)/,
+                 fn -> Options.use_context_options(%{context_options: [{__MODULE__, :missing}]}, %{}) end
+
+    assert Options.use_context_options(%{context_options: [{__MODULE__, :options}]}, nil) == %{}
   end
 end
 
@@ -183,8 +207,19 @@ defmodule Playwright.Test.ContextOptionsTest.Merged do
   use Playwright.Test, context_options: %{locale: "fr-FR"}
 end
 
-defmodule Playwright.Test.ContextOptionsTest.Replaced do
+defmodule Playwright.Test.ContextOptionsTest.FunctionLast do
   use ExUnit.Case, async: true
-  use Playwright.Test, context_options: [locale: "de-DE"]
+  use Playwright.Test, context_options: [locale: "de-DE", color_scheme: :dark]
   use Playwright.Test, context_options: {Playwright.Test.ContextOptionsTest, :options}
+end
+
+defmodule Playwright.Test.ContextOptionsTest.FunctionFirst do
+  use ExUnit.Case, async: true
+  use Playwright.Test, context_options: &Playwright.Test.ContextOptionsTest.options/1
+  use Playwright.Test, context_options: [locale: "de-DE", color_scheme: :dark]
+end
+
+defmodule Playwright.Test.ContextOptionsTest.NilOption do
+  use ExUnit.Case, async: true
+  use Playwright.Test, context_options: [locale: nil, color_scheme: :dark]
 end

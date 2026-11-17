@@ -79,7 +79,8 @@ then the config's `context_options`, then the module's (`use Playwright.Case, co
 [locale: "de-DE"]`, Playwright Test's `test.use({ locale: 'de-DE' })`); the options the call
 gives win, each per key. So does every context the
 module's `setup_all` creates (or a process it starts, through `$callers`), as Playwright Test's
-`beforeAll` gets the `use` options: `goto("/")` works there with `base_url`. Each test records
+`beforeAll` gets the `use` options: `goto("/")` works there with `base_url`. Only the module's
+static options apply there, not a function's (see "Devices"), which is of a test. Each test records
 those still open (its trace, screenshots and `error-context.md`) and leaves them open, also at
 its timeout: a call that hangs on one fails with ExUnit's timeout, without its call log, and may
 still run during the next test, so give such calls a timeout (`action_timeout`). A context
@@ -756,8 +757,8 @@ Most of a spec ports call for call. What differs (and see [Not supported](#not-s
   and the module's options, and is recorded.
 - A spec that shares one page from `beforeAll` would still pay for `Playwright.Case`'s context
   and page in each test (about 40 ms on Chromium, 120 ms on Firefox): write the few lines
-  instead. The `setup_all` context gets the defaults and timeouts, and each test traces its own
-  use of it:
+  instead. The `setup_all` context gets the defaults, the config's and the module's static
+  `context_options` and the timeouts, and each test traces its own use of it:
 
   ```elixir
   defmodule MyApp.DashboardTest do

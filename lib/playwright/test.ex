@@ -109,8 +109,9 @@ defmodule Playwright.Test do
 
   `use Playwright.Test, trace: :on` is upstream's file-level `test.use({ trace: 'on' })` (the
   modes are worker-scoped options there), with the values the config takes; an unknown option or
-  an invalid value raises at compile time. It also takes `context_options` (see "Context
-  defaults"). A module's `use`s merge per key, the later winning.
+  an invalid value raises at compile time (a `context_options` function's existence and result
+  are checked at the registration, see "Context defaults"). A module's `use`s merge per key, the
+  later winning.
   ExUnit.Case's keys (`:async`, ...) are ignored, so a template forwards its options from `using
   opts` as is: `use Playwright.Test, unquote(opts)`, as `Playwright.Case` does. A template
   with options of its own pops them first (`{sandbox, opts} = Keyword.pop(opts, :sandbox)`),
@@ -150,8 +151,9 @@ defmodule Playwright.Test do
   `Playwright.BrowserType.launch_persistent_context/3`, `Playwright.APIRequest.new_context/2`) gets Playwright Test's context defaults (`locale:
   "en-US"`, a 1280x720 viewport, `color_scheme: :light`, ...), then the config's
   `context_options` over them, for each option the call doesn't give, as upstream's
-  `_combinedContextOptions`. An option given as `nil` keeps the client's default; `viewport:
-  :null` is none. An option replaces the default as a whole (`extra_http_headers` too, as
+  `_combinedContextOptions`. An option the call gives as `nil` keeps the client's default; one
+  the config (or the module, below) gives as `nil` falls back to the one under it, as upstream
+  skips `undefined` ones; `viewport: :null` is none. An option replaces the default as a whole (`extra_http_headers` too, as
   upstream's shallow spread).
 
   `use Playwright.Test, context_options: [locale: "de-DE"]` (or `use Playwright.Case, ...`) is
@@ -164,10 +166,12 @@ defmodule Playwright.Test do
   tags, the `parameterize:` values (upstream's projects: `%{device: d}` from your own
   parameters), the values of the module's `setup_all` callbacks and of the `setup` callbacks
   before the registration (none with `Playwright.Case`, whose registration comes first). No key
-  of the context is read otherwise. The contexts of `setup_all` get the module's options, but not
-  a function's: it is of a test, and runs before most of what it reads exists (`use
+  of the context is read otherwise; an undefined function, or a result with an invalid option,
+  raises there, naming the function. The contexts of `setup_all` get the module's options, but
+  not a function's: it is of a test, and runs before most of what it reads exists (`use
   Playwright.Test`'s `setup_all` comes first, before the `browser`); pass the options to the call
-  there. A module's `use`s merge the options per key, and a function replaces them as a whole.
+  there. A module's `use`s apply in order, each over those before it per key, options and a
+  function's result alike, as upstream's `test.use` calls (each option its own fixture).
 
   ## Contexts of `setup_all`
 
@@ -397,10 +401,7 @@ defmodule Playwright.Test do
     end
   end
 
-  # Context options merge per key, as upstream's `test.use` calls (each option its own fixture);
-  # a function replaces them, and is replaced, as a whole.
-  defp merge_use(:context_options, past, options) when is_list(past) and is_list(options),
-    do: Keyword.merge(past, options)
+  defp merge_use(:context_options, past, options), do: Options.merge_context_options(past, options)
 
   defp merge_use(_key, _past, options), do: options
 
