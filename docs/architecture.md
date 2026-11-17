@@ -303,7 +303,8 @@ module, not put in the context) and ExUnit tags; the rest are arguments.
 | `context`/`page` fixtures, `browser.newContext()` | `Browser.new_context!/2`, `BrowserContext.new_page!/1`; `Playwright.Case` puts them together |
 | `request` fixture | `APIRequest.new_context!/2` in the test (disposed at its end); not in `Playwright.Case`, where each test would pay for it |
 | auto `_setupArtifacts` | the recording of every registered test (`error-context.md` whatever the modes) |
-| `_combinedContextOptions` (`{...contextOptions, ...options}`) | Playwright Test's defaults, then config `context_options`, then the call's (`key in options`) |
+| `_combinedContextOptions` (`{...contextOptions, ...options}`) | Playwright Test's defaults, then config `context_options`, then the module's `use` option `context_options` (a function of the test's context, at its registration), then the call's (`key in options`) |
+| `test.use({ locale, ... })` (test-scoped option fixtures, file level) | `use Playwright.Test, context_options: _`: options (merged per key over a module's `use`s) or `&Mod.fun/1`/`{Mod, :fun}` of the ExUnit context; the contexts of `setup_all` get the options, not a function's |
 | `actionTimeout`, `navigationTimeout` (default 0) | config `action_timeout`, `navigation_timeout` (default `:infinity`), set on each context |
 | test timeout, `closeReason` "Test timeout of Nms exceeded." | ExUnit's timeout; the recorder closes the test's contexts with that reason just before it |
 | `test.use({ trace, screenshot, video })` (worker-scoped, file level) | `use Playwright.Test, trace: _` over config, `@moduletag`/`@describetag`/`@tag` over it (`tags: false`: none) |

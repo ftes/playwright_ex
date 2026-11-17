@@ -108,7 +108,8 @@ defmodule Playwright.Test do
 
   `use Playwright.Test, trace: :on` is upstream's file-level `test.use({ trace: 'on' })` (the
   modes are worker-scoped options there), with the values the config takes; an unknown option or
-  an invalid value raises at compile time. A module's `use`s merge per key, the later winning.
+  an invalid value raises at compile time. It also takes `context_options` (see "Context
+  defaults"). A module's `use`s merge per key, the later winning.
   ExUnit.Case's keys (`:async`, ...) are ignored, so a template forwards its options from `using
   opts` as is: `use Playwright.Test, unquote(opts)`, as `Playwright.Case` does. A template
   with options of its own pops them first (`{sandbox, opts} = Keyword.pop(opts, :sandbox)`),
@@ -152,12 +153,28 @@ defmodule Playwright.Test do
   :null` is none. An option replaces the default as a whole (`extra_http_headers` too, as
   upstream's shallow spread).
 
+  `use Playwright.Test, context_options: [locale: "de-DE"]` (or `use Playwright.Case, ...`) is
+  upstream's file-level `test.use({ locale: 'de-DE' })`: the module's options, over the config's
+  per key, under the call's. They are evaluated at compile time, so for values known at run time
+  pass a function of the test's ExUnit context instead, an external capture
+  (`&MyApp.BrowserCase.context_options/1`) or `{MyApp.BrowserCase, :context_options}`, which
+  returns the options (an anonymous function raises at compile time: it can't be kept in the
+  module). It is called once per test, at its registration, with the context as it is then: the
+  tags, the `parameterize:` values (upstream's projects: `%{device: d}` from your own
+  parameters), the values of the module's `setup_all` callbacks and of the `setup` callbacks
+  before the registration (none with `Playwright.Case`, whose registration comes first). No key
+  of the context is read otherwise. The contexts of `setup_all` get the module's options, but not
+  a function's: it is of a test, and runs before most of what it reads exists (`use
+  Playwright.Test`'s `setup_all` comes first, before the `browser`); pass the options to the call
+  there. A module's `use`s merge the options per key, and a function replaces them as a whole.
+
   ## Contexts of `setup_all`
 
   `use Playwright.Test` adds a `setup_all` (where the `use` is, so before the module's own) that
   registers the module's `setup_all` process: every context and request context it creates, or
-  a process with it in `$callers` creates, gets the context defaults and the config's
-  `context_options` (so `base_url`), merged as a test's, and the config's timeouts. Not the
+  a process with it in `$callers` creates, gets the context defaults, the config's
+  `context_options` (so `base_url`) and the module's (not a function's, see "Context
+  defaults"), merged as a test's, and the config's timeouts. Not the
   video, as upstream's comes with the `context` fixture.
 
   Each test then records those still open as upstream's `willStartTest` does a worker's existing
@@ -354,10 +371,17 @@ defmodule Playwright.Test do
         true
 
       past ->
-        Module.put_attribute(module, :playwright_test, Map.merge(past, options))
+        Module.put_attribute(module, :playwright_test, Map.merge(past, options, &merge_use/3))
         false
     end
   end
+
+  # Context options merge per key, as upstream's `test.use` calls (each option its own fixture);
+  # a function replaces them, and is replaced, as a whole.
+  defp merge_use(:context_options, past, options) when is_list(past) and is_list(options),
+    do: Keyword.merge(past, options)
+
+  defp merge_use(_key, _past, options), do: options
 
   @doc false
   # The module's merged `use` options, for its registration (`__register__/1`): a function, so the
@@ -520,10 +544,12 @@ defmodule Playwright.Test do
   def __setup_all__(context) do
     Pool.ensure_started()
     config = Options.config()
+    # A function of the `use` option `context_options` is of a test's context: not applied here.
+    module_options = Options.use_context_options(use_options(context[:module]), nil)
 
     Results.register_module(self(), %{
       module: context[:module],
-      context_options: Options.context_options(config),
+      context_options: Options.context_options(config, module_options),
       timeouts: Options.timeouts(config)
     })
 
@@ -563,7 +589,8 @@ defmodule Playwright.Test do
     # Read and validated once.
     config = Options.config()
     test_info = TestInfo.new(context, config.output_dir)
-    modes = Options.artifacts(context, config, use_options(context[:module]))
+    use_options = use_options(context[:module])
+    modes = Options.artifacts(context, config, use_options)
     # Upstream's `testTracing.startIfNeeded` and `_contextFactory`'s `captureVideo`, by the retry.
     modes = %{
       modes
@@ -584,7 +611,7 @@ defmodule Playwright.Test do
         location: {file, context[:line]},
         test_timeout: timeout,
         deadline: if(is_integer(timeout), do: started(context) + timeout),
-        context_options: Options.context_options(config),
+        context_options: Options.context_options(config, Options.use_context_options(use_options, context)),
         timeouts: Options.timeouts(config),
         preserve_output: Options.preserve_output(config),
         tmp: Path.join(System.tmp_dir!(), "playwright-test-#{System.unique_integer([:positive])}")
