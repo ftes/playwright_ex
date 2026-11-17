@@ -232,9 +232,9 @@ defmodule Playwright.Protocol.Serializers do
     end
   end
 
-  defp serialize_error(%JSError{} = e), do: %{e: %{n: e.name, m: e.message, s: e.stack || ""}}
-  # An exception without a JS name: `new Error()`.
-  defp serialize_error(e), do: %{e: %{n: Map.get(e, :name) || "Error", m: Exception.message(e), s: ""}}
+  # An exception without a JS name or stack: `new Error()`.
+  defp serialize_error(e),
+    do: %{e: %{n: Map.get(e, :name) || "Error", m: Exception.message(e), s: Map.get(e, :stack) || ""}}
 
   # Date.prototype.toJSON: millisecond precision, UTC.
   defp to_json_date(value),
