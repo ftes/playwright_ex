@@ -107,6 +107,7 @@ defmodule Playwright.Test.SetupAllTest.RecordingTest do
   use ExUnit.Case, async: true
 
   import ExUnit.CaptureIO
+  import ExUnit.CaptureLog
 
   alias Playwright.APIRequest
   alias Playwright.APIRequestContext
@@ -206,6 +207,12 @@ defmodule Playwright.Test.SetupAllTest.RecordingTest do
     Enum.any?(trace.events, &(JSON.encode!(&1) =~ text))
   end
 
+  # In the context's own chunk (a DOM snapshot), not only in the test's steps.
+  defp snapshotted?(dir, browser, text) do
+    trace = Playwright.Utils.parse_trace_raw(Path.join(dir, "trace.zip"), browser)
+    Enum.any?(trace.events, &(&1["type"] == "frame-snapshot" and JSON.encode!(&1) =~ text))
+  end
+
   defp show(page, marker), do: Page.set_content!(page, "<h1>#{marker}</h1>")
 
   test "each test records the module's open contexts in its own trace and screenshots, and leaves them open",
@@ -256,6 +263,31 @@ defmodule Playwright.Test.SetupAllTest.RecordingTest do
     assert Page.text_content!(page, "h1") == "FOURTH"
     BrowserContext.close!(context)
     APIRequestContext.dispose!(request)
+  end
+
+  test "a chunk a test left recording (its recording killed) is discarded by the next test's", %{browser: browser} do
+    %{context: context, page: page} =
+      fake_module(fn ->
+        context = Browser.new_context!(browser)
+        %{context: context, page: BrowserContext.new_page!(context)}
+      end)
+
+    owner = Results.runner_module(self())
+
+    # Its recorder killed before its end saved the chunk, as when ExUnit kills a finish past its budget.
+    first = fake_test(%{trace: :on})
+    first.run.(fn -> show(page, "FIRST") end)
+    Process.exit(Recorder.lookup(first.pid), :kill)
+    capture_log(fn -> finish(first) end)
+    assert [{%BrowserContext{}, :recording}, {_request, :recording}] = Results.shared(owner)
+
+    second = fake_test(%{trace: :on})
+    second.run.(fn -> show(page, "SECOND") end)
+    finish(second)
+    assert snapshotted?(second.dir, browser, "SECOND")
+    assert [{_context, :idle}, {_request, :idle}] = Results.shared(owner)
+    BrowserContext.close!(context)
+    assert Results.shared(owner) == []
   end
 
   test "a module context a test closes is collected in that test, and its next tests don't record it", %{

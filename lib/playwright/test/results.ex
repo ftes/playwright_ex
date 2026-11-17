@@ -118,9 +118,11 @@ defmodule Playwright.Test.Results do
   from now on (`runner_module/1`), as a runner runs its modules one after another.
   """
   def register_module(pid, module) do
+    runner = Pool.parent(pid)
+
     # Once (a case template's body and its `using` may both bring it).
-    if :ets.insert_new(table(), {{:module, pid}, Map.put(module, :module_pid, pid)}) do
-      if runner = Pool.parent(pid), do: :ets.insert(table(), {{:runner_module, runner}, pid})
+    if :ets.insert_new(table(), {{:module, pid}, Map.merge(module, %{module_pid: pid, runner: runner})}) do
+      if runner, do: :ets.insert(table(), {{:runner_module, runner}, pid})
       GenServer.cast(Pool, {:monitor, pid})
     end
 
@@ -143,6 +145,44 @@ defmodule Playwright.Test.Results do
     end
   end
 
+  @doc """
+  The table of the contexts and request contexts of the modules' `setup_all` processes, a bag
+  by process: `{owner, order, guid, object}`. Each also has a row `{{:shared, guid}, owner,
+  tracing}` in `table/0`, `tracing` `:off`, `:idle` (started, no chunk) or `:recording` (a
+  test's chunk).
+  """
+  def shared_table, do: __MODULE__.Shared
+
+  @doc "Shares `object` (a context or request context) of the module's `setup_all` process `owner`."
+  def share(owner, object) do
+    :ets.insert(table(), {{:shared, object.guid}, owner, :off})
+    :ets.insert(shared_table(), {owner, System.unique_integer([:monotonic]), object.guid, object})
+    :ok
+  end
+
+  @doc "The shared objects of `owner` still open, in creation order: `[{object, tracing}]`."
+  def shared(owner) do
+    for {_owner, _order, guid, object} <- Enum.sort_by(:ets.lookup(shared_table(), owner), &elem(&1, 1)),
+        [{_key, _owner, tracing}] <- [:ets.lookup(table(), {:shared, guid})],
+        do: {object, tracing}
+  end
+
+  @doc "Notes the tracing state of the shared object `guid`, if still open."
+  def set_tracing(guid, tracing) do
+    :ets.update_element(table(), {:shared, guid}, {3, tracing})
+    :ok
+  end
+
+  @doc "Forgets the shared object `guid` (it closed), if it is one."
+  def unshare(guid) do
+    if started?() do
+      for {_key, owner, _tracing} <- :ets.take(table(), {:shared, guid}),
+          do: :ets.match_delete(shared_table(), {owner, :_, guid, :_})
+    end
+
+    :ok
+  end
+
   # The pool's process from here on.
 
   @doc """
@@ -152,6 +192,7 @@ defmodule Playwright.Test.Results do
   """
   def new do
     :ets.new(table(), [:named_table, :public, :set])
+    :ets.new(shared_table(), [:named_table, :public, :bag])
     %{tests: %{}, results: %{}, kept: %{}}
   end
 
@@ -258,7 +299,7 @@ defmodule Playwright.Test.Results do
   """
   def down(state, pid, reason) do
     :ets.delete(table(), {:unregistered, pid})
-    if :ets.take(table(), {:module, pid}) != [], do: module_ended(pid)
+    for {_key, module} <- :ets.take(table(), {:module, pid}), do: module_ended(module)
 
     case pop_in(state.kept[pid]) do
       {nil, state} ->
@@ -275,9 +316,9 @@ defmodule Playwright.Test.Results do
   end
 
   # The module's rows: its runner's, unless a later module's replaced it, and its contexts'.
-  defp module_ended(pid) do
-    :ets.match_delete(table(), {{:runner_module, :_}, pid})
-    :ets.match_delete(table(), {{:shared, :_}, pid, :_, :_, :_})
+  defp module_ended(%{module_pid: pid, runner: runner}) do
+    if runner, do: :ets.delete_object(table(), {{:runner_module, runner}, pid})
+    for {_owner, _order, guid, _object} <- :ets.take(shared_table(), pid), do: :ets.delete(table(), {:shared, guid})
   end
 
   defp test_ended(state, pid, test, reason) do

@@ -52,8 +52,8 @@ defmodule Playwright.Test do
   is registered before them, and their contexts are recorded too. That `use` takes no options
   (they go in `using`); a module's later `use`s (a template's `using` and the module's own) only
   add their options (see "Artifacts"). A context that a test process creates before its
-  registration (a template's `setup` with no `use` in the body) makes the registration raise,
-  with that fix. It registers the module's `setup_all` too, as upstream runs its `beforeAll`
+  registration (a template's `setup` or `setup_all` with no `use` in the body) makes the
+  registration raise, with that fix. It registers the module's `setup_all` too, as upstream runs its `beforeAll`
   hooks with its `all-hooks-included` fixtures: see "Contexts of `setup_all`". A context created
   outside both (in an `on_exit` callback, in a module without `use Playwright.Test`, on a driver
   you started yourself) gets no defaults and no recording.
@@ -519,6 +519,14 @@ defmodule Playwright.Test do
   # record those still open.
   def __setup_all__(context) do
     Pool.ensure_started()
+
+    if :ets.take(Results.table(), {:unregistered, self()}) != [] do
+      raise ArgumentError,
+            "this module's setup_all created a context before `use Playwright.Test` registered it (a case " <>
+              "template's `setup_all` runs before the `use` in its `using`), so the context has no defaults " <>
+              "and no recording: add `use Playwright.Test` as the first line of the case template's body"
+    end
+
     config = Options.config()
 
     Results.register_module(self(), %{
