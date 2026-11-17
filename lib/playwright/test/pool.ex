@@ -15,8 +15,9 @@ defmodule Playwright.Test.Pool do
   #     waits while it holds a seat others wait for); a release trims idle seats back to
   #     `workers`. A trimmed seat stays linked until it exited, so `after_suite/1`, which stops the
   #     linked ones, waits for it.
-  #   * `scopes`: `%{scope => %{runner, failed?}}` of the scopes that hold seats: `runner` is a
-  #     `setup_all` scope's ExUnit runner (whose tests' results are the scope's), else `nil`.
+  #   * `scopes`: `%{scope => %{runner, failed?, down}}` of the scopes that hold seats: `runner` is
+  #     a `setup_all` scope's ExUnit runner (whose tests' results are the scope's), else `nil`;
+  #     `down` the monitor of a `setup_all` scope's process until its `DOWN` (`module_down/3`).
   #   * `workers`: `{env, workers}`, config `workers` and the config it was read from.
   #   * `waiting`: callers whose scope held no seat while `workers` were held, monitored, first come
   #     first served (`serve_waiting/1`). A waiter that exits, or whose scope was released, is
@@ -55,19 +56,16 @@ defmodule Playwright.Test.Pool do
   def browser(opts, {kind, pid}) do
     ensure_started()
 
-    # The wait for a seat is not in a `setup_all`'s time: it is the dispatcher's queue, which has
-    # no timeout upstream. The driver's start and launch are (upstream's worker fixtures have a
-    # slot of their own), as in a test's, which ExUnit's timeout counts whole.
-    lease =
-      SetupAllTimeout.paused(fn ->
-        GenServer.call(__MODULE__, {:lease, Slot.key(opts), {kind, pid}, parent(pid)}, :infinity)
-      end)
-
-    case lease do
-      {seat, key} -> Slot.browser(seat, key, opts)
-      :stopped -> raise "Playwright.Test's drivers were stopped (after the suite)"
-      :released -> raise ArgumentError, "BrowserPool.browser/1 waited past the end of its test or module"
-    end
+    # Not in a `setup_all`'s time: the wait for a seat is the dispatcher's queue, which has no
+    # timeout upstream, and the driver's start and launch are worker fixtures', with a timeout of
+    # their own upstream, none here (a test's count, as ExUnit's timeout does).
+    SetupAllTimeout.paused(fn ->
+      case GenServer.call(__MODULE__, {:lease, Slot.key(opts), {kind, pid}, parent(pid)}, :infinity) do
+        {seat, key} -> Slot.browser(seat, key, opts)
+        :stopped -> raise "Playwright.Test's drivers were stopped (after the suite)"
+        :released -> raise ArgumentError, "BrowserPool.browser/1 waited past the end of its test or module"
+      end
+    end)
   end
 
   @doc "Ends the leases of `scope`: its seats idle and warm unless it failed, else reset."
@@ -86,13 +84,11 @@ defmodule Playwright.Test.Pool do
   end
 
   @doc """
-  Fails the leases of the scope `pid`, a `setup_all` that failed, as upstream stops a worker
-  whose job failed: its seats reset at its release.
+  Fails the leases of the calling `setup_all`, whose callbacks raised (ExUnit catches it, so its
+  process exits normally): its seats reset at its release, as upstream stops a worker whose job
+  failed. A cast, so it can't fail, and it arrives before the process's `DOWN`.
   """
-  def fail_scope(pid) do
-    if Process.whereis(__MODULE__), do: GenServer.call(__MODULE__, {:fail_scope, pid}, :infinity)
-    :ok
-  end
+  def setup_all_failed, do: GenServer.cast(__MODULE__, {:setup_all_failed, self()})
 
   @doc "The ExUnit runner process that spawned `pid` (OTP 25+), `nil` if unknown."
   def parent(pid) do
@@ -151,7 +147,7 @@ defmodule Playwright.Test.Pool do
     state = workers(state)
     scope = scope(state, pid, parent)
     runner = if scope == pid and kind == :process, do: parent
-    request = %{key: key, scope: scope, runner: runner, from: from}
+    request = %{key: key, scope: scope, runner: runner, module?: scope == pid and kind == :process, from: from}
 
     case lease(state, request) do
       {:ok, seat, state} ->
@@ -167,8 +163,6 @@ defmodule Playwright.Test.Pool do
 
   def handle_call({:fail, test_pid}, _from, state),
     do: {:reply, :ok, fail_scopes(state, test_pid, Results.runner(state.results, test_pid))}
-
-  def handle_call({:fail_scope, pid}, _from, state), do: {:reply, :ok, fail_scopes(state, pid, nil)}
 
   def handle_call(:started, _from, state), do: {:reply, :ok, state}
 
@@ -188,12 +182,31 @@ defmodule Playwright.Test.Pool do
   end
 
   @impl true
+  def handle_cast({:setup_all_failed, scope}, state), do: {:noreply, fail_module(state, scope)}
+
   def handle_cast(request, state), do: {:noreply, %{state | results: Results.handle_cast(request, state.results)}}
 
   @impl true
-  def handle_info({:DOWN, _ref, :process, pid, reason}, state) do
+  def handle_info({:DOWN, ref, :process, pid, reason}, state) do
     state = %{state | waiting: Enum.reject(state.waiting, &match?(%{from: {^pid, _}}, &1))}
 
+    case state.scopes[pid] do
+      %{down: ^ref} -> {:noreply, module_down(state, pid, reason)}
+      _lease -> results_down(state, pid, reason)
+    end
+  end
+
+  # A seat that crashed (its holder's next call gets another). A trimmed seat left `seats` already.
+  def handle_info({:EXIT, pid, _reason}, state) do
+    case Map.pop(state.seats, pid) do
+      {nil, _seats} -> {:noreply, state}
+      {_seat, seats} -> {:noreply, serve_waiting(workers(%{state | seats: seats}))}
+    end
+  end
+
+  def handle_info(message, state), do: {:noreply, %{state | results: Results.handle_info(message, state.results)}}
+
+  defp results_down(state, pid, reason) do
     case Results.down(state.results, pid, reason) do
       # A failed test fails its own scope, and its module's (its runner's).
       {{runner, :failed}, results} ->
@@ -214,19 +227,51 @@ defmodule Playwright.Test.Pool do
     end
   end
 
-  # A seat that crashed (its holder's next call gets another). A trimmed seat left `seats` already.
-  def handle_info({:EXIT, pid, _reason}, state) do
-    case Map.pop(state.seats, pid) do
-      {nil, _seats} -> {:noreply, state}
-      {_seat, seats} -> {:noreply, serve_waiting(workers(%{state | seats: seats}))}
-    end
+  # A module's `setup_all` scope (monitored at its first lease) exited: past its timeout, killed,
+  # taken down by a linked process, fails its leases, as upstream stops a worker whose job failed.
+  # Its callbacks raising (ExUnit catches it, the process then exits `:normal`) came first, cast
+  # (`setup_all_failed/0`).
+  defp module_down(state, scope, reason) do
+    state = put_in(state.scopes[scope].down, nil)
+    if normal_exit?(reason), do: state, else: fail_module(state, scope)
   end
 
-  def handle_info(message, state), do: {:noreply, %{state | results: Results.handle_info(message, state.results)}}
+  defp normal_exit?(reason), do: reason in [:normal, :shutdown] or match?({:shutdown, _}, reason)
+
+  defp fail_module(state, scope) do
+    if Map.has_key?(state.scopes, scope), do: put_in(state.scopes[scope].failed?, true), else: state
+  end
+
+  # The `DOWN` of a module scope that a release (its `on_exit`, in another process) may overtake:
+  # awaited once the scope exited, with the cast its process sent before it.
+  defp await_down(state, scope) do
+    case state.scopes[scope] do
+      %{down: ref} when is_reference(ref) ->
+        if Process.alive?(scope) do
+          Process.demonitor(ref, [:flush])
+          put_in(state.scopes[scope].down, nil)
+        else
+          receive do
+            {:DOWN, ^ref, :process, _pid, reason} ->
+              state = module_down(state, scope, reason)
+
+              receive do
+                {:"$gen_cast", {:setup_all_failed, ^scope}} -> fail_module(state, scope)
+              after
+                0 -> state
+              end
+          end
+        end
+
+      _lease ->
+        state
+    end
+  end
 
   # Ends the leases of `scope`: its waiters get `:released`, its seats go back idle (reset when it
   # failed).
   defp release(state, scope) do
+    state = await_down(state, scope)
     {waiters, waiting} = Enum.split_with(state.waiting, &(&1.scope == scope))
 
     for waiter <- waiters do
@@ -305,7 +350,14 @@ defmodule Playwright.Test.Pool do
 
   defp take(state, {pid, seat}, request) do
     seats = Map.put(state.seats, pid, %{seat | key: request.key, scope: request.scope})
-    scopes = Map.put_new(state.scopes, request.scope, %{runner: request.runner, failed?: false})
+
+    scopes =
+      Map.put_new_lazy(state.scopes, request.scope, fn ->
+        # A module's `setup_all` scope: monitored, for its failure (`module_down/3`).
+        down = if request.module?, do: Process.monitor(request.scope)
+        %{runner: request.runner, failed?: false, down: down}
+      end)
+
     %{state | seats: seats, scopes: scopes}
   end
 
