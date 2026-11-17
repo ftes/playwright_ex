@@ -849,8 +849,8 @@ Most of a spec ports call for call. What differs (and see [Not supported](#not-s
 - `expect(fn).toPass()` is `Expect.to_pass!/2`, which returns the passing attempt's value: a
   callback that assigns an outer `let` returns it instead (`box = Expect.to_pass!(fn -> ...; box
   end)`). `expect.poll(fn).toBe(x)` is `Expect.poll!(fn, &assert(&1 == x))`, and a call started
-  now and awaited later (`const p = locator.evaluate(...)`) is `Playwright.Promise.async/1` (see
-  [Concurrency](concurrency.md)), also for each call of a `Promise.all`.
+  now and awaited later (`const p = locator.evaluate(...)`) is `Playwright.Promise.async/1`, and
+  `Promise.all([...])` is `Playwright.Promise.all/1` of those (see [Concurrency](concurrency.md)).
 - The `baseURL` fixture is `Playwright.Test.config().context_options[:base_url]`. The `request`
   fixture is a request context of its own, `APIRequest.new_context!(Playwright.request(BrowserPool.playwright(browser)))`,
   which in a test gets the config's `context_options` and is disposed of at its end; it is not
@@ -869,7 +869,7 @@ Playwright Test features ExUnit can't host, or that ExUnit and Elixir already co
 | runtime `test.skip(condition)` | ExUnit can't skip a running test, and its filters don't see `parameterize:` values | a tag known before the run (`@tag skip: ...`, `--exclude`), or an `if` around the body (reported as passed) |
 | `test.fixme`, `test.slow` | ExUnit has tags for both | `@tag :skip`, `@tag timeout: ...` |
 | `test.fail` | ExUnit has no expected-failure mode | none |
-| `retries` | ExUnit has no retries in a run | `mix test --failed` is the retry, and the retry modes (`trace: :on_first_retry`, ...) go by it (see "Traces, screenshots and videos") |
+| `retries` | ExUnit has no retries in a run | rerun the failures: a `mix test --failed` after a run whose tests failed (exit status 2), as in "Traces, screenshots and videos"; the retry modes (`trace: :on_first_retry`, ...) go by it |
 | nested or duplicate-name `describe` | ExUnit's `describe` doesn't nest, and its names are unique in a module | a module per outer `describe` (its `beforeEach` a module `setup`, its `beforeAll` the module's `setup_all`, which a `describe` can't have); a `describe` repeated in a loop becomes one `describe` with the loop inside |
 | `fullyParallel` | ExUnit runs a module's tests one after another | a module per `describe`; for `fullyParallel: false` on shared state, a `group:` |
 | `describe.serial`, `mode: 'serial'` | ExUnit runs a module's tests in random order | one test, with a `Test.step` per test; modules sharing state in the app in one `group:` (see "Setup") |

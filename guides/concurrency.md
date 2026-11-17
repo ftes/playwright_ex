@@ -34,7 +34,8 @@ Page.on(page, :console, fn msg -> send(owner, {:console, ConsoleMessage.text(msg
 Since the connection waits for each listener, one that blocks on something other than
 Playwright (`Process.sleep/1`, `receive`, an HTTP request, a `GenServer.call` to a busy server)
 stalls every page on that connection, as blocking the event loop does in JS. Hand slow work to
-another process with `send/2` or `Task.start/1`.
+another process with `send/2` or `Task.start/1`. When the connection has waited 5 s for one
+listener or handler, it logs a warning with the listener and where it waits.
 
 A handler that waits for the test (JS awaits a promise the test resolves later) hands the work to
 a process that waits instead, and returns:
@@ -111,7 +112,14 @@ Elixir form fits depends on when the call completes:
   true = Promise.await!(clicked)
   ```
 
-  `Promise.all([a, b])` is a `Promise.async/1` for each, then a `Promise.await!/1` for each.
+  `Promise.all([...])`, `Promise.race([...])` and `Promise.any([...])` are `Promise.all/1`,
+  `Promise.race/1` and `Promise.any/1`, of `async/1` calls and waits:
+
+  ```elixir
+  # JS: await Promise.all([page.waitForNavigation(), page.click('a')])
+  Promise.all([Page.wait_for_navigation(page), Promise.async(fn -> Page.click!(page, "a") end)])
+  |> Promise.await!()
+  ```
 
 - `Task.async/1` when the call only completes after a later action of yours, such as a `click`
   that opens a dialog you then handle: awaiting it in line would deadlock, and the order of the

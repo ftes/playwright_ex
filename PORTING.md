@@ -35,6 +35,8 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. The why
   A method under another name says so: `# send  -- ported as send_message/2 (Kernel.send/2)`.
   `mix playwright.parity` reads both markers: a method named on such a line counts as covered,
   and a module-level marker line counts for the upstream order.
+  Prose docs follow the same rule: they describe our code, and name a deviation as one
+  ([AGENTS.md](AGENTS.md)).
   Markers are per line. Upstream `TODO:` comments become `Upstream to-do:` (credo fails on TODO).
 - Deviate only where the port requires it: the OTP runtime, testInfo only in a `Playwright.Test`
   test (`Playwright.Test.TestInfo`), Elixir's public API.
@@ -70,7 +72,7 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. The why
 | `X.fromNullable(channel)` | `X.from_nullable(channel)`: `nil` when absent (`X \| null` results are `nil`) |
 | `await p` | `Promise.await(p)` (an await point: a listener's or async function's caller continues) |
 | async function called without `await` | `Promise.async(fn -> ... end)` (local), `owner: obj` / `shared: true` for a latch; `Promise.void/1` when nothing awaits it |
-| `new Promise(executor)`, `.then`, `.catch`, `Promise.race/all` | `Promise.new/0,1` (local) or `Promise.new(owner[, executor])` (latch), `then_/2`, `catch_/2`, `race/1`, `all/1` |
+| `new Promise(executor)`, `.then`, `.catch`, `Promise.race/all/any` | `Promise.new/0,1` (local) or `Promise.new(owner[, executor])` (latch), `then_/2`, `catch_/2`, `race/1`, `all/1`, `any/1` |
 | `Date.now()` | `System.os_time(:millisecond)`: OS time, which the browser reads (`System.system_time/1` can lag it under the VM's time correction) |
 | `setTimeout` / `clearTimeout` | `Promise.timer/1` (+ `Promise.free/1`), or `Promise.void/1` around a sleep |
 | `currentZone().data(...)`, `.with(...).run(...)` | `Zones.data/1`, `Zones.with/3` |
@@ -260,6 +262,8 @@ to that PR, the workflow also pushes fixes for its CI failures. The mix tasks be
      `usage-rules.md` ("Locators and assertions"): `locators.md` "Quick Guide" and "Locating
      elements", and `best-practices-js.md` "Prefer user-facing attributes to XPath or CSS
      selectors".
+   - Check that `@no_driver_reinstall` in `lib/mix/tasks/playwright.install.ex` still lists the
+     `mix playwright.cli install --help` flags that install no browsers.
 6. Re-check skips that may be gone: run the spec files with `env:` or `flaky:` skips
    (`grep -rlE '"(env|flaky):' test/upstream`) with `PW_UNSKIP=env,flaky mix test <files>` on the
    browser they name (ExUnit runs no skipped test, `--include skip` neither), drop each skip that

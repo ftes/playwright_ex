@@ -25,7 +25,7 @@ the existing ported code next to whatever you port.
    1. Run `mix playwright.checksums TO NODE`: it writes `DRIVER_VERSION`, `NODE_VERSION` and
       the checksums. NODE is the current `NODE_VERSION`, or playwright-python's `NODE_VERSION`
       for TO if that changed (look it up in microsoft/playwright-python with `gh` or `curl`). Then
-      `mix playwright.install -- chromium` (driver and browser for TO).
+      `mix playwright.install chromium` (driver and browser for TO).
    2. `mix playwright.gen.protocol` and `mix playwright.gen.api`; commit the bump and the
       generated diff (often none for a patch release) on their own. Then publish, before porting
       anything, so a run that stops early still leaves its work on a PR:
@@ -54,7 +54,8 @@ the existing ported code next to whatever you port.
       upstream files as PORTING says, and refresh `test/upstream_registry.md`.
    6. Read `git -C /tmp/playwright diff vFROM vTO -- 'docs/src/*.md' ':!docs/src/api'` (upstream's
       guides) and update `guides/` where it adds a pattern or caveat they should mention, and
-      `usage-rules.md`'s locator order where upstream's priority changed (PORTING step 5); list
+      `usage-rules.md`'s locator order where upstream's priority changed, and do PORTING step 5's
+      other checks; list
       anything you left out in the PR body.
    7. Re-check the `env:`/`flaky:` skips and PORTING's "Upstream issues to re-check" as PORTING
       step 6 says; drop skips that pass and list them in the PR body.

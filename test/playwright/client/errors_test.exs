@@ -27,7 +27,7 @@ defmodule Playwright.Client.ErrorsTest do
       assert Errors.rewrite_driver_hints(
                ~s(Chromium distribution 'msedge' is not found\nRun "npx playwright install msedge")
              ) ==
-               ~s(Chromium distribution 'msedge' is not found\nRun "mix playwright.install -- msedge")
+               ~s(Chromium distribution 'msedge' is not found\nRun "mix playwright.install msedge")
     end
 
     test "leaves other commands alone" do
