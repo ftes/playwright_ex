@@ -108,6 +108,17 @@ defmodule Playwright.Runtime.FacadeTest do
     assert_raise FunctionClauseError, fn -> Facade.async_void(nil, nil, fn -> String.trim(number) end) end
   end
 
+  test "a matcher's message: option points to Expect.message/2" do
+    assert_raise ArgumentError,
+                 ~r/^expect\.toBeVisible: unknown option :message, expected one of .*\. A custom message goes with Playwright\.Expect\.message\/2 \(JS expect\(actual, message\)\): x \|> Expect\.message\("\.\.\."\) \|> Expect\.to_be_visible!\(\)$/,
+                 fn -> Playwright.Expect.to_be_visible!(%Playwright.Locator{}, message: "visible") end
+
+    # Elsewhere, no hint.
+    assert_raise ArgumentError, ~r/^x\.y: unknown option :message, expected one of [^.]*$/, fn ->
+      Facade.options!([message: "m"], @schema, "x.y")
+    end
+  end
+
   test "a failed bang matcher raises the ExpectError" do
     error = %Playwright.ExpectError{message: "Expect failed"}
     assert Facade.matcher(nil, fn -> raise error end) == {:error, error}

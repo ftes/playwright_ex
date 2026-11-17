@@ -258,10 +258,19 @@ defmodule Playwright.Runtime.Facade do
 
         nil ->
           raise ArgumentError,
-                "#{api_name}: unknown option #{name([key | path])}, expected one of #{keys(schema)}"
+                "#{api_name}: unknown option #{name([key | path])}, expected one of #{keys(schema)}" <>
+                  hint(api_name, [key | path])
       end
     end)
   end
+
+  # A matcher's message is its receiver's (JS `expect(actual, message)`), not an option.
+  defp hint("expect." <> matcher, [:message]),
+    do:
+      ". A custom message goes with Playwright.Expect.message/2 (JS expect(actual, message)): " <>
+        ~s[x |> Expect.message("...") |> Expect.#{Macro.underscore(matcher)}!()]
+
+  defp hint(_api_name, _path), do: ""
 
   defp fields!(value, fields, api_name, path) do
     for {key, value} <- value do

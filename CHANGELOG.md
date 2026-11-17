@@ -52,6 +52,7 @@ Node 26.13.1. No API changes.
   `Route.fulfill!(route, body: png)` works, where it failed with "Message cannot be encoded as
   JSON" and left the request hanging. Also `WebSocketRoute.send/2` and `APIRequestContext`'s
   `data:`.
+- A matcher's unknown `message:` option points to `Expect.message/2` (JS `expect(x, message)`).
 
 ### Fixed
 
