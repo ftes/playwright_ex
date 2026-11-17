@@ -1,4 +1,4 @@
-<!-- Copy of tests/registry.md in microsoft/playwright at v1.65.0. Update it with the pin. -->
+<!-- Copy of tests/registry.md in microsoft/playwright at v1.65.1. Update it with the pin. -->
 
 # Test registry
 
