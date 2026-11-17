@@ -33,6 +33,9 @@ mix deps.get
 mix playwright.install
 ```
 
+Arguments are `playwright install`'s, with no `--`:
+`mix playwright.install chromium --with-deps`.
+
 ## Versioning
 
 The major.minor is Playwright's and the patch is ours, as in playwright-python: `1.65.x` drives

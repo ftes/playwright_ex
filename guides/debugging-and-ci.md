@@ -110,7 +110,7 @@ env:
 steps:
   # ... checkout, erlef/setup-beam
   - run: mix deps.get
-  - run: mix playwright.install -- chromium --with-deps
+  - run: mix playwright.install chromium --with-deps
   - run: mix test
   - uses: actions/upload-artifact@v7
     if: failure()
@@ -194,7 +194,7 @@ ENV MIX_ENV=test
 WORKDIR /app
 COPY mix.exs mix.lock ./
 RUN mix local.hex --force && mix deps.get && mix deps.compile
-RUN mix playwright.install -- chromium --with-deps
+RUN mix playwright.install chromium --with-deps
 COPY . .
 CMD ["mix", "test"]
 ```

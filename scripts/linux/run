@@ -62,7 +62,7 @@ case $cmd in
     docker run -d --platform "$platform" --name "$name" --shm-size=2g "${mounts[@]}" "$name" \
       sleep infinity >/dev/null
     sync
-    in_container "mix deps.compile && mix playwright.install -- ${*:-chromium} --with-deps"
+    in_container "mix deps.compile && mix playwright.install ${*:-chromium} --with-deps"
     ;;
   test) sync && in_container "xvfb-run --auto-servernum -- mix test $*" ;;
   exec) sync && in_container "$*" ;;

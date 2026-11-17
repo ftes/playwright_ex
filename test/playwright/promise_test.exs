@@ -2,6 +2,7 @@ defmodule Playwright.PromiseTest do
   # The public `Playwright.Promise`: `async/1` starts calls now, awaited later.
   use Playwright.Case, async: true
 
+  alias Playwright.ConsoleMessage
   alias Playwright.Promise
   alias Playwright.Test.TestInfo
 
@@ -39,5 +40,109 @@ defmodule Playwright.PromiseTest do
     soft = Promise.async(fn -> Page.locator(page, "h1") |> Expect.soft() |> Expect.to_have_text!("x", timeout: 1) end)
     assert Promise.await!(soft) == :ok
     assert [{:error, %Playwright.ExpectError{}, _}] = TestInfo.take_errors(self())
+  end
+
+  defp later(page, value, ms \\ 200),
+    do: Promise.async(fn -> Page.evaluate!(page, "v => new Promise(r => setTimeout(() => r(v), #{ms}))", value) end)
+
+  defp fail(page, message, ms \\ 0) do
+    Promise.async(fn ->
+      Page.evaluate!(page, "m => new Promise((_, j) => setTimeout(() => j(new Error(m)), #{ms}))", message)
+    end)
+  end
+
+  # Pending until the page closes, after the test.
+  defp pending(page), do: Promise.async(fn -> Page.evaluate!(page, "() => new Promise(() => {})") end)
+
+  describe "all/1, race/1, any/1" do
+    test "all/1: values in input order, the same for every awaiter; [] is []", %{page: page} do
+      all = Promise.all([later(page, "slow"), later(page, "fast", 0)])
+      assert Promise.await!(all) == ["slow", "fast"]
+      assert Task.await(Task.async(fn -> Promise.await!(all) end)) == ["slow", "fast"]
+      assert Promise.await!(Promise.all([])) == []
+    end
+
+    test "all/1 rejects with the first rejection, without waiting for the rest", %{page: page} do
+      [pending, late, _] = inputs = [pending(page), fail(page, "late", 200), fail(page, "early")]
+      assert {:error, %Playwright.PlaywrightError{message: message}} = Promise.await(Promise.all(inputs))
+      assert message =~ "early"
+      Enum.each([pending, late], &Promise.free/1)
+    end
+
+    test "race/1 settles as the first to settle, fulfilled or rejected; the losers run on", %{page: page} do
+      slow = later(page, "slow")
+      assert Promise.await!(Promise.race([slow, later(page, "fast", 0)])) == "fast"
+      assert Promise.await!(slow) == "slow"
+
+      slow = later(page, "slow")
+      assert {:error, %{message: message}} = Promise.await(Promise.race([slow, fail(page, "boom")]))
+      assert message =~ "boom"
+      assert Promise.await!(slow) == "slow"
+    end
+
+    test "race/1: an event raced against a timer", %{page: page} do
+      timer =
+        Promise.async(fn ->
+          Page.wait_for_timeout!(page, 100)
+          :timeout
+        end)
+
+      dialog = Page.wait_for_event(page, :dialog)
+      assert Promise.await!(Promise.race([dialog, timer])) == :timeout
+      Promise.free(dialog)
+
+      timer =
+        Promise.async(fn ->
+          Page.wait_for_timeout!(page, 10_000)
+          :timeout
+        end)
+
+      race = Promise.race([Page.wait_for_event(page, :console), timer])
+      Page.evaluate!(page, "() => console.log('hi')")
+      assert ConsoleMessage.text(Promise.await!(race)) == "hi"
+      Promise.free(timer)
+    end
+
+    test "race([]) never settles" do
+      race = Promise.race([])
+      task = Task.async(fn -> Promise.await(race) end)
+      assert Task.yield(task, 100) == nil
+      Task.shutdown(task)
+    end
+
+    test "any/1: the first value, or an AggregateError of all rejections in input order", %{page: page} do
+      pending = pending(page)
+      assert Promise.await!(Promise.any([fail(page, "early"), pending, later(page, "ok")])) == "ok"
+      Promise.free(pending)
+
+      assert {:error, %Playwright.AggregateError{message: "All promises were rejected", errors: [late, early]}} =
+               Promise.await(Promise.any([fail(page, "late", 200), fail(page, "early")]))
+
+      assert late.message =~ "late"
+      assert early.message =~ "early"
+
+      assert {:error, %Playwright.AggregateError{errors: []}} = Promise.await(Promise.any([]))
+    end
+
+    test "any/1: an AggregateError of other errors (bugs) raises", %{page: page} do
+      any = Promise.any([fail(page, "boom"), Promise.async(fn -> raise ArgumentError, "bug" end)])
+      assert_raise Playwright.AggregateError, fn -> Promise.await(any) end
+    end
+
+    test "the inputs must be promises: a call in the list has already run", %{page: page} do
+      assert_raise ArgumentError, ~s(Playwright.Promise.all/1 expects promises, got: "x"), fn ->
+        Promise.all([later(page, "slow", 0), Page.evaluate!(page, "() => 'x'")])
+      end
+    end
+
+    test "a local promise of the runtime is rejected: it can be awaited once", %{page: page} do
+      local = Playwright.Runtime.Promise.async(fn -> Page.evaluate!(page, "() => 1") end)
+
+      assert_raise ArgumentError, ~r"Playwright.Promise.race/1 expects promises the API returns", fn ->
+        Promise.race([later(page, "slow", 0), local])
+      end
+
+      assert Promise.await!(local) == 1
+    end
   end
 end
