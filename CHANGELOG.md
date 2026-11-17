@@ -48,10 +48,8 @@ Node 26.13.1. No API changes.
 
 - A handle of the wrong class (a `Locator` passed to `Page.get_by_test_id/2`) fails in the facade
   function, whose clause matches its struct, not in `Playwright.Runtime.Heap.key/2`.
-- A binary that is not UTF-8 is bytes where JS takes a string or a Buffer, as `{:binary, b}`:
-  `Route.fulfill!(route, body: png)` works, where it failed with "Message cannot be encoded as
-  JSON" and left the request hanging. Also `WebSocketRoute.send/2` and `APIRequestContext`'s
-  `data:`.
+- A string that is not UTF-8 (`Route.fulfill!(route, body: png)`) fails with a hint to pass bytes
+  as `{:binary, bytes}`, not only "Message cannot be encoded as JSON".
 - A matcher's unknown `message:` option points to `Expect.message/2` (JS `expect(x, message)`).
 - A failed test's "Trace of ..." hint prints after the run, below ExUnit's summary: above its own
   failure it read as the previous failure's.

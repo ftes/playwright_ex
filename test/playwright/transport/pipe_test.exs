@@ -50,6 +50,8 @@ defmodule Playwright.Transport.PipeTest do
 
         assert_receive {:message, %{"id" => 1, "error" => %{"error" => %{"message" => message}}}}, 5000
         assert message =~ "Message cannot be encoded as JSON: "
+        # A string that is not UTF-8: the hint to pass bytes.
+        assert message =~ ~r/invalid_byte, 255.*, a string that is not UTF-8\. Pass bytes as \{:binary, bytes\}$/
         # Written after the others: the pipe lives on.
         assert_receive {:message, %{"id" => 2, "s" => "ok"}}, 5000
       end)

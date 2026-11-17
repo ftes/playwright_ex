@@ -147,17 +147,6 @@ defmodule Playwright.Client.ClientHelper do
 
   defp _in_scheme_order(value, _scheme), do: value
 
-  # Elixir only: `isString(value)` where JS branches on a string or a Buffer: a binary that is
-  # UTF-8. One that is not can't be a JS string (nor sent as JSON): it is bytes, as `{:binary, b}`
-  # is (`buffer/1`; architecture: Value mapping).
-  @doc false
-  def is_string(value), do: is_binary(value) and String.valid?(value)
-
-  # Elixir only: the bytes of a Buffer, `{:binary, b}` or a binary that is not UTF-8 (`is_string/1`).
-  @doc false
-  def buffer({:binary, bytes}), do: bytes
-  def buffer(bytes) when is_binary(bytes), do: bytes
-
   # Elixir only: `JSON.parse(text)`, JS `null` is `:null`. Raises `JSON.DecodeError` (a JS SyntaxError).
   @doc false
   def json_parse(text) do
