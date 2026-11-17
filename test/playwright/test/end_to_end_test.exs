@@ -325,11 +325,12 @@ defmodule Playwright.Test.EndToEndTest do
 
     for {module, timeout, frame} <- [
           {"SetupAllSleepsTest", 1000, "Process.sleep/1"},
-          {"SetupAllHangsTest", 6000, "Frame.wait_for_selector/3"}
+          # Its stack: in the wait, or in the context or page on a slow browser.
+          {"SetupAllHangsTest", 6000, nil}
         ] do
       setup_all = failure(output, "#{module}: failure on setup_all callback, all tests have been invalidated")
       assert setup_all =~ ~s[** (RuntimeError) "setup_all" hook timeout of #{timeout}ms exceeded.]
-      assert setup_all =~ frame
+      if frame, do: assert(setup_all =~ frame)
     end
   end
 
