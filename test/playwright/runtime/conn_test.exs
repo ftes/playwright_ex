@@ -533,6 +533,8 @@ defmodule Playwright.RuntimeConnTest do
           Process.exit(feeder, :kill)
           send(receiver, :stop)
           Process.exit(sleeper, :kill)
+          # The warnings are logged from processes of their own.
+          Process.sleep(100)
         end)
 
       # One per code location.
