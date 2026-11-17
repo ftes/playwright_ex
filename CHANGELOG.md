@@ -41,6 +41,8 @@ upstream minor, so `~> 1.65.0` is safe.
 
 ## [Unreleased]
 
+## [1.65.0-rc.2] 2026-11-17
+
 Drives [Playwright 1.65.1](https://github.com/microsoft/playwright/releases/tag/v1.65.1), on
 Node 26.13.1. No upstream API changes.
 
