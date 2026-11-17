@@ -37,7 +37,7 @@ defmodule Playwright.FileChooser do
   *Since Playwright 1.8.*
   """
   @spec element(t()) :: Playwright.ElementHandle.t()
-  def element(file_chooser) do
+  def element(%Playwright.FileChooser{} = file_chooser) do
     Playwright.Client.FileChooser.element(file_chooser)
   end
 
@@ -47,7 +47,7 @@ defmodule Playwright.FileChooser do
   *Since Playwright 1.8.*
   """
   @spec is_multiple(t()) :: boolean()
-  def is_multiple(file_chooser) do
+  def is_multiple(%Playwright.FileChooser{} = file_chooser) do
     Playwright.Client.FileChooser.is_multiple(file_chooser)
   end
 
@@ -57,7 +57,7 @@ defmodule Playwright.FileChooser do
   *Since Playwright 1.8.*
   """
   @spec page(t()) :: Playwright.Page.t()
-  def page(file_chooser) do
+  def page(%Playwright.FileChooser{} = file_chooser) do
     Playwright.Client.FileChooser.page(file_chooser)
   end
 
@@ -111,7 +111,7 @@ defmodule Playwright.FileChooser do
           | [%{name: String.t(), mimeType: String.t(), buffer: binary()}],
           set_files_options()
         ) :: :ok | {:error, Playwright.error()}
-  def set_files(file_chooser, files, options \\ []) do
+  def set_files(%Playwright.FileChooser{} = file_chooser, files, options \\ []) do
     files = Facade.arg!(files, @set_files_files, "fileChooser.setFiles")
     options = Facade.options!(options, @set_files_options, "fileChooser.setFiles")
 
@@ -129,7 +129,7 @@ defmodule Playwright.FileChooser do
           | [%{name: String.t(), mimeType: String.t(), buffer: binary()}],
           set_files_options()
         ) :: :ok
-  def set_files!(file_chooser, files, options \\ []) do
+  def set_files!(%Playwright.FileChooser{} = file_chooser, files, options \\ []) do
     files = Facade.arg!(files, @set_files_files, "fileChooser.setFiles")
     options = Facade.options!(options, @set_files_options, "fileChooser.setFiles")
 

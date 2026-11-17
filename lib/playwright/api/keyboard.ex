@@ -93,13 +93,13 @@ defmodule Playwright.Keyboard do
   * `key` - Name of the key to press or a character to generate, such as `ArrowLeft` or `a`.
   """
   @spec down(t(), String.t()) :: :ok | {:error, Playwright.error()}
-  def down(keyboard, key) do
+  def down(%Playwright.Keyboard{} = keyboard, key) do
     Facade.async_void("keyboard.down", keyboard, fn -> Playwright.Client.Keyboard.down(keyboard, key) end)
   end
 
   @doc "Like `down/2`, but returns the value and raises on error."
   @spec down!(t(), String.t()) :: :ok
-  def down!(keyboard, key) do
+  def down!(%Playwright.Keyboard{} = keyboard, key) do
     Facade.async_void!("keyboard.down", keyboard, fn -> Playwright.Client.Keyboard.down(keyboard, key) end)
   end
 
@@ -123,13 +123,13 @@ defmodule Playwright.Keyboard do
   * `text` - Sets input to the specified text value.
   """
   @spec insert_text(t(), String.t()) :: :ok | {:error, Playwright.error()}
-  def insert_text(keyboard, text) do
+  def insert_text(%Playwright.Keyboard{} = keyboard, text) do
     Facade.async_void("keyboard.insertText", keyboard, fn -> Playwright.Client.Keyboard.insert_text(keyboard, text) end)
   end
 
   @doc "Like `insert_text/2`, but returns the value and raises on error."
   @spec insert_text!(t(), String.t()) :: :ok
-  def insert_text!(keyboard, text) do
+  def insert_text!(%Playwright.Keyboard{} = keyboard, text) do
     Facade.async_void!("keyboard.insertText", keyboard, fn -> Playwright.Client.Keyboard.insert_text(keyboard, text) end)
   end
 
@@ -189,14 +189,14 @@ defmodule Playwright.Keyboard do
   * `:delay` (`t:number/0`) - Time to wait between `keydown` and `keyup` in milliseconds. Defaults to 0.
   """
   @spec press(t(), String.t(), press_options()) :: :ok | {:error, Playwright.error()}
-  def press(keyboard, key, options \\ []) do
+  def press(%Playwright.Keyboard{} = keyboard, key, options \\ []) do
     options = Facade.options!(options, @press_options, "keyboard.press")
     Facade.async_void("keyboard.press", keyboard, fn -> Playwright.Client.Keyboard.press(keyboard, key, options) end)
   end
 
   @doc "Like `press/3`, but returns the value and raises on error."
   @spec press!(t(), String.t(), press_options()) :: :ok
-  def press!(keyboard, key, options \\ []) do
+  def press!(%Playwright.Keyboard{} = keyboard, key, options \\ []) do
     options = Facade.options!(options, @press_options, "keyboard.press")
     Facade.async_void!("keyboard.press", keyboard, fn -> Playwright.Client.Keyboard.press(keyboard, key, options) end)
   end
@@ -243,14 +243,14 @@ defmodule Playwright.Keyboard do
   * `:delay` (`t:number/0`) - Time to wait between key presses in milliseconds. Defaults to 0.
   """
   @spec type(t(), String.t(), type_options()) :: :ok | {:error, Playwright.error()}
-  def type(keyboard, text, options \\ []) do
+  def type(%Playwright.Keyboard{} = keyboard, text, options \\ []) do
     options = Facade.options!(options, @type_options, "keyboard.type")
     Facade.async_void("keyboard.type", keyboard, fn -> Playwright.Client.Keyboard.type(keyboard, text, options) end)
   end
 
   @doc "Like `type/3`, but returns the value and raises on error."
   @spec type!(t(), String.t(), type_options()) :: :ok
-  def type!(keyboard, text, options \\ []) do
+  def type!(%Playwright.Keyboard{} = keyboard, text, options \\ []) do
     options = Facade.options!(options, @type_options, "keyboard.type")
     Facade.async_void!("keyboard.type", keyboard, fn -> Playwright.Client.Keyboard.type(keyboard, text, options) end)
   end
@@ -265,13 +265,13 @@ defmodule Playwright.Keyboard do
   * `key` - Name of the key to press or a character to generate, such as `ArrowLeft` or `a`.
   """
   @spec up(t(), String.t()) :: :ok | {:error, Playwright.error()}
-  def up(keyboard, key) do
+  def up(%Playwright.Keyboard{} = keyboard, key) do
     Facade.async_void("keyboard.up", keyboard, fn -> Playwright.Client.Keyboard.up(keyboard, key) end)
   end
 
   @doc "Like `up/2`, but returns the value and raises on error."
   @spec up!(t(), String.t()) :: :ok
-  def up!(keyboard, key) do
+  def up!(%Playwright.Keyboard{} = keyboard, key) do
     Facade.async_void!("keyboard.up", keyboard, fn -> Playwright.Client.Keyboard.up(keyboard, key) end)
   end
 

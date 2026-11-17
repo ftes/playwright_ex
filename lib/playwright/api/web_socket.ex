@@ -54,7 +54,7 @@ defmodule Playwright.WebSocket do
   *Since Playwright 1.8.*
   """
   @spec is_closed(t()) :: boolean()
-  def is_closed(web_socket) do
+  def is_closed(%Playwright.WebSocket{} = web_socket) do
     Playwright.Client.WebSocket.is_closed(web_socket)
   end
 
@@ -64,7 +64,7 @@ defmodule Playwright.WebSocket do
   *Since Playwright 1.8.*
   """
   @spec url(t()) :: String.t()
-  def url(web_socket) do
+  def url(%Playwright.WebSocket{} = web_socket) do
     Playwright.Client.WebSocket.url(web_socket)
   end
 
@@ -120,10 +120,10 @@ defmodule Playwright.WebSocket do
   @spec wait_for_event(t(), event() | String.t(), wait_for_event_options() | fun()) :: Playwright.Promise.t()
   def wait_for_event(web_socket, event, options \\ [])
 
-  def wait_for_event(web_socket, event, predicate) when is_function(predicate),
+  def wait_for_event(%Playwright.WebSocket{} = web_socket, event, predicate) when is_function(predicate),
     do: wait_for_event(web_socket, event, predicate: predicate)
 
-  def wait_for_event(web_socket, event, options) do
+  def wait_for_event(%Playwright.WebSocket{} = web_socket, event, options) do
     event = Facade.event!(event, @events, "webSocket.waitForEvent")
     options = Facade.options!(options, @wait_for_event_options, "webSocket.waitForEvent")
 
@@ -150,7 +150,7 @@ defmodule Playwright.WebSocket do
   > ```
   """
   @spec wait_for_event!(t(), event() | String.t(), wait_for_event_options() | fun()) :: term()
-  def wait_for_event!(web_socket, event, options \\ []),
+  def wait_for_event!(%Playwright.WebSocket{} = web_socket, event, options \\ []),
     do: Facade.await!(wait_for_event(web_socket, event, options))
 
   @expect_event_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}, signal: {:signal, nil}}}
@@ -195,10 +195,10 @@ defmodule Playwright.WebSocket do
           {:ok, term()} | {:error, Playwright.error()}
   def expect_event(web_socket, event, action, options \\ [])
 
-  def expect_event(web_socket, event, action, predicate) when is_function(predicate),
+  def expect_event(%Playwright.WebSocket{} = web_socket, event, action, predicate) when is_function(predicate),
     do: expect_event(web_socket, event, action, predicate: predicate)
 
-  def expect_event(web_socket, event, action, options) do
+  def expect_event(%Playwright.WebSocket{} = web_socket, event, action, options) do
     event = Facade.event!(event, @events, "webSocket.waitForEvent")
     options = Facade.options!(options, @expect_event_options, "webSocket.waitForEvent")
 
@@ -214,10 +214,10 @@ defmodule Playwright.WebSocket do
   @spec expect_event!(t(), event() | String.t(), (-> term()), expect_event_options() | fun()) :: term()
   def expect_event!(web_socket, event, action, options \\ [])
 
-  def expect_event!(web_socket, event, action, predicate) when is_function(predicate),
+  def expect_event!(%Playwright.WebSocket{} = web_socket, event, action, predicate) when is_function(predicate),
     do: expect_event!(web_socket, event, action, predicate: predicate)
 
-  def expect_event!(web_socket, event, action, options) do
+  def expect_event!(%Playwright.WebSocket{} = web_socket, event, action, options) do
     event = Facade.event!(event, @events, "webSocket.waitForEvent")
     options = Facade.options!(options, @expect_event_options, "webSocket.waitForEvent")
 
@@ -235,7 +235,7 @@ defmodule Playwright.WebSocket do
   @spec on(t(), :frame_received, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec on(t(), :frame_sent, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec on(t(), :socket_error, (String.t() -> term())) :: t()
-  def on(web_socket, event, listener) do
+  def on(%Playwright.WebSocket{} = web_socket, event, listener) do
     event = Facade.event!(event, @events, "webSocket.on")
     Facade.listen(fn -> Playwright.Client.WebSocket.on(web_socket, event, listener) end)
   end
@@ -246,7 +246,7 @@ defmodule Playwright.WebSocket do
   @spec once(t(), :frame_received, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec once(t(), :frame_sent, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec once(t(), :socket_error, (String.t() -> term())) :: t()
-  def once(web_socket, event, listener) do
+  def once(%Playwright.WebSocket{} = web_socket, event, listener) do
     event = Facade.event!(event, @events, "webSocket.once")
     Facade.listen(fn -> Playwright.Client.WebSocket.once(web_socket, event, listener) end)
   end
@@ -257,7 +257,7 @@ defmodule Playwright.WebSocket do
   @spec add_listener(t(), :frame_received, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec add_listener(t(), :frame_sent, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec add_listener(t(), :socket_error, (String.t() -> term())) :: t()
-  def add_listener(web_socket, event, listener) do
+  def add_listener(%Playwright.WebSocket{} = web_socket, event, listener) do
     event = Facade.event!(event, @events, "webSocket.addListener")
     Facade.listen(fn -> Playwright.Client.WebSocket.add_listener(web_socket, event, listener) end)
   end
@@ -268,7 +268,7 @@ defmodule Playwright.WebSocket do
   @spec remove_listener(t(), :frame_received, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec remove_listener(t(), :frame_sent, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec remove_listener(t(), :socket_error, (String.t() -> term())) :: t()
-  def remove_listener(web_socket, event, listener) do
+  def remove_listener(%Playwright.WebSocket{} = web_socket, event, listener) do
     event = Facade.event!(event, @events, "webSocket.removeListener")
     Facade.listen(fn -> Playwright.Client.WebSocket.remove_listener(web_socket, event, listener) end)
   end
@@ -279,7 +279,7 @@ defmodule Playwright.WebSocket do
   @spec off(t(), :frame_received, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec off(t(), :frame_sent, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec off(t(), :socket_error, (String.t() -> term())) :: t()
-  def off(web_socket, event, listener) do
+  def off(%Playwright.WebSocket{} = web_socket, event, listener) do
     event = Facade.event!(event, @events, "webSocket.off")
     Facade.listen(fn -> Playwright.Client.WebSocket.off(web_socket, event, listener) end)
   end
@@ -290,7 +290,7 @@ defmodule Playwright.WebSocket do
   @spec prepend_listener(t(), :frame_received, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec prepend_listener(t(), :frame_sent, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec prepend_listener(t(), :socket_error, (String.t() -> term())) :: t()
-  def prepend_listener(web_socket, event, listener) do
+  def prepend_listener(%Playwright.WebSocket{} = web_socket, event, listener) do
     event = Facade.event!(event, @events, "webSocket.prependListener")
     Facade.listen(fn -> Playwright.Client.WebSocket.prepend_listener(web_socket, event, listener) end)
   end

@@ -31,13 +31,13 @@ defmodule Playwright.Disposable do
   *Since Playwright 1.59.*
   """
   @spec dispose(t()) :: :ok | {:error, Playwright.error()}
-  def dispose(disposable) do
+  def dispose(%Playwright.Disposable{} = disposable) do
     Facade.async_void("disposable.dispose", disposable, fn -> Playwright.Client.Disposable.dispose(disposable) end)
   end
 
   @doc "Like `dispose/1`, but returns the value and raises on error."
   @spec dispose!(t()) :: :ok
-  def dispose!(disposable) do
+  def dispose!(%Playwright.Disposable{} = disposable) do
     Facade.async_void!("disposable.dispose", disposable, fn -> Playwright.Client.Disposable.dispose(disposable) end)
   end
 end
