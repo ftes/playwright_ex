@@ -107,7 +107,7 @@ defmodule Playwright.Root do
       The device descriptor of `name` in `devices/0`, upstream's `devices['iPhone 13']`. An
       unknown name raises `ArgumentError`, naming the closest ones.
 
-          use Playwright.Case, context_options: Playwright.device("iPhone 13")
+          use Playwright.Test, Playwright.device("iPhone 13")
       """
       @spec device(String.t()) :: Playwright.Browser.new_context_options()
       def device(name), do: Playwright.Root.device(name)

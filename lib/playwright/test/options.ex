@@ -17,11 +17,43 @@ defmodule Playwright.Test.Options do
   # project's, not a describe's or a test's. (Its `trace`, `screenshot` and `video` are too:
   # here they are per test.)
   @worker_keys [:browser_name, :launch_options, :connect_options]
+  # Upstream's context option fixtures (`acceptDownloads: [({ contextOptions }, use) => ...]` in
+  # `packages/playwright/src/index.ts`), by the client's keys: options of their own, each over
+  # its key of `context_options` (upstream's `contextOptions`).
+  @context_fixtures [
+    :acceptDownloads,
+    :bypassCSP,
+    :colorScheme,
+    :contrast,
+    :deviceScaleFactor,
+    :extraHTTPHeaders,
+    :forcedColors,
+    :geolocation,
+    :hasTouch,
+    :httpCredentials,
+    :ignoreHTTPSErrors,
+    :isMobile,
+    :javaScriptEnabled,
+    :locale,
+    :offline,
+    :permissions,
+    :proxy,
+    :reducedMotion,
+    :screen,
+    :storageState,
+    :clientCertificates,
+    :timezoneId,
+    :userAgent,
+    :viewport,
+    :baseURL,
+    :serviceWorkers
+  ]
   # The prefixes of the private keys of `use/1`: an option's, and a context option's.
   @use_prefix "playwright.use."
-  @context_prefix @use_prefix <> "context_options."
+  @context_prefix @use_prefix <> "context."
   @config_only_keys [
     :context_options,
+    :default_browser_type,
     :action_timeout,
     :navigation_timeout,
     :output_dir,
@@ -102,47 +134,81 @@ defmodule Playwright.Test.Options do
   """
   def use_options(opts), do: opts |> without_ex_unit_keys() |> use_options!("use Playwright.Test", @worker_keys)
 
+  @doc "The context options that are options of their own (`@context_fixtures`), as the facade names them."
+  def context_keys do
+    {:object, schema} = Playwright.Browser.__options_type__(:new_context)
+    for {key, {js_key, _type}} <- schema, js_key in @context_fixtures, do: key
+  end
+
+  @doc """
+  Upstream's option fixtures as this runner has them, for `mix playwright.parity`: `scopes`,
+  each by upstream's name with where it can be set (`:test`: every level, `:worker`: a module
+  or a project, `:config`), and `defaults`, the context options' defaults.
+  """
+  def fixtures do
+    scope = fn names, scope -> Map.new(names, &{Atom.to_string(&1), scope}) end
+
+    %{
+      scopes:
+        scope.(@context_fixtures ++ [:contextOptions, :actionTimeout, :navigationTimeout], :test)
+        |> Map.merge(scope.([:trace, :screenshot, :video], :test))
+        |> Map.merge(scope.([:browserName, :defaultBrowserType, :launchOptions, :connectOptions], :worker))
+        |> Map.merge(scope.([:testIdAttribute], :config)),
+      defaults: Map.new(@context_defaults, fn {name, value} -> {Atom.to_string(name), value} end)
+    }
+  end
+
   defp use_options!(opts, label, worker_keys) do
     keys = Keyword.keys(opts)
+    {context, opts} = Keyword.split(opts, context_keys())
 
     case keys -- Enum.uniq(keys) do
       [] -> :ok
       [key | _] -> raise ArgumentError, "duplicated option #{inspect(key)} for #{label}"
     end
 
-    case keys -- (@use_keys ++ worker_keys) do
+    # A device's, with its other keys: upstream's worker-scoped `defaultBrowserType`, which a
+    # describe's or a test's `use/1` drops (`private/3`).
+    known = @use_keys ++ [:default_browser_type] ++ worker_keys
+
+    case Keyword.keys(opts) -- known do
       [] ->
         :ok
 
       unknown ->
-        hint =
-          cond do
-            # The option of the releases that read the `trace`, `screenshot` and `video` tags.
-            :tags in unknown ->
-              "tags no longer set the modes: `@tag Playwright.Test.use(trace: :on)` does"
-
-            :test_id_attribute in unknown ->
-              "test_id_attribute is config only: the client's value is global to the VM, which the tests " <>
-                "running at once share, where upstream's is global to a worker, which runs one test at a time"
-
-            unknown -- @worker_keys == [] ->
-              "#{Enum.map_join(unknown, ", ", &to_string/1)} is worker-scoped, as upstream's, where it forces a " <>
-                "new worker in a describe: set it for the module (`use Playwright.Case, #{hd(unknown)}: _`) or " <>
-                "its project (`Playwright.Test.parameters/1`)"
-
-            true ->
-              "the browser's other options are BrowserPool.browser/1's, the rest config's"
-          end
-
         raise ArgumentError,
-              "unknown options #{inspect(unknown)} for #{label}, expected one of " <>
-                "#{inspect(@use_keys ++ worker_keys)} (#{hint})"
+              "unknown options #{inspect(unknown)} for #{label}, expected one of #{inspect(known)} or a " <>
+                "context option as #{inspect(Enum.sort(context_keys()))} (#{unknown_hint(unknown)})"
     end
 
-    Map.new(opts, fn
-      {:context_options, options} -> {:context_options, context_options!(options, "#{label}: ")}
-      {key, value} -> {key, validate!(key, value)}
-    end)
+    options =
+      Map.new(opts, fn
+        {:context_options, options} -> {:context_options, context_options!(options, "#{label}: ")}
+        {key, value} -> {key, validate!(key, value, label)}
+      end)
+
+    if context == [], do: options, else: Map.put(options, :context, context_options!(context, "#{label}: "))
+  end
+
+  # Why `unknown` are no options of a `use`.
+  defp unknown_hint(unknown) do
+    cond do
+      # The option of the releases that read the `trace`, `screenshot` and `video` tags.
+      :tags in unknown ->
+        "tags no longer set the modes: `@tag Playwright.Test.use(trace: :on)` does"
+
+      :test_id_attribute in unknown ->
+        "test_id_attribute is config only: the client's value is global to the VM, which the tests " <>
+          "running at once share, where upstream's is global to a worker, which runs one test at a time"
+
+      unknown -- @worker_keys == [] ->
+        "#{Enum.map_join(unknown, ", ", &to_string/1)} is worker-scoped, as upstream's, where it forces a " <>
+          "new worker in a describe: set it for the module (`use Playwright.Case, #{hd(unknown)}: _`) or " <>
+          "its project (`Playwright.Test.parameters/1`)"
+
+      true ->
+        "the browser's other options are BrowserPool.browser/1's, the rest config's"
+    end
   end
 
   @doc """
@@ -158,16 +224,17 @@ defmodule Playwright.Test.Options do
   def parameters(opts), do: Map.new(private(opts, "Playwright.Test.parameters", @worker_keys))
 
   defp private(opts, label, worker_keys) do
-    if !Keyword.keyword?(opts),
-      do: raise(ArgumentError, "#{label} expects a keyword list of options, got: #{inspect(opts)}")
-
-    {context_options, options} = opts |> use_options!(label, worker_keys) |> Map.pop(:context_options, %{})
+    opts = to_keyword(label, opts)
+    options = use_options!(opts, label, worker_keys)
+    # In a describe's or a test's, a device's browser is ignored: the browser is the worker's.
+    options = if worker_keys == [], do: Map.delete(options, :default_browser_type), else: options
+    {context, options} = Map.pop(options, :context, %{})
 
     private = fn options, prefix ->
       for {key, value} <- options, do: {String.to_atom(prefix <> Atom.to_string(key)), value}
     end
 
-    Enum.sort(private.(options, @use_prefix) ++ private.(context_options, @context_prefix))
+    Enum.sort(private.(options, @use_prefix) ++ private.(context, @context_prefix))
   end
 
   @doc "Whether `key` is a private key of `use/1`."
@@ -181,7 +248,7 @@ defmodule Playwright.Test.Options do
     Enum.reduce(map, %{}, fn {key, value}, acc ->
       case is_atom(key) and Atom.to_string(key) do
         @context_prefix <> name ->
-          Map.update(acc, :context_options, %{String.to_atom(name) => value}, &Map.put(&1, String.to_atom(name), value))
+          Map.update(acc, :context, %{String.to_atom(name) => value}, &Map.put(&1, String.to_atom(name), value))
 
         @use_prefix <> name ->
           Map.put(acc, String.to_atom(name), value)
@@ -208,7 +275,7 @@ defmodule Playwright.Test.Options do
   """
   def merge(past, options) do
     Map.merge(past, options, fn
-      :context_options, past, options -> Map.merge(past, options)
+      :context, past, options -> Map.merge(past, options)
       :launch_options, past, options -> Keyword.merge(past, options)
       _key, _past, options -> options
     end)
@@ -224,16 +291,14 @@ defmodule Playwright.Test.Options do
       do:
         raise(
           ArgumentError,
-          prefix <>
-            "invalid context_options: nil, expected a keyword list or a map (a device name that is not in Playwright.devices()?)"
+          "invalid context_options: nil, expected a keyword list or a map (a device name that is not in Playwright.devices()?)"
         )
 
     if is_function(options),
       do:
         raise(
           ArgumentError,
-          prefix <>
-            "invalid context_options: #{inspect(options)}, expected a keyword list or a map: a function isn't " <>
+          "invalid context_options: #{inspect(options)}, expected a keyword list or a map: a function isn't " <>
             "supported, as the options are for every context of the module, those of setup_all too " <>
             "(a device is static: Playwright.device(\"iPhone 13\"); per test or project, see Playwright.Test.use/1)"
         )
@@ -251,9 +316,8 @@ defmodule Playwright.Test.Options do
   `use Playwright.Test` as is.
   """
   def without_ex_unit_keys(opts) do
-    if !Keyword.keyword?(opts),
-      do: raise(ArgumentError, "use Playwright.Test expects a keyword list of options, got: #{inspect(opts)}")
-
+    # A map too: a device (`use Playwright.Test, Playwright.device("iPhone 13")`).
+    opts = to_keyword("use Playwright.Test", opts)
     opts -- ExUnit.Case.__keys__(opts)
   end
 
@@ -277,16 +341,48 @@ defmodule Playwright.Test.Options do
   Upstream's `PLAYWRIGHT_TEST_BASE_URL` default is not read: config only.
   """
   def context_options(config \\ config(), layers \\ %{project: %{}, module: %{}}) do
+    prefix = "config :playwright, :test: "
     without_nil = fn options -> Map.reject(options, fn {_key, value} -> value == nil end) end
+    # `contextOptions`, one fixture: the highest level's, as a whole.
+    bag =
+      layers.module[:context_options] || layers.project[:context_options] ||
+        context_options!(config[:context_options] || [], prefix)
 
-    config_options = without_nil.(context_options!(config[:context_options], "config :playwright, :test: "))
+    # Each context option, a fixture of its own: a `nil` one falls back to the one under it.
+    options =
+      [context_options!(Map.take(config, context_keys()), prefix), layers.project[:context], layers.module[:context]]
+      |> Enum.reduce(%{}, &Map.merge(&2, without_nil.(&1 || %{})))
 
     @context_defaults
-    |> Map.merge(config_options)
-    |> Map.merge(without_nil.(Map.get(layers.project, :context_options, %{})))
-    |> Map.merge(without_nil.(Map.get(layers.module, :context_options, %{})))
-    # A device's, for `browser_name/3`: not a context's option.
+    |> Map.merge(without_nil.(bag))
+    |> Map.merge(options)
+    # A device's in `context_options`: not a context's option.
     |> Map.delete(:defaultBrowserType)
+  end
+
+  @doc """
+  `Playwright.Test.info/0`'s `use`: the resolved options of a registration (a test's), as
+  `use Playwright.Test` takes them: its context options (`context_options/2`'s, by the facade's
+  names, an enum's value as its atom), its timeouts, its recording modes and the worker options
+  of its `BrowserPool.browser/1` calls.
+  """
+  def resolved(test) do
+    {:object, schema} = Playwright.Browser.__options_type__(:new_context)
+    names = Map.new(schema, fn {key, {js_key, type}} -> {js_key, {key, type}} end)
+
+    context =
+      Map.new(test.context_options, fn {js_key, value} ->
+        case names[js_key] do
+          {key, {:enum, values}} -> {key, Enum.find_value(values, value, fn {atom, wire} -> wire == value && atom end)}
+          {key, _type} -> {key, value}
+          nil -> {js_key, value}
+        end
+      end)
+
+    context
+    |> Map.merge(test.timeouts)
+    |> Map.merge(Map.take(test, @artifact_keys))
+    |> Map.merge(Map.take(pool([], test.worker), @worker_keys))
   end
 
   @doc """
@@ -302,22 +398,9 @@ defmodule Playwright.Test.Options do
     env = Application.get_env(:playwright, :test, [])
     configured = if Keyword.keyword?(env) and Keyword.has_key?(env, :browser_name), do: config.browser_name
 
-    Enum.find_value(
-      [
-        fn -> use_options[:browser_name] || project[:browser_name] || configured end,
-        fn -> device_browser(use_options[:context_options]) || device_browser(project[:context_options]) end,
-        fn -> device_browser(context_options!(config.context_options, "config :playwright, :test: ")) end
-      ],
-      config.browser_name,
-      & &1.()
-    )
+    use_options[:browser_name] || project[:browser_name] || configured || use_options[:default_browser_type] ||
+      project[:default_browser_type] || config[:default_browser_type] || config.browser_name
   end
-
-  # The browser of a device in `context_options`.
-  defp device_browser(%{defaultBrowserType: name}) when name in ["chromium", "firefox", "webkit"],
-    do: String.to_existing_atom(name)
-
-  defp device_browser(_context_options), do: nil
 
   @doc """
   Playwright Test's `actionTimeout` and `navigationTimeout` (`action_timeout`,
@@ -332,7 +415,8 @@ defmodule Playwright.Test.Options do
   and `connect_options` of the module's `use_options` or its `project`.
   """
   def worker(config \\ config(), project \\ %{}, use_options \\ %{}) do
-    options = merge(Map.take(project, @worker_keys), Map.take(use_options, @worker_keys))
+    keys = @worker_keys -- [:browser_name]
+    options = merge(Map.take(project, keys), Map.take(use_options, keys))
     options |> Map.put(:browser_name, browser_name(config, project, use_options)) |> Enum.to_list()
   end
 
@@ -381,13 +465,14 @@ defmodule Playwright.Test.Options do
     if !Keyword.keyword?(config),
       do: raise(ArgumentError, "config :playwright, :test must be a keyword list, got: #{inspect(config)}")
 
-    case Keyword.keys(config) -- @config_keys do
+    case Keyword.keys(config) -- (@config_keys ++ context_keys()) do
       [] ->
         :ok
 
       unknown ->
         raise ArgumentError,
-              "unknown keys #{inspect(unknown)} in config :playwright, :test, expected one of #{inspect(@config_keys)}"
+              "unknown keys #{inspect(unknown)} in config :playwright, :test, expected one of " <>
+                "#{inspect(@config_keys)} or a context option (locale, viewport, ...)"
     end
 
     defaults()
@@ -398,6 +483,7 @@ defmodule Playwright.Test.Options do
   defp defaults do
     %{
       browser_name: :chromium,
+      default_browser_type: nil,
       launch_options: [],
       connect_options: nil,
       driver: [],
@@ -417,9 +503,24 @@ defmodule Playwright.Test.Options do
     }
   end
 
-  defp validate!(opts) do
-    Map.new(opts, fn {key, value} -> {key, validate!(key, value)} end)
+  # `validate!/2`, its error naming the entry point `label`.
+  defp validate!(key, value, label) do
+    validate!(key, value)
+  rescue
+    error in ArgumentError -> reraise ArgumentError, "#{label}: " <> Exception.message(error), __STACKTRACE__
   end
+
+  # A context option of the config is validated with the others (`context_options/2`).
+  defp validate!(opts) do
+    context_keys = context_keys()
+    Map.new(opts, fn {key, value} -> {key, if(key in context_keys, do: value, else: validate!(key, value))} end)
+  end
+
+  defp validate!(:default_browser_type, nil), do: nil
+  defp validate!(:default_browser_type, name) when name in [:chromium, :firefox, :webkit], do: name
+
+  defp validate!(:default_browser_type, name) when name in ["chromium", "firefox", "webkit"],
+    do: String.to_existing_atom(name)
 
   defp validate!(:browser_name, name) when name in [:chromium, :firefox, :webkit], do: name
   defp validate!(key, value) when key in [:launch_options, :context_options], do: to_keyword(key, value)

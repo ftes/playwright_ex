@@ -318,6 +318,7 @@ defmodule Playwright.Test.ConfigTest do
 
     assert resolved == %{
              browser_name: :chromium,
+             default_browser_type: nil,
              launch_options: [],
              connect_options: nil,
              driver: [],

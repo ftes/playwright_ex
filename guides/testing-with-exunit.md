@@ -13,7 +13,7 @@ Configure the runner in `config/test.exs`:
 ```elixir
 # config/test.exs
 config :playwright, :test,
-  context_options: [base_url: "http://localhost:4000"],
+  base_url: "http://localhost:4000",
   trace: :retain_on_failure,
   screenshot: :only_on_failure
 ```
@@ -76,37 +76,49 @@ can't time a parallel run.
 
 Options go in as arguments, merged over the config: `BrowserPool.browser(browser_name: :webkit)`,
 `Browser.new_context!(browser, locale: "de-DE")`. `launch_options` are those of
-`Playwright.BrowserType.launch/2`, `context_options` those of
-`Playwright.Browser.new_context/2`. Every context a test creates on a pooled browser starts from
+`Playwright.BrowserType.launch/2`. Every context a test creates on a pooled browser starts from
 Playwright Test's defaults (`locale: "en-US"`, a 1280x720 viewport, `color_scheme: :light`, ...),
-then the config's `context_options`, then its project's, its module's, its describe block's and
-its own, each over the one before per option:
+then the config's context options, then its project's, its module's, its describe block's and
+its own, each over the one before per option. They are Playwright Test's option fixtures,
+options of their own, with `Playwright.Browser.new_context/2`'s names (`locale`, `viewport`,
+`color_scheme`, `timezone_id`, `base_url`, `storage_state`, ...):
 
 | Playwright Test | Here |
 |---|---|
-| `use: { ... }` in the config | `config :playwright, :test, context_options: [...]` |
-| a project's `use` | `parameterize: [Playwright.Test.parameters(context_options: [...])]`, see "Projects" |
-| `test.use({ ... })` at a file's top | `use Playwright.Case, context_options: [locale: "de-DE"]` |
-| `test.use({ ... })` in a `test.describe` | `@describetag Test.use(context_options: [...])` |
-| (a describe around one test) | `@tag Test.use(context_options: [...])` |
+| `use: { locale: 'de-DE' }` in the config | `config :playwright, :test, locale: "de-DE"` |
+| a project's `use` | `parameterize: [Playwright.Test.parameters(locale: "de-DE")]`, see "Projects" |
+| `test.use({ locale: 'de-DE' })` at a file's top | `use Playwright.Case, locale: "de-DE"` |
+| `test.use({ ... })` in a `test.describe` | `@describetag Test.use(locale: "de-DE")` |
+| (a describe around one test) | `@tag Test.use(locale: "de-DE")` |
+| `...devices['iPhone 13']` | a device as the options: `Test.use(Playwright.device("iPhone 13"))`, see "Devices" |
 
 The options the call gives win. The config's, the project's and the module's options reach
 every context the module creates, `setup_all`'s included (`goto("/")` works there with
 `base_url`); a describe's and a test's reach that test's contexts, as ExUnit runs `setup_all`
-without them. They are keyword lists known at compile time, not functions, and "Devices" has an
-example of each level. The other options layer the same way, where they can be set:
+without them. The values are known at compile time, not functions, and "Devices" has an
+example of each level. `context_options` is Playwright Test's `contextOptions`, for any other
+option of `new_context` (`record_har`, `strict_selectors`): one option, so the highest level
+that sets it replaces the others' as a whole, and it is under every option of its own
+(`locale: "de-DE"` wins over `context_options: [locale: "fr-FR"]`, whichever level sets each).
+
+A library that passes options in a call merges into the test's resolved ones,
+`Playwright.Test.info().use`, as the call's replace them as a whole (`extra_http_headers` too):
+`Browser.new_context!(browser, extra_http_headers: Map.merge(Test.info().use[:extra_http_headers]
+|| %{}, headers))`. The other options layer the same way, where they can be
+set:
 
 | Option | Config | Project (`Test.parameters/1`) | Module (`use`) | Describe, test (`Test.use/1`) |
 |---|---|---|---|---|
-| `context_options`, `action_timeout`, `navigation_timeout` | yes | yes | yes | yes |
+| the context options (`locale`, `viewport`, `base_url`, ...), `context_options`, `action_timeout`, `navigation_timeout` | yes | yes | yes | yes |
 | `trace`, `screenshot`, `video` | yes | yes | yes | yes (an addition: worker-scoped in Playwright Test, which rejects them in a describe) |
 | `browser_name`, `launch_options`, `connect_options` | yes | yes | yes | no: the worker's, as in Playwright Test, where they force a new worker |
-| a device's `default_browser_type` (in `context_options`) | picks the browser | picks the browser | picks the browser | ignored (a deviation: Playwright Test rejects it there; the device's emulation applies on the module's browser) |
+| `default_browser_type` (a device's) | picks the browser | picks the browser | picks the browser | ignored (a deviation: Playwright Test rejects it there; the device's emulation applies on the module's browser) |
 | `test_id_attribute` | yes | no | no | no (a deviation: the value is global to the VM, which concurrent tests share) |
 | `output_dir`, `preserve_output`, `workers`, `snapshot_dir`, `snapshot_path_template`, `driver`, `on_start` | yes | no | no | no |
 
 The module's `browser_name`, `launch_options` (per key) and `connect_options` are the defaults
-of its `BrowserPool.browser/1` calls, so of `Playwright.Case`'s `browser`: a module or a
+of its `BrowserPool.browser/1` calls, in `setup_all`, a test or a `Task` of either, so of
+`Playwright.Case`'s `browser` and of your own template's `BrowserPool.browser()`: a module or a
 project with `launch_options: [channel: "chrome"]` gets a worker of its own. A
 process the test or `setup_all` starts counts only
 with `$callers`: a `Task`, and route handlers and listeners registered there, have them (see
@@ -117,7 +129,7 @@ module's defaults to every context it creates later, in a test too, but no test 
 driver you started yourself, gets no defaults and no recording.
 
 With `base_url`, `goto` and the URL matchers take paths. To set it from the shell, read an env
-var in the config: `context_options: [base_url: System.get_env("BASE_URL", "http://localhost:4000")]`.
+var in the config: `base_url: System.get_env("BASE_URL", "http://localhost:4000")`.
 As in Playwright Test, actions and navigations have no timeout of their own in a test: ExUnit's
 test timeout (60 seconds) bounds them; Playwright Test's is 30 seconds, so for the same
 behaviour, `ExUnit.start(timeout: 30_000)` in `test_helper.exs`. Just before it, the test's
@@ -186,7 +198,7 @@ defmodule MyApp.BrowserCase do
     %{browser: BrowserPool.browser()}
   end
 
-  # `@tag Test.use(context_options: [locale: "de-DE"])` on a test sets its options.
+  # `@tag Test.use(locale: "de-DE")` on a test sets its options.
   setup %{browser: browser} do
     context = Browser.new_context!(browser)
     %{context: context, page: BrowserContext.new_page!(context)}
@@ -311,13 +323,13 @@ true)`: IndexedDB is not in the state by default. See
 To log in once per run, as Playwright Test's setup project or `globalSetup` does, log in from
 `test_helper.exs`, which runs before any test, on a driver of its own (one more driver start)
 that it stops before the tests start. Outside a test no defaults apply, so give the context its
-`base_url`. The config's `context_options` then start every test's context from the file:
+`base_url`. The config's `storage_state` then starts every test's context from the file:
 
 ```elixir
 # test/test_helper.exs, after starting the app
 {:ok, driver} = Playwright.Supervisor.start_link(name: MyApp.GlobalSetup)
 browser = Playwright.instance(MyApp.GlobalSetup) |> Playwright.chromium() |> BrowserType.launch!()
-context = Browser.new_context!(browser, base_url: Playwright.Test.config().context_options[:base_url])
+context = Browser.new_context!(browser, base_url: Playwright.Test.config()[:base_url])
 page = BrowserContext.new_page!(context)
 Page.goto!(page, "/login")
 # ... log in, as above
@@ -329,8 +341,7 @@ ExUnit.start()
 
 ```elixir
 # config/test.exs
-config :playwright, :test,
-  context_options: [base_url: "http://localhost:4000", storage_state: "tmp/auth.json"]
+config :playwright, :test, base_url: "http://localhost:4000", storage_state: "tmp/auth.json"
 ```
 
 Any other once-per-run setup (Playwright Test's project `dependencies`) goes there too.
@@ -376,12 +387,15 @@ The device's options are the call's, so they win over Playwright Test's defaults
 over the 1280x720 one), and its `default_browser_type` (`"webkit"`) names its browser, which
 `new_context` ignores.
 
-For a module, Playwright Test's `test.use({ ...devices['iPhone 13'] })` at a file's top, give
-the device to the `use`:
+A device is a map of options, so it is spread into the others, as Playwright Test's
+`...devices['iPhone 13']`. For a module, its `test.use({ ...devices['iPhone 13'] })` at a file's
+top, give the device to a `use Playwright.Test` (a module's `use`s add up; in one `use`, it is
+`use Playwright.Case, [async: true] ++ Enum.to_list(Playwright.device("iPhone 13"))`):
 
 ```elixir
 defmodule MyApp.PhoneTest do
-  use Playwright.Case, async: true, context_options: Playwright.device("iPhone 13")
+  use Playwright.Case, async: true
+  use Playwright.Test, Playwright.device("iPhone 13")
 
   test "on a phone", %{page: page} do
     # ...
@@ -392,16 +406,16 @@ end
 As in Playwright Test, the device also picks the browser: without a `browser_name` in the
 module's `use`, its project or the config, `BrowserPool.browser/1` (so `Playwright.Case`'s
 `browser`) launches the device's `default_browser_type`, WebKit here. A `browser_name` set in
-any of those wins (`use Playwright.Case, browser_name: :chromium, context_options: ...`, or
+any of those wins (`use Playwright.Case, browser_name: :chromium`, or
 `config :playwright, :test, browser_name: :chromium`).
 
 For a describe block, Playwright Test's `test.use` in a `test.describe`, tag it with
-`Playwright.Test.use/1`, which takes the `use` options `context_options`, `action_timeout`,
-`navigation_timeout`, `trace`, `screenshot` and `video`:
+`Playwright.Test.use/1`, which takes the `use` options a describe may set: the context options,
+`context_options`, `action_timeout`, `navigation_timeout`, `trace`, `screenshot` and `video`:
 
 ```elixir
 describe "in Berlin" do
-  @describetag Test.use(context_options: [timezone_id: "Europe/Berlin", locale: "de-DE"])
+  @describetag Test.use(timezone_id: "Europe/Berlin", locale: "de-DE")
 
   test "shows local time", %{page: page} do
     # ...
@@ -413,7 +427,7 @@ For one test, `@tag` it. Playwright Test has no `test.use` for a single test, an
 describe around it instead; ExUnit's describe blocks can't nest:
 
 ```elixir
-@tag Test.use(context_options: [color_scheme: :dark], trace: :on)
+@tag Test.use(color_scheme: :dark, trace: :on)
 test "is readable in the dark", %{page: page} do
   # ...
 end
@@ -424,7 +438,7 @@ blocks with a `test.use`:
 
 ```elixir
 for name <- ["iPhone 13", "Pixel 7"] do
-  @tag Test.use(context_options: Playwright.device(name))
+  @tag Test.use(Playwright.device(name))
   test "the menu collapses on #{name}", %{page: page} do
     # ...
   end
@@ -437,7 +451,7 @@ worker. So `browser_name` is an option of the module's `use` and of a project, a
 `Test.use(browser_name: _)` raises; nor does a tag's device switch the browser. Only what
 `Test.use/1` returns is read: a tag named as an option (`@tag trace: :on`) sets nothing.
 
-For the whole suite, the device goes in the config's `context_options`. `config/config.exs` and
+For the whole suite, the device's options go in the config. `config/config.exs` and
 `config/test.exs` are evaluated before the dependencies are compiled, so `Playwright.device/1`
 can't be called there: write the options out, or set them in `config/runtime.exs`, which runs
 after the compilation (the runner reads the config at run time):
@@ -445,7 +459,7 @@ after the compilation (the runner reads the config at run time):
 ```elixir
 # config/runtime.exs
 if config_env() == :test do
-  config :playwright, :test, context_options: Playwright.device("iPhone 13")
+  config :playwright, :test, Enum.to_list(Playwright.device("iPhone 13"))
 end
 ```
 
@@ -461,7 +475,7 @@ defmodule MyApp.Projects do
   # `PROJECTS="Desktop Firefox" mix test` runs one.
   def all do
     names = String.split(System.get_env("PROJECTS", "Desktop Chrome,Desktop Firefox,Desktop Safari"), ",")
-    for name <- names, do: Playwright.Test.parameters(context_options: Playwright.device(name))
+    for name <- names, do: Playwright.Test.parameters(Playwright.device(name))
   end
 end
 
@@ -477,9 +491,9 @@ end
 The project's options are over the config's and under the module's `use`, for every context of
 the module's run, `setup_all`'s included, and its device picks the browser as above: Chromium,
 Firefox and WebKit here (not with a `browser_name` in the config, which wins over a device:
-give the projects one, `Test.parameters(browser_name: :firefox, context_options: ...)`). A
+give the projects one, `Test.parameters(browser_name: :firefox)`). A
 module adds its own options over the project's (`use Playwright.Case, parameterize:
-MyApp.Projects.all(), context_options: [locale: "de-DE"]`), and parameters of your own go next
+MyApp.Projects.all(), locale: "de-DE"`), and parameters of your own go next
 to them: `Map.put(Test.parameters(...), :role, :admin)`. They also name the project in
 `Playwright.Test.GitHubFormatter`'s report, as its `browser_name` does (`[firefox]`). A test reads its browser from the
 `browser`: `Playwright.BrowserType.name(Browser.browser_type(browser))`. ExUnit's filters don't see
@@ -970,25 +984,25 @@ Most of a spec ports call for call. What differs (and see [Not supported](#not-s
   end)`). `expect.poll(fn).toBe(x)` is `Expect.poll!(fn, &assert(&1 == x))`, and a call started
   now and awaited later (`const p = locator.evaluate(...)`) is `Playwright.Promise.async/1`, and
   `Promise.all([...])` is `Playwright.Promise.all/1` of those (see [Concurrency](concurrency.md)).
-- The `baseURL` fixture is `Playwright.Test.config().context_options[:base_url]`. The `request`
+- The `baseURL` fixture is `Playwright.Test.config()[:base_url]`. The `request`
   fixture is a request context of its own, `APIRequest.new_context!(Playwright.request(BrowserPool.playwright(browser)))`,
-  which in a test gets the config's `context_options` and is disposed of at its end; it is not
+  which in a test gets the test's context options and is disposed of at its end; it is not
   `Page.request/1` (upstream's `page.request`, which shares the page's cookies).
 - `addInitScript(fn)` calls the function, but a string is sent as is, so `"() => ..."` only
   defines one: pass `"(#{fun})()"`, or the function's body.
 - A selector with parentheses can't go in `~s(...)`: use `~s[...]` or a string.
-- `test.use({ ... })` at a file's top is `use Playwright.Case, context_options: [...]`, in a
-  `test.describe` it is `@describetag Test.use(context_options: [...])` (`@tag` for one test);
+- `test.use({ locale: 'de-DE' })` at a file's top is `use Playwright.Case, locale: "de-DE"`, in a
+  `test.describe` it is `@describetag Test.use(locale: "de-DE")` (`@tag` for one test);
   `projects` are `parameterize:` with a `Test.parameters/1` map each (see "Devices" and
   "Projects"). When the module's context can't be configured enough (values only
   the module's own `setup` computes, as ExUnit runs the case template's `setup` first, or options
   that differ per test), create the context in the test or its `setup`:
-  `Browser.new_context!(browser, storage_state: state)`. It still gets the defaults, the config's
-  and the module's options, and is recorded.
+  `Browser.new_context!(browser, storage_state: state)`. It still gets the defaults and the
+  options of every level, and is recorded.
 - A spec that shares one page from `beforeAll` would still pay for `Playwright.Case`'s context
   and page in each test (about 40 ms on Chromium, 120 ms on Firefox): write the few lines
   instead. The `setup_all` context gets the defaults, the config's, the project's and the
-  module's `context_options` and the timeouts, but no test records it (see "Not ported yet"):
+  module's context options and the timeouts, but no test records it (see "Not ported yet"):
 
   ```elixir
   defmodule MyApp.DashboardTest do
@@ -1042,7 +1056,7 @@ Not ported yet ([open an issue](https://github.com/ftes/playwright_ex/issues) if
   Playwright Test's `ArtifactsRecorder` records every open context per test, `beforeAll` ones
   included. Create the context per test instead, as `Playwright.Case` does by default;
 - function-valued `use` options (Playwright Test's option fixtures, `test.use({ locale: async
-  ({}, use) => ... })`): `context_options` are keyword lists;
+  ({}, use) => ... })`): the options are values;
 - the current test's options for a context a long-lived `setup_all` process or handler (one with
   its `$callers`) creates during a test: it gets the module's defaults and no test records it,
   where Playwright Test's `runBeforeCreateBrowserContext` resolves the current test, so the

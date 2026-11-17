@@ -401,24 +401,23 @@ defmodule Playwright.Test.GitHubFormatter do
 
   # A project's name: the `parameterize:` values, by key, as `[chromium]` for
   # `%{browser_name: :chromium}`, without its `Playwright.Test.parameters/1` options (the project's `use`, not its name) but
-  # its `browser_name`.
+  # its `browser_name`, else its device's browser.
   defp project_name(%ExUnit.Test{parameters: parameters}) do
-    case Map.reject(parameters, fn {key, _value} ->
-           Playwright.Test.Options.use_key?(key) and key != :"playwright.use.browser_name"
-         end) do
-      named when named == %{} ->
-        nil
+    use = Playwright.Test.Options.used(parameters)
 
-      named ->
-        named
-        |> Enum.sort()
-        |> Enum.map_join(", ", fn
-          {_key, value} when is_binary(value) or (is_atom(value) and value != nil) or is_number(value) ->
-            to_string(value)
-
-          {_key, value} ->
-            inspect(value)
-        end)
+    parameters
+    |> Map.reject(fn {key, _value} -> Playwright.Test.Options.use_key?(key) end)
+    # The project's browser, as upstream names its default projects.
+    |> Map.put(:"playwright.use", use[:browser_name] || use[:default_browser_type])
+    |> Enum.sort()
+    |> Enum.flat_map(fn
+      {:"playwright.use", nil} -> []
+      {_key, value} when is_binary(value) or (is_atom(value) and value != nil) or is_number(value) -> [to_string(value)]
+      {_key, value} -> [inspect(value)]
+    end)
+    |> case do
+      [] -> nil
+      names -> Enum.join(names, ", ")
     end
   end
 

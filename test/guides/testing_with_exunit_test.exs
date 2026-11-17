@@ -511,7 +511,7 @@ defmodule Playwright.Guides.TestingWithExUnit.Projects do
   # (`BROWSER`), which wins over a device's browser.
   def all do
     names = String.split(System.get_env("PROJECTS", "Desktop Chrome"), ",")
-    for name <- names, do: Playwright.Test.parameters(context_options: Playwright.device(name))
+    for name <- names, do: Playwright.Test.parameters(Playwright.device(name))
   end
 end
 
@@ -542,7 +542,7 @@ defmodule Playwright.Guides.TestingWithExUnit.ProjectsOptionsTest do
     async: true,
     parameterize:
       for(project <- Playwright.Guides.TestingWithExUnit.Projects.all(), do: Map.put(project, :role, :admin)),
-    context_options: [locale: "de-DE"]
+    locale: "de-DE"
 
   test "the module's options over the device", %{page: page, role: :admin} do
     assert Page.evaluate!(page, "navigator.language") == "de-DE"
@@ -557,7 +557,7 @@ defmodule Playwright.Guides.TestingWithExUnit.DeviceLevelsTest do
   defp timezone(page), do: Page.evaluate!(page, "Intl.DateTimeFormat().resolvedOptions().timeZone")
 
   describe "in Berlin" do
-    @describetag Test.use(context_options: [timezone_id: "Europe/Berlin", locale: "de-DE"])
+    @describetag Test.use(timezone_id: "Europe/Berlin", locale: "de-DE")
 
     test "shows local time", %{page: page} do
       assert timezone(page) == "Europe/Berlin"
@@ -565,14 +565,14 @@ defmodule Playwright.Guides.TestingWithExUnit.DeviceLevelsTest do
     end
   end
 
-  @tag Test.use(context_options: [color_scheme: :dark], trace: :retain_on_failure)
+  @tag Test.use(color_scheme: :dark, trace: :retain_on_failure)
   test "is readable in the dark", %{page: page} do
     assert Page.evaluate!(page, "matchMedia('(prefers-color-scheme: dark)').matches")
     assert [mode: :retain_on_failure] ++ _ = Playwright.Test.Recorder.registration(self()).trace
   end
 
   for name <- ["iPhone 13", "Pixel 7"] do
-    @tag Test.use(context_options: Playwright.device(name))
+    @tag Test.use(Playwright.device(name))
     test "the menu collapses on #{name}", %{page: page, browser: browser} do
       device = Playwright.device(unquote(name))
       assert Page.evaluate!(page, "navigator.userAgent") == device.user_agent
@@ -672,13 +672,13 @@ defmodule Playwright.Guides.TestingWithExUnit.OncePerRunTest do
     server = App.start!(dir)
     config = Application.get_env(:playwright, :test)
     on_exit(fn -> Application.put_env(:playwright, :test, config) end)
-    Application.put_env(:playwright, :test, Keyword.put(config, :context_options, base_url: server.prefix))
+    Application.put_env(:playwright, :test, Keyword.put(config, :base_url, server.prefix))
     auth = Path.join(dir, "auth.json")
 
     # Deviation: the browser under test, and the guide's `tmp/auth.json` in a temporary dir.
     {:ok, driver} = Playwright.Supervisor.start_link(name: MyApp.GlobalSetup)
     browser = Playwright.instance(MyApp.GlobalSetup) |> Playwright.TestBrowser.browser_type() |> BrowserType.launch!()
-    context = Browser.new_context!(browser, base_url: Playwright.Test.config().context_options[:base_url])
+    context = Browser.new_context!(browser, base_url: Playwright.Test.config()[:base_url])
     page = BrowserContext.new_page!(context)
     Page.goto!(page, "/login")
     Page.get_by_role(page, :button, name: "Log in") |> Locator.click!()
@@ -686,8 +686,7 @@ defmodule Playwright.Guides.TestingWithExUnit.OncePerRunTest do
     BrowserContext.storage_state!(context, path: auth)
     Supervisor.stop(driver)
 
-    options = [base_url: server.prefix, storage_state: auth]
-    Application.put_env(:playwright, :test, Keyword.put(config, :context_options, options))
+    Application.put_env(:playwright, :test, Keyword.merge(config, base_url: server.prefix, storage_state: auth))
 
     %{browser: BrowserPool.browser(), base_url: server.prefix}
   end
@@ -699,7 +698,7 @@ defmodule Playwright.Guides.TestingWithExUnit.OncePerRunTest do
   end
 
   test "the baseURL and request fixtures", %{browser: browser, base_url: base_url} do
-    assert Playwright.Test.config().context_options[:base_url] == base_url
+    assert Playwright.Test.config()[:base_url] == base_url
     request = APIRequest.new_context!(Playwright.request(BrowserPool.playwright(browser)))
     assert %{"status" => _} = APIResponse.json!(APIRequestContext.get!(request, "/api/exports/1"))
   end
@@ -761,7 +760,8 @@ end
 
 defmodule Playwright.Guides.TestingWithExUnit.PhoneTest do
   # "Devices": the module's context options of a device. Deviation: the browser is `BROWSER`'s.
-  use Playwright.Case, async: true, context_options: Playwright.device("iPhone 13")
+  use Playwright.Case, async: true
+  use Playwright.Test, Playwright.device("iPhone 13")
 
   @iphone Playwright.device("iPhone 13")
 
@@ -775,7 +775,7 @@ defmodule Playwright.Guides.TestingWithExUnit.PhoneTest do
   end
 
   describe "in German" do
-    @describetag Test.use(context_options: [locale: "de-DE"])
+    @describetag Test.use(locale: "de-DE")
 
     test "the module's device with the describe's locale: the levels merge per option", %{page: page} do
       assert Page.viewport_size(page) == %{width: 390, height: 664}

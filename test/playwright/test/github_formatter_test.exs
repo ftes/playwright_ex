@@ -136,6 +136,10 @@ defmodule Playwright.Test.GitHubFormatterTest do
     }
 
     assert run([{:test_finished, test}]) =~ "::  1) [chromium] › #{@file_path}:10 › fails ─"
+    test = %{test | parameters: Playwright.Test.parameters(Playwright.device("Desktop Firefox"))}
+    assert run([{:test_finished, test}]) =~ "::  1) [firefox] › #{@file_path}:10 › fails ─"
+    test = %{test | parameters: Playwright.Test.parameters(locale: "de-DE")}
+    assert run([{:test_finished, test}]) =~ "::  1) #{@file_path}:10 › fails ─"
     test = %{test | parameters: %{browser_name: :chromium, device: nil}}
     assert run([{:test_finished, test}]) =~ "::  1) [chromium, nil] › #{@file_path}:10 › fails ─"
   end

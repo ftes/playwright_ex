@@ -1,8 +1,8 @@
 defmodule Playwright.Test.ContextOptionsTest do
-  # `use Playwright.Test, context_options: [...]` (through `Playwright.Case`), upstream's
+  # `use Playwright.Test, ...` (through `Playwright.Case`), upstream's
   # `test.use({ locale: 'de-DE' })`: over the defaults and the config, under the call's options,
   # for every context of the module's tests and of its `setup_all`.
-  use Playwright.Case, async: true, context_options: [locale: "de-DE", color_scheme: :dark]
+  use Playwright.Case, async: true, locale: "de-DE", color_scheme: :dark
 
   alias Playwright.Test.Options
 
@@ -65,7 +65,7 @@ defmodule Playwright.Test.ContextOptionsTest do
     end
 
     assert_raise ArgumentError, ~r/lokale/, fn ->
-      compile("Unknown", "use Playwright.Test, context_options: [lokale: \"de-DE\"]")
+      compile("Unknown", "use Playwright.Test, lokale: \"de-DE\"")
     end
 
     assert_raise ArgumentError, ~r/invalid context_options: :dark, expected a keyword list/, fn ->
@@ -85,17 +85,17 @@ defmodule Playwright.Test.ContextOptionsTest do
   test "Test.use validates as the use option, when the module compiles" do
     # A private key per option, with the client's key of a context option.
     assert [
-             "playwright.use.context_options.colorScheme": "dark",
-             "playwright.use.context_options.locale": nil,
+             "playwright.use.context.colorScheme": "dark",
+             "playwright.use.context.locale": nil,
              "playwright.use.trace": [mode: :on] ++ _
-           ] = use = Playwright.Test.use(context_options: [locale: nil, color_scheme: :dark], trace: :on)
+           ] = use = Playwright.Test.use(locale: nil, color_scheme: :dark, trace: :on)
 
     assert Enum.all?(Keyword.keys(use), &Options.use_key?/1)
     refute Options.use_key?(:context_options)
-    assert Playwright.Test.use(context_options: []) == []
+    assert Playwright.Test.use([]) == []
 
     assert Options.used(Map.new(use ++ [trace: :off, locale: "fr-FR"])) == %{
-             context_options: %{colorScheme: "dark", locale: nil},
+             context: %{colorScheme: "dark", locale: nil},
              trace: [mode: :on, snapshots: true, screenshots: true, sources: true, attachments: true]
            }
 
@@ -104,7 +104,7 @@ defmodule Playwright.Test.ContextOptionsTest do
           {~r/invalid context_options: nil, .*a device name that is not in/,
            ~s|context_options: Playwright.devices()["iPhone13"]|},
           {~r/invalid context_options: .*a function isn't supported/, "context_options: &Function.identity/1"},
-          {~r/unknown options \[:locale\] for Playwright.Test.(use|parameters)/, ~s(locale: "de-DE")},
+          {~r/unknown options \[:lokale\] for Playwright.Test.(use|parameters)/, ~s(lokale: "de-DE")},
           {~r/invalid trace: :sometimes/, "trace: :sometimes"},
           {~r/duplicated option :trace/, "trace: :on, trace: :off"}
         ] do
@@ -117,7 +117,36 @@ defmodule Playwright.Test.ContextOptionsTest do
       end
     end
 
-    assert_raise ArgumentError, ~r/expects a keyword list/, fn -> Playwright.Test.use(%{trace: :on}) end
+    # A map too (a device).
+    assert Playwright.Test.use(%{trace: :on}) == Playwright.Test.use(trace: :on)
+    assert_raise ArgumentError, ~r/expected a keyword list or a map/, fn -> Playwright.Test.use(:on) end
+  end
+
+  test "one validator: an invalid value raises the same at each entry point, naming it" do
+    entries = [
+      {"use Playwright.Test", &"use Playwright.Case, #{&1}"},
+      {"Playwright.Test.use", &"use Playwright.Case\n@tag Playwright.Test.use(#{&1})"},
+      {"Playwright.Test.use", &"use Playwright.Case\n@describetag Playwright.Test.use(#{&1})"},
+      {"Playwright.Test.parameters", &"use Playwright.Case, parameterize: [Playwright.Test.parameters(#{&1})]"}
+    ]
+
+    # Against the facade's types of `Browser.new_context/2`'s options, as that call checks them.
+    values = [
+      {"color_scheme: :purple",
+       "invalid value :purple for :color_scheme, expected one of :dark, :light, :no_preference"},
+      {"color_scheme: :purple", "invalid value :purple for :color_scheme, expected one of"},
+      {"viewport: %{wide: 1}", "wide"},
+      {"video: :sometimes", "invalid video: :sometimes"},
+      {"action_timeout: -1", "invalid action_timeout: -1"},
+      {"context_options: nil", "invalid context_options: nil"},
+      {"lokale: 1", "unknown options [:lokale] for"}
+    ]
+
+    for {label, source} <- entries, {options, message} <- values do
+      error = assert_raise ArgumentError, fn -> compile("Invalid", source.(options)) end
+      assert error.message =~ label
+      assert error.message =~ message
+    end
   end
 
   test "browser_name is the module's or the project's: a tag's raises" do
@@ -166,8 +195,8 @@ defmodule Playwright.Test.ContextOptionsTest do
   end
 
   test "the browser: an explicit browser_name (use, project, config), else a device's, else the default" do
-    iphone = Playwright.Test.Options.use_options(context_options: Playwright.device("iPhone 13"))
-    pixel = Options.used(Playwright.Test.parameters(context_options: Playwright.device("Pixel 7")))
+    iphone = Playwright.Test.Options.use_options(Playwright.device("iPhone 13"))
+    pixel = Options.used(Playwright.Test.parameters(Playwright.device("Pixel 7")))
     firefox = Options.used(Playwright.Test.parameters(browser_name: :firefox))
     config = Options.config()
     env = Application.get_env(:playwright, :test)
@@ -183,14 +212,58 @@ defmodule Playwright.Test.ContextOptionsTest do
     refute Map.has_key?(Options.context_options(config, layers), :defaultBrowserType)
   end
 
-  test "Playwright.device/1 is the device of devices/0; an unknown name raises with the closest" do
-    assert Playwright.device("iPhone 13") == Playwright.devices()["iPhone 13"]
+  test "a context option is an option of its own, over context_options at every level; a device is spread" do
+    # A private key per option, and one for `context_options`; a describe's or a test's device
+    # loses its browser.
+    assert [
+             "playwright.use.context.locale": "de-DE",
+             "playwright.use.context_options": %{locale: "fr-FR"},
+             "playwright.use.trace": _
+           ] = Playwright.Test.use(locale: "de-DE", context_options: [locale: "fr-FR"], trace: :on)
 
-    assert_raise ArgumentError,
-                 ~r/unknown device "iPhone13", did you mean "iPhone 13", .*Playwright.devices\/0/,
-                 fn -> Playwright.device("iPhone13") end
+    device = Playwright.device("iPhone 13")
+    refute Enum.any?(Playwright.Test.use(device), fn {key, _value} -> to_string(key) =~ "rowser" end)
+    assert Playwright.Test.parameters(device)[:"playwright.use.default_browser_type"] == :webkit
+    assert Playwright.Test.parameters(device)[:"playwright.use.context.userAgent"] == device.user_agent
+    assert %{default_browser_type: :webkit, context: %{isMobile: true}} = Options.use_options(device)
 
-    assert_raise ArgumentError, ~r/unknown device :iphone \(the docs/, fn -> Playwright.device(:iphone) end
+    config = %{context_options: [locale: "it-IT", color_scheme: :dark], timezone_id: "Europe/Rome"}
+    assert %{locale: "it-IT", colorScheme: "dark", timezoneId: "Europe/Rome"} = Options.context_options(config)
+
+    # The option over `context_options` of its level, and of a higher one: upstream's fixture
+    # is the option's, and reads `contextOptions` only when no level sets it.
+    parameters = Playwright.Test.parameters(locale: "de-DE", context_options: [locale: "fr-FR", offline: true])
+    module = Options.use_options(context_options: [locale: "es-ES", has_touch: true])
+    layers = %{project: Options.used(parameters), module: module}
+    options = Options.context_options(config, layers)
+    assert %{locale: "de-DE", hasTouch: true, timezoneId: "Europe/Rome"} = options
+    # `context_options` is one option: the highest level's replaces the others as a whole.
+    assert %{offline: false, colorScheme: "light"} = options
+
+    # A `nil` option falls back to the level under it, then to `context_options`.
+    layers = %{layers | module: Options.use_options(locale: nil, context_options: [locale: "es-ES"])}
+    assert %{locale: "de-DE"} = Options.context_options(config, layers)
+    layers = %{project: %{}, module: Options.use_options(locale: nil, context_options: [locale: "es-ES"])}
+    assert %{locale: "es-ES"} = Options.context_options(config, layers)
+  end
+
+  test "context_options is upstream's contextOptions: replaced as a whole per level, under every option" do
+    config = %{context_options: [locale: "fr-FR", timezone_id: "Europe/Paris"]}
+    module = %{project: %{}, module: Options.use_options(context_options: [locale: "de-DE"])}
+    # The config's alone, as before.
+    assert %{locale: "fr-FR", timezoneId: "Europe/Paris"} = Options.context_options(config)
+    options = Options.context_options(config, module)
+    assert options.locale == "de-DE"
+    refute Map.has_key?(options, :timezoneId)
+
+    # An option of the config over a module's `context_options`.
+    config = %{context_options: [], timezone_id: "UTC"}
+    module = %{project: %{}, module: Options.use_options(context_options: [timezone_id: "Europe/Berlin"])}
+    assert %{timezoneId: "UTC"} = Options.context_options(config, module)
+    # Never deep-merged: `extra_http_headers` as a whole.
+    config = %{context_options: [], extra_http_headers: %{"a" => "1", "b" => "2"}}
+    module = %{project: %{}, module: Options.use_options(extra_http_headers: %{"a" => "3"})}
+    assert %{extraHTTPHeaders: %{"a" => "3"}} = Options.context_options(config, module)
   end
 
   defp resolve(module), do: Options.context_options(%{context_options: []}, layers(module))
@@ -198,15 +271,13 @@ defmodule Playwright.Test.ContextOptionsTest do
 
   test "a module's uses apply in order, each over the earlier per key" do
     assert %{colorScheme: "dark", locale: "fr-FR"} = resolve(__MODULE__.Merged)
-    # The last of duplicated keys wins, a nil too.
-    assert %{locale: "fr-FR"} = resolve(__MODULE__.Duplicated)
   end
 
   test "a nil option resets it past the earlier uses, to the project's, the config's or the default" do
     # `[locale: "fr-FR"]`, then `[locale: nil]`.
     layers = layers(__MODULE__.NilOption)
-    config = %{context_options: [locale: "de-DE"]}
-    project = %{context_options: %{locale: "it-IT"}}
+    config = %{locale: "de-DE"}
+    project = %{context: %{locale: "it-IT"}}
 
     assert %{locale: "de-DE", colorScheme: "dark"} = Options.context_options(config, layers)
     assert %{locale: "it-IT"} = Options.context_options(config, %{layers | project: project})
@@ -214,21 +285,21 @@ defmodule Playwright.Test.ContextOptionsTest do
     # A later option over the reset.
     assert %{colorScheme: "dark", locale: "it-IT"} = resolve(__MODULE__.NilThenOption)
     # The config's nil falls back to Playwright Test's default, the project's to the config's.
-    assert %{locale: "en-US"} = Options.context_options(%{context_options: [locale: nil]})
-    project = %{context_options: %{locale: nil, colorScheme: "dark"}}
+    assert %{locale: "en-US"} = Options.context_options(%{locale: nil})
+    project = %{context: %{locale: nil, colorScheme: "dark"}}
     assert %{locale: "de-DE", colorScheme: "dark"} = Options.context_options(config, %{project: project, module: %{}})
   end
 
   test "the layers: the parameters' options are the project, the tags' over the module's use" do
-    parameters = Playwright.Test.parameters(context_options: [locale: "de-DE", color_scheme: :dark], video: :on)
+    parameters = Playwright.Test.parameters(locale: "de-DE", color_scheme: :dark, video: :on)
     # Tags named as options are not read; a tag equal to the project's is the tag's.
     tags =
-      Map.new(Playwright.Test.use(context_options: [locale: "de-DE"], trace: :on) ++ [video: false, locale: "es-ES"])
+      Map.new(Playwright.Test.use(locale: "de-DE", trace: :on) ++ [video: false, locale: "es-ES"])
 
-    use_options = %{screenshot: [mode: :on], context_options: %{locale: "it-IT", colorScheme: "light"}}
+    use_options = %{screenshot: [mode: :on], context: %{locale: "it-IT", colorScheme: "light"}}
     layers = Options.layers(parameters, use_options, tags)
 
-    assert layers.project == %{context_options: %{locale: "de-DE", colorScheme: "dark"}, video: [mode: :on]}
+    assert layers.project == %{context: %{locale: "de-DE", colorScheme: "dark"}, video: [mode: :on]}
     assert %{locale: "de-DE", colorScheme: "light"} = Options.context_options(%{context_options: []}, layers)
 
     assert %{trace: [mode: :on] ++ _, video: [mode: :on], screenshot: [mode: :on]} =
@@ -251,13 +322,15 @@ defmodule Playwright.Test.ContextOptionsTest.ProjectTest do
         do:
           Map.put(
             Playwright.Test.parameters(
-              context_options: [locale: lang, color_scheme: :dark, viewport: %{width: 400, height: 300}]
+              locale: lang,
+              color_scheme: :dark,
+              viewport: %{width: 400, height: 300}
             ),
             :lang,
             lang
           )
       ),
-    context_options: [color_scheme: :light]
+    color_scheme: :light
 
   import Playwright.Test.ContextOptionsTest, only: [language: 1, dark?: 1]
 
@@ -299,7 +372,21 @@ defmodule Playwright.Test.ContextOptionsTest.ProjectTest do
     assert_project(ctx.setup_all_task_page, lang)
   end
 
-  @tag Playwright.Test.use(context_options: [locale: "es-ES"])
+  @tag Playwright.Test.use(extra_http_headers: %{"x-test" => "1"}, action_timeout: 1234, video: :retain_on_failure)
+  test "Test.info().use: the test's resolved options, in a Task and by pid too", %{lang: lang, test_pid: test_pid} do
+    use = Playwright.Test.info().use
+    assert Task.await(Task.async(fn -> Playwright.Test.info().use end)) == use
+    assert Playwright.Test.info(test_pid).use == use
+
+    # The project's, the module's, the tag's and Playwright Test's defaults; an enum as its atom.
+    assert %{locale: ^lang, color_scheme: :light, viewport: %{width: 400, height: 300}, offline: false} = use
+    assert %{extra_http_headers: %{"x-test" => "1"}, action_timeout: 1234, navigation_timeout: :infinity} = use
+    assert %{video: [mode: :retain_on_failure], trace: [mode: :off] ++ _, launch_options: _, connect_options: _} = use
+    assert use.browser_name == String.to_atom(Playwright.TestBrowser.name())
+    refute Map.has_key?(use, :base_url)
+  end
+
+  @tag Playwright.Test.use(locale: "es-ES")
   test "a test's tag over the module's and the project's", %{page: page} do
     assert language(page) == "es-ES"
     assert Page.viewport_size(page) == %{width: 400, height: 300}
@@ -307,7 +394,7 @@ defmodule Playwright.Test.ContextOptionsTest.ProjectTest do
   end
 
   # The context has one value for the key: the tag is read from the test's tags, not from it.
-  @tag Playwright.Test.use(context_options: [color_scheme: :dark])
+  @tag Playwright.Test.use(color_scheme: :dark)
   test "a tag equal to the project's option is over the module's", %{page: page, lang: lang} do
     assert language(page) == lang
     assert dark?(page)
@@ -315,7 +402,7 @@ defmodule Playwright.Test.ContextOptionsTest.ProjectTest do
 
   test "the output dir is the same for the same options, whenever they compile", %{lang: lang} = ctx do
     options = [locale: lang, color_scheme: :dark, viewport: %{width: 400, height: 300}]
-    parameters = Map.put(Playwright.Test.parameters(context_options: options), :lang, lang)
+    parameters = Map.put(Playwright.Test.parameters(options), :lang, lang)
     {file, name} = {ctx.file, Playwright.Test.TestInfo.test_name(ctx)}
 
     assert Playwright.Test.info().output_dir ==
@@ -334,11 +421,11 @@ end
 defmodule Playwright.Test.ContextOptionsTest.TagsTest do
   # `Playwright.Test.use/1` in tags: the module's, a describe's and a test's, each over the
   # earlier per option.
-  use Playwright.Case, async: true, context_options: [locale: "de-DE", color_scheme: :dark]
+  use Playwright.Case, async: true, locale: "de-DE", color_scheme: :dark
 
   import Playwright.Test.ContextOptionsTest, only: [language: 1, dark?: 1]
 
-  @moduletag Playwright.Test.use(context_options: [locale: "fr-FR"])
+  @moduletag Playwright.Test.use(locale: "fr-FR")
 
   # Before any test: later ones are of the tests after them.
   @moduletag Playwright.Test.use(trace: :retain_on_failure)
@@ -359,7 +446,7 @@ defmodule Playwright.Test.ContextOptionsTest.TagsTest do
   end
 
   describe "a describe block" do
-    @describetag Playwright.Test.use(context_options: [timezone_id: "Europe/Berlin", locale: "it-IT"])
+    @describetag Playwright.Test.use(timezone_id: "Europe/Berlin", locale: "it-IT")
 
     test "the describe's over the module's", %{page: page, browser: browser} do
       for page <- [page, BrowserContext.new_page!(Browser.new_context!(browser))] do
@@ -369,15 +456,15 @@ defmodule Playwright.Test.ContextOptionsTest.TagsTest do
       end
     end
 
-    @tag Playwright.Test.use(context_options: [locale: "es-ES"])
+    @tag Playwright.Test.use(locale: "es-ES")
     test "a test's tag and its describe's both apply, the test's over it per option", %{page: page} do
       assert timezone(page) == "Europe/Berlin"
       assert language(page) == "es-ES"
       assert dark?(page)
     end
 
-    @tag Playwright.Test.use(context_options: [locale: "es-ES", color_scheme: :light])
-    @tag Playwright.Test.use(context_options: [locale: "pt-PT"], trace: :retain_on_failure)
+    @tag Playwright.Test.use(locale: "es-ES", color_scheme: :light)
+    @tag Playwright.Test.use(locale: "pt-PT", trace: :retain_on_failure)
     test "two calls on one test layer per option, the later over the earlier", %{page: page} do
       assert timezone(page) == "Europe/Berlin"
       assert language(page) == "pt-PT"
@@ -385,7 +472,7 @@ defmodule Playwright.Test.ContextOptionsTest.TagsTest do
       assert [mode: :retain_on_failure] ++ _ = Playwright.Test.Recorder.registration(self()).trace
     end
 
-    @tag Playwright.Test.use(context_options: [locale: nil])
+    @tag Playwright.Test.use(locale: nil)
     test "a nil option resets it to the config's or the default", %{page: page} do
       assert language(page) == "en-US"
     end
@@ -400,7 +487,7 @@ defmodule Playwright.Test.ContextOptionsTest.TagsTest do
   end
 
   for {name, locale} <- [{"german", "de-AT"}, {"french", "fr-CA"}] do
-    @tag Playwright.Test.use(context_options: [locale: locale])
+    @tag Playwright.Test.use(locale: locale)
     test "a generated test's own options: #{name}", %{page: page} do
       assert language(page) == unquote(locale)
     end
@@ -410,7 +497,7 @@ end
 defmodule Playwright.Test.ContextOptionsTest.NotReadTest do
   # Only the keys of `Playwright.Test.use/1` are read: not a tag, a parameter or a callback's key
   # named as an option.
-  use ExUnit.Case, async: true, parameterize: [%{lang: "de-DE", context_options: [locale: "de-DE"], trace: :on}]
+  use ExUnit.Case, async: true, parameterize: [%{lang: "de-DE", locale: "de-DE", trace: :on}]
   use Playwright.Test
 
   import Playwright.Test.ContextOptionsTest, only: [language: 1]
@@ -418,20 +505,20 @@ defmodule Playwright.Test.ContextOptionsTest.NotReadTest do
   alias Playwright.{Browser, BrowserContext}
   alias Playwright.Test.BrowserPool
 
-  @moduletag context_options: [locale: "it-IT"]
+  @moduletag locale: "it-IT"
 
   setup_all do
     browser = BrowserPool.browser()
     context = Browser.new_context!(browser)
     on_exit(fn -> BrowserContext.close!(context) end)
-    %{browser: browser, setup_all_page: BrowserContext.new_page!(context), context_options: [locale: "fr-FR"]}
+    %{browser: browser, setup_all_page: BrowserContext.new_page!(context), locale: "fr-FR"}
   end
 
   setup do
-    %{context_options: [locale: "es-ES"]}
+    %{locale: "es-ES"}
   end
 
-  @tag context_options: [locale: "pt-PT"], trace: :on, video: :on, screenshot: :on
+  @tag locale: "pt-PT", trace: :on, video: :on, screenshot: :on
   test "a tag's, a parameter's or a callback's options are not read", %{browser: browser} = ctx do
     assert %{trace: :on, video: :on, screenshot: :on} = ctx
     assert language(BrowserContext.new_page!(Browser.new_context!(browser))) == "en-US"
@@ -448,15 +535,14 @@ defmodule Playwright.Test.ContextOptionsTest.SetupAllOrderTest do
   use Playwright.Case,
     async: true,
     parameterize: [
-      Map.new(
-        Playwright.Test.use(context_options: [locale: "de-DE", color_scheme: :dark, timezone_id: "Europe/Berlin"])
-      )
+      Map.new(Playwright.Test.use(locale: "de-DE", color_scheme: :dark, timezone_id: "Europe/Berlin"))
     ],
-    context_options: [color_scheme: :light, timezone_id: "Europe/Rome"]
+    color_scheme: :light,
+    timezone_id: "Europe/Rome"
 
   import Playwright.Test.ContextOptionsTest, only: [language: 1, dark?: 1]
 
-  @moduletag Playwright.Test.use(context_options: [locale: "fr-FR"])
+  @moduletag Playwright.Test.use(locale: "fr-FR")
 
   setup_all %{browser: browser} do
     context = Browser.new_context!(browser)
@@ -478,12 +564,12 @@ defmodule Playwright.Test.ContextOptionsTest.ParameterOverwrittenTest do
   # key in the context again changes nothing.
   use Playwright.Case,
     async: true,
-    parameterize: [Playwright.Test.parameters(context_options: [locale: "de-DE"])]
+    parameterize: [Playwright.Test.parameters(locale: "de-DE")]
 
   import Playwright.Test.ContextOptionsTest, only: [language: 1]
 
   setup do
-    Playwright.Test.parameters(context_options: [locale: "es-ES"])
+    Playwright.Test.parameters(locale: "es-ES")
   end
 
   test "the project's options stay", %{page: page, browser: browser} do
@@ -507,39 +593,63 @@ defmodule Playwright.Test.ContextOptionsTest.DeviceBrowserTest do
   end
 
   test "the module's device, else the project's, else the config's, else chromium", %{env: env} do
-    iphone = Options.use_options(context_options: Playwright.device("iPhone 13"))
-    firefox = Options.used(Playwright.Test.parameters(context_options: Playwright.device("Desktop Firefox")))
+    iphone = Options.use_options(Playwright.device("iPhone 13"))
+    firefox = Options.used(Playwright.Test.parameters(Playwright.device("Desktop Firefox")))
+    # A device in `context_options` is no worker option.
+    assert Options.browser_name(
+             Options.config(),
+             %{},
+             Options.use_options(context_options: Playwright.device("iPhone 13"))
+           ) ==
+             :chromium
+
     config = Options.config()
 
     assert Options.browser_name(config) == :chromium
     assert Options.browser_name(config, firefox, iphone) == :webkit
-    assert Options.browser_name(config, firefox, %{context_options: %{locale: "de-DE"}}) == :firefox
+    assert Options.browser_name(config, firefox, %{context: %{locale: "de-DE"}}) == :firefox
     assert Options.browser_name(config, firefox, %{browser_name: :chromium}) == :chromium
 
     Application.put_env(
       :playwright,
       :test,
-      env |> Keyword.delete(:browser_name) |> Keyword.put(:context_options, Playwright.device("Desktop Firefox"))
+      env |> Keyword.delete(:browser_name) |> Keyword.merge(Enum.to_list(Playwright.device("Desktop Firefox")))
     )
 
     assert Options.browser_name(Options.config()) == :firefox
+    assert Options.context_options().userAgent == Playwright.device("Desktop Firefox").user_agent
   end
 end
 
 defmodule Playwright.Test.ContextOptionsTest.BrowserNameTest do
-  # The module's `browser_name` is `BrowserPool.browser/1`'s default, in `setup_all` (the case's
-  # `browser`) and in a test.
-  use Playwright.Case,
+  # The module's `browser_name` is the default of `BrowserPool.browser/1`, in `setup_all`, a test
+  # and their Tasks. Not launched: CI installs one browser.
+  use ExUnit.Case,
     async: true,
-    parameterize: [Playwright.Test.parameters(browser_name: :firefox)],
-    browser_name: :webkit
+    parameterize: [
+      Playwright.Test.parameters(browser_name: :firefox, launch_options: [slow_mo: 1]),
+      Playwright.Test.parameters(Playwright.device("iPhone 13"))
+    ]
 
-  alias Playwright.BrowserType
+  use Playwright.Test, browser_name: :webkit
 
-  test "the use option over the project's, for the case's browser and a test's own call", %{browser: browser} do
-    assert BrowserType.name(Browser.browser_type(browser)) == "webkit"
-    assert BrowserPool.browser() == browser
-    assert BrowserType.name(Browser.browser_type(BrowserPool.browser(browser_name: :chromium))) == "chromium"
+  alias Playwright.Test.Recorder
+
+  setup_all do
+    %{
+      setup_all_worker: Recorder.worker_options(),
+      setup_all_task_worker: Task.await(Task.async(&Recorder.worker_options/0))
+    }
+  end
+
+  test "the use option over the project's, for setup_all's calls and a test's own", ctx do
+    assert ctx.setup_all_worker[:browser_name] == :webkit
+    assert ctx.setup_all_task_worker == ctx.setup_all_worker
+    assert Recorder.worker_options() == ctx.setup_all_worker
+    assert Task.await(Task.async(&Recorder.worker_options/0)) == ctx.setup_all_worker
+    assert Playwright.Test.info().use.browser_name == :webkit
+    assert %{browser_name: :webkit} = Playwright.Test.Options.pool([], ctx.setup_all_worker)
+    assert %{browser_name: :chromium} = Playwright.Test.Options.pool([browser_name: :chromium], ctx.setup_all_worker)
   end
 end
 
@@ -598,14 +708,6 @@ defmodule Playwright.Test.ContextOptionsTest.TimeoutsTest do
   end
 end
 
-defmodule Playwright.Test.ContextOptionsTest.ProjectBrowserNameTest do
-  use Playwright.Case, async: true, parameterize: [Playwright.Test.parameters(browser_name: :firefox)]
-
-  test "the project's browser_name", %{browser: browser} do
-    assert Playwright.BrowserType.name(Browser.browser_type(browser)) == "firefox"
-  end
-end
-
 defmodule Playwright.Test.ContextOptionsTest.ConfigTest do
   # The module's options over the config's, per key. Sync, so the config here reaches no other
   # module.
@@ -632,7 +734,7 @@ defmodule Playwright.Test.ContextOptionsTest.ConfigTest do
     %{server: server}
   end
 
-  use Playwright.Case, context_options: [locale: "fr-FR"]
+  use Playwright.Case, locale: "fr-FR"
 
   test "the module's options win over the config's, which apply to the other keys", ctx do
     assert language(ctx.page) == "fr-FR"
@@ -656,24 +758,19 @@ end
 defmodule Playwright.Test.ContextOptionsTest.Merged do
   # No tests: its `use`s' merged options.
   use ExUnit.Case, async: true
-  use Playwright.Test, context_options: [locale: "de-DE", color_scheme: :dark]
-  use Playwright.Test, context_options: %{locale: "fr-FR"}
+  use Playwright.Test, locale: "de-DE", color_scheme: :dark
+  use Playwright.Test, %{locale: "fr-FR"}
 end
 
 defmodule Playwright.Test.ContextOptionsTest.NilOption do
   use ExUnit.Case, async: true
-  use Playwright.Test, context_options: [locale: "fr-FR", color_scheme: :dark]
-  use Playwright.Test, context_options: [locale: nil]
+  use Playwright.Test, locale: "fr-FR", color_scheme: :dark
+  use Playwright.Test, locale: nil
 end
 
 defmodule Playwright.Test.ContextOptionsTest.NilThenOption do
   use ExUnit.Case, async: true
-  use Playwright.Test, context_options: [locale: "fr-FR", color_scheme: :dark]
-  use Playwright.Test, context_options: [locale: nil]
-  use Playwright.Test, context_options: [locale: "it-IT"]
-end
-
-defmodule Playwright.Test.ContextOptionsTest.Duplicated do
-  use ExUnit.Case, async: true
-  use Playwright.Test, context_options: [locale: nil, locale: "fr-FR"]
+  use Playwright.Test, locale: "fr-FR", color_scheme: :dark
+  use Playwright.Test, locale: nil
+  use Playwright.Test, locale: "it-IT"
 end
