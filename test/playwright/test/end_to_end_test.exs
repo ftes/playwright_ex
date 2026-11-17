@@ -276,12 +276,12 @@ defmodule Playwright.Test.EndToEndTest do
     assert frame["line"] == line.("(the boxed call)")
   end
 
-  test "a test past its timeout: a hanging Playwright call fails with the call log, other code as ExUnit's",
+  test "a test past its timeout: a hanging Playwright call fails with the call log, other code as ExUnit's, recorded errors first",
        %{tmp_dir: tmp_dir} do
     child = start("timeouts", tmp_dir)
     assert ChildProcess.exit_code(child, 60_000) == 0
     output = ChildProcess.output(child)
-    assert output =~ ~r"3 tests, 3 failures|Result: 0/3 passed"
+    assert output =~ ~r"4 tests, 4 failures|Result: 0/4 passed"
 
     hangs = failure(output, "test hangs in a Playwright call (TimeoutsTest)")
     assert hangs =~ "Test timeout of 3000ms exceeded."
@@ -304,6 +304,16 @@ defmodule Playwright.Test.EndToEndTest do
     slow_setup = failure(output, "test hangs in a Playwright call after a slow setup (SlowSetupTest)")
     assert slow_setup =~ "Test timeout of 3000ms exceeded."
     refute slow_setup =~ "ExUnit.TimeoutError"
+
+    # The listener's error, then the timeout: interrupted before ExUnit's kill, as the close
+    # waits for the open dialog.
+    listener = failure(output, "test fails in a dialog listener, then hangs (TimeoutsTest)")
+
+    assert listener =~
+             ~r"Failure #1\n +Assertion with == failed\n +code: +assert Playwright.Dialog.message\(dialog\) == \"expected\""
+
+    assert listener =~ ~r"Failure #2\n +\*\* \(ExUnit.TimeoutError\) test timed out after 3000ms"
+    assert listener =~ ~S|code: Page.evaluate!(page, "() => alert('actual')")|
   end
 
   test "--trace: no test timeout, so no timer", %{tmp_dir: tmp_dir} do

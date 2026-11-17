@@ -56,6 +56,9 @@ Node 26.13.1. No API changes.
 
 ### Fixed
 
+- A test past its timeout with recorded errors (an assertion that failed in a `:dialog`
+  listener, whose dialog then stays open) fails with them and the timeout. ExUnit's timeout
+  alone was reported, the error only in `error-context.md`.
 - `mix playwright.install` and `mix playwright.cli` failed with "module :public_key is not
   available" when run before the project was compiled (e.g. right after `mix deps.get` in CI).
 

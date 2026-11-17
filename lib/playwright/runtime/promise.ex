@@ -436,6 +436,10 @@ defmodule Playwright.Runtime.Promise do
 
       {:DOWN, mon, :process, _, reason} when is_map_key(mons, mon) ->
         receive_loop(feed(armed, mons[mon], {:down, reason}))
+
+      # Elixir only: the test's timeout interrupts its await (`Playwright.Test.Recorder`).
+      {:pw_interrupt, error} ->
+        {{:error, error}, {:done, {:error, error}, leaves(armed)}}
     end
   end
 
