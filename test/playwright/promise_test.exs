@@ -69,11 +69,8 @@ defmodule Playwright.PromiseTest do
 
     test "race/1 settles as the first to settle, fulfilled or rejected; the losers run on", %{page: page} do
       slow = later(page, "slow")
-      race = Promise.race([slow, later(page, "fast", 0)])
-      # Awaited once both settled: still the first in time.
+      assert Promise.await!(Promise.race([slow, later(page, "fast", 0)])) == "fast"
       assert Promise.await!(slow) == "slow"
-      assert Promise.await!(race) == "fast"
-      assert Promise.await!(race) == "fast"
 
       slow = later(page, "slow")
       assert {:error, %{message: message}} = Promise.await(Promise.race([slow, fail(page, "boom")]))
@@ -121,18 +118,21 @@ defmodule Playwright.PromiseTest do
       assert {:error, %Playwright.AggregateError{errors: []}} = Promise.await(Promise.any([]))
     end
 
-    test "free/1 drops the combined promise, not its inputs", %{page: page} do
-      slow = later(page, "slow")
-      assert Promise.free(Promise.all([slow])) == :ok
-      assert Promise.await!(slow) == "slow"
+    test "any/1: an AggregateError of other errors (bugs) raises", %{page: page} do
+      any = Promise.any([fail(page, "boom"), Promise.async(fn -> raise ArgumentError, "bug" end)])
+      assert_raise Playwright.AggregateError, fn -> Promise.await(any) end
     end
 
-    test "inputs must be promises" do
-      assert_raise ArgumentError, ~r"Playwright.Promise.all/1 expects a list of Playwright.Promise", fn ->
-        Promise.all([1])
-      end
+    test "plain values are resolved; local promises of the runtime are inputs too", %{page: page} do
+      assert Promise.await!(Promise.all([1, later(page, "slow"), nil])) == [1, "slow", nil]
+      local = Playwright.Runtime.Promise.async(fn -> Page.evaluate!(page, "() => 2") end)
+      assert Promise.await!(Promise.race([local, never(page)])) == 2
+    end
 
-      assert_raise ArgumentError, ~r"race/1", fn -> Promise.race([Promise.async(fn -> 1 end), nil]) end
+    test "the argument must be a list" do
+      assert_raise ArgumentError, "Playwright.Promise.race/1 expects a list, got: nil", fn ->
+        Promise.race(Enum.random([nil]))
+      end
     end
   end
 end

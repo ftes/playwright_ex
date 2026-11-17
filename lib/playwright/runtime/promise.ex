@@ -18,9 +18,7 @@ defmodule Playwright.Runtime.Promise do
 
   `then_/2` and `catch_/2` are lazy: they run in the awaiting process when the result arrives.
   `race/1`, `all/1` and `any/1` arm their promises when awaited, then receive selectively: a
-  losing local promise stays pending (its message may come later), losing latches are disarmed.
-  `eager/1` arms one at once and keeps its result in a latch, as JS's combinators subscribe when
-  called. `void/1` runs a
+  losing local promise stays pending (its message may come later), losing latches are disarmed. `void/1` runs a
   function for its effects (`promise.catch(() => {})`).
 
   `await/1` first yields (`Playwright.Runtime.Invocation.yield/0`), as JS `await` returns
@@ -178,31 +176,6 @@ defmodule Playwright.Runtime.Promise do
 
   @doc "`Promise.any(promises)`: rejects with a `Playwright.AggregateError` once all have rejected."
   def any(promises), do: %__MODULE__{kind: :any, promises: promises}
-
-  @doc """
-  Elixir only: `composite` (`race/1`, `all/1`, `any/1` of latches) armed now, as JS's
-  combinators subscribe when called, and settled once: a latch owned by the caller process (as
-  `async(fun, shared: true)`), with the result of the first input to settle in time, the same
-  for every awaiter. A process waits for the inputs; the losers keep running.
-  """
-  def eager(composite)
-
-  # Never settles, as in JS, with no process waiting.
-  def eager(%__MODULE__{kind: :race, promises: []}), do: new(ProcessOwner.owner(self()))
-
-  def eager(%__MODULE__{kind: kind} = composite) when kind in [:race, :all, :any] do
-    async(
-      fn ->
-        armed = arm(composite)
-        # The caller continues once the inputs are armed.
-        Invocation.yield()
-        {result, armed} = receive_loop(armed)
-        finish(armed)
-        unwrap(result)
-      end,
-      shared: true
-    )
-  end
 
   ## Async functions
 

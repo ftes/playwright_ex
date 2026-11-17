@@ -31,8 +31,6 @@ defmodule Playwright.Runtime.Facade do
     Playwright.TargetClosedError,
     Playwright.AbortError,
     Playwright.ExpectError,
-    # `Promise.any`'s, when all of its promises reject.
-    Playwright.AggregateError,
     # JS `new Error(message)` and the protocol's `ValidationError`, thrown by the client.
     RuntimeError,
     Playwright.Protocol.ValidatorPrimitives.ValidationError,
@@ -45,6 +43,7 @@ defmodule Playwright.Runtime.Facade do
   Whether `e` is an error a call fails with (`t:Playwright.error/0`). Anything else is a bug
   or a misuse and raises from the tuple forms too.
   """
+  def error?(%Playwright.AggregateError{errors: errors}), do: Enum.all?(errors, &error?/1)
   def error?(%module{}) when module in @errors, do: true
   def error?(_e), do: false
 

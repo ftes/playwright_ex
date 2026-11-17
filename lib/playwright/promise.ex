@@ -23,7 +23,9 @@ defmodule Playwright.Promise do
 
   `async/1` starts any calls this way, as JS's `const p = locator.evaluate(...)` (see the
   [Concurrency](concurrency.md) guide). `all/1`, `race/1` and `any/1` combine promises, as JS's
-  `Promise.all`, `Promise.race` and `Promise.any`.
+  `Promise.all`, `Promise.race` and `Promise.any`. Unlike JS's, they compare their inputs when
+  you await them: inputs already settled by then go in list order, so a later await may pick
+  another winner. Awaited right away, they behave as in JS.
   """
 
   @typedoc "A promise handle."
@@ -69,7 +71,8 @@ defmodule Playwright.Promise do
 
   @doc """
   `Promise.all(promises)`: the values in input order, or the first rejection, without waiting
-  for the rest. `all([])` resolves to `[]`.
+  for the rest. `all([])` resolves to `[]`. A plain value is taken as resolved
+  (`Promise.resolve(value)`).
 
       # JS: const [response] = await Promise.all([page.waitForResponse('**/api'), page.click('button')])
       [response, _] =
@@ -79,11 +82,10 @@ defmodule Playwright.Promise do
         ])
         |> Promise.await!()
 
-  As in JS, the combined promise subscribes at once and settles once: every awaiter gets the
-  same result. The inputs run on whatever the outcome, and stay awaitable. It is a promise of
-  the calling process, as `async/1`'s; `free/1` drops it, not its inputs.
+  The inputs run on whatever the outcome, and stay awaitable. The combined promise holds
+  nothing of its own: free its inputs, not it.
   """
-  @spec all([t()]) :: t()
+  @spec all([t() | term()]) :: t()
   def all(promises), do: combine(promises, &Playwright.Runtime.Promise.all/1, "all")
 
   @doc """
@@ -94,7 +96,7 @@ defmodule Playwright.Promise do
       Promise.race([Page.wait_for_event(page, :popup), Page.wait_for_event(page, :download)])
       |> Promise.await!()
   """
-  @spec race([t()]) :: t()
+  @spec race([t() | term()]) :: t()
   def race(promises), do: combine(promises, &Playwright.Runtime.Promise.race/1, "race")
 
   @doc """
@@ -109,17 +111,20 @@ defmodule Playwright.Promise do
       ])
       |> Promise.await!()
   """
-  @spec any([t()]) :: t()
+  @spec any([t() | term()]) :: t()
   def any(promises), do: combine(promises, &Playwright.Runtime.Promise.any/1, "any")
 
-  defp combine(promises, combinator, name) do
-    if !(is_list(promises) and Enum.all?(promises, &is_struct(&1, Playwright.Runtime.Promise))) do
-      raise ArgumentError,
-            "Playwright.Promise.#{name}/1 expects a list of Playwright.Promise, got: #{inspect(promises)}"
-    end
-
-    Playwright.Runtime.Promise.eager(combinator.(promises))
+  defp combine(promises, combinator, _name) when is_list(promises) do
+    combinator.(
+      Enum.map(promises, fn
+        %Playwright.Runtime.Promise{} = promise -> promise
+        value -> Playwright.Runtime.Promise.resolved(value)
+      end)
+    )
   end
+
+  defp combine(promises, _combinator, name),
+    do: raise(ArgumentError, "Playwright.Promise.#{name}/1 expects a list, got: #{inspect(promises)}")
 
   @doc """
   Elixir only: drops a promise nobody will await, such as a wait started before checking state
