@@ -19,8 +19,8 @@
 #   * `soft` - soft matchers (`Expect.soft/1`): failing ones, then the rest of the body, then a
 #     hard failure; and a passing one.
 #   * `timeouts` - tests past their timeout: one in a Playwright call, one in `Process.sleep`, one
-#     in a Playwright call after a slow `setup` before `use Playwright.Test`, and one whose dialog
-#     listener fails before it would hang.
+#     in a Playwright call after a slow `setup` before `use Playwright.Test`, and two whose
+#     listener (`:dialog`, `:console`) fails before they would hang.
 #   * `trace` - `trace: true` (`mix test --trace`): a test past its `timeout` tag passes.
 #   * `rerun` - one failing and one passing test (writing a file of its own), `preserve_output:
 #     :failures_only`; with a further `failed` argument, only the failing one, as `mix test
@@ -346,6 +346,16 @@ case mode do
         end)
 
         Page.evaluate!(page, "() => alert('actual')")
+      end
+
+      # Its failure's artifacts, as any failure's (the open dialog above blocks the screenshot and
+      # the snapshot past the budget, as upstream it blocks them for their 5 s).
+      @tag timeout: 3000
+      test "fails in a console listener, then sleeps", %{page: page} do
+        Page.on(page, :console, fn message -> assert Playwright.ConsoleMessage.text(message) == "expected" end)
+        Page.set_content!(page, "<h1>Logs</h1>")
+        Page.evaluate!(page, "() => console.log('actual')")
+        Process.sleep(:infinity)
       end
     end
 

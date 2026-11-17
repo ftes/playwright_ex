@@ -286,7 +286,7 @@ defmodule Playwright.Test.EndToEndTest do
     child = start("timeouts", tmp_dir)
     assert ChildProcess.exit_code(child, 60_000) == 0
     output = ChildProcess.output(child)
-    assert output =~ ~r"4 tests, 4 failures|Result: 0/4 passed"
+    assert output =~ ~r"5 tests, 5 failures|Result: 0/5 passed"
 
     hangs = failure(output, "test hangs in a Playwright call (TimeoutsTest)")
     assert hangs =~ "Test timeout of 3000ms exceeded."
@@ -318,10 +318,21 @@ defmodule Playwright.Test.EndToEndTest do
     refute listener =~ "TimeoutError"
     refute listener =~ "Test timeout"
 
-    [dir] = output_dir |> File.ls!() |> Enum.filter(&(&1 =~ "fails-in-a-dialog-listener"))
+    # Its failure's artifacts, the error once.
+    console = failure(output, "test fails in a console listener, then sleeps (TimeoutsTest)")
+    assert console =~ ~S|code:  assert Playwright.ConsoleMessage.text(message) == "expected"|
+    refute console =~ "TimeoutError"
+    [dir] = output_dir |> File.ls!() |> Enum.filter(&(&1 =~ "listener-then-sleeps"))
+    files = File.ls!(Path.join(output_dir, dir))
+    assert "trace.zip" in files
+    assert "test-failed-1.png" in files
     error_context = File.read!(Path.join([output_dir, dir, "error-context.md"]))
-    # Once: the interrupt's exit is the recorded error.
     assert length(String.split(error_context, "Assertion with == failed")) == 2
+    assert error_context =~ ~s(heading "Logs")
+    {:ok, zip} = :zip.unzip(String.to_charlist(Path.join([output_dir, dir, "trace.zip"])), [:memory])
+    {_, trace} = List.keyfind(zip, ~c"test.trace", 0)
+    assert trace =~ ~s("type":"error")
+    assert trace =~ "Assertion with == failed"
   end
 
   test "--trace: no test timeout, so no timer", %{tmp_dir: tmp_dir} do

@@ -115,9 +115,11 @@ defmodule Playwright.Runtime.FacadeTest do
                  ~r/^expect\.toBeVisible: unknown option :message, expected one of .*\. A matcher's custom message goes with Playwright\.Expect\.message\/2 \(JS expect\(actual, message\)\), for Expect\.to_be_visible!\/2: x \|> Expect\.message\("\.\.\."\) \|> Expect\.to_be_visible!\(\.\.\.\)$/,
                  fn -> Playwright.Expect.to_be_visible!(locator, message: "visible") end
 
-    assert_raise ArgumentError, ~r/for Expect\.to_have_text\/3: x \|> Expect\.message\("\.\.\."\) \|> Expect\.to_have_text\(\.\.\.\)$/, fn ->
-      Playwright.Expect.to_have_text(locator, "Hi", message: "text")
-    end
+    assert_raise ArgumentError,
+                 ~r/for Expect\.to_have_text\/3: x \|> Expect\.message\("\.\.\."\) \|> Expect\.to_have_text\(\.\.\.\)$/,
+                 fn ->
+                   Playwright.Expect.to_have_text(locator, "Hi", message: "text")
+                 end
 
     # Elsewhere, no hint.
     assert_raise ArgumentError, ~r/^x\.y: unknown option :message, expected one of [^.]*$/, fn ->

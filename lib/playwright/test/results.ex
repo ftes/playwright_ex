@@ -247,7 +247,9 @@ defmodule Playwright.Test.Results do
     # died.
     {verdict, failures} =
       case {TestInfo.ended(pid), verdict(test, pid, reason)} do
-        {[], result} -> result
+        {[], result} ->
+          result
+
         {errors, {_verdict, failures}} ->
           errors = Enum.map(errors, &normalize/1)
           {:failed, errors ++ Enum.reject(failures, &interrupted_by?(&1, errors))}
@@ -271,7 +273,8 @@ defmodule Playwright.Test.Results do
 
   # The exit of an unhandled error's interrupt (`TestInfo._unhandled_error/2`): that error, once.
   defp interrupted_by?({{:EXIT, _pid}, reason, []}, errors),
-    do: Enum.any?(errors, fn {kind, error, stacktrace} -> TestInfo.interrupt_reason(kind, error, stacktrace) == reason end)
+    do:
+      Enum.any?(errors, fn {kind, error, stacktrace} -> TestInfo.interrupt_reason(kind, error, stacktrace) == reason end)
 
   defp interrupted_by?(_failure, _errors), do: false
 
