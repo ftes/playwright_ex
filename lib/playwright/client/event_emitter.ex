@@ -37,8 +37,9 @@ defmodule Playwright.Client.EventEmitter do
 
   Deviations: an async user listener queues later events of its subscription behind it; JS
   interleaves them. A listener that raises is caught alone: the later listeners still run, and
-  the error goes to `_rejectionHandler`, else to the `error` listeners, else the log (JS: a
-  synchronous throw skips `_rejectionHandler`, and without `error` listeners leaves `emit`). `removeAllListeners(type, %{behavior: "wait"})`
+  the error goes to `_rejectionHandler`, else to the `error` listeners, else it fails the running
+  test (`Playwright.Runtime.Callers.unhandled/4`), else the log (JS: a synchronous throw skips
+  `_rejectionHandler`, and without `error` listeners leaves `emit`), in a test or not. `removeAllListeners(type, %{behavior: "wait"})`
   also waits for invocations that start after the call (JS: a snapshot of `_pendingHandlers`).
   """
   import Playwright.Runtime.Heap

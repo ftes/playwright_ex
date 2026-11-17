@@ -632,24 +632,24 @@ defmodule Playwright.Test.TestInfo do
   with the error, which ExUnit reports as the test's failure (`Playwright.Test.Results` keeps it
   once). A test that traps exits gets it as a message. Later ones are dropped, as upstream.
 
-  Elixir only: from the test's own process (a listener of an emitter it emits on, run in place),
-  the error is raised there, as upstream's sync listener's error is thrown to `emit`'s caller.
-  Once the test ended, it is printed (`_fail_with_error/2`).
+  Elixir only: from the test's own process (a listener of a local emitter it emits on, run in
+  place and caught alone, see `Playwright.Client.EventEmitter`), the first one is recorded and
+  the test fails with it at the end of its body: the process can't interrupt itself without
+  leaving `emit`. Once the test ended, it is printed (`_fail_with_error/2`).
   """
   def _unhandled_error(this, {kind, reason, stacktrace} = error) do
     cond do
       not running?(this) ->
         _fail_with_error(this, error)
 
-      this.test_pid == self() ->
-        :erlang.raise(kind, reason, stacktrace)
-
-      first_unhandled_error?(this) ->
-        _fail_with_error(this, error)
-        Process.exit(this.test_pid, interrupt_reason(kind, reason, stacktrace))
+      not first_unhandled_error?(this) ->
+        :ok
 
       true ->
-        :ok
+        _fail_with_error(this, error)
+
+        if this.test_pid != self(),
+          do: Process.exit(this.test_pid, interrupt_reason(kind, reason, stacktrace))
     end
 
     :ok

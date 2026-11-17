@@ -234,12 +234,16 @@ defmodule Playwright.Test.CallersTest do
     assert_receive {:EXIT, _, {:exit_in_callback, :normal}}
   end
 
-  # As upstream's sync listener's error is thrown to `emit`'s caller.
-  test "a listener run in the test's own process raises there" do
+  # Caught alone, in a test or not (`Playwright.Client.EventEmitter`): the later listeners run,
+  # and the test fails with it at the end of its body.
+  test "a local emitter's listener run in the test's own process: recorded, the later ones run" do
+    test_pid = self()
     emitter = Playwright.Client.EventEmitter.new()
     Playwright.Client.EventEmitter.on(emitter, "x", fn _ -> raise "local boom" end)
-    assert_raise RuntimeError, "local boom", fn -> Playwright.Client.EventEmitter.emit(emitter, "x") end
-    assert TestInfo.take_errors(self()) == []
+    Playwright.Client.EventEmitter.on(emitter, "x", fn _ -> send(test_pid, :second) end)
+    assert Playwright.Client.EventEmitter.emit(emitter, "x") == true
+    assert_received :second
+    assert [{:error, %RuntimeError{message: "local boom"}, _}] = TestInfo.take_errors(self())
   end
 
   test "registered outside a test: nothing found, the error is logged", %{page: page} do
