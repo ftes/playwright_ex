@@ -169,21 +169,23 @@ defmodule Playwright.Test do
   module). It is called once per test, at its registration, with the context as it is then: the
   tags, the `parameterize:` values (upstream's projects: `%{device: d}` from your own
   parameters), the values of the module's `setup_all` callbacks and of the `setup` callbacks
-  before the registration (none with `Playwright.Case`, whose registration comes first). No key
-  of the context is read otherwise; an undefined function, or a result with an invalid option,
-  raises there, naming the function. The contexts of `setup_all` get the module's options, but
-  not a function's: it is of a test, and runs before most of what it reads exists (`use
-  Playwright.Test`'s `setup_all` comes first, before the `browser`); pass the options to the call
-  there. A module's `use`s apply in order, each over those before it per key, options and a
-  function's result alike, as upstream's `test.use` calls (each option its own fixture).
+  before the registration (none with `Playwright.Case`, whose registration comes first). It is
+  also called once for the module's `setup_all` (its contexts get the options too, as upstream's
+  `beforeAll`), with the `setup_all` context: the tags and the `parameterize:` values, but no
+  `setup_all` values yet, as `use Playwright.Test`'s `setup_all` comes first (so no `browser`:
+  call `Playwright.Test.BrowserPool.browser/1`, which returns the module's in both). No key of
+  the context is read otherwise; an undefined function, or a result with an invalid option,
+  raises there, naming the function. A module's `use`s apply in order, each over those before
+  it per key, options and a function's result alike, as upstream's `test.use` calls (each option
+  its own fixture).
 
   ## Contexts of `setup_all`
 
   `use Playwright.Test` adds a `setup_all` (where the `use` is, so before the module's own) that
   registers the module's `setup_all` process: every context and request context it creates, or
   a process with it in `$callers` creates, gets the context defaults, the config's
-  `context_options` (so `base_url`) and the module's (not a function's, see "Context
-  defaults"), merged as a test's, and the config's timeouts (see
+  `context_options` (so `base_url`) and the module's (see "Context defaults"), merged as a
+  test's, and the config's timeouts (see
   "Timeouts"): a context's `action_timeout` and `navigation_timeout`, a request context's
   `timeout:` the `action_timeout` (`0`, no limit, for `:infinity`) and no navigation timeout. Not
   the video, as upstream's comes with the `context` fixture.
@@ -412,7 +414,9 @@ defmodule Playwright.Test do
     end
   end
 
-  defp merge_use(:context_options, past, options), do: Options.merge_context_options(past, options)
+  # Context options apply in `use` order, each over those before it per key, as upstream's
+  # `test.use` calls (each option its own fixture).
+  defp merge_use(:context_options, past, options), do: past ++ options
 
   defp merge_use(_key, _past, options), do: options
 
@@ -614,8 +618,9 @@ defmodule Playwright.Test do
           "`setup_all` after the module's `use Playwright.Test`"
       )
 
-      # A function of the `use` option `context_options` is of a test's context: not applied here.
-      module_options = Options.use_context_options(use_options(context[:module]), nil)
+      # Upstream's `beforeAll` gets the file's `test.use` and the project's options: a function
+      # gets the `setup_all` context (its tags and `parameterize:` values).
+      module_options = Options.use_context_options(use_options(context[:module]), context)
       Results.register_module(self(), context_defaults(Options.config(), module_options))
     end
 

@@ -66,8 +66,8 @@ defmodule Playwright.Test.ContextOptionsTest do
     # The function after the options, and before them.
     assert resolve(__MODULE__.FunctionLast) == %{colorScheme: "dark", locale: "it-IT"}
     assert resolve(__MODULE__.FunctionFirst) == %{colorScheme: "dark", locale: "de-DE"}
-    # In `setup_all`, the options only.
-    assert resolve(__MODULE__.FunctionLast, nil) == %{colorScheme: "dark", locale: "de-DE"}
+    # The last of duplicated keys wins, a nil too.
+    assert resolve(__MODULE__.Duplicated) == %{locale: "fr-FR"}
   end
 
   test "a nil option resets it past the earlier uses, to the config's or the default" do
@@ -96,9 +96,11 @@ defmodule Playwright.Test.ContextOptionsTest do
     assert Options.use_context_options(%{context_options: [{__MODULE__, :options}]}, %{lang: "fr-FR"}) ==
              %{locale: "fr-FR"}
 
-    assert_raise ArgumentError, ~r/context_options: Playwright.Test.ContextOptionsTest.invalid\/1 returned :dark/, fn ->
-      Options.use_context_options(%{context_options: [&__MODULE__.invalid/1]}, %{})
-    end
+    assert_raise ArgumentError,
+                 ~r/context_options: Playwright.Test.ContextOptionsTest.invalid\/1 returned an invalid option: .*:dark/,
+                 fn ->
+                   Options.use_context_options(%{context_options: [&__MODULE__.invalid/1]}, %{})
+                 end
 
     assert_raise ArgumentError,
                  ~r/context_options: Playwright.Test.ContextOptionsTest.unknown\/1 returned an invalid option: .*lokale/,
@@ -107,14 +109,13 @@ defmodule Playwright.Test.ContextOptionsTest do
     assert_raise ArgumentError,
                  ~r/context_options: \{Playwright.Test.ContextOptionsTest, :missing\} is undefined \(no Playwright.Test.ContextOptionsTest.missing\/1\)/,
                  fn -> Options.use_context_options(%{context_options: [{__MODULE__, :missing}]}, %{}) end
-
-    assert Options.use_context_options(%{context_options: [{__MODULE__, :options}]}, nil) == %{}
   end
 end
 
 defmodule Playwright.Test.ContextOptionsTest.FunctionTest do
-  # A function of the test's context (`&Mod.fun/1`): its `parameterize:` values (upstream's
-  # projects) and `setup_all` values. Not applied in `setup_all`, which has no test.
+  # A function of the ExUnit context (`&Mod.fun/1`): its `parameterize:` values (upstream's
+  # projects) and, in a test, the `setup_all` values. Called for `setup_all` too, with its
+  # context, before the module's `setup_all` values: as upstream's `beforeAll` gets them.
   use Playwright.Case,
     async: true,
     parameterize: [%{lang: "de-DE"}, %{lang: "fr-FR"}],
@@ -127,8 +128,9 @@ defmodule Playwright.Test.ContextOptionsTest.FunctionTest do
   alias Playwright.APIResponse
   alias Playwright.TestServer
 
-  # A `setup_all` context would raise here: no `test`.
-  def context_options(%{test: _, lang: lang, server: server}), do: [locale: lang, base_url: server.prefix]
+  # No `server` yet for `setup_all`'s.
+  def context_options(%{lang: lang} = context),
+    do: [locale: lang, base_url: if(server = context[:server], do: server.prefix)]
 
   setup_all %{browser: browser} do
     server = TestServer.server(start_supervised!({TestServer, dir_path: System.tmp_dir!()}))
@@ -156,8 +158,8 @@ defmodule Playwright.Test.ContextOptionsTest.FunctionTest do
     assert language(page) == "it-IT"
   end
 
-  test "a context of setup_all gets no function's options", %{setup_all_page: page} do
-    assert language(page) == "en-US"
+  test "a context of setup_all gets the function's options for its context", %{setup_all_page: page, lang: lang} do
+    assert language(page) == lang
   end
 end
 
@@ -237,4 +239,9 @@ defmodule Playwright.Test.ContextOptionsTest.NilFunction do
   use ExUnit.Case, async: true
   use Playwright.Test, context_options: [locale: "fr-FR", color_scheme: :dark]
   use Playwright.Test, context_options: &Playwright.Test.ContextOptionsTest.maybe_reset/1
+end
+
+defmodule Playwright.Test.ContextOptionsTest.Duplicated do
+  use ExUnit.Case, async: true
+  use Playwright.Test, context_options: [locale: nil, locale: "fr-FR"]
 end

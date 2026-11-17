@@ -82,8 +82,8 @@ Playwright Test's defaults (`locale: "en-US"`, a 1280x720 viewport, `color_schem
 then the config's `context_options`, then the module's (`use Playwright.Case, context_options:
 [locale: "de-DE"]`, Playwright Test's `test.use({ locale: 'de-DE' })`); the options the call
 gives win, each per key. So does every context the module's `setup_all` creates, as Playwright
-Test's `beforeAll` gets the `use` options: `goto("/")` works there with `base_url`. Only the
-module's static options apply there, not a function's (see "Devices"), which is of a test. A
+Test's `beforeAll` gets the `use` options: `goto("/")` works there with `base_url`. The module's
+function (see "Devices") is called there too, with the `setup_all` context. A
 process the test or `setup_all` starts counts only
 with `$callers`: a `Task`, and route handlers and listeners registered there, have them (see
 [Route handlers and listeners](#route-handlers-and-listeners)); a `spawn`, a `GenServer` or
@@ -137,7 +137,8 @@ defmodule MyApp.BrowserCase do
 end
 ```
 
-To change a piece, say context options from your own tags, write the template from the pieces.
+To change a piece, say another browser, write the template from the pieces (context options
+from your own tags or parameters are `context_options: &Mod.fun/1`, see "Devices").
 Its own `setup` runs before those of its `using`, so make `use Playwright.Test` the first line
 of its body: the test is then registered before the template's `setup` creates a context (a
 context created before the registration makes it raise, saying so):
@@ -349,15 +350,16 @@ The device's options are the call's, so they win over Playwright Test's defaults
 over the 1280x720 one), and `default_browser_type` (`"webkit"`) says which browser to pass.
 
 For every test of a module, as a file's `test.use`, give `use Playwright.Case` a function of the
-test's context that returns them. It runs at each test's registration, after `setup_all`, so it
-gets the module's `browser`. The options are kept at compile time, so the function is an
-external capture (`&Mod.fun/1`) or `{Mod, :fun}`, not an anonymous one:
+test's context that returns them. It runs at each test's registration, and once for the module's
+`setup_all` (its contexts get them too), before the module's `browser` is in the context:
+`BrowserPool.browser()` returns the module's in both. The options are kept at compile time, so
+the function is an external capture (`&Mod.fun/1`) or `{Mod, :fun}`, not an anonymous one:
 
 ```elixir
 defmodule MyApp.PhoneTest do
   use Playwright.Case, async: true, context_options: &__MODULE__.iphone/1
 
-  def iphone(%{browser: browser}), do: Playwright.devices(BrowserPool.playwright(browser))["iPhone 13"]
+  def iphone(_context), do: Playwright.devices(BrowserPool.playwright(BrowserPool.browser()))["iPhone 13"]
 
   test "on a phone", %{page: page} do
     # ...
@@ -413,8 +415,8 @@ end
 A test sees its project as `browser_name` in the context. On one browser, projects that only
 differ in their context options are `use Playwright.Case` with `parameterize:` and a function
 that maps your own parameter to them: `parameterize: [%{device: "Pixel 7"}, %{device: "iPhone
-13"}], context_options: &__MODULE__.device/1`, with `def device(%{browser: browser, device:
-name})` as `iphone/1` above. Nothing reads a parameter on its own. ExUnit's filters don't see
+13"}], context_options: &__MODULE__.device/1`, with `def device(%{device: name})` as `iphone/1`
+above. Nothing reads a parameter on its own. ExUnit's filters don't see
 `parameterize:` values, so to run one project, have `projects/0` read an env var
 (`BROWSERS=chromium mix test`).
 
@@ -907,7 +909,7 @@ Most of a spec ports call for call. What differs (and see [Not supported](#not-s
   and the module's options, and is recorded.
 - A spec that shares one page from `beforeAll` would still pay for `Playwright.Case`'s context
   and page in each test (about 40 ms on Chromium, 120 ms on Firefox): write the few lines
-  instead. The `setup_all` context gets the defaults, the config's and the module's static
+  instead. The `setup_all` context gets the defaults, the config's and the module's
   `context_options` and the timeouts, but no test records it (see "Not ported yet"):
 
   ```elixir

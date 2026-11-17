@@ -733,15 +733,15 @@ defmodule Playwright.Guides.TestingWithExUnit.PhoneTest do
   # "Devices": the module's context options of a function. Deviation: the browser is `BROWSER`'s.
   use Playwright.Case, async: true, context_options: &__MODULE__.iphone/1
 
-  def iphone(%{browser: browser}), do: Playwright.devices(BrowserPool.playwright(browser))["iPhone 13"]
+  def iphone(_context), do: Playwright.devices(BrowserPool.playwright(BrowserPool.browser()))["iPhone 13"]
 
   test "on a phone", %{page: page, browser: browser} do
     assert Page.viewport_size(page) == %{width: 390, height: 664}
-    assert Page.evaluate!(page, "navigator.userAgent") == iphone(%{browser: browser}).user_agent
+    assert Page.evaluate!(page, "navigator.userAgent") == iphone(%{}).user_agent
 
     page = BrowserContext.new_page!(Browser.new_context!(browser, viewport: %{width: 800, height: 600}))
     assert Page.viewport_size(page) == %{width: 800, height: 600}
-    assert Page.evaluate!(page, "navigator.userAgent") == iphone(%{browser: browser}).user_agent
+    assert Page.evaluate!(page, "navigator.userAgent") == iphone(%{}).user_agent
   end
 end
 
