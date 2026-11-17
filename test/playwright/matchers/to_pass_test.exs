@@ -7,6 +7,7 @@ defmodule Playwright.Matchers.ToPassTest do
 
   alias Playwright.Expect
   alias Playwright.ExpectError
+  alias Playwright.Test
   alias Playwright.Test.TestInfo
 
   # A counter of the calls, `n` from 0.
@@ -29,11 +30,30 @@ defmodule Playwright.Matchers.ToPassTest do
       next = counter()
       test_pid = self()
 
-      assert :ok =
+      assert 2 =
                Expect.to_pass!(fn ->
                  assert self() == test_pid
-                 assert next.() >= 2
+                 n = next.()
+                 assert n >= 2
+                 n
                end)
+    end
+
+    # Elixir only: a JS callback assigns its value to an outer `let`.
+    test "returns the value of the attempt that passed, the tuple form {:ok, value}" do
+      next = counter()
+      assert 1 = Expect.to_pass!(fn -> tap(next.(), &assert(&1 == 1)) end)
+
+      next = counter()
+      assert {:ok, %{attempt: 2}} = Expect.to_pass(fn -> %{attempt: tap(next.(), &assert(&1 >= 2))} end)
+      assert {:ok, nil} = Expect.to_pass(fn -> nil end)
+    end
+
+    test "returns the value through a step, a message and a soft receiver" do
+      assert :in_step = Test.step("outer", fn -> Expect.to_pass!(fn -> :in_step end) end)
+      assert :step_in_callback = Expect.to_pass!(fn -> Test.step("inner", fn -> :step_in_callback end) end)
+      assert :messaged = fn -> :messaged end |> Expect.message("with a message") |> Expect.to_pass!()
+      assert {:ok, :soft} = fn -> :soft end |> Expect.soft() |> Expect.to_pass()
     end
 
     test "waits the intervals between tries, the last one repeated" do
@@ -106,22 +126,31 @@ defmodule Playwright.Matchers.ToPassTest do
       next = counter()
       assert :ok = Expect.not_to_pass!(fn -> if next.() >= 1, do: raise("now") end)
       assert :ok = fn -> raise "at once" end |> Expect.not_() |> Expect.to_pass!()
+      assert :ok = Expect.not_to_pass(fn -> raise "at once" end)
 
       assert {:error, %ExpectError{message: "Timeout 100ms exceeded while waiting on the predicate"}} =
                Expect.not_to_pass(fn -> :ok end, timeout: 100)
     end
 
-    test "soft: the test fails at its end, the body continues" do
-      assert :ok = fn -> raise "soft" end |> Expect.soft() |> Expect.to_pass!(timeout: 100)
+    test "soft: the test fails at its end, the body continues with nil" do
+      assert nil == fn -> raise "soft" end |> Expect.soft() |> Expect.to_pass!(timeout: 100)
+      assert {:ok, nil} = fn -> raise "soft" end |> Expect.soft() |> Expect.to_pass(timeout: 100)
 
-      assert [{:error, %ExpectError{message: "soft\n\nCall Log:\n" <> _}, _}] = TestInfo.take_errors(self())
+      assert [
+               {:error, %ExpectError{message: "soft\n\nCall Log:\n" <> _}, _},
+               {:error, %ExpectError{message: "soft" <> _}, _}
+             ] =
+               TestInfo.take_errors(self())
+
+      assert :ok = fn -> :ok end |> Expect.soft() |> Expect.not_() |> Expect.to_pass!(timeout: 100)
+      assert [{:error, %ExpectError{message: "Timeout 100ms" <> _}, _}] = TestInfo.take_errors(self())
     end
 
     test "outside a test: no deadline without a timeout, a soft one fails at once" do
       outside(fn ->
         assert TestInfo.current() == nil
         next = counter()
-        assert :ok = Expect.to_pass!(fn -> assert next.() >= 1 end)
+        assert true = Expect.to_pass!(fn -> assert next.() >= 1 end)
 
         assert_raise ExpectError, ~r/^outside/, fn ->
           fn -> raise "outside" end |> Expect.soft() |> Expect.to_pass!(timeout: 100)

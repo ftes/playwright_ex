@@ -472,21 +472,30 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
         "\n\n"
       )
 
+    # A matcher with a value (`toPass`, Elixir only: its passing attempt's) returns it, but not
+    # for a negated receiver (`Facade.matcher_value/3`).
+    {runner, runner_args, return} =
+      if get_in(member, ["type", "name"]) == "void",
+        do: {"matcher", receiver, ":ok"},
+        else: {"matcher_value", "#{receiver}, info", return_spec(ctx, member)}
+
+    tuple_return = if return == ":ok", do: ":ok", else: ":ok | {:ok, #{return}}"
+
     """
     #{attributes}
 
     #{deprecated(ctx, member)}@doc #{doc(member_doc(ctx, member, member["args"]))}
-    #{spec(name, m, ":ok | {:error, Playwright.error()}")}
+    #{spec(name, m, "#{tuple_return} | {:error, Playwright.error()}")}
     #{clauses(m, name)}def #{head(name, params, m.or_options)} do
       #{conversions}
-      Facade.matcher(#{receiver}, fn -> #{call} end)
+      Facade.#{runner}(#{runner_args}, fn -> #{call} end)
     end
 
     #{deprecated(ctx, member)}@doc "Like `#{name}/#{length(params)}`, but raises `Playwright.ExpectError` when the expectation is not met."
-    #{spec(name <> "!", m, ":ok")}
+    #{spec(name <> "!", m, return)}
     #{clauses(m, name <> "!")}def #{head(name <> "!", params, m.or_options)} do
       #{conversions}
-      Facade.matcher!(#{receiver}, fn -> #{call} end)
+      Facade.#{runner}!(#{runner_args}, fn -> #{call} end)
     end
     """
   end

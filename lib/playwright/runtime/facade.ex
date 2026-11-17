@@ -163,6 +163,18 @@ defmodule Playwright.Runtime.Facade do
   def matcher!(receiver, fun), do: async_void!(nil, receiver, fun)
 
   @doc """
+  Like `matcher/2`, for a matcher with a value (`Playwright.Expect.to_pass/2`, the passing
+  attempt's): `{:ok, value}`, or `{:error, exception}`. A negated one (`info` of
+  `matcher_info/3`) has none: `matcher/2`.
+  """
+  def matcher_value(receiver, %{isNot: true}, fun), do: matcher(receiver, fun)
+  def matcher_value(receiver, _info, fun), do: async(nil, receiver, fun)
+
+  @doc "Like `matcher_value/3`, but returns the value and raises on error."
+  def matcher_value!(receiver, %{isNot: true}, fun), do: matcher!(receiver, fun)
+  def matcher_value!(receiver, _info, fun), do: async!(nil, receiver, fun)
+
+  @doc """
   Converts `options` (keyword list or map) of type `{:object, schema}` for the call `api_name`.
   A matcher passes its `function` (`__ENV__.function`), named in the hint of an unknown `:message`.
   """

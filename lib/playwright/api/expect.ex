@@ -5291,6 +5291,19 @@ defmodule Playwright.Expect do
 
   In Elixir, the callback runs in the calling process and passes once it returns. A failure in it (a raise such as an `ExUnit.AssertionError` or a `Playwright.ExpectError`, an exit) is retried; the last one is in the timeout's message. A callback still running at the deadline is not interrupted. A soft receiver (`callback |> Expect.soft() |> Expect.to_pass()`) works as for any matcher.
 
+  In Elixir, `to_pass!/2` returns the callback's value of the attempt that passed (`to_pass/2`: `{:ok, value}`), which a JS callback assigns to an outer `let` (an Elixir closure can't):
+
+  ```elixir
+  box =
+    Expect.to_pass!(fn ->
+      box = Locator.bounding_box!(locator)
+      assert box.width == 30
+      box
+    end)
+  ```
+
+  A soft one that fails returns `nil` (`{:ok, nil}`), a negated one (`Expect.not_/1`) `:ok`, as `not_to_pass/2`.
+
   *Since Playwright 1.29.*
 
   ## Options
@@ -5300,12 +5313,12 @@ defmodule Playwright.Expect do
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
-  @spec to_pass((-> term()) | t((-> term())), to_pass_options()) :: :ok | {:error, Playwright.error()}
+  @spec to_pass((-> term()) | t((-> term())), to_pass_options()) :: :ok | {:ok, term()} | {:error, Playwright.error()}
   def to_pass(callback, options \\ []) do
     {callback, info} = Facade.matcher_info(callback, false, "expect.toPass")
     options = Facade.options!(options, @to_pass_options, "expect.toPass", __ENV__.function)
 
-    Facade.matcher(callback, fn ->
+    Facade.matcher_value(callback, info, fn ->
       Playwright.Matchers.Expect.create_matcher("toPass", info, callback, &Playwright.Matchers.Matchers.to_pass/3).([
         options
       ])
@@ -5313,12 +5326,12 @@ defmodule Playwright.Expect do
   end
 
   @doc "Like `to_pass/2`, but raises `Playwright.ExpectError` when the expectation is not met."
-  @spec to_pass!((-> term()) | t((-> term())), to_pass_options()) :: :ok
+  @spec to_pass!((-> term()) | t((-> term())), to_pass_options()) :: term()
   def to_pass!(callback, options \\ []) do
     {callback, info} = Facade.matcher_info(callback, false, "expect.toPass")
     options = Facade.options!(options, @to_pass_options, "expect.toPass", __ENV__.function)
 
-    Facade.matcher!(callback, fn ->
+    Facade.matcher_value!(callback, info, fn ->
       Playwright.Matchers.Expect.create_matcher("toPass", info, callback, &Playwright.Matchers.Matchers.to_pass/3).([
         options
       ])

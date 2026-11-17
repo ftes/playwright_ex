@@ -46,6 +46,9 @@ Node 26.13.1. No API changes.
 
 ### Changed
 
+- **RC only:** `Expect.to_pass!/2` returns the callback's value from the attempt that passed,
+  which JS assigns to an outer `let`. **Breaking:** `Expect.to_pass/2` returns `{:ok, value}`,
+  not `:ok`.
 - A handle of the wrong class (a `Locator` passed to `Page.get_by_test_id/2`) fails in the facade
   function, whose clause matches its struct, not in `Playwright.Runtime.Heap.key/2`.
 - A string that is not UTF-8 (`Route.fulfill!(route, body: png)`) fails with a hint to pass bytes
@@ -61,8 +64,9 @@ Node 26.13.1. No API changes.
   listener) fails the test at once, with that error, as Playwright Test interrupts the test; later
   ones are dropped, as there. It used to be recorded only: the test ran on, often into ExUnit's
   timeout, and the error showed only in `error-context.md`.
-- `mix playwright.install` and `mix playwright.cli` failed with "module :public_key is not
-  available" when run before the project was compiled (e.g. right after `mix deps.get` in CI).
+- **RC only:** `mix playwright.install` and `mix playwright.cli` failed with "module :public_key
+  is not available" when run before the project was compiled (e.g. right after `mix deps.get` in
+  CI).
 
 ## [1.65.0-rc.1] 2026-11-16
 

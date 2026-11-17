@@ -11,8 +11,8 @@ defmodule Playwright.Matchers.Matchers do
   The public form is the generated `Playwright.Expect`.
 
   Deviations: `toPass` calls its callback in the calling process (see
-  `Playwright.Isomorphic.TimeoutRunner.poll_against_deadline/3`), and catches whatever it
-  raises, exits or throws.
+  `Playwright.Isomorphic.TimeoutRunner.poll_against_deadline/3`), catches whatever it
+  raises, exits or throws, and returns the passing attempt's value (`value` of its result).
   """
 
   alias Playwright.Client.APIResponse
@@ -842,8 +842,11 @@ defmodule Playwright.Matchers.Matchers do
             %{continuePolling: false, result: nil}
           else
             try do
-              callback.()
-              %{continuePolling: !!this.isNot, result: nil}
+              value = callback.()
+              # Elixir only: the passing attempt's value, which `to_pass` returns (a JS callback
+              # assigns it to an outer `let`). A negated one keeps `undefined`, the timeout's message
+              # reads it.
+              %{continuePolling: !!this.isNot, result: if(!this.isNot, do: value)}
             catch
               # `{kind, reason, stacktrace}`: whatever the callback raises, exits or throws.
               kind, reason -> %{continuePolling: !this.isNot, result: {kind, reason, __STACKTRACE__}}
@@ -867,7 +870,8 @@ defmodule Playwright.Matchers.Matchers do
 
       %{message: fn -> message end, pass: !!this.isNot}
     else
-      %{pass: !this.isNot, message: fn -> "" end}
+      # Elixir only: `value`, the passing attempt's (see above), `Expect.call_matcher_as_step/6`'s result.
+      %{pass: !this.isNot, message: fn -> "" end, value: if(!this.isNot, do: result.result)}
     end
   end
 
