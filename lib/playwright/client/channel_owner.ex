@@ -237,10 +237,10 @@ defmodule Playwright.Client.ChannelOwner do
   #   * a BrowserContext or Browser: the processes that created or closed it (`_set_creator/1`,
   #     inherited from the parent chain; else the connection), freed when the last one exits;
   #   * anything else: the nearest BrowserContext (else Browser) ancestor, freed with it.
-  # Its listeners go (they never fire again; user listener processes stop) and pending latches
-  # are rejected. An object the driver collected (`reason: "gc"`) is freed at once (deviation: JS
-  # still reads its fields); a tombstone (`_wasCollected`) stays until its anchor is freed. A
-  # handle disposed by itself and a JsonPipe are freed at once, without one (`_free_at_dispose?/2`).
+  # Its listeners go (they never fire again) and pending latches are rejected. An object the
+  # driver collected (`reason: "gc"`) is freed at once (deviation: JS still reads its fields); a
+  # tombstone (`_wasCollected`) stays until its anchor is freed. A handle disposed by itself and a
+  # JsonPipe are freed at once, without one (`_free_at_dispose?/2`).
   # deviation: reads after those processes exit raise TargetClosedError (JS: GC while
   # referenced); a long-lived process keeps the contexts it closed (~175 rows each) until it exits.
   defp _retire(this, reason) do
@@ -248,8 +248,7 @@ defmodule Playwright.Client.ChannelOwner do
 
     for {local, value} <- Heap.rows(this, this.guid) do
       case {sub(local), value} do
-        {{:map, :_events, _}, {_seq, entries}} ->
-          for %{kind: :user, pid: pid} <- entries, do: send(pid, :pw_stop)
+        {{:map, :_events, _}, _entries} ->
           :ets.delete(this.table, {this.guid, local})
 
         {{:latch, _}, {:pending, waiters}} ->

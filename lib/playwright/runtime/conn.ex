@@ -10,10 +10,10 @@ defmodule Playwright.Runtime.Conn do
   Dispatch: driver messages are dispatched (`Playwright.Client.Connection.dispatch/2`) one at a
   time, in this process. Emitting an event turns its listeners into steps
   (`Playwright.Client.EventEmitter`), run in order behind a barrier: a step that runs a
-  listener in another process (a user listener's subscription process, an internal listener's
-  process per event, an async function started here) holds dispatch until the listener returns or
-  first blocks on Playwright (`Playwright.Runtime.Invocation.yield/0`), as JS runs listeners
-  synchronously until their first `await`. Calls from other processes (`run/2`) are served
+  listener in another process (a process per listener invocation, or an async function started
+  here) holds dispatch until the listener returns or first blocks on Playwright
+  (`Playwright.Runtime.Invocation.yield/0`), as JS runs listeners synchronously until their first
+  `await`. Calls from other processes (`run/2`) are served
   meanwhile, so a listener calling back into the API cannot deadlock.
 
   The barrier keeps a stack of frames: an `emit` from the process dispatch waits for (it holds the
@@ -188,8 +188,6 @@ defmodule Playwright.Runtime.Conn do
        wakes: [],
        # monitor ref => inv of a listener or async process the barrier may wait for
        procs: %{},
-       # subscription pid => invocations sent and not done (oldest first)
-       busy: %{},
        # inv => {emitter guid, type}: listener invocations still running (`_pendingHandlers`)
        pending: %{},
        pending_waiters: [],
@@ -211,7 +209,6 @@ defmodule Playwright.Runtime.Conn do
        rows: :ets.info(state.table, :size),
        callbacks: length(Connection.callbacks(state.connection)),
        processes: map_size(state.procs),
-       subscriptions: map_size(state.busy),
        frames: length(state.frames)
      }, state}
   end
@@ -285,11 +282,6 @@ defmodule Playwright.Runtime.Conn do
 
   def handle_info({:pw_yield, inv}, state), do: {:noreply, state |> unblock(inv) |> drain() |> flush_out()}
 
-  def handle_info({:pw_done, inv, pid}, state) do
-    busy = if state.busy[pid], do: Map.update!(state.busy, pid, &List.delete(&1, inv)), else: state.busy
-    {:noreply, %{state | busy: busy} |> done(inv) |> drain() |> flush_out()}
-  end
-
   def handle_info({:DOWN, mref, :process, _pid, _reason}, %{stop_when_down: mons} = state)
       when is_map_key(mons, mref) do
     mons = Map.delete(mons, mref)
@@ -312,14 +304,8 @@ defmodule Playwright.Runtime.Conn do
 
     state =
       case Map.pop(state.procs, mref) do
-        # A subscription process exited (killed, or a linked process crashed) with invocations
-        # sent to it: they are done, else dispatch would wait for them forever.
-        {nil, _} ->
-          {invs, busy} = Map.pop(state.busy, pid, [])
-          Enum.reduce(invs, %{state | busy: busy}, &done(&2, &1))
-
-        {inv, procs} ->
-          done(%{state | procs: procs}, inv)
+        {nil, _} -> state
+        {inv, procs} -> done(%{state | procs: procs}, inv)
       end
 
     {:noreply, state |> drain() |> flush_out()}
@@ -327,12 +313,6 @@ defmodule Playwright.Runtime.Conn do
 
   def handle_info({:EXIT, _pid, _reason}, state), do: {:noreply, state}
   def handle_info(_message, state), do: {:noreply, state}
-
-  @impl true
-  def terminate(_reason, state) do
-    for {pid, _} <- state.busy, do: send(pid, :pw_stop)
-    :ok
-  end
 
   # The owner of a handed-off table (`hand_off/2`): the table goes when this process exits. It
   # exits without the table if the connection is killed before handing it over, and it never
@@ -496,16 +476,37 @@ defmodule Playwright.Runtime.Conn do
     state
   end
 
-  # An internal listener: one process per event, as each JS call is its own async chain.
-  defp run_step({:internal, fun, arg, emitter, type, zone}, state) do
+  # A listener invocation: one process each, as each JS call is its own async chain (so a later
+  # event's invocation runs while an earlier one awaits, as in JS).
+  defp run_step({:internal, fun, arg, emitter, type, zone}, state),
+    do: invocation(state, fun, arg, emitter, type, zone, nil)
+
+  # Elixir only: a user listener's invocation runs on behalf of its registrant (`$callers`), and
+  # not once the registrant's test closes its contexts (`Callers.test_finished?/0`).
+  defp run_step({:user, fun, arg, emitter, type, zone, callers}, state),
+    do: invocation(state, fun, arg, emitter, type, zone, callers)
+
+  # An async function (or `void`) called here: it starts now and holds dispatch until it yields.
+  defp run_step({:start, pid, inv}, state) do
+    mref = Process.monitor(pid)
+    send(pid, {:pw_go, inv})
+    block(%{state | procs: Map.put(state.procs, mref, inv)}, inv)
+  end
+
+  defp invocation(state, fun, arg, emitter, type, zone, callers) do
     inv = make_ref()
     conn = self()
 
     {_pid, mref} =
       spawn_monitor(fn ->
+        if callers do
+          Callers.adopt(callers)
+          Process.put(:pw_listener, true)
+        end
+
         Zones.restore(zone)
-        Playwright.Runtime.Invocation.start(conn, inv, inv)
-        invoke(fun, arg, emitter, type)
+        Invocation.start(conn, inv, inv)
+        if !(callers && Callers.test_finished?()), do: invoke(fun, arg, emitter, type)
       end)
 
     state = %{
@@ -515,35 +516,6 @@ defmodule Playwright.Runtime.Conn do
     }
 
     block(state, inv)
-  end
-
-  # A user listener runs in its subscription process, one invocation at a time (FIFO). If it is
-  # busy with an earlier one (that yielded), the barrier does not wait: JS would interleave both.
-  defp run_step({:user, pid, fun, arg, emitter, type, zone}, state) do
-    inv = make_ref()
-    send(pid, {:pw_invoke, inv, fun, arg, emitter, type, zone})
-    was_busy = Map.get(state.busy, pid, []) != []
-    if !Map.has_key?(state.busy, pid), do: Process.monitor(pid)
-
-    state = %{
-      state
-      | busy: Map.update(state.busy, pid, [inv], &(&1 ++ [inv])),
-        pending: Map.put(state.pending, inv, {emitter.guid, type})
-    }
-
-    if was_busy, do: state, else: block(state, inv)
-  end
-
-  defp run_step({:stop, pid}, state) do
-    send(pid, :pw_stop)
-    state
-  end
-
-  # An async function (or `void`) called here: it starts now and holds dispatch until it yields.
-  defp run_step({:start, pid, inv}, state) do
-    mref = Process.monitor(pid)
-    send(pid, {:pw_go, inv})
-    block(%{state | procs: Map.put(state.procs, mref, inv)}, inv)
   end
 
   @doc false
@@ -573,40 +545,6 @@ defmodule Playwright.Runtime.Conn do
     fun.()
   catch
     kind, reason -> Callers.unhandled("Uncaught in event listener: ", kind, reason, __STACKTRACE__)
-  end
-
-  @doc false
-  # The process of a user listener (`EventEmitter.on/3` under `Playwright.Runtime.Facade.listen/1`).
-  # Elixir only: it runs on behalf of the registering process (`Runtime.Callers`).
-  def subscription(conn) do
-    callers = Callers.capture()
-
-    spawn(fn ->
-      Callers.adopt(callers)
-      mon = Process.monitor(conn)
-      Process.put(:pw_listener, true)
-      subscription_loop(conn, mon)
-    end)
-  end
-
-  defp subscription_loop(conn, mon) do
-    receive do
-      {:pw_invoke, inv, fun, arg, emitter, type, zone} ->
-        Zones.restore(zone)
-        Playwright.Runtime.Invocation.start(conn, inv, inv)
-        # Elixir only: not once its test closes its contexts (`Callers.test_finished?/0`).
-        if !Callers.test_finished?(), do: invoke(fun, arg, emitter, type)
-        Process.delete(:pw_inv)
-        Process.delete(:pw_barrier)
-        send(conn, {:pw_done, inv, self()})
-        subscription_loop(conn, mon)
-
-      :pw_stop ->
-        :ok
-
-      {:DOWN, ^mon, :process, _, _} ->
-        :ok
-    end
   end
 
   defp flush_out(state) do

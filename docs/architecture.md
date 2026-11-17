@@ -134,7 +134,7 @@ run in the awaiter; `race`/`all` are selective receives.
 
 A process the client starts on one caller's behalf carries that caller's `$callers`, as a `Task`
 does (`Playwright.Runtime.Callers`): an async function's (`Promise.start`), a user listener's
-subscription process, and the listener processes that run a user callback (routes, WebSocket
+invocation processes, and the listener processes that run a user callback (routes, WebSocket
 routes and their handlers and URL matchers, bindings, locator handlers, screencast frames),
 which adopt the registrant's `$callers`, captured at registration as `RouteHandler` captures its
 zone. So `testInfo`, the Ecto sandbox and Mox find the test there, and an error nothing handles
@@ -203,7 +203,8 @@ waits for) wakes its awaiters once the frame stack is empty, as JS runs the cont
 microtask after the whole `emit`: `Browser.close` returns after the `disconnected` listeners.
 
 Listener kinds (`Playwright.Client.EventEmitter`): user listeners (added through the facade)
-get one process per subscription, FIFO; internal listeners a process per event; `on_sync/3`
+and internal ones get a process per invocation (a user one runs on behalf of its registrant,
+`$callers`), so a later event's invocation runs while an earlier one awaits, as in JS; `on_sync/3`
 runs inline in the connection for pure state updates (closest to JS, and no process hop on hot
 events); mailbox subscriptions turn events into messages for waiters.
 
@@ -219,8 +220,9 @@ What differs from JS, accepted:
 - A waiter rejects in its own process, not inside `emit`, so "rejected before the next emit" is
   not guaranteed. A fix needs a blocking mailbox step with acks plus a per-process event buffer
   (150-250 lines, deadlock risk), and a `.catch` would still run in another process.
-- An async user listener queues its subscription's later events; JS interleaves them. A
-  listener blocking on non-Playwright work stalls its connection, as in JS.
+- A listener blocking on non-Playwright work stalls its connection, as in JS.
+- Continuations of one listener's invocations (the code after their awaits) run in separate
+  processes, so their order is close to JS's settle order but not exact.
 - A route callback pending at teardown rejects with `TargetClosedError`, dropped unlogged; JS
   leaves it pending (which would keep a process per callback stuck).
 

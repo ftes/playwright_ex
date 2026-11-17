@@ -89,7 +89,8 @@ defmodule Playwright.Runtime.Facade do
 
   @doc """
   Runs `fun` (an `on`, `once`, `off`, ... of the facade) with its listener marked as a user
-  listener: it runs in a subscription process of its own (see `Playwright.Client.EventEmitter`).
+  listener: each invocation runs in a process of its own, on behalf of the calling process (see
+  `Playwright.Client.EventEmitter`).
   """
   def listen(fun) do
     previous = Process.put(:pw_user_listener, true)

@@ -12,8 +12,8 @@ your own processes and read that state without a round trip, so calls from many 
 
 ## Listeners run in processes
 
-A listener added with `on/3` or `once/3` runs in a process of its own, one per subscription,
-taking its events one at a time; a route handler runs in a process per request. The connection
+A listener added with `on/3` or `once/3` runs in a process of its own for each event; a route
+handler runs in a process per request. The connection
 waits until the listener or handler returns or awaits a Playwright call before it dispatches the
 next message, as JS runs a listener until its first `await`. That keeps JS's guarantees:
 

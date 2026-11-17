@@ -42,8 +42,9 @@ defmodule Playwright.Promise do
   A `Task` gives no such order: its first call may be sent after the next action. Work before the
   first Playwright call (a `Process.sleep/1`) delays the return.
 
-  The promise is owned by the calling process, as the waits' are: any process can await it, any
-  number of times, until that process exits. An error of `fun` is its result, raised by
+  The promise is owned by the calling process, as the waits' are (in an event listener, by the
+  process that added the listener): any process can await it, any number of times, until that
+  process exits. An error of `fun` is its result, raised by
   `await!/1` (`await/1` returns a `t:Playwright.error/0`); one nobody awaits is dropped. The
   process carries the caller's `$callers`, as a `Task`'s does, so `Playwright.Test` (soft
   matchers, steps), the Ecto sandbox and Mox find the test.

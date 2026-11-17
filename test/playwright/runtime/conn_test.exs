@@ -238,6 +238,55 @@ defmodule Playwright.RuntimeConnTest do
       refute_received :request
     end
 
+    # JS: `emit` runs a snapshot of the listeners (`handler.slice()`).
+    test "a listener removed by an earlier one still runs for that emit, not the next", %{page: page} do
+      test = self()
+      second = fn _ -> send(test, :second) end
+
+      Page.on(page, :console, fn _ ->
+        send(test, :first)
+        Page.off(page, :console, second)
+      end)
+
+      Page.on(page, :console, second)
+      Page.evaluate!(page, "console.log(1)")
+      assert {:messages, [:first, :second]} = Process.info(self(), :messages)
+      flush()
+      Page.evaluate!(page, "console.log(2)")
+      assert {:messages, [:first]} = Process.info(self(), :messages)
+      flush()
+    end
+
+    # JS runs each call of a listener until its first await, in event order; then they interleave.
+    test "a listener's invocations start in event order and interleave after their first await", %{page: page} do
+      test = self()
+      release = RuntimePromise.new(page)
+
+      Page.on(page, :console, fn message ->
+        text = Playwright.ConsoleMessage.text(message)
+        send(test, {:start, text})
+        Promise.await!(release)
+        send(test, {:end, text})
+      end)
+
+      Page.evaluate!(page, "console.log('a'); console.log('b')")
+      assert {:messages, [{:start, "a"}, {:start, "b"}]} = Process.info(self(), :messages)
+      flush()
+      RuntimePromise.resolve(release, nil)
+      assert_receive {:end, "a"}
+      assert_receive {:end, "b"}
+    end
+
+    test "a promise a listener starts outlives its invocation", %{page: page} do
+      test = self()
+      Page.once(page, :console, fn _ -> send(test, {:started, self(), Promise.async(fn -> :done end)}) end)
+      Page.evaluate!(page, "console.log(1)")
+      assert_received {:started, invocation, promise}
+      ref = Process.monitor(invocation)
+      assert_receive {:DOWN, ^ref, :process, _, _}
+      assert Promise.await!(promise) == :done
+    end
+
     test "wait_for_event: promise awaited several times, from several processes", %{page: page, server: server} do
       promise = Page.wait_for_event(page, :request)
       Page.goto!(page, server.empty_page)
@@ -652,7 +701,7 @@ defmodule Playwright.RuntimeConnTest do
       Process.sleep(50)
       after_ = Conn.stats(conn)
       assert after_.callbacks == 0
-      assert after_.subscriptions <= before.subscriptions
+      assert after_.processes <= before.processes
       assert after_.frames == 0
 
       retained = :ets.select(own.table, [{{{:"$1", :__retained__}, :_}, [], [:"$1"]}]) |> MapSet.new()

@@ -14,9 +14,9 @@ defmodule Playwright.Client.EventEmitter do
   barrier (the connection waits until the listener returns or first awaits), as JS runs
   listeners synchronously inside `emit`. Listener kinds:
 
-    * internal (the default, for the client's own listeners): a process per event.
+    * internal (the default, for the client's own listeners): a process per invocation.
     * user (added under `Playwright.Runtime.Facade.listen/1`, i.e. through the facade): a
-      process per subscription, which runs its events one at a time (FIFO).
+      process per invocation too, on behalf of the registering process (its `$callers`).
     * sync (`on_sync/3`): runs in the connection process, for pure state updates (it must not
       await).
     * mailbox (`subscribe/3`): the event is a message to the subscribing process (a promise), for
@@ -35,8 +35,7 @@ defmodule Playwright.Client.EventEmitter do
   Elixir has no variadic functions, so `emit` takes one event argument and listeners one
   parameter (as every listener in the client and the facade).
 
-  Deviations: an async user listener queues later events of its subscription behind it; JS
-  interleaves them. A listener that raises is caught alone: the later listeners still run, and
+  Deviations: a listener that raises is caught alone: the later listeners still run, and
   the error goes to `_rejectionHandler`, else to the `error` listeners, else the log (JS: a
   synchronous throw skips `_rejectionHandler`, and without `error` listeners leaves `emit`). `removeAllListeners(type, %{behavior: "wait"})`
   also waits for invocations that start after the call (JS: a snapshot of `_pendingHandlers`).
@@ -44,6 +43,7 @@ defmodule Playwright.Client.EventEmitter do
   import Playwright.Runtime.Heap
 
   alias Playwright.Client.ChannelOwner
+  alias Playwright.Runtime.Callers
   alias Playwright.Runtime.Conn
   alias Playwright.Runtime.Promise
   alias Playwright.Runtime.Zones
@@ -163,8 +163,7 @@ defmodule Playwright.Client.EventEmitter do
         Conn.push_step({:sync, entry.fun, arg, this, type})
 
       :user ->
-        Conn.push_step({:user, entry.pid, entry.fun, arg, this, type, zone})
-        if entry.once, do: Conn.push_step({:stop, entry.pid})
+        Conn.push_step({:user, entry.fun, arg, this, type, zone, entry.callers})
 
       :mailbox ->
         Conn.push_step({:mailbox, entry.pid, entry.ref, arg})
@@ -209,12 +208,13 @@ defmodule Playwright.Client.EventEmitter do
 
   @doc false
   # A listener as stored, built in the adding process: `%{kind, id, fun, once, pid, ref}`. A user
-  # listener (see `Playwright.Runtime.Facade.listen/1`) gets its subscription process.
+  # listener (see `Playwright.Runtime.Facade.listen/1`) keeps the adding process's `$callers`,
+  # which its invocations adopt.
   def entry(this, listener, once \\ false) do
     {id, fun} = if is_tuple(listener), do: listener, else: {listener, listener}
 
     if Process.get(:pw_user_listener) && this.table != nil,
-      do: %{kind: :user, id: id, fun: fun, once: once, pid: Conn.subscription(this.conn)},
+      do: %{kind: :user, id: id, fun: fun, once: once, callers: Callers.capture()},
       else: %{kind: :internal, id: id, fun: fun, once: once}
   end
 
@@ -226,8 +226,6 @@ defmodule Playwright.Client.EventEmitter do
       existing = if(prepend, do: [entry | existing], else: existing ++ [entry])
       map_set(this, :_events, type, existing)
       _check_listener_leak(this, type, length(existing))
-    else
-      _stop(entry)
     end
 
     :ok
@@ -260,9 +258,6 @@ defmodule Playwright.Client.EventEmitter do
   defp _set_listeners(this, type, list), do: map_set(this, :_events, type, list)
 
   defp _reset_warned(this, type), do: if(set_has(this, :_warned, type), do: set_delete(this, :_warned, type))
-
-  defp _stop(%{kind: :user, pid: pid}), do: send(pid, :pw_stop)
-  defp _stop(_entry), do: :ok
 
   def prepend_listener(this, type, listener), do: _add_listener(this, type, listener, true)
 
@@ -343,8 +338,6 @@ defmodule Playwright.Client.EventEmitter do
 
     if position != nil do
       index = length(list) - 1 - position
-      _stop(Enum.at(list, index))
-
       _set_listeners(this, type, List.delete_at(list, index))
     end
 
@@ -407,8 +400,6 @@ defmodule Playwright.Client.EventEmitter do
   defp _remove_all_listeners(this, type) do
     _unless_closed(fn ->
       atomic(this, fn ->
-        entries = if type == nil, do: map_values(this, :_events), else: [map_get(this, :_events, type) || []]
-        for list <- entries, entry <- list, do: _stop(entry)
         if type == nil, do: map_clear(this, :_events), else: map_delete(this, :_events, type)
         if type == nil, do: put(this, :_warned, nil), else: _reset_warned(this, type)
       end)
@@ -417,8 +408,7 @@ defmodule Playwright.Client.EventEmitter do
 
   @doc false
   # Elixir only: removing listeners on a closed connection process is a no-op (`nil`), as JS's
-  # local emitter never throws (a dead connection emits nothing again, and user listener processes
-  # exit on its `:DOWN`). A listener's own error is collected as a message, never rescued here.
+  # local emitter never throws (a dead connection emits nothing again). A listener's own error is collected as a message, never rescued here.
   def _unless_closed(fun) do
     fun.()
   rescue

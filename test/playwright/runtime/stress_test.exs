@@ -374,7 +374,6 @@ defmodule Playwright.RuntimeStressTest do
     stats = Conn.stats(page.conn)
     assert stats.callbacks == 0
     assert stats.processes <= baseline.stats.processes
-    assert stats.subscriptions <= baseline.stats.subscriptions
     assert stats.frames == 0
   end
 

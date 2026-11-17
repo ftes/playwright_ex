@@ -183,14 +183,14 @@ defmodule Playwright.Runtime.Promise do
   starts at the current dispatch step, and dispatch waits for it the same way.
 
   The result settles a local promise of the caller (awaited by it, once), or with `shared: true`
-  a latch owned by the caller process: awaitable from any process, any number of times, until
-  the caller exits. With `owner: object`, a latch on that object (a promise kept in its field).
+  a latch owned by the caller process (in a user listener, by its registrant): awaitable from any
+  process, any number of times, until that process exits. With `owner: object`, a latch on that object (a promise kept in its field).
   """
   def async(fun, opts \\ []) when is_function(fun, 0) do
     promise =
       cond do
         owner = opts[:owner] -> new(owner)
-        Keyword.get(opts, :shared, false) -> new(ProcessOwner.owner(self()))
+        Keyword.get(opts, :shared, false) -> new(ProcessOwner.owner(registrant()))
         true -> local_alias()
       end
 
@@ -201,6 +201,15 @@ defmodule Playwright.Runtime.Promise do
     end)
 
     promise
+  end
+
+  # Elixir only: a user listener's invocation process is transient (one per event), so what it
+  # starts is owned by the listener's registrant, the head of its `$callers`.
+  defp registrant do
+    case Process.get(:pw_listener) && Process.get(:"$callers") do
+      [registrant | _] -> registrant
+      _ -> self()
+    end
   end
 
   # A local promise settled through an alias of its creator: `free/1` (unalias) drops a result
