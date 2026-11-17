@@ -26,7 +26,7 @@ defmodule Playwright.Transport.Pipe do
     * A message that cannot be encoded (a string that is not UTF-8, a term JSON has no form for)
       is not written, and this process lives on: a call is answered with an error through
       `on_message`, so only it fails; another message is logged. Upstream, `JSON.stringify`
-      throws in the caller. A string that is not UTF-8 gets a hint to pass bytes as
+      throws in the caller. A string that is not UTF-8 gets a hint: bytes are
       `{:binary, bytes}`.
     * The driver inherits the VM's stderr, as a port can't pipe it separately; upstream pipes it
       and forwards it. Node restores the terminal's settings when it exits, which resets the
@@ -127,7 +127,7 @@ defmodule Playwright.Transport.Pipe do
   # `{:binary, bytes}` (a JS Buffer), as JS strings are always text.
   defp reason(%ErlangError{original: original} = e)
        when original == :unexpected_end or (is_tuple(original) and elem(original, 0) == :invalid_byte),
-       do: "#{Exception.message(e)}, a string that is not UTF-8. Pass bytes as {:binary, bytes}"
+       do: "#{Exception.message(e)}, a string that is not UTF-8. Where bytes are meant, pass {:binary, bytes}"
 
   defp reason(e), do: Exception.message(e)
 
