@@ -574,8 +574,10 @@ defmodule Playwright.Guides.TestingWithExUnit.DeviceLevelsTest do
   for name <- ["iPhone 13", "Pixel 7"] do
     @tag Test.use(context_options: Playwright.device(name))
     test "the menu collapses on #{name}", %{page: page, browser: browser} do
-      assert Page.evaluate!(page, "navigator.userAgent") == Playwright.device(unquote(name)).user_agent
-      # A tag's device doesn't switch the browser.
+      device = Playwright.device(unquote(name))
+      assert Page.evaluate!(page, "navigator.userAgent") == device.user_agent
+      assert Page.viewport_size(page) == device.viewport
+      # A tag's device doesn't switch the browser: its `default_browser_type` is ignored.
       assert Playwright.BrowserType.name(Browser.browser_type(browser)) == Playwright.TestBrowser.name()
     end
   end
@@ -770,6 +772,15 @@ defmodule Playwright.Guides.TestingWithExUnit.PhoneTest do
     page = BrowserContext.new_page!(Browser.new_context!(browser, viewport: %{width: 800, height: 600}))
     assert Page.viewport_size(page) == %{width: 800, height: 600}
     assert Page.evaluate!(page, "navigator.userAgent") == @iphone.user_agent
+  end
+
+  describe "in German" do
+    @describetag Test.use(context_options: [locale: "de-DE"])
+
+    test "the module's device with the describe's locale: the levels merge per option", %{page: page} do
+      assert Page.viewport_size(page) == %{width: 390, height: 664}
+      assert Page.evaluate!(page, "[navigator.language, navigator.userAgent]") == ["de-DE", @iphone.user_agent]
+    end
   end
 end
 

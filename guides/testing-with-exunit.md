@@ -101,6 +101,7 @@ example of each level. The other options layer the same way, where they can be s
 | `context_options`, `action_timeout`, `navigation_timeout` | yes | yes | yes | yes |
 | `trace`, `screenshot`, `video` | yes | yes | yes | yes (an addition: worker-scoped in Playwright Test, which rejects them in a describe) |
 | `browser_name`, `launch_options`, `connect_options` | yes | yes | yes | no: the worker's, as in Playwright Test, where they force a new worker |
+| a device's `default_browser_type` (in `context_options`) | picks the browser | picks the browser | picks the browser | ignored (a deviation: Playwright Test rejects it there; the device's emulation applies on the module's browser) |
 | `test_id_attribute` | yes | no | no | no (a deviation: the value is global to the VM, which concurrent tests share) |
 | `output_dir`, `preserve_output`, `workers`, `snapshot_dir`, `snapshot_path_template`, `driver`, `on_start` | yes | no | no | no |
 
