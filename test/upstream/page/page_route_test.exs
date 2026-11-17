@@ -1159,6 +1159,8 @@ defmodule Playwright.Page.PageRouteTest do
       page,
       "**/empty.html",
       fn route ->
+        # await new Promise(f => setTimeout(f, 100))
+        Playwright.Promise.yield()
         Process.sleep(100)
         Route.fulfill!(route, body: "<html>intercepted</html>", content_type: "text/html")
       end,

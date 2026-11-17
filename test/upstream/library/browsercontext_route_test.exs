@@ -262,6 +262,8 @@ defmodule Playwright.Library.BrowsercontextRouteTest do
       context,
       "**/empty.html",
       fn route ->
+        # await new Promise(f => setTimeout(f, 100))
+        Playwright.Promise.yield()
         Process.sleep(100)
         Route.fulfill(route, body: "<html>intercepted</html>", content_type: "text/html")
       end,
