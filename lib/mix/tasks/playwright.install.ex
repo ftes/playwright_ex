@@ -1,12 +1,20 @@
 defmodule Mix.Tasks.Playwright.Install do
   @shortdoc "Installs the Playwright driver (Node + playwright-core) and browsers"
   @moduledoc """
-  Usage: `mix playwright.install [--no-browsers] [--force] [-- BROWSER_ARGS...]`
+  Usage: `mix playwright.install [ARGS...]` (browsers and flags, in any order)
 
-  Browser args are forwarded to `playwright install` (none: its default browsers, as
-  `npx playwright install`), e.g. `mix playwright.install -- chromium firefox --with-deps`.
-  `--no-browsers` installs only the driver, for a browser launched with `:executable_path` or
-  `:channel`.
+  Installs the driver, then runs its `playwright install` with the args, as
+  `npx playwright install` would (none: its default browsers), e.g.
+  `mix playwright.install chromium firefox --with-deps`. Two flags, in any position, are the
+  task's own:
+
+    * `--no-browsers` - installs only the driver, for a browser launched with `:executable_path`
+      or `:channel`. It takes no other args but `--force`.
+    * `--force` - reinstalls the driver (not with `--dry-run`, `--list` or `--help`, which
+      need no new driver), and is forwarded, so it reinstalls the browsers too. To reinstall
+      only a browser, run `mix playwright.cli install --force <browser>`.
+
+  Every other arg is forwarded in order. A `--` raises: the args need none.
 
   The task doesn't see the options of `Playwright.Supervisor`; it reads their defaults,
   `config :playwright, :driver` (see `Playwright.Driver`). It doesn't compile the project, so it
@@ -25,25 +33,49 @@ defmodule Mix.Tasks.Playwright.Install do
 
   @impl true
   def run(argv) do
-    {own, browser_args} =
-      case Enum.split_while(argv, &(&1 != "--")) do
-        {own, ["--" | rest]} -> {own, rest}
-        {own, []} -> {own, []}
-      end
-
-    {opts, _} = OptionParser.parse!(own, strict: [browsers: :boolean, force: :boolean])
+    {browsers?, force?, browser_args} = parse_args(argv)
     # Mix prunes the code paths of OTP apps that no compiled app lists, so before the project is
     # compiled `:public_key` (needed by `:ssl`) can be missing. `Driver.download!` starts them.
     Enum.each([:inets, :ssl], &Mix.ensure_application!/1)
 
-    :ok = Playwright.Driver.install(force: Keyword.get(opts, :force, false))
+    :ok = Playwright.Driver.install(force: force?)
     Mix.shell().info("Driver installed in #{Playwright.Driver.install_dir()}")
 
-    if Keyword.get(opts, :browsers, true) do
+    if browsers? do
       case Playwright.Driver.install_browsers(browser_args) do
         :ok -> :ok
         {:error, {:exit_status, status}} -> Mix.raise("playwright install failed with exit status #{status}")
       end
+    end
+  end
+
+  @own_flags ["--no-browsers", "--force"]
+  # The `playwright install` flags for which `--force` needn't reinstall the driver: they install
+  # no browsers (`--list --with-deps` still installs OS packages). Mirrors
+  # `playwright install --help` at the pinned driver: recheck on each bump (PORTING.md "Bumping
+  # the pinned version").
+  @no_driver_reinstall ["--dry-run", "--list", "--help", "-h"]
+
+  @doc false
+  # Splits argv into the task's flags and the args for `playwright install`:
+  # `{browsers?, force?, args}`.
+  def parse_args(argv) do
+    if "--" in argv do
+      fix = Enum.join(["mix playwright.install" | Enum.reject(argv, &(&1 == "--"))], " ")
+      Mix.raise("`--` is no longer needed: `#{fix}`")
+    end
+
+    {own, others} = Enum.split_with(argv, &(&1 in @own_flags))
+
+    cond do
+      "--no-browsers" not in own ->
+        {true, "--force" in own and not Enum.any?(others, &(&1 in @no_driver_reinstall)), argv}
+
+      others == [] ->
+        {false, "--force" in own, []}
+
+      true ->
+        Mix.raise("--no-browsers installs only the driver, so it takes no other args, got: #{Enum.join(others, " ")}")
     end
   end
 end
