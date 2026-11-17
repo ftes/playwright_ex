@@ -82,6 +82,9 @@ jobs:
                upstream's client, under ~/.cache/playwright/<version>/upstream at the pin. An
                edge case they share with upstream is not a defect of this PR: don't suggest a
                special case for it. Do flag a new deviation nothing requires.
+               CI runs `mix format --check-formatted`, credo, `mix compile --warnings-as-errors`, dialyzer, the
+               docs build, the parity check and the tests. Do not run or approximate them, and do not comment on
+               what they cover. Review what CI cannot catch: correctness, design, upstream fidelity and docs.
             5. Don't repeat findings already posted on this PR
                (`gh api repos/REPO/pulls/PR/comments`, `gh pr view PR --comments`).
 
