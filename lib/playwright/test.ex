@@ -159,18 +159,22 @@ defmodule Playwright.Test do
   `use Playwright.Test` adds a `setup_all` (where the `use` is, so before the module's own) that
   registers the module's `setup_all` process: every context and request context it creates, or
   a process with it in `$callers` creates, gets the context defaults and the config's
-  `context_options` (so `base_url`), merged as a test's, and the config's timeouts. Not the
-  video, as upstream's comes with the `context` fixture.
+  `context_options` (so `base_url`), merged as a test's, and the config's timeouts (see
+  "Timeouts"). Not the video, as upstream's comes with the `context` fixture.
 
-  Only processes with `$callers` count: a `Task`, or a process that sets them itself
-  (`Process.put(:"$callers", callers)`). A `spawn`, a `GenServer` or `Agent` start, and
-  `start_supervised` don't set them, so their contexts get no defaults. A long-lived process
-  started in `setup_all` that has them gets the module's defaults for every context it creates
+  Only processes with `$callers` count: a `Task`, the client's callback processes (route
+  handlers, listeners, exposed bindings registered in `setup_all` carry its `$callers`, see
+  "Route handlers and listeners" in the Testing with ExUnit guide), or a process that sets them
+  itself (`Process.put(:"$callers", callers)`). A `spawn`, a `GenServer` or `Agent` start, and
+  `start_supervised` don't set them, so their contexts get no defaults. A long-lived process or
+  handler of `setup_all`'s with them gets the module's defaults for every context it creates
   later, during a test too, as upstream's worker-scoped fixtures do.
 
-  Not ported yet: upstream's tests also record a `beforeAll` context (each test's trace and
-  screenshots have its pages); here a test records only the contexts it creates, not those of
-  its module's `setup_all` or of the processes it started.
+  Not ported yet: a `setup_all` context isn't recorded per test (its actions aren't in a test's
+  trace, and it gets no screenshots or `error-context.md`), where upstream's `ArtifactsRecorder`
+  records every open context per test, `beforeAll` ones included: create the context per test,
+  as `Playwright.Case` does. And after a failed test, `setup_all` state (its pages too) carries
+  on, where upstream starts a fresh worker: bound calls on shared pages with `action_timeout`.
 
   ## Timeouts
 
@@ -188,8 +192,13 @@ defmodule Playwright.Test do
   hangs until then fails with that message and its call log, after the close kept the artifacts.
   A test stuck elsewhere (`Process.sleep/1`, a `receive`) still fails with ExUnit's
   `ExUnit.TimeoutError`. The timeout is ExUnit's: the `@tag timeout:` (`:infinity` for none) or
-  `mix test --timeout`; `mix test --trace` has none. `setup_all` is not covered: its contexts
-  get the config's `action_timeout` and `navigation_timeout`, but nothing closes them. As ExUnit's
+  `mix test --timeout`; `mix test --trace` has none. `setup_all` is not covered. Its contexts
+  get the config's `action_timeout` and `navigation_timeout` (`:infinity` by default, not the
+  client's 30 s), as upstream's `beforeAll` contexts get `actionTimeout || 0` (its
+  `_setupContextOptions` runs for hooks too), but nothing closes them: where upstream bounds each
+  `beforeAll` hook by its own timeout, ExUnit's `setup_all` has none, so a call that hangs there
+  hangs the module, and one in a test fails with ExUnit's `ExUnit.TimeoutError`. Set
+  `action_timeout` and `navigation_timeout` (or the call's `timeout:`) to bound them. As ExUnit's
   (and upstream's, which counts `beforeEach` hooks), the timeout counts the test's `setup`
   callbacks: the clock starts at the module's first one, also one defined before `use
   Playwright.Test` or in its case template. What ExUnit does before them (`@tag :tmp_dir`'s
@@ -524,23 +533,32 @@ defmodule Playwright.Test do
   def __setup_all__(_context) do
     Pool.ensure_started()
 
-    if :ets.take(Results.table(), {:unregistered, self()}) != [] do
-      raise ArgumentError,
-            "this module's setup_all created a context before `use Playwright.Test` registered it (a case " <>
-              "template's own `setup_all` runs before the `use` in its `using`, and a module's `setup_all` " <>
-              "before its `use Playwright.Test` runs first), so the context got no context defaults: " <>
-              "add `use Playwright.Test` as the first line of the case template's body, or move the " <>
-              "`setup_all` after the module's `use Playwright.Test`"
+    # Once: a case template's body and its `using` may both bring it.
+    if !match?({:module, _}, Results.scope(self())) do
+      check_registered!(
+        self(),
+        "this module's setup_all created a context before `use Playwright.Test` registered it (a case " <>
+          "template's own `setup_all` runs before the `use` in its `using`, and a module's `setup_all` " <>
+          "before its `use Playwright.Test` runs first), so the context got no context defaults: " <>
+          "add `use Playwright.Test` as the first line of the case template's body, or move the " <>
+          "`setup_all` after the module's `use Playwright.Test`"
+      )
+
+      config = Options.config()
+
+      Results.register_module(self(), %{
+        context_options: Options.context_options(config),
+        timeouts: Options.timeouts(config)
+      })
     end
 
-    config = Options.config()
-
-    Results.register_module(self(), %{
-      context_options: Options.context_options(config),
-      timeouts: Options.timeouts(config)
-    })
-
     :ok
+  end
+
+  # Raises `message` if `pid` created a context before its registration
+  # (`Playwright.Test.Results.note_unregistered/1`).
+  defp check_registered!(pid, message) do
+    if :ets.take(Results.table(), {:unregistered, pid}) != [], do: raise(ArgumentError, message)
   end
 
   @doc false
@@ -549,24 +567,22 @@ defmodule Playwright.Test do
   def __setup__(%{test_pid: test_pid} = context) do
     Pool.ensure_started()
 
-    cond do
-      Recorder.registration(test_pid) ->
-        :ok
+    if !Recorder.registration(test_pid) do
+      check_registered!(
+        test_pid,
+        "this test created a context before `use Playwright.Test` registered it (a case template's " <>
+          "`setup` runs before the `use` in its `using`), so the context has no defaults and no " <>
+          "recording: add `use Playwright.Test` as the first line of the case template's body"
+      )
 
-      :ets.take(Results.table(), {:unregistered, test_pid}) != [] ->
-        raise ArgumentError,
-              "this test created a context before `use Playwright.Test` registered it (a case template's " <>
-                "`setup` runs before the `use` in its `using`), so the context has no defaults and no " <>
-                "recording: add `use Playwright.Test` as the first line of the case template's body"
-
-      true ->
-        test = __register__(context)
-        timeout = test.test_timeout
-        # Each `on_exit` callback gets the test's timeout: half of it for the artifacts.
-        budget = if is_integer(timeout), do: div(timeout, 2), else: :infinity
-        ExUnit.Callbacks.on_exit(fn -> __finish__(test.test_pid, budget) end)
-        :ok
+      test = __register__(context)
+      timeout = test.test_timeout
+      # Each `on_exit` callback gets the test's timeout: half of it for the artifacts.
+      budget = if is_integer(timeout), do: div(timeout, 2), else: :infinity
+      ExUnit.Callbacks.on_exit(fn -> __finish__(test.test_pid, budget) end)
     end
+
+    :ok
   end
 
   @doc false

@@ -82,10 +82,11 @@ Playwright Test's defaults (`locale: "en-US"`, a 1280x720 viewport, `color_schem
 then the config's `context_options`; the options the call gives win. So does every context the
 module's `setup_all` creates, as Playwright Test's `beforeAll` gets the `use` options:
 `goto("/")` works there with `base_url`. A process the test or `setup_all` starts counts only
-with `$callers`: a `Task` has them, a `spawn`, a `GenServer` or `start_supervised` doesn't. A
-long-lived process started in `setup_all` with them (one that sets `$callers` itself) gives the
-module's defaults to every context it creates later, in a test too, but the test doesn't record
-those yet. A context created elsewhere (an `on_exit` callback, a process of no test), or on a
+with `$callers`: a `Task`, and route handlers and listeners registered there, have them (see
+[Route handlers and listeners](#route-handlers-and-listeners)); a `spawn`, a `GenServer` or
+`start_supervised` doesn't. A long-lived process or handler of `setup_all`'s with them gives the
+module's defaults to every context it creates later, in a test too, but no test records them
+(see "Not ported yet" below). A context created elsewhere (an `on_exit` callback, a process of no test), or on a
 driver you started yourself, gets no defaults and no recording.
 
 With `base_url`, `goto` and the URL matchers take paths. To set it from the shell, read an env
@@ -97,7 +98,10 @@ contexts are closed, so a stuck call fails with "Test timeout of 60000ms exceede
 milliseconds) and its call log, and the artifacts are kept. To fail sooner, set `action_timeout` and `navigation_timeout` in the config (milliseconds), or
 `set_default_timeout/2` and `set_default_navigation_timeout/2` on a context. `:infinity`, the
 default, is no limit, and so is `0`, in the config as in every `timeout:` option: as in
-Playwright, `0` never means "fail at once" ([API conventions](api-conventions.md)).
+Playwright, `0` never means "fail at once" ([API conventions](api-conventions.md)). A context of
+`setup_all` gets the same `action_timeout` and `navigation_timeout` (no limit by default, as
+Playwright Test's `beforeAll` contexts), but no test timeout bounds `setup_all`, where Playwright
+Test bounds each `beforeAll` hook: set them to bound its calls.
 
 Each driver call logs `pw:api ...` at `:debug` ([Logging](getting-started.md#logging)), so give
 the test env a logger level (`config :logger, level: :warning`). `ExUnit.start(capture_log:
@@ -893,8 +897,14 @@ Not ported yet ([open an issue](https://github.com/ftes/playwright_ex/issues) if
 - rebaselining inline aria snapshots into the test source (`--update-source-method`);
 - `_defaultLaunchOptions`: a `BrowserType.launch` inside a test doesn't inherit the browser's
   `launch_options`;
-- contexts created in `setup_all` get the defaults but no trace chunks or leftover screenshots
-  (only contexts created during a test are recorded; the per-test recording is a follow-up);
+- recording `setup_all` contexts per test: a context created in `setup_all` gets the defaults,
+  but its actions aren't in a test's trace, and it gets no screenshots or `error-context.md`.
+  Playwright Test's `ArtifactsRecorder` records every open context per test, `beforeAll` ones
+  included. Create the context per test instead, as `Playwright.Case` does by default;
+- a fresh worker after a failed test: `setup_all` state, its pages included, carries on into the
+  module's next tests, where Playwright Test starts a new worker (and runs `beforeAll` again). A
+  call that hangs on a shared page can outlive the failed test: bound such calls with
+  `action_timeout`;
 - the video's step overlay keeps the title of a process killed inside `step/2,3`, and shows an
   IPv6 host with a zone id as `fe80`.
 

@@ -53,15 +53,16 @@ Node 26.13.1. No API changes.
   registered the module (a case template's own `setup_all` with the `use` only in its `using`,
   or a `setup_all` above the module's `use`) makes the module's `setup_all` raise, naming the
   fix, as such a context in `setup` already does.
+- **RC only:** **Breaking:** contexts and request contexts created in a module's `setup_all` (or
+  a process with it in `$callers`) get the context defaults, the config's `context_options`
+  (`base_url` too), and its `action_timeout` and `navigation_timeout` (`:infinity` by default,
+  where they had the client's 30 s), as Playwright Test's `beforeAll` does (#257).
 
 ### Fixed
 
 - **RC only:** `mix playwright.install` and `mix playwright.cli` failed with "module :public_key
   is not available" when run before the project was compiled (e.g. right after `mix deps.get` in
   CI).
-- Contexts and request contexts created in a module's `setup_all` get the context defaults, the
-  config's `context_options` (`base_url` too) and timeouts, as Playwright Test's `beforeAll`
-  does (#257).
 
 ## [1.65.0-rc.1] 2026-11-16
 

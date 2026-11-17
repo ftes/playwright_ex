@@ -67,7 +67,10 @@ defmodule Playwright.Test.Recorder do
   process or a process in its `$callers`, or `nil`.
   """
   def registration do
-    Enum.find_value(Callers.capture(), &registration/1)
+    case defaults() do
+      {:test, test} -> test
+      _module_or_nil -> nil
+    end
   end
 
   # The registration of the nearest of the calling process and its `$callers` that is a running
