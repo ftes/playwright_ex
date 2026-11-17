@@ -20,8 +20,9 @@
 #     hard failure; and a passing one.
 #   * `timeouts` - tests past their timeout: one in a Playwright call, one in `Process.sleep`, one
 #     in a Playwright call after a slow `setup` before `use Playwright.Test`.
-#   * `setup_all_timeout` - modules with a `timeout` tag of 1 s: a `setup_all` in `Process.sleep`,
-#     one in a Playwright call, and one that ends in time, whose tests take longer together.
+#   * `setup_all_timeout` - modules with a `timeout` tag: a `setup_all` in `Process.sleep` (1 s),
+#     one in a Playwright call after its context and page (6 s), and one that ends in time, whose
+#     tests take longer together (5 s).
 #   * `trace` - `trace: true` (`mix test --trace`): a test past its `timeout` tag passes, and a
 #     `setup_all` past its module's.
 #   * `rerun` - one failing and one passing test (writing a file of its own), `preserve_output:
@@ -381,7 +382,8 @@ case mode do
 
       alias Playwright.{Browser, BrowserContext, Page}
 
-      @moduletag timeout: 1000
+      # Time for the context and page on a slow browser: the deadline lands in the wait.
+      @moduletag timeout: 6000
 
       setup_all %{browser: browser} do
         page = browser |> Browser.new_context!() |> BrowserContext.new_page!()
@@ -395,11 +397,11 @@ case mode do
     defmodule SetupAllInTimeTest do
       use Playwright.Case, async: true
 
-      @moduletag timeout: 1000
+      @moduletag timeout: 5000
 
       for i <- 1..3 do
-        test "takes 600 ms #{i}", %{page: page} do
-          Process.sleep(600)
+        test "takes 2 s #{i}", %{page: page} do
+          Process.sleep(2000)
           Page.set_content!(page, "<h1>In time</h1>")
         end
       end

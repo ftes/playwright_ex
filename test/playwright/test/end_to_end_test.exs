@@ -322,12 +322,12 @@ defmodule Playwright.Test.EndToEndTest do
     output = ChildProcess.output(child)
     assert output =~ ~r"5 tests, 0 failures, 2 invalid|Result: 3 passed, 2 invalid"
 
-    for {module, frame} <- [
-          {"SetupAllSleepsTest", "Process.sleep/1"},
-          {"SetupAllHangsTest", "Frame.wait_for_selector/3"}
+    for {module, timeout, frame} <- [
+          {"SetupAllSleepsTest", 1000, "Process.sleep/1"},
+          {"SetupAllHangsTest", 6000, "Frame.wait_for_selector/3"}
         ] do
       setup_all = failure(output, "#{module}: failure on setup_all callback, all tests have been invalidated")
-      assert setup_all =~ ~s[** (RuntimeError) "setup_all" hook timeout of 1000ms exceeded.]
+      assert setup_all =~ ~s[** (RuntimeError) "setup_all" hook timeout of #{timeout}ms exceeded.]
       assert setup_all =~ frame
     end
   end

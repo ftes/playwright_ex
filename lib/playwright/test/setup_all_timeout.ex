@@ -75,7 +75,10 @@ defmodule Playwright.Test.SetupAllTimeout do
 
   defp watch(owner, state, timeout) do
     ref = Process.monitor(owner)
-    %{owner: owner, ref: ref, state: state, timeout: timeout, left: timeout, paused: 0} |> start_timer() |> loop()
+
+    %{owner: owner, ref: ref, state: state, timeout: timeout, left: timeout, paused: 0, timer: nil}
+    |> start_timer()
+    |> loop()
   end
 
   # `timer` is the running timer (`nil` while paused), `left` its time when paused, `paused` the
@@ -111,8 +114,7 @@ defmodule Playwright.Test.SetupAllTimeout do
   end
 
   defp start_timer(watch) do
-    if watch[:timer], do: :erlang.cancel_timer(watch.timer)
-    Map.put(watch, :timer, :erlang.start_timer(watch.left, self(), :setup_all))
+    %{watch | timer: :erlang.start_timer(watch.left, self(), :setup_all)}
   end
 
   defp expire(%{owner: owner, ref: ref, state: state, timeout: timeout}) do

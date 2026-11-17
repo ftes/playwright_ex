@@ -78,13 +78,24 @@ defmodule Playwright.Test.SetupAllTimeoutTest do
   end
 
   test "callbacks that end as the timer fires: one of the two decides" do
-    for _ <- 1..10 do
-      ref = run_setup_all(50, fn -> Process.sleep(50) end)
+    test_pid = self()
+
+    for _ <- 1..5 do
+      {pid, ref} =
+        spawn_monitor(fn ->
+          SetupAllTimeout.run(%{module: __MODULE__, timeout: 50}, fn -> Process.sleep(50) end)
+          send(test_pid, {:returned, self()})
+          Process.sleep(:infinity)
+        end)
+
+      on_exit(fn -> Process.exit(pid, :kill) end)
 
       receive do
+        # The callbacks won: no exit follows, not even past the trap-exit grace.
+        {:returned, ^pid} -> refute_receive {:DOWN, ^ref, _, _, _}, 1500
         {:DOWN, ^ref, :process, _, reason} -> assert {%RuntimeError{}, _stack} = reason
       after
-        300 -> :ok
+        5000 -> flunk("neither returned nor exited")
       end
     end
   end
@@ -96,7 +107,8 @@ defmodule Playwright.Test.SetupAllTimeoutTest do
       run_setup_all(1000, fn ->
         SetupAllTimeout.paused(fn ->
           SetupAllTimeout.paused(fn -> Process.sleep(600) end)
-          Process.sleep(600)
+          # Longer than the timeout: a clock restarted by the inner resume would expire here.
+          Process.sleep(1500)
         end)
 
         send(test_pid, :waited)
