@@ -214,8 +214,9 @@ defmodule Playwright.Test.RegistrationTest do
 end
 
 defmodule Playwright.Test.RegistrationTest.SetupAllContextTest do
-  # A context in `setup_all`, as upstream's `newContext` in `beforeAll`: no defaults, no
-  # recording, and no raise at the tests' registration.
+  # A context in `setup_all`, as upstream's `newContext` in `beforeAll` (its `all-hooks-included`
+  # fixtures): the defaults, and no raise at the tests' registration. The config's options:
+  # `Playwright.Test.SetupAllTest`.
   use ExUnit.Case, async: true
   use Playwright.Test
 
@@ -231,7 +232,7 @@ defmodule Playwright.Test.RegistrationTest.SetupAllContextTest do
 
     options =
       Playwright.Test.RegistrationTest.options_of(playwright, fn probe ->
-        send(test_pid, {:context, Browser.new_context!(browser, user_agent: probe)})
+        send(test_pid, {:context, Browser.new_context!(browser, user_agent: probe, locale: "de-DE")})
       end)
 
     assert_received {:context, context}
@@ -239,8 +240,8 @@ defmodule Playwright.Test.RegistrationTest.SetupAllContextTest do
     %{shared_context: context, options: options}
   end
 
-  test "a context of the module's, open across its tests, without the defaults", ctx do
-    refute Map.has_key?(ctx.options, :locale) or Map.has_key?(ctx.options, :acceptDownloads)
+  test "a context of the module's, open across its tests, with the defaults", ctx do
+    assert %{locale: "de-DE", acceptDownloads: true, viewport: %{width: 1280, height: 720}} = ctx.options
     page = BrowserContext.new_page!(ctx.shared_context)
     Page.set_content!(page, "<p>shared</p>")
     assert Page.text_content!(page, "p") == "shared"
@@ -325,5 +326,30 @@ defmodule Playwright.Test.RegistrationTest.LateTest do
     assert_receive {:result, message}
     assert message =~ "this test created a context before `use Playwright.Test` registered it"
     assert message =~ "add `use Playwright.Test` as the first line of the case template's body"
+  end
+
+  test "a context of setup_all before the module's registration makes it raise, with the fix" do
+    test_pid = self()
+    browser = Playwright.Test.BrowserPool.browser()
+
+    # A template's `setup_all` that creates a context, then the module's registration, as a
+    # module of a template with `use Playwright.Test` only in its `using` runs them.
+    spawn(fn ->
+      context = Playwright.Browser.new_context!(browser)
+
+      result =
+        try do
+          Playwright.Test.__setup_all__(%{module: __MODULE__})
+        rescue
+          e in ArgumentError -> e.message
+        end
+
+      Playwright.BrowserContext.close!(context)
+      send(test_pid, {:result, result, Playwright.Test.Results.module(self())})
+    end)
+
+    assert_receive {:result, message, nil}
+    assert message =~ "this module's setup_all created a context before `use Playwright.Test` registered it"
+    assert message =~ "add `use Playwright.Test` as the first line of the case template's body, or move"
   end
 end

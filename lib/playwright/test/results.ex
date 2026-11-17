@@ -4,6 +4,9 @@ defmodule Playwright.Test.Results do
   # `Playwright.Test`'s table. In the pool's process (`Playwright.Test.Pool`, which hands it
   # these requests), so a test's end reaches the pool before its scope's release: one mailbox.
   #
+  # A module's registration (`register_module/2`): its `setup_all` process, for the context
+  # defaults of the contexts it creates.
+  #
   # A test's result (`watch/2`, `result/2`): passed when the `test` macro marked the end of its
   # body (`{:passed, pid}`) and its process then exited `:shutdown`, as ExUnit's runner ends it.
   # The messages a test process sends arrive before its `DOWN`.
@@ -107,6 +110,26 @@ defmodule Playwright.Test.Results do
   def note_unregistered(pid) do
     if :ets.insert_new(table(), {{:unregistered, pid}, true}), do: GenServer.cast(Pool, {:monitor, pid})
     :ok
+  end
+
+  @doc """
+  Registers the `setup_all` process `pid` of a module (`use Playwright.Test`) with `defaults`
+  (its `context_options` and `timeouts`), once, until it exits.
+  """
+  def register_module(pid, defaults) do
+    # Once (a case template's body and its `using` may both bring it).
+    if :ets.insert_new(table(), {{:module, pid}, Map.put(defaults, :module_pid, pid)}),
+      do: GenServer.cast(Pool, {:monitor, pid})
+
+    :ok
+  end
+
+  @doc "The registration of the module whose `setup_all` process is `pid`, or `nil`."
+  def module(pid) do
+    case started?() && :ets.lookup(table(), {:module, pid}) do
+      [{_key, module}] -> module
+      _ -> nil
+    end
   end
 
   # The pool's process from here on.
@@ -217,12 +240,14 @@ defmodule Playwright.Test.Results do
   def handle_info(_message, state), do: state
 
   @doc """
-  A monitored process exited (a test, a finisher or an unregistered creator of contexts):
+  A monitored process exited (a test, a finisher, a module's `setup_all` or an unregistered
+  creator of contexts):
   `{ended, state}`, `ended` the `{runner, verdict}` of a watched test, `{:finished, [{test_pid,
   runner}]}` of a finisher (`finishing/1`), else `nil`.
   """
   def down(state, pid, reason) do
     :ets.delete(table(), {:unregistered, pid})
+    :ets.delete(table(), {:module, pid})
 
     case pop_in(state.kept[pid]) do
       {nil, state} ->
