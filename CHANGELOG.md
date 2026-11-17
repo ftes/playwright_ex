@@ -48,6 +48,9 @@ upstream minor, so `~> 1.65.0` is safe.
 - Contexts and request contexts created in a module's `setup_all` get the context defaults, the
   config's `context_options` (`base_url` too) and timeouts, as Playwright Test's `beforeAll`
   does, and each test records those still open in its trace and screenshots (#257).
+- A module's `setup_all` that hangs fails past ExUnit's timeout of the module, with
+  `"setup_all" hook timeout of 60000ms exceeded.`, as Playwright Test's `beforeAll` hook
+  times out (#257).
 
 ## [1.65.0-rc.1] 2026-11-16
 

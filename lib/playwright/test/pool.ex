@@ -31,6 +31,7 @@ defmodule Playwright.Test.Pool do
   alias Playwright.Test.Options
   alias Playwright.Test.Pool.Slot
   alias Playwright.Test.Results
+  alias Playwright.Test.SetupAllTimeout
 
   @doc "Starts the pool unless it runs, its table created. Two callers racing is fine."
   def ensure_started do
@@ -54,7 +55,14 @@ defmodule Playwright.Test.Pool do
   def browser(opts, {kind, pid}) do
     ensure_started()
 
-    case GenServer.call(__MODULE__, {:lease, Slot.key(opts), {kind, pid}, parent(pid)}, :infinity) do
+    # The wait for a seat is the dispatcher's queue: not in a `setup_all`'s time, as upstream's
+    # queue has no timeout (a test's counts, as ExUnit's timeout does).
+    lease =
+      SetupAllTimeout.paused(fn ->
+        GenServer.call(__MODULE__, {:lease, Slot.key(opts), {kind, pid}, parent(pid)}, :infinity)
+      end)
+
+    case lease do
       {seat, key} -> Slot.browser(seat, key, opts)
       :stopped -> raise "Playwright.Test's drivers were stopped (after the suite)"
       :released -> raise ArgumentError, "BrowserPool.browser/1 waited past the end of its test or module"

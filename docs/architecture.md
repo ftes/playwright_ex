@@ -306,6 +306,7 @@ module, not put in the context) and ExUnit tags; the rest are arguments.
 | `_combinedContextOptions` (`{...contextOptions, ...options}`) | Playwright Test's defaults, then config `context_options`, then the call's (`key in options`) |
 | `actionTimeout`, `navigationTimeout` (default 0) | config `action_timeout`, `navigation_timeout` (default `:infinity`), set on each context |
 | test timeout, `closeReason` "Test timeout of Nms exceeded." | ExUnit's timeout; the recorder closes the test's contexts with that reason just before it |
+| `beforeAll` hook's timeout (the test timeout, a slot per hook), `"beforeAll" hook timeout of Nms exceeded.` | ExUnit's timeout of the module, for all its `setup_all` callbacks: past it a watchdog exits the `setup_all` process (ExUnit has none) with `"setup_all" hook timeout of Nms exceeded.` |
 | `test.use({ trace, screenshot, video })` (worker-scoped, file level) | `use Playwright.Test, trace: _` over config, `@moduletag`/`@describetag`/`@tag` over it (`tags: false`: none) |
 | `testIdAttribute` (per test) | config `test_id_attribute`, set on each pooled driver: the client's value is global to the VM, not to a worker |
 | `--trace <mode>` | `TRACE` read in `config/test.exs` |
@@ -395,7 +396,7 @@ then the longest idle, where upstream takes the first. The differences:
 | unit of work | a test group: a file's tests of one project | the scope that calls `browser/1`: a module (`setup_all`) or a test, as ExUnit schedules modules |
 | ordering | the queue grouped by hash, so a worker rarely switches | ExUnit's random module order (not portable: ExUnit owns it), so a run that mixes configurations restarts workers often: one configuration per invocation |
 | idle workers | `_isWorkerRedundant` stops a worker no queued job needs | restarted lazily, when a scope of another key takes the seat: there is no queue to look ahead |
-| where waiting happens | the dispatcher's queue, before a worker runs the group | inside `browser/1`: no timeout in `setup_all`, the test timeout in `setup` or a test |
+| where waiting happens | the dispatcher's queue, before a worker runs the group | inside `browser/1`: not counted in `setup_all`'s timeout, counted in the test timeout in `setup` or a test |
 | a scope needing a second configuration | another project, another worker | a further key over `workers`, so a scope that holds one never waits for itself |
 | concurrency | `workers`, half the cores | ExUnit's `max_cases` (twice the schedulers, about four times as many) with `workers` drivers: modules past `workers` wait at no cost, those that never call `browser/1` are unaffected |
 | per-project worker limit | `project.workers` | not needed: one configuration per invocation sets `workers` per run; serial runs use ExUnit's `async: false` |

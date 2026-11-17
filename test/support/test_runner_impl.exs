@@ -20,7 +20,10 @@
 #     hard failure; and a passing one.
 #   * `timeouts` - tests past their timeout: one in a Playwright call, one in `Process.sleep`, one
 #     in a Playwright call after a slow `setup` before `use Playwright.Test`.
-#   * `trace` - `trace: true` (`mix test --trace`): a test past its `timeout` tag passes.
+#   * `setup_all_timeout` - modules with a `timeout` tag of 1 s: a `setup_all` in `Process.sleep`,
+#     one in a Playwright call, and one that ends in time, whose tests take longer together.
+#   * `trace` - `trace: true` (`mix test --trace`): a test past its `timeout` tag passes, and a
+#     `setup_all` past its module's.
 #   * `rerun` - one failing and one passing test (writing a file of its own), `preserve_output:
 #     :failures_only`; with a further `failed` argument, only the failing one, as `mix test
 #     --failed` runs it (`only_test_ids`).
@@ -359,6 +362,49 @@ case mode do
       end
     end
 
+  "setup_all_timeout" ->
+    defmodule SetupAllSleepsTest do
+      use ExUnit.Case, async: true
+      use Playwright.Test
+
+      @moduletag timeout: 1000
+
+      setup_all do
+        Process.sleep(:infinity)
+      end
+
+      test "never runs", do: :ok
+    end
+
+    defmodule SetupAllHangsTest do
+      use Playwright.Case, async: true
+
+      alias Playwright.{Browser, BrowserContext, Page}
+
+      @moduletag timeout: 1000
+
+      setup_all %{browser: browser} do
+        page = browser |> Browser.new_context!() |> BrowserContext.new_page!()
+        Page.wait_for_selector!(page, "#never")
+      end
+
+      test "never runs", do: :ok
+    end
+
+    # The callbacks end in time: the module's tests outlast its timeout together.
+    defmodule SetupAllInTimeTest do
+      use Playwright.Case, async: true
+
+      @moduletag timeout: 1000
+
+      for i <- 1..3 do
+        test "takes 600 ms #{i}", %{page: page} do
+          Process.sleep(600)
+          Page.set_content!(page, "<h1>In time</h1>")
+        end
+      end
+    end
+
   "rerun" ->
     defmodule RerunTest do
       use Playwright.Case, async: true
@@ -442,6 +488,19 @@ case mode do
         Process.sleep(1000)
         Page.set_content!(page, "<h1>Open</h1>")
       end
+    end
+
+    defmodule TraceSetupAllTest do
+      use ExUnit.Case, async: true
+      use Playwright.Test
+
+      @moduletag timeout: 500
+
+      setup_all do
+        Process.sleep(1000)
+      end
+
+      test "runs after a setup_all past its timeout", do: :ok
     end
 end
 

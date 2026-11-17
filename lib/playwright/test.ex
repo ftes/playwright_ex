@@ -183,12 +183,20 @@ defmodule Playwright.Test do
   hangs until then fails with that message and its call log, after the close kept the artifacts.
   A test stuck elsewhere (`Process.sleep/1`, a `receive`) still fails with ExUnit's
   `ExUnit.TimeoutError`. The timeout is ExUnit's: the `@tag timeout:` (`:infinity` for none) or
-  `mix test --timeout`; `mix test --trace` has none. `setup_all` is not covered: its contexts
-  get the config's `action_timeout` and `navigation_timeout`, but nothing closes them. As ExUnit's
+  `mix test --timeout`; `mix test --trace` has none. As ExUnit's
   (and upstream's, which counts `beforeEach` hooks), the timeout counts the test's `setup`
   callbacks: the clock starts at the module's first one, also one defined before `use
   Playwright.Test` or in its case template. What ExUnit does before them (`@tag :tmp_dir`'s
   cleanup, `capture_log`) is not counted, and comes out of the margin.
+
+  A module's `setup_all` callbacks get the same timeout, the module's (`@moduletag timeout:`, else
+  `mix test --timeout`), as upstream's `beforeAll` hook gets the test timeout: past it, the
+  `setup_all` fails with upstream's message, `"setup_all" hook timeout of 60000ms exceeded.`, and
+  the stack it was at. ExUnit has no timeout there, so the runner exits the `setup_all` process,
+  which fails the module as a crash does; its `on_exit` callbacks still run. The clock starts at
+  the module's first `setup_all` callback, and counts all of them, where upstream counts each
+  hook on its own. A wait for a seat in `BrowserPool.browser/1` is not counted, as upstream's
+  queue for a worker has no timeout.
 
   ## Snapshots
 
@@ -268,6 +276,7 @@ defmodule Playwright.Test do
   alias Playwright.Test.Pool
   alias Playwright.Test.Recorder
   alias Playwright.Test.Results
+  alias Playwright.Test.SetupAllTimeout
   alias Playwright.Test.TestInfo
   alias Playwright.Test.TestTracing
 
@@ -497,10 +506,19 @@ defmodule Playwright.Test do
   # deadline (`__register__/1`). ExUnit's timeout counts the setup callbacks, as upstream's test
   # timeout counts its `beforeEach` hooks and fixtures. ExUnit has no public way in: its
   # callbacks are `@ex_unit_setup`, newest first, so the last runs first.
+  # The same for the module's `setup_all` callbacks (`__setup_all_started__/1`), for their timeout.
   def __clock__(module) do
     case Module.get_attribute(module, :ex_unit_setup) do
       setup when is_list(setup) -> Module.put_attribute(module, :ex_unit_setup, setup ++ [{__MODULE__, :__started__}])
       _ -> :ok
+    end
+
+    case Module.get_attribute(module, :ex_unit_setup_all) do
+      setup_all when is_list(setup_all) ->
+        Module.put_attribute(module, :ex_unit_setup_all, setup_all ++ [{__MODULE__, :__setup_all_started__}])
+
+      _ ->
+        :ok
     end
   end
 
@@ -511,6 +529,11 @@ defmodule Playwright.Test do
     if !Process.get(@started), do: Process.put(@started, System.monotonic_time(:millisecond))
     :ok
   end
+
+  @doc false
+  # The module's first `setup_all` callback (`__clock__/1`): starts the timeout of its
+  # `setup_all` callbacks (`Playwright.Test.SetupAllTimeout`).
+  def __setup_all_started__(context), do: SetupAllTimeout.start(context)
 
   @doc false
   # The `setup_all` of `use Playwright.Test`: registers the module's `setup_all` process, so the
