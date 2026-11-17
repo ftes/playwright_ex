@@ -60,12 +60,12 @@ defmodule Playwright.Runtime.Callers do
   stops the running test of the calling process or its `$callers`, else it is logged with `label`.
   """
   def unhandled(label, kind, reason, stacktrace) do
-    case TestInfo.current() do
-      nil ->
-        Logger.error(label <> Exception.format(kind, reason, stacktrace))
+    test_info = TestInfo.current()
+    error = {kind, Exception.normalize(kind, reason, stacktrace), stacktrace}
 
-      test_info ->
-        TestInfo._unhandled_error(test_info, {kind, Exception.normalize(kind, reason, stacktrace), stacktrace})
-    end
+    if !(test_info && TestInfo._unhandled_error(test_info, error)),
+      do: Logger.error(label <> Exception.format(kind, reason, stacktrace))
+
+    :ok
   end
 end

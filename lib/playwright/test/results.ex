@@ -245,13 +245,21 @@ defmodule Playwright.Test.Results do
     # at the test's end: they fail it here, for `error-context.md` and the driver's release.
     # ExUnit reported the test already, without them: its output can't change once the process
     # died.
-    # So does the unhandled error that interrupted it (`TestInfo._unhandled_error/2`), which
-    # ExUnit reported as the exit that carries it.
-    interrupt = TestInfo.interrupt(pid)
-    unhandled = for {_exit_reason, error} <- List.wrap(interrupt), do: error
+    errors = TestInfo.ended(pid)
+
+    # So does the unhandled error that interrupted it (`TestInfo._unhandled_error/2`), the last
+    # of its errors, which ExUnit reported as the exit that carries it. Taken once the test is
+    # unregistered: a later one finds the test ended, and is logged.
+    interrupt = TestInfo.take_interrupt(pid)
+
+    unhandled =
+      case interrupt do
+        {_exit_reason, error} -> [error]
+        nil -> []
+      end
 
     {verdict, failures} =
-      case {unhandled ++ TestInfo.ended(pid), verdict(test, pid, reason, interrupt)} do
+      case {errors ++ unhandled, verdict(test, pid, reason, interrupt)} do
         {[], result} -> result
         {errors, {_verdict, failures}} -> {:failed, Enum.map(errors, &normalize/1) ++ failures}
       end

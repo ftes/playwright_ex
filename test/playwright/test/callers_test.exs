@@ -13,7 +13,6 @@ defmodule Playwright.Test.CallersTest do
   alias Playwright.Page
   alias Playwright.Route
   alias Playwright.Screencast
-  alias Playwright.Test.Results
   alias Playwright.Test.TestInfo
   alias Playwright.WebSocketRoute
 
@@ -27,7 +26,7 @@ defmodule Playwright.Test.CallersTest do
   # Taken back, so that the test goes on and passes (the end of its body would exit with it).
   defp take_interrupt do
     assert_receive {:EXIT, _pid, exit_reason}, 5000
-    assert [{_key, {^exit_reason, error}}] = :ets.take(Results.table(), {:test_info, self(), :has_unhandled_error})
+    assert {^exit_reason, error} = TestInfo.take_interrupt(self())
     # Not among the errors the end of the body raises.
     assert TestInfo.take_errors(self()) == []
     error
@@ -219,8 +218,7 @@ defmodule Playwright.Test.CallersTest do
     assert Exception.message(error) =~ "Assertion with == failed"
     assert Exception.format_exit(exit_reason) =~ ~S|code:  assert Playwright.Dialog.message(dialog) == "expected"|
 
-    assert [{_key, {^exit_reason, {:error, ^error, _}}}] =
-             :ets.take(Results.table(), {:test_info, self(), :has_unhandled_error})
+    assert {^exit_reason, {:error, ^error, _}} = TestInfo.take_interrupt(self())
 
     Playwright.Dialog.dismiss!(dialog)
   end
@@ -245,10 +243,8 @@ defmodule Playwright.Test.CallersTest do
     Process.flag(:trap_exit, true)
     Page.on(page, :console, fn _ -> exit(:normal) end)
     Page.evaluate!(page, "() => console.log('hi')")
-    assert_received {:EXIT, _, {:exit_in_callback, :normal}}
-
-    assert [{_key, {_exit_reason, {:exit, :normal, _}}}] =
-             :ets.take(Results.table(), {:test_info, self(), :has_unhandled_error})
+    assert_receive {:EXIT, _, {:exit_in_callback, :normal}}, 5000
+    assert {_exit_reason, {:exit, :normal, _}} = TestInfo.take_interrupt(self())
   end
 
   test "once the body ended, an unhandled error is logged and stops nothing", %{page: page} do

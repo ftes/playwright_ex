@@ -557,7 +557,9 @@ get its `$callers`, as a `Task` does. So the Ecto sandbox, Mox and `Req.Test` fi
 them without an explicit allowance, and matchers and `step` count for the test. An error a route
 handler, listener or locator handler raises fails the test and stops it at once, as Playwright
 Test's worker does: the test's process exits with that error, and later such errors are dropped.
-A test that traps exits gets the exit as a message, and exits with it at the end of its body.
+A test that traps exits gets the exit as a message, and exits with it at the end of its body
+(not one defined with `ExUnit.Case.test` in place of the `test` macro, which goes on). Soft
+errors recorded before it are reported with it.
 Outside a test, and once the test's body has ended, the error is logged.
 
 A test stopped this way differs from Playwright Test in one point: its failure screenshots are

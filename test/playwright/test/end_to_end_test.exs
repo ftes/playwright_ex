@@ -313,13 +313,14 @@ defmodule Playwright.Test.EndToEndTest do
 
   test "an error in a listener or route handler stops the test at once, with its failure's artifacts",
        %{tmp_dir: tmp_dir} do
-    started = System.monotonic_time(:millisecond)
     child = start("interrupt", tmp_dir)
     assert ChildProcess.exit_code(child, 60_000) == 0
-    # Well under the tests' timeout (45 s), which they would hang until.
-    assert System.monotonic_time(:millisecond) - started < 30_000
     output = ChildProcess.output(child)
-    assert output =~ ~r"4 tests, 4 failures|Result: 0/4 passed"
+    assert output =~ ~r"5 tests, 5 failures|Result: 0/5 passed"
+    # Each ended well under its timeout (45 s), which it would hang until.
+    durations = for [_, ms] <- Regex.scan(~r/\(duration=>(\d+)\)/, output), do: String.to_integer(ms)
+    assert length(durations) == 5
+    assert Enum.max(durations) < 15_000
     refute output =~ "TimeoutError"
     refute output =~ "Test timeout"
 
@@ -341,11 +342,21 @@ defmodule Playwright.Test.EndToEndTest do
     trapped_context = File.read!(Path.join([tmp_dir, "test-results", dir, "error-context.md"]))
     assert [_] = Regex.scan(~r/^RuntimeError: trapped boom$/m, trapped_context)
 
+    # The soft error recorded before the listener's, then that one: each once.
+    soft = failure(output, "test fails softly, then in a console listener (InterruptTest)")
+    assert soft =~ ~r"\*\* \(EXIT from #PID<[0-9.]+>\) an exception was raised:\n\s+\*\* \(ExUnit.MultiError\)"
+    assert [_, after_soft] = String.split(soft, "toHaveText(expected) failed")
+    assert [_, _] = String.split(after_soft, "** (RuntimeError) after soft boom")
+    [dir] = Path.join(tmp_dir, "test-results") |> File.ls!() |> Enum.filter(&(&1 =~ "then-in-a-console-listener"))
+    soft_context = File.read!(Path.join([tmp_dir, "test-results", dir, "error-context.md"]))
+    assert [_, after_soft] = String.split(soft_context, "toHaveText(expected) failed")
+    assert [_] = Regex.scan(~r/^RuntimeError: after soft boom$/m, after_soft)
+
     # Its failure's artifacts, from the teardown, the error once.
     console = failure(output, "test fails in a console listener (InterruptTest)")
     assert console =~ ~S|code:  assert Playwright.ConsoleMessage.text(message) == "expected"|
     output_dir = Path.join(tmp_dir, "test-results")
-    [dir] = output_dir |> File.ls!() |> Enum.filter(&(&1 =~ "console-listener"))
+    [dir] = output_dir |> File.ls!() |> Enum.filter(&(&1 =~ "fails-in-a-console-listener"))
     assert Enum.sort(File.ls!(Path.join(output_dir, dir))) == ["error-context.md", "test-failed-1.png", "trace.zip"]
     error_context = File.read!(Path.join([output_dir, dir, "error-context.md"]))
     assert length(String.split(error_context, "Assertion with == failed")) == 2

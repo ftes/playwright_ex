@@ -65,7 +65,8 @@ defmodule Playwright.Test do
   An error a listener or route handler of the test raises fails the test and stops it at once,
   as upstream's worker does (`unhandledError`): the test's process exits with the error, and
   later such errors are dropped. A test that traps exits gets the exit as a message, and exits
-  with it at the end of its body. Once the body ended, the error is logged. A deviation: the
+  with it at the end of its body (not one defined with `ExUnit.Case.test`, which goes on). Once
+  the body ended, the error is logged. A deviation: the
   stopped test's failure screenshots are taken at teardown, as its contexts close, after its
   `on_exit` callbacks may have run; upstream takes them first (`_didFinishTestFunction`).
 

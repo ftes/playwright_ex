@@ -323,10 +323,19 @@ case mode do
 
   # Each fails at once, as the callback's error stops it; it would hang past its timeout.
   "interrupt" ->
+    # Prints how long each test ran, without its teardown: `(duration=><ms>)`.
+    defmodule InterruptDuration do
+      def print(%{test_pid: test_pid}) do
+        ExUnit.Callbacks.on_exit(fn -> IO.puts("(duration=>#{Playwright.Test.info(test_pid).duration})") end)
+      end
+    end
+
     # The dialog it doesn't accept would hang the call. The open dialog then blocks the
     # teardown's screenshot and snapshot for their 5 s each.
     defmodule InterruptDialogTest do
       use Playwright.Case, async: true
+
+      setup {InterruptDuration, :print}
 
       @tag timeout: 45_000
       test "fails in a dialog listener", %{page: page} do
@@ -343,6 +352,16 @@ case mode do
       use Playwright.Case, async: true
 
       @moduletag timeout: 45_000
+      setup {InterruptDuration, :print}
+
+      # The soft error recorded before it is reported with it.
+      test "fails softly, then in a console listener", %{page: page} do
+        Page.set_content!(page, "<h1>One</h1>")
+        page |> Page.locator("h1") |> Expect.soft() |> Expect.to_have_text!("Uno", timeout: 100)
+        Page.on(page, :console, fn _message -> raise "after soft boom" end)
+        Page.evaluate!(page, "() => console.log('actual')")
+        Process.sleep(:infinity)
+      end
 
       test "fails in a console listener", %{page: page} do
         Page.on(page, :console, fn message -> assert Playwright.ConsoleMessage.text(message) == "expected" end)

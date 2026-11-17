@@ -267,9 +267,11 @@ defmodule Playwright.Test.TestInfo do
   """
   def ended(test_pid) do
     errors = finish(test_pid)
-    # Not the errors: a late `_fail_with_error/2` takes its own back.
+    # Not the errors: a late `_fail_with_error/2` takes its own back. Nor the interrupt
+    # (`take_interrupt/1`): a late `_unhandled_error/2` takes its own back too.
     not_error = {:not, {:andalso, {:is_tuple, :"$1"}, {:==, {:element, 1, :"$1"}, :error}}}
-    :ets.select_delete(Results.table(), [{{{:test_info, test_pid, :"$1"}, :_}, [not_error], [true]}])
+    not_interrupt = {:"=/=", :"$1", :has_unhandled_error}
+    :ets.select_delete(Results.table(), [{{{:test_info, test_pid, :"$1"}, :_}, [not_error, not_interrupt], [true]}])
     errors
   end
 
@@ -629,41 +631,45 @@ defmodule Playwright.Test.TestInfo do
   The worker's `unhandledError` (an error a callback of the test left unhandled: a listener's, a
   route handler's): the test's first one (`_hasUnhandledError`) is `_failWithError`ed and
   `_stop()`s the test (`_isStopped`: once); later ones are dropped. Here the test's process
-  exits with a reason carrying the error, which ExUnit reports as the test's failure and
-  `Playwright.Test.Results` turns back into the error (`interrupt/1`), so it is not among
-  `take_errors/1`. A test that traps exits gets the exit as a message, and exits with it at the
-  end of its body (`Playwright.Test.__passed__/0`). Elixir only: once the test ended, the error
-  is printed, as outside a test.
+  exits with a reason carrying the error, after the errors recorded before it (as the end of the
+  body raises them), which ExUnit reports as the test's failure and `Playwright.Test.Results`
+  turns back into the error (`take_interrupt/1`), so it is not among `take_errors/1`. A test
+  that traps exits gets the exit as a message, and exits with it at the end of its body
+  (`Playwright.Test.__passed__/0`), unless `ExUnit.Case.test` defined it.
+
+  Returns whether the error was the running test's. Elixir only: `false` once the test ended,
+  for the caller to log it, as outside a test.
 
   deviation: upstream awaits `_didFinishTestFunction` (the failure's screenshots) before the
   `afterEach` hooks; here the exit ends the body, so the screenshots are taken at teardown (the
   recorder's, as the contexts close), after the test's own `on_exit` callbacks.
   """
   def _unhandled_error(this, {kind, reason, stacktrace} = error) do
-    key = {:test_info, this.test_pid, :has_unhandled_error}
-    exit_reason = interrupt_reason(kind, reason, stacktrace)
+    key = interrupt_key(this.test_pid)
+
+    exit_reason =
+      case errors(this.test_pid) do
+        [] -> interrupt_reason(kind, reason, stacktrace)
+        earlier -> {%ExUnit.MultiError{errors: earlier ++ [error]}, stacktrace}
+      end
 
     cond do
       not running?(this) ->
-        IO.puts(error_message(error))
+        false
 
       # `_hasUnhandledError`, set once (atomic across the test's processes).
       not :ets.insert_new(Results.table(), {key, {exit_reason, error}}) ->
-        :ok
+        true
 
       running?(this) ->
         TestTracing.append_for_error(_tracing(this), error)
         Process.exit(this.test_pid, exit_reason)
 
-      # The test ended meanwhile (see `put_row/3`): taken back, unless the pool read it already.
-      :ets.take(Results.table(), key) != [] ->
-        IO.puts(error_message(error))
-
+      # The test ended meanwhile: taken back for the caller to log, unless the pool took it
+      # already and reports it (one `take` wins).
       true ->
-        :ok
+        :ets.take(Results.table(), key) == []
     end
-
-    :ok
   end
 
   @doc """
@@ -671,11 +677,21 @@ defmodule Playwright.Test.TestInfo do
   the reason its process exits with and the error it stands for.
   """
   def interrupt(test_pid) do
-    case Results.started?() && :ets.lookup(Results.table(), {:test_info, test_pid, :has_unhandled_error}) do
+    case Results.started?() && :ets.lookup(Results.table(), interrupt_key(test_pid)) do
       [{_key, interrupt}] -> interrupt
       _ -> nil
     end
   end
+
+  @doc "Takes the interrupt of the test `test_pid` (`interrupt/1`): the pool, once the test ended."
+  def take_interrupt(test_pid) do
+    case Results.started?() && :ets.take(Results.table(), interrupt_key(test_pid)) do
+      [{_key, interrupt}] -> interrupt
+      _ -> nil
+    end
+  end
+
+  defp interrupt_key(test_pid), do: {:test_info, test_pid, :has_unhandled_error}
 
   # As ExUnit formats a crashed test: `{exception, stacktrace}`. An exit is wrapped, so that
   # `:normal` interrupts the test too and `:kill` is not a plain kill.
