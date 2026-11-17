@@ -217,7 +217,9 @@ single thread. Use each only where the JS code needs it, with its marker.
   default, `test_helper.exs`); listener state that JS keeps in an array is an `Agent`.
 - JS truthiness (`expect(x).toBeTruthy()`) is `Utils.assert_truthy/1`/`assert_falsy/1`, not a
   bare `assert` (`:null` is truthy in Elixir). `expect.poll(fn).toBe(x)` and `toPass` are
-  `Expect.poll!(fn, &assert(&1 == x))` and `Expect.to_pass!/2`.
+  `Expect.poll!(fn, &assert(&1 == x))` and `Expect.to_pass!/2`. A `toPass` callback that assigns an
+  outer `let` returns the value instead, as `to_pass!` returns the passing attempt's (a closure
+  can't rebind): `box = Expect.to_pass!(fn -> ...; box end)`.
 - Local file access: `path.resolve` is `Path.expand/1`, `fs` calls are `File.*!` (raising
   `File.Error`). Don't imitate system or Node error texts: assert the Elixir error and mark it
   `# deviation: Elixir's File error, not Node's text.` Errors the driver sends stay verbatim.
@@ -258,6 +260,8 @@ to that PR, the workflow also pushes fixes for its CI failures. The mix tasks be
      `usage-rules.md` ("Locators and assertions"): `locators.md` "Quick Guide" and "Locating
      elements", and `best-practices-js.md` "Prefer user-facing attributes to XPath or CSS
      selectors".
+   - Check that `@no_driver_reinstall` in `lib/mix/tasks/playwright.install.ex` still lists the
+     `mix playwright.cli install --help` flags that install no browsers.
 6. Re-check skips that may be gone: run the spec files with `env:` or `flaky:` skips
    (`grep -rlE '"(env|flaky):' test/upstream`) with `PW_UNSKIP=env,flaky mix test <files>` on the
    browser they name (ExUnit runs no skipped test, `--include skip` neither), drop each skip that

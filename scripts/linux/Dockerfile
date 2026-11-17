@@ -1,6 +1,6 @@
 # Linux image like CI's test job (.github/workflows/elixir.yml). `run setup` passes the Elixir and
 # OTP versions from .tool-versions; the driver, browsers and their system deps are installed in the
-# container by `mix playwright.install -- <browsers> --with-deps`, as CI does.
+# container by `mix playwright.install <browsers> --with-deps`, as CI does.
 ARG ELIXIR
 ARG OTP
 ARG OS=ubuntu-resolute-20261024.1

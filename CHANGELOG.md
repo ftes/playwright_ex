@@ -42,12 +42,26 @@ upstream minor, so `~> 1.65.0` is safe.
 ## [Unreleased]
 
 Drives [Playwright 1.65.1](https://github.com/microsoft/playwright/releases/tag/v1.65.1), on
-Node 26.13.1. No API changes.
+Node 26.13.1. No upstream API changes.
+
+### Changed
+
+- **RC only:** **Breaking:** `mix playwright.install` forwards its args to `playwright install`
+  as they are, without `--`: `mix playwright.install chromium --with-deps`. A `--` now raises,
+  naming that fix.
+- **RC only:** **Breaking:** `mix playwright.install --force` also reinstalls the browsers, as
+  it's forwarded to `playwright install`.
+- **RC only:** **Breaking:** `mix playwright.install --no-browsers` with other args than `--force`
+  raises.
+- **RC only:** `Expect.to_pass!/2` returns the callback's value from the attempt that passed,
+  which JS assigns to an outer `let`. **Breaking:** `Expect.to_pass/2` returns `{:ok, value}`,
+  not `:ok`.
 
 ### Fixed
 
-- `mix playwright.install` and `mix playwright.cli` failed with "module :public_key is not
-  available" when run before the project was compiled (e.g. right after `mix deps.get` in CI).
+- **RC only:** `mix playwright.install` and `mix playwright.cli` failed with "module :public_key
+  is not available" when run before the project was compiled (e.g. right after `mix deps.get` in
+  CI).
 
 ## [1.65.0-rc.1] 2026-11-16
 

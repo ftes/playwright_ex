@@ -747,7 +747,8 @@ defmodule Mix.Playwright.ApiRules do
       "kind" => "method",
       "since" => "v1.29",
       "langs" => %{},
-      "type" => %{"name" => "void"},
+      # Elixir only: the passing attempt's value, which a JS callback assigns to an outer `let`.
+      "type" => %{"name" => "any"},
       "args" => [
         retry_options([
           intervals_option(),
@@ -792,6 +793,25 @@ defmodule Mix.Playwright.ApiRules do
             "such as an `ExUnit.AssertionError` or a `Playwright.ExpectError`, an exit) is retried; the last one is " <>
             "in the timeout's message. A callback still running at the deadline is not interrupted. A soft receiver " <>
             "(`callback |> Expect.soft() |> Expect.to_pass()`) works as for any matcher."
+        ),
+        text(
+          "In Elixir, `to_pass!/2` returns the callback's value of the attempt that passed (`to_pass/2`: `{:ok, value}`), " <>
+            "which a JS callback assigns to an outer `let` (an Elixir closure can't):"
+        ),
+        %{
+          "type" => "code",
+          "codeLang" => "elixir",
+          "lines" => [
+            "box =",
+            "  Expect.to_pass!(fn ->",
+            "    box = Locator.bounding_box!(locator)",
+            "    assert box.width == 30",
+            "    box",
+            "  end)"
+          ]
+        },
+        text(
+          "A soft one that fails returns `nil` (`{:ok, nil}`), a negated one (`Expect.not_/1`) `:ok`, as `not_to_pass/2`."
         )
       ],
       "matcher" => %{"name" => "toPass", "isNot" => false, "receivers" => ["Function"]}
@@ -918,6 +938,8 @@ defmodule Mix.Playwright.ApiRules do
             "The opposite of `#{Macro.underscore(member["alias"])}/#{arity}`: `expect(x).not.#{member["alias"]}(...)` in JS."
         }
       ],
+      # The opposite has no value (`toPass`'s is the passing attempt's).
+      "type" => %{"name" => "void"},
       "matcher" => %{member["matcher"] | "isNot" => true}
     })
   end
