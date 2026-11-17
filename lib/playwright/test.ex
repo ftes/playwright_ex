@@ -204,17 +204,20 @@ defmodule Playwright.Test do
   comes out of the margin.
 
   A module's `setup_all` callbacks get the same timeout, the module's (`@moduletag timeout:`, else
-  `mix test --timeout`), as upstream's `beforeAll` hook gets the test timeout: past it, the
-  `setup_all` fails with upstream's message with `beforeAll` renamed, `"setup_all" hook timeout of
-  60000ms exceeded.`, and the stack it was at. ExUnit has no timeout there, so the runner exits
-  the `setup_all` process, which fails the module as a crash does; its `on_exit` callbacks still
-  run. Unlike a test's, its contexts are not closed with a reason first, so a hung call fails
-  without its call log, and the failure is ExUnit's for an exit (`** (EXIT from #PID<...>)`), with
-  the stack unpruned. A `setup_all` process that traps exits is killed 1 s after the timeout
-  instead: it fails with `:killed`, without the message. One timeout counts all of the module's
-  `setup_all` callbacks, where upstream counts each hook on its own. `BrowserPool.browser/1` (the
-  wait for a worker, its start) is not counted, as upstream's queue has no timeout and its worker
-  fixtures have their own. Its contexts get the config's `action_timeout` and
+  ExUnit's `timeout`: `ExUnit.start(timeout:)` or `mix test --timeout`), as upstream's `beforeAll`
+  hook gets the test timeout: past it, the `setup_all` fails with upstream's message with
+  `beforeAll` renamed, `"setup_all" hook timeout of 60000ms exceeded.`, and the stack it was at.
+  ExUnit has no timeout there, so the runner exits the `setup_all` process, which fails the
+  module as a crash does; its `on_exit` callbacks still run. The failure is ExUnit's for an exit
+  (`** (EXIT from #PID<...>)`), with the stack unpruned, and a hung call fails without its call
+  log: unlike a test's, its contexts aren't closed with a reason before the exit. Its pooled
+  browsers are reset at the module's end instead, as a failed test's, which closes its contexts:
+  a failed `setup_all`'s are, as upstream stops a worker whose job failed. A `setup_all` process
+  that traps exits is killed 1 s after the timeout instead: it fails with `:killed`, without the
+  message. One timeout counts all of the module's `setup_all` callbacks, where upstream counts
+  each hook on its own. `BrowserPool.browser/1`'s wait for a worker is not counted, as upstream's
+  queue has no timeout; the worker's start is, as in a test (upstream's worker fixtures have a
+  timeout of their own). Its contexts get the config's `action_timeout` and
   `navigation_timeout` (`:infinity` by default, not the client's 30 s), as upstream's `beforeAll`
   contexts get `actionTimeout || 0`.
 
@@ -395,7 +398,8 @@ defmodule Playwright.Test do
   defmacro __before_compile__(env) do
     options = Module.get_attribute(env.module, :playwright_test)
 
-    # Without ExUnit's `__ex_unit__/2` (its internals changed), no `setup_all` timeout.
+    # Without ExUnit's `__ex_unit__/2` (its internals changed, or no `use ExUnit.Case` before),
+    # no `setup_all` timeout: said at compile time.
     setup_all_timeout =
       if Module.defines?(env.module, {:__ex_unit__, 2}) do
         quote do
@@ -407,6 +411,14 @@ defmodule Playwright.Test do
 
           def __ex_unit__(kind, context), do: super(kind, context)
         end
+      else
+        IO.warn(
+          "use Playwright.Test found no ExUnit __ex_unit__/2 in #{inspect(env.module)} (no `use ExUnit.Case` " <>
+            "before it, or ExUnit's internals changed): its setup_all callbacks get no timeout",
+          Macro.Env.stacktrace(env)
+        )
+
+        nil
       end
 
     quote do

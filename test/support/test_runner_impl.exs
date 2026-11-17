@@ -21,8 +21,8 @@
 #   * `timeouts` - tests past their timeout: one in a Playwright call, one in `Process.sleep`, one
 #     in a Playwright call after a slow `setup` before `use Playwright.Test`.
 #   * `setup_all_timeout` - modules with a `timeout` tag: a `setup_all` in `Process.sleep` (1 s),
-#     one in a Playwright call after its context and page (6 s), and one that ends in time, whose
-#     tests take longer together (5 s).
+#     one in a Playwright call (6 s, its browser's launch, context and page counted too), and one
+#     that ends in time, whose tests take longer together (5 s).
 #   * `trace` - `trace: true` (`mix test --trace`): a test past its `timeout` tag passes, and a
 #     `setup_all` past its module's.
 #   * `rerun` - one failing and one passing test (writing a file of its own), `preserve_output:
@@ -382,7 +382,8 @@ case mode do
 
       alias Playwright.{Browser, BrowserContext, Page}
 
-      # Time for the context and page on a slow browser: the deadline lands in the wait.
+      # Counts the browser's launch, context and page too: on a slow browser the deadline may
+      # land in one of them, so only the message is asserted.
       @moduletag timeout: 6000
 
       setup_all %{browser: browser} do

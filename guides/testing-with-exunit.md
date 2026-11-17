@@ -103,7 +103,8 @@ Playwright, `0` never means "fail at once" ([API conventions](api-conventions.md
 Playwright Test's `beforeAll` contexts). The module's timeout (`@moduletag timeout:`, else
 ExUnit's) bounds its `setup_all` callbacks, as Playwright Test bounds each `beforeAll` hook: past
 it, the `setup_all` fails with `"setup_all" hook timeout of 60000ms exceeded.`, but without the
-call log, as its contexts aren't closed first.
+call log, as its contexts aren't closed before. Its pooled browsers reset at the module's end,
+as after a failed test, which closes them.
 
 Each driver call logs `pw:api ...` at `:debug` ([Logging](getting-started.md#logging)), so give
 the test env a logger level (`config :logger, level: :warning`). `ExUnit.start(capture_log:

@@ -10,6 +10,7 @@ defmodule Playwright.Test.BrowserPoolTest do
   alias Playwright.Test.Options
   alias Playwright.Test.Pool
   alias Playwright.Test.Results
+  alias Playwright.Test.SetupAllTimeout
   alias Playwright.Test.TestInfo
 
   # A worker of this module's (no other module passes this `env`), of each call's options
@@ -62,6 +63,14 @@ defmodule Playwright.Test.BrowserPoolTest do
     t = fake_test()
     lease(t, opts)
     finish(t, [passed()], :shutdown)
+  end
+
+  # The same, its browser.
+  defp finish_leased_browser(opts) do
+    t = fake_test()
+    leased = lease(t, opts)
+    finish(t, [passed()], :shutdown)
+    leased
   end
 
   def on_start(playwright, test_pid) do
@@ -263,6 +272,52 @@ defmodule Playwright.Test.BrowserPoolTest do
       assert end_test(pid, [passed()], :shutdown) == {:passed, []}
       Results.forget(pid)
       assert Results.result(pid, 100) == {nil, []}
+    end
+  end
+
+  describe "setup_all" do
+    # A `setup_all` scope's process, as ExUnit's: its callbacks `fun` after a lease of `opts`
+    # and a context on it, then the wait. Its `on_exit` release, after it exited.
+    defp failed_setup_all(opts, fun) do
+      test = self()
+
+      {pid, ref} =
+        spawn_monitor(fn ->
+          SetupAllTimeout.run(%{module: __MODULE__, timeout: 3000}, fn ->
+            %{browser: browser} = leased = Pool.browser(Options.pool(opts), {:process, self()})
+            Browser.new_context!(browser)
+            send(test, {:leased, leased})
+            fun.()
+          end)
+
+          Process.sleep(:infinity)
+        end)
+
+      assert_receive {:leased, leased}, 30_000
+      assert_receive {:DOWN, ^ref, :process, ^pid, _reason}, 10_000
+      Pool.release(pid)
+      leased
+    end
+
+    defp callbacks(:raised), do: fn -> raise "boom" end
+    defp callbacks(:timed_out), do: fn -> Process.sleep(:infinity) end
+
+    # Raised, or past the timeout (none under `mix test --trace`).
+    for failed <- [:raised | if(ExUnit.configuration()[:trace], do: [], else: [:timed_out])] do
+      @tag :capture_log
+      test "a #{failed} setup_all resets its seat: the next scope of its options gets a fresh browser, without its contexts" do
+        opts = opts()
+        warm = finish_leased_browser(opts)
+        leased = failed_setup_all(opts, callbacks(unquote(failed)))
+        assert leased.playwright == warm.playwright
+
+        t = fake_test()
+        fresh = lease(t, opts)
+        assert fresh.playwright != warm.playwright
+        assert Browser.contexts(fresh.browser) == []
+        assert gone?(warm.browser)
+        finish(t, [passed()], :shutdown)
+      end
     end
   end
 

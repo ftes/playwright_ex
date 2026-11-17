@@ -72,9 +72,10 @@ Node 26.13.1. No upstream API changes.
   (`0` for `:infinity`) and no navigation timeout: no limit by default, where they had the
   client's 30 s.
 - **RC only:** **Breaking:** a module's `setup_all` callbacks fail past ExUnit's timeout of the
-  module (`@moduletag timeout:`, else `mix test --timeout`), with `"setup_all" hook timeout of
+  module (`@moduletag timeout:`, else ExUnit's `timeout`), with `"setup_all" hook timeout of
   60000ms exceeded.`, as Playwright Test's `beforeAll` hook times out (#257). A longer
-  `setup_all` needs a `@moduletag timeout:`.
+  `setup_all` needs a `@moduletag timeout:`. A failed `setup_all`'s pooled browsers reset at the
+  module's end, as a failed test's do.
 
 ### Fixed
 
