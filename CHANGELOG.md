@@ -44,19 +44,11 @@ upstream minor, so `~> 1.65.0` is safe.
 Drives [Playwright 1.65.1](https://github.com/microsoft/playwright/releases/tag/v1.65.1), on
 Node 26.13.1. No API changes.
 
-### For RC users (since 1.65.0-rc.1)
+### Fixed
 
-Dropped at the final 1.65.0 release.
-
-#### Fixed
-
-- `mix playwright.install` and `mix playwright.cli` failed with "module :public_key is not
-  available" when run before the project was compiled (e.g. right after `mix deps.get` in CI).
-  0.16 had neither task, so this is RC-only.
-
-### For 0.16 users
-
-Carried into the final 1.65.0 release notes, next to the upgrading guide.
+- **RC only:** `mix playwright.install` and `mix playwright.cli` failed with "module :public_key
+  is not available" when run before the project was compiled (e.g. right after `mix deps.get` in
+  CI).
 
 ## [1.65.0-rc.1] 2026-11-16
 
