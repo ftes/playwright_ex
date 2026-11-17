@@ -48,6 +48,9 @@ Node 26.13.1. No upstream API changes.
 
 - `Playwright.Promise.all/1`, `race/1` and `any/1`, as JS's `Promise.all`, `Promise.race` and
   `Promise.any` (with `Playwright.AggregateError`).
+- A warning when the connection has waited 5 s for one listener or route handler, which stalls
+  every page on it: it names the listener, shows where it waits and points to the fix
+  ([Concurrency](guides/concurrency.md#no-blocking-work-in-listeners)).
 
 ### Changed
 

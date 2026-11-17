@@ -114,6 +114,19 @@ defmodule Playwright.Guides.NetworkTest do
     assert fetch_json(page, "/api/users") == "context"
   end
 
+  test "delaying a response", %{page: page} do
+    Page.route!(page, "**/api/users", fn route ->
+      Task.start(fn ->
+        Process.sleep(500)
+        Route.fulfill!(route, json: [%{name: "Grace"}])
+      end)
+    end)
+
+    sent = System.monotonic_time(:millisecond)
+    assert fetch_json(page, "/api/users") == [%{"name" => "Grace"}]
+    assert System.monotonic_time(:millisecond) - sent >= 500
+  end
+
   test "replaying a HAR", %{browser: browser, base_url: base_url, server: server, tmp_dir: tmp_dir} do
     har = Path.join(tmp_dir, "api.har")
 
