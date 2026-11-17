@@ -119,7 +119,7 @@ defmodule Playwright.Test.Results do
   def register_module(pid, defaults) do
     # Once (a case template's body and its `using` may both bring it).
     if :ets.insert_new(table(), {{:module, pid}, defaults}),
-      do: GenServer.cast(Pool, {:monitor, pid})
+      do: GenServer.cast(Pool, {:module_registered, pid})
 
     :ok
   end
