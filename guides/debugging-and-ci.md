@@ -132,7 +132,7 @@ not `localhost`.
 ```yaml
 runs-on: ubuntu-24.04
 container:
-  image: mcr.microsoft.com/playwright:v1.65.0-noble
+  image: mcr.microsoft.com/playwright:v1.65.1-noble
 env:
   ImageOS: ubuntu22
   HOME: /root
@@ -191,8 +191,8 @@ image), run only the browsers there and connect to them. The image's version mus
 driver's (`Playwright.Driver.version/0`):
 
 ```sh
-docker run -p 3000:3000 --rm --init -it mcr.microsoft.com/playwright:v1.65.0-noble \
-  npx -y playwright@1.65.0 run-server --port 3000 --host 0.0.0.0
+docker run -p 3000:3000 --rm --init -it mcr.microsoft.com/playwright:v1.65.1-noble \
+  npx -y playwright@1.65.1 run-server --port 3000 --host 0.0.0.0
 ```
 
 ```elixir

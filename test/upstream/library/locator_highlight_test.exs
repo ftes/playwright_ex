@@ -18,16 +18,15 @@ defmodule Playwright.Library.LocatorHighlightTest do
 
   @style_function """
   (el) => ({
-    outline: el.style.outline,
+    // Browsers serialize the 'outline' shorthand in different orders, check the longhands.
+    outlineWidth: el.style.outlineWidth,
+    outlineStyle: el.style.outlineStyle,
+    outlineColor: el.style.outlineColor,
     backgroundColor: el.style.backgroundColor,
   })
   """
 
-  test "LO-193 highlight should accept a CSS string style", %{
-    browser: browser,
-    server: server,
-    browser_name: browser_name
-  } do
+  test "LO-193 highlight should accept a CSS string style", %{browser: browser, server: server} do
     # test.skip(isFrozenWebkit);  -- we run a current browser
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
@@ -41,20 +40,15 @@ defmodule Playwright.Library.LocatorHighlightTest do
     Expect.to_be_visible!(highlight)
     style = Locator.evaluate!(highlight, @style_function)
 
-    if browser_name in ["chromium", "firefox"],
-      do: assert(style["outline"] == "rgb(255, 0, 0) solid 3px"),
-      else: assert(style["outline"] == "3px solid rgb(255, 0, 0)")
-
+    assert style["outlineWidth"] == "3px"
+    assert style["outlineStyle"] == "solid"
+    assert style["outlineColor"] == "rgb(255, 0, 0)"
     assert style["backgroundColor"] == "rgba(0, 255, 0, 0.25)"
 
     BrowserContext.close!(context)
   end
 
-  test "LO-194 highlight should accept an object style (JS only)", %{
-    browser: browser,
-    server: server,
-    browser_name: browser_name
-  } do
+  test "LO-194 highlight should accept an object style (JS only)", %{browser: browser, server: server} do
     # test.skip(isFrozenWebkit);  -- we run a current browser
     context = Browser.new_context!(browser)
     page = BrowserContext.new_page!(context)
@@ -68,10 +62,9 @@ defmodule Playwright.Library.LocatorHighlightTest do
     Expect.to_be_visible!(highlight)
     style = Locator.evaluate!(highlight, @style_function)
 
-    if browser_name in ["chromium", "firefox"],
-      do: assert(style["outline"] == "rgb(0, 0, 255) dashed 2px"),
-      else: assert(style["outline"] == "2px dashed rgb(0, 0, 255)")
-
+    assert style["outlineWidth"] == "2px"
+    assert style["outlineStyle"] == "dashed"
+    assert style["outlineColor"] == "rgb(0, 0, 255)"
     assert style["backgroundColor"] == "rgba(255, 255, 0, 0.2)"
 
     BrowserContext.close!(context)

@@ -77,11 +77,15 @@ jobs:
       # token's push and PR do trigger workflows, so elixir.yml runs on the PR as on any other.
       contents: read
       id-token: write
+      pull-requests: read # the PR check after Claude
     env:
       BROWSER: chromium
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # Else checkout's read-only token can override the app token Claude pushes with: from v6
+          # it sits in an includeIf file claude-code-action doesn't clear, so the push gets a 403.
+          persist-credentials: false
           fetch-depth: 0
       - name: Setup languages
         uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
@@ -114,6 +118,7 @@ jobs:
             echo "PROMPT_EOF"
           } >> "$GITHUB_OUTPUT"
       - name: Port the release
+        id: claude
         uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -134,6 +139,31 @@ jobs:
             --add-dir /tmp/playwright /home/runner/.cache/playwright
             --allowedTools "Skill,Read,Write,Edit,MultiEdit,Glob,Grep,LS,Agent,Task,TodoWrite,Bash(mix:*),Bash(MIX_ENV=test mix:*),Bash(git:*),Bash(gh:*),Bash(curl:*),Bash(ls:*),Bash(mkdir:*),Bash(wc:*),Bash(diff:*)"
             --disallowedTools "Bash(gh pr merge:*),Bash(gh pr ready:*),Bash(gh repo:*),Bash(gh workflow:*),Bash(git push origin main:*),Bash(git push origin HEAD:main:*),Bash(git push --force:*),Bash(git push -f:*)"
+      - name: Summarize Claude's result
+        if: ${{ !cancelled() && steps.claude.outputs.execution_file != '' }}
+        env:
+          EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+        # .github/claude-summary.jq: only the final message and the denied calls (public repo). From
+        # the run's commit, as Claude may have edited the checkout; a failed `git show` stops the step.
+        run: |
+          filter=$(git show "$GITHUB_SHA:.github/claude-summary.jq")
+          jq -r "$filter" "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
+      # Claude's run succeeds whatever it did, so a port that never got published would go unnoticed.
+      - name: Check the branch and PR exist
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ needs.check.outputs.branch }}
+        run: |
+          if ! gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --silent; then
+            echo "::error::Claude pushed no branch $BRANCH; see the job summary for its last message"
+            exit 1
+          fi
+          pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$BRANCH" --state open --json url --jq '.[0].url')
+          if [[ -z $pr ]]; then
+            echo "::error::$BRANCH has no open PR; see the job summary for Claude's last message"
+            exit 1
+          fi
+          echo "Opened $pr" >> "$GITHUB_STEP_SUMMARY"
 
   # Claude's finished ports whose CI failed. A PR left "in progress" by a run that stopped early is
   # not worth fixing, and one a human has commented on or pushed to is theirs.
@@ -187,6 +217,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # As in `update`: else the push gets a 403.
+          persist-credentials: false
           ref: ${{ matrix.pr.branch }}
           fetch-depth: 0
       - name: Setup languages
@@ -208,6 +240,7 @@ jobs:
           mkdir -p tmp
           gh run view "$run" --log-failed | tail -n 5000 > tmp/ci-failed.log
       - name: Fix the port
+        id: claude
         uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -248,3 +281,11 @@ jobs:
             --max-turns 150
             --add-dir /home/runner/.cache/playwright
             --allowedTools "Skill,Read,Grep,Glob,Edit,Write,Agent,Task,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix credo:*),Bash(mix playwright.parity:*),Bash(mix playwright.gen.api:*),Bash(mix playwright.gen.protocol:*),Bash(gh pr view ${{ matrix.pr.number }}:*),Bash(git push origin ${{ matrix.pr.branch }}),Bash(gh pr comment ${{ matrix.pr.number }} *)"
+      - name: Summarize Claude's result
+        if: ${{ !cancelled() && steps.claude.outputs.execution_file != '' }}
+        env:
+          EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+        # As in `update`.
+        run: |
+          filter=$(git show "$GITHUB_SHA:.github/claude-summary.jq")
+          jq -r "$filter" "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"

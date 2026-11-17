@@ -41,6 +41,9 @@ upstream minor, so `~> 1.65.0` is safe.
 
 ## [Unreleased]
 
+Drives [Playwright 1.65.1](https://github.com/microsoft/playwright/releases/tag/v1.65.1), on
+Node 26.13.1. No API changes.
+
 ### Changed
 
 - `mix playwright.install` takes `playwright install`'s args as they are: `--` is no longer
