@@ -25,7 +25,9 @@ defmodule Playwright.Promise do
   [Concurrency](concurrency.md) guide). `all/1`, `race/1` and `any/1` combine promises, as JS's
   `Promise.all`, `Promise.race` and `Promise.any`. Unlike JS's, they compare their inputs when
   you await them: inputs already settled by then go in list order, so a later await may pick
-  another winner. Awaited right away, they behave as in JS.
+  another winner. Awaited right away, they behave as in JS. Combine the promises the API returns
+  (`async/1`, the waits): a local promise of the runtime (`Playwright.Runtime.Promise.async/1`)
+  can be awaited once, as a `Task`.
   """
 
   @typedoc "A promise handle."
@@ -58,12 +60,16 @@ defmodule Playwright.Promise do
   Waits for the promise: `{:ok, value}`, or `{:error, exception}` if it is rejected with a
   `t:Playwright.error/0`. Other exceptions (bugs) are raised.
   """
-  @spec await(t()) :: {:ok, term()} | {:error, Playwright.error()}
+  @spec await(t()) :: {:ok, term()} | {:error, Playwright.error() | Playwright.AggregateError.t()}
   def await(%Playwright.Runtime.Promise{} = promise) do
     {:ok, Playwright.Runtime.Promise.await(promise)}
   rescue
-    e -> if Playwright.Runtime.Facade.error?(e), do: {:error, e}, else: reraise(e, __STACKTRACE__)
+    e -> if error?(e), do: {:error, e}, else: reraise(e, __STACKTRACE__)
   end
+
+  # `any/1`'s error is one when each of its errors is.
+  defp error?(%Playwright.AggregateError{errors: errors}), do: Enum.all?(errors, &error?/1)
+  defp error?(e), do: Playwright.Runtime.Facade.error?(e)
 
   @doc "Like `await/1`, but returns the value and raises if the promise is rejected."
   @spec await!(t()) :: term()
@@ -71,8 +77,8 @@ defmodule Playwright.Promise do
 
   @doc """
   `Promise.all(promises)`: the values in input order, or the first rejection, without waiting
-  for the rest. `all([])` resolves to `[]`. A plain value is taken as resolved
-  (`Promise.resolve(value)`).
+  for the rest. `all([])` resolves to `[]`. The inputs must be promises: a call in the list
+  (`Page.click!(...)`) has already run, so start it with `async/1`.
 
       # JS: const [response] = await Promise.all([page.waitForResponse('**/api'), page.click('button')])
       [response, _] =
@@ -85,8 +91,8 @@ defmodule Playwright.Promise do
   The inputs run on whatever the outcome, and stay awaitable. The combined promise holds
   nothing of its own: free its inputs, not it.
   """
-  @spec all([t() | term()]) :: t()
-  def all(promises), do: combine(promises, &Playwright.Runtime.Promise.all/1, "all")
+  @spec all([t()]) :: t()
+  def all(promises) when is_list(promises), do: Playwright.Runtime.Promise.all(promises!(promises, "all"))
 
   @doc """
   `Promise.race(promises)`: settles as the first input to settle, fulfilled or rejected.
@@ -96,13 +102,14 @@ defmodule Playwright.Promise do
       Promise.race([Page.wait_for_event(page, :popup), Page.wait_for_event(page, :download)])
       |> Promise.await!()
   """
-  @spec race([t() | term()]) :: t()
-  def race(promises), do: combine(promises, &Playwright.Runtime.Promise.race/1, "race")
+  @spec race([t()]) :: t()
+  def race(promises) when is_list(promises), do: Playwright.Runtime.Promise.race(promises!(promises, "race"))
 
   @doc """
   `Promise.any(promises)`: the first value, ignoring rejections until all inputs have
   rejected; then a `Playwright.AggregateError` with each rejection in input order. `any([])`
-  rejects with one at once. Otherwise as `all/1`.
+  rejects with one at once. `await/1` returns it as `{:error, error}` when each of its errors is a
+  `t:Playwright.error/0`, and raises it otherwise. Otherwise as `all/1`.
 
       # JS: await Promise.any([page.waitForURL('**/home'), page.waitForURL('**/welcome')])
       Promise.any([
@@ -111,20 +118,16 @@ defmodule Playwright.Promise do
       ])
       |> Promise.await!()
   """
-  @spec any([t() | term()]) :: t()
-  def any(promises), do: combine(promises, &Playwright.Runtime.Promise.any/1, "any")
+  @spec any([t()]) :: t()
+  def any(promises) when is_list(promises), do: Playwright.Runtime.Promise.any(promises!(promises, "any"))
 
-  defp combine(promises, combinator, _name) when is_list(promises) do
-    combinator.(
-      Enum.map(promises, fn
-        %Playwright.Runtime.Promise{} = promise -> promise
-        value -> Playwright.Runtime.Promise.resolved(value)
-      end)
-    )
+  defp promises!(promises, name) do
+    for promise <- promises, !is_struct(promise, Playwright.Runtime.Promise) do
+      raise ArgumentError, "Playwright.Promise.#{name}/1 expects promises, got: #{inspect(promise)}"
+    end
+
+    promises
   end
-
-  defp combine(promises, _combinator, name),
-    do: raise(ArgumentError, "Playwright.Promise.#{name}/1 expects a list, got: #{inspect(promises)}")
 
   @doc """
   Elixir only: drops a promise nobody will await, such as a wait started before checking state

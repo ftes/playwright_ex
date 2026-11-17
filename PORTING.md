@@ -212,8 +212,7 @@ single thread. Use each only where the JS code needs it, with its marker.
   `Runtime.Promise.async(fn -> ... end)`, which returns once the call is sent (a `Task` may send
   it late); `shared: true` where upstream checks whether it is done (`Runtime.Promise.settled?/1`).
   `void x()` and `.catch(() => {})` are `Runtime.Promise.void/1`. `Promise.all` of awaited calls
-  is `Playwright.Promise.all/1` of `Runtime.Promise.async/1`s, a `setTimeout` stays `Task.start` +
-  sleep.
+  stays `Task.async` + `Task.await_many(_, :infinity)`, a `setTimeout` stays `Task.start` + sleep.
 - Assertions in listeners become `send/2` to the test process and `assert_receive` (10 s
   default, `test_helper.exs`); listener state that JS keeps in an array is an `Agent`.
 - JS truthiness (`expect(x).toBeTruthy()`) is `Utils.assert_truthy/1`/`assert_falsy/1`, not a
