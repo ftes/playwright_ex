@@ -1196,8 +1196,9 @@ defmodule Playwright.Browser do
           :ok | {:error, Playwright.error()}
   def remove_all_listeners(browser, event \\ nil, options \\ [])
 
-  def remove_all_listeners(browser, options, []) when is_list(options) or (is_map(options) and not is_struct(options)),
-    do: remove_all_listeners(browser, nil, options)
+  def remove_all_listeners(%Playwright.Browser{} = browser, options, [])
+      when is_list(options) or (is_map(options) and not is_struct(options)),
+      do: remove_all_listeners(browser, nil, options)
 
   def remove_all_listeners(%Playwright.Browser{} = browser, event, options) do
     event = Facade.event!(event, @events, "browser.removeAllListeners")
@@ -1213,8 +1214,9 @@ defmodule Playwright.Browser do
   @spec remove_all_listeners!(t(), event() | String.t() | nil | remove_all_listeners_options()) :: :ok
   def remove_all_listeners!(browser, event \\ nil, options \\ [])
 
-  def remove_all_listeners!(browser, options, []) when is_list(options) or (is_map(options) and not is_struct(options)),
-    do: remove_all_listeners!(browser, nil, options)
+  def remove_all_listeners!(%Playwright.Browser{} = browser, options, [])
+      when is_list(options) or (is_map(options) and not is_struct(options)),
+      do: remove_all_listeners!(browser, nil, options)
 
   def remove_all_listeners!(%Playwright.Browser{} = browser, event, options) do
     event = Facade.event!(event, @events, "browser.removeAllListeners")
@@ -1267,8 +1269,9 @@ defmodule Playwright.Browser do
   @spec start_tracing(t(), Playwright.Page.t() | nil | start_tracing_options()) :: :ok | {:error, Playwright.error()}
   def start_tracing(browser, page \\ nil, options \\ [])
 
-  def start_tracing(browser, options, []) when is_list(options) or (is_map(options) and not is_struct(options)),
-    do: start_tracing(browser, nil, options)
+  def start_tracing(%Playwright.Browser{} = browser, options, [])
+      when is_list(options) or (is_map(options) and not is_struct(options)),
+      do: start_tracing(browser, nil, options)
 
   def start_tracing(%Playwright.Browser{} = browser, page, options) do
     options = Facade.options!(options, @start_tracing_options, "browser.startTracing")
@@ -1283,8 +1286,9 @@ defmodule Playwright.Browser do
   @spec start_tracing!(t(), Playwright.Page.t() | nil | start_tracing_options()) :: :ok
   def start_tracing!(browser, page \\ nil, options \\ [])
 
-  def start_tracing!(browser, options, []) when is_list(options) or (is_map(options) and not is_struct(options)),
-    do: start_tracing!(browser, nil, options)
+  def start_tracing!(%Playwright.Browser{} = browser, options, [])
+      when is_list(options) or (is_map(options) and not is_struct(options)),
+      do: start_tracing!(browser, nil, options)
 
   def start_tracing!(%Playwright.Browser{} = browser, page, options) do
     options = Facade.options!(options, @start_tracing_options, "browser.startTracing")

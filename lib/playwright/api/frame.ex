@@ -3560,8 +3560,9 @@ defmodule Playwright.Frame do
           :ok | {:error, Playwright.error()}
   def wait_for_load_state(frame, state \\ nil, options \\ [])
 
-  def wait_for_load_state(frame, options, []) when is_list(options) or (is_map(options) and not is_struct(options)),
-    do: wait_for_load_state(frame, nil, options)
+  def wait_for_load_state(%Playwright.Frame{} = frame, options, [])
+      when is_list(options) or (is_map(options) and not is_struct(options)),
+      do: wait_for_load_state(frame, nil, options)
 
   def wait_for_load_state(%Playwright.Frame{} = frame, state, options) do
     state = Facade.arg!(state, @wait_for_load_state_state, "frame.waitForLoadState")
@@ -3577,8 +3578,9 @@ defmodule Playwright.Frame do
   @spec wait_for_load_state!(t(), :load | :domcontentloaded | :networkidle | nil | wait_for_load_state_options()) :: :ok
   def wait_for_load_state!(frame, state \\ nil, options \\ [])
 
-  def wait_for_load_state!(frame, options, []) when is_list(options) or (is_map(options) and not is_struct(options)),
-    do: wait_for_load_state!(frame, nil, options)
+  def wait_for_load_state!(%Playwright.Frame{} = frame, options, [])
+      when is_list(options) or (is_map(options) and not is_struct(options)),
+      do: wait_for_load_state!(frame, nil, options)
 
   def wait_for_load_state!(%Playwright.Frame{} = frame, state, options) do
     state = Facade.arg!(state, @wait_for_load_state_state, "frame.waitForLoadState")

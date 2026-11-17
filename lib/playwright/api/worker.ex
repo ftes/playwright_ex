@@ -180,7 +180,7 @@ defmodule Playwright.Worker do
   @spec wait_for_event(t(), event() | String.t(), wait_for_event_options() | fun()) :: Playwright.Promise.t()
   def wait_for_event(worker, event, options \\ [])
 
-  def wait_for_event(worker, event, predicate) when is_function(predicate),
+  def wait_for_event(%Playwright.Worker{} = worker, event, predicate) when is_function(predicate),
     do: wait_for_event(worker, event, predicate: predicate)
 
   def wait_for_event(%Playwright.Worker{} = worker, event, options) do
@@ -266,7 +266,7 @@ defmodule Playwright.Worker do
           {:ok, term()} | {:error, Playwright.error()}
   def expect_event(worker, event, action, options \\ [])
 
-  def expect_event(worker, event, action, predicate) when is_function(predicate),
+  def expect_event(%Playwright.Worker{} = worker, event, action, predicate) when is_function(predicate),
     do: expect_event(worker, event, action, predicate: predicate)
 
   def expect_event(%Playwright.Worker{} = worker, event, action, options) do
@@ -285,7 +285,7 @@ defmodule Playwright.Worker do
   @spec expect_event!(t(), event() | String.t(), (-> term()), expect_event_options() | fun()) :: term()
   def expect_event!(worker, event, action, options \\ [])
 
-  def expect_event!(worker, event, action, predicate) when is_function(predicate),
+  def expect_event!(%Playwright.Worker{} = worker, event, action, predicate) when is_function(predicate),
     do: expect_event!(worker, event, action, predicate: predicate)
 
   def expect_event!(%Playwright.Worker{} = worker, event, action, options) do

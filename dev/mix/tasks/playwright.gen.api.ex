@@ -313,9 +313,7 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
   # The receiver in a function head: its handle struct matched, unless it has subclasses (`JSHandle`)
   # or is no handle (`Expect`).
   defp receiver_param(ctx, name, receiver) do
-    subclasses = for {_sub, %{"extends" => ^name}} <- ctx.classes, do: true
-
-    if name != "Expect" and handle?(name) and subclasses == [],
+    if handle?(name) and not Enum.any?(ctx.classes, &match?({_sub, %{"extends" => ^name}}, &1)),
       do: "%#{inspect(facade(name))}{} = #{receiver}",
       else: receiver
   end
@@ -447,7 +445,8 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
           "#{receiver}, #{capture}).([#{Enum.join(vars, ", ")}])"
       end
 
-    m = %{params: params, function: nil, or_options: or_options(member["args"], vars)}
+    # The receiver is not matched: a matcher takes several (`matcher["receivers"]`).
+    m = %{params: params, matched: params, function: nil, or_options: or_options(member["args"], vars)}
     receiver_spec = Enum.map_join(matcher["receivers"], " | ", &receiver_type/1)
     # A negated or soft receiver (`not_/1`, `soft/1`) takes the place of the receiver (a `not_to_*`
     # matcher raises for a negated one).
@@ -593,11 +592,13 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
 
   defp clauses(m, name) do
     plain = Enum.map(m.params, &no_default/1)
+    # The receiver matched in the clauses' heads too, so a wrong one fails there.
+    matched = Enum.map(m.matched, &no_default/1)
 
     function =
       if function = m.function do
         var = snake(function)
-        fun_params = Enum.map(plain, &if(&1 == "options", do: var, else: &1))
+        fun_params = Enum.map(matched, &if(&1 == "options", do: var, else: &1))
         call_args = Enum.map(plain, &if(&1 == "options", do: "#{var}: #{var}", else: &1))
 
         """
@@ -608,7 +609,7 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
 
     or_options =
       if var = m.or_options do
-        opt_params = Enum.map(plain, &(%{var => "options", "options" => "[]"}[&1] || &1))
+        opt_params = Enum.map(matched, &(%{var => "options", "options" => "[]"}[&1] || &1))
         call_args = Enum.map(plain, &if(&1 == var, do: "nil", else: &1))
 
         """

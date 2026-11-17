@@ -163,5 +163,19 @@ defmodule Playwright.Runtime.FacadeTest do
     message = Exception.message(blamed)
     assert message =~ "#Playwright.Locator<"
     assert message =~ "def get_by_test_id(-%Playwright.Page{} = page-, test_id)"
+
+    # A clause for a function in place of the options matches it too: the error has the
+    # arguments as given, not as that clause passes them on (`predicate: predicate`).
+    predicate = fn _ -> true end
+
+    {e, stacktrace} =
+      try do
+        Playwright.Page.wait_for_event(locator, :load, predicate)
+      rescue
+        e -> {e, __STACKTRACE__}
+      end
+
+    assert {%FunctionClauseError{function: :wait_for_event, args: args}, _} = Exception.blame(:error, e, stacktrace)
+    assert args == [locator, :load, predicate]
   end
 end

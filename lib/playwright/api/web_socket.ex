@@ -120,7 +120,7 @@ defmodule Playwright.WebSocket do
   @spec wait_for_event(t(), event() | String.t(), wait_for_event_options() | fun()) :: Playwright.Promise.t()
   def wait_for_event(web_socket, event, options \\ [])
 
-  def wait_for_event(web_socket, event, predicate) when is_function(predicate),
+  def wait_for_event(%Playwright.WebSocket{} = web_socket, event, predicate) when is_function(predicate),
     do: wait_for_event(web_socket, event, predicate: predicate)
 
   def wait_for_event(%Playwright.WebSocket{} = web_socket, event, options) do
@@ -195,7 +195,7 @@ defmodule Playwright.WebSocket do
           {:ok, term()} | {:error, Playwright.error()}
   def expect_event(web_socket, event, action, options \\ [])
 
-  def expect_event(web_socket, event, action, predicate) when is_function(predicate),
+  def expect_event(%Playwright.WebSocket{} = web_socket, event, action, predicate) when is_function(predicate),
     do: expect_event(web_socket, event, action, predicate: predicate)
 
   def expect_event(%Playwright.WebSocket{} = web_socket, event, action, options) do
@@ -214,7 +214,7 @@ defmodule Playwright.WebSocket do
   @spec expect_event!(t(), event() | String.t(), (-> term()), expect_event_options() | fun()) :: term()
   def expect_event!(web_socket, event, action, options \\ [])
 
-  def expect_event!(web_socket, event, action, predicate) when is_function(predicate),
+  def expect_event!(%Playwright.WebSocket{} = web_socket, event, action, predicate) when is_function(predicate),
     do: expect_event!(web_socket, event, action, predicate: predicate)
 
   def expect_event!(%Playwright.WebSocket{} = web_socket, event, action, options) do

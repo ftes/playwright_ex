@@ -3933,8 +3933,9 @@ defmodule Playwright.Page do
           :ok | {:error, Playwright.error()}
   def remove_all_listeners(page, event \\ nil, options \\ [])
 
-  def remove_all_listeners(page, options, []) when is_list(options) or (is_map(options) and not is_struct(options)),
-    do: remove_all_listeners(page, nil, options)
+  def remove_all_listeners(%Playwright.Page{} = page, options, [])
+      when is_list(options) or (is_map(options) and not is_struct(options)),
+      do: remove_all_listeners(page, nil, options)
 
   def remove_all_listeners(%Playwright.Page{} = page, event, options) do
     event = Facade.event!(event, @events, "page.removeAllListeners")
@@ -3950,8 +3951,9 @@ defmodule Playwright.Page do
   @spec remove_all_listeners!(t(), event() | String.t() | nil | remove_all_listeners_options()) :: :ok
   def remove_all_listeners!(page, event \\ nil, options \\ [])
 
-  def remove_all_listeners!(page, options, []) when is_list(options) or (is_map(options) and not is_struct(options)),
-    do: remove_all_listeners!(page, nil, options)
+  def remove_all_listeners!(%Playwright.Page{} = page, options, [])
+      when is_list(options) or (is_map(options) and not is_struct(options)),
+      do: remove_all_listeners!(page, nil, options)
 
   def remove_all_listeners!(%Playwright.Page{} = page, event, options) do
     event = Facade.event!(event, @events, "page.removeAllListeners")
@@ -5608,7 +5610,7 @@ defmodule Playwright.Page do
   @spec wait_for_event(t(), event() | String.t(), wait_for_event_options() | fun()) :: Playwright.Promise.t()
   def wait_for_event(page, event, options \\ [])
 
-  def wait_for_event(page, event, predicate) when is_function(predicate),
+  def wait_for_event(%Playwright.Page{} = page, event, predicate) when is_function(predicate),
     do: wait_for_event(page, event, predicate: predicate)
 
   def wait_for_event(%Playwright.Page{} = page, event, options) do
@@ -5791,8 +5793,9 @@ defmodule Playwright.Page do
           :ok | {:error, Playwright.error()}
   def wait_for_load_state(page, state \\ nil, options \\ [])
 
-  def wait_for_load_state(page, options, []) when is_list(options) or (is_map(options) and not is_struct(options)),
-    do: wait_for_load_state(page, nil, options)
+  def wait_for_load_state(%Playwright.Page{} = page, options, [])
+      when is_list(options) or (is_map(options) and not is_struct(options)),
+      do: wait_for_load_state(page, nil, options)
 
   def wait_for_load_state(%Playwright.Page{} = page, state, options) do
     state = Facade.arg!(state, @wait_for_load_state_state, "page.waitForLoadState")
@@ -5808,8 +5811,9 @@ defmodule Playwright.Page do
   @spec wait_for_load_state!(t(), :load | :domcontentloaded | :networkidle | nil | wait_for_load_state_options()) :: :ok
   def wait_for_load_state!(page, state \\ nil, options \\ [])
 
-  def wait_for_load_state!(page, options, []) when is_list(options) or (is_map(options) and not is_struct(options)),
-    do: wait_for_load_state!(page, nil, options)
+  def wait_for_load_state!(%Playwright.Page{} = page, options, [])
+      when is_list(options) or (is_map(options) and not is_struct(options)),
+      do: wait_for_load_state!(page, nil, options)
 
   def wait_for_load_state!(%Playwright.Page{} = page, state, options) do
     state = Facade.arg!(state, @wait_for_load_state_state, "page.waitForLoadState")
@@ -6456,7 +6460,7 @@ defmodule Playwright.Page do
           {:ok, Playwright.ConsoleMessage.t()} | {:error, Playwright.error()}
   def expect_console_message(page, action, options \\ [])
 
-  def expect_console_message(page, action, predicate) when is_function(predicate),
+  def expect_console_message(%Playwright.Page{} = page, action, predicate) when is_function(predicate),
     do: expect_console_message(page, action, predicate: predicate)
 
   def expect_console_message(%Playwright.Page{} = page, action, options) do
@@ -6475,7 +6479,7 @@ defmodule Playwright.Page do
           Playwright.ConsoleMessage.t()
   def expect_console_message!(page, action, options \\ [])
 
-  def expect_console_message!(page, action, predicate) when is_function(predicate),
+  def expect_console_message!(%Playwright.Page{} = page, action, predicate) when is_function(predicate),
     do: expect_console_message!(page, action, predicate: predicate)
 
   def expect_console_message!(%Playwright.Page{} = page, action, options) do
@@ -6535,7 +6539,7 @@ defmodule Playwright.Page do
           {:ok, Playwright.Download.t()} | {:error, Playwright.error()}
   def expect_download(page, action, options \\ [])
 
-  def expect_download(page, action, predicate) when is_function(predicate),
+  def expect_download(%Playwright.Page{} = page, action, predicate) when is_function(predicate),
     do: expect_download(page, action, predicate: predicate)
 
   def expect_download(%Playwright.Page{} = page, action, options) do
@@ -6553,7 +6557,7 @@ defmodule Playwright.Page do
   @spec expect_download!(t(), (-> term()), expect_download_options() | fun()) :: Playwright.Download.t()
   def expect_download!(page, action, options \\ [])
 
-  def expect_download!(page, action, predicate) when is_function(predicate),
+  def expect_download!(%Playwright.Page{} = page, action, predicate) when is_function(predicate),
     do: expect_download!(page, action, predicate: predicate)
 
   def expect_download!(%Playwright.Page{} = page, action, options) do
@@ -6618,7 +6622,7 @@ defmodule Playwright.Page do
           {:ok, term()} | {:error, Playwright.error()}
   def expect_event(page, event, action, options \\ [])
 
-  def expect_event(page, event, action, predicate) when is_function(predicate),
+  def expect_event(%Playwright.Page{} = page, event, action, predicate) when is_function(predicate),
     do: expect_event(page, event, action, predicate: predicate)
 
   def expect_event(%Playwright.Page{} = page, event, action, options) do
@@ -6637,7 +6641,7 @@ defmodule Playwright.Page do
   @spec expect_event!(t(), event() | String.t(), (-> term()), expect_event_options() | fun()) :: term()
   def expect_event!(page, event, action, options \\ [])
 
-  def expect_event!(page, event, action, predicate) when is_function(predicate),
+  def expect_event!(%Playwright.Page{} = page, event, action, predicate) when is_function(predicate),
     do: expect_event!(page, event, action, predicate: predicate)
 
   def expect_event!(%Playwright.Page{} = page, event, action, options) do
@@ -6699,7 +6703,7 @@ defmodule Playwright.Page do
           {:ok, Playwright.FileChooser.t()} | {:error, Playwright.error()}
   def expect_file_chooser(page, action, options \\ [])
 
-  def expect_file_chooser(page, action, predicate) when is_function(predicate),
+  def expect_file_chooser(%Playwright.Page{} = page, action, predicate) when is_function(predicate),
     do: expect_file_chooser(page, action, predicate: predicate)
 
   def expect_file_chooser(%Playwright.Page{} = page, action, options) do
@@ -6717,7 +6721,7 @@ defmodule Playwright.Page do
   @spec expect_file_chooser!(t(), (-> term()), expect_file_chooser_options() | fun()) :: Playwright.FileChooser.t()
   def expect_file_chooser!(page, action, options \\ [])
 
-  def expect_file_chooser!(page, action, predicate) when is_function(predicate),
+  def expect_file_chooser!(%Playwright.Page{} = page, action, predicate) when is_function(predicate),
     do: expect_file_chooser!(page, action, predicate: predicate)
 
   def expect_file_chooser!(%Playwright.Page{} = page, action, options) do
@@ -6891,7 +6895,7 @@ defmodule Playwright.Page do
           {:ok, Playwright.Page.t()} | {:error, Playwright.error()}
   def expect_popup(page, action, options \\ [])
 
-  def expect_popup(page, action, predicate) when is_function(predicate),
+  def expect_popup(%Playwright.Page{} = page, action, predicate) when is_function(predicate),
     do: expect_popup(page, action, predicate: predicate)
 
   def expect_popup(%Playwright.Page{} = page, action, options) do
@@ -6909,7 +6913,7 @@ defmodule Playwright.Page do
   @spec expect_popup!(t(), (-> term()), expect_popup_options() | fun()) :: Playwright.Page.t()
   def expect_popup!(page, action, options \\ [])
 
-  def expect_popup!(page, action, predicate) when is_function(predicate),
+  def expect_popup!(%Playwright.Page{} = page, action, predicate) when is_function(predicate),
     do: expect_popup!(page, action, predicate: predicate)
 
   def expect_popup!(%Playwright.Page{} = page, action, options) do
@@ -7055,7 +7059,7 @@ defmodule Playwright.Page do
           {:ok, Playwright.Request.t()} | {:error, Playwright.error()}
   def expect_request_finished(page, action, options \\ [])
 
-  def expect_request_finished(page, action, predicate) when is_function(predicate),
+  def expect_request_finished(%Playwright.Page{} = page, action, predicate) when is_function(predicate),
     do: expect_request_finished(page, action, predicate: predicate)
 
   def expect_request_finished(%Playwright.Page{} = page, action, options) do
@@ -7073,7 +7077,7 @@ defmodule Playwright.Page do
   @spec expect_request_finished!(t(), (-> term()), expect_request_finished_options() | fun()) :: Playwright.Request.t()
   def expect_request_finished!(page, action, options \\ [])
 
-  def expect_request_finished!(page, action, predicate) when is_function(predicate),
+  def expect_request_finished!(%Playwright.Page{} = page, action, predicate) when is_function(predicate),
     do: expect_request_finished!(page, action, predicate: predicate)
 
   def expect_request_finished!(%Playwright.Page{} = page, action, options) do
@@ -7219,7 +7223,7 @@ defmodule Playwright.Page do
           {:ok, Playwright.WebSocket.t()} | {:error, Playwright.error()}
   def expect_websocket(page, action, options \\ [])
 
-  def expect_websocket(page, action, predicate) when is_function(predicate),
+  def expect_websocket(%Playwright.Page{} = page, action, predicate) when is_function(predicate),
     do: expect_websocket(page, action, predicate: predicate)
 
   def expect_websocket(%Playwright.Page{} = page, action, options) do
@@ -7237,7 +7241,7 @@ defmodule Playwright.Page do
   @spec expect_websocket!(t(), (-> term()), expect_websocket_options() | fun()) :: Playwright.WebSocket.t()
   def expect_websocket!(page, action, options \\ [])
 
-  def expect_websocket!(page, action, predicate) when is_function(predicate),
+  def expect_websocket!(%Playwright.Page{} = page, action, predicate) when is_function(predicate),
     do: expect_websocket!(page, action, predicate: predicate)
 
   def expect_websocket!(%Playwright.Page{} = page, action, options) do
@@ -7297,7 +7301,7 @@ defmodule Playwright.Page do
           {:ok, Playwright.Worker.t()} | {:error, Playwright.error()}
   def expect_worker(page, action, options \\ [])
 
-  def expect_worker(page, action, predicate) when is_function(predicate),
+  def expect_worker(%Playwright.Page{} = page, action, predicate) when is_function(predicate),
     do: expect_worker(page, action, predicate: predicate)
 
   def expect_worker(%Playwright.Page{} = page, action, options) do
@@ -7315,7 +7319,7 @@ defmodule Playwright.Page do
   @spec expect_worker!(t(), (-> term()), expect_worker_options() | fun()) :: Playwright.Worker.t()
   def expect_worker!(page, action, options \\ [])
 
-  def expect_worker!(page, action, predicate) when is_function(predicate),
+  def expect_worker!(%Playwright.Page{} = page, action, predicate) when is_function(predicate),
     do: expect_worker!(page, action, predicate: predicate)
 
   def expect_worker!(%Playwright.Page{} = page, action, options) do

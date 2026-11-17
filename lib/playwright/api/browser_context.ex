@@ -796,7 +796,7 @@ defmodule Playwright.BrowserContext do
           :ok | {:error, Playwright.error()}
   def remove_all_listeners(browser_context, event \\ nil, options \\ [])
 
-  def remove_all_listeners(browser_context, options, [])
+  def remove_all_listeners(%Playwright.BrowserContext{} = browser_context, options, [])
       when is_list(options) or (is_map(options) and not is_struct(options)),
       do: remove_all_listeners(browser_context, nil, options)
 
@@ -814,7 +814,7 @@ defmodule Playwright.BrowserContext do
   @spec remove_all_listeners!(t(), event() | String.t() | nil | remove_all_listeners_options()) :: :ok
   def remove_all_listeners!(browser_context, event \\ nil, options \\ [])
 
-  def remove_all_listeners!(browser_context, options, [])
+  def remove_all_listeners!(%Playwright.BrowserContext{} = browser_context, options, [])
       when is_list(options) or (is_map(options) and not is_struct(options)),
       do: remove_all_listeners!(browser_context, nil, options)
 
@@ -1646,7 +1646,7 @@ defmodule Playwright.BrowserContext do
   @spec wait_for_event(t(), event() | String.t(), wait_for_event_options() | fun()) :: Playwright.Promise.t()
   def wait_for_event(browser_context, event, options \\ [])
 
-  def wait_for_event(browser_context, event, predicate) when is_function(predicate),
+  def wait_for_event(%Playwright.BrowserContext{} = browser_context, event, predicate) when is_function(predicate),
     do: wait_for_event(browser_context, event, predicate: predicate)
 
   def wait_for_event(%Playwright.BrowserContext{} = browser_context, event, options) do
@@ -1726,8 +1726,9 @@ defmodule Playwright.BrowserContext do
           {:ok, Playwright.ConsoleMessage.t()} | {:error, Playwright.error()}
   def expect_console_message(browser_context, action, options \\ [])
 
-  def expect_console_message(browser_context, action, predicate) when is_function(predicate),
-    do: expect_console_message(browser_context, action, predicate: predicate)
+  def expect_console_message(%Playwright.BrowserContext{} = browser_context, action, predicate)
+      when is_function(predicate),
+      do: expect_console_message(browser_context, action, predicate: predicate)
 
   def expect_console_message(%Playwright.BrowserContext{} = browser_context, action, options) do
     options = Facade.options!(options, @expect_console_message_options, "browserContext.waitForEvent")
@@ -1745,8 +1746,9 @@ defmodule Playwright.BrowserContext do
           Playwright.ConsoleMessage.t()
   def expect_console_message!(browser_context, action, options \\ [])
 
-  def expect_console_message!(browser_context, action, predicate) when is_function(predicate),
-    do: expect_console_message!(browser_context, action, predicate: predicate)
+  def expect_console_message!(%Playwright.BrowserContext{} = browser_context, action, predicate)
+      when is_function(predicate),
+      do: expect_console_message!(browser_context, action, predicate: predicate)
 
   def expect_console_message!(%Playwright.BrowserContext{} = browser_context, action, options) do
     options = Facade.options!(options, @expect_console_message_options, "browserContext.waitForEvent")
@@ -1809,8 +1811,9 @@ defmodule Playwright.BrowserContext do
           {:ok, term()} | {:error, Playwright.error()}
   def expect_event(browser_context, event, action, options \\ [])
 
-  def expect_event(browser_context, event, action, predicate) when is_function(predicate),
-    do: expect_event(browser_context, event, action, predicate: predicate)
+  def expect_event(%Playwright.BrowserContext{} = browser_context, event, action, predicate)
+      when is_function(predicate),
+      do: expect_event(browser_context, event, action, predicate: predicate)
 
   def expect_event(%Playwright.BrowserContext{} = browser_context, event, action, options) do
     event = Facade.event!(event, @events, "browserContext.waitForEvent")
@@ -1828,8 +1831,9 @@ defmodule Playwright.BrowserContext do
   @spec expect_event!(t(), event() | String.t(), (-> term()), expect_event_options() | fun()) :: term()
   def expect_event!(browser_context, event, action, options \\ [])
 
-  def expect_event!(browser_context, event, action, predicate) when is_function(predicate),
-    do: expect_event!(browser_context, event, action, predicate: predicate)
+  def expect_event!(%Playwright.BrowserContext{} = browser_context, event, action, predicate)
+      when is_function(predicate),
+      do: expect_event!(browser_context, event, action, predicate: predicate)
 
   def expect_event!(%Playwright.BrowserContext{} = browser_context, event, action, options) do
     event = Facade.event!(event, @events, "browserContext.waitForEvent")
@@ -1889,7 +1893,7 @@ defmodule Playwright.BrowserContext do
           {:ok, Playwright.Page.t()} | {:error, Playwright.error()}
   def expect_page(browser_context, action, options \\ [])
 
-  def expect_page(browser_context, action, predicate) when is_function(predicate),
+  def expect_page(%Playwright.BrowserContext{} = browser_context, action, predicate) when is_function(predicate),
     do: expect_page(browser_context, action, predicate: predicate)
 
   def expect_page(%Playwright.BrowserContext{} = browser_context, action, options) do
@@ -1907,7 +1911,7 @@ defmodule Playwright.BrowserContext do
   @spec expect_page!(t(), (-> term()), expect_page_options() | fun()) :: Playwright.Page.t()
   def expect_page!(browser_context, action, options \\ [])
 
-  def expect_page!(browser_context, action, predicate) when is_function(predicate),
+  def expect_page!(%Playwright.BrowserContext{} = browser_context, action, predicate) when is_function(predicate),
     do: expect_page!(browser_context, action, predicate: predicate)
 
   def expect_page!(%Playwright.BrowserContext{} = browser_context, action, options) do
