@@ -569,8 +569,18 @@ defmodule Playwright.Test.ArtifactsTest do
     assert error_context =~ "```\nRuntimeError: on purpose\n```"
     assert error_context =~ ~s(heading "FIRST")
     refute error_context =~ "RUNNING" or error_context =~ "SECOND"
-    assert output =~ "mix playwright.cli show-trace #{Path.relative_to_cwd(Path.join(test.dir, "trace.zip"))}"
-    assert length(String.split(output, "show-trace")) == 2
+    # The trace hint waits for the end of the suite, after ExUnit's failures (`Pool.print_after_suite/1`).
+    refute output =~ "show-trace"
+    trace = Path.relative_to_cwd(Path.join(test.dir, "trace.zip"))
+
+    held =
+      for {{:after_suite_output, _} = key, text} <- :ets.tab2list(Results.table()), text =~ trace do
+        :ets.delete(Results.table(), key)
+        text
+      end
+
+    assert [hint] = held
+    assert hint =~ ~r/^Trace of ".*": mix playwright.cli show-trace #{Regex.escape(trace)}$/
   end
 
   # Upstream's `_takePageSnapshot` as a context closes: `testInfo.errors` has the soft ones.

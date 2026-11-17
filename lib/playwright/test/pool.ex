@@ -92,6 +92,8 @@ defmodule Playwright.Test.Pool do
   # The next call starts them anew.
   def after_suite(_stats) do
     if Process.whereis(__MODULE__) do
+      print_held_output()
+
       __MODULE__
       |> GenServer.call(:take_all, :infinity)
       |> Task.async_stream(&Slot.stop/1, timeout: :infinity, max_concurrency: 64)
@@ -99,6 +101,25 @@ defmodule Playwright.Test.Pool do
     end
 
     :ok
+  end
+
+  @doc """
+  Prints `text` after ExUnit's output (`after_suite/1`), once its formatter printed the run's
+  failures: a line written while a test ends comes before its failure, which ExUnit prints only
+  after the test's `on_exit` callbacks. Without the callback (no ExUnit run), at once.
+  """
+  def print_after_suite(text) do
+    if Results.started?() and :ets.member(Results.table(), :after_suite),
+      do: :ets.insert(Results.table(), {{:after_suite_output, System.unique_integer([:monotonic])}, text}),
+      else: IO.puts(text)
+
+    :ok
+  end
+
+  defp print_held_output do
+    rows = :ets.match_object(Results.table(), {{:after_suite_output, :_}, :_})
+    for {key, _text} <- rows, do: :ets.delete(Results.table(), key)
+    if rows != [], do: IO.puts(["\n" | Enum.map_intersperse(Enum.sort(rows), "\n", &elem(&1, 1))])
   end
 
   # ExUnit's modules, the runner here, and this layer's (`Playwright.Test`, `Playwright.Case`),
@@ -122,8 +143,10 @@ defmodule Playwright.Test.Pool do
     # `setBoxedStackPrefixes([packageRoot])` (`packages/playwright/src/common/process.ts`).
     ClientStackTrace.set_boxed_stack_prefixes(runner_modules())
 
-    if Code.ensure_loaded?(ExUnit) and is_list(Application.get_env(:ex_unit, :after_suite)),
-      do: ExUnit.after_suite(&__MODULE__.after_suite/1)
+    if Code.ensure_loaded?(ExUnit) and is_list(Application.get_env(:ex_unit, :after_suite)) do
+      ExUnit.after_suite(&__MODULE__.after_suite/1)
+      :ets.insert(Results.table(), {:after_suite, true})
+    end
 
     {:ok, %{seats: %{}, scopes: %{}, waiting: [], results: results, workers: nil}}
   end

@@ -53,6 +53,8 @@ Node 26.13.1. No API changes.
   JSON" and left the request hanging. Also `WebSocketRoute.send/2` and `APIRequestContext`'s
   `data:`.
 - A matcher's unknown `message:` option points to `Expect.message/2` (JS `expect(x, message)`).
+- A failed test's "Trace of ..." hint prints after the run, below ExUnit's summary: above its own
+  failure it read as the previous failure's.
 
 ### Fixed
 
