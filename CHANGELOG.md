@@ -41,6 +41,11 @@ upstream minor, so `~> 1.65.0` is safe.
 
 ## [Unreleased]
 
+### Changed
+
+- `Expect.to_pass!/2` returns the callback's value from the attempt that passed, which JS assigns
+  to an outer `let`. **Breaking:** `Expect.to_pass/2` returns `{:ok, value}`, not `:ok`.
+
 ### Fixed
 
 - `mix playwright.install` and `mix playwright.cli` failed with "module :public_key is not

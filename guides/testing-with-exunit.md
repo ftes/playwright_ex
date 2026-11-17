@@ -711,9 +711,10 @@ Most of a spec ports call for call. What differs (and see [Not supported](#not-s
   takes the `JSHandle` functions.
 - Module-level `let` state reset in `beforeEach` becomes per-test state, returned from `setup` or
   kept in an `Agent` (unlinked when an `on_exit` reads it, see "A check after the test").
-- `expect(fn).toPass()` is `Expect.to_pass!/2`, `expect.poll(fn).toBe(x)` is
-  `Expect.poll!(fn, &assert(&1 == x))`, and a call started now and awaited later
-  (`const p = locator.evaluate(...)`) is `Playwright.Promise.async/1` (see
+- `expect(fn).toPass()` is `Expect.to_pass!/2`, which returns the passing attempt's value: a
+  callback that assigns an outer `let` returns it instead (`box = Expect.to_pass!(fn -> ...; box
+  end)`). `expect.poll(fn).toBe(x)` is `Expect.poll!(fn, &assert(&1 == x))`, and a call started
+  now and awaited later (`const p = locator.evaluate(...)`) is `Playwright.Promise.async/1` (see
   [Concurrency](concurrency.md)).
 
 ## Not supported
