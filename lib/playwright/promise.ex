@@ -148,6 +148,9 @@ defmodule Playwright.Promise do
   that turned out to be ready (see the [Concurrency](concurrency.md) guide). Its result is no longer kept, no
   late message reaches the caller; don't await it afterwards. Without `free/1` the result is
   kept until the owner exits.
+
+  Freeing a promise that is still pending doesn't stop it: when it settles later, its result is
+  kept until the owner exits.
   """
   @spec free(t()) :: :ok
   def free(%Playwright.Runtime.Promise{} = promise), do: Playwright.Runtime.Promise.free(promise)
