@@ -88,8 +88,8 @@ var in the config: `context_options: [base_url: System.get_env("BASE_URL", "http
 As in Playwright Test, actions and navigations have no timeout of their own in a test: ExUnit's
 test timeout (60 seconds) bounds them; Playwright Test's is 30 seconds, so for the same
 behaviour, `ExUnit.start(timeout: 30_000)` in `test_helper.exs`. Just before it, the test's
-contexts are closed, so a stuck call fails with "Test timeout of 60000ms exceeded." and its call
-log, and the artifacts are kept. To fail sooner, set `action_timeout` and `navigation_timeout` in the config (milliseconds), or
+contexts are closed, so a stuck call fails with "Test timeout of 60000ms exceeded." (the timeout's
+milliseconds) and its call log, and the artifacts are kept. To fail sooner, set `action_timeout` and `navigation_timeout` in the config (milliseconds), or
 `set_default_timeout/2` and `set_default_navigation_timeout/2` on a context. `:infinity`, the
 default, is no limit, and so is `0`, in the config as in every `timeout:` option: as in
 Playwright, `0` never means "fail at once" ([API conventions](api-conventions.md)).
@@ -902,8 +902,9 @@ Page.locator(page, ".error") |> Expect.not_to_be_visible!()
 Page.get_by_role(page, :listitem) |> Locator.filter(has_text: "Apple") |> Expect.to_be_visible!()
 ```
 
-Locators are strict, as `assert_has`'s count of 1 is: a matcher on a locator that matches several
-elements fails. `Element.text` is the rendered text, so a text with CSS `text-transform` needs
+Locators are strict, as `assert_has`'s default count of 1 is: a matcher of one element
+(`to_be_visible`, `to_have_text` with a string) fails on a locator that matches several, and
+`assert_has`'s `count:` is `Expect.to_have_count!/2`. `Element.text` is the rendered text, so a text with CSS `text-transform` needs
 `Expect.to_have_text!(locator, "RED", use_inner_text: true)`; `to_have_text!` reads
 `textContent`. `fill_in` types key by key, `Locator.fill!/2` sets the value with one `input`
 event: for handlers of key events, `Locator.press_sequentially!/3`. For the SQL sandbox, see
