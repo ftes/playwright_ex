@@ -179,8 +179,12 @@ defmodule Playwright.Guides.NetworkTest do
     """)
   end
 
-  @tag capture_log: true
-  test "WebSockets: delay the server's frames, watch them on the wire", %{context: context, page: page, server: server} do
+  test "WebSockets: delay the server's frames, watch them on the wire", %{
+    context: context,
+    page: page,
+    server: server,
+    tmp_dir: tmp_dir
+  } do
     tracing = BrowserContext.tracing(context)
     Tracing.start!(tracing, snapshots: true)
 
@@ -219,8 +223,9 @@ defmodule Playwright.Guides.NetworkTest do
         Page.evaluate!(page, "() => window.ws.send('hi')")
         assert_receive {:message, "hi"}, 5000
 
-        # Held back: on the wire, not in the page yet.
-        assert Page.evaluate!(page, "() => window.log") == []
+        # Held back: on the wire, not in the page yet (when read within the delay).
+        held = Page.evaluate!(page, "() => window.log")
+        if System.monotonic_time(:millisecond) - sent < 500, do: assert(held == [])
         Expect.poll!(fn -> Page.evaluate!(page, "() => window.log") end, &assert(&1 == ["hello"]))
         assert System.monotonic_time(:millisecond) - sent >= 500
 
@@ -233,14 +238,43 @@ defmodule Playwright.Guides.NetworkTest do
     assert log =~ ~s(received: "hello")
     assert log =~ ~s(sent: "hi")
 
-    path = Path.join(System.tmp_dir!(), "guide-ws-#{System.unique_integer([:positive])}.zip")
-    Tracing.stop!(tracing, path: path)
-    {:ok, files} = :zip.unzip(String.to_charlist(path), [:memory])
-    File.rm!(path)
     # The socket in the network log, its frames in a resource.
+    files = trace_files(tracing, tmp_dir)
+
     assert Enum.any?(files, fn {name, body} -> name == ~c"trace.network" and body =~ ~s("_resourceType":"websocket") end)
 
     assert Enum.any?(files, fn {_name, body} -> body =~ ~s("data":"hello") end)
+  end
+
+  test "WebSockets: a socket mocked without connect_to_server never reaches the wire", %{
+    context: context,
+    page: page,
+    tmp_dir: tmp_dir
+  } do
+    tracing = BrowserContext.tracing(context)
+    Tracing.start!(tracing, snapshots: true)
+    test_pid = self()
+    Page.on(page, :web_socket, &send(test_pid, {:web_socket, &1}))
+
+    Page.route_web_socket!(page, "**/ws", fn ws ->
+      WebSocketRoute.on_message(ws, fn "ping" -> WebSocketRoute.send(ws, "pong") end)
+    end)
+
+    Page.goto!(page, "/")
+    open_web_socket(page)
+    Page.evaluate!(page, "() => window.ws.send('ping')")
+    Expect.poll!(fn -> Page.evaluate!(page, "() => window.log") end, &assert(&1 == ["pong"]))
+
+    refute_received {:web_socket, _}
+    files = trace_files(tracing, tmp_dir)
+    refute Enum.any?(files, fn {_name, body} -> body =~ ~s("_resourceType":"websocket") end)
+  end
+
+  defp trace_files(tracing, tmp_dir) do
+    path = Path.join(tmp_dir, "trace.zip")
+    Tracing.stop!(tracing, path: path)
+    {:ok, files} = :zip.unzip(String.to_charlist(path), [:memory])
+    files
   end
 
   test "API testing", %{server: server, base_url: base_url} do

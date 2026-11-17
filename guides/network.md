@@ -103,11 +103,13 @@ Page.route_web_socket!(page, "**/ws", fn ws ->
 end)
 ```
 
-A LiveView's socket is `"**/live/websocket*"`. The handler hands each frame to a process that
-waits, and returns at once: a `Process.sleep/1`
-in the handler would stall every page of the connection, as JS uses `setTimeout` for this (see
-[Concurrency](concurrency.md#no-blocking-work-in-listeners)). Each frame gets its own timer;
-for a strict order, send them to one process that waits before each.
+A LiveView's socket is `"**/live/websocket*"`. The `on_message/2` handler hands each frame to a
+process that waits, and returns at once: a `Process.sleep/1` in the handler itself stalls every
+page on that connection, as blocking the event loop does in JS (see
+[Concurrency](concurrency.md#no-blocking-work-in-listeners)). Each frame gets its own timer. For a
+strict order, send each frame with its deadline, taken as it arrives
+(`System.monotonic_time(:millisecond) + 500`), to one process that sleeps only for the rest of
+each deadline before it sends the frame on.
 
 A frame that never arrives:
 
@@ -129,8 +131,11 @@ A frame that never arrives:
   ```
 
   A routed socket's frames on the wire are those between the page and the server: a frame the
-  handler holds back shows as received, though the page doesn't have it yet.
-- A trace has each socket and its frames in its Network tab ([Debugging and
+  handler holds back shows as received, though the page doesn't have it yet. A socket mocked
+  without `connect_to_server/1` never reaches the wire, so it has no `:web_socket` event and no
+  trace entry: log its frames in your `on_message/2` handler and next to your
+  `WebSocketRoute.send/2` calls instead.
+- A trace has each socket on the wire and its frames in its Network tab ([Debugging and
   CI](debugging-and-ci.md#traces)).
 
 ## API testing
