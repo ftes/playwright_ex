@@ -134,5 +134,15 @@ defmodule Playwright.PromiseTest do
         Promise.all([later(page, "slow", 0), Page.evaluate!(page, "() => 'x'")])
       end
     end
+
+    test "a local promise of the runtime is rejected: it can be awaited once", %{page: page} do
+      local = Playwright.Runtime.Promise.async(fn -> Page.evaluate!(page, "() => 1") end)
+
+      assert_raise ArgumentError, ~r"Playwright.Promise.race/1 expects promises the API returns", fn ->
+        Promise.race([later(page, "slow", 0), local])
+      end
+
+      assert Promise.await!(local) == 1
+    end
   end
 end

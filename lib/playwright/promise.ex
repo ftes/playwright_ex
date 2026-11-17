@@ -22,12 +22,12 @@ defmodule Playwright.Promise do
   (`Playwright.Page.expect_popup(page, fn -> ... end)`).
 
   `async/1` starts any calls this way, as JS's `const p = locator.evaluate(...)` (see the
-  [Concurrency](concurrency.md) guide). `all/1`, `race/1` and `any/1` combine promises, as JS's
-  `Promise.all`, `Promise.race` and `Promise.any`. Unlike JS's, they compare their inputs when
-  you await them: inputs already settled by then go in list order, so a later await may pick
-  another winner. Awaited right away, they behave as in JS. Combine the promises the API returns
-  (`async/1`, the waits): a local promise of the runtime (`Playwright.Runtime.Promise.async/1`)
-  can be awaited once, as a `Task`.
+  [Concurrency](concurrency.md) guide). `all/1`, `race/1` and `any/1` combine a list of promises,
+  as JS's `Promise.all`, `Promise.race` and `Promise.any`. Unlike JS's, they compare their inputs
+  when you await them: inputs already settled by then go in list order, so a later await may pick
+  another winner. Awaited right away, they behave as in JS. They take the promises the API
+  returns (`async/1`, the waits), not a local promise (from the runtime's `async`), which can be
+  awaited once, as a `Task`.
   """
 
   @typedoc "A promise handle."
@@ -49,7 +49,8 @@ defmodule Playwright.Promise do
 
   The promise is owned by the calling process, as the waits' are: any process can await it, any
   number of times, until that process exits. An error of `fun` is its result, raised by
-  `await!/1` (`await/1` returns a `t:Playwright.error/0`); one nobody awaits is dropped. The
+  `await!/1` and returned by `await/1` if it is a `t:Playwright.error/0`; one nobody awaits is
+  dropped. The
   process carries the caller's `$callers`, as a `Task`'s does, so `Playwright.Test` (soft
   matchers, steps), the Ecto sandbox and Mox find the test.
   """
@@ -58,7 +59,8 @@ defmodule Playwright.Promise do
 
   @doc """
   Waits for the promise: `{:ok, value}`, or `{:error, exception}` if it is rejected with a
-  `t:Playwright.error/0`. Other exceptions (bugs) are raised.
+  `t:Playwright.error/0`, or with an `any/1`'s `Playwright.AggregateError` of such errors. Other
+  exceptions (bugs) are raised.
   """
   @spec await(t()) :: {:ok, term()} | {:error, Playwright.error() | Playwright.AggregateError.t()}
   def await(%Playwright.Runtime.Promise{} = promise) do
@@ -121,9 +123,21 @@ defmodule Playwright.Promise do
   @spec any([t()]) :: t()
   def any(promises) when is_list(promises), do: Playwright.Runtime.Promise.any(promises!(promises, "any"))
 
+  # The API's promises: latches (`async/1`, the waits) and their combinations. A local promise
+  # of the runtime can be awaited once, by its creator.
   defp promises!(promises, name) do
-    for promise <- promises, !is_struct(promise, Playwright.Runtime.Promise) do
-      raise ArgumentError, "Playwright.Promise.#{name}/1 expects promises, got: #{inspect(promise)}"
+    for promise <- promises do
+      case promise do
+        %Playwright.Runtime.Promise{kind: :local} ->
+          raise ArgumentError,
+                "Playwright.Promise.#{name}/1 expects promises the API returns; await a local promise directly"
+
+        %Playwright.Runtime.Promise{} ->
+          :ok
+
+        other ->
+          raise ArgumentError, "Playwright.Promise.#{name}/1 expects promises, got: #{inspect(other)}"
+      end
     end
 
     promises

@@ -172,7 +172,8 @@ return `:ok` or `{:error, %Playwright.ExpectError{}}`; the bang forms raise the
 Errors are exceptions named after the JS classes: `Playwright.PlaywrightError` (JS `Error`),
 `Playwright.TimeoutError`, `Playwright.TargetClosedError`, `Playwright.AbortError` and
 `Playwright.ExpectError`. Where the JS client throws a plain `new Error(message)` itself, it is
-a `RuntimeError`; local file errors are `File.Error`. `t:Playwright.error/0` lists them all.
+a `RuntimeError`; local file errors are `File.Error`. `t:Playwright.error/0` lists them all;
+`Playwright.Promise.any/1` rejects with a `Playwright.AggregateError` of them.
 The message is JS's, starting with the API name, and `log` holds the call log:
 
 ```elixir
