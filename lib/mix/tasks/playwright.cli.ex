@@ -3,10 +3,11 @@ defmodule Mix.Tasks.Playwright.Cli do
   @moduledoc """
   Usage: `mix playwright.cli ARGS...`
 
-  Forwards `ARGS` to the driver's `playwright` CLI, like `python -m playwright ARGS` and Java's
-  `CLI`, e.g. `mix playwright.cli show-trace trace.zip` or
-  `mix playwright.cli install --with-deps chromium`. Installs the driver first if needed, as
-  `config :playwright, :driver` sets (see `mix playwright.install`).
+  Forwards `ARGS` to the driver's `playwright` CLI as they are, like `npx playwright ARGS`,
+  `python -m playwright ARGS` and Java's `CLI`, e.g. `mix playwright.cli show-trace trace.zip` or
+  `mix playwright.cli install chromium --with-deps`. They need no `--` (a `--` is forwarded too).
+  Installs the driver first if needed, as `config :playwright, :driver` sets (see
+  `mix playwright.install`).
   """
   use Mix.Task
 

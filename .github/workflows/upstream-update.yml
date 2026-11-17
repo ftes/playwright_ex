@@ -89,7 +89,7 @@ jobs:
         run: mix "do" deps.get, deps.compile
       # The FROM driver; Claude reinstalls after bumping (--with-deps covers the OS packages).
       - name: Install driver and browsers
-        run: mix playwright.install -- chromium --with-deps
+        run: mix playwright.install chromium --with-deps
       - name: Build prompt
         id: prompt
         env:

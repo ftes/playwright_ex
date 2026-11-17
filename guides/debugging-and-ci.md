@@ -103,7 +103,7 @@ The driver's own logs go to stderr with `DEBUG=pw:api` in its environment:
 Install the browsers with their system packages (`--with-deps` runs `apt-get`):
 
 ```yaml
-- run: mix playwright.install -- chromium --with-deps
+- run: mix playwright.install chromium --with-deps
 - run: mix test
 - uses: actions/upload-artifact@v7
   if: failure()
@@ -179,7 +179,7 @@ FROM elixir:1.20
 WORKDIR /app
 COPY mix.exs mix.lock ./
 RUN mix local.hex --force && mix deps.get && mix deps.compile
-RUN mix playwright.install -- chromium --with-deps
+RUN mix playwright.install chromium --with-deps
 COPY . .
 CMD ["mix", "test"]
 ```

@@ -24,7 +24,7 @@ the existing ported code next to whatever you port.
    1. Run `mix playwright.checksums TO NODE`: it writes `DRIVER_VERSION`, `NODE_VERSION` and
       the checksums. NODE is the current `NODE_VERSION`, or playwright-python's `NODE_VERSION`
       for TO if that changed (look it up in microsoft/playwright-python with `gh` or `curl`). Then
-      `mix playwright.install -- chromium` (driver and browser for TO).
+      `mix playwright.install chromium` (driver and browser for TO).
    2. `mix playwright.gen.protocol` and `mix playwright.gen.api`; commit the generated diff
       on its own. Then publish, before porting anything, so a run that stops early still leaves
       its work on a PR:
