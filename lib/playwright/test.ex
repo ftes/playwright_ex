@@ -416,10 +416,10 @@ defmodule Playwright.Test do
 
   # Context options apply in `use` order, each over those before it per key, as upstream's
   # `test.use` calls (each option its own fixture). A function given again (two `use`s with it: a
-  # template's `using` and the module's own) is kept only where it came first, so it runs once;
-  # the options keep their order and their `nil` resets.
+  # template's `using` and the module's own) is kept only where it came last, so it runs once and
+  # still wins over the options before it; the options keep their order and their `nil` resets.
   defp merge_use(:context_options, past, options),
-    do: Enum.reduce(options, past, &if(not is_map(&1) and &1 in &2, do: &2, else: &2 ++ [&1]))
+    do: Enum.reduce(options, past, &if(is_map(&1), do: &2 ++ [&1], else: List.delete(&2, &1) ++ [&1]))
 
   defp merge_use(_key, _past, options), do: options
 

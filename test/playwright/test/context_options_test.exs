@@ -83,9 +83,10 @@ defmodule Playwright.Test.ContextOptionsTest do
     assert resolve(__MODULE__.Duplicated) == %{locale: "fr-FR"}
   end
 
-  test "a function given again (a template's using and the module's own use) is kept where it came first" do
-    assert [function, %{}] = __MODULE__.Twice.__playwright_test__(:options).context_options
+  test "a function given again (a template's using and the module's own use) is kept where it came last" do
+    assert [%{}, function] = __MODULE__.Twice.__playwright_test__(:options).context_options
     assert function == (&__MODULE__.options/1)
+    assert resolve(__MODULE__.Twice) == %{locale: "it-IT"}
   end
 
   test "a nil option resets it past the earlier uses, to the config's or the default" do
