@@ -43,9 +43,10 @@ upstream minor, so `~> 1.65.0` is safe.
 
 ### Changed
 
-- `mix playwright.install` takes `playwright install`'s args as they are, without `--`:
-  `mix playwright.install chromium --with-deps`. `--force` is also forwarded, and `--no-browsers`
-  with browser args raises. A leading `--` still works.
+- `mix playwright.install` takes `playwright install`'s args as they are: `--` is no longer
+  needed, as in `mix playwright.install chromium --with-deps` (a leading `--` still works).
+  `--force` now also reinstalls the browsers, as it's forwarded to `playwright install`.
+  `--no-browsers` with browser args raises.
 
 ### Fixed
 

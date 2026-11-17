@@ -9,7 +9,7 @@ defmodule Mix.Tasks.Playwright.Install do
   position:
 
     * `--no-browsers` - installs only the driver, for a browser launched with `:executable_path`
-      or `:channel`. It takes no other args.
+      or `:channel`. It takes no other args. (`--browsers`, the default, is accepted too.)
     * `--force` - reinstalls the driver, and is forwarded: `playwright install --force` reinstalls
       the browsers.
 
@@ -59,13 +59,13 @@ defmodule Mix.Tasks.Playwright.Install do
       end
 
     browsers? = "--no-browsers" not in own
-    others = Enum.reject(own, &(&1 in ["--no-browsers", "--force"])) ++ verbatim
+    browser_args = Enum.reject(own, &(&1 in ["--browsers", "--no-browsers"])) ++ verbatim
+    others = List.delete(browser_args, "--force")
 
     if not browsers? and others != [] do
       Mix.raise("--no-browsers installs only the driver, so it takes no browser args, got: #{Enum.join(others, " ")}")
     end
 
-    browser_args = Enum.reject(own, &(&1 == "--no-browsers")) ++ verbatim
     {[browsers: browsers?, force: "--force" in own], browser_args}
   end
 end

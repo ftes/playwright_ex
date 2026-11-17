@@ -28,12 +28,18 @@ defmodule Mix.Tasks.Playwright.InstallTest do
       assert Install.parse_args(~w(--force --no-browsers)) == {[browsers: false, force: true], ~w(--force)}
     end
 
+    test "takes the default --browsers, without forwarding it" do
+      assert Install.parse_args(~w(--browsers chromium)) == {[browsers: true, force: false], ~w(chromium)}
+      assert Install.parse_args(~w(--browsers -- chromium)) == {[browsers: true, force: false], ~w(chromium)}
+    end
+
     test "--no-browsers with browser args raises" do
       assert_raise Mix.Error, ~r/--no-browsers .* no browser args, got: chromium --with-deps$/, fn ->
         Install.parse_args(~w(chromium --no-browsers --with-deps))
       end
 
       assert_raise Mix.Error, ~r/got: chromium$/, fn -> Install.parse_args(~w(--no-browsers -- chromium)) end
+      assert_raise Mix.Error, ~r/got: chromium$/, fn -> Install.parse_args(~w(--force chromium --no-browsers)) end
     end
 
     test "drops a legacy --, forwarding what follows as it is" do
