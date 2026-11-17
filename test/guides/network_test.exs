@@ -2,6 +2,8 @@ defmodule Playwright.Guides.NetworkTest do
   # The snippets of `guides/network.md`, against `Playwright.TestServer`.
   use ExUnit.Case, async: true
 
+  import ExUnit.CaptureLog
+
   alias Playwright.APIRequest
   alias Playwright.APIRequestContext
   alias Playwright.APIResponse
@@ -16,6 +18,12 @@ defmodule Playwright.Guides.NetworkTest do
   alias Playwright.Route
   alias Playwright.TestBrowser
   alias Playwright.TestServer
+  alias Playwright.Tracing
+  alias Playwright.Utils
+  alias Playwright.WebSocket
+  alias Playwright.WebSocketRoute
+
+  require Logger
 
   @moduletag :tmp_dir
 
@@ -180,6 +188,129 @@ defmodule Playwright.Guides.NetworkTest do
       end)
 
     assert Response.status(response) == 404
+  end
+
+  # A page's socket to the server's `/ws` that logs the frames it gets.
+  defp open_web_socket(page) do
+    Page.evaluate!(page, """
+    () => {
+      window.log = [];
+      window.ws = new WebSocket('ws://' + location.host + '/ws');
+      window.ws.addEventListener('message', event => window.log.push(event.data));
+      return new Promise(f => window.ws.addEventListener('open', f));
+    }
+    """)
+  end
+
+  test "WebSockets: delay the server's frames, watch them on the wire", %{
+    context: context,
+    page: page,
+    server: server,
+    tmp_dir: tmp_dir
+  } do
+    tracing = BrowserContext.tracing(context)
+    # The network log needs the snapshots (upstream's `tracing.ts` starts its `HarTracer` with them).
+    Tracing.start!(tracing, snapshots: true)
+
+    Page.route_web_socket!(page, "**/ws", fn ws ->
+      server = WebSocketRoute.connect_to_server(ws)
+
+      WebSocketRoute.on_message(server, fn message ->
+        Task.start(fn ->
+          Process.sleep(500)
+          WebSocketRoute.send(ws, message)
+        end)
+      end)
+    end)
+
+    test_pid = self()
+
+    log =
+      capture_log(fn ->
+        Page.on(page, :web_socket, fn ws ->
+          Logger.info("WebSocket opened: #{WebSocket.url(ws)}")
+          WebSocket.on(ws, :frame_sent, &Logger.info("sent: #{inspect(&1.payload)}"))
+          WebSocket.on(ws, :frame_received, &Logger.info("received: #{inspect(&1.payload)}"))
+          WebSocket.on(ws, :close, fn _ -> Logger.info("WebSocket closed") end)
+        end)
+
+        # What the page has as the frame comes over the wire: the handler holds it back.
+        Page.on(page, :web_socket, fn ws ->
+          WebSocket.on(ws, :frame_received, fn %{payload: "hello"} ->
+            send(test_pid, {:on_the_wire, Page.evaluate!(page, "() => window.log")})
+          end)
+
+          WebSocket.on(ws, :close, fn _ -> send(test_pid, :closed) end)
+        end)
+
+        Page.goto!(page, "/")
+        server_ws = TestServer.wait_for_web_socket(server)
+        open_web_socket(page)
+        server_ws = Task.await(server_ws)
+
+        sent = System.monotonic_time(:millisecond)
+        TestServer.WebSocket.send(server_ws, "hello")
+        assert_receive {:on_the_wire, []}, 5000
+        Expect.poll!(fn -> Page.evaluate!(page, "() => window.log") end, &assert(&1 == ["hello"]))
+        assert System.monotonic_time(:millisecond) - sent >= 500
+
+        # The page's frames go on to the server, unhandled.
+        TestServer.WebSocket.once(server_ws, :message, &send(test_pid, {:message, &1}))
+        Page.evaluate!(page, "() => window.ws.send('hi')")
+        assert_receive {:message, "hi"}, 5000
+
+        Page.evaluate!(page, "() => window.ws.close()")
+        assert_receive :closed, 5000
+        Tracing.stop!(tracing, path: Path.join(tmp_dir, "trace.zip"))
+        # No listener logs after the capture.
+        BrowserContext.close!(context)
+        Logger.flush()
+      end)
+
+    assert log =~ "WebSocket opened: ws://#{server.host}/ws"
+    assert log =~ ~s(received: "hello")
+    assert log =~ ~s(sent: "hi")
+
+    # The socket in the network log, its frames in a resource.
+    %{events: events, resources: resources} = Utils.parse_trace_raw(Path.join(tmp_dir, "trace.zip"), context)
+    assert [socket] = web_sockets(events)
+    assert socket["request"]["url"] == "ws://#{server.host}/ws"
+    frames = resources[socket["response"]["content"]["_file"]]
+    frames = for line <- String.split(frames, "\n", trim: true), do: JSON.decode!(line)
+    assert %{"type" => "receive", "data" => "hello"} in Enum.map(frames, &Map.take(&1, ["type", "data"]))
+    assert %{"type" => "send", "data" => "hi"} in Enum.map(frames, &Map.take(&1, ["type", "data"]))
+  end
+
+  test "WebSockets: a socket mocked without connect_to_server never reaches the wire", %{
+    context: context,
+    page: page,
+    tmp_dir: tmp_dir
+  } do
+    tracing = BrowserContext.tracing(context)
+    # The network log needs the snapshots (upstream's `tracing.ts` starts its `HarTracer` with them).
+    Tracing.start!(tracing, snapshots: true)
+    test_pid = self()
+    Page.on(page, :web_socket, &send(test_pid, {:web_socket, &1}))
+
+    Page.route_web_socket!(page, "**/ws", fn ws ->
+      WebSocketRoute.on_message(ws, fn "ping" -> WebSocketRoute.send(ws, "pong") end)
+    end)
+
+    Page.goto!(page, "/")
+    open_web_socket(page)
+    Page.evaluate!(page, "() => window.ws.send('ping')")
+    Expect.poll!(fn -> Page.evaluate!(page, "() => window.log") end, &assert(&1 == ["pong"]))
+
+    Tracing.stop!(tracing, path: Path.join(tmp_dir, "trace.zip"))
+    # After the stop's round trip: the page's events came before its reply.
+    refute_received {:web_socket, _}
+    %{events: events} = Utils.parse_trace_raw(Path.join(tmp_dir, "trace.zip"), context)
+    assert web_sockets(events) == []
+  end
+
+  # The trace's network entries of WebSockets.
+  defp web_sockets(events) do
+    for %{"type" => "resource-snapshot", "snapshot" => %{"_resourceType" => "websocket"} = entry} <- events, do: entry
   end
 
   test "API testing", %{server: server, base_url: base_url} do

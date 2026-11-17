@@ -22,11 +22,11 @@ no Node.js or npm is needed beforehand. It goes to the user cache directory
 from an environment variable, locally or in CI, read that in `config/config.exs`) and installs itself on first
 start if missing. Browsers
 go to Playwright's [browser cache](https://playwright.dev/docs/browsers#managing-browser-binaries).
-Arguments after `--` go to `playwright install`:
+Arguments are `playwright install`'s, with no `--`:
 
 ```sh
-mix playwright.install -- chromium              # one browser
-mix playwright.install -- chromium --with-deps  # and its system packages (Linux CI)
+mix playwright.install chromium              # one browser
+mix playwright.install chromium --with-deps  # and its system packages (Linux CI)
 ```
 
 In CI, run it in the tests' env, as [Debugging and CI](../debugging-and-ci.md#github-actions)

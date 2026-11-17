@@ -869,7 +869,7 @@ Playwright Test features ExUnit can't host, or that ExUnit and Elixir already co
 | runtime `test.skip(condition)` | ExUnit can't skip a running test, and its filters don't see `parameterize:` values | a tag known before the run (`@tag skip: ...`, `--exclude`), or an `if` around the body (reported as passed) |
 | `test.fixme`, `test.slow` | ExUnit has tags for both | `@tag :skip`, `@tag timeout: ...` |
 | `test.fail` | ExUnit has no expected-failure mode | none |
-| `retries` | ExUnit has no retries in a run | `mix test --failed` is the retry, and the retry modes (`trace: :on_first_retry`, ...) go by it (see "Traces, screenshots and videos") |
+| `retries` | ExUnit has no retries in a run | rerun the failures: a `mix test --failed` after a run whose tests failed (exit status 2), as in "Traces, screenshots and videos"; the retry modes (`trace: :on_first_retry`, ...) go by it |
 | nested or duplicate-name `describe` | ExUnit's `describe` doesn't nest, and its names are unique in a module | a module per outer `describe` (its `beforeEach` a module `setup`, its `beforeAll` the module's `setup_all`, which a `describe` can't have); a `describe` repeated in a loop becomes one `describe` with the loop inside |
 | `fullyParallel` | ExUnit runs a module's tests one after another | a module per `describe`; for `fullyParallel: false` on shared state, a `group:` |
 | `describe.serial`, `mode: 'serial'` | ExUnit runs a module's tests in random order | one test, with a `Test.step` per test; modules sharing state in the app in one `group:` (see "Setup") |
