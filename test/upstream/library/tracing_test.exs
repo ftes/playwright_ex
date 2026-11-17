@@ -1139,8 +1139,13 @@ defmodule Playwright.Library.TracingTest do
     end
 
     # `let content` assigned in the callback: the trace once it passed.
-    Expect.to_pass!(fn -> assert read_trace.() =~ "31415926" end)
-    content = read_trace.()
+    content =
+      Expect.to_pass!(fn ->
+        content = read_trace.()
+        assert content =~ "31415926"
+        content
+      end)
+
     refute content =~ "hello 0"
 
     Page.evaluate!(page, "() => 42")
