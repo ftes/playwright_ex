@@ -281,7 +281,7 @@ defmodule Playwright.Test.EndToEndTest do
     assert frame["line"] == line.("(the boxed call)")
   end
 
-  test "a test past its timeout: a hanging Playwright call fails with the call log, other code as ExUnit's, recorded errors first",
+  test "a test past its timeout: a hanging Playwright call fails with the call log, other code as ExUnit's; a listener's error first",
        %{tmp_dir: tmp_dir} do
     child = start("timeouts", tmp_dir)
     assert ChildProcess.exit_code(child, 60_000) == 0
@@ -310,15 +310,18 @@ defmodule Playwright.Test.EndToEndTest do
     assert slow_setup =~ "Test timeout of 3000ms exceeded."
     refute slow_setup =~ "ExUnit.TimeoutError"
 
-    # The listener's error, then the timeout: interrupted before ExUnit's kill, as the close
-    # waits for the open dialog.
+    # The listener's error interrupts the test (upstream's worker `_stop()`s it), before the
+    # dialog it doesn't accept hangs it.
     listener = failure(output, "test fails in a dialog listener, then hangs (TimeoutsTest)")
+    assert listener =~ ~r"\*\* \(EXIT from #PID<[0-9.]+>\) an exception was raised:\n\s+Assertion with == failed"
+    assert listener =~ ~S|code:  assert Playwright.Dialog.message(dialog) == "expected"|
+    refute listener =~ "TimeoutError"
+    refute listener =~ "Test timeout"
 
-    assert listener =~
-             ~r"Failure #1\n +Assertion with == failed\n +code: +assert Playwright.Dialog.message\(dialog\) == \"expected\""
-
-    assert listener =~ ~r"Failure #2\n +\*\* \(ExUnit.TimeoutError\) test timed out after 3000ms"
-    assert listener =~ ~S|code: Page.evaluate!(page, "() => alert('actual')")|
+    [dir] = output_dir |> File.ls!() |> Enum.filter(&(&1 =~ "fails-in-a-dialog-listener"))
+    error_context = File.read!(Path.join([output_dir, dir, "error-context.md"]))
+    # Once: the interrupt's exit is the recorded error.
+    assert length(String.split(error_context, "Assertion with == failed")) == 2
   end
 
   test "--trace: no test timeout, so no timer", %{tmp_dir: tmp_dir} do

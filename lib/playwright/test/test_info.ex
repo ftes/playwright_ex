@@ -625,6 +625,28 @@ defmodule Playwright.Test.TestInfo do
     :ok
   end
 
+  @doc """
+  The worker's `unhandledError` (an error a callback of the test left unhandled: a listener's, a
+  route handler's): `_failWithError`, then upstream's `_stop()` interrupts the test, whose body
+  is abandoned. Here the test's process exits with the error, which ExUnit reports as the test's
+  failure (`Playwright.Test.Results` keeps it once). A test that traps exits gets it as a message.
+  """
+  def _unhandled_error(this, {kind, reason, stacktrace} = error) do
+    _fail_with_error(this, error)
+
+    # Not from the test's own process, where the error is raised as any other.
+    if running?(this) and this.test_pid != self(),
+      do: Process.exit(this.test_pid, interrupt_reason(kind, reason, stacktrace))
+
+    :ok
+  end
+
+  @doc false
+  # The exit reason of `_unhandled_error/2`, as ExUnit formats a crash: `{exception, stacktrace}`.
+  def interrupt_reason(:error, exception, stacktrace), do: {exception, stacktrace}
+  def interrupt_reason(:throw, value, stacktrace), do: {{:nocatch, value}, stacktrace}
+  def interrupt_reason(:exit, reason, _stacktrace), do: reason
+
   @doc "Elixir only: the `message` of an error `{kind, reason, stacktrace}`."
   def error_message({:error, reason, stacktrace}),
     do: Exception.message(Exception.normalize(:error, reason, stacktrace))

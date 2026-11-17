@@ -19,8 +19,8 @@
 #   * `soft` - soft matchers (`Expect.soft/1`): failing ones, then the rest of the body, then a
 #     hard failure; and a passing one.
 #   * `timeouts` - tests past their timeout: one in a Playwright call, one in `Process.sleep`, one
-#     in a Playwright call after a slow `setup` before `use Playwright.Test`, one in a Playwright
-#     call after its dialog listener failed.
+#     in a Playwright call after a slow `setup` before `use Playwright.Test`, and one whose dialog
+#     listener fails before it would hang.
 #   * `trace` - `trace: true` (`mix test --trace`): a test past its `timeout` tag passes.
 #   * `rerun` - one failing and one passing test (writing a file of its own), `preserve_output:
 #     :failures_only`; with a further `failed` argument, only the failing one, as `mix test
@@ -336,7 +336,8 @@ case mode do
         Process.sleep(:infinity)
       end
 
-      # The dialog stays open, so the timeout's close is slow (its page snapshot waits).
+      # Fails at once, as the listener's error interrupts it: the dialog it doesn't accept would
+      # hang it past its timeout.
       @tag timeout: 3000
       test "fails in a dialog listener, then hangs", %{page: page} do
         Page.on(page, :dialog, fn dialog ->

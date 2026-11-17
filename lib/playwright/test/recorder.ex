@@ -17,9 +17,6 @@ defmodule Playwright.Test.Recorder do
   # just before ExUnit kills the test process, it closes the test's open contexts with
   # "Test timeout of <ms>ms exceeded.", so a Playwright call that hangs until then fails with that
   # reason and its call log, after the close's artifact steps ran (`test_timeout_margin/1`).
-  # Should the close not get there in time (an artifact step blocked, as by an open dialog), a
-  # test with recorded errors (a listener's) has its await interrupted with ExUnit's timeout error
-  # just before ExUnit kills it, so it still fails with them, as upstream's reports them.
   #
   # The recorder makes no driver call and awaits nothing, so its calls return at once: every
   # driver call of a traced test reports its step to it synchronously (`append_trace_event/2`),
@@ -403,20 +400,6 @@ defmodule Playwright.Test.Recorder do
     end
   end
 
-  # The test with recorded errors still runs past the close (`time_out/1`): its await raises
-  # ExUnit's error (`Playwright.Runtime.Promise`), so its body ends with them before ExUnit kills
-  # it. Without any, it fails as ExUnit's timeout either way.
-  def handle_info(:interrupt, state) do
-    if Process.alive?(state.test_pid) and TestInfo.errors(state.test_pid) != [],
-      do:
-        send(
-          state.test_pid,
-          {:pw_interrupt, ExUnit.TimeoutError.exception(timeout: state.opts.test_timeout, type: "test")}
-        )
-
-    {:noreply, state}
-  end
-
   def handle_info(_message, state), do: {:noreply, state}
 
   defp time_out(state) do
@@ -433,9 +416,6 @@ defmodule Playwright.Test.Recorder do
         |> Stream.run()
       end)
 
-    # Elixir only: the last chance for the test to fail with its recorded errors (`:interrupt`).
-    margin = test_timeout_margin(state.opts.test_timeout)
-    Process.send_after(self(), :interrupt, state.opts.deadline - div(margin, 4), abs: true)
     {:noreply, %{state | timer: nil, timed_out: true, closing: closing}}
   end
 
