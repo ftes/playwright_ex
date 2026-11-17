@@ -5,15 +5,17 @@ defmodule Mix.Tasks.Playwright.Install do
 
   Installs the driver, then runs its `playwright install` with the args, as
   `npx playwright install` would (none: its default browsers), e.g.
-  `mix playwright.install chromium firefox --with-deps`. Two flags are the task's own, in any
-  position:
+  `mix playwright.install chromium firefox --with-deps`. Two flags before any `--` are the
+  task's own:
 
     * `--no-browsers` - installs only the driver, for a browser launched with `:executable_path`
-      or `:channel`. It takes no other args. (`--browsers`, the default, is accepted too.)
-    * `--force` - reinstalls the driver, and is forwarded: `playwright install --force` reinstalls
-      the browsers.
+      or `:channel`. It takes no other args.
+    * `--force` - reinstalls the driver (unless `--dry-run`, `--list` or `--help` asks
+      `playwright install` to install nothing), and is forwarded.
 
-  Every other arg is forwarded in order. A `--` raises: the args need none.
+  Every other arg is forwarded in order, a `--` included, so upstream's flags after it are
+  upstream's alone: `mix playwright.install --force chromium` reinstalls the driver and Chromium,
+  `mix playwright.install -- --force chromium` only Chromium.
 
   The task doesn't see the options of `Playwright.Supervisor`; it reads their defaults,
   `config :playwright, :driver` (see `Playwright.Driver`). It doesn't compile the project, so it
@@ -48,20 +50,27 @@ defmodule Mix.Tasks.Playwright.Install do
     end
   end
 
+  @own_flags ["--no-browsers", "--force"]
+  @install_nothing ["--dry-run", "--list", "--help", "-h"]
+
   @doc false
-  # Splits argv into the task's flags and the args for `playwright install`.
+  # Splits argv into the task's flags (before any `--`) and the args for `playwright install`.
   def parse_args(argv) do
-    if "--" in argv do
-      Mix.raise("`--` is no longer needed: pass the args directly, e.g. `mix playwright.install chromium --with-deps`")
+    {before, rest} = Enum.split_while(argv, &(&1 != "--"))
+    {own, others} = Enum.split_with(before, &(&1 in @own_flags))
+    force? = "--force" in own and not Enum.any?(others, &(&1 in @install_nothing))
+
+    cond do
+      "--no-browsers" not in own ->
+        {[browsers: true, force: force?], argv}
+
+      others ++ rest == [] ->
+        {[browsers: false, force: force?], []}
+
+      true ->
+        Mix.raise(
+          "--no-browsers installs only the driver, so it takes no browser args, got: #{Enum.join(others ++ rest, " ")}"
+        )
     end
-
-    browsers? = "--no-browsers" not in argv
-    others = Enum.reject(argv, &(&1 in ["--force", "--browsers", "--no-browsers"]))
-
-    if not browsers? and others != [] do
-      Mix.raise("--no-browsers installs only the driver, so it takes no browser args, got: #{Enum.join(others, " ")}")
-    end
-
-    {[browsers: browsers?, force: "--force" in argv], Enum.reject(argv, &(&1 in ["--browsers", "--no-browsers"]))}
   end
 end

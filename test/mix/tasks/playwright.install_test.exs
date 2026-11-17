@@ -16,41 +16,42 @@ defmodule Mix.Tasks.Playwright.InstallTest do
                {[browsers: true, force: false], ~w(--with-deps chromium --dry-run)}
     end
 
-    test "takes --force in any position, and forwards it" do
+    test "forwards a --, and what follows" do
+      assert Install.parse_args(~w(-- chromium --with-deps)) ==
+               {[browsers: true, force: false], ~w(-- chromium --with-deps)}
+
+      assert Install.parse_args(~w(chromium -- --)) == {[browsers: true, force: false], ~w(chromium -- --)}
+    end
+
+    test "takes --force before a --, in any position, and forwards it" do
       assert Install.parse_args(~w(chromium --force --with-deps)) ==
                {[browsers: true, force: true], ~w(chromium --force --with-deps)}
 
-      assert Install.parse_args(~w(--force)) == {[browsers: true, force: true], ~w(--force)}
+      assert Install.parse_args(~w(--force -- chromium)) == {[browsers: true, force: true], ~w(--force -- chromium)}
+    end
+
+    test "leaves a --force after a -- to upstream" do
+      assert Install.parse_args(~w(-- --force chromium)) == {[browsers: true, force: false], ~w(-- --force chromium)}
+    end
+
+    test "doesn't reinstall the driver when upstream installs nothing" do
+      for flag <- ~w(--dry-run --list --help -h) do
+        assert Install.parse_args(["--force", flag]) == {[browsers: true, force: false], ["--force", flag]}
+      end
     end
 
     test "takes --no-browsers, alone or with --force" do
       assert Install.parse_args(~w(--no-browsers)) == {[browsers: false, force: false], []}
-      assert Install.parse_args(~w(--force --no-browsers)) == {[browsers: false, force: true], ~w(--force)}
+      assert Install.parse_args(~w(--force --no-browsers --force)) == {[browsers: false, force: true], []}
     end
 
-    test "takes the default --browsers, without forwarding it" do
-      assert Install.parse_args(~w(--browsers chromium)) == {[browsers: true, force: false], ~w(chromium)}
-    end
-
-    test "--no-browsers with browser args raises" do
+    test "--no-browsers with browser args raises, naming them" do
       assert_raise Mix.Error, ~r/--no-browsers .* no browser args, got: chromium --with-deps$/, fn ->
         Install.parse_args(~w(chromium --no-browsers --with-deps))
       end
 
-      assert_raise Mix.Error, ~r/got: chromium$/, fn -> Install.parse_args(~w(--force chromium --no-browsers)) end
-    end
-
-    test "--no-browsers takes a repeated --force" do
-      assert Install.parse_args(~w(--force --no-browsers --force)) ==
-               {[browsers: false, force: true], ~w(--force --force)}
-    end
-
-    test "a -- raises, naming the fix" do
-      for argv <- [~w(-- chromium --with-deps), ~w(chromium --), ~w(--no-browsers --)] do
-        assert_raise Mix.Error, ~r/^`--` is no longer needed: pass the args directly/, fn ->
-          Install.parse_args(argv)
-        end
-      end
+      assert_raise Mix.Error, ~r/got: -- --force$/, fn -> Install.parse_args(~w(--no-browsers -- --force)) end
+      assert_raise Mix.Error, ~r/got: --browsers$/, fn -> Install.parse_args(~w(--no-browsers --browsers)) end
     end
   end
 
@@ -63,9 +64,5 @@ defmodule Mix.Tasks.Playwright.InstallTest do
       end)
 
     assert output =~ "no-such-browser"
-  end
-
-  test "a -- raises before installing anything" do
-    assert_raise Mix.Error, ~r/^`--` is no longer needed/, fn -> Install.run(["--", "chromium"]) end
   end
 end

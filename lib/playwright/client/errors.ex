@@ -66,11 +66,8 @@ defmodule Playwright.Client.Errors do
   # (architecture: Driver language and rendering). Exact-match rewrite of the install command,
   # `npx playwright install [args]` to `mix playwright.install [args]`: as long, so an ASCII box
   # (`║ ... ║`) stays aligned.
-  def rewrite_driver_hints(message) do
-    if String.contains?(message, "npx playwright install"),
-      do: String.replace(message, ~r/npx playwright install(?![\w-])/, "mix playwright.install"),
-      else: message
-  end
+  def rewrite_driver_hints(message),
+    do: String.replace(message, ~r/npx playwright install(?![\w-])/, "mix playwright.install")
 
   # rewriteErrorMessage(e, message) from utils/stackTrace.ts (exceptions are immutable: returns the new error)
   def rewrite_error_message(%{message: _} = e, message), do: %{e | message: message}
