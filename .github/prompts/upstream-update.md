@@ -13,7 +13,8 @@ the existing ported code next to whatever you port.
 1. `git switch -c BRANCH`. Commit after every coherent step (`git commit -m "<short imperative
    message>"`), and once the PR exists (step 3.2) run `git push origin BRANCH` after every commit,
    so partial work survives and is visible.
-2. Fetch upstream at both tags (shallow; `git diff` needs only the two trees):
+2. Fetch upstream at both tags (shallow; `git diff` needs only the two trees). This prompt's
+   `git -C /tmp/playwright` commands are the one exception to the tool hint at the end:
    ```
    git init -q /tmp/playwright
    git -C /tmp/playwright fetch --depth=1 https://github.com/microsoft/playwright tag vFROM tag vTO
@@ -25,13 +26,16 @@ the existing ported code next to whatever you port.
       the checksums. NODE is the current `NODE_VERSION`, or playwright-python's `NODE_VERSION`
       for TO if that changed (look it up in microsoft/playwright-python with `gh` or `curl`). Then
       `mix playwright.install -- chromium` (driver and browser for TO).
-   2. `mix playwright.gen.protocol` and `mix playwright.gen.api`; commit the generated diff
-      on its own. Then publish, before porting anything, so a run that stops early still leaves
-      its work on a PR:
+   2. `mix playwright.gen.protocol` and `mix playwright.gen.api`; commit the bump and the
+      generated diff (often none for a patch release) on their own. Then publish, before porting
+      anything, so a run that stops early still leaves its work on a PR:
       ```
       git push -u origin BRANCH
       gh pr create --draft --base main --head BRANCH --title "Update to Playwright TO" --body "Port in progress."
       ```
+      Always publish, even when the diffs below hold nothing to port: the bump itself (new
+      driver, Node and browsers) is the PR, and its CI is the check. If the push or
+      `gh pr create` fails, stop and end with the command and its error.
    3. Port every hunk of `git -C /tmp/playwright diff vFROM vTO -- packages/playwright-core/src/client
       packages/playwright/src/matchers tests/page tests/library` 1:1, per PORTING's rules: same module per class, upstream order
       and names, `-- not ported: <reason>` / `-- ported as <name>` markers, specs mirrored with
@@ -71,7 +75,7 @@ the existing ported code next to whatever you port.
 6. Push the last commit and replace the PR's placeholder body, leaving it a draft:
    `gh pr edit BRANCH --body-file <file>`.
    The body, concise: the RELEASE link; the upstream diff stats (files, insertions, deletions of
-   client and specs); what was ported, in a few lines; "Runner": the runner hunks ported and the new runner features to adopt or skip; a checklist of what's left (unported
+   client and specs); what was ported, in a few lines (or "Nothing to port" when no hunk applies); "Runner": the runner hunks ported and the new runner features to adopt or skip; a checklist of what's left (unported
    hunks, skipped specs, decisions to review, anything needing a human); the verification
    results, one line each.
 

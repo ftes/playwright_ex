@@ -249,9 +249,9 @@ defmodule Playwright.Test.Recorder do
     {:ok,
      %{
        timer: arm(test),
-       # The module's shared request contexts (`adopt/1`); its shared contexts are those of
-       # `contexts` with `shared: true`.
-       shared_requests: [],
+       # The module's open contexts and request contexts the test records (`adopt/1`), in
+       # adoption order.
+       shared: [],
        timed_out: false,
        closing: nil,
        finisher: nil,
@@ -285,15 +285,13 @@ defmodule Playwright.Test.Recorder do
   end
 
   # The module's (`adopt/1`): not anchored here, as the recorder ends with the test.
-  def handle_call({:add_shared, %BrowserContext{} = context}, _from, state),
-    do:
-      {:reply, :ok,
-       %{state | contexts: state.contexts ++ [%{guid: context.guid, context: context, pages: [], shared: true}]}}
+  def handle_call({:add_shared, object}, _from, state), do: {:reply, :ok, %{state | shared: state.shared ++ [object]}}
 
-  def handle_call({:add_shared, request}, _from, state),
-    do: {:reply, :ok, %{state | shared_requests: state.shared_requests ++ [request]}}
-
-  def handle_call({:closed, guid}, _from, state), do: {:reply, :ok, %{state | closed: state.closed ++ [guid]}}
+  def handle_call({:closed, guid}, _from, state) do
+    if Enum.any?(state.shared, &(&1.guid == guid)),
+      do: {:reply, :ok, %{state | shared: drop_guid(state.shared, guid)}},
+      else: {:reply, :ok, %{state | closed: state.closed ++ [guid]}}
+  end
 
   def handle_call({:add_request, request}, _from, state),
     do: {:reply, :ok, %{state | requests: state.requests ++ [request]}}
@@ -302,8 +300,8 @@ defmodule Playwright.Test.Recorder do
     {:reply, :ok,
      %{
        state
-       | requests: Enum.reject(state.requests, &(&1.guid == guid)),
-         shared_requests: Enum.reject(state.shared_requests, &(&1.guid == guid))
+       | requests: drop_guid(state.requests, guid),
+         shared: drop_guid(state.shared, guid)
      }}
   end
 
@@ -321,8 +319,7 @@ defmodule Playwright.Test.Recorder do
   # of its screenshot (`_createAttachmentPath`).
   def handle_call({:capture, failed?}, _from, state) do
     pages =
-      for %{guid: guid, context: context} <- state.contexts,
-          guid not in state.closed,
+      for context <- own_open(state) ++ shared_contexts(state.shared),
           page <- step("list the pages", fn -> BrowserContext.pages(context) end) || [],
           not MapSet.member?(state.snapshotted, page.guid),
           do: page
@@ -418,6 +415,14 @@ defmodule Playwright.Test.Recorder do
   defp start_update(%{overlay_queue: [{pid, mref, nil} | queue]} = state),
     do: %{state | overlay_queue: [{pid, mref, :running} | queue]}
 
+  # The test's own contexts still open: not the module's (`shared`).
+  defp own_open(state),
+    do: for(%{guid: guid, context: context} <- state.contexts, guid not in state.closed, do: context)
+
+  defp shared_contexts(shared), do: Enum.filter(shared, &is_struct(&1, BrowserContext))
+
+  defp drop_guid(objects, guid), do: Enum.reject(objects, &(&1.guid == guid))
+
   @impl true
   # The test exited before the timer fired, its `:DOWN` not handled yet: it finished in time.
   def handle_info(:test_timeout, state) do
@@ -437,11 +442,8 @@ defmodule Playwright.Test.Recorder do
   defp time_out(state) do
     reason = "Test timeout of #{state.opts.test_timeout}ms exceeded."
 
-    open =
-      for %{guid: guid, context: context} = entry <- state.contexts,
-          guid not in state.closed,
-          !entry[:shared],
-          do: context
+    # Not the module's: they stay open (see the moduledoc's "Contexts of `setup_all`").
+    open = own_open(state)
 
     # Not in the recorder: the close's hooks call it.
     {:ok, closing} =
@@ -577,6 +579,7 @@ defmodule Playwright.Test.Recorder do
         set_default_timeouts(context, module.timeouts)
         Results.share(owner, context)
         Results.share(owner, BrowserContext.request(context))
+        adopt_created([context, BrowserContext.request(context)], owner)
 
       %{} = test ->
         with recorder when is_pid(recorder) <- Results.recorder(test.test_pid),
@@ -606,28 +609,45 @@ defmodule Playwright.Test.Recorder do
   stopped if the test doesn't trace), then the screenshots and page snapshot of the test's end.
   """
   def adopt(test) do
-    owner = Results.runner_module(Pool.parent(test.test_pid))
-    shared = if owner, do: Results.shared(owner), else: []
+    if owner = Results.runner_module(Pool.parent(test.test_pid)) do
+      # The module's running test, for the contexts its processes create during it.
+      Results.set_module_test(owner, test.test_pid)
 
-    if shared != [] do
-      recorder = Results.recorder(test.test_pid)
-
-      shared
-      |> Enum.split_with(fn {object, _tracing} -> is_struct(object, BrowserContext) end)
-      |> then(fn {contexts, requests} -> contexts ++ requests end)
-      |> Enum.each(fn {object, tracing} -> adopt(object, tracing, recorder, test) end)
+      adopt_existing(Results.shared(owner), test)
     end
 
     :ok
   end
 
-  defp adopt(object, tracing_state, recorder, test) do
-    key = if is_struct(object, BrowserContext), do: :context, else: :request
+  defp adopt_existing([], _test), do: :ok
 
-    if :ets.insert_new(Results.table(), {{key, object.guid}, recorder}) do
-      call(recorder, {:add_shared, object})
-      step("start tracing", fn -> start_shared_tracing(object, tracing_state, test) end)
-    end
+  defp adopt_existing(shared, test) do
+    {contexts, requests} = Enum.split_with(shared, fn {object, _tracing} -> is_struct(object, BrowserContext) end)
+    adopt(contexts ++ requests, Results.recorder(test.test_pid), test)
+  end
+
+  # `didCreateBrowserContext` (`didCreateRequestContext`) of a context the module's process (or
+  # a process with it in `$callers`) creates while one of its tests runs: that test records it,
+  # as an existing one, and leaves it open (it is the module's).
+  defp adopt_created(objects, owner) do
+    with test_pid when is_pid(test_pid) <- Results.module_test(owner),
+         %{} = test <- registration(test_pid),
+         recorder when is_pid(recorder) <- Results.recorder(test_pid),
+         do: adopt(Enum.map(objects, &{&1, :off}), recorder, test)
+  end
+
+  # Noted in order, then the tracing of each at once, as upstream's `Promise.all`.
+  defp adopt(shared, recorder, test) do
+    shared
+    |> Enum.filter(fn {object, _tracing} ->
+      key = if is_struct(object, BrowserContext), do: :context, else: :request
+      :ets.insert_new(Results.table(), {{key, object.guid}, recorder}) and call(recorder, {:add_shared, object}) == :ok
+    end)
+    |> Task.async_stream(
+      fn {object, tracing} -> step("start tracing", fn -> start_shared_tracing(object, tracing, test) end) end,
+      timeout: :infinity
+    )
+    |> Stream.run()
   end
 
   # `_startTraceChunkOnContextCreation` (`kTracingStarted` is `:idle` or `:recording`). The state
@@ -811,6 +831,7 @@ defmodule Playwright.Test.Recorder do
     case defaults() do
       %{module_pid: owner} ->
         Results.share(owner, request)
+        adopt_created([request], owner)
 
       %{} = test ->
         with recorder when is_pid(recorder) <- Results.recorder(test.test_pid),
@@ -833,13 +854,14 @@ defmodule Playwright.Test.Recorder do
   # `runBeforeCloseRequestContext` (`willCloseRequestContext`): the trace chunk of a request
   # context, also a browser context's `request` (its close disposes it first).
   def before_close_request_context(request) do
-    Results.unshare(request.guid)
+    # A module's: its chunk only if one records.
+    chunk? = Results.unshare(request.guid) in [nil, :recording]
 
     with [{_key, recorder}] <- :ets.take(Results.table(), {:request, request.guid}),
          %{} = state <- call(recorder, {:fields, [:opts]}) do
       call(recorder, {:request_closed, request.guid})
 
-      if state.opts.trace[:mode] != :off, do: stop_request_tracing(request, recorder, state)
+      if state.opts.trace[:mode] != :off and chunk?, do: stop_request_tracing(request, recorder, state)
     end
 
     nil
@@ -861,19 +883,20 @@ defmodule Playwright.Test.Recorder do
   # (`captureTemporary`), then the page snapshot (`_takePageSnapshot`). Taking the row makes it
   # once per context, also when closes race.
   def before_close_browser_context(context) do
-    Results.unshare(context.guid)
+    # A module's: its chunk only if one records.
+    chunk? = Results.unshare(context.guid) in [nil, :recording]
 
     with [{_key, recorder}] <- :ets.take(Results.table(), {:context, context.guid}),
          %{} = state <- call(recorder, {:fields, [:opts, :timed_out, :test_pid]}) do
       call(recorder, {:closed, context.guid})
-      collect(context, recorder, state)
+      collect(context, recorder, Map.put(state, :chunk?, chunk?))
     end
 
     nil
   end
 
   defp collect(context, recorder, %{opts: opts} = state) do
-    if opts.trace[:mode] != :off,
+    if opts.trace[:mode] != :off and state.chunk?,
       do: step("save the trace", fn -> stop_tracing(context, BrowserContext.tracing(context), recorder, state) end)
 
     if capture_temporary?(opts.screenshot[:mode], opts.retry), do: screenshots(context, recorder, opts)
@@ -1034,7 +1057,7 @@ defmodule Playwright.Test.Recorder do
 
   defp collect_all(pid, {verdict, failures}) do
     state =
-      GenServer.call(pid, {:fields, [:closing, :opts, :contexts, :closed, :requests, :shared_requests]}, :infinity)
+      GenServer.call(pid, {:fields, [:closing, :opts, :contexts, :closed, :requests, :shared]}, :infinity)
 
     # The test timeout's closes, with their artifact steps.
     if state.closing, do: await_exit(state.closing)
@@ -1046,9 +1069,7 @@ defmodule Playwright.Test.Recorder do
     # outlives the test.
     if should_capture_upon_finish(state.opts.screenshot[:mode], failed?, state.opts.retry), do: capture(pid, failed?)
 
-    {shared, own} = state.contexts |> Enum.reject(&(&1.guid in state.closed)) |> Enum.split_with(& &1[:shared])
-
-    for %{context: context} <- own,
+    for context <- own_open(state),
         do: step("close a context", fn -> BrowserContext.close!(context, reason: "Test ended.") end)
 
     # The leftover request contexts too, as upstream's `request` fixture is disposed.
@@ -1057,7 +1078,7 @@ defmodule Playwright.Test.Recorder do
 
     # The module's stay open: their chunks (`_stopTracing` of the leftovers), then the page
     # snapshot of the first (`_takePageSnapshot(leftoverContexts[0])`), if none yet.
-    finish_shared(pid, shared, state)
+    finish_shared(pid, state)
 
     # All of it, the trace events too, once.
     state = GenServer.call(pid, :state, :infinity)
@@ -1071,22 +1092,29 @@ defmodule Playwright.Test.Recorder do
     trace
   end
 
-  defp finish_shared(pid, shared, state) do
-    if state.opts.trace[:mode] != :off, do: stop_shared_tracing(pid, shared, state)
+  defp finish_shared(pid, state) do
+    if state.opts.trace[:mode] != :off, do: stop_shared_tracing(pid, state)
 
-    with [%{context: context} | _] <- shared,
+    with [context | _] <- shared_contexts(state.shared),
          %{} = fields <- call(pid, {:fields, [:timed_out, :test_pid]}),
          do: step("take a page snapshot", fn -> page_snapshot(context, pid, Map.merge(state, fields)) end)
   end
 
-  # `_stopTracing`; a chunk not saved stays `:recording`, for the next test to discard.
-  defp stop_shared_tracing(pid, shared, state) do
-    for object <- Enum.map(shared, & &1.context) ++ state.shared_requests do
-      step("save the trace", fn ->
-        stop_tracing(object, shared_tracing(object), pid, state)
-        Results.set_tracing(object.guid, :idle)
-      end)
-    end
+  # `_stopTracing` of those with a chunk recording (not a failed start's, nor tracing of the
+  # user's own), at once; a chunk not saved stays `:recording`, for the next test to discard.
+  defp stop_shared_tracing(pid, state) do
+    state.shared
+    |> Enum.filter(&(Results.tracing(&1.guid) == :recording))
+    |> Task.async_stream(
+      fn object ->
+        step("save the trace", fn ->
+          stop_tracing(object, shared_tracing(object), pid, state)
+          Results.set_tracing(object.guid, :idle)
+        end)
+      end,
+      timeout: :infinity
+    )
+    |> Stream.run()
   end
 
   defp await_exit(pid) do
@@ -1100,14 +1128,7 @@ defmodule Playwright.Test.Recorder do
   # Past the budget: the contexts still open are closed in the background, so they don't pile up
   # in a pooled browser. The task anchors them before the recorder stops.
   defp close_leftovers(state) do
-    leftovers =
-      for(
-        %{guid: guid, context: context} = entry <- state.contexts,
-        guid not in state.closed,
-        !entry[:shared],
-        do: context
-      ) ++
-        state.requests
+    leftovers = own_open(state) ++ state.requests
 
     {parent, ref} = {self(), make_ref()}
 
