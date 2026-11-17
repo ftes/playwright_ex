@@ -63,12 +63,13 @@ defmodule Playwright.Test.SetupAllTimeout do
     end
   end
 
-  # Callbacks that raise, throw or exit (a cast: a twice nested one casts twice).
+  # Callbacks that raise, throw or exit: the pool told with the clock stopped, so the timeout
+  # can't fire during the call (a twice nested one tells it twice).
   defp raising(fun) do
     fun.()
   catch
     kind, reason ->
-      Pool.setup_all_failed()
+      paused(&Pool.setup_all_failed/0)
       :erlang.raise(kind, reason, __STACKTRACE__)
   end
 

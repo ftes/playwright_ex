@@ -276,14 +276,17 @@ defmodule Playwright.Test.BrowserPoolTest do
   end
 
   describe "setup_all" do
-    # A `setup_all` scope's process, as ExUnit's: its callbacks, `failed` after a lease of `opts`
-    # and a context on it, their error caught, then the wait for the module's end. Its `on_exit`
-    # release, after it exited (the real one: the `modules` mode of `Playwright.Test.EndToEndTest`).
+    # A registered `setup_all` scope's process (`use Playwright.Test`'s), as ExUnit's: its
+    # callbacks, `failed` after a lease of `opts` and a context on it, their error caught, then the
+    # wait for the module's end. Its `on_exit` release, after it exited (the real one: the
+    # `modules` mode of `Playwright.Test.EndToEndTest`).
     defp failed_setup_all(opts, failed) do
       test = self()
 
       {pid, ref} =
         spawn_monitor(fn ->
+          Playwright.Test.__setup_all__(%{})
+
           try do
             SetupAllTimeout.run(%{module: __MODULE__, timeout: 3000}, fn ->
               %{browser: browser} = leased = Pool.browser(Options.pool(opts), {:process, self()})
@@ -309,13 +312,23 @@ defmodule Playwright.Test.BrowserPoolTest do
     defp fail(:raised), do: raise("boom")
     defp fail(:timed_out), do: Process.sleep(:infinity)
 
+    # Taken down by a linked process, also one that stops as a `GenServer` does when shut down.
     defp fail(:linked_crash) do
       spawn_link(fn -> exit(:boom) end)
       Process.sleep(:infinity)
     end
 
+    defp fail(:linked_shutdown) do
+      spawn_link(fn -> exit({:shutdown, :closed}) end)
+      Process.sleep(:infinity)
+    end
+
     # Past the timeout: none under `mix test --trace`.
-    for failed <- [:raised, :linked_crash | if(ExUnit.configuration()[:trace], do: [], else: [:timed_out])] do
+    for failed <- [
+          :raised,
+          :linked_crash,
+          :linked_shutdown | if(ExUnit.configuration()[:trace], do: [], else: [:timed_out])
+        ] do
       @tag :capture_log
       test "a #{failed} setup_all resets its seat: the next scope of its options gets a fresh browser, without its contexts" do
         opts = opts()
@@ -332,12 +345,34 @@ defmodule Playwright.Test.BrowserPoolTest do
       end
     end
 
+    @tag :capture_log
+    test "an unregistered setup_all's (a plain ExUnit module's) failure is not its seat's" do
+      opts = opts()
+      test = self()
+
+      {pid, ref} =
+        spawn_monitor(fn ->
+          send(test, {:leased, Pool.browser(Options.pool(opts), {:process, self()})})
+          exit(:boom)
+        end)
+
+      assert_receive {:leased, leased}, 30_000
+      assert_receive {:DOWN, ^ref, :process, ^pid, :boom}, 10_000
+      Pool.release(pid)
+
+      t = fake_test()
+      assert lease(t, opts).playwright == leased.playwright
+      finish(t, [passed()], :shutdown)
+    end
+
     test "a passed setup_all's seat goes back warm" do
       opts = opts()
       test = self()
 
       {pid, ref} =
         spawn_monitor(fn ->
+          Playwright.Test.__setup_all__(%{})
+
           SetupAllTimeout.run(%{module: __MODULE__, timeout: :infinity}, fn ->
             send(test, {:leased, Pool.browser(Options.pool(opts), {:process, self()})})
           end)

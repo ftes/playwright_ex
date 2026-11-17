@@ -425,7 +425,7 @@ case mode do
       alias Playwright.{Browser, BrowserContext, Page}
 
       # Time for the context and page on a slow browser (the launch is not counted): the deadline
-      # lands in the wait.
+      # lands in the wait, unless they take that long.
       @moduletag timeout: 6000
 
       setup_all %{browser: browser} do

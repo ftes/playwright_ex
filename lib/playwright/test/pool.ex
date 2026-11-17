@@ -17,7 +17,7 @@ defmodule Playwright.Test.Pool do
   #     linked ones, waits for it.
   #   * `scopes`: `%{scope => %{runner, failed?, down}}` of the scopes that hold seats: `runner` is
   #     a `setup_all` scope's ExUnit runner (whose tests' results are the scope's), else `nil`;
-  #     `down` the monitor of a `setup_all` scope's process until its `DOWN` (`module_down/3`).
+  #     `down` the monitor of a registered `setup_all`'s process until its `DOWN` (`module_down/3`).
   #   * `workers`: `{env, workers}`, config `workers` and the config it was read from.
   #   * `waiting`: callers whose scope held no seat while `workers` were held, monitored, first come
   #     first served (`serve_waiting/1`). A waiter that exits, or whose scope was released, is
@@ -86,9 +86,14 @@ defmodule Playwright.Test.Pool do
   @doc """
   Fails the leases of the calling `setup_all`, whose callbacks raised (ExUnit catches it, so its
   process exits normally): its seats reset at its release, as upstream stops a worker whose job
-  failed. A cast, so it can't fail, and it arrives before the process's `DOWN`.
+  failed. Before its `DOWN`; never fails (a pool that is gone or stuck leaves the error as it is).
   """
-  def setup_all_failed, do: GenServer.cast(__MODULE__, {:setup_all_failed, self()})
+  def setup_all_failed do
+    if Process.whereis(__MODULE__), do: GenServer.call(__MODULE__, {:setup_all_failed, self()}, :infinity)
+    :ok
+  catch
+    :exit, _reason -> :ok
+  end
 
   @doc "The ExUnit runner process that spawned `pid` (OTP 25+), `nil` if unknown."
   def parent(pid) do
@@ -147,7 +152,9 @@ defmodule Playwright.Test.Pool do
     state = workers(state)
     scope = scope(state, pid, parent)
     runner = if scope == pid and kind == :process, do: parent
-    request = %{key: key, scope: scope, runner: runner, module?: scope == pid and kind == :process, from: from}
+    # A module's registered `setup_all` (`use Playwright.Test`): its failure is the lease's.
+    module? = scope == pid and kind == :process and match?({:module, _}, Results.scope(pid))
+    request = %{key: key, scope: scope, runner: runner, module?: module?, from: from}
 
     case lease(state, request) do
       {:ok, seat, state} ->
@@ -163,6 +170,8 @@ defmodule Playwright.Test.Pool do
 
   def handle_call({:fail, test_pid}, _from, state),
     do: {:reply, :ok, fail_scopes(state, test_pid, Results.runner(state.results, test_pid))}
+
+  def handle_call({:setup_all_failed, scope}, _from, state), do: {:reply, :ok, fail_module(state, scope)}
 
   def handle_call(:started, _from, state), do: {:reply, :ok, state}
 
@@ -182,8 +191,6 @@ defmodule Playwright.Test.Pool do
   end
 
   @impl true
-  def handle_cast({:setup_all_failed, scope}, state), do: {:noreply, fail_module(state, scope)}
-
   def handle_cast(request, state), do: {:noreply, %{state | results: Results.handle_cast(request, state.results)}}
 
   @impl true
@@ -228,22 +235,21 @@ defmodule Playwright.Test.Pool do
   end
 
   # A module's `setup_all` scope (monitored at its first lease) exited: past its timeout, killed,
-  # taken down by a linked process, fails its leases, as upstream stops a worker whose job failed.
-  # Its callbacks raising (ExUnit catches it, the process then exits `:normal`) came first, cast
+  # taken down by a linked process (`{:shutdown, _}` too), fails its leases, as upstream stops a
+  # worker whose job failed. Only `:normal` is a clean end (ExUnit's `exit_setup_all`). Its
+  # callbacks raising (ExUnit catches it, the process then exits `:normal`) came first
   # (`setup_all_failed/0`).
   defp module_down(state, scope, reason) do
     state = put_in(state.scopes[scope].down, nil)
-    if normal_exit?(reason), do: state, else: fail_module(state, scope)
+    if reason == :normal, do: state, else: fail_module(state, scope)
   end
-
-  defp normal_exit?(reason), do: reason in [:normal, :shutdown] or match?({:shutdown, _}, reason)
 
   defp fail_module(state, scope) do
     if Map.has_key?(state.scopes, scope), do: put_in(state.scopes[scope].failed?, true), else: state
   end
 
   # The `DOWN` of a module scope that a release (its `on_exit`, in another process) may overtake:
-  # awaited once the scope exited, with the cast its process sent before it.
+  # awaited once the scope exited.
   defp await_down(state, scope) do
     case state.scopes[scope] do
       %{down: ref} when is_reference(ref) ->
@@ -252,14 +258,7 @@ defmodule Playwright.Test.Pool do
           put_in(state.scopes[scope].down, nil)
         else
           receive do
-            {:DOWN, ^ref, :process, _pid, reason} ->
-              state = module_down(state, scope, reason)
-
-              receive do
-                {:"$gen_cast", {:setup_all_failed, ^scope}} -> fail_module(state, scope)
-              after
-                0 -> state
-              end
+            {:DOWN, ^ref, :process, _pid, reason} -> module_down(state, scope, reason)
           end
         end
 

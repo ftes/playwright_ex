@@ -49,8 +49,11 @@ defmodule Playwright.Test.BrowserPool do
   registers), its seats go back, their drivers warm for the next caller of the options, unless it
   failed: then the drivers stop, as upstream replaces a worker after a failure. A module fails
   when its `setup_all` failed (raised, past its timeout, killed or taken down by a linked
-  process), when a test of it failed, or when a test's artifacts took longer than their half of
-  its timeout (its contexts may be left open). Only registered tests have results: register tests with
+  process; in a module with `use Playwright.Test`, whose `setup_all` it wraps: a plain ExUnit
+  module's counts only an exit other than `:normal`, not a raise, which ExUnit catches), when a
+  test of it failed, or when a test's artifacts took longer than their half of its timeout (its
+  contexts may be left open). An `on_exit` of `setup_all` that fails doesn't reset them, where
+  upstream stops a worker whose `afterAll` failed. Only registered tests have results: register tests with
   `use Playwright.Test` to get Playwright Test's discard-after-failure; a scope with no known
   result (no registered test, a doctest) counts as passed. A lost browser is launched (or
   connected) again by the scope's next call.
