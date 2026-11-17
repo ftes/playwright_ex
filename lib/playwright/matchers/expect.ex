@@ -39,7 +39,8 @@ defmodule Playwright.Matchers.Expect do
 
   A matcher gets the matcher state `this` (`ExpectMatcherStateInternal`): a map with `isNot`,
   `promise`, `utils` (`Playwright.Matchers.MatcherUtils`), `timeout` and `title`. It returns a
-  `MatcherResult` map; a failed one raises `Playwright.ExpectError`.
+  `MatcherResult` map; a failed one raises `Playwright.ExpectError`. A matcher call returns the
+  result's `value`: `toPass`'s passing attempt, `nil` otherwise.
 
   Deviations: `testInfo` is the running test of `Playwright.Test` (`Playwright.Test.TestInfo`,
   found by the calling process, or one in its `$callers`), else `null`. Each matcher call is a
@@ -323,7 +324,7 @@ defmodule Playwright.Matchers.Expect do
             if result[:softError], do: IO.puts(Exception.message(result.softError))
           end
 
-          :ok
+          {:ok, result[:value]}
         end
       end
     end
@@ -351,6 +352,8 @@ defmodule Playwright.Matchers.Expect do
           :soft
       end
 
+    # Elixir only: the result's `value` (`toPass`'s passing attempt, `Matchers.to_pass/3`), `nil` for
+    # the other matchers and a soft error.
     with {:ok, result} <- result,
          {:error, error, result} <- finalizer.(result) do
       try do
@@ -358,9 +361,12 @@ defmodule Playwright.Matchers.Expect do
       rescue
         error -> handle_error.({:error, error, __STACKTRACE__}, result)
       end
-    end
 
-    :ok
+      nil
+    else
+      {:ok, value} -> value
+      :soft -> nil
+    end
   end
 
   # JS truthiness of an argument.

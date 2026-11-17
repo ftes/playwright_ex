@@ -353,12 +353,11 @@ without contexts runs none, and its `error-context.md` comes from `TestInfo`. A 
 process creates before its registration (a template's `setup` with the `use` only in `using`)
 makes the registration raise with the fix. The module's `setup_all` process registers too (a
 `setup_all` of the `use`), as upstream's `beforeAll` gets its `all-hooks-included` fixtures: its
-contexts (and those of processes with it in `$callers`) get the defaults and timeouts, and are
-kept as the module's, keyed by its ExUnit runner, which spawns its tests too. Each test's
-registration adopts those still open (upstream's `willStartTest` over the worker's existing
-contexts): its recorder records them, a chunk of its own, but leaves them open. One outside a
-test and a module gets no defaults and no recording. The driver also adds every call's stack to each trace on its connection, so the trace
-merge keeps a chunk's own actions' stacks and sources.
+contexts (and those of processes with it in `$callers`) get the defaults and timeouts, but no
+recording. A context created outside both a test and a module's `setup_all` (no process of
+either in its `$callers`) gets no defaults and no recording. The driver also adds every call's
+stack to each trace on its connection, so the trace merge keeps a chunk's own actions' stacks
+and sources.
 
 The pool is upstream's worker model. `browser/1` is held by the scope that calls it: `setup_all`'s
 module (upstream runs a file in one worker), or the test (a `Task` resolves to it through
@@ -449,7 +448,9 @@ and a helper per suite drifted from upstream's intervals, deadlines and steps. B
 they get `expect.soft`, steps and the expect config for free; `poll`'s matcher is an ExUnit
 assertion (`Expect.poll(fn -> v end, &assert(&1 == 3))`), as the jest matchers are not ported. Their
 callbacks run in the calling process, not raced against the deadline (a running callback overruns
-it), for the reason a step has no timeout.
+it), for the reason a step has no timeout. `to_pass` returns the passing attempt's value (`{:ok,
+value}`, the bang form the value), where upstream resolves to `void`: a JS callback assigns what the
+test reads after it to an outer `let`, which an Elixir closure can't rebind.
 
 Rejected: porting the rest of Playwright Test, `createExpect` (`expect.configure`; `expect.soft`
 and `expect(x, message)` are fields of the receiver, `soft/1` and `message/2`, not a configured

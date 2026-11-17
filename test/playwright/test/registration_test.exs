@@ -215,8 +215,8 @@ end
 
 defmodule Playwright.Test.RegistrationTest.SetupAllContextTest do
   # A context in `setup_all`, as upstream's `newContext` in `beforeAll` (its `all-hooks-included`
-  # fixtures): the defaults, and no raise at the tests' registration. The config's options and
-  # recording: `Playwright.Test.SetupAllTest`.
+  # fixtures): the defaults, and no raise at the tests' registration. The config's options:
+  # `Playwright.Test.SetupAllTest`.
   use ExUnit.Case, async: true
   use Playwright.Test
 
@@ -345,7 +345,7 @@ defmodule Playwright.Test.RegistrationTest.LateTest do
         end
 
       Playwright.BrowserContext.close!(context)
-      send(test_pid, {:result, result, Playwright.Test.Results.module(self())})
+      send(test_pid, {:result, result, Playwright.Test.Results.scope(self())})
     end)
 
     assert_receive {:result, message, nil}
