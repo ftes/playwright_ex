@@ -70,6 +70,11 @@ Node 26.13.1. No upstream API changes.
   to pass bytes as `{:binary, bytes}`, not only "Message cannot be encoded as JSON".
 - **RC only:** a matcher's unknown `message:` option points to `Expect.message/2` (JS
   `expect(x, message)`), for the matcher as called.
+- **RC only:** an error a listener or route handler raises in a `Playwright.Test` test fails
+  the test and stops it at once, as Playwright Test's worker does, where it failed only at the
+  end of the body (a test hung on a dialog its failed `:dialog` listener left open). The test's
+  process exits with the error; later such errors are dropped. Its failure screenshots are taken
+  at teardown, after its `on_exit` callbacks.
 - **RC only:** a failed test's "Trace of ..." hint prints after the run, below ExUnit's summary:
   above its own failure it read as the previous failure's.
 

@@ -625,6 +625,64 @@ defmodule Playwright.Test.TestInfo do
     :ok
   end
 
+  @doc """
+  The worker's `unhandledError` (an error a callback of the test left unhandled: a listener's, a
+  route handler's): the test's first one (`_hasUnhandledError`) is `_failWithError`ed and
+  `_stop()`s the test (`_isStopped`: once); later ones are dropped. Here the test's process
+  exits with a reason carrying the error, which ExUnit reports as the test's failure and
+  `Playwright.Test.Results` turns back into the error (`interrupt/1`), so it is not among
+  `take_errors/1`. A test that traps exits gets the exit as a message, and exits with it at the
+  end of its body (`Playwright.Test.__passed__/0`). Elixir only: once the test ended, the error
+  is printed, as outside a test.
+
+  deviation: upstream awaits `_didFinishTestFunction` (the failure's screenshots) before the
+  `afterEach` hooks; here the exit ends the body, so the screenshots are taken at teardown (the
+  recorder's, as the contexts close), after the test's own `on_exit` callbacks.
+  """
+  def _unhandled_error(this, {kind, reason, stacktrace} = error) do
+    key = {:test_info, this.test_pid, :has_unhandled_error}
+    exit_reason = interrupt_reason(kind, reason, stacktrace)
+
+    cond do
+      not running?(this) ->
+        IO.puts(error_message(error))
+
+      # `_hasUnhandledError`, set once (atomic across the test's processes).
+      not :ets.insert_new(Results.table(), {key, {exit_reason, error}}) ->
+        :ok
+
+      running?(this) ->
+        TestTracing.append_for_error(_tracing(this), error)
+        Process.exit(this.test_pid, exit_reason)
+
+      # The test ended meanwhile (see `put_row/3`): taken back, unless the pool read it already.
+      :ets.take(Results.table(), key) != [] ->
+        IO.puts(error_message(error))
+
+      true ->
+        :ok
+    end
+
+    :ok
+  end
+
+  @doc """
+  The interrupt of the test `test_pid` (`_unhandled_error/2`), if any: `{exit_reason, error}`,
+  the reason its process exits with and the error it stands for.
+  """
+  def interrupt(test_pid) do
+    case Results.started?() && :ets.lookup(Results.table(), {:test_info, test_pid, :has_unhandled_error}) do
+      [{_key, interrupt}] -> interrupt
+      _ -> nil
+    end
+  end
+
+  # As ExUnit formats a crashed test: `{exception, stacktrace}`. An exit is wrapped, so that
+  # `:normal` interrupts the test too and `:kill` is not a plain kill.
+  defp interrupt_reason(:error, exception, stacktrace), do: {exception, stacktrace}
+  defp interrupt_reason(:throw, value, stacktrace), do: {{:nocatch, value}, stacktrace}
+  defp interrupt_reason(:exit, reason, _stacktrace), do: {:exit_in_callback, reason}
+
   @doc "Elixir only: the `message` of an error `{kind, reason, stacktrace}`."
   def error_message({:error, reason, stacktrace}),
     do: Exception.message(Exception.normalize(:error, reason, stacktrace))

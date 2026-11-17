@@ -245,8 +245,13 @@ defmodule Playwright.Test.Results do
     # at the test's end: they fail it here, for `error-context.md` and the driver's release.
     # ExUnit reported the test already, without them: its output can't change once the process
     # died.
+    # So does the unhandled error that interrupted it (`TestInfo._unhandled_error/2`), which
+    # ExUnit reported as the exit that carries it.
+    interrupt = TestInfo.interrupt(pid)
+    unhandled = for {_exit_reason, error} <- List.wrap(interrupt), do: error
+
     {verdict, failures} =
-      case {TestInfo.ended(pid), verdict(test, pid, reason)} do
+      case {unhandled ++ TestInfo.ended(pid), verdict(test, pid, reason, interrupt)} do
         {[], result} -> result
         {errors, {_verdict, failures}} -> {:failed, Enum.map(errors, &normalize/1) ++ failures}
       end
@@ -260,12 +265,14 @@ defmodule Playwright.Test.Results do
 
   # ExUnit's runner exits a test's process `:shutdown` after the test and its setup, kills it
   # past its timeout, and a linked process's exit takes it down.
-  defp verdict(%{passed?: true}, _pid, :shutdown), do: {:passed, []}
-  defp verdict(%{marked: false}, _pid, :shutdown), do: {nil, []}
-  defp verdict(%{failures: [_ | _] = failures}, _pid, :shutdown), do: {:failed, failures}
-  defp verdict(%{marked: failure}, _pid, :shutdown), do: {:failed, [failure]}
-  defp verdict(test, _pid, :killed), do: {:failed, test.failures ++ [@killed]}
-  defp verdict(test, pid, reason), do: {:failed, test.failures ++ [{{:EXIT, pid}, reason, []}]}
+  # The interrupt's exit: its error stands for it.
+  defp verdict(test, _pid, reason, {reason, _error}), do: {:failed, test.failures}
+  defp verdict(%{passed?: true}, _pid, :shutdown, _interrupt), do: {:passed, []}
+  defp verdict(%{marked: false}, _pid, :shutdown, _interrupt), do: {nil, []}
+  defp verdict(%{failures: [_ | _] = failures}, _pid, :shutdown, _interrupt), do: {:failed, failures}
+  defp verdict(%{marked: failure}, _pid, :shutdown, _interrupt), do: {:failed, [failure]}
+  defp verdict(test, _pid, :killed, _interrupt), do: {:failed, test.failures ++ [@killed]}
+  defp verdict(test, pid, reason, _interrupt), do: {:failed, test.failures ++ [{{:EXIT, pid}, reason, []}]}
 
   defp normalize({kind, reason, stacktrace}), do: {kind, Exception.normalize(kind, reason, stacktrace), stacktrace}
 end

@@ -62,6 +62,13 @@ defmodule Playwright.Test do
   processes, see "Route handlers and listeners" in the Testing with ExUnit guide); outside a
   test they raise.
 
+  An error a listener or route handler of the test raises fails the test and stops it at once,
+  as upstream's worker does (`unhandledError`): the test's process exits with the error, and
+  later such errors are dropped. A test that traps exits gets the exit as a message, and exits
+  with it at the end of its body. Once the body ended, the error is logged. A deviation: the
+  stopped test's failure screenshots are taken at teardown, as its contexts close, after its
+  `on_exit` callbacks may have run; upstream takes them first (`_didFinishTestFunction`).
+
   ## Artifacts
 
   Every context the test creates on a `BrowserPool` browser, in the test or a process with it
@@ -79,7 +86,10 @@ defmodule Playwright.Test do
       `mix playwright.cli show-trace <path>` after the run, below ExUnit's summary.
     * `test-finished-N.png`, or `test-failed-N.png` for a failed test - a screenshot of every
       page open at the end of the test's body (before its `on_exit` callbacks), then of those
-      open when their context closes (`timeout: 5000, caret: :initial`, as upstream).
+      open when their context closes (`timeout: 5000, caret: :initial`, as upstream). A test
+      that a listener's or route handler's error stopped (above) has no end of its body: its
+      pages' screenshots are taken as its contexts close, after its `on_exit` callbacks
+      (upstream takes them before the `afterEach` hooks).
     * `video.webm`, `video-1.webm`, ... - every page's video. A context created with its own
       `record_video` keeps it, and its video is copied here too.
     * `error-context.md` - a failed test's errors, source and an aria snapshot (`mode: :ai`) of
@@ -407,6 +417,8 @@ defmodule Playwright.Test do
   # `__failed__/3`, which `--breakpoints` leaves out.
   @doc false
   def __passed__ do
+    interrupted()
+
     case TestInfo.finish(self()) do
       [] ->
         Results.notify({:passed, self()})
@@ -428,6 +440,8 @@ defmodule Playwright.Test do
   # this one as it is.
   @doc false
   def __failed__(kind, reason, stacktrace) do
+    interrupted()
+
     # `__passed__/0` raised the recorded errors and reported them already.
     if Process.delete(@reraised) do
       {kind, reason, stacktrace}
@@ -444,6 +458,15 @@ defmodule Playwright.Test do
       notify_failed(errors(error))
       finished_test_function(true)
       error
+    end
+  end
+
+  # Elixir only: an unhandled error interrupted the test (`TestInfo._unhandled_error/2`), which
+  # trapped the exit, or reached the end of its body before it: it exits with it here.
+  defp interrupted do
+    with {exit_reason, _error} <- TestInfo.interrupt(self()) do
+      Process.flag(:trap_exit, false)
+      Process.exit(self(), exit_reason)
     end
   end
 

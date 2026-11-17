@@ -20,6 +20,8 @@
 #     hard failure; and a passing one.
 #   * `timeouts` - tests past their timeout: one in a Playwright call, one in `Process.sleep`, one
 #     in a Playwright call after a slow `setup` before `use Playwright.Test`.
+#   * `interrupt` - tests whose listener (`:dialog`, `:console`) or route handler fails before
+#     they would hang.
 #   * `trace` - `trace: true` (`mix test --trace`): a test past its `timeout` tag passes.
 #   * `rerun` - one failing and one passing test (writing a file of its own), `preserve_output:
 #     :failures_only`; with a further `failed` argument, only the failing one, as `mix test
@@ -316,6 +318,55 @@ case mode do
           # (inside the boxed step)
           raise "cannot log in"
         end
+      end
+    end
+
+  # Each fails at once, as the callback's error stops it; it would hang past its timeout.
+  "interrupt" ->
+    # The dialog it doesn't accept would hang the call. The open dialog then blocks the
+    # teardown's screenshot and snapshot for their 5 s each.
+    defmodule InterruptDialogTest do
+      use Playwright.Case, async: true
+
+      @tag timeout: 45_000
+      test "fails in a dialog listener", %{page: page} do
+        Page.on(page, :dialog, fn dialog ->
+          assert Playwright.Dialog.message(dialog) == "expected"
+          Playwright.Dialog.accept!(dialog)
+        end)
+
+        Page.evaluate!(page, "() => alert('actual')")
+      end
+    end
+
+    defmodule InterruptTest do
+      use Playwright.Case, async: true
+
+      @moduletag timeout: 45_000
+
+      test "fails in a console listener", %{page: page} do
+        Page.on(page, :console, fn message -> assert Playwright.ConsoleMessage.text(message) == "expected" end)
+        Page.set_content!(page, "<h1>Logs</h1>")
+        Page.evaluate!(page, "() => console.log('actual')")
+        Process.sleep(:infinity)
+      end
+
+      test "fails in a route handler", %{page: page} do
+        Page.route!(page, "**/*", fn route ->
+          Playwright.Route.fulfill!(route, body: "ok")
+          raise "route boom"
+        end)
+
+        Page.goto!(page, "http://interrupt.test/")
+        Process.sleep(:infinity)
+      end
+
+      # It gets the exit as a message, and exits with it at the end of its body.
+      test "traps the exit", %{page: page} do
+        Process.flag(:trap_exit, true)
+        Page.on(page, :console, fn _message -> raise "trapped boom" end)
+        Page.evaluate!(page, "() => console.log('actual')")
+        assert_received {:EXIT, _pid, {%RuntimeError{message: "trapped boom"}, _stacktrace}}
       end
     end
 

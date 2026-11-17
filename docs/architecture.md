@@ -138,8 +138,14 @@ subscription process, and the listener processes that run a user callback (route
 routes and their handlers and URL matchers, bindings, locator handlers, screencast frames),
 which adopt the registrant's `$callers`, captured at registration as `RouteHandler` captures its
 zone. So `testInfo`, the Ecto sandbox and Mox find the test there, and an error nothing handles
-(the listener sink) fails the test of the process's `$callers`, as upstream's worker fails its
-current test (`workerMain.ts` `unhandledError`); elsewhere it is logged. Shared processes (the
+(the listener sink) fails the test of the process's `$callers` and stops it, as upstream's worker
+fails its current test with its first one and `_stop()`s it (`workerMain.ts` `unhandledError`):
+the test's process exits with a reason that carries the error (`Process.exit/2`), which ExUnit
+reports as its failure, and later ones are dropped. Outside a test, and once its body ended, it
+is logged. The deviation: the exit ends the body, so the failure's screenshots are taken at
+teardown, after the test's `on_exit` callbacks, where upstream awaits `_didFinishTestFunction`
+before the `afterEach` hooks. Rejected: suspending the test process for them
+(`:erlang.suspend_process`), for its complexity. Shared processes (the
 connection, transport, pool, supervisors, async functions started in the connection) get none.
 Rejected: `$callers` in the zone, as upstream finds the test through the worker's global, not
 the zone, a saved zone's `run` ends before the error reaches the sink, and listeners, bindings

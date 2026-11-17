@@ -7,11 +7,13 @@ defmodule Playwright.Test.ResultTest do
   alias Playwright.Test.Pool
   alias Playwright.Test.Results
 
-  defp fake_test(marked? \\ true) do
+  defp fake_test(marked? \\ true, trap_exit? \\ false) do
     parent = self()
 
     pid =
       spawn(fn ->
+        Process.flag(:trap_exit, trap_exit?)
+
         context = %{
           test_pid: self(),
           module: __MODULE__,
@@ -95,6 +97,44 @@ defmodule Playwright.Test.ResultTest do
     assert last == first
     # Gone with the on_exit process, once the pool saw its exit.
     assert_raise ArgumentError, ~r/no test/, fn -> until_raises(fn -> Playwright.Test.info(pid) end) end
+  end
+
+  # An unhandled error of a process of the fake test (`Playwright.Runtime.Callers.unhandled/4`).
+  defp unhandled(pid, error) do
+    Task.await(
+      Task.async(fn ->
+        Process.put(:"$callers", [pid])
+        Playwright.Runtime.Callers.unhandled("", :error, error, [])
+      end)
+    )
+  end
+
+  # `Playwright.Test.TestInfo._unhandled_error/2`: the test's failure is the error, once.
+  test "an unhandled error stops the test: its error once, also after another end" do
+    error = %RuntimeError{message: "listener boom"}
+
+    interrupted = fake_test()
+    ref = Process.monitor(interrupted)
+    unhandled(interrupted, error)
+    assert_receive {:DOWN, ^ref, :process, _, {^error, []}}, 5000
+    assert %{status: :failed, errors: [%{message: "RuntimeError: listener boom"}]} = Playwright.Test.info(interrupted)
+
+    # A test that traps the exit and ends otherwise. A second error is dropped (`_hasUnhandledError`).
+    trapped = fake_test(true, true)
+    unhandled(trapped, error)
+    unhandled(trapped, %RuntimeError{message: "second"})
+    end_test(trapped, [&{:passed, &1}], :shutdown)
+    assert %{status: :failed, errors: [%{message: "RuntimeError: listener boom"}]} = Playwright.Test.info(trapped)
+
+    # Once the body ended: printed, and nothing stops.
+    ended = fake_test()
+    assert Playwright.Test.TestInfo.finish(ended) == []
+    assert ExUnit.CaptureLog.capture_log(fn -> unhandled(ended, error) end) =~ "listener boom"
+    assert Process.alive?(ended)
+    end_test(ended, [&{:passed, &1}], :shutdown)
+    assert %{status: :passed, errors: []} = Playwright.Test.info(ended)
+
+    for pid <- [interrupted, trapped, ended], do: on_exit_callbacks(pid, fn -> nil end, fn -> nil end)
   end
 
   test "passed, timed out, and unknown for another macro's test" do
