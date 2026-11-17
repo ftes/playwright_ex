@@ -51,6 +51,13 @@ Node 26.13.1. No upstream API changes.
 
 ### Changed
 
+- **RC only:** **Breaking:** `mix playwright.install` forwards its args to `playwright install`
+  as they are, without `--`: `mix playwright.install chromium --with-deps`. A `--` now raises,
+  naming that fix.
+- **RC only:** **Breaking:** `mix playwright.install --force` also reinstalls the browsers, as
+  it's forwarded to `playwright install`.
+- **RC only:** **Breaking:** `mix playwright.install --no-browsers` with other args than `--force`
+  raises.
 - **RC only:** `Expect.to_pass!/2` returns the callback's value from the attempt that passed,
   which JS assigns to an outer `let`. **Breaking:** `Expect.to_pass/2` returns `{:ok, value}`,
   not `:ok`.

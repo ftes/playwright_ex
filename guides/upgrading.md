@@ -85,7 +85,7 @@ page = BrowserContext.new_page!(context)
 ```
 
 - The driver (Node and `playwright-core`) is pinned and downloaded on first start, or with
-  `mix playwright.install` (`-- chromium firefox --with-deps` for CI), so the npm `playwright`
+  `mix playwright.install` (`chromium firefox --with-deps` for CI), so the npm `playwright`
   package can go. Its version (`Playwright.Driver.version/0`) may be newer than the one you ran:
   read Playwright's [release notes](https://playwright.dev/docs/release-notes) (1.65 breaks some
   tests: actions wait for the element to be not inert, cookie matching follows RFC 6265, proxy
