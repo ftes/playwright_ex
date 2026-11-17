@@ -102,6 +102,10 @@ defmodule Playwright.Guides.ApiConventionsTest do
     Page.emulate_media!(page, color_scheme: :null)
     assert Page.evaluate!(page, "null") == :null
     assert Page.evaluate!(page, "undefined") == nil
+    assert Locator.get_attribute!(Page.locator(page, "button"), "title") == nil
+    assert JSON.encode!(%{"z" => :null}) == ~s({"z":"null"})
+    assert Page.evaluate!(page, "x => JSON.stringify(x)", %{"z" => :null}) == ~s({"z":null})
+    assert Page.evaluate!(page, "x => x.a[0].b === null", %{"a" => [%{"b" => :null}]})
   end
 
   test "optional arguments", %{page: page} do

@@ -68,7 +68,11 @@ stop after the suite.
 
 A module's tests run one after another (ExUnit balances whole modules, where Playwright Test's
 `fullyParallel` balances single tests), so many small `async: true` modules parallelise better
-than a few big ones.
+than a few big ones: split a big spec into a module per `describe`. Modules that share state in
+the app can stay async in one ExUnit group (`use Playwright.Case, async: true, group: :tree`,
+Elixir 1.18+): no two tests of a group run at once, while other modules keep running, which beats
+`async: false`. `mix test --slowest N` turns on `--trace`, which runs one module at a time, so it
+can't time a parallel run.
 
 Options go in as arguments, merged over the config: `BrowserPool.browser(browser_name: :webkit)`,
 `Browser.new_context!(browser, locale: "de-DE")`. `launch_options` are those of
@@ -82,12 +86,18 @@ defaults and no recording.
 With `base_url`, `goto` and the URL matchers take paths. To set it from the shell, read an env
 var in the config: `context_options: [base_url: System.get_env("BASE_URL", "http://localhost:4000")]`.
 As in Playwright Test, actions and navigations have no timeout of their own in a test: ExUnit's
-test timeout (60 seconds) bounds them. Just before it, the test's contexts are closed, so a stuck
-call fails with "Test timeout of 60000ms exceeded." and its call log, and the artifacts are kept.
-To fail sooner, set `action_timeout` and `navigation_timeout` in the config (milliseconds), or
+test timeout (60 seconds) bounds them; Playwright Test's is 30 seconds, so for the same
+behaviour, `ExUnit.start(timeout: 30_000)` in `test_helper.exs`. Just before it, the test's
+contexts are closed, so a stuck call fails with "Test timeout of 60000ms exceeded." (the timeout's
+milliseconds) and its call log, and the artifacts are kept. To fail sooner, set `action_timeout` and `navigation_timeout` in the config (milliseconds), or
 `set_default_timeout/2` and `set_default_navigation_timeout/2` on a context. `:infinity`, the
 default, is no limit, and so is `0`, in the config as in every `timeout:` option: as in
 Playwright, `0` never means "fail at once" ([API conventions](api-conventions.md)).
+
+Each driver call logs `pw:api ...` at `:debug` ([Logging](getting-started.md#logging)), so give
+the test env a logger level (`config :logger, level: :warning`). `ExUnit.start(capture_log:
+true)` prints an in-VM app's logs only for failed tests, as Playwright Test hides the
+`webServer`'s output.
 
 ## Your own case template
 
@@ -128,7 +138,7 @@ defmodule MyApp.BrowserCase do
   using do
     quote do
       use Playwright.Test
-      alias Playwright.{Browser, BrowserContext, Expect, Locator, Page}
+      alias Playwright.{Browser, BrowserContext, Expect, Locator, Page, Test}
     end
   end
 
@@ -146,7 +156,14 @@ end
 
 `use Playwright.Test` imports only `test`; the rest is called qualified, as Playwright Test's
 `test.info()` and `test.step()`: `Playwright.Test.info/0`, `output_path/1`, `snapshot_path/2`,
-`step/3`. So a wrapper library's own `step` doesn't clash.
+`step/3`. So a wrapper library's own `step` doesn't clash. It also requires `Playwright.Test`, for
+the `step` macro; the alias makes it `Test.step`, as in `Playwright.Case`.
+
+An `on_exit` callback is Playwright Test's `afterEach` hook. ExUnit runs it after the test process
+has exited and its `start_supervised!/1` children have stopped, but before the test's contexts
+close, which is last: it can still use `page` and `context`, and their trace records its calls.
+A context it closes itself is recorded as one closed in the test (its trace and screenshots are
+taken at the close), and the files are written at the very end, with the test's result.
 
 ## Assertions
 
@@ -241,11 +258,42 @@ setup %{browser: browser, storage_state: storage_state} do
 end
 ```
 
+A request context created in `setup_all` isn't disposed of by the runner either, as with
+upstream's manual `newContext` in `beforeAll`. Dispose of it yourself inside the `setup_all`:
+`on_exit(fn -> APIRequestContext.dispose!(request) end)`.
+
 To share the login between modules, `BrowserContext.storage_state!(context, path:
 "tmp/auth.json")` also writes it to a file, and `storage_state:` takes that path. An app that keeps
 its tokens in IndexedDB (Firebase Authentication) needs `storage_state!(context, indexed_db:
 true)`: IndexedDB is not in the state by default. See
 [Authentication](https://playwright.dev/python/docs/auth).
+
+To log in once per run, as Playwright Test's setup project or `globalSetup` does, log in from
+`test_helper.exs`, which runs before any test, on a driver of its own (one more driver start)
+that it stops before the tests start. Outside a test no defaults apply, so give the context its
+`base_url`. The config's `context_options` then start every test's context from the file:
+
+```elixir
+# test/test_helper.exs, after starting the app
+{:ok, driver} = Playwright.Supervisor.start_link(name: MyApp.GlobalSetup)
+browser = Playwright.instance(MyApp.GlobalSetup) |> Playwright.chromium() |> BrowserType.launch!()
+context = Browser.new_context!(browser, base_url: Playwright.Test.config().context_options[:base_url])
+page = BrowserContext.new_page!(context)
+Page.goto!(page, "/login")
+# ... log in, as above
+BrowserContext.storage_state!(context, path: "tmp/auth.json")
+Supervisor.stop(driver)
+
+ExUnit.start()
+```
+
+```elixir
+# config/test.exs
+config :playwright, :test,
+  context_options: [base_url: "http://localhost:4000", storage_state: "tmp/auth.json"]
+```
+
+Any other once-per-run setup (Playwright Test's project `dependencies`) goes there too.
 
 ## Several users
 
@@ -305,7 +353,7 @@ defmodule MyApp.BrowserCase do
   using do
     quote do
       use Playwright.Test
-      alias Playwright.{Browser, BrowserContext, Expect, Locator, Page}
+      alias Playwright.{Browser, BrowserContext, Expect, Locator, Page, Test}
     end
   end
 
@@ -686,6 +734,10 @@ the matchers' `timeout`, both at `[100, 250, 500, 1000]` ms intervals (`interval
 runs in the test process, so `self()` and its mailbox are the test's; a step or a soft receiver
 (`fun |> Expect.soft() |> Expect.to_pass!()`) works as for any matcher.
 
+As upstream's, a `poll` callback that raises fails at once. JS's `(await rows())[0]` is
+`undefined` while the list is empty and polling goes on, where `hd([])` raises: read with
+`Enum.at(rows, 0)` and leave the check to the assertion.
+
 Events forwarded to the test process arrive when the browser emits them, which can be well after
 the action that led to them (a request, a timer). `assert_receive` waits only 100 ms by default,
 so give it a timeout, or raise the default with `ExUnit.start(assert_receive_timeout: 5_000)`:
@@ -697,24 +749,115 @@ Page.get_by_role(page, :button, name: "Save") |> Locator.click!()
 assert_receive {:console, "saved"}, 5_000
 ```
 
+To check forwarded events afterwards, as JS collects them into an array, drain the mailbox. An event is
+handled before the reply of the call that caused it ([Concurrency](concurrency.md)), so once
+that call returned (or a matcher saw its effect), its message is there:
+
+```elixir
+defp received(tag) do
+  receive do
+    {^tag, value} -> [value | received(tag)]
+  after
+    0 -> []
+  end
+end
+
+assert received(:console) == ["saved"]
+```
+
 See [Events and waiting](events-and-waiting.md) for one-off events (downloads, popups, dialogs).
+
+## The app under test
+
+`test_helper.exs` starts what a run needs, as Playwright Test's `webServer` does. To start the app
+server only when browser tests run (`mix test --only e2e`, also with `--failed`), check the
+run's filters, which Mix sets before it loads the helper:
+
+```elixir
+# test/test_helper.exs
+if :e2e in ExUnit.configuration()[:include], do: MyApp.E2E.start_server!()
+ExUnit.start(exclude: [:e2e])
+```
+
+When the unit tests' helper doesn't suit a run against the real app (Mox globals, say), give the
+browser tests a dir and an env of their own: `test_paths: if(Mix.env() == :e2e, do: ["e2e"],
+else: ["test"])` in `mix.exs`, with `e2e/test_helper.exs` and `config/e2e.exs`, run by `MIX_ENV=e2e
+mix test`. A dir under `test/` must also be kept out of the other envs with `test_load_filters`
+(`test_ignore_filters` only silences the warning). Or make it a Mix project of its own that
+reaches the app over HTTP.
+
+An app running as an OS process of its own needs no start in the test VM: `mix test --no-start`
+starts no application, so start this library's in `test_helper.exs`
+(`Application.ensure_all_started(:playwright)`). A server the tests start themselves inherits
+their environment, `MIX_ENV` included when the shell or CI job sets it: pass the child's
+explicitly (`env: [{~c"MIX_ENV", ~c"dev"}]` in `Port.open/2`).
+
+Async modules run at once against one app and one database. Seed data each module owns (names
+with `System.unique_integer([:positive])`), or wrap seeding that can't be unique in
+`:global.trans/2`. For an Ecto app in the test VM, each test's browser must reach its sandbox:
+add `Phoenix.Ecto.SQL.Sandbox` to the endpoint and its LiveView hook (see its docs), and send the
+test's metadata as the context's user agent:
+
+```elixir
+setup %{browser: browser} do
+  owner = Ecto.Adapters.SQL.Sandbox.start_owner!(MyApp.Repo, shared: false)
+  metadata = Phoenix.Ecto.SQL.Sandbox.metadata_for(MyApp.Repo, owner)
+  context = Browser.new_context!(browser, user_agent: Phoenix.Ecto.SQL.Sandbox.encode_metadata(metadata))
+
+  on_exit(fn ->
+    BrowserContext.close(context)
+    Ecto.Adapters.SQL.Sandbox.stop_owner(owner)
+  end)
+
+  %{context: context, page: BrowserContext.new_page!(context)}
+end
+```
+
+Shared mode (`{:shared, self()}`) would need `async: false`. The `on_exit` closes the context first:
+the test's contexts close after your `on_exit` callbacks, by when the owner is gone and the app's
+LiveViews log ownership errors.
+
+## Accessibility checks
+
+`@axe-core/playwright` isn't ported: evaluate axe-core's own script in the page (again after each
+navigation) and run it:
+
+```elixir
+Page.evaluate!(page, File.read!("assets/node_modules/axe-core/axe.min.js"))
+%{"violations" => violations} = Page.evaluate!(page, "() => axe.run()")
+assert violations == []
+```
+
+`axe.run(context, options)` takes what `AxeBuilder`'s `include`, `exclude` and `withTags` set:
+`Page.evaluate!(page, "([c, o]) => axe.run(c, o)", [%{include: ["main"]}, %{runOnly: ["wcag2a"]}])`.
+Take the axe-core your JS suite's `@axe-core/playwright` resolves, for the same rules. It checks
+the main frame only: `AxeBuilder` also runs axe in each iframe and merges the results.
 
 ## Porting Playwright Test specs
 
 Most of a spec ports call for call. What differs (and see [Not supported](#not-supported)):
 
 - JS `null` is `:null` (`undefined` is `nil`), and objects from `evaluate` are maps with string
-  keys (`result["entry"]["foo"]`).
+  keys (`result["entry"]["foo"]`). A call that returns `X | null` returns `nil`
+  (`Locator.get_attribute!/2` of a missing attribute).
 - A JS regex literal PCRE rejects (`/\patched/`: `\p` is `p` in JS without `u`) needs
   `Playwright.RegExp.new/1`, which sends the JS source as it is.
 - `elementHandle.evaluate(...)` is `JSHandle.evaluate!(element_handle, ...)`: an `ElementHandle`
   takes the `JSHandle` functions.
 - Module-level `let` state reset in `beforeEach` becomes per-test state, returned from `setup` or
   kept in an `Agent` (unlinked when an `on_exit` reads it, see "A check after the test").
-- `expect(fn).toPass()` is `Expect.to_pass!/2`, `expect.poll(fn).toBe(x)` is
-  `Expect.poll!(fn, &assert(&1 == x))`, and a call started now and awaited later
-  (`const p = locator.evaluate(...)`) is `Playwright.Promise.async/1` (see
-  [Concurrency](concurrency.md)).
+- `expect(fn).toPass()` is `Expect.to_pass!/2`, which returns the passing attempt's value: a
+  callback that assigns an outer `let` returns it instead (`box = Expect.to_pass!(fn -> ...; box
+  end)`). `expect.poll(fn).toBe(x)` is `Expect.poll!(fn, &assert(&1 == x))`, and a call started
+  now and awaited later (`const p = locator.evaluate(...)`) is `Playwright.Promise.async/1` (see
+  [Concurrency](concurrency.md)), also for each call of a `Promise.all`.
+- The `baseURL` fixture is `Playwright.Test.config().context_options[:base_url]`. The `request`
+  fixture is a request context of its own, `APIRequest.new_context!(Playwright.request(BrowserPool.playwright(browser)))`,
+  which in a test gets the config's `context_options` and is disposed of at its end; it is not
+  `Page.request/1` (upstream's `page.request`, which shares the page's cookies).
+- `addInitScript(fn)` calls the function, but a string is sent as is, so `"() => ..."` only
+  defines one: pass `"(#{fun})()"`, or the function's body.
+- A selector with parentheses can't go in `~s(...)`: use `~s[...]` or a string.
 
 ## Not supported
 
@@ -727,14 +870,17 @@ Playwright Test features ExUnit can't host, or that ExUnit and Elixir already co
 | `test.fixme`, `test.slow` | ExUnit has tags for both | `@tag :skip`, `@tag timeout: ...` |
 | `test.fail` | ExUnit has no expected-failure mode | none |
 | `retries` | ExUnit has no retries in a run | `mix test --failed` is the retry, and the retry modes (`trace: :on_first_retry`, ...) go by it (see "Traces, screenshots and videos") |
-| nested or duplicate-name `describe` | ExUnit's `describe` doesn't nest, and its names are unique in a module | a module per outer `describe` (its `beforeEach` a module `setup`); a `describe` repeated in a loop becomes one `describe` with the loop inside |
-| asymmetric matchers (`expect.objectContaining`, `expect.any(String)`, ...) | the jest matchers aren't ported | patterns: `assert %{"id" => id} = hd(list)`, then `assert is_binary(id)` |
+| nested or duplicate-name `describe` | ExUnit's `describe` doesn't nest, and its names are unique in a module | a module per outer `describe` (its `beforeEach` a module `setup`, its `beforeAll` the module's `setup_all`, which a `describe` can't have); a `describe` repeated in a loop becomes one `describe` with the loop inside |
+| `fullyParallel` | ExUnit runs a module's tests one after another | a module per `describe`; for `fullyParallel: false` on shared state, a `group:` |
+| `describe.serial`, `mode: 'serial'` | ExUnit runs a module's tests in random order | one test, with a `Test.step` per test; modules sharing state in the app in one `group:` (see "Setup") |
+| `globalSetup`, project `dependencies` | ExUnit has no projects | `test_helper.exs` (see "Logging in once") |
+| asymmetric and value matchers (`expect.objectContaining`, `expect.any(String)`, `toMatchObject`, `toBeCloseTo`, ...) | the jest matchers aren't ported | patterns: `assert %{"id" => id} = hd(list)`, then `assert is_binary(id)`; `assert_in_delta/3` |
 | `expect.configure({ timeout, soft })` | the options are the receiver's, not a configured `expect` | the matchers' `timeout:`, `Expect.soft/1` |
 | trace annotations | ExUnit has no annotations | none: a trace's `annotations` are `[]` |
 | `json`, `junit` reporters | ExUnit formatters cover them | an ExUnit formatter, such as the `junit_formatter` Hex package |
 | `list`, `line`, `dot` reporters | ExUnit's output covers them | ExUnit's CLI formatter |
 | reporter plugins (monocart coverage, ...) | there are no reporters to plug into | none: `Playwright.Coverage` collects, your code reports |
-| `webServer` | `test_helper.exs` starts what a run needs | start the endpoint in `test_helper.exs`, or `server: true` in the test config |
+| `webServer` | `test_helper.exs` starts what a run needs | start the endpoint in `test_helper.exs`, or `server: true` in the test config (see "The app under test") |
 
 Not ported yet ([open an issue](https://github.com/ftes/playwright_ex/issues) if you need one):
 
@@ -746,3 +892,25 @@ Not ported yet ([open an issue](https://github.com/ftes/playwright_ex/issues) if
   (only contexts created during a test are recorded);
 - the video's step overlay keeps the title of a process killed inside `step/2,3`, and shows an
   IPv6 host with a zone id as `fe80`.
+
+## Coming from Wallaby
+
+Wallaby's queries become locators, and its assertions matchers that wait for the page, so the
+`:timer.sleep` calls and retry loops go:
+
+```elixir
+# assert_has(session, css(".alert", text: "Saved"))
+Page.locator(page, ".alert") |> Locator.filter(has_text: "Saved") |> Expect.to_be_visible!()
+# refute_has(session, css(".error"))
+Page.locator(page, ".error") |> Expect.not_to_be_visible!()
+# Enum.any?(all(session, css("li")), &(Element.text(&1) =~ "Apple"))
+Page.get_by_role(page, :listitem) |> Locator.filter(has_text: "Apple") |> Expect.to_be_visible!()
+```
+
+Locators are strict, as `assert_has`'s default count of 1 is: a matcher of one element
+(`to_be_visible`, `to_have_text` with a string) fails on a locator that matches several, and
+`assert_has`'s `count:` is `Expect.to_have_count!/2`. `Element.text` is the rendered text, so a text with CSS `text-transform` needs
+`Expect.to_have_text!(locator, "RED", use_inner_text: true)`; `to_have_text!` reads
+`textContent`. `fill_in` types key by key, `Locator.fill!/2` sets the value with one `input`
+event: for handlers of key events, `Locator.press_sequentially!/3`. For the SQL sandbox, see
+[The app under test](#the-app-under-test).

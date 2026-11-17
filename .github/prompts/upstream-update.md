@@ -63,6 +63,7 @@ the existing ported code next to whatever you port.
    gives X.Y.0, a patch bump our patch + 1; PORTING step 7). Under `## [Unreleased]` in
    `CHANGELOG.md`, in the style of the existing entries: "Drives Playwright TO" with the RELEASE
    link, then the API added or changed by the port.
+   Follow AGENTS.md's `**RC only:**` rule for entries.
 5. Verify; all must pass (CI on the PR runs Dialyzer, the docs build and the other browsers):
    ```
    mix format

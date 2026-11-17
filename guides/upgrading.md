@@ -106,8 +106,8 @@ page = BrowserContext.new_page!(context)
 - `mix playwright.install --no-browsers` installs only the driver, for a browser launched with
   `executable_path:` or `channel:`.
 - The driver is cached under `:filename.basedir(:user_cache, "playwright")`, moved with
-  `config :playwright, :driver, cache_dir: ...` or the supervisor's `cache_dir:`; cache it in CI
-  ([GitHub Actions](debugging-and-ci.md#github-actions)).
+  `config :playwright, :driver, cache_dir: ...` or the supervisor's `cache_dir:`; CI needn't
+  cache it ([GitHub Actions](debugging-and-ci.md#github-actions)).
 - `minimum_supported_version/0`: `Playwright.Driver.version/0`.
 
 ### Context, page, navigation
