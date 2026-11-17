@@ -64,7 +64,8 @@ defmodule Playwright.Test.Recorder do
 
   @doc """
   The registration of the running test (`Playwright.Test`'s per-test setup) of the calling
-  process or a process in its `$callers`, or `nil`.
+  process or a process in its `$callers`, or `nil`. It stops at the nearest registered scope: the
+  test, or `nil` when a module's `setup_all` comes first.
   """
   def registration do
     case defaults() do

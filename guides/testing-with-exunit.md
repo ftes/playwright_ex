@@ -901,6 +901,10 @@ Not ported yet ([open an issue](https://github.com/ftes/playwright_ex/issues) if
   but its actions aren't in a test's trace, and it gets no screenshots or `error-context.md`.
   Playwright Test's `ArtifactsRecorder` records every open context per test, `beforeAll` ones
   included. Create the context per test instead, as `Playwright.Case` does by default;
+- the current test's options for a context a long-lived `setup_all` process or handler (one with
+  its `$callers`) creates during a test: it gets the module's defaults and no test records it,
+  where Playwright Test's `runBeforeCreateBrowserContext` resolves the current test, so the
+  context gets that test's options and is recorded in it;
 - a fresh worker after a failed test: `setup_all` state, its pages included, carries on into the
   module's next tests, where Playwright Test starts a new worker (and runs `beforeAll` again). A
   call that hangs on a shared page can outlive the failed test: bound such calls with

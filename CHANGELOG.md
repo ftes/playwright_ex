@@ -42,7 +42,7 @@ upstream minor, so `~> 1.65.0` is safe.
 ## [Unreleased]
 
 Drives [Playwright 1.65.1](https://github.com/microsoft/playwright/releases/tag/v1.65.1), on
-Node 26.13.1. No API changes.
+Node 26.13.1. No upstream API changes.
 
 ### Changed
 
@@ -54,9 +54,11 @@ Node 26.13.1. No API changes.
   or a `setup_all` above the module's `use`) makes the module's `setup_all` raise, naming the
   fix, as such a context in `setup` already does.
 - **RC only:** **Breaking:** contexts and request contexts created in a module's `setup_all` (or
-  a process with it in `$callers`) get the context defaults, the config's `context_options`
-  (`base_url` too), and its `action_timeout` and `navigation_timeout` (`:infinity` by default,
-  where they had the client's 30 s), as Playwright Test's `beforeAll` does (#257).
+  a process with it in `$callers`) get the context defaults and the config's `context_options`
+  (`base_url` too), as Playwright Test's `beforeAll` does (#257). A context gets the config's
+  `action_timeout` and `navigation_timeout`, a request context `timeout:` the `action_timeout`
+  (`0` for `:infinity`) and no navigation timeout: no limit by default, where they had the
+  client's 30 s.
 
 ### Fixed
 
