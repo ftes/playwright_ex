@@ -207,7 +207,7 @@ defmodule Playwright.Test.CallersTest do
 
   # Upstream's `_hasUnhandledError`: the first error fails the test and interrupts it, later ones
   # are not recorded.
-  test "a listener's first unhandled error fails the test, each one interrupts it", %{page: page} do
+  test "a listener's first unhandled error fails the test and interrupts it, later ones are dropped", %{page: page} do
     Process.flag(:trap_exit, true)
     Page.on(page, :console, fn message -> raise "listener boom #{Playwright.ConsoleMessage.text(message)}" end)
 
