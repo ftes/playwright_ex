@@ -230,7 +230,8 @@ defmodule Playwright.Test.Recorder do
     # `contexts` in creation order, `closed` (guids) in close order, `requests` the open request
     # contexts of `APIRequest.new_context/2`, `screenshots` (temporary files) in capture order;
     # `snapshotted` the guids of the pages with a screenshot, `ordinal` the screenshots named so
-    # far (upstream's `SnapshotRecorder`). `timer` the test timeout's, `timed_out` once it fired,
+    # far (upstream's `SnapshotRecorder`); `capturing` `{monitor, pid, waiters}` while a `capture/2`
+    # takes its screenshots, the later ones waiting for it. `timer` the test timeout's, `timed_out` once it fired,
     # `closing` the process that closes the contexts then; `finisher` the caller of `finish/3`.
     {:ok,
      %{
@@ -246,6 +247,7 @@ defmodule Playwright.Test.Recorder do
        chunks: [],
        screenshots: [],
        snapshotted: MapSet.new(),
+       capturing: nil,
        ordinal: 0,
        page_snapshot: nil,
        tracing: TestTracing.new(),
@@ -286,8 +288,22 @@ defmodule Playwright.Test.Recorder do
   end
 
   # `maybeCapture`'s pages: those of the open contexts without a screenshot, each with the path
-  # of its screenshot (`_createAttachmentPath`).
-  def handle_call({:capture, failed?}, _from, state) do
+  # of its screenshot (`_createAttachmentPath`). One capture at a time: a later one (the end of
+  # the test's, after the interrupt's) waits until the screenshots are taken (`:captured`, or
+  # the capturing process's exit), as upstream awaits `_didFinishTestFunction` before teardown.
+  def handle_call({:capture, _failed?}, from, %{capturing: {mref, pid, waiters}} = state),
+    do: {:noreply, %{state | capturing: {mref, pid, [from | waiters]}}}
+
+  def handle_call(:captured, {pid, _}, %{capturing: {mref, pid, _waiters}} = state) do
+    Process.demonitor(mref, [:flush])
+    {:reply, :ok, captured(state)}
+  end
+
+  def handle_call(:captured, _from, state), do: {:reply, :ok, state}
+
+  def handle_call({:capture, failed?}, {pid, _}, state) do
+    state = %{state | capturing: {Process.monitor(pid), pid, []}}
+
     pages =
       for %{guid: guid, context: context} <- state.contexts,
           guid not in state.closed,
@@ -392,6 +408,10 @@ defmodule Playwright.Test.Recorder do
     if Process.alive?(state.test_pid), do: time_out(state), else: {:noreply, %{state | timer: nil}}
   end
 
+  # The capturing process exited before it was done: the waiting captures go on.
+  def handle_info({:DOWN, mref, :process, pid, _reason}, %{capturing: {mref, pid, _waiters}} = state),
+    do: {:noreply, captured(state)}
+
   # An update's process exited before it was done: the next one's turn.
   def handle_info({:DOWN, mref, :process, _pid, _reason} = down, state) do
     case List.keytake(state.overlay_queue, mref, 1) do
@@ -401,6 +421,12 @@ defmodule Playwright.Test.Recorder do
   end
 
   def handle_info(_message, state), do: {:noreply, state}
+
+  # The screenshots are taken: the waiting captures take none (each page has one).
+  defp captured(%{capturing: {_mref, _pid, waiters}} = state) do
+    for from <- waiters, do: GenServer.reply(from, {[], state.opts})
+    %{state | capturing: nil}
+  end
 
   defp time_out(state) do
     reason = "Test timeout of #{state.opts.test_timeout}ms exceeded."
@@ -832,11 +858,15 @@ defmodule Playwright.Test.Recorder do
   def capture(pid, failed?) do
     {paths, opts} = GenServer.call(pid, {:capture, failed?}, :infinity)
 
-    paths
-    |> Task.async_stream(fn {page, path} -> step("take a screenshot", fn -> screenshot(page, path, opts) end) end,
-      timeout: :infinity
-    )
-    |> Stream.run()
+    try do
+      paths
+      |> Task.async_stream(fn {page, path} -> step("take a screenshot", fn -> screenshot(page, path, opts) end) end,
+        timeout: :infinity
+      )
+      |> Stream.run()
+    after
+      GenServer.call(pid, :captured, :infinity)
+    end
   end
 
   defp call(recorder, message, timeout \\ :infinity) do

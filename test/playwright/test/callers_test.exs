@@ -235,14 +235,28 @@ defmodule Playwright.Test.CallersTest do
     assert_receive {:EXIT, _, {:exit_in_callback, :normal}}, 5000
   end
 
-  # As a sync listener's error is thrown to `emit`'s caller (`eventEmitter.ts`): the later
+  # A local emitter's listener runs in the emitting process, its error thrown to `emit`'s caller
+  # as a sync listener's (`eventEmitter.ts` `_callHandler`), in a test or not: the later
   # listeners don't run.
-  test "a local emitter's listener run in the test's own process raises there" do
+  test "a local emitter's listener error leaves emit" do
     test_pid = self()
     emitter = Playwright.Client.EventEmitter.new()
     Playwright.Client.EventEmitter.on(emitter, "x", fn _ -> raise "local boom" end)
     Playwright.Client.EventEmitter.on(emitter, "x", fn _ -> send(test_pid, :second) end)
     assert_raise RuntimeError, "local boom", fn -> Playwright.Client.EventEmitter.emit(emitter, "x") end
+
+    # In another process (no test's), the same.
+    capture_log(fn ->
+      {pid, ref} =
+        spawn_monitor(fn ->
+          other = Playwright.Client.EventEmitter.new()
+          Playwright.Client.EventEmitter.on(other, "x", fn _ -> raise "local boom" end)
+          Playwright.Client.EventEmitter.emit(other, "x")
+        end)
+
+      assert_receive {:DOWN, ^ref, :process, ^pid, {%RuntimeError{message: "local boom"}, _}}, 5000
+    end)
+
     refute_received :second
     assert TestInfo.take_errors(self()) == []
   end

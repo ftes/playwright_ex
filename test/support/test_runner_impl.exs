@@ -337,9 +337,8 @@ case mode do
       end
 
       # Fails at once, as the listener's error interrupts it: the dialog it doesn't accept would
-      # hang it past its timeout. The interrupt's screenshot first waits its 5 s on the open
-      # dialog (as upstream's does), within the timeout.
-      @tag timeout: 10_000
+      # hang it past its timeout.
+      @tag timeout: 3000
       test "fails in a dialog listener, then hangs", %{page: page} do
         Page.on(page, :dialog, fn dialog ->
           assert Playwright.Dialog.message(dialog) == "expected"

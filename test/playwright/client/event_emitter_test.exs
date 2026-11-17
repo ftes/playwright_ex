@@ -24,24 +24,24 @@ defmodule Playwright.Client.EventEmitterTest do
     end
   end
 
-  test "a listener error goes to the error listeners, else it is uncaught (logged)" do
+  # A local emitter's listener is synchronous: its error leaves `emit` (`_callHandler`'s `catch`).
+  test "a listener error goes to the error listeners, else it leaves emit" do
     emitter = EventEmitter.new()
     test_pid = self()
     EventEmitter.on(emitter, "foo", fn _ -> raise "boom" end)
     EventEmitter.on(emitter, "foo", fn arg -> send(test_pid, {:later, arg}) end)
 
-    log = capture_log(fn -> EventEmitter.emit(emitter, "foo", 1) end)
-    assert log =~ "Uncaught in event listener" and log =~ "boom"
-    assert_received {:later, 1}
+    assert_raise RuntimeError, "boom", fn -> EventEmitter.emit(emitter, "foo", 1) end
+    refute_received {:later, 1}
 
     EventEmitter.on(emitter, "error", fn error -> send(test_pid, {:error, error}) end)
-    assert capture_log(fn -> EventEmitter.emit(emitter, "foo", 2) end) == ""
+    assert EventEmitter.emit(emitter, "foo", 2)
     assert_received {:error, %RuntimeError{message: "boom"}}
+    assert_received {:later, 2}
 
-    # An error listener's own error is not emitted again.
+    # An error listener's own error is not emitted again: it leaves `emit`.
     EventEmitter.on(emitter, "error", fn _ -> raise "error listener" end)
-    log = capture_log(fn -> EventEmitter.emit(emitter, "foo", 3) end)
-    assert log =~ "error listener"
+    assert_raise RuntimeError, "error listener", fn -> EventEmitter.emit(emitter, "foo", 3) end
     assert_received {:error, %RuntimeError{message: "boom"}}
   end
 
@@ -70,8 +70,9 @@ defmodule Playwright.Client.EventEmitterTest do
     emitter = EventEmitter.new()
     assert EventEmitter.remove_all_listeners(emitter, "foo", %{behavior: "wait"}) == nil
 
+    # A synchronous throw skips `_rejectionHandler`.
     EventEmitter.on(emitter, "foo", fn _ -> raise "after" end)
-    EventEmitter.emit(emitter, "foo")
+    assert_raise RuntimeError, "after", fn -> EventEmitter.emit(emitter, "foo") end
     refute_received _
   end
 end

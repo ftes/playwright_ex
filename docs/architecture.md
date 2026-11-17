@@ -141,9 +141,8 @@ zone. So `testInfo`, the Ecto sandbox and Mox find the test there, and an error 
 (the listener sink) fails the test of the process's `$callers` and interrupts it, as upstream's
 worker fails its current test with its first one and `_stop()`s it (`workerMain.ts`
 `unhandledError`): here the test's process exits with the error (`Process.exit/2`), which ExUnit
-reports as its failure. In the test's own process (a local emitter's listener, run in place) it
-is raised there, as a sync listener's error is thrown to `emit`'s caller. Once the test ended it
-is printed; outside a test it is logged. Shared processes (the
+reports as its failure. Outside a test, and once its body ended, it is logged. A local emitter's
+listener runs in the emitting process and its error leaves `emit`, as a sync listener's throw. Shared processes (the
 connection, transport, pool, supervisors, async functions started in the connection) get none.
 Rejected: `$callers` in the zone, as upstream finds the test through the worker's global, not
 the zone, a saved zone's `run` ends before the error reaches the sink, and listeners, bindings

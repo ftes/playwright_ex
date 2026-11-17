@@ -13,7 +13,7 @@ defmodule Playwright.Runtime.Callers do
   An unhandled error of such a callback fails the running `Playwright.Test` test at once, as
   upstream's worker fails and interrupts its current test on one (`workerMain.ts`
   `unhandledError`: "so that you can, e.g. expect() from inside an event handler"). Outside a
-  test it is logged, as before; once the test ended it is printed.
+  test, and once its body ended, it is logged, as before.
   """
   alias Playwright.Test.Results
   alias Playwright.Test.TestInfo
@@ -56,19 +56,14 @@ defmodule Playwright.Runtime.Callers do
 
   @doc """
   An error nothing handled (JS: an uncaught exception or unhandled rejection): it fails and
-  interrupts the running test of the `$callers` of the calling process
-  (`Playwright.Test.TestInfo._unhandled_error/2`; printed once the test ended), else it is
-  logged with `label`. In the test's own process (a local emitter's listener, run in place) it is
-  raised there, as a sync listener's error is thrown to `emit`'s caller (`eventEmitter.ts`
-  `_handleListenerError`).
+  interrupts the running test of the calling process or its `$callers`
+  (`Playwright.Test.TestInfo._unhandled_error/2`), else (outside a test, or once its body ended)
+  it is logged with `label`.
   """
   def unhandled(label, kind, reason, stacktrace) do
     case TestInfo.current() do
       nil ->
         Logger.error(label <> Exception.format(kind, reason, stacktrace))
-
-      %{test_pid: test_pid} when test_pid == self() ->
-        :erlang.raise(kind, reason, stacktrace)
 
       test_info ->
         TestInfo._unhandled_error(test_info, {kind, Exception.normalize(kind, reason, stacktrace), stacktrace})

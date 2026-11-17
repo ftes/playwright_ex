@@ -633,14 +633,13 @@ defmodule Playwright.Test.TestInfo do
 
   @doc """
   The worker's `unhandledError` (an error a callback of the test left unhandled: a listener's, a
-  route handler's), from another process than the test's: the test's first one
-  (`_hasUnhandledError`) is `_failWithError`ed and `_stop()`s the test (`_isStopped`: once), whose
-  body is abandoned; later ones are dropped. Here the test's process exits with it, which ExUnit
-  reports as the test's failure (`Playwright.Test.Results` keeps it once), after
-  `_didFinishTestFunction`'s screenshots (`Playwright.Test.Recorder.did_finish_test_function/2`),
-  as upstream takes them after the interrupt: the process takes them before it exits, so before
-  the `on_exit` callbacks. A test that traps exits gets the exit as a message. Once the test
-  ended, the error is printed (`_fail_with_error/2`).
+  route handler's): the test's first one (`_hasUnhandledError`) is `_failWithError`ed and
+  `_stop()`s the test (`_isStopped`: once), whose body is abandoned; later ones are dropped. Here
+  the test's process exits with it, which ExUnit reports as the test's failure
+  (`Playwright.Test.Results` keeps it once). Then `_didFinishTestFunction`'s screenshots
+  (`Playwright.Test.Recorder.did_finish_test_function/2`), which the test's teardown awaits
+  before it closes the contexts. A test that traps exits gets the exit as a message. If the test
+  ended meanwhile, the error is printed (`_fail_with_error/2`).
   """
   def _unhandled_error(this, {kind, reason, stacktrace} = error) do
     case first_unhandled_error(this, interrupt_reason(kind, reason, stacktrace), error) do
@@ -675,16 +674,12 @@ defmodule Playwright.Test.TestInfo do
     end
   end
 
-  # `_stop()` after `_didFinishTestFunction`, in a process of its own: the caller may be a
-  # listener the connection waits on, which the screenshots need. Not once the test ended.
+  # `_stop()` (`_interrupt()`), then `_didFinishTestFunction`, in a process of its own: the
+  # caller may be a listener the connection waits on, which the screenshots need.
   defp stop(this) do
-    spawn(fn ->
-      Recorder.did_finish_test_function(this.test_pid, true)
-
-      with true <- running?(this),
-           {reason, _error} <- interrupt(this.test_pid),
-           do: Process.exit(this.test_pid, reason)
-    end)
+    {reason, _error} = interrupt(this.test_pid)
+    Process.exit(this.test_pid, reason)
+    spawn(fn -> Recorder.did_finish_test_function(this.test_pid, true) end)
   end
 
   @doc """
