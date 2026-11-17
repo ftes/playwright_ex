@@ -44,13 +44,13 @@ defmodule Playwright.Request do
   *Since Playwright 1.15.*
   """
   @spec all_headers(t()) :: {:ok, %{optional(String.t()) => String.t()}} | {:error, Playwright.error()}
-  def all_headers(request) do
+  def all_headers(%Playwright.Request{} = request) do
     Facade.async("request.allHeaders", request, fn -> Playwright.Client.Request.all_headers(request) end)
   end
 
   @doc "Like `all_headers/1`, but returns the value and raises on error."
   @spec all_headers!(t()) :: %{optional(String.t()) => String.t()}
-  def all_headers!(request) do
+  def all_headers!(%Playwright.Request{} = request) do
     Facade.async!("request.allHeaders", request, fn -> Playwright.Client.Request.all_headers(request) end)
   end
 
@@ -70,7 +70,7 @@ defmodule Playwright.Request do
   *Since Playwright 1.8.*
   """
   @spec failure(t()) :: nil | %{errorText: String.t()}
-  def failure(request) do
+  def failure(%Playwright.Request{} = request) do
     Playwright.Client.Request.failure(request)
   end
 
@@ -108,7 +108,7 @@ defmodule Playwright.Request do
   *Since Playwright 1.8.*
   """
   @spec frame(t()) :: Playwright.Frame.t()
-  def frame(request) do
+  def frame(%Playwright.Request{} = request) do
     Playwright.Client.Request.frame(request)
   end
 
@@ -120,7 +120,7 @@ defmodule Playwright.Request do
   *Since Playwright 1.8.*
   """
   @spec headers(t()) :: %{optional(String.t()) => String.t()}
-  def headers(request) do
+  def headers(%Playwright.Request{} = request) do
     Playwright.Client.Request.headers(request)
   end
 
@@ -131,13 +131,13 @@ defmodule Playwright.Request do
   *Since Playwright 1.15.*
   """
   @spec headers_array(t()) :: {:ok, [%{name: String.t(), value: String.t()}]} | {:error, Playwright.error()}
-  def headers_array(request) do
+  def headers_array(%Playwright.Request{} = request) do
     Facade.async("request.headersArray", request, fn -> Playwright.Client.Request.headers_array(request) end)
   end
 
   @doc "Like `headers_array/1`, but returns the value and raises on error."
   @spec headers_array!(t()) :: [%{name: String.t(), value: String.t()}]
-  def headers_array!(request) do
+  def headers_array!(%Playwright.Request{} = request) do
     Facade.async!("request.headersArray", request, fn -> Playwright.Client.Request.headers_array(request) end)
   end
 
@@ -151,13 +151,13 @@ defmodule Playwright.Request do
   * `name` - Name of the header.
   """
   @spec header_value(t(), String.t()) :: {:ok, nil | String.t()} | {:error, Playwright.error()}
-  def header_value(request, name) do
+  def header_value(%Playwright.Request{} = request, name) do
     Facade.async("request.headerValue", request, fn -> Playwright.Client.Request.header_value(request, name) end)
   end
 
   @doc "Like `header_value/2`, but returns the value and raises on error."
   @spec header_value!(t(), String.t()) :: nil | String.t()
-  def header_value!(request, name) do
+  def header_value!(%Playwright.Request{} = request, name) do
     Facade.async!("request.headerValue", request, fn -> Playwright.Client.Request.header_value(request, name) end)
   end
 
@@ -170,7 +170,7 @@ defmodule Playwright.Request do
   *Since Playwright 1.8.*
   """
   @spec is_navigation_request(t()) :: boolean()
-  def is_navigation_request(request) do
+  def is_navigation_request(%Playwright.Request{} = request) do
     Playwright.Client.Request.is_navigation_request(request)
   end
 
@@ -180,7 +180,7 @@ defmodule Playwright.Request do
   *Since Playwright 1.8.*
   """
   @spec method(t()) :: String.t()
-  def method(request) do
+  def method(%Playwright.Request{} = request) do
     Playwright.Client.Request.method(request)
   end
 
@@ -190,7 +190,7 @@ defmodule Playwright.Request do
   *Since Playwright 1.8.*
   """
   @spec post_data(t()) :: nil | String.t()
-  def post_data(request) do
+  def post_data(%Playwright.Request{} = request) do
     Playwright.Client.Request.post_data(request)
   end
 
@@ -200,7 +200,7 @@ defmodule Playwright.Request do
   *Since Playwright 1.8.*
   """
   @spec post_data_buffer(t()) :: nil | binary()
-  def post_data_buffer(request) do
+  def post_data_buffer(%Playwright.Request{} = request) do
     Playwright.Client.Request.post_data_buffer(request)
   end
 
@@ -213,7 +213,7 @@ defmodule Playwright.Request do
   *Since Playwright 1.8.*
   """
   @spec post_data_json(t()) :: nil | term()
-  def post_data_json(request) do
+  def post_data_json(%Playwright.Request{} = request) do
     Playwright.Client.Request.post_data_json(request)
   end
 
@@ -245,7 +245,7 @@ defmodule Playwright.Request do
   *Since Playwright 1.8.*
   """
   @spec redirected_from(t()) :: nil | Playwright.Request.t()
-  def redirected_from(request) do
+  def redirected_from(%Playwright.Request{} = request) do
     Playwright.Client.Request.redirected_from(request)
   end
 
@@ -264,7 +264,7 @@ defmodule Playwright.Request do
   *Since Playwright 1.8.*
   """
   @spec redirected_to(t()) :: nil | Playwright.Request.t()
-  def redirected_to(request) do
+  def redirected_to(%Playwright.Request{} = request) do
     Playwright.Client.Request.redirected_to(request)
   end
 
@@ -276,7 +276,7 @@ defmodule Playwright.Request do
   *Since Playwright 1.8.*
   """
   @spec resource_type(t()) :: String.t()
-  def resource_type(request) do
+  def resource_type(%Playwright.Request{} = request) do
     Playwright.Client.Request.resource_type(request)
   end
 
@@ -286,13 +286,13 @@ defmodule Playwright.Request do
   *Since Playwright 1.8.*
   """
   @spec response(t()) :: {:ok, nil | Playwright.Response.t()} | {:error, Playwright.error()}
-  def response(request) do
+  def response(%Playwright.Request{} = request) do
     Facade.async("request.response", request, fn -> Playwright.Client.Request.response(request) end)
   end
 
   @doc "Like `response/1`, but returns the value and raises on error."
   @spec response!(t()) :: nil | Playwright.Response.t()
-  def response!(request) do
+  def response!(%Playwright.Request{} = request) do
     Facade.async!("request.response", request, fn -> Playwright.Client.Request.response(request) end)
   end
 
@@ -306,7 +306,7 @@ defmodule Playwright.Request do
   *Since Playwright 1.59.*
   """
   @spec existing_response(t()) :: nil | Playwright.Response.t()
-  def existing_response(request) do
+  def existing_response(%Playwright.Request{} = request) do
     Playwright.Client.Request.existing_response(request)
   end
 
@@ -322,7 +322,7 @@ defmodule Playwright.Request do
   *Since Playwright 1.24.*
   """
   @spec service_worker(t()) :: nil | Playwright.Worker.t()
-  def service_worker(request) do
+  def service_worker(%Playwright.Request{} = request) do
     Playwright.Client.Request.service_worker(request)
   end
 
@@ -340,7 +340,7 @@ defmodule Playwright.Request do
              responseHeadersSize: integer()
            }}
           | {:error, Playwright.error()}
-  def sizes(request) do
+  def sizes(%Playwright.Request{} = request) do
     Facade.async("request.sizes", request, fn -> Playwright.Client.Request.sizes(request) end)
   end
 
@@ -351,7 +351,7 @@ defmodule Playwright.Request do
           responseBodySize: integer(),
           responseHeadersSize: integer()
         }
-  def sizes!(request) do
+  def sizes!(%Playwright.Request{} = request) do
     Facade.async!("request.sizes", request, fn -> Playwright.Client.Request.sizes(request) end)
   end
 
@@ -383,7 +383,7 @@ defmodule Playwright.Request do
           responseStart: number(),
           responseEnd: number()
         }
-  def timing(request) do
+  def timing(%Playwright.Request{} = request) do
     Playwright.Client.Request.timing(request)
   end
 
@@ -393,7 +393,7 @@ defmodule Playwright.Request do
   *Since Playwright 1.8.*
   """
   @spec url(t()) :: String.t()
-  def url(request) do
+  def url(%Playwright.Request{} = request) do
     Playwright.Client.Request.url(request)
   end
 end

@@ -282,7 +282,7 @@ defmodule Playwright.APIRequest do
   """
   @spec new_context(t(), new_context_options()) ::
           {:ok, Playwright.APIRequestContext.t()} | {:error, Playwright.error()}
-  def new_context(api_request, options \\ []) do
+  def new_context(%Playwright.APIRequest{} = api_request, options \\ []) do
     options = Facade.options!(options, @new_context_options, "apiRequest.newContext")
 
     Facade.async("apiRequest.newContext", api_request, fn ->
@@ -292,7 +292,7 @@ defmodule Playwright.APIRequest do
 
   @doc "Like `new_context/2`, but returns the value and raises on error."
   @spec new_context!(t(), new_context_options()) :: Playwright.APIRequestContext.t()
-  def new_context!(api_request, options \\ []) do
+  def new_context!(%Playwright.APIRequest{} = api_request, options \\ []) do
     options = Facade.options!(options, @new_context_options, "apiRequest.newContext")
 
     Facade.async!("apiRequest.newContext", api_request, fn ->

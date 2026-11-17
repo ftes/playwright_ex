@@ -435,7 +435,7 @@ test-results/sign_up-signs-up-5d41a/test-failed-1.png
 
 A failed test also gets Playwright Test's `error-context.md`: its errors, its source and an aria
 snapshot of its page, for you or an agent to read. A failed test that keeps a trace prints how
-to open it: `mix playwright.cli show-trace test-results/.../trace.zip`. More in the
+to open it after the run: `mix playwright.cli show-trace test-results/.../trace.zip`. More in the
 [Debugging and CI](debugging-and-ci.md) guide.
 
 `trace`, `screenshot` and `video` are `:off` by default, as in Playwright Test.

@@ -48,12 +48,15 @@ Node 26.13.1. No upstream API changes.
 
 - `Playwright.Promise.all/1`, `race/1` and `any/1`, as JS's `Promise.all`, `Promise.race` and
   `Promise.any` (with `Playwright.AggregateError`).
+- A warning when the connection has waited 5 s for one listener or route handler, which stalls
+  every page on it: it names the listener, shows where it waits and points to the fix
+  ([Concurrency](guides/concurrency.md#no-blocking-work-in-listeners)).
 - **RC only:** `use Playwright.Test` (and `use Playwright.Case`) takes `context_options:`,
   Playwright Test's `test.use({ locale: 'de-DE' })`: the options, or a function of the test's
   context (`&Mod.fun/1`, e.g. over your `parameterize:` values), over the config's per key, under
   the call's, for every context of the module's tests, and the options for its `setup_all`'s
-  unless a `use` gives a function (#257). An option given as `nil` resets it to the config's or the default, as upstream's
-  `undefined`.
+  unless a `use` gives a function (#257). An option given as `nil` resets it to the config's or
+  the default, as upstream's `undefined`.
 
 ### Changed
 
@@ -88,6 +91,14 @@ Node 26.13.1. No upstream API changes.
 - **RC only:** **Breaking:** an option of the config's `context_options` given as `nil` falls
   back to Playwright Test's default (`locale: nil` is `en-US`), as upstream's `undefined`, not to
   the client's.
+- **RC only:** a handle of the wrong class (a `Locator` passed to `Page.get_by_test_id/2`) fails
+  in the facade function, whose clause matches its struct, not in `Playwright.Runtime.Heap.key/2`.
+- **RC only:** a string that is not UTF-8 (`Route.fulfill!(route, body: png)`) fails with a hint
+  to pass bytes as `{:binary, bytes}`, not only "Message cannot be encoded as JSON".
+- **RC only:** a matcher's unknown `message:` option points to `Expect.message/2` (JS
+  `expect(x, message)`), for the matcher as called.
+- **RC only:** a failed test's "Trace of ..." hint prints after the run, below ExUnit's summary:
+  above its own failure it read as the previous failure's.
 
 ### Fixed
 

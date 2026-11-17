@@ -83,7 +83,7 @@ defmodule Playwright.Test do
     * `trace.zip` - one trace of all its contexts, their `request`s and its request contexts
       (`Playwright.APIRequest.new_context/2`), recorded with screenshots, snapshots and
       sources unless the trace's options say otherwise. A failed test that keeps one prints
-      `mix playwright.cli show-trace <path>`.
+      `mix playwright.cli show-trace <path>` after the run, below ExUnit's summary.
     * `test-finished-N.png`, or `test-failed-N.png` for a failed test - a screenshot of every
       page open at the end of the test's body (before its `on_exit` callbacks), then of those
       open when their context closes (`timeout: 5000, caret: :initial`, as upstream).
@@ -751,9 +751,13 @@ defmodule Playwright.Test do
           trace
       end
 
-    # The list reporter's `npx playwright show-trace <path>`.
+    # The list reporter's `npx playwright show-trace <path>`, after the failures as its summary
+    # has it: ExUnit prints this test's failure only after its `on_exit` callbacks.
     if verdict == :failed and trace,
-      do: IO.puts("\nTrace of #{inspect(test.test_name)}: mix playwright.cli show-trace #{Path.relative_to_cwd(trace)}")
+      do:
+        Pool.print_after_suite(
+          "Trace of #{inspect(test.test_name)}: mix playwright.cli show-trace #{Path.relative_to_cwd(trace)}"
+        )
 
     if !preserve_output?(test.preserve_output, verdict), do: File.rm_rf(test.output_dir)
   rescue

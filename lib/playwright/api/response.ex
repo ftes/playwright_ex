@@ -29,13 +29,13 @@ defmodule Playwright.Response do
   *Since Playwright 1.15.*
   """
   @spec all_headers(t()) :: {:ok, %{optional(String.t()) => String.t()}} | {:error, Playwright.error()}
-  def all_headers(response) do
+  def all_headers(%Playwright.Response{} = response) do
     Facade.async("response.allHeaders", response, fn -> Playwright.Client.Response.all_headers(response) end)
   end
 
   @doc "Like `all_headers/1`, but returns the value and raises on error."
   @spec all_headers!(t()) :: %{optional(String.t()) => String.t()}
-  def all_headers!(response) do
+  def all_headers!(%Playwright.Response{} = response) do
     Facade.async!("response.allHeaders", response, fn -> Playwright.Client.Response.all_headers(response) end)
   end
 
@@ -45,13 +45,13 @@ defmodule Playwright.Response do
   *Since Playwright 1.8.*
   """
   @spec body(t()) :: {:ok, binary()} | {:error, Playwright.error()}
-  def body(response) do
+  def body(%Playwright.Response{} = response) do
     Facade.async("response.body", response, fn -> Playwright.Client.Response.body(response) end)
   end
 
   @doc "Like `body/1`, but returns the value and raises on error."
   @spec body!(t()) :: binary()
-  def body!(response) do
+  def body!(%Playwright.Response{} = response) do
     Facade.async!("response.body", response, fn -> Playwright.Client.Response.body(response) end)
   end
 
@@ -61,13 +61,13 @@ defmodule Playwright.Response do
   *Since Playwright 1.8.*
   """
   @spec finished(t()) :: {:ok, nil | Exception.t()} | {:error, Playwright.error()}
-  def finished(response) do
+  def finished(%Playwright.Response{} = response) do
     Facade.async("response.finished", response, fn -> Playwright.Client.Response.finished(response) end)
   end
 
   @doc "Like `finished/1`, but returns the value and raises on error."
   @spec finished!(t()) :: nil | Exception.t()
-  def finished!(response) do
+  def finished!(%Playwright.Response{} = response) do
     Facade.async!("response.finished", response, fn -> Playwright.Client.Response.finished(response) end)
   end
 
@@ -77,7 +77,7 @@ defmodule Playwright.Response do
   *Since Playwright 1.8.*
   """
   @spec frame(t()) :: Playwright.Frame.t()
-  def frame(response) do
+  def frame(%Playwright.Response{} = response) do
     Playwright.Client.Response.frame(response)
   end
 
@@ -87,7 +87,7 @@ defmodule Playwright.Response do
   *Since Playwright 1.23.*
   """
   @spec from_service_worker(t()) :: boolean()
-  def from_service_worker(response) do
+  def from_service_worker(%Playwright.Response{} = response) do
     Playwright.Client.Response.from_service_worker(response)
   end
 
@@ -99,7 +99,7 @@ defmodule Playwright.Response do
   *Since Playwright 1.8.*
   """
   @spec headers(t()) :: %{optional(String.t()) => String.t()}
-  def headers(response) do
+  def headers(%Playwright.Response{} = response) do
     Playwright.Client.Response.headers(response)
   end
 
@@ -111,13 +111,13 @@ defmodule Playwright.Response do
   *Since Playwright 1.15.*
   """
   @spec headers_array(t()) :: {:ok, [%{name: String.t(), value: String.t()}]} | {:error, Playwright.error()}
-  def headers_array(response) do
+  def headers_array(%Playwright.Response{} = response) do
     Facade.async("response.headersArray", response, fn -> Playwright.Client.Response.headers_array(response) end)
   end
 
   @doc "Like `headers_array/1`, but returns the value and raises on error."
   @spec headers_array!(t()) :: [%{name: String.t(), value: String.t()}]
-  def headers_array!(response) do
+  def headers_array!(%Playwright.Response{} = response) do
     Facade.async!("response.headersArray", response, fn -> Playwright.Client.Response.headers_array(response) end)
   end
 
@@ -132,13 +132,13 @@ defmodule Playwright.Response do
   * `name` - Name of the header.
   """
   @spec header_value(t(), String.t()) :: {:ok, nil | String.t()} | {:error, Playwright.error()}
-  def header_value(response, name) do
+  def header_value(%Playwright.Response{} = response, name) do
     Facade.async("response.headerValue", response, fn -> Playwright.Client.Response.header_value(response, name) end)
   end
 
   @doc "Like `header_value/2`, but returns the value and raises on error."
   @spec header_value!(t(), String.t()) :: nil | String.t()
-  def header_value!(response, name) do
+  def header_value!(%Playwright.Response{} = response, name) do
     Facade.async!("response.headerValue", response, fn -> Playwright.Client.Response.header_value(response, name) end)
   end
 
@@ -152,13 +152,13 @@ defmodule Playwright.Response do
   * `name` - Name of the header.
   """
   @spec header_values(t(), String.t()) :: {:ok, [String.t()]} | {:error, Playwright.error()}
-  def header_values(response, name) do
+  def header_values(%Playwright.Response{} = response, name) do
     Facade.async("response.headerValues", response, fn -> Playwright.Client.Response.header_values(response, name) end)
   end
 
   @doc "Like `header_values/2`, but returns the value and raises on error."
   @spec header_values!(t(), String.t()) :: [String.t()]
-  def header_values!(response, name) do
+  def header_values!(%Playwright.Response{} = response, name) do
     Facade.async!("response.headerValues", response, fn -> Playwright.Client.Response.header_values(response, name) end)
   end
 
@@ -168,13 +168,13 @@ defmodule Playwright.Response do
   *Since Playwright 1.59.*
   """
   @spec http_version(t()) :: {:ok, String.t()} | {:error, Playwright.error()}
-  def http_version(response) do
+  def http_version(%Playwright.Response{} = response) do
     Facade.async("response.httpVersion", response, fn -> Playwright.Client.Response.http_version(response) end)
   end
 
   @doc "Like `http_version/1`, but returns the value and raises on error."
   @spec http_version!(t()) :: String.t()
-  def http_version!(response) do
+  def http_version!(%Playwright.Response{} = response) do
     Facade.async!("response.httpVersion", response, fn -> Playwright.Client.Response.http_version(response) end)
   end
 
@@ -186,13 +186,13 @@ defmodule Playwright.Response do
   *Since Playwright 1.8.*
   """
   @spec json(t()) :: {:ok, term()} | {:error, Playwright.error()}
-  def json(response) do
+  def json(%Playwright.Response{} = response) do
     Facade.async("response.json", response, fn -> Playwright.Client.Response.json(response) end)
   end
 
   @doc "Like `json/1`, but returns the value and raises on error."
   @spec json!(t()) :: term()
-  def json!(response) do
+  def json!(%Playwright.Response{} = response) do
     Facade.async!("response.json", response, fn -> Playwright.Client.Response.json(response) end)
   end
 
@@ -202,7 +202,7 @@ defmodule Playwright.Response do
   *Since Playwright 1.8.*
   """
   @spec ok(t()) :: boolean()
-  def ok(response) do
+  def ok(%Playwright.Response{} = response) do
     Playwright.Client.Response.ok(response)
   end
 
@@ -212,7 +212,7 @@ defmodule Playwright.Response do
   *Since Playwright 1.8.*
   """
   @spec request(t()) :: Playwright.Request.t()
-  def request(response) do
+  def request(%Playwright.Response{} = response) do
     Playwright.Client.Response.request(response)
   end
 
@@ -232,7 +232,7 @@ defmodule Playwright.Response do
                optional(:validTo) => number()
              }}
           | {:error, Playwright.error()}
-  def security_details(response) do
+  def security_details(%Playwright.Response{} = response) do
     Facade.async("response.securityDetails", response, fn -> Playwright.Client.Response.security_details(response) end)
   end
 
@@ -246,7 +246,7 @@ defmodule Playwright.Response do
               optional(:validFrom) => number(),
               optional(:validTo) => number()
             }
-  def security_details!(response) do
+  def security_details!(%Playwright.Response{} = response) do
     Facade.async!("response.securityDetails", response, fn -> Playwright.Client.Response.security_details(response) end)
   end
 
@@ -256,13 +256,13 @@ defmodule Playwright.Response do
   *Since Playwright 1.13.*
   """
   @spec server_addr(t()) :: {:ok, nil | %{ipAddress: String.t(), port: integer()}} | {:error, Playwright.error()}
-  def server_addr(response) do
+  def server_addr(%Playwright.Response{} = response) do
     Facade.async("response.serverAddr", response, fn -> Playwright.Client.Response.server_addr(response) end)
   end
 
   @doc "Like `server_addr/1`, but returns the value and raises on error."
   @spec server_addr!(t()) :: nil | %{ipAddress: String.t(), port: integer()}
-  def server_addr!(response) do
+  def server_addr!(%Playwright.Response{} = response) do
     Facade.async!("response.serverAddr", response, fn -> Playwright.Client.Response.server_addr(response) end)
   end
 
@@ -272,7 +272,7 @@ defmodule Playwright.Response do
   *Since Playwright 1.8.*
   """
   @spec status(t()) :: integer()
-  def status(response) do
+  def status(%Playwright.Response{} = response) do
     Playwright.Client.Response.status(response)
   end
 
@@ -282,7 +282,7 @@ defmodule Playwright.Response do
   *Since Playwright 1.8.*
   """
   @spec status_text(t()) :: String.t()
-  def status_text(response) do
+  def status_text(%Playwright.Response{} = response) do
     Playwright.Client.Response.status_text(response)
   end
 
@@ -292,13 +292,13 @@ defmodule Playwright.Response do
   *Since Playwright 1.8.*
   """
   @spec text(t()) :: {:ok, String.t()} | {:error, Playwright.error()}
-  def text(response) do
+  def text(%Playwright.Response{} = response) do
     Facade.async("response.text", response, fn -> Playwright.Client.Response.text(response) end)
   end
 
   @doc "Like `text/1`, but returns the value and raises on error."
   @spec text!(t()) :: String.t()
-  def text!(response) do
+  def text!(%Playwright.Response{} = response) do
     Facade.async!("response.text", response, fn -> Playwright.Client.Response.text(response) end)
   end
 
@@ -308,7 +308,7 @@ defmodule Playwright.Response do
   *Since Playwright 1.8.*
   """
   @spec url(t()) :: String.t()
-  def url(response) do
+  def url(%Playwright.Response{} = response) do
     Playwright.Client.Response.url(response)
   end
 end

@@ -100,14 +100,14 @@ defmodule Playwright.Screencast do
     * `:height` - Max frame height in pixels.
   """
   @spec start(t(), start_options()) :: {:ok, Playwright.Disposable.t()} | {:error, Playwright.error()}
-  def start(screencast, options \\ []) do
+  def start(%Playwright.Screencast{} = screencast, options \\ []) do
     options = Facade.options!(options, @start_options, "screencast.start")
     Facade.async("screencast.start", screencast, fn -> Playwright.Client.Screencast.start(screencast, options) end)
   end
 
   @doc "Like `start/2`, but returns the value and raises on error."
   @spec start!(t(), start_options()) :: Playwright.Disposable.t()
-  def start!(screencast, options \\ []) do
+  def start!(%Playwright.Screencast{} = screencast, options \\ []) do
     options = Facade.options!(options, @start_options, "screencast.start")
     Facade.async!("screencast.start", screencast, fn -> Playwright.Client.Screencast.start(screencast, options) end)
   end
@@ -118,13 +118,13 @@ defmodule Playwright.Screencast do
   *Since Playwright 1.59.*
   """
   @spec stop(t()) :: :ok | {:error, Playwright.error()}
-  def stop(screencast) do
+  def stop(%Playwright.Screencast{} = screencast) do
     Facade.async_void("screencast.stop", screencast, fn -> Playwright.Client.Screencast.stop(screencast) end)
   end
 
   @doc "Like `stop/1`, but returns the value and raises on error."
   @spec stop!(t()) :: :ok
-  def stop!(screencast) do
+  def stop!(%Playwright.Screencast{} = screencast) do
     Facade.async_void!("screencast.stop", screencast, fn -> Playwright.Client.Screencast.stop(screencast) end)
   end
 
@@ -148,7 +148,7 @@ defmodule Playwright.Screencast do
   """
   @spec show_overlay(t(), String.t(), show_overlay_options()) ::
           {:ok, Playwright.Disposable.t()} | {:error, Playwright.error()}
-  def show_overlay(screencast, html, options \\ []) do
+  def show_overlay(%Playwright.Screencast{} = screencast, html, options \\ []) do
     options = Facade.options!(options, @show_overlay_options, "screencast.showOverlay")
 
     Facade.async("screencast.showOverlay", screencast, fn ->
@@ -158,7 +158,7 @@ defmodule Playwright.Screencast do
 
   @doc "Like `show_overlay/3`, but returns the value and raises on error."
   @spec show_overlay!(t(), String.t(), show_overlay_options()) :: Playwright.Disposable.t()
-  def show_overlay!(screencast, html, options \\ []) do
+  def show_overlay!(%Playwright.Screencast{} = screencast, html, options \\ []) do
     options = Facade.options!(options, @show_overlay_options, "screencast.showOverlay")
 
     Facade.async!("screencast.showOverlay", screencast, fn ->
@@ -188,7 +188,7 @@ defmodule Playwright.Screencast do
   * `:duration` (`t:number/0`) - Duration in milliseconds after which the overlay is automatically removed. Defaults to `2000`.
   """
   @spec show_chapter(t(), String.t(), show_chapter_options()) :: :ok | {:error, Playwright.error()}
-  def show_chapter(screencast, title, options \\ []) do
+  def show_chapter(%Playwright.Screencast{} = screencast, title, options \\ []) do
     options = Facade.options!(options, @show_chapter_options, "screencast.showChapter")
 
     Facade.async_void("screencast.showChapter", screencast, fn ->
@@ -198,7 +198,7 @@ defmodule Playwright.Screencast do
 
   @doc "Like `show_chapter/3`, but returns the value and raises on error."
   @spec show_chapter!(t(), String.t(), show_chapter_options()) :: :ok
-  def show_chapter!(screencast, title, options \\ []) do
+  def show_chapter!(%Playwright.Screencast{} = screencast, title, options \\ []) do
     options = Facade.options!(options, @show_chapter_options, "screencast.showChapter")
 
     Facade.async_void!("screencast.showChapter", screencast, fn ->
@@ -279,7 +279,7 @@ defmodule Playwright.Screencast do
     * `:title` - CSS declarations for the action title, for example `'font-size: 32px; background: #333'`. The title is placed according to `:position`.
   """
   @spec show_actions(t(), show_actions_options()) :: {:ok, Playwright.Disposable.t()} | {:error, Playwright.error()}
-  def show_actions(screencast, options \\ []) do
+  def show_actions(%Playwright.Screencast{} = screencast, options \\ []) do
     options = Facade.options!(options, @show_actions_options, "screencast.showActions")
 
     Facade.async("screencast.showActions", screencast, fn ->
@@ -289,7 +289,7 @@ defmodule Playwright.Screencast do
 
   @doc "Like `show_actions/2`, but returns the value and raises on error."
   @spec show_actions!(t(), show_actions_options()) :: Playwright.Disposable.t()
-  def show_actions!(screencast, options \\ []) do
+  def show_actions!(%Playwright.Screencast{} = screencast, options \\ []) do
     options = Facade.options!(options, @show_actions_options, "screencast.showActions")
 
     Facade.async!("screencast.showActions", screencast, fn ->
@@ -303,7 +303,7 @@ defmodule Playwright.Screencast do
   *Since Playwright 1.59.*
   """
   @spec show_overlays(t()) :: :ok | {:error, Playwright.error()}
-  def show_overlays(screencast) do
+  def show_overlays(%Playwright.Screencast{} = screencast) do
     Facade.async_void("screencast.showOverlays", screencast, fn ->
       Playwright.Client.Screencast.show_overlays(screencast)
     end)
@@ -311,7 +311,7 @@ defmodule Playwright.Screencast do
 
   @doc "Like `show_overlays/1`, but returns the value and raises on error."
   @spec show_overlays!(t()) :: :ok
-  def show_overlays!(screencast) do
+  def show_overlays!(%Playwright.Screencast{} = screencast) do
     Facade.async_void!("screencast.showOverlays", screencast, fn ->
       Playwright.Client.Screencast.show_overlays(screencast)
     end)
@@ -323,7 +323,7 @@ defmodule Playwright.Screencast do
   *Since Playwright 1.59.*
   """
   @spec hide_actions(t()) :: :ok | {:error, Playwright.error()}
-  def hide_actions(screencast) do
+  def hide_actions(%Playwright.Screencast{} = screencast) do
     Facade.async_void("screencast.hideActions", screencast, fn ->
       Playwright.Client.Screencast.hide_actions(screencast)
     end)
@@ -331,7 +331,7 @@ defmodule Playwright.Screencast do
 
   @doc "Like `hide_actions/1`, but returns the value and raises on error."
   @spec hide_actions!(t()) :: :ok
-  def hide_actions!(screencast) do
+  def hide_actions!(%Playwright.Screencast{} = screencast) do
     Facade.async_void!("screencast.hideActions", screencast, fn ->
       Playwright.Client.Screencast.hide_actions(screencast)
     end)
@@ -343,7 +343,7 @@ defmodule Playwright.Screencast do
   *Since Playwright 1.59.*
   """
   @spec hide_overlays(t()) :: :ok | {:error, Playwright.error()}
-  def hide_overlays(screencast) do
+  def hide_overlays(%Playwright.Screencast{} = screencast) do
     Facade.async_void("screencast.hideOverlays", screencast, fn ->
       Playwright.Client.Screencast.hide_overlays(screencast)
     end)
@@ -351,7 +351,7 @@ defmodule Playwright.Screencast do
 
   @doc "Like `hide_overlays/1`, but returns the value and raises on error."
   @spec hide_overlays!(t()) :: :ok
-  def hide_overlays!(screencast) do
+  def hide_overlays!(%Playwright.Screencast{} = screencast) do
     Facade.async_void!("screencast.hideOverlays", screencast, fn ->
       Playwright.Client.Screencast.hide_overlays(screencast)
     end)

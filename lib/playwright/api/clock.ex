@@ -44,13 +44,13 @@ defmodule Playwright.Clock do
   * `ticks` - Time may be a finite number of milliseconds to advance the clock by or a human-readable string. Valid string formats are "08" for eight seconds, "01:00" for one minute and "02:34:10" for two hours, 34 minutes and ten seconds.
   """
   @spec fast_forward(t(), integer() | String.t()) :: :ok | {:error, Playwright.error()}
-  def fast_forward(clock, ticks) do
+  def fast_forward(%Playwright.Clock{} = clock, ticks) do
     Facade.async_void("clock.fastForward", clock, fn -> Playwright.Client.Clock.fast_forward(clock, ticks) end)
   end
 
   @doc "Like `fast_forward/2`, but returns the value and raises on error."
   @spec fast_forward!(t(), integer() | String.t()) :: :ok
-  def fast_forward!(clock, ticks) do
+  def fast_forward!(%Playwright.Clock{} = clock, ticks) do
     Facade.async_void!("clock.fastForward", clock, fn -> Playwright.Client.Clock.fast_forward(clock, ticks) end)
   end
 
@@ -84,14 +84,14 @@ defmodule Playwright.Clock do
   * `:time` (`t:integer/0` | `t:String.t/0` | `t:DateTime.t/0`) - Time to initialize with, current system time by default.
   """
   @spec install(t(), install_options()) :: :ok | {:error, Playwright.error()}
-  def install(clock, options \\ []) do
+  def install(%Playwright.Clock{} = clock, options \\ []) do
     options = Facade.options!(options, @install_options, "clock.install")
     Facade.async_void("clock.install", clock, fn -> Playwright.Client.Clock.install(clock, options) end)
   end
 
   @doc "Like `install/2`, but returns the value and raises on error."
   @spec install!(t(), install_options()) :: :ok
-  def install!(clock, options \\ []) do
+  def install!(%Playwright.Clock{} = clock, options \\ []) do
     options = Facade.options!(options, @install_options, "clock.install")
     Facade.async_void!("clock.install", clock, fn -> Playwright.Client.Clock.install(clock, options) end)
   end
@@ -113,13 +113,13 @@ defmodule Playwright.Clock do
   * `ticks` - Time may be a finite number of milliseconds to advance the clock by or a human-readable string. Valid string formats are "08" for eight seconds, "01:00" for one minute and "02:34:10" for two hours, 34 minutes and ten seconds.
   """
   @spec run_for(t(), integer() | String.t()) :: :ok | {:error, Playwright.error()}
-  def run_for(clock, ticks) do
+  def run_for(%Playwright.Clock{} = clock, ticks) do
     Facade.async_void("clock.runFor", clock, fn -> Playwright.Client.Clock.run_for(clock, ticks) end)
   end
 
   @doc "Like `run_for/2`, but returns the value and raises on error."
   @spec run_for!(t(), integer() | String.t()) :: :ok
-  def run_for!(clock, ticks) do
+  def run_for!(%Playwright.Clock{} = clock, ticks) do
     Facade.async_void!("clock.runFor", clock, fn -> Playwright.Client.Clock.run_for(clock, ticks) end)
   end
 
@@ -155,13 +155,13 @@ defmodule Playwright.Clock do
   * `time` - Time to pause at.
   """
   @spec pause_at(t(), integer() | String.t() | DateTime.t()) :: :ok | {:error, Playwright.error()}
-  def pause_at(clock, time) do
+  def pause_at(%Playwright.Clock{} = clock, time) do
     Facade.async_void("clock.pauseAt", clock, fn -> Playwright.Client.Clock.pause_at(clock, time) end)
   end
 
   @doc "Like `pause_at/2`, but returns the value and raises on error."
   @spec pause_at!(t(), integer() | String.t() | DateTime.t()) :: :ok
-  def pause_at!(clock, time) do
+  def pause_at!(%Playwright.Clock{} = clock, time) do
     Facade.async_void!("clock.pauseAt", clock, fn -> Playwright.Client.Clock.pause_at(clock, time) end)
   end
 
@@ -171,13 +171,13 @@ defmodule Playwright.Clock do
   *Since Playwright 1.45.*
   """
   @spec resume(t()) :: :ok | {:error, Playwright.error()}
-  def resume(clock) do
+  def resume(%Playwright.Clock{} = clock) do
     Facade.async_void("clock.resume", clock, fn -> Playwright.Client.Clock.resume(clock) end)
   end
 
   @doc "Like `resume/1`, but returns the value and raises on error."
   @spec resume!(t()) :: :ok
-  def resume!(clock) do
+  def resume!(%Playwright.Clock{} = clock) do
     Facade.async_void!("clock.resume", clock, fn -> Playwright.Client.Clock.resume(clock) end)
   end
 
@@ -202,13 +202,13 @@ defmodule Playwright.Clock do
   * `time` - Time to be set in milliseconds.
   """
   @spec set_fixed_time(t(), integer() | String.t() | DateTime.t()) :: :ok | {:error, Playwright.error()}
-  def set_fixed_time(clock, time) do
+  def set_fixed_time(%Playwright.Clock{} = clock, time) do
     Facade.async_void("clock.setFixedTime", clock, fn -> Playwright.Client.Clock.set_fixed_time(clock, time) end)
   end
 
   @doc "Like `set_fixed_time/2`, but returns the value and raises on error."
   @spec set_fixed_time!(t(), integer() | String.t() | DateTime.t()) :: :ok
-  def set_fixed_time!(clock, time) do
+  def set_fixed_time!(%Playwright.Clock{} = clock, time) do
     Facade.async_void!("clock.setFixedTime", clock, fn -> Playwright.Client.Clock.set_fixed_time(clock, time) end)
   end
 
@@ -230,13 +230,13 @@ defmodule Playwright.Clock do
   * `time` - Time to be set in milliseconds.
   """
   @spec set_system_time(t(), integer() | String.t() | DateTime.t()) :: :ok | {:error, Playwright.error()}
-  def set_system_time(clock, time) do
+  def set_system_time(%Playwright.Clock{} = clock, time) do
     Facade.async_void("clock.setSystemTime", clock, fn -> Playwright.Client.Clock.set_system_time(clock, time) end)
   end
 
   @doc "Like `set_system_time/2`, but returns the value and raises on error."
   @spec set_system_time!(t(), integer() | String.t() | DateTime.t()) :: :ok
-  def set_system_time!(clock, time) do
+  def set_system_time!(%Playwright.Clock{} = clock, time) do
     Facade.async_void!("clock.setSystemTime", clock, fn -> Playwright.Client.Clock.set_system_time(clock, time) end)
   end
 
