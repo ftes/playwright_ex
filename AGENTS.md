@@ -17,6 +17,10 @@ Read them before changing ported code. When reviewing a change or fixing review 
   and `step` (`Playwright.Test.{TestInfo, TestTracing}`, `test.ex`), with upstream source
   references and `-- not ported`/`# deviation:` comments, but no `@upstream`: parity covers the
   client API, not the runner.
+- CHANGELOG `[Unreleased]` has two subsections: "For RC users" (changes since the last RC; dropped
+  at the final 1.65.0 release) and "For 0.16 users" (what an upgrader needs beyond the upgrading
+  guide; carried into the release notes). An entry goes in one or both; an RC-only bug fix goes
+  in the first only.
 - `mix check` is the full verification (format, credo, compile, dialyzer, parity, tests).
 - Files marked "do not edit manually" are generated: run `mix playwright.gen.api`
   (`mix playwright.gen.protocol` for the protocol) instead of editing them.
