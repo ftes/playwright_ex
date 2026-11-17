@@ -82,6 +82,64 @@ assert [%{"name" => _} | _] = Response.json!(response)
 `:request`, `:response`, `:request_finished` or `:request_failed` with
 [`Page.on/3`](`Playwright.Page.on/3`).
 
+## WebSockets
+
+[`Page.route_web_socket/3`](`Playwright.Page.route_web_socket/3`) intercepts the WebSockets whose
+URL matches. Without [`WebSocketRoute.connect_to_server/1`](`Playwright.WebSocketRoute.connect_to_server/1`)
+the handler is the server; with it, frames pass between the page and the server, and
+`WebSocketRoute.on_message/2` on either side takes over that direction. To delay the server's
+frames to the page:
+
+```elixir
+Page.route_web_socket!(page, "**/ws", fn ws ->
+  server = WebSocketRoute.connect_to_server(ws)
+
+  WebSocketRoute.on_message(server, fn message ->
+    Task.start(fn ->
+      Process.sleep(500)
+      WebSocketRoute.send(ws, message)
+    end)
+  end)
+end)
+```
+
+A LiveView's socket, at the default `socket "/live"` path, is `"**/live/websocket*"`. The
+`on_message/2` handler hands each frame to a process that waits, and returns at once: a
+`Process.sleep/1` in the handler itself stalls every page on that connection, as blocking the
+event loop does in JS (see
+[Concurrency](concurrency.md#no-blocking-work-in-listeners)). Each frame gets its own timer. For a
+strict order, send each frame with its deadline, taken as it arrives
+(`System.monotonic_time(:millisecond) + 500`), to one process that sleeps only for the rest of
+each deadline before it sends the frame on.
+
+A frame that never arrives:
+
+- The route must come before the page opens the socket: route, then `goto`.
+- The route's pattern must match the socket's URL (`ws://` or `wss://`, its path and query).
+- `on_message/2` stops the forwarding of its side: send on the frames it doesn't handle with
+  `WebSocketRoute.send/2`. Without `connect_to_server/1`, nothing reaches the server.
+- Watch the frames on the wire, as upstream's
+  [network guide](https://playwright.dev/python/docs/network#websockets) does:
+
+  ```elixir
+  require Logger
+
+  Page.on(page, :web_socket, fn ws ->
+    Logger.info("WebSocket opened: #{WebSocket.url(ws)}")
+    WebSocket.on(ws, :frame_sent, &Logger.info("sent: #{inspect(&1.payload)}"))
+    WebSocket.on(ws, :frame_received, &Logger.info("received: #{inspect(&1.payload)}"))
+    WebSocket.on(ws, :close, fn _ -> Logger.info("WebSocket closed") end)
+  end)
+  ```
+
+  A routed socket's frames on the wire are those between the page and the server: a frame the
+  handler holds back shows as received, though the page doesn't have it yet. A socket mocked
+  without `connect_to_server/1` never reaches the wire, so it has no `:web_socket` event and no
+  trace entry: log its frames in your `on_message/2` handler and next to your
+  `WebSocketRoute.send/2` calls instead.
+- A trace with `snapshots: true` (as `Playwright.Test`'s) has each socket on the wire and its
+  frames in its Network tab ([Debugging and CI](debugging-and-ci.md#traces)).
+
 ## API testing
 
 `Playwright.APIRequestContext` sends HTTP requests without a browser, to test an API or to set
@@ -113,5 +171,5 @@ cookies with the pages, so a request made there is logged in as the page is, and
 back show up in the pages.
 
 More: [network](https://playwright.dev/python/docs/network),
-[mock APIs](https://playwright.dev/python/docs/mock),
+[mock APIs](https://playwright.dev/python/docs/mock) (with WebSockets),
 [API testing](https://playwright.dev/python/docs/api-testing).
