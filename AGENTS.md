@@ -17,9 +17,11 @@ Read them before changing ported code. When reviewing a change or fixing review 
   and `step` (`Playwright.Test.{TestInfo, TestTracing}`, `test.ex`), with upstream source
   references and `-- not ported`/`# deviation:` comments, but no `@upstream`: parity covers the
   client API, not the runner.
-- During the 1.65 RC phase, prefix CHANGELOG entries that only matter to RC users (fixes for bugs
-  introduced in an RC) with `**RC only:**`. At 1.65.0 final, drop them, merge the RC sections into
-  the 1.65.0 notes, and remove this rule.
+- CHANGELOG during an RC phase: prefix entries that only matter to users of an earlier RC with
+  `**RC only:**`. These are fixes for bugs an RC introduced, and changes to APIs first shipped in
+  an RC. Upstream driver bumps and changes ported from upstream are never RC only. At the first
+  non-RC release, drop the RC-only entries and merge the RC sections into that release's notes,
+  keeping the latest `Drives Playwright` line.
 - `mix check` is the full verification (format, credo, compile, dialyzer, parity, tests).
 - Files marked "do not edit manually" are generated: run `mix playwright.gen.api`
   (`mix playwright.gen.protocol` for the protocol) instead of editing them.
