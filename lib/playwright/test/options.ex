@@ -382,7 +382,8 @@ defmodule Playwright.Test.Options do
 
     context
     |> Map.merge(test.timeouts)
-    |> Map.merge(Map.take(test, @artifact_keys))
+    # The modes as given, not as the retry makes them (`trace: :on_first_retry`).
+    |> Map.merge(test.use_modes)
     |> Map.merge(Map.take(pool([], test.worker), @worker_keys))
   end
 

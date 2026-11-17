@@ -717,7 +717,9 @@ defmodule Playwright.Test do
     test_info = TestInfo.new(context, config.output_dir, parameters)
     use_options = use_options(context[:module])
     layers = Options.layers(parameters, use_options, tags)
-    modes = Options.artifacts(config, layers)
+    # As given, for `info/0`'s `use`.
+    use_modes = Options.artifacts(config, layers)
+    modes = use_modes
     # Upstream's `testTracing.startIfNeeded` and `_contextFactory`'s `captureVideo`, by the retry.
     modes = %{
       modes
@@ -743,6 +745,7 @@ defmodule Playwright.Test do
         tmp: Path.join(System.tmp_dir!(), "playwright-test-#{System.unique_integer([:positive])}")
       })
       |> Map.merge(context_defaults(config, layers, use_options))
+      |> Map.put(:use_modes, use_modes)
 
     TestInfo.remove_output_dirs(test)
     # The failure of a marked test that raised nothing in its body.

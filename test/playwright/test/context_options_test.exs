@@ -373,6 +373,12 @@ defmodule Playwright.Test.ContextOptionsTest.ProjectTest do
     assert_project(ctx.setup_all_task_page, lang)
   end
 
+  @tag Playwright.Test.use(trace: :on_first_retry)
+  test "Test.info().use: a mode as given, whatever the retry" do
+    assert [mode: :on_first_retry] ++ _ = Playwright.Test.info().use.trace
+    assert [mode: :off] ++ _ = Playwright.Test.Recorder.registration(self()).trace
+  end
+
   @tag Playwright.Test.use(extra_http_headers: %{"x-test" => "1"}, action_timeout: 1234, video: :retain_on_failure)
   test "Test.info().use: the test's resolved options, in a Task and by pid too", %{lang: lang, test_pid: test_pid} do
     use = Playwright.Test.info().use
