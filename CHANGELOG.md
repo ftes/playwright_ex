@@ -64,6 +64,16 @@ Node 26.13.1. No upstream API changes.
 - **RC only:** `Expect.to_pass!/2` returns the callback's value from the attempt that passed,
   which JS assigns to an outer `let`. **Breaking:** `Expect.to_pass/2` returns `{:ok, value}`,
   not `:ok`.
+- **RC only:** **Breaking:** a context created in `setup_all` before `use Playwright.Test`
+  registered the module (a case template's own `setup_all` with the `use` only in its `using`,
+  or a `setup_all` above the module's `use`) makes the module's `setup_all` raise, naming the
+  fix, as such a context in `setup` already does.
+- **RC only:** **Breaking:** contexts and request contexts created in a module's `setup_all` (or
+  a process with it in `$callers`) get the context defaults and the config's `context_options`
+  (`base_url` too), as Playwright Test's `beforeAll` does (#257). A context gets the config's
+  `action_timeout` and `navigation_timeout`, a request context `timeout:` the `action_timeout`
+  (`0` for `:infinity`) and no navigation timeout: no limit by default, where they had the
+  client's 30 s.
 - **RC only:** a handle of the wrong class (a `Locator` passed to `Page.get_by_test_id/2`) fails
   in the facade function, whose clause matches its struct, not in `Playwright.Runtime.Heap.key/2`.
 - **RC only:** a string that is not UTF-8 (`Route.fulfill!(route, body: png)`) fails with a hint
