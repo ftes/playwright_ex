@@ -808,6 +808,23 @@ defmodule Playwright.Test.Recorder do
     do: Path.join(dir, "test-#{if failed?, do: "failed", else: "finished"}-#{ordinal + 1}.png")
 
   @doc """
+  `didFinishTestFunction`: screenshots of the open pages of the test `test_pid`, before its
+  `on_exit` callbacks: at the end of its body, or before an unhandled error interrupts it
+  (`Playwright.Test.TestInfo._unhandled_error/2`).
+  """
+  def did_finish_test_function(test_pid, failed?) do
+    with %{screenshot: [{:mode, mode} | _], retry: retry} <- registration(test_pid),
+         true <- should_capture_upon_finish(mode, failed?, retry),
+         recorder when is_pid(recorder) <- lookup(test_pid),
+         do: capture(recorder, failed?)
+
+    :ok
+  catch
+    # The recorder is gone: the test's own result and failure stand.
+    :exit, _ -> :ok
+  end
+
+  @doc """
   `SnapshotRecorder.maybeCapture` (upstream's `didFinishTestFunction`, and the start of
   `didFinishTest`): a screenshot of each page of the test's open contexts without one yet,
   `test-failed-N.png` or `test-finished-N.png`. For the modes that keep them.

@@ -37,9 +37,11 @@ defmodule Playwright.Client.EventEmitter do
 
   Deviations: an async user listener queues later events of its subscription behind it; JS
   interleaves them. A listener that raises is caught alone: the later listeners still run, and
-  the error goes to `_rejectionHandler`, else to the `error` listeners, else it fails the running
-  test (`Playwright.Runtime.Callers.unhandled/4`), else the log (JS: a synchronous throw skips
-  `_rejectionHandler`, and without `error` listeners leaves `emit`), in a test or not. `removeAllListeners(type, %{behavior: "wait"})`
+  the error goes to `_rejectionHandler`, else to the `error` listeners, else to
+  `Playwright.Runtime.Callers.unhandled/4`: it fails the running test, else it is logged (JS: a
+  synchronous throw skips `_rejectionHandler`, and without `error` listeners leaves `emit`). In a
+  test's own process, emitting on a local emitter, it is raised there and leaves `emit`, as in JS:
+  only there is the emitting process the test's code, not a shared one (the connection). `removeAllListeners(type, %{behavior: "wait"})`
   also waits for invocations that start after the call (JS: a snapshot of `_pendingHandlers`).
   """
   import Playwright.Runtime.Heap
@@ -181,7 +183,8 @@ defmodule Playwright.Client.EventEmitter do
 
   @doc false
   # From `Conn.invoke/4`, where a listener's exception is caught (`_callHandler`'s `catch` and its
-  # promise's `.catch`). `throw error` re-raises it to `Conn.invoke/4`, which logs it as uncaught.
+  # promise's `.catch`). `throw error` re-raises it to `Conn.invoke/4`, which hands it to
+  # `Playwright.Runtime.Callers.unhandled/4` (JS: an uncaught exception).
   def _handle_listener_error(this, type, kind, reason, stacktrace) do
     if type == "error" or error_listener_count(this) == 0,
       do: :erlang.raise(kind, reason, stacktrace),

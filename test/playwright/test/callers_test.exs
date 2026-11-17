@@ -110,7 +110,7 @@ defmodule Playwright.Test.CallersTest do
     assert_receive {:handler, ^test_pid}
     assert Page.evaluate!(page, "window.clicked")
     assert [{:error, %RuntimeError{message: "locator handler boom"}, _}] = TestInfo.take_errors(self())
-    assert_receive {:EXIT, _, {%RuntimeError{message: "locator handler boom"}, [_ | _]}}
+    assert_receive {:EXIT, _, {%RuntimeError{message: "locator handler boom"}, [_ | _]}}, 5000
     refute log =~ "locator handler boom"
   end
 
@@ -147,7 +147,7 @@ defmodule Playwright.Test.CallersTest do
     assert_receive {:context_route, ^test_pid}
     log = capture_log(fn -> await_error(self()) end)
     assert [{:error, %RuntimeError{message: "ws message boom"}, _}] = TestInfo.take_errors(self())
-    assert_receive {:EXIT, _, {%RuntimeError{message: "ws message boom"}, _}}
+    assert_receive {:EXIT, _, {%RuntimeError{message: "ws message boom"}, _}}, 5000
     refute log =~ "ws message boom"
   end
 
@@ -200,14 +200,14 @@ defmodule Playwright.Test.CallersTest do
       end)
 
     assert [{:error, %RuntimeError{message: "route boom"}, _}] = TestInfo.take_errors(self())
-    assert_receive {:EXIT, _, {%RuntimeError{message: "route boom"}, _}}
+    assert_receive {:EXIT, _, {%RuntimeError{message: "route boom"}, _}}, 5000
     # Recorded on the test, not logged.
     refute log =~ "route boom"
   end
 
-  # Upstream's `_hasUnhandledError`: the first error fails and interrupts the test, later ones are
-  # dropped.
-  test "a listener's first unhandled error fails the test and interrupts it, not later ones", %{page: page} do
+  # Upstream's `_hasUnhandledError`: the first error fails the test and interrupts it, later ones
+  # are not recorded.
+  test "a listener's first unhandled error fails the test, each one interrupts it", %{page: page} do
     Process.flag(:trap_exit, true)
     Page.on(page, :console, fn message -> raise "listener boom #{Playwright.ConsoleMessage.text(message)}" end)
 
@@ -219,8 +219,9 @@ defmodule Playwright.Test.CallersTest do
       end)
 
     assert [{:error, %RuntimeError{message: "listener boom 1"}, _}] = TestInfo.take_errors(self())
-    assert_receive {:EXIT, _, {%RuntimeError{message: "listener boom 1"}, _}}
-    refute_received {:EXIT, _, _}
+    # Each with the first's exit (the later one's, unless it came before the first exited).
+    assert_receive {:EXIT, _, {%RuntimeError{message: "listener boom 1"}, _}}, 5000
+    refute_receive {:EXIT, _, {%RuntimeError{message: "listener boom 2"}, _}}, 200
     refute log =~ "listener boom"
   end
 
@@ -231,19 +232,19 @@ defmodule Playwright.Test.CallersTest do
     await_error(self())
 
     assert [{:exit, :normal, _}] = TestInfo.take_errors(self())
-    assert_receive {:EXIT, _, {:exit_in_callback, :normal}}
+    assert_receive {:EXIT, _, {:exit_in_callback, :normal}}, 5000
   end
 
-  # Caught alone, in a test or not (`Playwright.Client.EventEmitter`): the later listeners run,
-  # and the test fails with it at the end of its body.
-  test "a local emitter's listener run in the test's own process: recorded, the later ones run" do
+  # As a sync listener's error is thrown to `emit`'s caller (`eventEmitter.ts`): the later
+  # listeners don't run.
+  test "a local emitter's listener run in the test's own process raises there" do
     test_pid = self()
     emitter = Playwright.Client.EventEmitter.new()
     Playwright.Client.EventEmitter.on(emitter, "x", fn _ -> raise "local boom" end)
     Playwright.Client.EventEmitter.on(emitter, "x", fn _ -> send(test_pid, :second) end)
-    assert Playwright.Client.EventEmitter.emit(emitter, "x") == true
-    assert_received :second
-    assert [{:error, %RuntimeError{message: "local boom"}, _}] = TestInfo.take_errors(self())
+    assert_raise RuntimeError, "local boom", fn -> Playwright.Client.EventEmitter.emit(emitter, "x") end
+    refute_received :second
+    assert TestInfo.take_errors(self()) == []
   end
 
   test "registered outside a test: nothing found, the error is logged", %{page: page} do

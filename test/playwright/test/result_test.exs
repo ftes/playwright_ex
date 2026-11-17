@@ -7,11 +7,13 @@ defmodule Playwright.Test.ResultTest do
   alias Playwright.Test.Pool
   alias Playwright.Test.Results
 
-  defp fake_test(marked? \\ true) do
+  defp fake_test(marked? \\ true, trap_exit? \\ false) do
     parent = self()
 
     pid =
       spawn(fn ->
+        Process.flag(:trap_exit, trap_exit?)
+
         context = %{
           test_pid: self(),
           module: __MODULE__,
@@ -97,20 +99,39 @@ defmodule Playwright.Test.ResultTest do
     assert_raise ArgumentError, ~r/no test/, fn -> until_raises(fn -> Playwright.Test.info(pid) end) end
   end
 
-  # `Playwright.Test.TestInfo._unhandled_error/2`'s exit, after the end of the body took the error
-  # (its failure): the error once.
-  test "an unhandled error's interrupt after the body failed with it: the error once" do
-    pid = fake_test()
-    error = %RuntimeError{message: "listener boom"}
-    stacktrace = [{__MODULE__, :listener, 1, []}]
-
-    end_test(
-      pid,
-      [&{:failed, &1, {:error, error, stacktrace}}],
-      Playwright.Test.TestInfo.interrupt_reason(:error, error, stacktrace)
+  # An unhandled error of a process of the fake test (`Playwright.Runtime.Callers.unhandled/4`).
+  defp unhandled(pid, error) do
+    Task.await(
+      Task.async(fn ->
+        Process.put(:"$callers", [pid])
+        Playwright.Runtime.Callers.unhandled("", :error, error, [])
+      end)
     )
+  end
 
-    assert %{status: :failed, errors: [%{message: "RuntimeError: listener boom"}]} = Playwright.Test.info(pid)
+  # `Playwright.Test.TestInfo._unhandled_error/2`'s exit: the error once, whether the end of the
+  # body took it (and failed with it) before the exit or not.
+  test "an unhandled error's interrupt: the error once" do
+    error = %RuntimeError{message: "listener boom"}
+
+    # The exit lands first.
+    interrupted = fake_test()
+    ref = Process.monitor(interrupted)
+    unhandled(interrupted, error)
+    assert_receive {:DOWN, ^ref, :process, _, {^error, []}}, 5000
+    assert %{status: :failed, errors: [%{message: "RuntimeError: listener boom"}]} = Playwright.Test.info(interrupted)
+
+    # The end of the body took it and failed with it, then the exit (a test trapping exits).
+    failed = fake_test(true, true)
+    unhandled(failed, error)
+
+    take_and_fail = fn pid ->
+      [taken] = Playwright.Test.TestInfo.finish(pid)
+      {:failed, pid, taken}
+    end
+
+    end_test(failed, [take_and_fail], {error, []})
+    assert %{status: :failed, errors: [%{message: "RuntimeError: listener boom"}]} = Playwright.Test.info(failed)
   end
 
   test "passed, timed out, and unknown for another macro's test" do

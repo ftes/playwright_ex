@@ -614,6 +614,12 @@ defmodule Playwright.Test.TestInfo do
   ended (a process of it outlived its body), the error is printed, as outside a test.
   """
   def _fail_with_error(this, error) do
+    record_error(this, error)
+    :ok
+  end
+
+  # Whether `error` was recorded on the running test, else printed.
+  defp record_error(this, error) do
     key = {:test_info, this.test_pid, {:error, System.unique_integer([:monotonic])}}
 
     # Taken back if the test ended meanwhile, unless its end took it already (one `take` wins).
@@ -622,54 +628,97 @@ defmodule Playwright.Test.TestInfo do
         (running?(this) or :ets.take(Results.table(), key) == [])
 
     if recorded?, do: TestTracing.append_for_error(_tracing(this), error), else: IO.puts(error_message(error))
-    :ok
+    recorded?
   end
 
   @doc """
   The worker's `unhandledError` (an error a callback of the test left unhandled: a listener's, a
-  route handler's): the test's first one (`_hasUnhandledError`) is `_failWithError`ed, then
-  upstream's `_stop()` interrupts the test, whose body is abandoned. Here the test's process exits
-  with the error, which ExUnit reports as the test's failure (`Playwright.Test.Results` keeps it
-  once). A test that traps exits gets it as a message. Later ones are dropped, as upstream.
-
-  Elixir only: from the test's own process (a listener of a local emitter it emits on, run in
-  place and caught alone, see `Playwright.Client.EventEmitter`), the first one is recorded and
-  the test fails with it at the end of its body: the process can't interrupt itself without
-  leaving `emit`. Once the test ended, it is printed (`_fail_with_error/2`).
+  route handler's), from another process than the test's: the test's first one
+  (`_hasUnhandledError`) is `_failWithError`ed, and each one `_stop()`s the test, whose body is
+  abandoned. Here the test's process exits with the first one, which ExUnit reports as the
+  test's failure (`Playwright.Test.Results` keeps it once), after `_didFinishTestFunction`'s
+  screenshots (`Playwright.Test.Recorder.did_finish_test_function/2`), as upstream takes them
+  after the interrupt: the process takes them before it exits, so before the `on_exit` callbacks.
+  A test that traps exits gets the exit as a message, once per error. Once the test ended, the
+  error is printed (`_fail_with_error/2`).
   """
   def _unhandled_error(this, {kind, reason, stacktrace} = error) do
-    cond do
-      not running?(this) ->
-        _fail_with_error(this, error)
-
-      not first_unhandled_error?(this) ->
-        :ok
-
-      true ->
-        _fail_with_error(this, error)
-
-        if this.test_pid != self(),
-          do: Process.exit(this.test_pid, interrupt_reason(kind, reason, stacktrace))
+    case first_unhandled_error(this, interrupt_reason(kind, reason, stacktrace), error) do
+      :first -> if record_error(this, error), do: stop(this)
+      :later -> if interrupted?(this), do: exit_test(this)
+      :ended -> _fail_with_error(this, error)
     end
 
     :ok
   end
 
-  # `_hasUnhandledError`, set once (`insert_new`, atomic across the test's processes).
-  defp first_unhandled_error?(this) do
+  # `_hasUnhandledError`, set once (`insert_new`, atomic across the test's processes), with the
+  # first error and the exit that interrupts the test (`interrupt/1`, read by `Playwright.Test.Results`).
+  defp first_unhandled_error(this, reason, error) do
     key = {:test_info, this.test_pid, :has_unhandled_error}
-    first? = :ets.insert_new(Results.table(), {key, true})
-    # Elixir only: the test ended (see `put_row/3`).
-    if !running?(this), do: :ets.delete(Results.table(), key)
-    first?
+
+    cond do
+      not running?(this) ->
+        :ended
+
+      :ets.insert_new(Results.table(), {key, {reason, error, false}}) ->
+        # Elixir only: the test ended meanwhile (see `put_row/3`).
+        if running?(this) do
+          :first
+        else
+          :ets.delete(Results.table(), key)
+          :ended
+        end
+
+      true ->
+        :later
+    end
   end
 
-  @doc false
+  # `_stop()` after `_didFinishTestFunction`, in a process of its own: the caller may be a
+  # listener the connection waits on, which the screenshots need. Then a later error's `_stop()`
+  # exits the test again (a test that traps exits); before, this exit is still to come.
+  defp stop(this) do
+    spawn(fn ->
+      Recorder.did_finish_test_function(this.test_pid, true)
+      exit_test(this)
+      key = {:test_info, this.test_pid, :has_unhandled_error}
+      # Replaced only while it is there: `ended/1` may have removed it.
+      :ets.select_replace(Results.table(), [
+        {{key, {:"$1", :"$2", false}}, [], [{{{:const, key}, {{:"$1", :"$2", true}}}}]}
+      ])
+    end)
+  end
+
+  defp interrupted?(this), do: match?({_, _, true}, interrupt_row(this.test_pid))
+
+  # With the first error's exit (`Playwright.Test.Results` dedupes it). Not once the test ended.
+  defp exit_test(this) do
+    with true <- running?(this),
+         {reason, _error, _done?} <- interrupt_row(this.test_pid),
+         do: Process.exit(this.test_pid, reason)
+  end
+
+  defp interrupt_row(test_pid) do
+    case :ets.lookup(Results.table(), {:test_info, test_pid, :has_unhandled_error}) do
+      [{_key, row}] -> row
+      [] -> nil
+    end
+  end
+
+  @doc """
+  The interrupt of the test `test_pid` (`_unhandled_error/2`), if any: `{exit_reason, error}`.
+  Read by the pool as the test ends, before `ended/1` removes the row.
+  """
+  def interrupt(test_pid) do
+    with {reason, error, _done?} <- interrupt_row(test_pid), do: {reason, error}
+  end
+
   # The exit reason of `_unhandled_error/2`, as ExUnit formats a crash: `{exception, stacktrace}`.
   # An exit is wrapped, so that `:normal` interrupts the test too and `:kill` is not a plain kill.
-  def interrupt_reason(:error, exception, stacktrace), do: {exception, stacktrace}
-  def interrupt_reason(:throw, value, stacktrace), do: {{:nocatch, value}, stacktrace}
-  def interrupt_reason(:exit, reason, _stacktrace), do: {:exit_in_callback, reason}
+  defp interrupt_reason(:error, exception, stacktrace), do: {exception, stacktrace}
+  defp interrupt_reason(:throw, value, stacktrace), do: {{:nocatch, value}, stacktrace}
+  defp interrupt_reason(:exit, reason, _stacktrace), do: {:exit_in_callback, reason}
 
   @doc "Elixir only: the `message` of an error `{kind, reason, stacktrace}`."
   def error_message({:error, reason, stacktrace}),

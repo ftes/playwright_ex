@@ -457,18 +457,7 @@ defmodule Playwright.Test do
   defp errors(:error, %ExUnit.MultiError{errors: errors}, _stacktrace), do: errors
   defp errors(kind, reason, stacktrace), do: [{kind, reason, stacktrace}]
 
-  # `didFinishTestFunction`: screenshots of the open pages, before the `on_exit` callbacks.
-  defp finished_test_function(failed?) do
-    with %{screenshot: [{:mode, mode} | _], retry: retry} <- Recorder.registration(self()),
-         true <- Recorder.should_capture_upon_finish(mode, failed?, retry),
-         recorder when is_pid(recorder) <- Recorder.lookup(self()),
-         do: Recorder.capture(recorder, failed?)
-
-    :ok
-  catch
-    # The recorder is gone: the test's own result and failure stand.
-    :exit, _ -> :ok
-  end
+  defp finished_test_function(failed?), do: Recorder.did_finish_test_function(self(), failed?)
 
   @doc false
   # Elixir only: `__started__/1` as the module's first `setup` callback, before those defined
