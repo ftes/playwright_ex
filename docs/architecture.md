@@ -309,9 +309,11 @@ module, not put in the context) and ExUnit tags; the rest are arguments.
 | `context`/`page` fixtures, `browser.newContext()` | `Browser.new_context!/2`, `BrowserContext.new_page!/1`; `Playwright.Case` puts them together |
 | `request` fixture | `APIRequest.new_context!/2` in the test (disposed at its end); not in `Playwright.Case`, where each test would pay for it |
 | auto `_setupArtifacts` | the recording of every registered test (`error-context.md` whatever the modes) |
-| `_combinedContextOptions` (`{...contextOptions, ...options}`) | Playwright Test's defaults, then config `context_options`, then the call's (`key in options`) |
+| `_combinedContextOptions` (`{...contextOptions, ...options}`) | Playwright Test's defaults, then config `context_options`, then the module's `use` option `context_options` (a function of the test's context, at its registration), then the call's (`key in options`) |
+| `test.use({ locale, ... })` (test-scoped option fixtures, file level) | `use Playwright.Test, context_options: _`: options (converted at compile time) or `&Mod.fun/1`/`{Mod, :fun}` of the ExUnit context (called at the registration), a module's `use`s in order, each over the earlier per key; `nil` resets to the config's or the default (`_appendFixtureList`); the contexts of `setup_all` get the options, none if a `use` gives a function (not ported: `beforeAll` gets them) |
 | `actionTimeout`, `navigationTimeout` (default 0) | config `action_timeout`, `navigation_timeout` (default `:infinity`), set on each context |
 | test timeout, `closeReason` "Test timeout of Nms exceeded." | ExUnit's timeout; the recorder closes the test's contexts with that reason just before it |
+| `beforeAll` hook's timeout (the test timeout, a slot per hook), `"beforeAll" hook timeout of Nms exceeded.` | ExUnit's timeout of the module, for all its `setup_all` callbacks: past it a watchdog exits the `setup_all` process (ExUnit has none) with upstream's message, `beforeAll` renamed: `"setup_all" hook timeout of Nms exceeded.`; `browser/1` (seat wait, driver start, launch) not counted, nor bounded; a failed `setup_all` resets its seats (upstream's `worker.stop(true /* didFail */)`) |
 | `test.use({ trace, screenshot, video })` (worker-scoped, file level) | `use Playwright.Test, trace: _` over config, `@moduletag`/`@describetag`/`@tag` over it (`tags: false`: none) |
 | `testIdAttribute` (per test) | config `test_id_attribute`, set on each pooled driver: the client's value is global to the VM, not to a worker |
 | `--trace <mode>` | `TRACE` read in `config/test.exs` |
@@ -356,9 +358,13 @@ recorder, so a test's recording sees the contexts of all its browsers. The recor
 starts at the test's first context (at its registration when it traces, for its steps): a test
 without contexts runs none, and its `error-context.md` comes from `TestInfo`. A context a test
 process creates before its registration (a template's `setup` with the `use` only in `using`)
-makes the registration raise with the fix; one outside any test gets no defaults and no
-recording. The driver also adds every call's stack to each trace on its connection, so the trace
-merge keeps a chunk's own actions' stacks and sources.
+makes the registration raise with the fix. The module's `setup_all` process registers too (a
+`setup_all` of the `use`), as upstream's `beforeAll` gets its `all-hooks-included` fixtures: its
+contexts (and those of processes with it in `$callers`) get the defaults and timeouts, but no
+recording. A context created outside both a test and a module's `setup_all` (no process of
+either in its `$callers`) gets no defaults and no recording. The driver also adds every call's
+stack to each trace on its connection, so the trace merge keeps a chunk's own actions' stacks
+and sources.
 
 The pool is upstream's worker model. `browser/1` is held by the scope that calls it: `setup_all`'s
 module (upstream runs a file in one worker), or the test (a `Task` resolves to it through
@@ -396,7 +402,7 @@ then the longest idle, where upstream takes the first. The differences:
 | unit of work | a test group: a file's tests of one project | the scope that calls `browser/1`: a module (`setup_all`) or a test, as ExUnit schedules modules |
 | ordering | the queue grouped by hash, so a worker rarely switches | ExUnit's random module order (not portable: ExUnit owns it), so a run that mixes configurations restarts workers often: one configuration per invocation |
 | idle workers | `_isWorkerRedundant` stops a worker no queued job needs | restarted lazily, when a scope of another key takes the seat: there is no queue to look ahead |
-| where waiting happens | the dispatcher's queue, before a worker runs the group | inside `browser/1`: no timeout in `setup_all`, the test timeout in `setup` or a test |
+| where waiting happens | the dispatcher's queue, before a worker runs the group | inside `browser/1`: not counted in `setup_all`'s timeout, counted in the test timeout in `setup` or a test |
 | a scope needing a second configuration | another project, another worker | a further key over `workers`, so a scope that holds one never waits for itself |
 | concurrency | `workers`, half the cores | ExUnit's `max_cases` (twice the schedulers, about four times as many) with `workers` drivers: modules past `workers` wait at no cost, those that never call `browser/1` are unaffected |
 | per-project worker limit | `project.workers` | not needed: one configuration per invocation sets `workers` per run; serial runs use ExUnit's `async: false` |

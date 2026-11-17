@@ -51,6 +51,12 @@ Node 26.13.1. No upstream API changes.
 - A warning when the connection has waited 5 s for one listener or route handler, which stalls
   every page on it: it names the listener, shows where it waits and points to the fix
   ([Concurrency](guides/concurrency.md#no-blocking-work-in-listeners)).
+- **RC only:** `use Playwright.Test` (and `use Playwright.Case`) takes `context_options:`,
+  Playwright Test's `test.use({ locale: 'de-DE' })`: the options, or a function of the test's
+  context (`&Mod.fun/1`, e.g. over your `parameterize:` values), over the config's per key, under
+  the call's, for every context of the module's tests, and the options for its `setup_all`'s
+  unless a `use` gives a function (#257). An option given as `nil` resets it to the config's or
+  the default, as upstream's `undefined`.
 
 ### Changed
 
@@ -64,6 +70,27 @@ Node 26.13.1. No upstream API changes.
 - **RC only:** `Expect.to_pass!/2` returns the callback's value from the attempt that passed,
   which JS assigns to an outer `let`. **Breaking:** `Expect.to_pass/2` returns `{:ok, value}`,
   not `:ok`.
+- **RC only:** **Breaking:** a context created in `setup_all` before `use Playwright.Test`
+  registered the module (a case template's own `setup_all` with the `use` only in its `using`,
+  or a `setup_all` above the module's `use`) makes the module's `setup_all` raise, naming the
+  fix, as such a context in `setup` already does.
+- **RC only:** **Breaking:** contexts and request contexts created in a module's `setup_all` (or
+  a process with it in `$callers`) get the context defaults and the config's `context_options`
+  (`base_url` too), as Playwright Test's `beforeAll` does (#257). A context gets the config's
+  `action_timeout` and `navigation_timeout`, a request context `timeout:` the `action_timeout`
+  (`0` for `:infinity`) and no navigation timeout: no limit by default, where they had the
+  client's 30 s.
+- **RC only:** **Breaking:** a module's `setup_all` callbacks fail past ExUnit's timeout of the
+  module (`@moduletag timeout:`, else ExUnit's `timeout`), with `"setup_all" hook timeout of
+  60000ms exceeded.`, as Playwright Test's `beforeAll` hook times out (#257). A longer
+  `setup_all` needs a `@moduletag timeout:`. A failed `setup_all`'s pooled browsers reset at the
+  module's end, as a failed test's do.
+- **RC only:** **Breaking:** `use Playwright.Case` also aliases `Playwright.Keyboard` and
+  `Playwright.Mouse`, so `Keyboard` and `Mouse` in such a module resolve to Playwright's
+  modules; alias your own module after the `use` (`alias MyApp.Keyboard`) to keep it.
+- **RC only:** **Breaking:** an option of the config's `context_options` given as `nil` falls
+  back to Playwright Test's default (`locale: nil` is `en-US`), as upstream's `undefined`, not to
+  the client's.
 - **RC only:** a handle of the wrong class (a `Locator` passed to `Page.get_by_test_id/2`) fails
   in the facade function, whose clause matches its struct, not in `Playwright.Runtime.Heap.key/2`.
 - **RC only:** a string that is not UTF-8 (`Route.fulfill!(route, body: png)`) fails with a hint

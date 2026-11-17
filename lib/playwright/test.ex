@@ -51,10 +51,17 @@ defmodule Playwright.Test do
   body: a template's own `setup` callbacks run before those its `using` brings in, so the test
   is registered before them, and their contexts are recorded too. That `use` takes no options
   (they go in `using`); a module's later `use`s (a template's `using` and the module's own) only
-  add their options (see "Artifacts"). A context that a test process creates before its
-  registration (a template's `setup` with no `use` in the body) makes the registration raise,
-  with that fix. A context created outside a test (in `setup_all`, in a module without `use
-  Playwright.Test`, on a driver you started yourself) gets no defaults and no recording.
+  add their options (see "Artifacts"). With the `use` only in the template's body, the
+  `setup_all` timeout (see "Timeouts") covers only the template's `setup_all` callbacks. A
+  context that a test process creates before its registration (a template's `setup` with no
+  `use` in the body) makes the registration raise,
+  with that fix. It registers the module's `setup_all` process too, as upstream runs its
+  `beforeAll` hooks with its `all-hooks-included` fixtures: see "Contexts of `setup_all`". A
+  `setup_all` runs in that process, not a test's, so one that creates a context before the
+  registration (a template's own `setup_all`, or one above the module's `use`) makes the
+  module's `setup_all` raise, with the fix, and fails all its tests. A context created outside
+  both (in an `on_exit` callback, in a module without `use Playwright.Test`, in a process with
+  neither in its `$callers`, on a driver you started yourself) gets no defaults and no recording.
 
   The rest is called qualified, as upstream's `test.info()` and `test.step()`: `info/0`
   (`info/1` in `on_exit`, with the test's result), `output_path/1`, `attach/2`, `snapshot_path/2`, `step/2,3` and `step_skip/2,3`. They work in the test's
@@ -116,7 +123,10 @@ defmodule Playwright.Test do
 
   `use Playwright.Test, trace: :on` is upstream's file-level `test.use({ trace: 'on' })` (the
   modes are worker-scoped options there), with the values the config takes; an unknown option or
-  an invalid value raises at compile time. A module's `use`s merge per key, the later winning.
+  an invalid value raises at compile time, as does a `context_options: {Mod, :fun}` whose `Mod`
+  is a context option's key (`{:color_scheme, :dark}`); a `context_options` function's existence
+  and result are checked at the registration, see "Context defaults". A module's `use`s merge per key, the
+  later winning.
   ExUnit.Case's keys (`:async`, ...) are ignored, so a template forwards its options from `using
   opts` as is: `use Playwright.Test, unquote(opts)`, as `Playwright.Case` does. A template
   with options of its own pops them first (`{sandbox, opts} = Keyword.pop(opts, :sandbox)`),
@@ -151,14 +161,60 @@ defmodule Playwright.Test do
 
   ## Context defaults
 
-  Every context and request context a test creates on a `BrowserPool` browser
-  (`Playwright.Browser.new_context/2`, `Playwright.BrowserType.launch_persistent_context/3`,
-  `Playwright.APIRequest.new_context/2`) gets Playwright Test's context defaults (`locale:
+  Every context and request context a test (or its module's `setup_all`) creates on a
+  `BrowserPool` browser (`Playwright.Browser.new_context/2`,
+  `Playwright.BrowserType.launch_persistent_context/3`, `Playwright.APIRequest.new_context/2`) gets Playwright Test's context defaults (`locale:
   "en-US"`, a 1280x720 viewport, `color_scheme: :light`, ...), then the config's
   `context_options` over them, for each option the call doesn't give, as upstream's
-  `_combinedContextOptions`. An option given as `nil` keeps the client's default; `viewport:
-  :null` is none. An option replaces the default as a whole (`extra_http_headers` too, as
+  `_combinedContextOptions`. An option the call gives as `nil` keeps the client's default; one
+  the config gives as `nil` falls back to Playwright Test's default, and one the module gives as
+  `nil` (below) to the config's or the default, past the module's earlier `use`s, as upstream's
+  `undefined` option override; `viewport: :null` is none. An option replaces the default as a whole (`extra_http_headers` too, as
   upstream's shallow spread).
+
+  `use Playwright.Test, context_options: [locale: "de-DE"]` (or `use Playwright.Case, ...`) is
+  upstream's file-level `test.use({ locale: 'de-DE' })`: the module's options, over the config's
+  per key, under the call's. They are evaluated at compile time, so for values known at run time
+  pass a function of the test's ExUnit context instead, an external capture
+  (`&MyApp.BrowserCase.context_options/1`) or `{MyApp.BrowserCase, :context_options}`, which
+  returns the options (an anonymous function raises at compile time: it can't be kept in the
+  module). It is called once per test, at its registration, with the context as it is then: the
+  tags, the `parameterize:` values (upstream's projects: `%{device: d}` from your own
+  parameters), the values of the module's `setup_all` callbacks and of the `setup` callbacks
+  before the registration (none with `Playwright.Case`, whose registration comes first). No key
+  of the context is read otherwise; an undefined function, or a result with an invalid option,
+  raises there, naming the function. The contexts of `setup_all` get the module's options, but
+  none if a `use` gives a function, where upstream's `beforeAll` gets them: a function is of a
+  test's context (see "Not ported yet" in the Testing with ExUnit guide); pass the options to the
+  call there. A module's
+  `use`s apply in order, each over those before it per key, options and a function's result
+  alike, as upstream's `test.use` calls (each option its own fixture).
+
+  ## Contexts of `setup_all`
+
+  `use Playwright.Test` adds a `setup_all` (where the `use` is, so before the module's own) that
+  registers the module's `setup_all` process: every context and request context it creates, or
+  a process with it in `$callers` creates, gets the context defaults, the config's
+  `context_options` (so `base_url`) and the module's (none if a `use` gives a function, see
+  "Context defaults"), merged as a test's, and the config's timeouts (see
+  "Timeouts"): a context's `action_timeout` and `navigation_timeout`, a request context's
+  `timeout:` the `action_timeout` (`0`, no limit, for `:infinity`) and no navigation timeout. Not
+  the video, as upstream's comes with the `context` fixture.
+
+  Only processes with `$callers` count: a `Task`, the client's callback processes (route
+  handlers, listeners, exposed bindings registered in `setup_all` carry its `$callers`, see
+  "Route handlers and listeners" in the Testing with ExUnit guide), or a process that sets them
+  itself (`Process.put(:"$callers", callers)`). A `spawn`, a `GenServer` or `Agent` start, and
+  `start_supervised` don't set them, so their contexts get no defaults. Deviation: a long-lived
+  process or handler of `setup_all`'s with them gets the module's defaults for every context it
+  creates later, during a test too, unrecorded. Upstream's `runBeforeCreateBrowserContext`
+  resolves the current test, so such a context gets that test's options and is recorded in it.
+
+  Not ported yet: a `setup_all` context isn't recorded per test (its actions aren't in a test's
+  trace, and it gets no screenshots or `error-context.md`), where upstream's `ArtifactsRecorder`
+  records every open context per test, `beforeAll` ones included: create the context per test,
+  as `Playwright.Case` does. And after a failed test, `setup_all` state (its pages too) carries
+  on, where upstream starts a fresh worker: bound calls on shared pages with `action_timeout`.
 
   ## Timeouts
 
@@ -176,11 +232,29 @@ defmodule Playwright.Test do
   hangs until then fails with that message and its call log, after the close kept the artifacts.
   A test stuck elsewhere (`Process.sleep/1`, a `receive`) still fails with ExUnit's
   `ExUnit.TimeoutError`. The timeout is ExUnit's: the `@tag timeout:` (`:infinity` for none) or
-  `mix test --timeout`; `mix test --trace` has none. `setup_all` is not covered. As ExUnit's
-  (and upstream's, which counts `beforeEach` hooks), the timeout counts the test's `setup`
-  callbacks: the clock starts at the module's first one, also one defined before `use
-  Playwright.Test` or in its case template. What ExUnit does before them (`@tag :tmp_dir`'s
-  cleanup, `capture_log`) is not counted, and comes out of the margin.
+  `mix test --timeout`; `mix test --trace` has none. As ExUnit's (and upstream's, which counts
+  `beforeEach` hooks), the timeout counts the test's `setup` callbacks: the clock starts at the
+  module's first one, also one defined before `use Playwright.Test` or in its case template.
+  What ExUnit does before them (`@tag :tmp_dir`'s cleanup, `capture_log`) is not counted, and
+  comes out of the margin.
+
+  A module's `setup_all` callbacks get the same timeout, the module's (`@moduletag timeout:`, else
+  ExUnit's `timeout`: `ExUnit.start(timeout:)` or `mix test --timeout`), as upstream's `beforeAll`
+  hook gets the test timeout: past it, the `setup_all` fails with upstream's message with
+  `beforeAll` renamed, `"setup_all" hook timeout of 60000ms exceeded.`, and the stack it was at.
+  ExUnit has no timeout there, so the runner exits the `setup_all` process, which fails the
+  module as a crash does; its `on_exit` callbacks still run. The failure is ExUnit's for an exit
+  (`** (EXIT from #PID<...>)`), with the stack unpruned, and a hung call fails without its call
+  log: unlike a test's, its contexts aren't closed with a reason before the exit. Its pooled
+  browsers are reset at the module's end instead, as a failed test's, which closes its contexts:
+  a failed `setup_all`'s are, as upstream stops a worker whose job failed. A `setup_all` process
+  that traps exits is killed 1 s after the timeout instead: it fails with `:killed`, without the
+  message. One timeout counts all of the module's `setup_all` callbacks, where upstream counts
+  each hook on its own. `BrowserPool.browser/1` (the wait for a worker, its start) is not counted,
+  as upstream's queue has no timeout and its worker fixtures have a timeout of their own: there,
+  nothing bounds them. Its contexts get the config's `action_timeout` and
+  `navigation_timeout` (`:infinity` by default, not the client's 30 s), as upstream's `beforeAll`
+  contexts get `actionTimeout || 0`.
 
   ## Snapshots
 
@@ -286,6 +360,7 @@ defmodule Playwright.Test do
 
           if Playwright.Test.__use__(__MODULE__, unquote(opts)) do
             Playwright.Test.__clock__(__MODULE__)
+            setup_all({Playwright.Test, :__setup_all__})
             setup({Playwright.Test, :__setup__})
           end
         end
@@ -297,6 +372,7 @@ defmodule Playwright.Test do
 
           if Playwright.Test.__use__(__MODULE__, []) do
             Playwright.Test.__clock__(__MODULE__)
+            setup_all({Playwright.Test, :__setup_all__})
             setup({Playwright.Test, :__setup__})
           end
         end
@@ -344,20 +420,56 @@ defmodule Playwright.Test do
         true
 
       past ->
-        Module.put_attribute(module, :playwright_test, Map.merge(past, options))
+        Module.put_attribute(module, :playwright_test, Map.merge(past, options, &merge_use/3))
         false
     end
   end
 
+  # Context options apply in `use` order, each over those before it per key, as upstream's
+  # `test.use` calls (each option its own fixture). A function given again (two `use`s with it: a
+  # template's `using` and the module's own) is kept only where it came last, so it runs once and
+  # still wins over the options before it; the options keep their order and their `nil` resets.
+  defp merge_use(:context_options, past, options),
+    do: Enum.reduce(options, past, &if(is_map(&1), do: &2 ++ [&1], else: List.delete(&2, &1) ++ [&1]))
+
+  defp merge_use(_key, _past, options), do: options
+
   @doc false
   # The module's merged `use` options, for its registration (`__register__/1`): a function, so the
-  # test's context stays the test author's.
+  # test's context stays the test author's. And the timeout of its `setup_all` callbacks
+  # (`Playwright.Test.SetupAllTimeout`), around all of them: this hook runs after ExUnit's, which
+  # compiled them into `__ex_unit__/2`.
   defmacro __before_compile__(env) do
     options = Module.get_attribute(env.module, :playwright_test)
+
+    # Without ExUnit's `__ex_unit__/2` (its internals changed), no `setup_all` timeout: said at
+    # compile time.
+    setup_all_timeout =
+      if Module.defines?(env.module, {:__ex_unit__, 2}) do
+        quote do
+          defoverridable __ex_unit__: 2
+
+          @doc false
+          def __ex_unit__(:setup_all, context),
+            do: Playwright.Test.SetupAllTimeout.run(context, fn -> super(:setup_all, context) end)
+
+          def __ex_unit__(kind, context), do: super(kind, context)
+        end
+      else
+        IO.warn(
+          "use Playwright.Test found no __ex_unit__/2 in #{inspect(env.module)}: ExUnit's internals " <>
+            "changed, so its setup_all timeout is off",
+          Macro.Env.stacktrace(env)
+        )
+
+        nil
+      end
 
     quote do
       @doc false
       def __playwright_test__(:options), do: unquote(Macro.escape(options))
+
+      unquote(setup_all_timeout)
     end
   end
 
@@ -516,29 +628,60 @@ defmodule Playwright.Test do
   end
 
   @doc false
+  # The `setup_all` of `use Playwright.Test`: registers the module's `setup_all` process, so the
+  # contexts it (or a process with it in `$callers`) creates get the context defaults and
+  # timeouts, as upstream's `beforeAll` gets its `all-hooks-included` fixtures.
+  def __setup_all__(context) do
+    Pool.ensure_started()
+
+    # Once: a case template's body and its `using` may both bring it.
+    if !match?({:module, _}, Results.scope(self())) do
+      check_registered!(
+        self(),
+        "this module's setup_all created a context before `use Playwright.Test` registered it (a case " <>
+          "template's own `setup_all` runs before the `use` in its `using`, and a module's `setup_all` " <>
+          "before its `use Playwright.Test` runs first), so the context got no context defaults: " <>
+          "add `use Playwright.Test` as the first line of the case template's body, or move the " <>
+          "`setup_all` after the module's `use Playwright.Test`"
+      )
+
+      # A function of the `use` option `context_options` is of a test's context: the module's
+      # options apply here only if no `use` gives one.
+      module_options = Options.use_context_options(use_options(context[:module]), nil)
+      Results.register_module(self(), context_defaults(Options.config(), module_options))
+    end
+
+    :ok
+  end
+
+  # Raises `message` if `pid` created a context before its registration
+  # (`Playwright.Test.Results.note_unregistered/1`).
+  defp check_registered!(pid, message) do
+    if :ets.take(Results.table(), {:unregistered, pid}) != [], do: raise(ArgumentError, message)
+  end
+
+  @doc false
   # The per-test `setup` of `use Playwright.Test`: registers the test, once (a case
   # template's body and its `using` may both bring it).
   def __setup__(%{test_pid: test_pid} = context) do
     Pool.ensure_started()
 
-    cond do
-      Recorder.registration(test_pid) ->
-        :ok
+    if !Recorder.registration(test_pid) do
+      check_registered!(
+        test_pid,
+        "this test created a context before `use Playwright.Test` registered it (a case template's " <>
+          "`setup` runs before the `use` in its `using`), so the context has no defaults and no " <>
+          "recording: add `use Playwright.Test` as the first line of the case template's body"
+      )
 
-      :ets.take(Results.table(), {:unregistered, test_pid}) != [] ->
-        raise ArgumentError,
-              "this test created a context before `use Playwright.Test` registered it (a case template's " <>
-                "`setup` runs before the `use` in its `using`), so the context has no defaults and no " <>
-                "recording: add `use Playwright.Test` as the first line of the case template's body"
-
-      true ->
-        test = __register__(context)
-        timeout = test.test_timeout
-        # Each `on_exit` callback gets the test's timeout: half of it for the artifacts.
-        budget = if is_integer(timeout), do: div(timeout, 2), else: :infinity
-        ExUnit.Callbacks.on_exit(fn -> __finish__(test.test_pid, budget) end)
-        :ok
+      test = __register__(context)
+      timeout = test.test_timeout
+      # Each `on_exit` callback gets the test's timeout: half of it for the artifacts.
+      budget = if is_integer(timeout), do: div(timeout, 2), else: :infinity
+      ExUnit.Callbacks.on_exit(fn -> __finish__(test.test_pid, budget) end)
     end
+
+    :ok
   end
 
   @doc false
@@ -548,7 +691,8 @@ defmodule Playwright.Test do
     # Read and validated once.
     config = Options.config()
     test_info = TestInfo.new(context, config.output_dir)
-    modes = Options.artifacts(context, config, use_options(context[:module]))
+    use_options = use_options(context[:module])
+    modes = Options.artifacts(context, config, use_options)
     # Upstream's `testTracing.startIfNeeded` and `_contextFactory`'s `captureVideo`, by the retry.
     modes = %{
       modes
@@ -558,7 +702,7 @@ defmodule Playwright.Test do
 
     file = context.file
     marked? = context[:playwright_test] == :marked
-    timeout = test_timeout(context)
+    timeout = Options.ex_unit_timeout(context)
 
     test =
       test_info
@@ -569,11 +713,10 @@ defmodule Playwright.Test do
         location: {file, context[:line]},
         test_timeout: timeout,
         deadline: if(is_integer(timeout), do: started(context) + timeout),
-        context_options: Options.context_options(config),
-        timeouts: Options.timeouts(config),
         preserve_output: Options.preserve_output(config),
         tmp: Path.join(System.tmp_dir!(), "playwright-test-#{System.unique_integer([:positive])}")
       })
+      |> Map.merge(context_defaults(config, Options.use_context_options(use_options, context)))
 
     TestInfo.remove_output_dirs(test)
     # The failure of a marked test that raised nothing in its body.
@@ -585,6 +728,11 @@ defmodule Playwright.Test do
     if modes.trace[:mode] != :off, do: Results.recorder(test.test_pid)
     test
   end
+
+  # What a test's or a module's `setup_all`'s contexts get from `config` and the module's
+  # `context_options` (`Playwright.Test.Options.use_context_options/2`).
+  defp context_defaults(config, module_options),
+    do: %{context_options: Options.context_options(config, module_options), timeouts: Options.timeouts(config)}
 
   # The merged options of a module's `use Playwright.Test` (`__before_compile__/1`).
   defp use_options(module) do
@@ -599,12 +747,6 @@ defmodule Playwright.Test do
   # deadline (`Recorder.test_timeout_margin/1`). Now, for a registration from elsewhere.
   defp started(context) do
     (self() == context.test_pid && Process.get(@started)) || System.monotonic_time(:millisecond)
-  end
-
-  # ExUnit's `get_timeout/2`: none under `--trace`, else the test's `timeout` tag or the config's.
-  defp test_timeout(context) do
-    config = ExUnit.configuration()
-    if config[:trace], do: :infinity, else: Map.get(context, :timeout, config[:timeout])
   end
 
   @doc false

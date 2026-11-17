@@ -10,6 +10,7 @@ defmodule Playwright.Test.BrowserPoolTest do
   alias Playwright.Test.Options
   alias Playwright.Test.Pool
   alias Playwright.Test.Results
+  alias Playwright.Test.SetupAllTimeout
   alias Playwright.Test.TestInfo
 
   # A worker of this module's (no other module passes this `env`), of each call's options
@@ -62,6 +63,14 @@ defmodule Playwright.Test.BrowserPoolTest do
     t = fake_test()
     lease(t, opts)
     finish(t, [passed()], :shutdown)
+  end
+
+  # The same, its browser.
+  defp finish_leased_browser(opts) do
+    t = fake_test()
+    leased = lease(t, opts)
+    finish(t, [passed()], :shutdown)
+    leased
   end
 
   def on_start(playwright, test_pid) do
@@ -263,6 +272,140 @@ defmodule Playwright.Test.BrowserPoolTest do
       assert end_test(pid, [passed()], :shutdown) == {:passed, []}
       Results.forget(pid)
       assert Results.result(pid, 100) == {nil, []}
+    end
+  end
+
+  describe "setup_all" do
+    # A registered `setup_all` scope's process (`use Playwright.Test`'s), as ExUnit's: its
+    # callbacks, `failed` after a lease of `opts` and a context on it, their error caught, then the
+    # wait for the module's end. Its `on_exit` release, after it exited (the real one: the
+    # `modules` mode of `Playwright.Test.EndToEndTest`).
+    # With `leased_first`, its lease comes before its registration, as a case template's own
+    # `setup_all` takes it with the `use Playwright.Test` only in its `using`.
+    defp failed_setup_all(opts, failed, leased_first \\ false) do
+      test = self()
+
+      {pid, ref} =
+        spawn_monitor(fn ->
+          if leased_first, do: Pool.browser(Options.pool(opts), {:process, self()})
+          Playwright.Test.__setup_all__(%{})
+
+          try do
+            SetupAllTimeout.run(%{module: __MODULE__, timeout: 3000}, fn ->
+              %{browser: browser} = leased = Pool.browser(Options.pool(opts), {:process, self()})
+              Browser.new_context!(browser)
+              send(test, {:leased, leased})
+              fail(failed)
+            end)
+          catch
+            _kind, _reason -> :ok
+          end
+
+          receive do: (:module_end -> :ok)
+        end)
+
+      assert_receive {:leased, leased}, 30_000
+      send(pid, :module_end)
+      assert_receive {:DOWN, ^ref, :process, ^pid, _reason}, 10_000
+      Pool.release(pid)
+      leased
+    end
+
+    # Raised: ExUnit catches it, the process exits normally.
+    defp fail(:raised), do: raise("boom")
+    defp fail(:timed_out), do: Process.sleep(:infinity)
+
+    # Taken down by a linked process, also one that stops as a `GenServer` does when shut down.
+    defp fail(:linked_crash) do
+      spawn_link(fn -> exit(:boom) end)
+      Process.sleep(:infinity)
+    end
+
+    defp fail(:linked_shutdown) do
+      spawn_link(fn -> exit({:shutdown, :closed}) end)
+      Process.sleep(:infinity)
+    end
+
+    # Past the timeout: none under `mix test --trace`.
+    for failed <- [
+          :raised,
+          :linked_crash,
+          :linked_shutdown | if(ExUnit.configuration()[:trace], do: [], else: [:timed_out])
+        ] do
+      @tag :capture_log
+      test "a #{failed} setup_all resets its seat: the next scope of its options gets a fresh browser, without its contexts" do
+        opts = opts()
+        warm = finish_leased_browser(opts)
+        leased = failed_setup_all(opts, unquote(failed))
+        assert leased.playwright == warm.playwright
+
+        t = fake_test()
+        fresh = lease(t, opts)
+        assert fresh.playwright != warm.playwright
+        assert Browser.contexts(fresh.browser) == []
+        assert gone?(warm.browser)
+        finish(t, [passed()], :shutdown)
+      end
+    end
+
+    @tag :capture_log
+    test "an unregistered setup_all's (a plain ExUnit module's) failure is not its seat's" do
+      opts = opts()
+      test = self()
+
+      {pid, ref} =
+        spawn_monitor(fn ->
+          send(test, {:leased, Pool.browser(Options.pool(opts), {:process, self()})})
+          exit(:boom)
+        end)
+
+      assert_receive {:leased, leased}, 30_000
+      assert_receive {:DOWN, ^ref, :process, ^pid, :boom}, 10_000
+      Pool.release(pid)
+
+      t = fake_test()
+      assert lease(t, opts).playwright == leased.playwright
+      finish(t, [passed()], :shutdown)
+    end
+
+    @tag :capture_log
+    test "a setup_all registered after its first lease (a case template's own) resets its seat" do
+      opts = opts()
+      warm = finish_leased_browser(opts)
+      # A crash: its `DOWN` (a raise is told to the pool however it registered).
+      leased = failed_setup_all(opts, :linked_crash, true)
+      assert leased.playwright == warm.playwright
+
+      t = fake_test()
+      fresh = lease(t, opts)
+      assert fresh.playwright != warm.playwright
+      assert Browser.contexts(fresh.browser) == []
+      finish(t, [passed()], :shutdown)
+    end
+
+    test "a passed setup_all's seat goes back warm" do
+      opts = opts()
+      test = self()
+
+      {pid, ref} =
+        spawn_monitor(fn ->
+          Playwright.Test.__setup_all__(%{})
+
+          SetupAllTimeout.run(%{module: __MODULE__, timeout: :infinity}, fn ->
+            send(test, {:leased, Pool.browser(Options.pool(opts), {:process, self()})})
+          end)
+
+          receive do: (:module_end -> :ok)
+        end)
+
+      assert_receive {:leased, leased}, 30_000
+      send(pid, :module_end)
+      assert_receive {:DOWN, ^ref, :process, ^pid, :normal}, 10_000
+      Pool.release(pid)
+
+      t = fake_test()
+      assert lease(t, opts).playwright == leased.playwright
+      finish(t, [passed()], :shutdown)
     end
   end
 

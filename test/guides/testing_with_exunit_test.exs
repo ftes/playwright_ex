@@ -728,3 +728,40 @@ defmodule Playwright.Guides.TestingWithExUnit.GroupTest do
     assert %{async?: true, group: :guide_group} = __MODULE__.__ex_unit__(:config)
   end
 end
+
+defmodule Playwright.Guides.TestingWithExUnit.PhoneTest do
+  # "Devices": the module's context options of a function. Deviation: the browser is `BROWSER`'s.
+  use Playwright.Case, async: true, context_options: &__MODULE__.iphone/1
+
+  def iphone(%{browser: browser}), do: Playwright.devices(BrowserPool.playwright(browser))["iPhone 13"]
+
+  test "on a phone", %{page: page, browser: browser} do
+    assert Page.viewport_size(page) == %{width: 390, height: 664}
+    assert Page.evaluate!(page, "navigator.userAgent") == iphone(%{browser: browser}).user_agent
+
+    page = BrowserContext.new_page!(Browser.new_context!(browser, viewport: %{width: 800, height: 600}))
+    assert Page.viewport_size(page) == %{width: 800, height: 600}
+    assert Page.evaluate!(page, "navigator.userAgent") == iphone(%{browser: browser}).user_agent
+  end
+end
+
+defmodule Playwright.Guides.TestingWithExUnit.SharedPageTest do
+  # "Porting Playwright Test specs": one page of `setup_all`, without `Playwright.Case`.
+  use ExUnit.Case, async: true
+  use Playwright.Test
+
+  alias Playwright.{Browser, BrowserContext, Page}
+  alias Playwright.Test.BrowserPool
+
+  setup_all do
+    context = Browser.new_context!(BrowserPool.browser())
+    on_exit(fn -> BrowserContext.close!(context) end)
+    %{page: BrowserContext.new_page!(context)}
+  end
+
+  test "shows the list", %{page: page} do
+    # The defaults.
+    assert Page.viewport_size(page) == %{width: 1280, height: 720}
+    assert Page.evaluate!(page, "navigator.language") == "en-US"
+  end
+end

@@ -64,11 +64,20 @@ defmodule Playwright.Test.Recorder do
 
   @doc """
   The registration of the running test (`Playwright.Test`'s per-test setup) of the calling
-  process or a process in its `$callers`, or `nil`.
+  process or a process in its `$callers`, or `nil`. It stops at the nearest registered scope: the
+  test, or `nil` when a module's `setup_all` comes first.
   """
   def registration do
-    Enum.find_value(Callers.capture(), &registration/1)
+    case defaults() do
+      {:test, test} -> test
+      _module_or_nil -> nil
+    end
   end
+
+  # The registration of the nearest of the calling process and its `$callers` that is a running
+  # test (`{:test, test}`) or a module's `setup_all` (`{:module, module}`,
+  # `Playwright.Test.Results.scope/1`), or `nil`: whose context defaults a context gets.
+  defp defaults, do: Enum.find_value(Callers.capture(), &Results.scope/1)
 
   @doc "The registration of the test `test_pid`, or `nil`."
   def registration(test_pid) do
@@ -85,10 +94,11 @@ defmodule Playwright.Test.Recorder do
   The listener each driver of `Playwright.Test.BrowserPool` gets when it starts (upstream's
   `_setupArtifacts` `csiListener`, `ArtifactsRecorder`'s and `_contextFactory`'s parts). Its
   context hooks run in the process that creates or closes a context, for every context of the
-  driver: they look up the creator's test (`registration/0`) and record only the test's
-  contexts. A process that creates one unregistered is noted
-  (`Playwright.Test.Results.note_unregistered/1`): the test process of a case template's `setup`
-  that runs before `use Playwright.Test`'s fails its registration.
+  driver: they look up the creator's test or module `setup_all`, nearest first in its `$callers`
+  (`Playwright.Test.Results.scope/1`). A test's contexts get its defaults and are recorded; a
+  module `setup_all`'s get the module's defaults, unrecorded. A process with neither that creates
+  one is noted (`Playwright.Test.Results.note_unregistered/1`): a test or `setup_all` process
+  that created one before `use Playwright.Test` registered it fails its registration.
   """
   def listener do
     %{
@@ -473,12 +483,16 @@ defmodule Playwright.Test.Recorder do
   # `runBeforeCreateBrowserContext`: `_contextFactory`'s `{ ...videoOptions, ...options }`, then
   # `_combinedContextOptions` for each key not in the options (a key given as `nil` stays).
   def before_create_browser_context(options) do
-    case registration() do
+    case defaults() do
       nil ->
         note_unregistered()
         options
 
-      test ->
+      # A module's `setup_all`: no video, as upstream's `_contextFactory` is the `context` fixture's.
+      {:module, module} ->
+        Map.merge(module.context_options, options)
+
+      {:test, test} ->
         options =
           if test.video[:mode] != :off and not Map.has_key?(options, :recordVideo),
             do:
@@ -510,15 +524,16 @@ defmodule Playwright.Test.Recorder do
   @doc false
   # `runBeforeCreateRequestContext`: `_combinedContextOptions` for each key not in the options.
   def before_create_request_context(options) do
-    case registration() do
+    case defaults() do
       nil ->
         note_unregistered()
         options
 
-      test ->
+      # A test's or a module's `setup_all`'s.
+      {_tag, scope} ->
         # `_defaultContextTimeout` (`actionTimeout || 0`), a default of the request context's own.
-        timeout = if test.timeouts.action_timeout == :infinity, do: 0, else: test.timeouts.action_timeout
-        Map.merge(Map.put(test.context_options, :timeout, timeout), options)
+        timeout = if scope.timeouts.action_timeout == :infinity, do: 0, else: scope.timeouts.action_timeout
+        Map.merge(Map.put(scope.context_options, :timeout, timeout), options)
     end
   end
 
@@ -530,21 +545,30 @@ defmodule Playwright.Test.Recorder do
   # its first context. A row `{{:context, guid}, recorder}` per recorded context: `before_close`
   # reads it, no call into every test's recorder on each close.
   def after_create_browser_context(context) do
-    with %{} = test <- registration(),
-         recorder when is_pid(recorder) <- Results.recorder(test.test_pid),
+    with {tag, scope} <- defaults(), do: after_create_browser_context(tag, scope, context)
+    nil
+  end
+
+  # A module's `setup_all`'s: its timeouts, no recording.
+  defp after_create_browser_context(:module, module, context), do: set_default_timeouts(context, module.timeouts)
+
+  defp after_create_browser_context(:test, test, context) do
+    with recorder when is_pid(recorder) <- Results.recorder(test.test_pid),
          true <- :ets.insert_new(Results.table(), {{:context, context.guid}, recorder}),
          do: record(context, recorder, test)
+  end
 
-    nil
+  # `_setupContextOptions`'s `playwright._defaultContextTimeout = actionTimeout || 0` (and the
+  # navigation's), which `Browser._setupBrowserContext` applies to each context. Per context
+  # here: a pooled driver's Playwright outlives the test, and serves any process.
+  defp set_default_timeouts(context, timeouts) do
+    BrowserContext.set_default_timeout(context, timeouts.action_timeout)
+    BrowserContext.set_default_navigation_timeout(context, timeouts.navigation_timeout)
   end
 
   # `didCreateBrowserContext`: a trace chunk of the context and of its `request`.
   defp record(context, recorder, test) do
-    # `_setupContextOptions`'s `playwright._defaultContextTimeout = actionTimeout || 0` (and the
-    # navigation's), which `Browser._setupBrowserContext` applies to each context. Per context
-    # here: a pooled driver's Playwright outlives the test, and serves any process.
-    BrowserContext.set_default_timeout(context, test.timeouts.action_timeout)
-    BrowserContext.set_default_navigation_timeout(context, test.timeouts.navigation_timeout)
+    set_default_timeouts(context, test.timeouts)
     call(recorder, {:add_context, context})
 
     if test.trace[:mode] != :off do

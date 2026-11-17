@@ -8,8 +8,9 @@ defmodule Playwright.Test.Options do
 
   @pool_keys [:browser_name, :launch_options, :connect_options, :driver, :on_start]
   @artifact_keys [:trace, :screenshot, :video]
-  # `use Playwright.Test`'s: upstream's worker-scoped options of `test.use`.
-  @use_keys @artifact_keys ++ [:tags]
+  # `use Playwright.Test`'s: upstream's options of `test.use`, the worker-scoped modes and the
+  # test-scoped context options.
+  @use_keys @artifact_keys ++ [:tags, :context_options]
   @config_only_keys [
     :context_options,
     :action_timeout,
@@ -81,9 +82,9 @@ defmodule Playwright.Test.Options do
 
   @doc """
   The options of `use Playwright.Test`, validated, as a map: the recording modes as the config
-  takes them, and `tags` (a boolean, `true` by default) whether the test's tags set them.
-  ExUnit.Case's keys are ignored (`without_ex_unit_keys/1`); any other key, a duplicated one or a
-  bad value raises.
+  takes them, `tags` (a boolean, `true` by default) whether the test's tags set them, and
+  `context_options`, the options or a function (see `use_context_options/2`). ExUnit.Case's keys
+  are ignored (`without_ex_unit_keys/1`); any other key, a duplicated one or a bad value raises.
   """
   def use_options(opts) do
     opts = without_ex_unit_keys(opts)
@@ -107,8 +108,99 @@ defmodule Playwright.Test.Options do
     Map.new(opts, fn
       {:tags, tags} when is_boolean(tags) -> {:tags, tags}
       {:tags, tags} -> raise ArgumentError, "invalid tags: #{inspect(tags)}, expected a boolean"
+      {:context_options, options} -> {:context_options, use_context_options!(options)}
       {key, value} -> {key, validate!(key, value)}
     end)
+  end
+
+  # `context_options:` of `use Playwright.Test` (upstream's `test.use({ locale: 'de-DE' })`, or an
+  # option fixture's function), as a list of what the module's `use`s give, in order: the options
+  # (a keyword list or a map), converted as the registration's, or a function of the test's ExUnit
+  # context returning them. The `use` options are evaluated at compile time and kept in the
+  # module, so the function is an external capture (`&Mod.fun/1`) or `{Mod, :fun}`: an anonymous
+  # one can't be stored. Whether the function exists is checked when it's called: its module may
+  # not be compiled yet, but a `Mod` that is a context option's key (a mistyped
+  # `{:color_scheme, :dark}`) raises here.
+  defp use_context_options!(fun) when is_function(fun, 1) do
+    case Function.info(fun, :type) do
+      {:type, :external} ->
+        [fun]
+
+      _local ->
+        raise ArgumentError,
+              "invalid context_options: an anonymous function can't be kept in the module at compile time, " <>
+                "use an external capture (&MyApp.BrowserCase.context_options/1) or {MyApp.BrowserCase, :context_options}"
+    end
+  end
+
+  defp use_context_options!({module, function} = mf) when is_atom(module) and is_atom(function) do
+    {:object, schema} = Playwright.Browser.__options_type__(:new_context)
+
+    if Map.has_key?(schema, module),
+      do:
+        raise(
+          ArgumentError,
+          "invalid context_options: #{inspect(mf)}, expected options (a keyword list or a map), " <>
+            "an external capture (&Mod.fun/1) or {Mod, :fun}"
+        )
+
+    [mf]
+  end
+
+  defp use_context_options!(options) when is_function(options),
+    do: raise(ArgumentError, "invalid context_options: #{inspect(options)}, expected a function of arity 1")
+
+  defp use_context_options!(options), do: [context_options!(options, "use Playwright.Test: ")]
+
+  @doc """
+  The module's `use` option `context_options` (`use_options/1`) for the test of the ExUnit
+  `context`, converted: the options and the functions' results for `context`, each over those
+  before it. An option given as `nil` resets it past every earlier `use`, to the config's or the
+  default, as upstream's `undefined` override (`_appendFixtureList`). For a module's `setup_all`
+  (`context` `nil`) the options only if no `use` gives a function, else none: a function is of a
+  test's context, and applying only the rest would break the order and the resets.
+  """
+  def use_context_options(options, context) do
+    uses = Map.get(options, :context_options, [])
+
+    if context == nil and not Enum.all?(uses, &is_map/1) do
+      %{}
+    else
+      uses
+      |> Enum.reduce(%{}, fn
+        %{} = static, acc -> Map.merge(acc, static)
+        function, acc -> Map.merge(acc, call_context_options!(function, context))
+      end)
+      |> Map.reject(fn {_key, value} -> value == nil end)
+    end
+  end
+
+  defp call_context_options!(function, context) do
+    {module, name} = function_name(function)
+    label = "#{inspect(module)}.#{name}/1"
+
+    if !(Code.ensure_loaded?(module) and function_exported?(module, name, 1)),
+      do: raise(ArgumentError, "context_options: #{inspect(function)} is undefined (no #{label})")
+
+    context_options!(apply(module, name, [context]), "context_options: #{label} returned an invalid option: ")
+  end
+
+  defp function_name({module, name}), do: {module, name}
+
+  defp function_name(fun) do
+    {:module, module} = Function.info(fun, :module)
+    {:name, name} = Function.info(fun, :name)
+    {module, name}
+  end
+
+  # Options (a keyword list or a map) as the client takes them, a `nil` one kept as `nil` (a
+  # reset, `use_context_options/2`); an invalid one raises with `prefix`.
+  defp context_options!(options, prefix) do
+    :context_options
+    |> to_keyword(options)
+    |> Facade.options!(Playwright.Browser.__options_type__(:new_context), "browser.newContext")
+  rescue
+    error in ArgumentError -> reraise ArgumentError, prefix <> Exception.message(error), __STACKTRACE__
   end
 
   @doc """
@@ -141,12 +233,20 @@ defmodule Playwright.Test.Options do
 
   @doc """
   `_combinedContextOptions`, as the client takes them: Playwright Test's context defaults, then
-  the config's `context_options` (facade options, converted as `Playwright.Browser.new_context/2`
-  converts them). Upstream's `PLAYWRIGHT_TEST_BASE_URL` default is not read: config only.
+  the config's `context_options`, then the module's (`use_context_options/2`, converted), each a
+  key over the one before (facade options, converted as `Playwright.Browser.new_context/2`
+  converts them); a `nil` one falls back to the one under it.
+  Upstream's `PLAYWRIGHT_TEST_BASE_URL` default is not read: config only.
   """
-  def context_options(config \\ config()) do
-    type = Playwright.Browser.__options_type__(:new_context)
-    Map.merge(@context_defaults, Facade.options!(config[:context_options], type, "browser.newContext"))
+  def context_options(config \\ config(), module_options \\ %{}) do
+    config_options =
+      config[:context_options]
+      |> context_options!("config :playwright, :test: ")
+      |> Map.reject(fn {_key, value} -> value == nil end)
+
+    @context_defaults
+    |> Map.merge(config_options)
+    |> Map.merge(module_options)
   end
 
   @doc """
@@ -155,6 +255,16 @@ defmodule Playwright.Test.Options do
   default (upstream's `0`, no timeout).
   """
   def timeouts(config \\ config()), do: Map.take(config, [:action_timeout, :navigation_timeout])
+
+  @doc """
+  ExUnit's timeout for `tags` (`get_timeout/2` in `ExUnit.Runner`): `:infinity` under `mix test
+  --trace`, else the `timeout` tag or `mix test --timeout`. A test's tags, or a module's for its
+  `setup_all`.
+  """
+  def ex_unit_timeout(tags) do
+    config = ExUnit.configuration()
+    if config[:trace], do: :infinity, else: Map.get(tags, :timeout, config[:timeout])
+  end
 
   @doc "Playwright Test's context option defaults, with the client's keys and values."
   def context_defaults, do: @context_defaults
