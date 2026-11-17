@@ -113,15 +113,15 @@ defmodule Playwright.Test.Results do
   end
 
   @doc """
-  Registers the `setup_all` process `pid` of a module (`use Playwright.Test`) with `module`
+  Registers the `setup_all` process `pid` of a module (`use Playwright.Test`) with `defaults`
   (its `context_options` and `timeouts`), once, until it exits; the module of its ExUnit runner
   from now on (`runner_module/1`), as a runner runs its modules one after another.
   """
-  def register_module(pid, module) do
+  def register_module(pid, defaults) do
     runner = Pool.parent(pid)
 
     # Once (a case template's body and its `using` may both bring it).
-    if :ets.insert_new(table(), {{:module, pid}, Map.merge(module, %{module_pid: pid, runner: runner})}) do
+    if :ets.insert_new(table(), {{:module, pid}, Map.merge(defaults, %{module_pid: pid, runner: runner})}) do
       if runner, do: :ets.insert(table(), {{:runner_module, runner}, pid})
       GenServer.cast(Pool, {:monitor, pid})
     end
@@ -167,20 +167,43 @@ defmodule Playwright.Test.Results do
         do: {object, tracing}
   end
 
+  @doc "The tracing state of the shared object `guid` (`share/2`), `nil` once it closed."
+  def tracing(guid) do
+    case :ets.lookup(table(), {:shared, guid}) do
+      [{_key, _owner, tracing}] -> tracing
+      [] -> nil
+    end
+  end
+
+  @doc "Notes `test_pid` as the running test of the module whose `setup_all` process is `owner`."
+  def set_module_test(owner, test_pid) do
+    :ets.insert(table(), {{:module_test, owner}, test_pid})
+    :ok
+  end
+
+  @doc "The test of the module of `owner` that runs (or ran last), or `nil`."
+  def module_test(owner) do
+    case :ets.lookup(table(), {:module_test, owner}) do
+      [{_key, test_pid}] -> test_pid
+      [] -> nil
+    end
+  end
+
   @doc "Notes the tracing state of the shared object `guid`, if still open."
   def set_tracing(guid, tracing) do
     :ets.update_element(table(), {:shared, guid}, {3, tracing})
     :ok
   end
 
-  @doc "Forgets the shared object `guid` (it closed), if it is one."
+  @doc "Forgets the shared object `guid` (it closed): its tracing state, `nil` if it is none."
   def unshare(guid) do
-    if started?() do
-      for {_key, owner, _tracing} <- :ets.take(table(), {:shared, guid}),
-          do: :ets.match_delete(shared_table(), {owner, :_, guid, :_})
+    with true <- started?(),
+         [{_key, owner, tracing}] <- :ets.take(table(), {:shared, guid}) do
+      :ets.match_delete(shared_table(), {owner, :_, guid, :_})
+      tracing
+    else
+      _ -> nil
     end
-
-    :ok
   end
 
   # The pool's process from here on.
@@ -318,6 +341,7 @@ defmodule Playwright.Test.Results do
   # The module's rows: its runner's, unless a later module's replaced it, and its contexts'.
   defp module_ended(%{module_pid: pid, runner: runner}) do
     if runner, do: :ets.delete_object(table(), {{:runner_module, runner}, pid})
+    :ets.delete(table(), {:module_test, pid})
     for {_owner, _order, guid, _object} <- :ets.take(shared_table(), pid), do: :ets.delete(table(), {:shared, guid})
   end
 

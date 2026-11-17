@@ -51,6 +51,10 @@ Node 26.13.1. No API changes.
 - Contexts and request contexts created in a module's `setup_all` get the context defaults, the
   config's `context_options` (`base_url` too) and timeouts, as Playwright Test's `beforeAll`
   does, and each test records those still open in its trace and screenshots (#257).
+- A context created in `setup_all` before `use Playwright.Test` registered the module (a case
+  template's own `setup_all` with the `use` only in its `using`, or a `setup_all` above the
+  module's `use`) makes the module's `setup_all` raise, naming the fix, as such a context in
+  `setup` already does.
 
 ## [1.65.0-rc.1] 2026-11-16
 

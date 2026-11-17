@@ -350,6 +350,6 @@ defmodule Playwright.Test.RegistrationTest.LateTest do
 
     assert_receive {:result, message, nil}
     assert message =~ "this module's setup_all created a context before `use Playwright.Test` registered it"
-    assert message =~ "add `use Playwright.Test` as the first line of the case template's body"
+    assert message =~ "add `use Playwright.Test` as the first line of the case template's body, or move"
   end
 end
