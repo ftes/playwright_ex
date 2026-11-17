@@ -75,9 +75,12 @@ Options go in as arguments, merged over the config: `BrowserPool.browser(browser
 `Playwright.BrowserType.launch/2`, `context_options` those of
 `Playwright.Browser.new_context/2`. Every context a test creates on a pooled browser starts from
 Playwright Test's defaults (`locale: "en-US"`, a 1280x720 viewport, `color_scheme: :light`, ...),
-then the config's `context_options`; the options the call gives win. A context created outside a
-test (in `setup_all`, or a process of no test), or on a driver you started yourself, gets no
-defaults and no recording.
+then the config's `context_options`; the options the call gives win. So does every context the
+module's `setup_all` creates (or a process it starts, through `$callers`), as Playwright Test's
+`beforeAll` gets the `use` options: `goto("/")` works there with `base_url`. Each test records
+those still open (its trace, screenshots and `error-context.md`) and leaves them open. A context
+created elsewhere (an `on_exit` callback, a process of no test), or on a driver you started
+yourself, gets no defaults and no recording.
 
 With `base_url`, `goto` and the URL matchers take paths. To set it from the shell, read an env
 var in the config: `context_options: [base_url: System.get_env("BASE_URL", "http://localhost:4000")]`.
@@ -217,14 +220,14 @@ under `test-results/`.
 ## Logging in once
 
 Log in once per module and start each context from the saved cookies and local storage. A
-context in `setup_all` belongs to no test, so it gets neither the defaults nor a recording:
+context in `setup_all` gets the defaults, `base_url` too, as a test's does:
 
 ```elixir
 setup_all do
   browser = BrowserPool.browser()
   context = Browser.new_context!(browser)
   page = BrowserContext.new_page!(context)
-  Page.goto!(page, "http://localhost:4000/login")
+  Page.goto!(page, "/login")
   Page.get_by_label(page, "Email") |> Locator.fill!("ada@example.com")
   Page.get_by_label(page, "Password") |> Locator.fill!("secret")
   Page.get_by_role(page, :button, name: "Log in") |> Locator.click!()
@@ -742,7 +745,7 @@ Not ported yet ([open an issue](https://github.com/ftes/playwright_ex/issues) if
 - rebaselining inline aria snapshots into the test source (`--update-source-method`);
 - `_defaultLaunchOptions`: a `BrowserType.launch` inside a test doesn't inherit the browser's
   `launch_options`;
-- contexts created in `setup_all` get no context defaults, trace chunks or leftover screenshots
-  (only contexts created during a test are recorded);
+- the actions of `setup_all` itself in the first test's trace (Playwright Test runs `beforeAll`
+  as part of that test): each test's trace has those it ran on the module's contexts;
 - the video's step overlay keeps the title of a process killed inside `step/2,3`, and shows an
   IPv6 host with a zone id as `fe80`.

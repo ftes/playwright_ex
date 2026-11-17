@@ -45,6 +45,9 @@ upstream minor, so `~> 1.65.0` is safe.
 
 - `mix playwright.install` and `mix playwright.cli` failed with "module :public_key is not
   available" when run before the project was compiled (e.g. right after `mix deps.get` in CI).
+- Contexts and request contexts created in a module's `setup_all` get the context defaults, the
+  config's `context_options` (`base_url` too) and timeouts, as Playwright Test's `beforeAll`
+  does, and each test records those still open in its trace and screenshots (#257).
 
 ## [1.65.0-rc.1] 2026-11-16
 

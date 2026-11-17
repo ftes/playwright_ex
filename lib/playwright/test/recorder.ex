@@ -13,6 +13,11 @@ defmodule Playwright.Test.Recorder do
   # artifacts by it. Every artifact step rescues and logs: an exception in `on_exit` would fail
   # the test and hide its own error, and upstream's artifact code swallows its errors too.
   #
+  # A context (or request context) of the module's `setup_all`, still open when a test starts, is
+  # shared: the test records it as upstream's `willStartTest` does the worker's existing contexts
+  # (a trace chunk, its screenshots, the page snapshot), but leaves it open, at its end and at
+  # its timeout.
+  #
   # The recorder also owns the test's timeout (upstream's `closeReason` of a `timedOut` test):
   # just before ExUnit kills the test process, it closes the test's open contexts with
   # "Test timeout of <ms>ms exceeded.", so a Playwright call that hangs until then fails with that
@@ -42,6 +47,7 @@ defmodule Playwright.Test.Recorder do
   alias Playwright.Runtime.Promise
   alias Playwright.Runtime.Zones
   alias Playwright.Test.ErrorContext
+  alias Playwright.Test.Pool
   alias Playwright.Test.Results
   alias Playwright.Test.TestInfo
   alias Playwright.Test.TestTracing
@@ -70,6 +76,13 @@ defmodule Playwright.Test.Recorder do
     Enum.find_value(Callers.capture(), &registration/1)
   end
 
+  # The registration of the nearest of the calling process and its `$callers` that is a running
+  # test, or a module's `setup_all` (`Playwright.Test.Results.module/1`), or `nil`: whose context
+  # defaults a context gets.
+  defp defaults do
+    if Results.started?(), do: Enum.find_value(Callers.capture(), &(registration(&1) || Results.module(&1)))
+  end
+
   @doc "The registration of the test `test_pid`, or `nil`."
   def registration(test_pid) do
     case Results.started?() && :ets.lookup(Results.table(), {:test, test_pid}) do
@@ -86,7 +99,8 @@ defmodule Playwright.Test.Recorder do
   `_setupArtifacts` `csiListener`, `ArtifactsRecorder`'s and `_contextFactory`'s parts). Its
   context hooks run in the process that creates or closes a context, for every context of the
   driver: they look up the creator's test (`registration/0`) and record only the test's
-  contexts. A process that creates one unregistered is noted
+  contexts, or its module's `setup_all`, whose contexts get the defaults and are shared with
+  its tests (`adopt/1`). A process that creates one unregistered is noted
   (`Playwright.Test.Results.note_unregistered/1`): the test process of a case template's `setup`
   that runs before `use Playwright.Test`'s fails its registration.
   """
@@ -235,6 +249,9 @@ defmodule Playwright.Test.Recorder do
     {:ok,
      %{
        timer: arm(test),
+       # The module's shared request contexts (`adopt/1`); its shared contexts are those of
+       # `contexts` with `shared: true`.
+       shared_requests: [],
        timed_out: false,
        closing: nil,
        finisher: nil,
@@ -267,13 +284,28 @@ defmodule Playwright.Test.Recorder do
     {:reply, :ok, %{state | contexts: state.contexts ++ [%{guid: context.guid, context: context, pages: []}]}}
   end
 
+  # The module's (`adopt/1`): not anchored here, as the recorder ends with the test.
+  def handle_call({:add_shared, %BrowserContext{} = context}, _from, state),
+    do:
+      {:reply, :ok,
+       %{state | contexts: state.contexts ++ [%{guid: context.guid, context: context, pages: [], shared: true}]}}
+
+  def handle_call({:add_shared, request}, _from, state),
+    do: {:reply, :ok, %{state | shared_requests: state.shared_requests ++ [request]}}
+
   def handle_call({:closed, guid}, _from, state), do: {:reply, :ok, %{state | closed: state.closed ++ [guid]}}
 
   def handle_call({:add_request, request}, _from, state),
     do: {:reply, :ok, %{state | requests: state.requests ++ [request]}}
 
-  def handle_call({:request_closed, guid}, _from, state),
-    do: {:reply, :ok, %{state | requests: Enum.reject(state.requests, &(&1.guid == guid))}}
+  def handle_call({:request_closed, guid}, _from, state) do
+    {:reply, :ok,
+     %{
+       state
+       | requests: Enum.reject(state.requests, &(&1.guid == guid)),
+         shared_requests: Enum.reject(state.shared_requests, &(&1.guid == guid))
+     }}
+  end
 
   def handle_call({:add_screenshot, path}, _from, state),
     do: {:reply, :ok, %{state | screenshots: state.screenshots ++ [path]}}
@@ -404,7 +436,12 @@ defmodule Playwright.Test.Recorder do
 
   defp time_out(state) do
     reason = "Test timeout of #{state.opts.test_timeout}ms exceeded."
-    open = for %{guid: guid, context: context} <- state.contexts, guid not in state.closed, do: context
+
+    open =
+      for %{guid: guid, context: context} = entry <- state.contexts,
+          guid not in state.closed,
+          !entry[:shared],
+          do: context
 
     # Not in the recorder: the close's hooks call it.
     {:ok, closing} =
@@ -473,10 +510,14 @@ defmodule Playwright.Test.Recorder do
   # `runBeforeCreateBrowserContext`: `_contextFactory`'s `{ ...videoOptions, ...options }`, then
   # `_combinedContextOptions` for each key not in the options (a key given as `nil` stays).
   def before_create_browser_context(options) do
-    case registration() do
+    case defaults() do
       nil ->
         note_unregistered()
         options
+
+      # A module's `setup_all`: no video, as upstream's `_contextFactory` is the `context` fixture's.
+      %{module_pid: _} = module ->
+        Map.merge(module.context_options, options)
 
       test ->
         options =
@@ -510,15 +551,16 @@ defmodule Playwright.Test.Recorder do
   @doc false
   # `runBeforeCreateRequestContext`: `_combinedContextOptions` for each key not in the options.
   def before_create_request_context(options) do
-    case registration() do
+    case defaults() do
       nil ->
         note_unregistered()
         options
 
-      test ->
+      # A test's or a module's `setup_all`'s.
+      scope ->
         # `_defaultContextTimeout` (`actionTimeout || 0`), a default of the request context's own.
-        timeout = if test.timeouts.action_timeout == :infinity, do: 0, else: test.timeouts.action_timeout
-        Map.merge(Map.put(test.context_options, :timeout, timeout), options)
+        timeout = if scope.timeouts.action_timeout == :infinity, do: 0, else: scope.timeouts.action_timeout
+        Map.merge(Map.put(scope.context_options, :timeout, timeout), options)
     end
   end
 
@@ -530,21 +572,98 @@ defmodule Playwright.Test.Recorder do
   # its first context. A row `{{:context, guid}, recorder}` per recorded context: `before_close`
   # reads it, no call into every test's recorder on each close.
   def after_create_browser_context(context) do
-    with %{} = test <- registration(),
-         recorder when is_pid(recorder) <- Results.recorder(test.test_pid),
-         true <- :ets.insert_new(Results.table(), {{:context, context.guid}, recorder}),
-         do: record(context, recorder, test)
+    case defaults() do
+      %{module_pid: owner} = module ->
+        set_default_timeouts(context, module.timeouts)
+        share(context, owner)
+        share(BrowserContext.request(context), owner)
+
+      %{} = test ->
+        with recorder when is_pid(recorder) <- Results.recorder(test.test_pid),
+             true <- :ets.insert_new(Results.table(), {{:context, context.guid}, recorder}),
+             do: record(context, recorder, test)
+
+      nil ->
+        nil
+    end
 
     nil
   end
 
+  # `_setupContextOptions`'s `playwright._defaultContextTimeout = actionTimeout || 0` (and the
+  # navigation's), which `Browser._setupBrowserContext` applies to each context. Per context
+  # here: a pooled driver's Playwright outlives the test, and serves any process.
+  defp set_default_timeouts(context, timeouts) do
+    BrowserContext.set_default_timeout(context, timeouts.action_timeout)
+    BrowserContext.set_default_navigation_timeout(context, timeouts.navigation_timeout)
+  end
+
+  # A context or request context of the module's `setup_all` process `owner`, until it closes or
+  # the module ends: `{{:shared, guid}, owner, order, context, tracing_started}`, the last
+  # upstream's `kTracingStarted` (its tests start a chunk if a test started its tracing).
+  defp share(owner_object, owner),
+    do:
+      :ets.insert(
+        Results.table(),
+        {{:shared, owner_object.guid}, owner, System.unique_integer([:monotonic]), owner_object, false}
+      )
+
+  @doc """
+  `willStartTest`'s existing contexts, at the registration of the test `test` (in its
+  process): those of its module's `setup_all` still open, then their and its request contexts,
+  in creation order. The test's recorder records them, as its own, but leaves them open:
+  `_startTraceChunkOnContextCreation` (the trace's first chunk, or the next; or the tracing
+  stopped if the test doesn't trace), then the screenshots and page snapshot of the test's end.
+  """
+  def adopt(test) do
+    owner = Results.runner_module(Pool.parent(test.test_pid))
+    shared = if owner, do: :ets.match(Results.table(), {{:shared, :_}, owner, :"$1", :"$2", :"$3"}), else: []
+
+    if shared != [] do
+      recorder = Results.recorder(test.test_pid)
+
+      shared
+      |> Enum.sort_by(fn [order, object, _started] -> {not is_struct(object, BrowserContext), order} end)
+      |> Enum.each(fn [_order, object, started] -> adopt(object, started, recorder, test) end)
+    end
+
+    :ok
+  end
+
+  defp adopt(object, started, recorder, test) do
+    key = if is_struct(object, BrowserContext), do: :context, else: :request
+
+    if :ets.insert_new(Results.table(), {{key, object.guid}, recorder}) do
+      call(recorder, {:add_shared, object})
+      step("start tracing", fn -> start_shared_tracing(object, started, test) end)
+    end
+  end
+
+  # `_startTraceChunkOnContextCreation`.
+  defp start_shared_tracing(object, started, test) do
+    tracing =
+      if is_struct(object, BrowserContext), do: BrowserContext.tracing(object), else: APIRequestContext.tracing(object)
+
+    cond do
+      test.trace[:mode] != :off and started ->
+        start_chunk(object, tracing, test)
+
+      test.trace[:mode] != :off ->
+        start_tracing(object, tracing, test)
+        :ets.update_element(Results.table(), {:shared, object.guid}, {5, true})
+
+      started ->
+        ChannelOwner._wrap_api_call(object, fn _api_zone -> Tracing.stop!(tracing) end, %{internal: true})
+        :ets.update_element(Results.table(), {:shared, object.guid}, {5, false})
+
+      true ->
+        :ok
+    end
+  end
+
   # `didCreateBrowserContext`: a trace chunk of the context and of its `request`.
   defp record(context, recorder, test) do
-    # `_setupContextOptions`'s `playwright._defaultContextTimeout = actionTimeout || 0` (and the
-    # navigation's), which `Browser._setupBrowserContext` applies to each context. Per context
-    # here: a pooled driver's Playwright outlives the test, and serves any process.
-    BrowserContext.set_default_timeout(context, test.timeouts.action_timeout)
-    BrowserContext.set_default_navigation_timeout(context, test.timeouts.navigation_timeout)
+    set_default_timeouts(context, test.timeouts)
     call(recorder, {:add_context, context})
 
     if test.trace[:mode] != :off do
@@ -671,25 +790,49 @@ defmodule Playwright.Test.Recorder do
     )
   end
 
+  # `tracing.startChunk({ title, name })`, internal as `start_tracing/3`.
+  defp start_chunk(owner, tracing, opts) do
+    ChannelOwner._wrap_api_call(
+      owner,
+      fn _api_zone ->
+        Tracing.start_chunk!(tracing, title: opts.title, name: "playwright-#{System.unique_integer([:positive])}")
+      end,
+      %{internal: true}
+    )
+  end
+
   @doc false
   # `runAfterCreateRequestContext` (`didCreateRequestContext`): a request context of
-  # `APIRequest.new_context/2` in the test, kept to dispose of at its end, and its trace chunk.
+  # `APIRequest.new_context/2` in the test, kept to dispose of at its end, and its trace chunk;
+  # in a module's `setup_all`, shared with its tests.
   def after_create_request_context(request) do
-    with %{} = test <- registration(),
-         recorder when is_pid(recorder) <- Results.recorder(test.test_pid),
-         true <- :ets.insert_new(Results.table(), {{:request, request.guid}, recorder}) do
-      call(recorder, {:add_request, request})
+    case defaults() do
+      %{module_pid: owner} ->
+        share(request, owner)
 
-      if test.trace[:mode] != :off, do: start_request_tracing(request, test)
+      %{} = test ->
+        with recorder when is_pid(recorder) <- Results.recorder(test.test_pid),
+             true <- :ets.insert_new(Results.table(), {{:request, request.guid}, recorder}),
+             do: record_request(request, recorder, test)
+
+      nil ->
+        nil
     end
 
     nil
+  end
+
+  defp record_request(request, recorder, test) do
+    call(recorder, {:add_request, request})
+    if test.trace[:mode] != :off, do: start_request_tracing(request, test)
   end
 
   @doc false
   # `runBeforeCloseRequestContext` (`willCloseRequestContext`): the trace chunk of a request
   # context, also a browser context's `request` (its close disposes it first).
   def before_close_request_context(request) do
+    if Results.started?(), do: :ets.delete(Results.table(), {:shared, request.guid})
+
     with [{_key, recorder}] <- :ets.take(Results.table(), {:request, request.guid}),
          %{} = state <- call(recorder, {:fields, [:opts]}) do
       call(recorder, {:request_closed, request.guid})
@@ -716,6 +859,8 @@ defmodule Playwright.Test.Recorder do
   # (`captureTemporary`), then the page snapshot (`_takePageSnapshot`). Taking the row makes it
   # once per context, also when closes race.
   def before_close_browser_context(context) do
+    if Results.started?(), do: :ets.delete(Results.table(), {:shared, context.guid})
+
     with [{_key, recorder}] <- :ets.take(Results.table(), {:context, context.guid}),
          %{} = state <- call(recorder, {:fields, [:opts, :timed_out, :test_pid]}) do
       call(recorder, {:closed, context.guid})
@@ -886,7 +1031,9 @@ defmodule Playwright.Test.Recorder do
   end
 
   defp collect_all(pid, {verdict, failures}) do
-    state = GenServer.call(pid, {:fields, [:closing, :opts, :contexts, :closed, :requests]}, :infinity)
+    state =
+      GenServer.call(pid, {:fields, [:closing, :opts, :contexts, :closed, :requests, :shared_requests]}, :infinity)
+
     # The test timeout's closes, with their artifact steps.
     if state.closing, do: await_exit(state.closing)
     # A test of another macro (a doctest) has no result: kept as a failure's.
@@ -897,13 +1044,18 @@ defmodule Playwright.Test.Recorder do
     # outlives the test.
     if should_capture_upon_finish(state.opts.screenshot[:mode], failed?, state.opts.retry), do: capture(pid, failed?)
 
-    for %{guid: guid, context: context} <- state.contexts,
-        guid not in state.closed,
+    {shared, own} = state.contexts |> Enum.reject(&(&1.guid in state.closed)) |> Enum.split_with(& &1[:shared])
+
+    for %{context: context} <- own,
         do: step("close a context", fn -> BrowserContext.close!(context, reason: "Test ended.") end)
 
     # The leftover request contexts too, as upstream's `request` fixture is disposed.
     for request <- state.requests,
         do: step("dispose a request context", fn -> APIRequestContext.dispose!(request, reason: "Test ended.") end)
+
+    # The module's stay open: their chunks (`_stopTracing` of the leftovers), then the page
+    # snapshot of the first (`_takePageSnapshot(leftoverContexts[0])`), if none yet.
+    finish_shared(pid, shared, state)
 
     # All of it, the trace events too, once.
     state = GenServer.call(pid, :state, :infinity)
@@ -915,6 +1067,21 @@ defmodule Playwright.Test.Recorder do
       do: step("write error-context.md", fn -> ErrorContext.write(state.opts, failures, state.page_snapshot) end)
 
     trace
+  end
+
+  defp finish_shared(pid, shared, state) do
+    if state.opts.trace[:mode] != :off, do: stop_shared_tracing(pid, shared, state)
+
+    with [%{context: context} | _] <- shared,
+         %{} = fields <- call(pid, {:fields, [:timed_out, :test_pid]}),
+         do: step("take a page snapshot", fn -> page_snapshot(context, pid, Map.merge(state, fields)) end)
+  end
+
+  defp stop_shared_tracing(pid, shared, state) do
+    for %{context: context} <- shared,
+        do: step("save the trace", fn -> stop_tracing(context, BrowserContext.tracing(context), pid, state) end)
+
+    for request <- state.shared_requests, do: stop_request_tracing(request, pid, state)
   end
 
   defp await_exit(pid) do
@@ -929,7 +1096,13 @@ defmodule Playwright.Test.Recorder do
   # in a pooled browser. The task anchors them before the recorder stops.
   defp close_leftovers(state) do
     leftovers =
-      for(%{guid: guid, context: context} <- state.contexts, guid not in state.closed, do: context) ++ state.requests
+      for(
+        %{guid: guid, context: context} = entry <- state.contexts,
+        guid not in state.closed,
+        !entry[:shared],
+        do: context
+      ) ++
+        state.requests
 
     {parent, ref} = {self(), make_ref()}
 
