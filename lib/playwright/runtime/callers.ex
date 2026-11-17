@@ -54,6 +54,13 @@ defmodule Playwright.Runtime.Callers do
   def test_finished?, do: Results.finished?(List.wrap(Process.get(:"$callers")))
 
   @doc """
+  `pid`, a process started on behalf of `callers` (`nil`: none), was released while it waited
+  outside Playwright: in a `Playwright.Test` test, it is killed once the test is finished.
+  """
+  def detached(_pid, nil), do: :ok
+  def detached(pid, callers), do: Results.detached(pid, callers)
+
+  @doc """
   An error nothing handled (JS: an uncaught exception or unhandled rejection): it fails the
   running test of the calling process or its `$callers`, else it is logged with `label`.
   """

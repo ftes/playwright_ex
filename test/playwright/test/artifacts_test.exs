@@ -459,17 +459,17 @@ defmodule Playwright.Test.ArtifactsTest do
       callers = [self() | Process.get(:"$callers")]
       page = page(Browser.new_context!(browser), "TITLED")
 
-      # A listener that blocks holds the connection's dispatch: the replies to the overlay's calls wait.
-      Page.on(page, :console, fn _ ->
-        send(me, {:stalled, self()})
+      # A busy listener holds the connection's dispatch: the replies to the overlay's calls wait.
+      # (A wait would be released as an await.)
+      release = Playwright.Spin.new()
 
-        receive do
-          :release -> :ok
-        end
+      Page.on(page, :console, fn _ ->
+        send(me, :stalled)
+        Playwright.Spin.hold(release)
       end)
 
       spawn(fn -> Page.evaluate(page, "console.log(1)") end)
-      assert_receive {:stalled, listener}
+      assert_receive :stalled
 
       step = fn title ->
         pid =
@@ -489,7 +489,7 @@ defmodule Playwright.Test.ArtifactsTest do
       Process.exit(w, :kill)
       refute_receive {:body, _}, 200
 
-      send(listener, :release)
+      Playwright.Spin.release(release)
       assert_receive {:body, "M"}
       assert_receive {:body, "T"}
       Playwright.Test.step("last", fn -> :ok end)

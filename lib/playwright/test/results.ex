@@ -83,6 +83,16 @@ defmodule Playwright.Test.Results do
   @doc "Whether one of `pids` is a test at its registration's `on_exit` (`keep_info/2`), which closes its contexts."
   def finished?(pids), do: started?() and Enum.any?(pids, &:ets.member(table(), {:info, &1}))
 
+  @doc """
+  Notes `pid`, a listener invocation or async function released while it waited outside
+  Playwright (`Playwright.Runtime.Invocation`), on behalf of `callers`: killed when their test is
+  finished (`forget/1`, or its finisher's exit), as it would wait forever.
+  """
+  def detached(pid, callers) do
+    if Process.whereis(Pool), do: GenServer.cast(Pool, {:detached, pid, callers})
+    :ok
+  end
+
   @doc "Forgets the result of the test `pid`."
   def forget(pid) do
     if Process.whereis(Pool), do: GenServer.cast(Pool, {:forget, pid})
@@ -114,11 +124,13 @@ defmodule Playwright.Test.Results do
   @doc """
   The registry's state, its table created: `tests`, the watched test processes alive; `results`,
   those ended (`{verdict, failures, duration, runner}`), until forgotten; `kept`, the tests by the
-  process that finishes them (`finishing/1`).
+  process that finishes them (`finishing/1`); `detached`, the released processes by test
+  (`detached/2`); `finished`, the tests whose released processes were killed (a later one is
+  killed at once).
   """
   def new do
     :ets.new(table(), [:named_table, :public, :set])
-    %{tests: %{}, results: %{}, kept: %{}}
+    %{tests: %{}, results: %{}, kept: %{}, detached: %{}, finished: MapSet.new()}
   end
 
   @doc "A request of this module's functions: `{:reply, reply, state}` or `{:noreply, state}`."
@@ -187,7 +199,21 @@ defmodule Playwright.Test.Results do
   end
 
   @doc "A cast of this module's functions: the state."
-  def handle_cast({:forget, pid}, state), do: %{state | results: Map.delete(state.results, pid)}
+  def handle_cast({:forget, pid}, state), do: kill_detached(%{state | results: Map.delete(state.results, pid)}, [pid])
+
+  def handle_cast({:detached, pid, callers}, state) do
+    cond do
+      Enum.any?(callers, &MapSet.member?(state.finished, &1)) ->
+        Process.exit(pid, :kill)
+        state
+
+      test_pid = Enum.find(callers, &(Map.has_key?(state.tests, &1) or Map.has_key?(state.results, &1))) ->
+        update_in(state.detached, &Map.update(&1, test_pid, [pid], fn pids -> [pid | pids] end))
+
+      true ->
+        state
+    end
+  end
 
   def handle_cast({:finishing, test_pid, keeper}, state) do
     Process.monitor(keeper)
@@ -232,10 +258,17 @@ defmodule Playwright.Test.Results do
         end
 
       {kept, state} ->
+        state = kill_detached(state, kept)
         for test_pid <- kept, do: :ets.delete(table(), {:info, test_pid})
         tests = for test_pid <- kept, do: {test_pid, runner(state, test_pid)}
         {{:finished, tests}, %{state | results: Map.drop(state.results, kept)}}
     end
+  end
+
+  defp kill_detached(state, test_pids) do
+    {pids, detached} = Map.split(state.detached, test_pids)
+    for {_test_pid, pids} <- pids, pid <- pids, do: Process.exit(pid, :kill)
+    %{state | detached: detached, finished: MapSet.union(state.finished, MapSet.new(test_pids))}
   end
 
   defp test_ended(state, pid, test, reason) do

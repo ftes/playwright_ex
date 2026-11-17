@@ -190,7 +190,7 @@ defmodule Playwright.Runtime.Promise do
     promise =
       cond do
         owner = opts[:owner] -> new(owner)
-        Keyword.get(opts, :shared, false) -> new(ProcessOwner.owner(registrant()))
+        Keyword.get(opts, :shared, false) -> new(shared_owner())
         true -> local_alias()
       end
 
@@ -204,11 +204,18 @@ defmodule Playwright.Runtime.Promise do
   end
 
   # Elixir only: a user listener's invocation process is transient (one per event), so what it
-  # starts is owned by the listener's registrant, the head of its `$callers`.
-  defp registrant do
-    case Process.get(:pw_listener) && Process.get(:"$callers") do
-      [registrant | _] -> registrant
-      _ -> self()
+  # starts is owned by the listener's registrant, the head of its `$callers`; by its emitter if
+  # that process is gone (a listener added from a short-lived process).
+  defp shared_owner do
+    case Process.get(:pw_listener) do
+      nil ->
+        ProcessOwner.owner(self())
+
+      emitter ->
+        case Process.get(:"$callers") do
+          [registrant | _] -> if Process.alive?(registrant), do: ProcessOwner.owner(registrant), else: emitter
+          _ -> emitter
+        end
     end
   end
 
@@ -276,18 +283,23 @@ defmodule Playwright.Runtime.Promise do
 
   # Starts `body` in a process that runs as the caller until its first yield. It works on the
   # caller's behalf, so it gets its `$callers` as a `Task` does; not the connection's (shared).
+  # In the caller's synchronous section, it inherits its barrier token (with a flag of its own).
   defp start(body) do
     caller = self()
     zone = Zones.current_zone()
-    barrier = Process.get(:pw_barrier)
     in_conn = Conn.in_conn?()
+    own = if !in_conn, do: Invocation.own_flag()
+    barrier = if own, do: elem(Process.get(:pw_barrier, {nil, nil}), 0)
     callers = if !in_conn, do: Callers.capture()
+    event = Process.get(:pw_event)
     inv = make_ref()
+    flag = Invocation.new_flag()
 
     pid =
       spawn(fn ->
         if callers, do: Callers.adopt(callers)
         Zones.restore(zone)
+        if event, do: Process.put(:pw_event, event)
         # Inside the connection: started (and waited for) at the current dispatch step.
         barrier =
           if in_conn do
@@ -298,22 +310,44 @@ defmodule Playwright.Runtime.Promise do
             barrier
           end
 
-        Invocation.start(caller, inv, barrier)
+        Invocation.start(caller, inv, flag, barrier)
         body.()
       end)
 
     if in_conn do
-      Conn.push_step({:start, pid, inv})
+      Conn.push_step({:start, pid, inv, flag})
     else
       mref = Process.monitor(pid)
-
-      receive do
-        {:pw_yield, ^inv} -> Process.demonitor(mref, [:flush])
-        {:DOWN, ^mref, :process, _, reason} -> exit(reason)
-      end
+      # The caller's own waiter skips it meanwhile: it judges its child instead.
+      Invocation.runtime_wait(own, fn -> handoff(pid, mref, inv, flag, {event, callers}, nil) end)
     end
 
     pid
+  end
+
+  # Waits for the first yield of the async function's process, judging it as the connection
+  # judges a listener (`Invocation.judge/3`): one released goes on in its own process.
+  defp handoff(pid, mref, inv, flag, {event, callers} = of, quiet) do
+    receive do
+      {:pw_yield, ^inv} -> Process.demonitor(mref, [:flush])
+      {:DOWN, ^mref, :process, _, reason} -> exit(reason)
+    after
+      Invocation.interval() ->
+        case Invocation.try_release(pid, flag, quiet, event, callers) do
+          {:hold, quiet} ->
+            handoff(pid, mref, inv, flag, of, quiet)
+
+          :released ->
+            Process.demonitor(mref, [:flush])
+
+          # It yielded meanwhile: its message is on its way.
+          :yielding ->
+            receive do
+              {:pw_yield, ^inv} -> Process.demonitor(mref, [:flush])
+              {:DOWN, ^mref, :process, _, reason} -> exit(reason)
+            end
+        end
+    end
   end
 
   ## Awaiting

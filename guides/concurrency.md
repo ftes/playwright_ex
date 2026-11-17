@@ -57,8 +57,10 @@ Expect.to_be_visible!(Page.get_by_text(page, "Loading"))
 send(held, :release)
 ```
 
-Slow work that JS would not await (logging to a service, say) goes to another process with
-`send/2` or `Task.start/1`.
+Without `yield/0`, a wait that lasts about 30 ms is taken for an await: dispatch goes on after
+that delay, and a warning names `yield/0`. Busy work is never taken for one, as in JS: a
+listener that computes for a second holds the connection for a second. Slow work that JS would
+not await (logging to a service, say) goes to another process with `send/2` or `Task.start/1`.
 
 ## Subscribe before you check
 

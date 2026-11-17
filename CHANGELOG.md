@@ -42,12 +42,29 @@ upstream minor, so `~> 1.65.0` is safe.
 ## [Unreleased]
 
 Drives [Playwright 1.65.1](https://github.com/microsoft/playwright/releases/tag/v1.65.1), on
-Node 26.13.1. No API changes.
+Node 26.13.1.
+
+### Added
+
+- `Playwright.Promise.yield/0`, the port of an `await` on something that isn't Playwright's: in
+  a listener or route handler, call it before a `receive` that waits for the test (JS
+  `await blocked`), and the connection dispatches on meanwhile.
+
+### Changed
+
+- Each listener invocation runs in a process of its own, as each JS call is its own async chain:
+  a listener's later events run while an earlier one awaits, as in JS, instead of queueing
+  behind it. `self()` differs per invocation, so state a listener kept in its process
+  dictionary is gone between events.
 
 ### Fixed
 
 - `mix playwright.install` and `mix playwright.cli` failed with "module :public_key is not
   available" when run before the project was compiled (e.g. right after `mix deps.get` in CI).
+- A listener or route handler that waits outside Playwright (`receive`, `Process.sleep/1`)
+  without `Playwright.Promise.yield/0` no longer stalls every call on its connection: after about
+  30 ms the wait is taken for an await, with a warning. A handler the test never released froze
+  the module's later tests; a finished test's runner now kills it.
 
 ## [1.65.0-rc.1] 2026-11-16
 

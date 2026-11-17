@@ -36,9 +36,15 @@ defmodule Playwright.Runtime.ProcessOwner do
   @doc "Monitors `pid`, whose `zones/0` rows (`{pid, _}`) go when it exits."
   def monitor_zones(pid), do: GenServer.cast(__MODULE__, {:monitor, pid})
 
+  @warned Playwright.Runtime.ProcessOwner.Warned
+
+  @doc "The public table of the release warnings logged (`Playwright.Runtime.Invocation.try_release/5`): one per key."
+  def warned, do: @warned
+
   @impl true
   def init(nil) do
     :ets.new(@zones, [:named_table, :public, :set, write_concurrency: true])
+    :ets.new(@warned, [:named_table, :public, :set])
 
     {:ok, %{table: :ets.new(__MODULE__, [:ordered_set, :protected, read_concurrency: true]), monitored: %{}}}
   end

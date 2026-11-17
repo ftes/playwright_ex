@@ -40,7 +40,8 @@ defmodule Playwright.Promise do
       1 = Promise.await!(clicked)
 
   A `Task` gives no such order: its first call may be sent after the next action. Work before the
-  first Playwright call (a `Process.sleep/1`) delays the return.
+  first Playwright call delays the return; a wait there (a `Process.sleep/1`) by about 30 ms at
+  most, as it is taken for an await (see `yield/0`).
 
   The promise is owned by the calling process, as the waits' are (in an event listener, by the
   process that added the listener): any process can await it, any number of times, until that
@@ -84,8 +85,8 @@ defmodule Playwright.Promise do
         end
       end)
 
-  Elsewhere, and after the first await, it does nothing. See the [Concurrency](concurrency.md)
-  guide.
+  Elsewhere, and after the first await, it does nothing. Without it, a wait that lasts about
+  30 ms is taken for an await, with a warning. See the [Concurrency](concurrency.md) guide.
   """
   @spec yield() :: :ok
   def yield do
