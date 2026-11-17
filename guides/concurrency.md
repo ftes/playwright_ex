@@ -89,7 +89,7 @@ matchers) already do this. Only code that checks state itself and then waits nee
 `wait_for_*` returns a `Playwright.Promise`. Unlike a `Task`, any process can await it, any
 number of times, and gets the same result. The result is kept while the process that started the
 wait lives; after it has exited, awaiting raises `Playwright.TargetClosedError`.
-`Playwright.Promise.free/1` drops a wait you no longer need.
+`Playwright.Promise.free/1` drops a wait you no longer need (one still pending when freed keeps its result, if it settles later, until the process exits).
 
 ```elixir
 download = Page.wait_for_event(page, :download)
