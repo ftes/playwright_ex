@@ -119,8 +119,8 @@ defmodule Playwright.Test.Options do
   # context returning them. The `use` options are evaluated at compile time and kept in the
   # module, so the function is an external capture (`&Mod.fun/1`) or `{Mod, :fun}`: an anonymous
   # one can't be stored. Whether the function exists is checked when it's called: its module may
-  # not be compiled yet, but `Mod` must name a module (an Elixir alias, or one that is loaded), so
-  # a mistyped option (`{:color_scheme, :dark}`) raises here.
+  # not be compiled yet, but a `Mod` that is a context option's key (a mistyped
+  # `{:color_scheme, :dark}`) raises here.
   defp use_context_options!(fun) when is_function(fun, 1) do
     case Function.info(fun, :type) do
       {:type, :external} ->
@@ -134,12 +134,14 @@ defmodule Playwright.Test.Options do
   end
 
   defp use_context_options!({module, function} = mf) when is_atom(module) and is_atom(function) do
-    if !(String.starts_with?(Atom.to_string(module), "Elixir.") or Code.ensure_loaded?(module)),
+    {:object, schema} = Playwright.Browser.__options_type__(:new_context)
+
+    if Map.has_key?(schema, module),
       do:
         raise(
           ArgumentError,
           "invalid context_options: #{inspect(mf)}, expected options (a keyword list or a map), " <>
-            "an external capture (&Mod.fun/1) or {Mod, :fun} of a module"
+            "an external capture (&Mod.fun/1) or {Mod, :fun}"
         )
 
     [mf]

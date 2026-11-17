@@ -57,10 +57,14 @@ defmodule Playwright.Test.ContextOptionsTest do
       compile("Invalid", "use Playwright.Test, context_options: :dark")
     end
 
-    # A mistyped option, not a `{Mod, :fun}`.
+    # A mistyped option, not a `{Mod, :fun}`; an Erlang-named module not compiled yet is fine.
     assert_raise ArgumentError, ~r/invalid context_options: \{:color_scheme, :dark\}, expected options/, fn ->
       compile("Tuple", "use Playwright.Test, context_options: {:color_scheme, :dark}")
     end
+
+    assert Options.use_options(context_options: {:not_compiled_yet, :opts}).context_options == [
+             {:not_compiled_yet, :opts}
+           ]
   end
 
   defp resolve(module, context \\ %{lang: "it-IT"}),
@@ -79,8 +83,9 @@ defmodule Playwright.Test.ContextOptionsTest do
     assert resolve(__MODULE__.Duplicated) == %{locale: "fr-FR"}
   end
 
-  test "the same function in consecutive uses (a template's body and its using) is kept once" do
-    assert __MODULE__.Twice.__playwright_test__(:options).context_options == [&__MODULE__.options/1]
+  test "a function given again (a template's using and the module's own use) is kept where it came first" do
+    assert [function, %{}] = __MODULE__.Twice.__playwright_test__(:options).context_options
+    assert function == (&__MODULE__.options/1)
   end
 
   test "a nil option resets it past the earlier uses, to the config's or the default" do
@@ -286,5 +291,6 @@ end
 defmodule Playwright.Test.ContextOptionsTest.Twice do
   use ExUnit.Case, async: true
   use Playwright.Test, context_options: &Playwright.Test.ContextOptionsTest.options/1
+  use Playwright.Test, context_options: [locale: "de-DE"]
   use Playwright.Test, context_options: &Playwright.Test.ContextOptionsTest.options/1
 end

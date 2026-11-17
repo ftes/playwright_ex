@@ -83,8 +83,8 @@ then the config's `context_options`, then the module's (`use Playwright.Case, co
 [locale: "de-DE"]`, Playwright Test's `test.use({ locale: 'de-DE' })`); the options the call
 gives win, each per key. So does every context the module's `setup_all` creates, as Playwright
 Test's `beforeAll` gets the `use` options: `goto("/")` works there with `base_url`. Only the
-module's static options apply there, and none if it gives a function (see "Devices"), which is of
-a test. A
+module's static options apply there, and none if any of the module's merged `use`s (a case
+template's included) gives a function (see "Devices"), which is of a test. A
 process the test or `setup_all` starts counts only
 with `$callers`: a `Task`, and route handlers and listeners registered there, have them (see
 [Route handlers and listeners](#route-handlers-and-listeners)); a `spawn`, a `GenServer` or

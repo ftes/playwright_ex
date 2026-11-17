@@ -112,8 +112,9 @@ defmodule Playwright.Test do
 
   `use Playwright.Test, trace: :on` is upstream's file-level `test.use({ trace: 'on' })` (the
   modes are worker-scoped options there), with the values the config takes; an unknown option or
-  an invalid value raises at compile time (a `context_options` function's existence and result
-  are checked at the registration, see "Context defaults"). A module's `use`s merge per key, the
+  an invalid value raises at compile time, as does a `context_options: {Mod, :fun}` whose `Mod`
+  is a context option's key (`{:color_scheme, :dark}`); a `context_options` function's existence
+  and result are checked at the registration, see "Context defaults". A module's `use`s merge per key, the
   later winning.
   ExUnit.Case's keys (`:async`, ...) are ignored, so a template forwards its options from `using
   opts` as is: `use Playwright.Test, unquote(opts)`, as `Playwright.Case` does. A template
@@ -414,9 +415,11 @@ defmodule Playwright.Test do
   end
 
   # Context options apply in `use` order, each over those before it per key, as upstream's
-  # `test.use` calls (each option its own fixture). The same one twice in a row (a template that
-  # brings it in its body and its `using`) is kept once, so a function isn't called twice.
-  defp merge_use(:context_options, past, options), do: Enum.dedup(past ++ options)
+  # `test.use` calls (each option its own fixture). A function given again (two `use`s with it: a
+  # template's `using` and the module's own) is kept only where it came first, so it runs once;
+  # the options keep their order and their `nil` resets.
+  defp merge_use(:context_options, past, options),
+    do: Enum.reduce(options, past, &if(not is_map(&1) and &1 in &2, do: &2, else: &2 ++ [&1]))
 
   defp merge_use(_key, _past, options), do: options
 
