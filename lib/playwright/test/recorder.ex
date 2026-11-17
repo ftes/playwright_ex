@@ -835,8 +835,8 @@ defmodule Playwright.Test.Recorder do
 
   @doc """
   `didFinishTestFunction`: screenshots of the open pages of the test `test_pid`, before its
-  `on_exit` callbacks: at the end of its body, or before an unhandled error interrupts it
-  (`Playwright.Test.TestInfo._unhandled_error/2`).
+  `on_exit` callbacks: at the end of its body, or as an unhandled error interrupts it, the body
+  suspended until they are taken (`Playwright.Test.TestInfo._unhandled_error/2`).
   """
   def did_finish_test_function(test_pid, failed?) do
     with %{screenshot: [{:mode, mode} | _], retry: retry} <- registration(test_pid),

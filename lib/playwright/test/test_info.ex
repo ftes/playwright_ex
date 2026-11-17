@@ -636,9 +636,9 @@ defmodule Playwright.Test.TestInfo do
   route handler's): the test's first one (`_hasUnhandledError`) is `_failWithError`ed and
   `_stop()`s the test (`_isStopped`: once), whose body is abandoned; later ones are dropped. Here
   the test's process exits with it, which ExUnit reports as the test's failure
-  (`Playwright.Test.Results` keeps it once). Then `_didFinishTestFunction`'s screenshots
-  (`Playwright.Test.Recorder.did_finish_test_function/2`), which the test's teardown awaits
-  before it closes the contexts. A test that traps exits gets the exit as a message. If the test
+  (`Playwright.Test.Results` keeps it once), after `_didFinishTestFunction`'s screenshots
+  (`Playwright.Test.Recorder.did_finish_test_function/2`), the body suspended meanwhile: so
+  before the `on_exit` callbacks. A test that traps exits gets the exit as a message. If the test
   ended meanwhile, the error is printed (`_fail_with_error/2`).
   """
   def _unhandled_error(this, {kind, reason, stacktrace} = error) do
@@ -674,12 +674,32 @@ defmodule Playwright.Test.TestInfo do
     end
   end
 
-  # `_stop()` (`_interrupt()`), then `_didFinishTestFunction`, in a process of its own: the
-  # caller may be a listener the connection waits on, which the screenshots need.
+  # `_stop()` (`_interrupt()`), then `_didFinishTestFunction`, then the exit: the body is
+  # suspended, so ExUnit's `on_exit` callbacks start only after the screenshots, as upstream's
+  # `afterEach` hooks after `_didFinishTestFunction`. In a process of its own: the caller may be
+  # a listener the connection waits on, which the screenshots need. Not once the body ended (it
+  # takes its own screenshots then); a suspended process's mailbox still fills.
   defp stop(this) do
-    {reason, _error} = interrupt(this.test_pid)
-    Process.exit(this.test_pid, reason)
-    spawn(fn -> Recorder.did_finish_test_function(this.test_pid, true) end)
+    spawn(fn ->
+      with true <- running?(this),
+           true <- suspend(this.test_pid) do
+        with true <- running?(this),
+             {reason, _error} <- interrupt(this.test_pid) do
+          Recorder.did_finish_test_function(this.test_pid, true)
+          Process.exit(this.test_pid, reason)
+        end
+
+        # The exit (or the body) goes on.
+        :erlang.resume_process(this.test_pid)
+      end
+    end)
+  end
+
+  defp suspend(pid) do
+    :erlang.suspend_process(pid)
+  rescue
+    # It exited meanwhile.
+    ArgumentError -> false
   end
 
   @doc """
