@@ -48,15 +48,15 @@ defmodule Playwright.Test.BrowserPool do
   (the last step of a registered test's `on_exit`; for another scope, an `on_exit` its first call
   registers), its seats go back, their drivers warm for the next caller of the options, unless it
   failed: then the drivers stop, as upstream replaces a worker after a failure. A module fails
-  when its `setup_all` failed (raised, past its timeout, killed or taken down by a linked
-  process; in a module with `use Playwright.Test`, whose `setup_all` it wraps: a plain ExUnit
-  module's counts only an exit other than `:normal`, not a raise, which ExUnit catches), when a
-  test of it failed, or when a test's artifacts took longer than their half of its timeout (its
-  contexts may be left open). An `on_exit` of `setup_all` that fails doesn't reset them, where
-  upstream stops a worker whose `afterAll` failed. Only registered tests have results: register tests with
-  `use Playwright.Test` to get Playwright Test's discard-after-failure; a scope with no known
-  result (no registered test, a doctest) counts as passed. A lost browser is launched (or
-  connected) again by the scope's next call.
+  when its `setup_all` failed (raised, past its timeout, killed or taken down by a linked process;
+  only with `use Playwright.Test`, which registers and wraps it: a plain ExUnit module's
+  `setup_all` counts as passed, as an unregistered test does), when a test of it failed, or when a
+  test's artifacts took longer than their half of its timeout (its contexts may be left open). An
+  `on_exit` of `setup_all` that fails doesn't reset them, where upstream stops a worker whose
+  `afterAll` failed. Only registered tests have results: register tests with `use Playwright.Test`
+  to get Playwright Test's discard-after-failure; a scope with no known result (no registered
+  test, a doctest) counts as passed. A lost browser is launched (or connected) again by the scope's
+  next call.
 
   At most `workers` seats are held at once (config, default half the schedulers, as Playwright
   Test's `workers`); other scopes wait, first come first served, within ExUnit's test timeout
