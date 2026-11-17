@@ -212,16 +212,15 @@ What counts as an await. In JS every wait is an `await`, and only CPU work holds
 intent is the contract: Playwright's awaits (its own polls and sleeps included) and
 `Playwright.Promise.yield/0` end a synchronous section. The rule, as a fallback for liveness: a
 listener (or async function) that hasn't reached a Playwright await within 100 ms is released
-as if it had awaited (`Runtime.Invocation.release_after/0`), so its remaining synchronous code
-may run after later events; call `yield/0` before waiting outside Playwright. One warning per
-listener function, emitter type and event names `yield/0`. The waiter (the connection, or the
-caller of an async function) arms one timer per section; only the top frame's section is
-released, a frame below starts its timer over once on top again. Each section has an
-`:atomics` flag that goes from 1 to 0 once (`compare_exchange`), by its process at its first
-yield or by its releaser; the loser sends nothing, or waits for the yield already on its way. So
-a released process holds no live barrier token (its later calls queue behind the current
-dispatch, as JS continuations do) and no yield is left in a mailbox. A released listener keeps
-running, as upstream's does: its Playwright calls fail once its test's contexts close.
+as if it had awaited, so its remaining synchronous code may run after later events; call
+`yield/0` before waiting outside Playwright. One warning per code location names `yield/0`. The
+waiter (the connection, or the caller of an async function) runs one timer per section, counted
+while its frame is on top of the stack. A section's `:atomics` flag is flipped once, by its
+process at its first yield or by its releaser; the loser sends nothing, or waits for the yield
+already on its way. So a released process holds no live barrier token (its later calls queue
+behind the current dispatch, as JS continuations do) and no yield is left in a mailbox. A
+released listener keeps running, as upstream's does: its Playwright calls fail once its test's
+contexts close.
 Rejected: killing a finished test's released listeners (a handler registered by one test may
 serve the next on a shared page); and sampling the process (`Process.info` status and reductions) to
 tell a wait from CPU work, which released sooner but needed runtime waits marked and still

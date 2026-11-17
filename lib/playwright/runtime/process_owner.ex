@@ -38,10 +38,7 @@ defmodule Playwright.Runtime.ProcessOwner do
 
   @warned Playwright.Runtime.ProcessOwner.Warned
 
-  @doc """
-  The public table of the release warnings logged (`Playwright.Runtime.Invocation.try_release/4`):
-  one per listener function, emitter type and event (bounded by the code).
-  """
+  @doc "The public table of the code locations a release warning was logged for (`Playwright.Runtime.Invocation`)."
   def warned, do: @warned
 
   @impl true

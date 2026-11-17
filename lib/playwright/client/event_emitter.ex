@@ -158,13 +158,13 @@ defmodule Playwright.Client.EventEmitter do
   defp _call_handler(this, type, entry, arg, zone) do
     case entry.kind do
       :internal ->
-        Conn.push_step({:internal, entry.fun, arg, this, type, zone})
+        Conn.push_step({:invoke, entry.fun, arg, this, type, zone, nil})
 
       :sync ->
         Conn.push_step({:sync, entry.fun, arg, this, type})
 
       :user ->
-        Conn.push_step({:user, entry.fun, arg, this, type, zone, entry.callers})
+        Conn.push_step({:invoke, entry.fun, arg, this, type, zone, entry.callers})
 
       :mailbox ->
         Conn.push_step({:mailbox, entry.pid, entry.ref, arg})

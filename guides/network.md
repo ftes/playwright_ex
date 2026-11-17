@@ -122,8 +122,8 @@ end)
 A LiveView's socket, at the default `socket "/live"` path, is `"**/live/websocket*"`. The
 `on_message/2` handler hands each frame to a process that waits, and returns at once: a
 `Process.sleep/1` in the handler itself, without `Playwright.Promise.yield/0` before it, holds
-every page on that connection for 100 ms before the handler is released, with a warning (see
-[Concurrency](concurrency.md#waiting-in-listeners)). Each frame gets its own timer. For a
+every page on that connection (see [Concurrency](concurrency.md#waiting-in-listeners)). Each
+frame gets its own timer. For a
 strict order, send each frame with its deadline, taken as it arrives
 (`System.monotonic_time(:millisecond) + 500`), to one process that sleeps only for the rest of
 each deadline before it sends the frame on.

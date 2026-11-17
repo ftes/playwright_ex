@@ -197,7 +197,7 @@ defmodule Playwright.Runtime.Promise do
         true -> local_alias()
       end
 
-    start(fun, fn ->
+    start(fn ->
       result = run_async(fun)
       settle_async(promise, result)
       Invocation.yield()
@@ -277,7 +277,7 @@ defmodule Playwright.Runtime.Promise do
   `async/1`, but its result and errors are dropped.
   """
   def void(fun) when is_function(fun, 0) do
-    start(fun, fn ->
+    start(fn ->
       run_async(fun)
       Invocation.yield()
     end)
@@ -291,18 +291,15 @@ defmodule Playwright.Runtime.Promise do
     kind, reason -> {:error, Exception.normalize(kind, reason, __STACKTRACE__)}
   end
 
-  # Starts `body` (running `fun`) in a process that runs as the caller until its first yield. It
-  # works on the caller's behalf, so it gets its `$callers` as a `Task` does; not the
-  # connection's (shared). In the caller's synchronous section, it inherits its barrier token
-  # (with a flag of its own).
-  defp start(fun, body) do
+  # Starts `body` in a process that runs as the caller until its first yield. It works on the
+  # caller's behalf, so it gets its `$callers` as a `Task` does; not the connection's (shared).
+  # In the caller's synchronous section, it inherits its barrier token (with a flag of its own).
+  defp start(body) do
     caller = self()
     zone = Zones.current_zone()
     in_conn = Conn.in_conn?()
-    barrier = if !in_conn && Invocation.own_flag(), do: elem(Process.get(:pw_barrier, {nil, nil}), 0)
+    barrier = if !in_conn, do: Invocation.barrier()
     callers = if !in_conn, do: Callers.capture()
-    inherited = Process.get(:pw_event)
-    event = inherited || Invocation.async_event(fun)
     inv = make_ref()
     flag = Invocation.new_flag()
 
@@ -310,7 +307,6 @@ defmodule Playwright.Runtime.Promise do
       spawn(fn ->
         if callers, do: Callers.adopt(callers)
         Zones.restore(zone)
-        if inherited, do: Process.put(:pw_event, inherited)
         # Inside the connection: started (and waited for) at the current dispatch step.
         barrier =
           if in_conn do
@@ -326,27 +322,27 @@ defmodule Playwright.Runtime.Promise do
       end)
 
     if in_conn do
-      Conn.push_step({:start, pid, inv, flag, event})
+      Conn.push_step({:start, pid, inv, flag})
     else
       mref = Process.monitor(pid)
-      handoff(pid, mref, inv, flag, event, Invocation.release_after())
+      handoff(pid, mref, inv, flag, Invocation.release_after())
     end
 
     pid
   end
 
   # Waits for the first yield of the async function's process, releasing it as the connection
-  # releases a listener (`Invocation.try_release/3`): one released goes on in its own process.
+  # releases a listener (`Invocation.try_release/2`): one released goes on in its own process.
   # Once it yielded meanwhile (`:yielding`), its message is on its way.
-  defp handoff(pid, mref, inv, flag, event, timeout) do
+  defp handoff(pid, mref, inv, flag, timeout) do
     receive do
       {:pw_yield, ^inv} -> Process.demonitor(mref, [:flush])
       {:DOWN, ^mref, :process, _, reason} -> exit(reason)
     after
       timeout ->
-        case Invocation.try_release(pid, flag, event) do
+        case Invocation.try_release(pid, flag) do
           :released -> Process.demonitor(mref, [:flush])
-          :yielding -> handoff(pid, mref, inv, flag, event, :infinity)
+          :yielding -> handoff(pid, mref, inv, flag, :infinity)
         end
     end
   end
