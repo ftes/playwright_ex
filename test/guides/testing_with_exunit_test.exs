@@ -521,7 +521,7 @@ defmodule Playwright.Guides.TestingWithExUnit.ProjectsCase do
   using do
     quote do
       use Playwright.Test
-      alias Playwright.{Browser, BrowserContext, Expect, Locator, Page}
+      alias Playwright.{Browser, BrowserContext, Expect, Locator, Page, Test}
     end
   end
 
@@ -547,6 +547,10 @@ defmodule Playwright.Guides.TestingWithExUnit.ProjectsTest do
     assert Page.evaluate!(page, "navigator.userAgent") =~ @user_agents[name]
     assert Page.viewport_size(page) == %{width: 1280, height: 720}
   end
+
+  test "Test.step through the template's alias", %{page: page} do
+    assert Test.step("set content", fn -> Page.set_content!(page, "<p>Hi</p>") end) == :ok
+  end
 end
 
 defmodule Playwright.Guides.TestingWithExUnit.PortingTest do
@@ -564,5 +568,149 @@ defmodule Playwright.Guides.TestingWithExUnit.PortingTest do
 
     element_handle = Page.query_selector!(page, "p")
     assert JSHandle.evaluate!(element_handle, "e => e.textContent") == "patched=true"
+    assert Locator.get_attribute!(Page.locator(page, "p"), "title") == nil
+  end
+
+  test "init scripts and selectors with parentheses", %{context: context, page: page} do
+    # Only defined, not called.
+    BrowserContext.add_init_script!(context, "() => window.defined = true")
+    fun = "() => window.called = true"
+    BrowserContext.add_init_script!(context, "(#{fun})()")
+    Page.route!(page, "**/*", &Playwright.Route.fulfill!(&1, body: "<div>(a)</div>", content_type: "text/html"))
+    Page.goto!(page, "http://app.test/")
+    assert Page.evaluate!(page, "[window.defined, window.called]") == [nil, true]
+    Expect.to_be_visible!(Page.locator(page, ~s[div:has-text("(a)")]))
+  end
+
+  test "poll a list that starts empty", %{page: page} do
+    Page.set_content!(page, "<ul></ul>")
+    Page.evaluate!(page, "setTimeout(() => document.querySelector('ul').innerHTML = '<li>One</li>', 300)")
+    rows = fn -> Page.locator(page, "li") |> Locator.all_text_contents!() end
+    Expect.poll!(fn -> Enum.at(rows.(), 0) end, &assert(&1 == "One"))
+  end
+
+  test "drain the forwarded events", %{page: page} do
+    test_pid = self()
+    Page.on(page, :console, &send(test_pid, {:console, Playwright.ConsoleMessage.text(&1)}))
+    Page.evaluate!(page, "console.log('saved')")
+    assert received(:console) == ["saved"]
+  end
+
+  defp received(tag) do
+    receive do
+      {^tag, value} -> [value | received(tag)]
+    after
+      0 -> []
+    end
+  end
+
+  # "Coming from Wallaby".
+  test "Wallaby's assertions", %{page: page} do
+    Page.set_content!(page, """
+    <p class="alert">Saved</p><ul><li>Apple</li><li>Pear</li></ul>
+    <p id="color" style="text-transform: uppercase">red</p>
+    """)
+
+    Page.locator(page, ".alert") |> Locator.filter(has_text: "Saved") |> Expect.to_be_visible!()
+    Page.locator(page, ".error") |> Expect.not_to_be_visible!()
+    Page.get_by_role(page, :listitem) |> Locator.filter(has_text: "Apple") |> Expect.to_be_visible!()
+    Expect.to_have_text!(Page.locator(page, "#color"), "RED", use_inner_text: true)
+  end
+end
+
+defmodule Playwright.Guides.TestingWithExUnit.OncePerRunTest do
+  # "Logging in once": the once-per-run login of `test_helper.exs`, run in `setup_all`, and the
+  # config's `context_options` from it; the `baseURL` and `request` fixtures of "Porting
+  # Playwright Test specs". Not async: it sets the config.
+  use ExUnit.Case, async: false
+  use Playwright.Test
+
+  alias Playwright.APIRequest
+  alias Playwright.APIRequestContext
+  alias Playwright.APIResponse
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.BrowserType
+  alias Playwright.Expect
+  alias Playwright.Guides.TestingWithExUnit.App
+  alias Playwright.Locator
+  alias Playwright.Page
+  alias Playwright.Test.BrowserPool
+
+  setup_all do
+    dir = Path.join(System.tmp_dir!(), "guide-app-#{System.unique_integer([:positive])}")
+    server = App.start!(dir)
+    config = Application.get_env(:playwright, :test)
+    on_exit(fn -> Application.put_env(:playwright, :test, config) end)
+    Application.put_env(:playwright, :test, Keyword.put(config, :context_options, base_url: server.prefix))
+    auth = Path.join(dir, "auth.json")
+
+    # Deviation: the browser under test, and the guide's `tmp/auth.json` in a temporary dir.
+    {:ok, driver} = Playwright.Supervisor.start_link(name: MyApp.GlobalSetup)
+    browser = Playwright.instance(MyApp.GlobalSetup) |> Playwright.TestBrowser.browser_type() |> BrowserType.launch!()
+    context = Browser.new_context!(browser, base_url: Playwright.Test.config().context_options[:base_url])
+    page = BrowserContext.new_page!(context)
+    Page.goto!(page, "/login")
+    Page.get_by_role(page, :button, name: "Log in") |> Locator.click!()
+    Expect.to_have_url!(page, ~r"/dashboard$")
+    BrowserContext.storage_state!(context, path: auth)
+    Supervisor.stop(driver)
+
+    options = [base_url: server.prefix, storage_state: auth]
+    Application.put_env(:playwright, :test, Keyword.put(config, :context_options, options))
+
+    %{browser: BrowserPool.browser(), base_url: server.prefix}
+  end
+
+  test "every context starts logged in", %{browser: browser} do
+    page = BrowserContext.new_page!(Browser.new_context!(browser))
+    Page.goto!(page, "/dashboard")
+    Expect.to_have_url!(page, ~r"/dashboard$")
+  end
+
+  test "the baseURL and request fixtures", %{browser: browser, base_url: base_url} do
+    assert Playwright.Test.config().context_options[:base_url] == base_url
+    request = APIRequest.new_context!(Playwright.request(BrowserPool.playwright(browser)))
+    assert %{"status" => _} = APIResponse.json!(APIRequestContext.get!(request, "/api/exports/1"))
+  end
+end
+
+defmodule Playwright.Guides.TestingWithExUnit.OnExitTest do
+  # "Your own case template": an `on_exit` uses the page and closes the context, which is still
+  # traced; the check runs after the recording, registered before it.
+  use ExUnit.Case, async: true
+
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.Page
+  alias Playwright.Test.BrowserPool
+
+  @moduletag trace: :on
+
+  setup %{test_pid: test_pid} do
+    on_exit(fn ->
+      %{output_dir: dir} = Playwright.Test.info(test_pid)
+      assert File.exists?(Path.join(dir, "trace.zip"))
+      File.rm_rf!(dir)
+    end)
+  end
+
+  use Playwright.Test
+
+  setup do
+    context = Browser.new_context!(BrowserPool.browser())
+    page = BrowserContext.new_page!(context)
+
+    on_exit(fn ->
+      Page.set_content!(page, "<p>after</p>")
+      assert Page.text_content!(page, "p") == "after"
+      BrowserContext.close!(context)
+    end)
+
+    %{page: page}
+  end
+
+  test "passes", %{page: page} do
+    Page.set_content!(page, "<p>Hi</p>")
   end
 end

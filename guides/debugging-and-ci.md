@@ -100,21 +100,30 @@ The driver's own logs go to stderr with `DEBUG=pw:api` in its environment:
 
 ## GitHub Actions
 
-Install the browsers with their system packages (`--with-deps` runs `apt-get`):
+Install the browsers with their system packages (`--with-deps` runs `apt-get`). Set `MIX_ENV`
+for the whole job, so every task shares the test build: the install in `:dev` would compile the
+dev deps too.
 
 ```yaml
-- run: mix playwright.install -- chromium --with-deps
-- run: mix test
-- uses: actions/upload-artifact@v7
-  if: failure()
-  with:
-    name: test-results
-    path: tmp/test-results
+env:
+  MIX_ENV: test
+steps:
+  # ... checkout, erlef/setup-beam
+  - run: mix deps.get
+  - run: mix playwright.install -- chromium --with-deps
+  - run: mix test
+  - uses: actions/upload-artifact@v7
+    if: failure()
+    with:
+      name: test-results
+      path: test-results
 ```
 
 As upstream advises, don't cache the browsers: restoring takes about as long as downloading,
-and the system packages can't be cached. To cache them anyway, cache `~/.cache/playwright`
-and `~/.cache/ms-playwright` against `hashFiles('mix.lock')`, which pins the driver version. If
+and the system packages can't be cached. To cache them anyway, cache the driver
+(`~/.cache/playwright`) and the browsers (`~/.cache/ms-playwright`; on macOS
+`~/Library/Caches/playwright` and `~/Library/Caches/ms-playwright`) against
+`hashFiles('mix.lock')`, which pins the driver version. If
 the runner's apt mirror stalls, this repository's
 [workflow](https://github.com/ftes/playwright_ex/blob/main/.github/workflows/elixir.yml) retries
 and caches the `.deb` files.
@@ -134,6 +143,7 @@ runs-on: ubuntu-24.04
 container:
   image: mcr.microsoft.com/playwright:v1.65.0-noble
 env:
+  MIX_ENV: test
   ImageOS: ubuntu22
   HOME: /root
 steps:
@@ -176,6 +186,7 @@ Browsers need system libraries, so install them in the image:
 
 ```dockerfile
 FROM elixir:1.20
+ENV MIX_ENV=test
 WORKDIR /app
 COPY mix.exs mix.lock ./
 RUN mix local.hex --force && mix deps.get && mix deps.compile
