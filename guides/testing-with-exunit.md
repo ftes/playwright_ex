@@ -38,7 +38,7 @@ end
 ```elixir
 use ExUnit.Case, async: true
 use Playwright.Test
-alias Playwright.{Browser, BrowserContext, Expect, Locator, Page}
+alias Playwright.{Browser, BrowserContext, Expect, Keyboard, Locator, Mouse, Page, Test}
 alias Playwright.Test.BrowserPool
 
 setup_all do
@@ -79,9 +79,13 @@ Options go in as arguments, merged over the config: `BrowserPool.browser(browser
 `Playwright.BrowserType.launch/2`, `context_options` those of
 `Playwright.Browser.new_context/2`. Every context a test creates on a pooled browser starts from
 Playwright Test's defaults (`locale: "en-US"`, a 1280x720 viewport, `color_scheme: :light`, ...),
-then the config's `context_options`; the options the call gives win. So does every context the
-module's `setup_all` creates, as Playwright Test's `beforeAll` gets the `use` options:
-`goto("/")` works there with `base_url`. A process the test or `setup_all` starts counts only
+then the config's `context_options`, then the module's (`use Playwright.Case, context_options:
+[locale: "de-DE"]`, Playwright Test's `test.use({ locale: 'de-DE' })`); the options the call
+gives win, each per key. So does every context the module's `setup_all` creates, as Playwright
+Test's `beforeAll` gets the `use` options: `goto("/")` works there with `base_url`. Only the
+module's static options apply there, and none if any of the module's merged `use`s (a case
+template's included) gives a function (see "Devices"), which is of a test. A
+process the test or `setup_all` starts counts only
 with `$callers`: a `Task`, and route handlers and listeners registered there, have them (see
 [Route handlers and listeners](#route-handlers-and-listeners)); a `spawn`, a `GenServer` or
 `start_supervised` doesn't. A long-lived process or handler of `setup_all`'s with them gives the
@@ -134,7 +138,8 @@ defmodule MyApp.BrowserCase do
 end
 ```
 
-To change a piece, say context options from your own tags, write the template from the pieces.
+To change a piece, say another browser, write the template from the pieces (context options
+from your own tags or parameters are `context_options: &Mod.fun/1`, see "Devices").
 Its own `setup` runs before those of its `using`, so make `use Playwright.Test` the first line
 of its body: the test is then registered before the template's `setup` creates a context (a
 context created before the registration makes it raise, saying so):
@@ -345,6 +350,28 @@ end
 The device's options are the call's, so they win over Playwright Test's defaults (its viewport
 over the 1280x720 one), and `default_browser_type` (`"webkit"`) says which browser to pass.
 
+For every test of a module, as a file's `test.use`, give `use Playwright.Case` a function of the
+test's context that returns them. It runs at each test's registration, after `setup_all`, so it
+gets the module's `browser` (`setup_all`'s contexts then get none of the module's options, see
+"Not ported yet"). The options are kept at compile time, so the function is an external capture
+(`&Mod.fun/1`) or `{Mod, :fun}`, not an anonymous one:
+
+```elixir
+defmodule MyApp.PhoneTest do
+  use Playwright.Case, async: true, context_options: &__MODULE__.iphone/1
+
+  def iphone(%{browser: browser}), do: Playwright.devices(BrowserPool.playwright(browser))["iPhone 13"]
+
+  test "on a phone", %{page: page} do
+    # ...
+  end
+end
+```
+
+The module's options are under the call's, so here the device's viewport is over the defaults'
+and a `Browser.new_context!(browser, viewport: ...)` in a test over the device's. `Playwright.Case`'s
+browser is the config's `browser_name`; for the device's own browser, see "Projects".
+
 ### Projects
 
 Playwright Test's `projects`, one run per browser and device, are ExUnit's `parameterize:` over
@@ -386,7 +413,11 @@ defmodule MyApp.SignUpTest do
 end
 ```
 
-A test sees its project as `browser_name` in the context. ExUnit's filters don't see
+A test sees its project as `browser_name` in the context. On one browser, projects that only
+differ in their context options are `use Playwright.Case` with `parameterize:` and a function
+that maps your own parameter to them: `parameterize: [%{device: "Pixel 7"}, %{device: "iPhone
+13"}], context_options: &__MODULE__.device/1`, with `def device(%{browser: browser, device:
+name})` as `iphone/1` above. Nothing reads a parameter on its own. ExUnit's filters don't see
 `parameterize:` values, so to run one project, have `projects/0` read an env var
 (`BROWSERS=chromium mix test`).
 
@@ -870,6 +901,37 @@ Most of a spec ports call for call. What differs (and see [Not supported](#not-s
 - `addInitScript(fn)` calls the function, but a string is sent as is, so `"() => ..."` only
   defines one: pass `"(#{fun})()"`, or the function's body.
 - A selector with parentheses can't go in `~s(...)`: use `~s[...]` or a string.
+- `test.use({ ... })` at a file's top is `use Playwright.Case, context_options: [...]` (or a
+  function, see "Devices"); `projects` are `parameterize:`, with the function for their context
+  options (see "Projects"). When the module's context can't be configured enough (values only
+  the module's own `setup` computes, as ExUnit runs the case template's `setup` first, or options
+  that differ per test), create the context in the test or its `setup`:
+  `Browser.new_context!(browser, storage_state: state)`. It still gets the defaults, the config's
+  and the module's options, and is recorded.
+- A spec that shares one page from `beforeAll` would still pay for `Playwright.Case`'s context
+  and page in each test (about 40 ms on Chromium, 120 ms on Firefox): write the few lines
+  instead. The `setup_all` context gets the defaults, the config's and the module's static
+  `context_options` and the timeouts, but no test records it (see "Not ported yet"):
+
+  ```elixir
+  defmodule MyApp.DashboardTest do
+    use ExUnit.Case, async: true
+    use Playwright.Test
+
+    alias Playwright.{Browser, BrowserContext, Page}
+    alias Playwright.Test.BrowserPool
+
+    setup_all do
+      context = Browser.new_context!(BrowserPool.browser())
+      on_exit(fn -> BrowserContext.close!(context) end)
+      %{page: BrowserContext.new_page!(context)}
+    end
+
+    test "shows the list", %{page: page} do
+      # ...
+    end
+  end
+  ```
 
 ## Not supported
 
@@ -904,6 +966,11 @@ Not ported yet ([open an issue](https://github.com/ftes/playwright_ex/issues) if
   but its actions aren't in a test's trace, and it gets no screenshots or `error-context.md`.
   Playwright Test's `ArtifactsRecorder` records every open context per test, `beforeAll` ones
   included. Create the context per test instead, as `Playwright.Case` does by default;
+- a `context_options` function's options for the contexts of `setup_all`: they get the module's
+  static options only, and none of the module's if a `use` gives a function (applying only the
+  rest would break their order and `nil` resets), as the function is of a test's context, where
+  Playwright Test's `beforeAll` gets the file's `test.use` options, functions of the fixtures
+  included. Pass them to the call there;
 - the current test's options for a context a long-lived `setup_all` process or handler (one with
   its `$callers`) creates during a test: it gets the module's defaults and no test records it,
   where Playwright Test's `runBeforeCreateBrowserContext` resolves the current test, so the

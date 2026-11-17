@@ -15,9 +15,12 @@ defmodule Playwright.Case do
       end
 
   It takes `use Playwright.Test`'s options next to ExUnit.Case's: `use Playwright.Case,
-  async: true, trace: :on`. Any other option raises, so a template that forwards its options
-  here pops its own first: `{sandbox, opts} = Keyword.pop(opts, :sandbox)` in its `using opts`,
-  then `use Playwright.Case, unquote(opts)`.
+  async: true, trace: :on`. `context_options:` is upstream's `test.use({ locale: 'de-DE' })`,
+  for the `context` and every other context of the module's tests: the options, or a function
+  of the test's context (`&MyApp.Devices.context_options/1` over your own `parameterize:`
+  values, as upstream's projects), see "Context defaults" in `Playwright.Test`. Any other option
+  raises, so a template that forwards its options here pops its own first: `{sandbox, opts} =
+  Keyword.pop(opts, :sandbox)` in its `using opts`, then `use Playwright.Case, unquote(opts)`.
 
   It only puts the pieces together, so it is a recipe as much as an API: `use Playwright.Test`
   first in the body, so the test is registered before the context is created, the browser in
@@ -32,8 +35,31 @@ defmodule Playwright.Case do
         end
       end
 
-  To change a piece (another browser, context options from a tag, other aliases), copy this
-  module's source into `test/support` and edit it there.
+  When the `context` can't be configured enough (values only the module's own `setup` computes,
+  as ExUnit runs the template's `setup` first, or options that differ per test), create your
+  own context in the test or its `setup`: `Browser.new_context!(browser, storage_state: state)`.
+  It still gets the defaults, the config's and the module's options, and is recorded.
+
+  A module that shares one page from `setup_all` (upstream's `beforeAll` page) would still pay
+  for each test's `context` and `page`, about 40 ms per test on Chromium and 120 ms on Firefox:
+  skip `Playwright.Case` and write the few lines yourself. The `setup_all` context gets the
+  defaults, the config's and the module's static `context_options` (none if a `use` gives a function) and the
+  timeouts, but no test records it (it is in no trace, screenshot or `error-context.md`):
+
+      use ExUnit.Case, async: true
+      use Playwright.Test
+
+      alias Playwright.{Browser, BrowserContext, Page}
+      alias Playwright.Test.BrowserPool
+
+      setup_all do
+        context = Browser.new_context!(BrowserPool.browser())
+        on_exit(fn -> BrowserContext.close!(context) end)
+        %{page: BrowserContext.new_page!(context)}
+      end
+
+  To change a piece (another browser, other aliases), copy this module's source into
+  `test/support` and edit it there.
 
   Playwright Test's `request` fixture is not here, as every test would pay for it: create one in
   the test, with the context defaults and recorded, and disposed at its end:
@@ -51,7 +77,7 @@ defmodule Playwright.Case do
     quote do
       use Playwright.Test, unquote(opts)
 
-      alias Playwright.{Browser, BrowserContext, Expect, Locator, Page, Test}
+      alias Playwright.{Browser, BrowserContext, Expect, Keyboard, Locator, Mouse, Page, Test}
       alias Playwright.Test.BrowserPool
     end
   end
