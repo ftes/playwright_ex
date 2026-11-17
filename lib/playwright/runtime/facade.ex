@@ -31,6 +31,8 @@ defmodule Playwright.Runtime.Facade do
     Playwright.TargetClosedError,
     Playwright.AbortError,
     Playwright.ExpectError,
+    # `Promise.any`'s, when all of its promises reject.
+    Playwright.AggregateError,
     # JS `new Error(message)` and the protocol's `ValidationError`, thrown by the client.
     RuntimeError,
     Playwright.Protocol.ValidatorPrimitives.ValidationError,

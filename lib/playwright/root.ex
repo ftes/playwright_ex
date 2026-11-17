@@ -11,10 +11,11 @@ defmodule Playwright.Root do
       An error a call fails with: the tuple forms return `{:error, error}`, the bang forms raise it.
       These are what a JS call rejects with: Playwright's errors (`Playwright.PlaywrightError` for
       JS `Error`, `Playwright.TimeoutError`, `Playwright.TargetClosedError`,
-      `Playwright.AbortError`, the matchers' `Playwright.ExpectError`), and what the client
-      throws itself: `RuntimeError` for a JS `new Error(message)` ("Route is already handled!"), the
-      protocol's `ValidationError` for an argument of the wrong type, `JSON.DecodeError` where JS's
-      `JSON.parse` fails and `File.Error` for local files. Anything else (`ArgumentError` for an
+      `Playwright.AbortError`, the matchers' `Playwright.ExpectError`, `Playwright.Promise.any/1`'s
+      `Playwright.AggregateError`), and what the client throws itself: `RuntimeError` for a JS
+      `new Error(message)` ("Route is already handled!"), the protocol's `ValidationError` for an
+      argument of the wrong type, `JSON.DecodeError` where JS's `JSON.parse` fails and `File.Error`
+      for local files. Anything else (`ArgumentError` for an
       unknown option, a `FunctionClauseError`) is a bug or a misuse and raises in both forms.
       """
       @type error ::
@@ -23,6 +24,7 @@ defmodule Playwright.Root do
               | Playwright.TargetClosedError.t()
               | Playwright.AbortError.t()
               | Playwright.ExpectError.t()
+              | Playwright.AggregateError.t()
               | %RuntimeError{}
               | %Playwright.Protocol.ValidatorPrimitives.ValidationError{}
               | %JSON.DecodeError{}

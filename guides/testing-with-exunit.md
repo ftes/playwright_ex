@@ -713,8 +713,8 @@ Most of a spec ports call for call. What differs (and see [Not supported](#not-s
   kept in an `Agent` (unlinked when an `on_exit` reads it, see "A check after the test").
 - `expect(fn).toPass()` is `Expect.to_pass!/2`, `expect.poll(fn).toBe(x)` is
   `Expect.poll!(fn, &assert(&1 == x))`, and a call started now and awaited later
-  (`const p = locator.evaluate(...)`) is `Playwright.Promise.async/1` (see
-  [Concurrency](concurrency.md)).
+  (`const p = locator.evaluate(...)`) is `Playwright.Promise.async/1`, and `Promise.all([...])`
+  is `Playwright.Promise.all/1` of those (see [Concurrency](concurrency.md)).
 
 ## Not supported
 
