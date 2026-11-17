@@ -30,7 +30,6 @@ defmodule Mix.Tasks.Playwright.InstallTest do
 
     test "takes the default --browsers, without forwarding it" do
       assert Install.parse_args(~w(--browsers chromium)) == {[browsers: true, force: false], ~w(chromium)}
-      assert Install.parse_args(~w(--browsers -- chromium)) == {[browsers: true, force: false], ~w(chromium)}
     end
 
     test "--no-browsers with browser args raises" do
@@ -38,16 +37,20 @@ defmodule Mix.Tasks.Playwright.InstallTest do
         Install.parse_args(~w(chromium --no-browsers --with-deps))
       end
 
-      assert_raise Mix.Error, ~r/got: chromium$/, fn -> Install.parse_args(~w(--no-browsers -- chromium)) end
       assert_raise Mix.Error, ~r/got: chromium$/, fn -> Install.parse_args(~w(--force chromium --no-browsers)) end
     end
 
-    test "drops a legacy --, forwarding what follows as it is" do
-      assert Install.parse_args(~w(-- chromium --with-deps)) ==
-               {[browsers: true, force: false], ~w(chromium --with-deps)}
+    test "--no-browsers takes a repeated --force" do
+      assert Install.parse_args(~w(--force --no-browsers --force)) ==
+               {[browsers: false, force: true], ~w(--force --force)}
+    end
 
-      assert Install.parse_args(~w(--force -- chromium)) == {[browsers: true, force: true], ~w(--force chromium)}
-      assert Install.parse_args(~w(chromium -- --force --)) == {[browsers: true, force: false], ~w(chromium --force --)}
+    test "a -- raises, naming the fix" do
+      for argv <- [~w(-- chromium --with-deps), ~w(chromium --), ~w(--no-browsers --)] do
+        assert_raise Mix.Error, ~r/^`--` is no longer needed: pass the args directly/, fn ->
+          Install.parse_args(argv)
+        end
+      end
     end
   end
 
@@ -60,5 +63,9 @@ defmodule Mix.Tasks.Playwright.InstallTest do
       end)
 
     assert output =~ "no-such-browser"
+  end
+
+  test "a -- raises before installing anything" do
+    assert_raise Mix.Error, ~r/^`--` is no longer needed/, fn -> Install.run(["--", "chromium"]) end
   end
 end

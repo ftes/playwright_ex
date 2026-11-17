@@ -13,8 +13,7 @@ defmodule Mix.Tasks.Playwright.Install do
     * `--force` - reinstalls the driver, and is forwarded: `playwright install --force` reinstalls
       the browsers.
 
-  Every other arg is forwarded in order. Args after a `--` are forwarded as they are, without
-  looking for the task's flags; the first `--` itself is dropped.
+  Every other arg is forwarded in order. A `--` raises: the args need none.
 
   The task doesn't see the options of `Playwright.Supervisor`; it reads their defaults,
   `config :playwright, :driver` (see `Playwright.Driver`). It doesn't compile the project, so it
@@ -52,20 +51,17 @@ defmodule Mix.Tasks.Playwright.Install do
   @doc false
   # Splits argv into the task's flags and the args for `playwright install`.
   def parse_args(argv) do
-    {own, verbatim} =
-      case Enum.split_while(argv, &(&1 != "--")) do
-        {own, ["--" | rest]} -> {own, rest}
-        {own, []} -> {own, []}
-      end
+    if "--" in argv do
+      Mix.raise("`--` is no longer needed: pass the args directly, e.g. `mix playwright.install chromium --with-deps`")
+    end
 
-    browsers? = "--no-browsers" not in own
-    browser_args = Enum.reject(own, &(&1 in ["--browsers", "--no-browsers"])) ++ verbatim
-    others = List.delete(browser_args, "--force")
+    browsers? = "--no-browsers" not in argv
+    others = Enum.reject(argv, &(&1 in ["--force", "--browsers", "--no-browsers"]))
 
     if not browsers? and others != [] do
       Mix.raise("--no-browsers installs only the driver, so it takes no browser args, got: #{Enum.join(others, " ")}")
     end
 
-    {[browsers: browsers?, force: "--force" in own], browser_args}
+    {[browsers: browsers?, force: "--force" in argv], Enum.reject(argv, &(&1 in ["--browsers", "--no-browsers"]))}
   end
 end

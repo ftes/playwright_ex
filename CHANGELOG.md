@@ -46,10 +46,11 @@ Node 26.13.1. No API changes.
 
 ### Changed
 
-- `mix playwright.install` takes `playwright install`'s args as they are: `--` is no longer
-  needed, as in `mix playwright.install chromium --with-deps` (a leading `--` still works).
-  `--force` now also reinstalls the browsers, as it's forwarded to `playwright install`.
-  `--no-browsers` with browser args raises.
+- **RC only:** **Breaking:** `mix playwright.install` takes `playwright install`'s args as they
+  are, as in `mix playwright.install chromium --with-deps`. A `--` now raises.
+- **RC only:** **Breaking:** `mix playwright.install --force` also reinstalls the browsers, as
+  it's forwarded to `playwright install`.
+- **RC only:** **Breaking:** `mix playwright.install --no-browsers` with browser args raises.
 
 ### Fixed
 
