@@ -48,6 +48,13 @@ Node 26.13.1. No upstream API changes.
 
 - `Playwright.Promise.all/1`, `race/1` and `any/1`, as JS's `Promise.all`, `Promise.race` and
   `Promise.any` (with `Playwright.AggregateError`).
+- **RC only:** `use Playwright.Test` (and `use Playwright.Case`) takes `context_options:`,
+  Playwright Test's `test.use({ locale: 'de-DE' })`: the options, or a function of the test's
+  context (`&Mod.fun/1`, e.g. over your `parameterize:` values), over the config's per key, under
+  the call's, for every context of the module's tests (#257). An option given as `nil` resets it
+  to the config's or the default, as upstream's `undefined`.
+- **RC only:** `use Playwright.Case` also aliases `Playwright.Keyboard` and `Playwright.Mouse`, so
+  `Keyboard` and `Mouse` in such a module now resolve to Playwright's modules.
 
 ### Changed
 
@@ -75,16 +82,9 @@ Node 26.13.1. No upstream API changes.
   module (`@moduletag timeout:`, else `mix test --timeout`), with `"setup_all" hook timeout of
   60000ms exceeded.`, as Playwright Test's `beforeAll` hook times out (#257). A longer
   `setup_all` needs a `@moduletag timeout:`.
-
-### Added
-
-- **RC only:** `use Playwright.Test` (and `use Playwright.Case`) takes `context_options:`,
-  Playwright Test's `test.use({ locale: 'de-DE' })`: the options, or a function of the test's
-  context (`&Mod.fun/1`, e.g. over your `parameterize:` values), over the config's per key, under
-  the call's, for every context of the module's tests (#257). A `nil` option there or in the
-  config falls back to the default under it, as upstream skips `undefined` ones.
-- **RC only:** `use Playwright.Case` also aliases `Playwright.Keyboard` and `Playwright.Mouse`, so
-  `Keyboard` and `Mouse` in such a module now resolve to Playwright's modules.
+- **RC only:** **Breaking:** an option of the config's `context_options` given as `nil` falls
+  back to Playwright Test's default (`locale: nil` is `en-US`), as upstream's `undefined`, not to
+  the client's.
 
 ### Fixed
 

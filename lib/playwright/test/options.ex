@@ -135,7 +135,7 @@ defmodule Playwright.Test.Options do
   defp use_context_options!({module, function} = mf) when is_atom(module) and is_atom(function), do: [mf]
 
   defp use_context_options!(options) when is_list(options) or (is_map(options) and not is_struct(options)),
-    do: [context_options!(options, "invalid context_options: ")]
+    do: [context_options!(options, "invalid context_options: ", :reset)]
 
   defp use_context_options!(options),
     do:
@@ -155,8 +155,9 @@ defmodule Playwright.Test.Options do
   @doc """
   The module's `use` option `context_options` (`use_options/1`) for the test of the ExUnit
   `context`, converted: the options and the functions' results for `context`, each over those
-  before it. For a module's `setup_all` (`context` `nil`) only the options: a function is of a
-  test's context.
+  before it. An option given as `nil` resets it past every earlier `use`, to the config's or the
+  default, as upstream's `undefined` override (`_appendFixtureList`). For a module's `setup_all`
+  (`context` `nil`) only the options: a function is of a test's context.
   """
   def use_context_options(options, context) do
     options
@@ -166,6 +167,7 @@ defmodule Playwright.Test.Options do
       _function, acc when context == nil -> acc
       function, acc -> Map.merge(acc, call_context_options!(function, context))
     end)
+    |> Map.reject(fn {_key, value} -> value == nil end)
   end
 
   defp call_context_options!(function, context) do
@@ -177,7 +179,7 @@ defmodule Playwright.Test.Options do
 
     case apply(module, name, [context]) do
       options when is_list(options) or (is_map(options) and not is_struct(options)) ->
-        context_options!(options, "context_options: #{label} returned an invalid option: ")
+        context_options!(options, "context_options: #{label} returned an invalid option: ", :reset)
 
       options ->
         raise ArgumentError,
@@ -193,23 +195,36 @@ defmodule Playwright.Test.Options do
     {module, name}
   end
 
-  # Options (a keyword list or a map) as the client takes them, without the `nil` ones, which fall
-  # back to the options under them, as `_combinedContextOptions` skips `undefined`; an invalid one
-  # raises with `prefix`.
-  defp context_options!(options, prefix) do
-    options =
-      cond do
-        is_map(options) and not is_struct(options) -> Enum.to_list(options)
-        is_list(options) and Keyword.keyword?(options) -> options
-        true -> raise ArgumentError, prefix <> "expected a keyword list or a map, got: #{inspect(options)}"
-      end
-
-    options = Enum.reject(options, fn {_key, value} -> value == nil end)
+  # Options (a keyword list or a map) as the client takes them; an invalid one raises with
+  # `prefix`. A `nil` one is a reset, kept as `nil` under its client key (`use_context_options/2`)
+  # with `nils` `:reset`, else dropped: the config's falls back to the default, as upstream's
+  # `undefined` option.
+  defp context_options!(options, prefix, nils \\ :drop) do
+    {resets, options} = options |> options_list!(prefix) |> Enum.split_with(fn {_key, value} -> value == nil end)
+    type = Playwright.Browser.__options_type__(:new_context)
 
     try do
-      Facade.options!(options, Playwright.Browser.__options_type__(:new_context), "browser.newContext")
+      converted = Facade.options!(options, type, "browser.newContext")
+      resets = Map.new(resets, fn {key, nil} -> {js_key!(key, type), nil} end)
+      if nils == :reset, do: Map.merge(converted, resets), else: converted
     rescue
       error in ArgumentError -> reraise ArgumentError, prefix <> Exception.message(error), __STACKTRACE__
+    end
+  end
+
+  defp options_list!(options, _prefix) when is_map(options) and not is_struct(options), do: Enum.to_list(options)
+
+  defp options_list!(options, prefix) do
+    if is_list(options) and Keyword.keyword?(options),
+      do: options,
+      else: raise(ArgumentError, prefix <> "expected a keyword list or a map, got: #{inspect(options)}")
+  end
+
+  # The client's key of the option `key`; an unknown one raises as the conversion's.
+  defp js_key!(key, {:object, schema} = type) do
+    case schema do
+      %{^key => {js_key, _type}} -> js_key
+      _unknown -> Facade.options!([{key, nil}], type, "browser.newContext")
     end
   end
 

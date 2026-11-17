@@ -155,8 +155,9 @@ defmodule Playwright.Test do
   "en-US"`, a 1280x720 viewport, `color_scheme: :light`, ...), then the config's
   `context_options` over them, for each option the call doesn't give, as upstream's
   `_combinedContextOptions`. An option the call gives as `nil` keeps the client's default; one
-  the config (or the module, below) gives as `nil` falls back to the one under it, as upstream
-  skips `undefined` ones; `viewport: :null` is none. An option replaces the default as a whole (`extra_http_headers` too, as
+  the config gives as `nil` falls back to Playwright Test's default, and one the module gives as
+  `nil` (below) to the config's or the default, past the module's earlier `use`s, as upstream's
+  `undefined` option override; `viewport: :null` is none. An option replaces the default as a whole (`extra_http_headers` too, as
   upstream's shallow spread).
 
   `use Playwright.Test, context_options: [locale: "de-DE"]` (or `use Playwright.Case, ...`) is

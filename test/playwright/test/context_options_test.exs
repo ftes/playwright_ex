@@ -70,15 +70,23 @@ defmodule Playwright.Test.ContextOptionsTest do
     assert resolve(__MODULE__.FunctionLast, nil) == %{colorScheme: "dark", locale: "de-DE"}
   end
 
-  test "a nil option falls back to the one under it, the config's to the default" do
+  test "a nil option resets it past the earlier uses, to the config's or the default" do
+    # `[locale: "fr-FR"]`, then `[locale: nil]`.
     module_options = resolve(__MODULE__.NilOption)
     assert module_options == %{colorScheme: "dark"}
 
     assert %{locale: "de-DE", colorScheme: "dark"} =
              Options.context_options(%{context_options: [locale: "de-DE"]}, module_options)
 
+    assert %{locale: "en-US"} = Options.context_options(%{context_options: []}, module_options)
+    # A function's nil too, and a later option over the reset.
+    assert resolve(__MODULE__.NilFunction) == %{colorScheme: "dark"}
+    assert resolve(__MODULE__.NilFunction, %{lang: "it-IT", reset: false}) == %{colorScheme: "dark", locale: "it-IT"}
+    # The config's nil falls back to Playwright Test's default.
     assert %{locale: "en-US"} = Options.context_options(%{context_options: [locale: nil]})
   end
+
+  def maybe_reset(%{lang: lang} = context), do: [locale: if(Map.get(context, :reset, true), do: nil, else: lang)]
 
   def options(%{lang: lang}), do: %{locale: lang}
   def invalid(_context), do: :dark
@@ -221,5 +229,12 @@ end
 
 defmodule Playwright.Test.ContextOptionsTest.NilOption do
   use ExUnit.Case, async: true
-  use Playwright.Test, context_options: [locale: nil, color_scheme: :dark]
+  use Playwright.Test, context_options: [locale: "fr-FR", color_scheme: :dark]
+  use Playwright.Test, context_options: [locale: nil]
+end
+
+defmodule Playwright.Test.ContextOptionsTest.NilFunction do
+  use ExUnit.Case, async: true
+  use Playwright.Test, context_options: [locale: "fr-FR", color_scheme: :dark]
+  use Playwright.Test, context_options: &Playwright.Test.ContextOptionsTest.maybe_reset/1
 end
