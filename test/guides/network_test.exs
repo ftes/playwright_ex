@@ -114,16 +114,26 @@ defmodule Playwright.Guides.NetworkTest do
     assert fetch_json(page, "/api/users") == "context"
   end
 
-  test "delaying a response", %{page: page} do
+  test "delaying a response", %{context: context, page: page} do
+    other = BrowserContext.new_page!(context)
+    test_pid = self()
+
     Page.route!(page, "**/api/users", fn route ->
       Task.start(fn ->
+        # Test only: the delay has begun.
+        send(test_pid, :delaying)
         Process.sleep(500)
         Route.fulfill!(route, json: [%{name: "Grace"}])
       end)
     end)
 
     sent = System.monotonic_time(:millisecond)
-    assert fetch_json(page, "/api/users") == [%{"name" => "Grace"}]
+    users = Task.async(fn -> fetch_json(page, "/api/users") end)
+    assert_receive :delaying, 5_000
+    # Dispatch is not held meanwhile: another page answers well within the delay.
+    {took, 2} = :timer.tc(fn -> Page.evaluate!(other, "1 + 1") end, :millisecond)
+    assert took < 250
+    assert Task.await(users) == [%{"name" => "Grace"}]
     assert System.monotonic_time(:millisecond) - sent >= 500
   end
 

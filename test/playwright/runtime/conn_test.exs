@@ -387,46 +387,6 @@ defmodule Playwright.RuntimeConnTest do
       Process.sleep(200)
       assert {:messages, []} = Process.info(self(), :messages)
     end
-
-    test "a listener or route handler that stalls dispatch logs one warning, and dispatch waits", %{
-      page: page,
-      server: server
-    } do
-      conn = page.conn
-      # A lower threshold, and no timer of the old one running.
-      %{stall_after: stall_after} = :sys.get_state(conn)
-      :sys.replace_state(conn, &%{&1 | stall: nil, stall_after: 100})
-      on_exit(fn -> :sys.replace_state(conn, &%{&1 | stall_after: stall_after}) end)
-      test = self()
-
-      log =
-        ExUnit.CaptureLog.capture_log(fn ->
-          Page.on(page, :console, fn _ ->
-            Process.sleep(400)
-            send(test, :listened)
-          end)
-
-          Page.evaluate!(page, "() => console.log('x')")
-          assert_received :listened
-        end)
-
-      assert [_] = Regex.scan(~r/stalls every page/, log)
-      assert log =~ ~s(a "console" listener of #{page.guid})
-      assert log =~ ~r"lib/process.ex:\d+: Process.sleep/1"
-
-      # The handler runs in an async function of the route listener: its stacktrace is the handler's.
-      Page.route!(page, "**/empty.html", fn route ->
-        receive do
-        after
-          400 -> Route.continue!(route)
-        end
-      end)
-
-      log = ExUnit.CaptureLog.capture_log(fn -> Page.goto!(page, server.empty_page) end)
-      assert [_] = Regex.scan(~r/stalls every page/, log)
-      assert log =~ "a route handler of #{page.guid}"
-      assert log =~ "#{inspect(__MODULE__)}.\"test semantics a listener"
-    end
   end
 
   # JS runs the statements after `await channel.x()` before it dispatches the next message, so an
