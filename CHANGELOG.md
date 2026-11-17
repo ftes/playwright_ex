@@ -52,14 +52,35 @@ Node 26.13.1. No upstream API changes.
   every page on it: it names the listener, shows where it waits and points to the fix
   ([Concurrency](guides/concurrency.md#no-blocking-work-in-listeners)).
 - **RC only:** `use Playwright.Test` (and `use Playwright.Case`) takes `context_options:`,
-  Playwright Test's `test.use({ locale: 'de-DE' })`: the options, or a function of the test's
-  context (`&Mod.fun/1`, e.g. over your `parameterize:` values), over the config's per key, under
-  the call's, for every context of the module's tests, and the options for its `setup_all`'s
-  unless a `use` gives a function (#257). An option given as `nil` resets it to the config's or
-  the default, as upstream's `undefined`.
+  Playwright Test's `test.use({ locale: 'de-DE' })`: a keyword list, over the config's per
+  option, under the call's, for every context of the module, its `setup_all`'s included (#257).
+  An option given as `nil` resets it to the project's, the config's or the default, as
+  upstream's `undefined`. A function raises at compile time.
+- **RC only:** `Playwright.Test.use/1` gives a describe block or a test its options, as
+  Playwright Test's `test.use` in a `test.describe`: `@describetag Test.use(context_options:
+  [timezone_id: "Europe/Berlin"])`, `@tag Test.use(trace: :on)`. They layer per option, over
+  the module's.
+- **RC only:** `Playwright.Test.parameters/1` is a project for `parameterize:`, Playwright
+  Test's `projects: [{ use }]`: its options are over the config's and under the module's, for
+  every context of the module's run.
+- **RC only:** `browser_name`, `launch_options` and `connect_options` are options of `use
+  Playwright.Test` and of `Test.parameters/1`, and the defaults of the module's
+  `BrowserPool.browser/1` calls. Without a `browser_name` (in the config either), a device in
+  the `context_options` picks the browser by its `default_browser_type`, as upstream's
+  `browserName` defaults to `defaultBrowserType`.
+- **RC only:** `action_timeout` and `navigation_timeout` are options of `use Playwright.Test`,
+  `Test.use/1` and `Test.parameters/1` too.
+- **RC only:** `Playwright.device/1` and `Playwright.devices/0`, Playwright's device
+  descriptors as static data (upstream's `import { devices }`), so a device works at compile
+  time: `use Playwright.Case, context_options: Playwright.device("iPhone 13")`.
+  `Playwright.devices/1` stays.
 
 ### Changed
 
+- **RC only:** **Breaking:** the tags `trace`, `screenshot` and `video` no longer set the
+  recording modes, and `use Playwright.Test, tags: false` is gone (it raises, naming the fix):
+  write `@tag Test.use(trace: :on)` for `@tag trace: :on`, likewise for `@describetag` and
+  `@moduletag`. Only `Test.use/1`'s keys are read, so tags named as options are yours.
 - **RC only:** **Breaking:** `mix playwright.install` forwards its args to `playwright install`
   as they are, without `--`: `mix playwright.install chromium --with-deps`. A `--` now raises,
   naming that fix.

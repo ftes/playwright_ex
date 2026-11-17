@@ -16,7 +16,7 @@ defmodule Playwright.Test.ParameterizeTest do
 
   use Playwright.Test
 
-  @moduletag trace: :on
+  @moduletag Playwright.Test.use(trace: :on)
 
   def check(ctx, marker, others) do
     dir = TestInfo.output_dir(ctx)
@@ -59,7 +59,7 @@ defmodule Playwright.Test.ParameterizeTest.Other do
 
   use Playwright.Test
 
-  @moduletag trace: :on
+  @moduletag Playwright.Test.use(trace: :on)
 
   test("records", %{browser: browser}, do: ParameterizeTest.record(browser, "OTHER-MODULE"))
 end

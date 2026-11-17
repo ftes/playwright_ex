@@ -196,7 +196,7 @@ defmodule Playwright.Test.RegistrationTest do
   end
 
   # Kept on failure only, so the passing test leaves no files.
-  @tag trace: :retain_on_failure
+  @tag Playwright.Test.use(trace: :retain_on_failure)
   test "a traced test's recorder starts at its registration, for its steps" do
     assert is_pid(Recorder.lookup(self()))
   end
@@ -283,7 +283,7 @@ defmodule Playwright.Test.RegistrationTest.TemplateTest do
 
   alias Playwright.Test.Recorder
 
-  @tag trace: :retain_on_failure
+  @tag Playwright.Test.use(trace: :retain_on_failure)
   test "a context of the case template's setup gets the defaults and is recorded" do
     assert_received {:options, %{locale: "en-US", viewport: %{width: 1280, height: 720}}}
     assert [%{}] = :sys.get_state(Recorder.lookup(self())).contexts

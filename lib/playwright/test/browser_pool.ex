@@ -16,9 +16,12 @@ defmodule Playwright.Test.BrowserPool do
       end
 
   `browser/1` takes these options, merged over `config :playwright, :test` (`launch_options`
-  and `driver` one level deep):
+  and `driver` one level deep). In a module of `use Playwright.Test`, the module's
+  `browser_name`, `launch_options` and `connect_options` (its `use` options and its project's,
+  see "Browser" in `Playwright.Test`) are between the two:
 
-    * `:browser_name` - `:chromium` (default), `:firefox` or `:webkit`.
+    * `:browser_name` - `:chromium` (default), `:firefox` or `:webkit`; without one anywhere,
+      that of the module's device.
     * `:launch_options` - for `Playwright.BrowserType.launch/2`, as is.
     * `:connect_options` - Playwright Test's `connectOptions`: `:ws_endpoint` (required) and
       the options of `Playwright.BrowserType.connect/3` (`:headers`, `:expose_network`,
@@ -92,7 +95,9 @@ defmodule Playwright.Test.BrowserPool do
   """
   @spec browser(keyword()) :: Browser.t()
   def browser(opts \\ []) do
-    opts = Options.pool(opts)
+    # Under them, the worker options of the module's run (upstream's `browserName`,
+    # `launchOptions`, `connectOptions`), over the config's.
+    opts = Options.pool(opts, Recorder.worker_options())
 
     case Recorder.registration() do
       %{test_pid: test_pid} ->

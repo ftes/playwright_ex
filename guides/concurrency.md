@@ -121,6 +121,10 @@ Elixir form fits depends on when the call completes:
   |> Promise.await!()
   ```
 
+  JS's `p.then(f)` is `Promise.async(fn -> f.(Promise.await!(p)) end)`. A `.then` that only
+  tags which input of a `race` won needs none: match on the result
+  (`%Playwright.Download{}` or the page's error).
+
 - `Task.async/1` when the call only completes after a later action of yours, such as a `click`
   that opens a dialog you then handle: awaiting it in line would deadlock, and the order of the
   sends doesn't matter, as you wait for the event the call causes.

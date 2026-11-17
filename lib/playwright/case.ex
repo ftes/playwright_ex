@@ -16,9 +16,11 @@ defmodule Playwright.Case do
 
   It takes `use Playwright.Test`'s options next to ExUnit.Case's: `use Playwright.Case,
   async: true, trace: :on`. `context_options:` is upstream's `test.use({ locale: 'de-DE' })`,
-  for the `context` and every other context of the module's tests: the options, or a function
-  of the test's context (`&MyApp.Devices.context_options/1` over your own `parameterize:`
-  values, as upstream's projects), see "Context defaults" in `Playwright.Test`. Any other option
+  for the `context` and every other context of the module, a device too (`context_options:
+  Playwright.device("iPhone 13")`, which also picks the `browser`, as does `browser_name:`);
+  for a describe block or a test, `@describetag Test.use(...)` or `@tag Test.use(...)`, and for
+  projects, `parameterize:` with `Playwright.Test.parameters/1`, see "Context defaults" and
+  "Browser" in `Playwright.Test`. Any other option
   raises, so a template that forwards its options here pops its own first: `{sandbox, opts} =
   Keyword.pop(opts, :sandbox)` in its `using opts`, then `use Playwright.Case, unquote(opts)`.
 
@@ -38,13 +40,12 @@ defmodule Playwright.Case do
   When the `context` can't be configured enough (values only the module's own `setup` computes,
   as ExUnit runs the template's `setup` first, or options that differ per test), create your
   own context in the test or its `setup`: `Browser.new_context!(browser, storage_state: state)`.
-  It still gets the defaults, the config's and the module's options, and is recorded.
+  It still gets the defaults, the config's, the project's and the module's options, and is recorded.
 
   A module that shares one page from `setup_all` (upstream's `beforeAll` page) would still pay
   for each test's `context` and `page`, about 40 ms per test on Chromium and 120 ms on Firefox:
   skip `Playwright.Case` and write the few lines yourself. The `setup_all` context gets the
-  defaults, the config's and the module's static `context_options` (none if a `use` gives a function) and the
-  timeouts, but no test records it (it is in no trace, screenshot or `error-context.md`):
+  defaults, the config's, the project's and the module's `context_options` and the timeouts, but no test records it (it is in no trace, screenshot or `error-context.md`):
 
       use ExUnit.Case, async: true
       use Playwright.Test

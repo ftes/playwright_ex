@@ -4,6 +4,10 @@ defmodule Playwright.Test.OptionsTest do
   alias Playwright.Test.BrowserPool
   alias Playwright.Test.Options
 
+  # The modes of `use` options over the config's.
+  defp artifacts(options),
+    do: Options.artifacts(Options.config(), %{project: %{}, module: Options.use_options(Map.to_list(options))})
+
   describe "validation" do
     test "config :playwright takes :test, :expect, :driver and existing modules' keys" do
       formatter = Playwright.Test.GitHubFormatter
@@ -26,19 +30,19 @@ defmodule Playwright.Test.OptionsTest do
       assert_raise ArgumentError, ~r/invalid browser_name: :chrome/, fn -> Options.pool(browser_name: :chrome) end
 
       assert_raise ArgumentError, ~r/invalid trace: :retry_with_trace, expected one of/, fn ->
-        Options.artifacts(%{trace: :retry_with_trace})
+        artifacts(%{trace: :retry_with_trace})
       end
 
       assert_raise ArgumentError, ~r/invalid screenshot: :on_first_retry/, fn ->
-        Options.artifacts(%{screenshot: :on_first_retry})
+        artifacts(%{screenshot: :on_first_retry})
       end
 
       assert_raise ArgumentError, ~r/invalid screenshot: :retain_on_failure/, fn ->
-        Options.artifacts(%{screenshot: :retain_on_failure})
+        artifacts(%{screenshot: :retain_on_failure})
       end
 
       assert_raise ArgumentError, ~r/invalid video: :only_on_failure/, fn ->
-        Options.artifacts(%{video: :only_on_failure})
+        artifacts(%{video: :only_on_failure})
       end
 
       assert_raise ArgumentError, ~r/invalid on_start/, fn -> Options.pool(on_start: fn -> :ok end) end
@@ -66,24 +70,24 @@ defmodule Playwright.Test.OptionsTest do
                Options.pool(launch_options: %{slow_mo: 50}, on_start: {M, :f, []})
 
       assert %{trace: [mode: :on] ++ _, screenshot: [mode: :off], video: [mode: :retain_on_failure]} =
-               Options.artifacts(%{trace: true, screenshot: false, video: :retain_on_failure})
+               artifacts(%{trace: true, screenshot: false, video: :retain_on_failure})
 
       # Upstream's retry modes.
       for mode <- [:on_first_retry, :on_all_retries, :retain_on_first_failure, :retain_on_failure_and_retries] do
-        assert %{trace: [mode: ^mode] ++ _, video: [mode: ^mode]} = Options.artifacts(%{trace: mode, video: mode})
+        assert %{trace: [mode: ^mode] ++ _, video: [mode: ^mode]} = artifacts(%{trace: mode, video: mode})
       end
 
-      assert %{screenshot: [mode: :on_first_failure]} = Options.artifacts(%{screenshot: :on_first_failure})
+      assert %{screenshot: [mode: :on_first_failure]} = artifacts(%{screenshot: :on_first_failure})
     end
 
     test "artifact modes are their object forms' mode, with upstream's defaults" do
-      assert Options.artifacts(%{trace: :on, screenshot: :on, video: :on}) == %{
+      assert artifacts(%{trace: :on, screenshot: :on, video: :on}) == %{
                trace: [mode: :on, snapshots: true, screenshots: true, sources: true, attachments: true],
                screenshot: [mode: :on],
                video: [mode: :on]
              }
 
-      assert Options.artifacts(%{
+      assert artifacts(%{
                trace: [
                  sources: false,
                  mode: :retain_on_failure,
@@ -126,7 +130,7 @@ defmodule Playwright.Test.OptionsTest do
             {%{trace: "on"}, ~r/invalid trace: "on"/},
             {%{trace: nil}, ~r/invalid trace: nil/}
           ],
-          do: assert_raise(ArgumentError, message, fn -> Options.artifacts(option) end)
+          do: assert_raise(ArgumentError, message, fn -> artifacts(option) end)
     end
   end
 end
@@ -149,6 +153,10 @@ defmodule Playwright.Test.ConfigTest do
   alias Playwright.Selectors
   alias Playwright.Test.BrowserPool
   alias Playwright.Test.Options
+
+  # The modes of `use` options over the config's.
+  defp artifacts(options),
+    do: Options.artifacts(Options.config(), %{project: %{}, module: Options.use_options(Map.to_list(options))})
 
   setup do
     config = Application.get_env(:playwright, :test)
@@ -250,8 +258,8 @@ defmodule Playwright.Test.ConfigTest do
     Application.put_env(:playwright, :test, config ++ [launch_options: [headless: false, slow_mo: 1], trace: :on])
 
     assert %{launch_options: [headless: false, slow_mo: 50]} = Options.pool(launch_options: [slow_mo: 50])
-    assert %{trace: [mode: :on] ++ _, video: [mode: :on]} = Options.artifacts(%{video: :on})
-    assert %{trace: [mode: :off] ++ _} = Options.artifacts(%{trace: false})
+    assert %{trace: [mode: :on] ++ _, video: [mode: :on]} = artifacts(%{video: :on})
+    assert %{trace: [mode: :off] ++ _} = artifacts(%{trace: false})
   end
 
   test "connect_options: the call's over the config's, nil launches", %{config: config} do
@@ -288,7 +296,7 @@ defmodule Playwright.Test.ConfigTest do
              trace: [mode: :off, snapshots: true, screenshots: true, sources: true, attachments: true],
              screenshot: [mode: :off],
              video: [mode: :off]
-           } = Options.artifacts(%{})
+           } = artifacts(%{})
 
     assert Options.context_options() == Options.context_defaults()
     assert Options.timeouts() == %{action_timeout: :infinity, navigation_timeout: :infinity}
@@ -346,7 +354,7 @@ defmodule Playwright.Test.ConfigTest do
 
     assert_raise ArgumentError,
                  ~r/unknown keys \[:tracing\] in config :playwright, :test, expected one of \[:browser_name, .*:test_id_attribute\]/,
-                 fn -> Options.artifacts(%{}) end
+                 fn -> artifacts(%{}) end
 
     # At the application's start, before anything reads it.
     assert_raise ArgumentError, ~r/unknown keys \[:tracing\]/, fn -> Playwright.Application.start(:normal, []) end
@@ -364,7 +372,7 @@ defmodule Playwright.Test.ConfigTest do
     assert_raise ArgumentError, ~r/invalid preserve_output: :on_failure/, fn -> Options.preserve_output() end
 
     Application.put_env(:playwright, :test, config ++ [trace: :sometimes])
-    assert_raise ArgumentError, ~r/invalid trace: :sometimes/, fn -> Options.artifacts(%{}) end
+    assert_raise ArgumentError, ~r/invalid trace: :sometimes/, fn -> artifacts(%{}) end
 
     Application.put_env(:playwright, :test, config ++ [context_options: [lokale: "x"]])
     assert_raise ArgumentError, fn -> Options.context_options() end

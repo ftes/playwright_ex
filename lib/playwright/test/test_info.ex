@@ -32,9 +32,9 @@ defmodule Playwright.Test.TestInfo do
   The test's fields: `test_pid`, `file`, `test_name` (`titlePath.slice(1).join(' ')`), `retry`
   (`retry/2`) and `output_dir` (under `root`, config `output_dir`, with the retry's suffix).
   """
-  def new(context, root) do
+  def new(context, root, parameters \\ nil) do
     %{module: module, file: file} = context
-    parameters = runner_parameters(context) || parameters(module, context)
+    parameters = parameters || elem(test_sources(context), 0)
     dir = Path.expand(output_dir(root, file, test_name(context), module, parameters))
     retry = retry(dir)
 
@@ -102,21 +102,48 @@ defmodule Playwright.Test.TestInfo do
     end
   end
 
-  # The parameters ExUnit's runner (the test process's parent) runs the test of `context` with:
-  # its `%ExUnit.Test{}` (`parameters` since 1.18) in the runner's process dictionary, ExUnit's
-  # internal API (any other shape is `nil`, then `parameters/2` guesses). Without them, two
+  @doc """
+  `{parameters, tags}` of the test of `context`, apart: the `parameterize:` parameters ExUnit's
+  runner runs it with (`%{}` for a module without them) and its tags (the module's, its
+  describe's and its own, merged). The context has both merged, the tags over the parameters,
+  with what the `setup_all` and `setup` callbacks returned.
+  """
+  def test_sources(%{module: module} = context),
+    do: runner_sources(context[:test_pid], context[:test]) || guessed_sources(module, context)
+
+  @doc """
+  As `test_sources/1`, for the module's `setup_all` process (the caller) and its `context`, with
+  the module's tags. There the context has the parameters over the tags.
+  """
+  def module_sources(%{module: module} = context),
+    do: runner_sources(self(), module) || guessed_sources(module, context)
+
+  # A `setup_all` run by hand, without a module.
+  def module_sources(_context), do: {%{}, %{}}
+
+  # The parameters and tags ExUnit's runner (the parent of `pid`, a test's or a `setup_all`'s
+  # process) runs the test or the module `name` with: its `%ExUnit.Test{}` or
+  # `%ExUnit.TestModule{}` (`parameters` since 1.18) in the runner's process dictionary, ExUnit's
+  # internal API (any other shape is `nil`, then `guessed_sources/2`). Without them, two
   # parameter sets of a test whose `setup` overwrote a parameter would share an output dir, and
   # each would delete the other's.
-  defp runner_parameters(%{module: module, test: name, test_pid: test_pid}) do
-    with {:parent, runner} when is_pid(runner) <- Process.info(test_pid, :parent),
+  defp runner_sources(pid, name) when is_pid(pid) do
+    with {:parent, runner} when is_pid(runner) <- Process.info(pid, :parent),
          {:dictionary, dictionary} <- Process.info(runner, :dictionary),
-         {ExUnit.Runner, %{module: ^module, name: ^name, parameters: %{} = parameters}} <-
+         {ExUnit.Runner, %{name: ^name, parameters: %{} = parameters, tags: %{} = tags}} <-
            List.keyfind(dictionary, ExUnit.Runner, 0),
-         do: parameters,
+         do: {parameters, tags},
          else: (_ -> nil)
   end
 
-  defp runner_parameters(_context), do: nil
+  defp runner_sources(_pid, _name), do: nil
+
+  # Without the runner's: the parameters `parameters/2` guesses, and as tags the context without
+  # them (a tag equal to a parameter is taken for the parameter).
+  defp guessed_sources(module, context) do
+    parameters = parameters(module, context)
+    {parameters, Map.reject(context, fn {key, value} -> match?(%{^key => ^value}, parameters) end)}
+  end
 
   # `__ex_unit__(:config)` is ExUnit's internal API (`@doc false`; a map with `:parameterize`
   # in 1.18 to 1.20): any other shape is no parameters.

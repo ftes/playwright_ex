@@ -1,16 +1,25 @@
 defmodule Playwright.Test.Options do
   @moduledoc false
   # The options of `Playwright.Test` and `Playwright.Test.BrowserPool`: defaults, the merge
-  # over `config :playwright, :test`, the recording modes from tags and `use` options over the
-  # config, and validation. Unknown keys and bad values raise `ArgumentError`, as the facade's do.
+  # over `config :playwright, :test`, the layers of `use` options (a module's, and those
+  # `Playwright.Test.use/1` and `parameters/1` put in tags and parameters) over the config, and
+  # validation. Unknown keys and bad values raise `ArgumentError`, as the facade's do.
 
   alias Playwright.Runtime.Facade
 
   @pool_keys [:browser_name, :launch_options, :connect_options, :driver, :on_start]
   @artifact_keys [:trace, :screenshot, :video]
-  # `use Playwright.Test`'s: upstream's options of `test.use`, the worker-scoped modes and the
-  # test-scoped context options.
-  @use_keys @artifact_keys ++ [:tags, :context_options]
+  # `use Playwright.Test`'s and `Playwright.Test.use/1`'s: upstream's options of `test.use` that
+  # a describe block or a test may set.
+  @timeout_keys [:action_timeout, :navigation_timeout]
+  @use_keys @artifact_keys ++ [:context_options] ++ @timeout_keys
+  # Upstream's worker-scoped `browserName`, `launchOptions` and `connectOptions`: a module's or a
+  # project's, not a describe's or a test's. (Its `trace`, `screenshot` and `video` are too:
+  # here they are per test.)
+  @worker_keys [:browser_name, :launch_options, :connect_options]
+  # The prefixes of the private keys of `use/1`: an option's, and a context option's.
+  @use_prefix "playwright.use."
+  @context_prefix @use_prefix <> "context_options."
   @config_only_keys [
     :context_options,
     :action_timeout,
@@ -63,8 +72,11 @@ defmodule Playwright.Test.Options do
     video: [:mode, :size, :fps, :show]
   }
 
-  @doc "The pool options (`BrowserPool.browser/1`): the config merged with `opts`."
-  def pool(opts) do
+  @doc """
+  The pool options (`BrowserPool.browser/1`): the config, then `worker`, the calling scope's
+  (`worker/3`), then `opts`.
+  """
+  def pool(opts, worker \\ []) do
     if !Keyword.keyword?(opts), do: raise(ArgumentError, "expected a keyword list of options, got: #{inspect(opts)}")
 
     case Keyword.keys(opts) -- @pool_keys do
@@ -76,126 +88,156 @@ defmodule Playwright.Test.Options do
 
     @pool_keys
     |> Map.new(&{&1, config[&1]})
+    |> Map.merge(Map.new(worker), &merge_value/3)
     |> Map.merge(Map.new(opts), &merge_value/3)
     |> validate!()
   end
 
   @doc """
-  The options of `use Playwright.Test`, validated, as a map: the recording modes as the config
-  takes them, `tags` (a boolean, `true` by default) whether the test's tags set them, and
-  `context_options`, the options or a function (see `use_context_options/2`). ExUnit.Case's keys
-  are ignored (`without_ex_unit_keys/1`); any other key, a duplicated one or a bad value raises.
+  The options of `use Playwright.Test`, validated, as a map: the recording modes, the timeouts
+  and the worker options as the config takes them, and `context_options`, converted, a `nil`
+  one kept (a reset, `context_options/2`).
+  ExUnit.Case's keys are ignored (`without_ex_unit_keys/1`); any other key, a duplicated one or
+  a bad value raises.
   """
-  def use_options(opts) do
-    opts = without_ex_unit_keys(opts)
+  def use_options(opts), do: opts |> without_ex_unit_keys() |> use_options!("use Playwright.Test", @worker_keys)
+
+  defp use_options!(opts, label, worker_keys) do
     keys = Keyword.keys(opts)
 
     case keys -- Enum.uniq(keys) do
       [] -> :ok
-      [key | _] -> raise ArgumentError, "duplicated option #{inspect(key)} for use Playwright.Test"
+      [key | _] -> raise ArgumentError, "duplicated option #{inspect(key)} for #{label}"
     end
 
-    case keys -- @use_keys do
+    case keys -- (@use_keys ++ worker_keys) do
       [] ->
         :ok
 
       unknown ->
+        hint =
+          cond do
+            # The option of the releases that read the `trace`, `screenshot` and `video` tags.
+            :tags in unknown ->
+              "tags no longer set the modes: `@tag Playwright.Test.use(trace: :on)` does"
+
+            :test_id_attribute in unknown ->
+              "test_id_attribute is config only: the client's value is global to the VM, which the tests " <>
+                "running at once share, where upstream's is global to a worker, which runs one test at a time"
+
+            unknown -- @worker_keys == [] ->
+              "#{Enum.map_join(unknown, ", ", &to_string/1)} is worker-scoped, as upstream's, where it forces a " <>
+                "new worker in a describe: set it for the module (`use Playwright.Case, #{hd(unknown)}: _`) or " <>
+                "its project (`Playwright.Test.parameters/1`)"
+
+            true ->
+              "the browser's other options are BrowserPool.browser/1's, the rest config's"
+          end
+
         raise ArgumentError,
-              "unknown options #{inspect(unknown)} for use Playwright.Test, expected one of #{inspect(@use_keys)} " <>
-                "(the browser's options are BrowserPool.browser/1's, the rest config's)"
+              "unknown options #{inspect(unknown)} for #{label}, expected one of " <>
+                "#{inspect(@use_keys ++ worker_keys)} (#{hint})"
     end
 
     Map.new(opts, fn
-      {:tags, tags} when is_boolean(tags) -> {:tags, tags}
-      {:tags, tags} -> raise ArgumentError, "invalid tags: #{inspect(tags)}, expected a boolean"
-      {:context_options, options} -> {:context_options, use_context_options!(options)}
+      {:context_options, options} -> {:context_options, context_options!(options, "#{label}: ")}
       {key, value} -> {key, validate!(key, value)}
     end)
   end
 
-  # `context_options:` of `use Playwright.Test` (upstream's `test.use({ locale: 'de-DE' })`, or an
-  # option fixture's function), as a list of what the module's `use`s give, in order: the options
-  # (a keyword list or a map), converted as the registration's, or a function of the test's ExUnit
-  # context returning them. The `use` options are evaluated at compile time and kept in the
-  # module, so the function is an external capture (`&Mod.fun/1`) or `{Mod, :fun}`: an anonymous
-  # one can't be stored. Whether the function exists is checked when it's called: its module may
-  # not be compiled yet, but a `Mod` that is a context option's key (a mistyped
-  # `{:color_scheme, :dark}`) raises here.
-  defp use_context_options!(fun) when is_function(fun, 1) do
-    case Function.info(fun, :type) do
-      {:type, :external} ->
-        [fun]
+  @doc """
+  `Playwright.Test.use/1`: `opts` validated as `use_options/1`'s, as a keyword list for a tag
+  or a `parameterize:` map, with a private key per option: `:"playwright.use.trace"` for a
+  mode, `:"playwright.use.context_options.locale"` for a context option (its client key), so
+  ExUnit's merge of tags per key layers them per option, as upstream's, where each option is a
+  fixture of its own. The keys are of the known options only.
+  """
+  def use(opts), do: private(opts, "Playwright.Test.use", [])
 
-      _local ->
-        raise ArgumentError,
-              "invalid context_options: an anonymous function can't be kept in the module at compile time, " <>
-                "use an external capture (&MyApp.BrowserCase.context_options/1) or {MyApp.BrowserCase, :context_options}"
+  @doc "`Playwright.Test.parameters/1`: as `use/1`, with the worker options too, as a map for `parameterize:`."
+  def parameters(opts), do: Map.new(private(opts, "Playwright.Test.parameters", @worker_keys))
+
+  defp private(opts, label, worker_keys) do
+    if !Keyword.keyword?(opts),
+      do: raise(ArgumentError, "#{label} expects a keyword list of options, got: #{inspect(opts)}")
+
+    {context_options, options} = opts |> use_options!(label, worker_keys) |> Map.pop(:context_options, %{})
+
+    private = fn options, prefix ->
+      for {key, value} <- options, do: {String.to_atom(prefix <> Atom.to_string(key)), value}
     end
+
+    Enum.sort(private.(options, @use_prefix) ++ private.(context_options, @context_prefix))
   end
 
-  defp use_context_options!({module, function} = mf) when is_atom(module) and is_atom(function) do
-    {:object, schema} = Playwright.Browser.__options_type__(:new_context)
-
-    if Map.has_key?(schema, module),
-      do:
-        raise(
-          ArgumentError,
-          "invalid context_options: #{inspect(mf)}, expected options (a keyword list or a map), " <>
-            "an external capture (&Mod.fun/1) or {Mod, :fun}"
-        )
-
-    [mf]
-  end
-
-  defp use_context_options!(options) when is_function(options),
-    do: raise(ArgumentError, "invalid context_options: #{inspect(options)}, expected a function of arity 1")
-
-  defp use_context_options!(options), do: [context_options!(options, "use Playwright.Test: ")]
+  @doc "Whether `key` is a private key of `use/1`."
+  def use_key?(key), do: is_atom(key) and String.starts_with?(Atom.to_string(key), @use_prefix)
 
   @doc """
-  The module's `use` option `context_options` (`use_options/1`) for the test of the ExUnit
-  `context`, converted: the options and the functions' results for `context`, each over those
-  before it. An option given as `nil` resets it past every earlier `use`, to the config's or the
-  default, as upstream's `undefined` override (`_appendFixtureList`). For a module's `setup_all`
-  (`context` `nil`) the options only if no `use` gives a function, else none: a function is of a
-  test's context, and applying only the rest would break the order and the resets.
+  The options of `use/1` in `map` (a test's or a module's parameters or tags), as
+  `use_options/1`'s. No other key is read.
   """
-  def use_context_options(options, context) do
-    uses = Map.get(options, :context_options, [])
+  def used(map) do
+    Enum.reduce(map, %{}, fn {key, value}, acc ->
+      case is_atom(key) and Atom.to_string(key) do
+        @context_prefix <> name ->
+          Map.update(acc, :context_options, %{String.to_atom(name) => value}, &Map.put(&1, String.to_atom(name), value))
 
-    if context == nil and not Enum.all?(uses, &is_map/1) do
-      %{}
-    else
-      uses
-      |> Enum.reduce(%{}, fn
-        %{} = static, acc -> Map.merge(acc, static)
-        function, acc -> Map.merge(acc, call_context_options!(function, context))
-      end)
-      |> Map.reject(fn {_key, value} -> value == nil end)
-    end
+        @use_prefix <> name ->
+          Map.put(acc, String.to_atom(name), value)
+
+        _other ->
+          acc
+      end
+    end)
   end
 
-  defp call_context_options!(function, context) do
-    {module, name} = function_name(function)
-    label = "#{inspect(module)}.#{name}/1"
+  @doc """
+  The options of a test, or of a module's `setup_all`, by their layers: `project`, the `use/1`
+  options in its `parameters` (the module's `parameterize:` map, upstream's `project.use`), and
+  `module`, the module's `use_options` with the `use/1` options in its `tags` over them (`merge/2`;
+  ExUnit merged a test's `@moduletag`, `@describetag` and `@tag` per option).
+  """
+  def layers(parameters, use_options, tags),
+    do: %{project: used(parameters), module: merge(use_options, used(tags))}
 
-    if !(Code.ensure_loaded?(module) and function_exported?(module, name, 1)),
-      do: raise(ArgumentError, "context_options: #{inspect(function)} is undefined (no #{label})")
-
-    context_options!(apply(module, name, [context]), "context_options: #{label} returned an invalid option: ")
-  end
-
-  defp function_name({module, name}), do: {module, name}
-
-  defp function_name(fun) do
-    {:module, module} = Function.info(fun, :module)
-    {:name, name} = Function.info(fun, :name)
-    {module, name}
+  @doc """
+  `options` over `past`, both `use_options/1`'s: the later wins per key, the `context_options`
+  per option, as upstream's `test.use` calls (each option its own fixture); a `nil` one stays,
+  as the reset it is.
+  """
+  def merge(past, options) do
+    Map.merge(past, options, fn
+      :context_options, past, options -> Map.merge(past, options)
+      :launch_options, past, options -> Keyword.merge(past, options)
+      _key, _past, options -> options
+    end)
   end
 
   # Options (a keyword list or a map) as the client takes them, a `nil` one kept as `nil` (a
-  # reset, `use_context_options/2`); an invalid one raises with `prefix`.
+  # reset, `context_options/2`); an invalid one raises with `prefix`. A function is not
+  # options: upstream's option fixtures (`test.use({ locale: async ({}, use) => ... })`) aren't
+  # ported.
   defp context_options!(options, prefix) do
+    # `Playwright.devices()["iPhone13"]`.
+    if options == nil,
+      do:
+        raise(
+          ArgumentError,
+          prefix <>
+            "invalid context_options: nil, expected a keyword list or a map (a device name that is not in Playwright.devices()?)"
+        )
+
+    if is_function(options),
+      do:
+        raise(
+          ArgumentError,
+          prefix <>
+            "invalid context_options: #{inspect(options)}, expected a keyword list or a map: a function isn't " <>
+            "supported, as the options are for every context of the module, those of setup_all too " <>
+            "(a device is static: Playwright.device(\"iPhone 13\"); per test or project, see Playwright.Test.use/1)"
+        )
+
     :context_options
     |> to_keyword(options)
     |> Facade.options!(Playwright.Browser.__options_type__(:new_context), "browser.newContext")
@@ -216,45 +258,80 @@ defmodule Playwright.Test.Options do
   end
 
   @doc """
-  The recording modes of a test: its tags (`@moduletag`, `@describetag`, `@tag`, which ExUnit
-  merges in that order) over the module's `use` options (`use_options/1`) over the config;
-  without its tags under `tags: false`. `true` is `:on`, `false` is `:off`.
+  The recording modes of `layers` (`layers/3`): the module's and the tags' over the project's
+  over the config's. `true` is `:on`, `false` is `:off`.
   """
-  def artifacts(tags, config \\ config(), options \\ %{}) do
-    tags = if Map.get(options, :tags, true), do: tags, else: %{}
+  def artifacts(config \\ config(), layers \\ %{project: %{}, module: %{}}), do: layered(@artifact_keys, config, layers)
 
-    Map.new(@artifact_keys, fn key ->
-      case tags do
-        %{^key => value} -> {key, validate!(key, value)}
-        _ -> {key, Map.get(options, key, config[key])}
-      end
-    end)
-  end
+  defp layered(keys, config, layers),
+    do: Map.new(keys, &{&1, Map.get(layers.module, &1, Map.get(layers.project, &1, config[&1]))})
 
   @doc """
   `_combinedContextOptions`, as the client takes them: Playwright Test's context defaults, then
-  the config's `context_options`, then the module's (`use_context_options/2`, converted), each a
-  key over the one before (facade options, converted as `Playwright.Browser.new_context/2`
-  converts them); a `nil` one falls back to the one under it.
+  the config's `context_options`, then those of `layers` (`layers/3`), the project's, then the
+  module's and the tags', each a key over the one before (facade options, converted as
+  `Playwright.Browser.new_context/2` converts them). A `nil` one falls back: the config's to
+  the default, the project's to the config's (upstream's `mergeObjects` skips `undefined`), a
+  module's or a tag's to the project's, the config's or the default, past the earlier ones of
+  its layer, as upstream's `undefined` override (`_appendFixtureList`).
   Upstream's `PLAYWRIGHT_TEST_BASE_URL` default is not read: config only.
   """
-  def context_options(config \\ config(), module_options \\ %{}) do
-    config_options =
-      config[:context_options]
-      |> context_options!("config :playwright, :test: ")
-      |> Map.reject(fn {_key, value} -> value == nil end)
+  def context_options(config \\ config(), layers \\ %{project: %{}, module: %{}}) do
+    without_nil = fn options -> Map.reject(options, fn {_key, value} -> value == nil end) end
+
+    config_options = without_nil.(context_options!(config[:context_options], "config :playwright, :test: "))
 
     @context_defaults
     |> Map.merge(config_options)
-    |> Map.merge(module_options)
+    |> Map.merge(without_nil.(Map.get(layers.project, :context_options, %{})))
+    |> Map.merge(without_nil.(Map.get(layers.module, :context_options, %{})))
+    # A device's, for `browser_name/3`: not a context's option.
+    |> Map.delete(:defaultBrowserType)
   end
 
   @doc """
-  Playwright Test's `actionTimeout` and `navigationTimeout` (config `action_timeout`,
-  `navigation_timeout`): `%{action_timeout: _, navigation_timeout: _}`, each `:infinity` by
-  default (upstream's `0`, no timeout).
+  Upstream's `browserName` of a module's run, for its `BrowserPool.browser/1` calls without one:
+  the module's `use_options`' `browser_name`, else the `project`'s (`Playwright.Test.parameters/1`),
+  else the config's if it sets one. Else the `default_browser_type` of a device in their
+  `context_options` (the module's, the project's, the config's), as upstream's `browserName`
+  defaults to its `defaultBrowserType`, else the config's default, `:chromium`. Tags don't
+  count: the browser is the worker's.
   """
-  def timeouts(config \\ config()), do: Map.take(config, [:action_timeout, :navigation_timeout])
+  def browser_name(config \\ config(), project \\ %{}, use_options \\ %{}) do
+    env = Application.get_env(:playwright, :test, [])
+    configured = if Keyword.keyword?(env) and Keyword.has_key?(env, :browser_name), do: config.browser_name
+    config_options = context_options!(config.context_options, "config :playwright, :test: ")
+
+    Enum.find(
+      [use_options[:browser_name], project[:browser_name], configured] ++
+        Enum.map([use_options[:context_options], project[:context_options], config_options], &device_browser/1),
+      config.browser_name,
+      & &1
+    )
+  end
+
+  # The browser of a device in `context_options`.
+  defp device_browser(%{defaultBrowserType: name}) when name in ["chromium", "firefox", "webkit"],
+    do: String.to_existing_atom(name)
+
+  defp device_browser(_context_options), do: nil
+
+  @doc """
+  Playwright Test's `actionTimeout` and `navigationTimeout` (`action_timeout`,
+  `navigation_timeout`) of `layers` over the config's: `%{action_timeout: _, navigation_timeout:
+  _}`, each `:infinity` by default (upstream's `0`, no timeout).
+  """
+  def timeouts(config \\ config(), layers \\ %{project: %{}, module: %{}}), do: layered(@timeout_keys, config, layers)
+
+  @doc """
+  The worker options of a module's run, over the config's, for its `BrowserPool.browser/1`
+  calls: `browser_name/3`, and the `launch_options` (the module's over the project's per key)
+  and `connect_options` of the module's `use_options` or its `project`.
+  """
+  def worker(config \\ config(), project \\ %{}, use_options \\ %{}) do
+    options = merge(Map.take(project, @worker_keys), Map.take(use_options, @worker_keys))
+    options |> Map.put(:browser_name, browser_name(config, project, use_options)) |> Enum.to_list()
+  end
 
   @doc """
   ExUnit's timeout for `tags` (`get_timeout/2` in `ExUnit.Runner`): `:infinity` under `mix test

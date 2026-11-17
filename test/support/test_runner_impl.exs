@@ -533,7 +533,7 @@ case mode do
     defmodule RetryModesTest do
       use Playwright.Case, async: true
 
-      @moduletag screenshot: :off
+      @moduletag Playwright.Test.use(screenshot: :off)
 
       # Fails on the first run only, passes under `--failed`.
       defp flaky(page) do
@@ -541,22 +541,26 @@ case mode do
         if Playwright.Test.info().retry == 0, do: flunk("first run")
       end
 
-      @tag trace: :on_first_retry, video: :on_first_retry
+      @tag Playwright.Test.use(trace: :on_first_retry, video: :on_first_retry)
       test("first retry", %{page: page}, do: flaky(page))
 
-      @tag trace: :on_all_retries, video: :on_all_retries
+      @tag Playwright.Test.use(trace: :on_all_retries, video: :on_all_retries)
       test("all retries", %{page: page}, do: flaky(page))
 
-      @tag trace: :retain_on_first_failure, video: :retain_on_first_failure, screenshot: :on_first_failure
+      @tag Playwright.Test.use(
+             trace: :retain_on_first_failure,
+             video: :retain_on_first_failure,
+             screenshot: :on_first_failure
+           )
       test "first failure", %{page: page} do
         Page.set_content!(page, "<h1>Fails</h1>")
         flunk("always")
       end
 
-      @tag trace: :retain_on_failure_and_retries, video: :retain_on_failure_and_retries
+      @tag Playwright.Test.use(trace: :retain_on_failure_and_retries, video: :retain_on_failure_and_retries)
       test("failure and retries", %{page: page}, do: flaky(page))
 
-      @tag trace: :retain_on_failure_and_retries, video: :retain_on_failure_and_retries
+      @tag Playwright.Test.use(trace: :retain_on_failure_and_retries, video: :retain_on_failure_and_retries)
       test("failure and retries passing", %{page: page}, do: Page.set_content!(page, "<h1>Passes</h1>"))
     end
 

@@ -31,14 +31,15 @@ defmodule Playwright.Test.RequestContextTest do
 
     pid =
       spawn(fn ->
+        # The tags as `Playwright.Test.use/1`'s.
         context =
-          Map.merge(tags, %{
+          Map.merge(Map.new(Playwright.Test.use(Enum.to_list(tags))), %{
             test_pid: self(),
             module: __MODULE__,
             test: :"test #{name}",
             file: __ENV__.file,
             line: 1,
-            playwright_test: :marked
+            "playwright.test": :marked
           })
 
         send(parent, {:registered, Playwright.Test.__register__(context)})

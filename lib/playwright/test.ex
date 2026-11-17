@@ -106,8 +106,9 @@ defmodule Playwright.Test do
       the first page of the first context closed after the failure (upstream's `didFinishTest`
       and `buildErrorContext`), whatever the modes.
 
-  The modes are config, the module's `use` options over it, and tags over those (a test's
-  `@tag` over its `@describetag` over the module's `@moduletag`): `trace` and `video` `:off`
+  The modes are config, the project's over it (`parameters/1`), the module's `use` options over
+  those, and `use/1` in tags over those (a test's `@tag` over its `@describetag` over the
+  module's `@moduletag`): `trace` and `video` `:off`
   (default), `:on`, `:retain_on_failure` or a retry mode, `screenshot` `:off`, `:on`,
   `:only_on_failure` or `:on_first_failure`, and `true` (`:on`) or `false` (`:off`). Each is
   also the `:mode` of a keyword list (or map) of options, as upstream's object forms: `trace:
@@ -125,18 +126,13 @@ defmodule Playwright.Test do
 
   `use Playwright.Test, trace: :on` is upstream's file-level `test.use({ trace: 'on' })` (the
   modes are worker-scoped options there), with the values the config takes; an unknown option or
-  an invalid value raises at compile time, as does a `context_options: {Mod, :fun}` whose `Mod`
-  is a context option's key (`{:color_scheme, :dark}`); a `context_options` function's existence
-  and result are checked at the registration, see "Context defaults". A module's `use`s merge per key, the
-  later winning.
+  an invalid value raises at compile time. A module's `use`s merge per key, the later winning
+  (their `context_options` per option, see "Context defaults").
   ExUnit.Case's keys (`:async`, ...) are ignored, so a template forwards its options from `using
   opts` as is: `use Playwright.Test, unquote(opts)`, as `Playwright.Case` does. A template
   with options of its own pops them first (`{sandbox, opts} = Keyword.pop(opts, :sandbox)`),
-  as they raise here. The tags
-  take the same values, so `trace`, `screenshot` and `video` are reserved tags: a `@tag
-  :screenshot` label turns screenshots on, and an invalid value raises at registration, unless
-  the module has `use Playwright.Test, tags: false` (default `true`): then tags don't set the
-  modes.
+  as they raise here. Tags named `trace`, `screenshot` or `video` set no mode: only `use/1`'s
+  keys are read.
 
   The `*_on_failure` modes record every test and keep the files of failed ones, as upstream
   (files you write to `output_path/1` stay). A failing artifact step is logged; the test's
@@ -167,38 +163,63 @@ defmodule Playwright.Test do
   `BrowserPool` browser (`Playwright.Browser.new_context/2`,
   `Playwright.BrowserType.launch_persistent_context/3`, `Playwright.APIRequest.new_context/2`) gets Playwright Test's context defaults (`locale:
   "en-US"`, a 1280x720 viewport, `color_scheme: :light`, ...), then the config's
-  `context_options` over them, for each option the call doesn't give, as upstream's
-  `_combinedContextOptions`. An option the call gives as `nil` keeps the client's default; one
-  the config gives as `nil` falls back to Playwright Test's default, and one the module gives as
-  `nil` (below) to the config's or the default, past the module's earlier `use`s, as upstream's
+  `context_options` over them, then the project's and the module's (below), for each option the
+  call doesn't give, as upstream's `_combinedContextOptions`. An option the call gives as `nil`
+  keeps the client's default; one the config gives as `nil` falls back to Playwright Test's
+  default, one the project gives as `nil` to the config's, and one the module gives as `nil` to
+  the project's, the config's or the default, past the module's earlier `use`s, as upstream's
   `undefined` option override; `viewport: :null` is none. An option replaces the default as a whole (`extra_http_headers` too, as
   upstream's shallow spread).
 
   `use Playwright.Test, context_options: [locale: "de-DE"]` (or `use Playwright.Case, ...`) is
-  upstream's file-level `test.use({ locale: 'de-DE' })`: the module's options, over the config's
-  per key, under the call's. They are evaluated at compile time, so for values known at run time
-  pass a function of the test's ExUnit context instead, an external capture
-  (`&MyApp.BrowserCase.context_options/1`) or `{MyApp.BrowserCase, :context_options}`, which
-  returns the options (an anonymous function raises at compile time: it can't be kept in the
-  module). It is called once per test, at its registration, with the context as it is then: the
-  tags, the `parameterize:` values (upstream's projects: `%{device: d}` from your own
-  parameters), the values of the module's `setup_all` callbacks and of the `setup` callbacks
-  before the registration (none with `Playwright.Case`, whose registration comes first). No key
-  of the context is read otherwise; an undefined function, or a result with an invalid option,
-  raises there, naming the function. The contexts of `setup_all` get the module's options, but
-  none if a `use` gives a function, where upstream's `beforeAll` gets them: a function is of a
-  test's context (see "Not ported yet" in the Testing with ExUnit guide); pass the options to the
-  call there. A module's
-  `use`s apply in order, each over those before it per key, options and a function's result
-  alike, as upstream's `test.use` calls (each option its own fixture).
+  upstream's file-level `test.use({ locale: 'de-DE' })`: the module's options. They are a
+  keyword list (or a map), evaluated and validated at compile time; a function raises there
+  (upstream's function-valued options, its option fixtures, aren't ported), as does `nil` (a
+  misspelled `Playwright.devices()["..."]`). A device is such a list: `context_options:
+  Playwright.device("iPhone 13")`. A module's `use`s apply in order, each over those before it
+  per option, as upstream's `test.use` calls (each option its own fixture).
+
+  Below the module, `use/1` gives the options to ExUnit as a tag, for a describe block
+  (`@describetag Test.use(context_options: [...])`, upstream's `test.use` in a `test.describe`)
+  or a test (`@tag`); `@moduletag` works too, the `use` option being the module's form. A
+  project's are `parameters/1` in the module's `parameterize:` (upstream's `project.use`).
+
+  The layers, each over the one before per option: Playwright Test's defaults, the config's,
+  the project's, the module's (`use`, then `@moduletag`), the describe's, the test's, then the
+  call's own. The config's, the project's and the module's reach every context the module
+  creates: a test's, those of its `Task`s, and those of `setup_all`, as upstream's `beforeAll`
+  gets the `use` options. A describe's and a test's reach the test's contexts only: ExUnit runs
+  `setup_all` without them. Only the keys of `use/1` and `parameters/1` are read, the project's
+  from the parameters ExUnit runs the module with and the others from the test's tags: a tag,
+  a parameter or a context key named as an option (`@tag context_options: [...]`) sets nothing.
+
+  ## Browser
+
+  `BrowserPool.browser/1` without a `browser_name`, as `Playwright.Case` calls it, launches the
+  module's browser, upstream's `browserName`: the `browser_name` of the module's `use`
+  (`use Playwright.Case, browser_name: :webkit`), else its project's (`parameters/1`), else the
+  config's if it sets one. Else that of a device in their `context_options`, in the same order
+  (its `default_browser_type`: `Playwright.device("iPhone 13")` is WebKit's), as upstream's
+  `browserName` defaults to `defaultBrowserType`; else `:chromium`. The module's
+  `launch_options` (its `use`'s over its project's over the config's, per key) and
+  `connect_options` are that call's defaults too, upstream's `launchOptions` and
+  `connectOptions`: a project with `launch_options: [channel: "chrome"]` gets a worker of its
+  own. These three are the worker's, as upstream's, where a describe with another one starts a
+  new worker: `use/1` takes none of them, and a tag's device doesn't change the browser.
+
+  `action_timeout` and `navigation_timeout` (see "Timeouts") are options of every level, as
+  the context options. `test_id_attribute` is config only, a deviation: upstream's is an
+  option of every level, as its value is global to a worker, which runs one test at a time;
+  here it is global to the VM, which the tests running at once share. `trace`, `screenshot`
+  and `video` are options of every level, an addition: upstream's are the worker's.
 
   ## Contexts of `setup_all`
 
   `use Playwright.Test` adds a `setup_all` (where the `use` is, so before the module's own) that
   registers the module's `setup_all` process: every context and request context it creates, or
   a process with it in `$callers` creates, gets the context defaults, the config's
-  `context_options` (so `base_url`) and the module's (none if a `use` gives a function, see
-  "Context defaults"), merged as a test's, and the config's timeouts (see
+  `context_options` (so `base_url`), the project's and the module's (its `use` and `@moduletag`, see "Context
+  defaults"), merged as a test's, and the config's timeouts (see
   "Timeouts"): a context's `action_timeout` and `navigation_timeout`, a request context's
   `timeout:` the `action_timeout` (`0`, no limit, for `:infinity`) and no navigation timeout. Not
   the video, as upstream's comes with the `context` fixture.
@@ -221,7 +242,8 @@ defmodule Playwright.Test do
   ## Timeouts
 
   As in Playwright Test, a test's contexts have no action or navigation timeout by default: the
-  test's timeout bounds them. Config `action_timeout` and `navigation_timeout` (upstream's
+  test's timeout bounds them. `action_timeout` and `navigation_timeout` (the config's, or an
+  option of any level over it; upstream's
   `actionTimeout`, `navigationTimeout`; milliseconds, `:infinity` by default) set each context's
   `Playwright.BrowserContext.set_default_timeout/2` and `set_default_navigation_timeout/2`
   (`navigation_timeout` alone governs navigations), and the action timeout is a request
@@ -422,19 +444,10 @@ defmodule Playwright.Test do
         true
 
       past ->
-        Module.put_attribute(module, :playwright_test, Map.merge(past, options, &merge_use/3))
+        Module.put_attribute(module, :playwright_test, Options.merge(past, options))
         false
     end
   end
-
-  # Context options apply in `use` order, each over those before it per key, as upstream's
-  # `test.use` calls (each option its own fixture). A function given again (two `use`s with it: a
-  # template's `using` and the module's own) is kept only where it came last, so it runs once and
-  # still wins over the options before it; the options keep their order and their `nil` resets.
-  defp merge_use(:context_options, past, options),
-    do: Enum.reduce(options, past, &if(is_map(&1), do: &2 ++ [&1], else: List.delete(&2, &1) ++ [&1]))
-
-  defp merge_use(_key, _past, options), do: options
 
   @doc false
   # The module's merged `use` options, for its registration (`__register__/1`): a function, so the
@@ -514,7 +527,7 @@ defmodule Playwright.Test do
         else: [do: block, catch: failed]
 
     quote do
-      @tag playwright_test: :marked
+      @tag "playwright.test": :marked
       ExUnit.Case.test(unquote(message), unquote(var), unquote(contents))
     end
   end
@@ -522,7 +535,7 @@ defmodule Playwright.Test do
   @doc "`ExUnit.Case.test/1`: a test that fails as not implemented."
   defmacro test(message) do
     quote do
-      @tag playwright_test: :marked
+      @tag "playwright.test": :marked
       ExUnit.Case.test(unquote(message))
     end
   end
@@ -634,10 +647,10 @@ defmodule Playwright.Test do
           "`setup_all` after the module's `use Playwright.Test`"
       )
 
-      # A function of the `use` option `context_options` is of a test's context: the module's
-      # options apply here only if no `use` gives one.
-      module_options = Options.use_context_options(use_options(context[:module]), nil)
-      Results.register_module(self(), context_defaults(Options.config(), module_options))
+      {parameters, tags} = TestInfo.module_sources(context)
+      use_options = use_options(context[:module])
+      layers = Options.layers(parameters, use_options, tags)
+      Results.register_module(self(), context_defaults(Options.config(), layers, use_options))
     end
 
     :ok
@@ -679,9 +692,11 @@ defmodule Playwright.Test do
   def __register__(context) do
     # Read and validated once.
     config = Options.config()
-    test_info = TestInfo.new(context, config.output_dir)
+    {parameters, tags} = TestInfo.test_sources(context)
+    test_info = TestInfo.new(context, config.output_dir, parameters)
     use_options = use_options(context[:module])
-    modes = Options.artifacts(context, config, use_options)
+    layers = Options.layers(parameters, use_options, tags)
+    modes = Options.artifacts(config, layers)
     # Upstream's `testTracing.startIfNeeded` and `_contextFactory`'s `captureVideo`, by the retry.
     modes = %{
       modes
@@ -690,7 +705,8 @@ defmodule Playwright.Test do
     }
 
     file = context.file
-    marked? = context[:playwright_test] == :marked
+    # The `test` macro's tag, in the namespace of `use/1`'s keys: not a tag of the user's.
+    marked? = context[:"playwright.test"] == :marked
     timeout = Options.ex_unit_timeout(context)
 
     test =
@@ -705,7 +721,7 @@ defmodule Playwright.Test do
         preserve_output: Options.preserve_output(config),
         tmp: Path.join(System.tmp_dir!(), "playwright-test-#{System.unique_integer([:positive])}")
       })
-      |> Map.merge(context_defaults(config, Options.use_context_options(use_options, context)))
+      |> Map.merge(context_defaults(config, layers, use_options))
 
     TestInfo.remove_output_dirs(test)
     # The failure of a marked test that raised nothing in its body.
@@ -718,10 +734,17 @@ defmodule Playwright.Test do
     test
   end
 
-  # What a test's or a module's `setup_all`'s contexts get from `config` and the module's
-  # `context_options` (`Playwright.Test.Options.use_context_options/2`).
-  defp context_defaults(config, module_options),
-    do: %{context_options: Options.context_options(config, module_options), timeouts: Options.timeouts(config)}
+  # What a test's or a module's `setup_all`'s contexts get: the `context_options` and timeouts
+  # of `config` and of its `layers` (`Playwright.Test.Options.layers/3`). And the worker options
+  # of its `BrowserPool.browser/1` calls: the module's `use_options` and its project's, not the
+  # tags'.
+  defp context_defaults(config, layers, use_options) do
+    %{
+      context_options: Options.context_options(config, layers),
+      timeouts: Options.timeouts(config, layers),
+      worker: Options.worker(config, layers.project, use_options)
+    }
+  end
 
   # The merged options of a module's `use Playwright.Test` (`__before_compile__/1`).
   defp use_options(module) do
@@ -915,6 +938,62 @@ defmodule Playwright.Test do
 
     %{status: status, errors: errors, expected_status: :passed, duration: Results.duration(test_pid)}
   end
+
+  @doc """
+  Options for a `describe` block, a test or a project: upstream's `test.use` below the file
+  level. It takes the test-scoped options of `use Playwright.Test` (`context_options`,
+  `action_timeout`, `navigation_timeout`, `trace`, `screenshot`, `video`), validates them as it
+  does, and returns a keyword list for an ExUnit tag.
+
+      # test.describe(() => { test.use({ timezoneId: 'Europe/Berlin' }) ... })
+      describe "in Berlin" do
+        @describetag Test.use(context_options: [timezone_id: "Europe/Berlin"])
+        ...
+      end
+
+      # One test. Upstream nests a describe around it; ExUnit's can't nest.
+      @tag Test.use(trace: :on)
+      test "pays", %{page: page} do
+        ...
+      end
+
+  Each option gets a private key of its own (`:"playwright.use.trace"`,
+  `:"playwright.use.context_options.locale"`), so ExUnit, which merges a test's `@moduletag`,
+  `@describetag` and `@tag` per key, layers them per option, the test's over the describe's
+  over the module's: a describe's `timezone_id` and a test's `trace` both apply, as do several
+  calls on one test, and a context option given as `nil` resets it to the project's, the
+  config's or the default. Only these keys are read: a tag or context key named as an option
+  (`@tag trace: :on`, `@tag context_options: [...]`) sets nothing.
+
+  An unknown option, an invalid value or `context_options: nil` (a device name that
+  `Playwright.devices/0` doesn't have) raises `ArgumentError`, when the test module compiles. So
+  do `browser_name`, `launch_options` and `connect_options`: they are the worker's, as upstream's,
+  where a describe with another one starts a new worker. They are options of the module's `use`
+  and of `parameters/1`. For a
+  project in `parameterize:`, which takes maps, see `parameters/1`. See "Context defaults",
+  "Browser" and "Artifacts" in the moduledoc for the layers.
+  """
+  @spec use(keyword()) :: keyword()
+  def use(opts), do: Options.use(opts)
+
+  @doc """
+  A project for `parameterize:`, upstream's `projects: [{ use: { ... } }]`: `use/1`'s options
+  and the worker's (`browser_name`, `launch_options`, `connect_options`), validated as it does, as a map of the private keys, which ExUnit takes
+  there (a tag takes `use/1`'s keyword list).
+
+      use Playwright.Case,
+        async: true,
+        parameterize:
+          for device <- ["Desktop Chrome", "Desktop Firefox", "Desktop Safari"],
+              do: Test.parameters(context_options: Playwright.device(device))
+
+  The project's options are under the module's `use` and over the config's, for every context
+  of the module's run, `setup_all`'s included. Its browser is its `browser_name`, else its
+  device's (`default_browser_type`), see "Browser" in the moduledoc. For parameters of your own
+  next to them: `Map.put(Test.parameters(...), :role, :admin)`.
+  """
+  @spec parameters(keyword()) :: map()
+  def parameters(opts), do: Options.parameters(opts)
 
   @doc """
   The resolved `config :playwright, :test` (see "Config" in the moduledoc), for libraries

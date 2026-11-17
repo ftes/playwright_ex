@@ -89,10 +89,29 @@ end
 ```
 
 - `use Playwright.Case` gives the module a `browser` (`setup_all`) and each test a fresh `context` and `page`, and aliases `Browser`, `BrowserContext`, `Expect`, `Keyboard`, `Locator`, `Mouse`, `Page`, `Test` and `Test.BrowserPool`. In a case template, `use Playwright.Case` inside `using` and add your `setup` after it.
-- Upstream's fixtures are functions: `browser` is `BrowserPool.browser/1`, `testInfo` is `Playwright.Test.info/0`, `test.use({...})` is `use Playwright.Test, trace: :on` or a tag, and `use Playwright.Case, context_options: [locale: "de-DE"]` (or `&Mod.fun/1` of the test's context, for run-time values and your own `parameterize:` keys) for context options; `projects` are `parameterize:` over `browser_name`. `beforeAll` is `setup_all`: its contexts get the context defaults and `base_url`.
+- Upstream's fixtures are functions: `browser` is `BrowserPool.browser/1`, `testInfo` is `Playwright.Test.info/0`. `beforeAll` is `setup_all`.
+- `test.use({...})` by level, with the options `context_options`, `action_timeout`, `navigation_timeout`, `trace`, `screenshot`, `video` (values known at compile time, never functions):
+  - file: `use Playwright.Case, context_options: [locale: "de-DE"], trace: :on` (also `browser_name: :webkit`);
+  - `test.describe`: `@describetag Test.use(context_options: [timezone_id: "Europe/Berlin"])`;
+  - one test: `@tag Test.use(trace: :on)`;
+  - project: `use Playwright.Case, parameterize: [Test.parameters(context_options: Playwright.device("Desktop Firefox")), ...]` (`Test.parameters/1` and the module's `use` also take the worker's `browser_name`, `launch_options`, `connect_options`; add your own parameters with `Map.put/3`).
+- Where each option can be set:
+
+| Option | Config | Project (`Test.parameters/1`) | Module (`use`) | Describe, test (`Test.use/1`) |
+|---|---|---|---|---|
+| `context_options`, `action_timeout`, `navigation_timeout` | yes | yes | yes | yes |
+| `trace`, `screenshot`, `video` | yes | yes | yes | yes (an addition: worker-scoped in Playwright Test, which rejects them in a describe) |
+| `browser_name`, `launch_options`, `connect_options` | yes | yes | yes | no: the worker's, as in Playwright Test, where they force a new worker |
+| `test_id_attribute` | yes | no | no | no (a deviation: the value is global to the VM, which concurrent tests share) |
+| `output_dir`, `preserve_output`, `workers`, `snapshot_dir`, `snapshot_path_template`, `driver`, `on_start` | yes | no | no | no |
+
+- Layers, each over the one before per option: Playwright Test's defaults, config, project, module `use`, `@describetag`, `@tag`, the call's own options (`Browser.new_context!(browser, locale: "fr-FR")`). `setup_all` contexts get config, project and module; describe and test options reach only the test's contexts.
+- Only `Test.use/1`'s and `Test.parameters/1`'s keys are read. Plain tags set nothing: `@tag trace: :on` and `@tag context_options: [...]` are ignored (write `@tag Test.use(trace: :on)`), and `use Playwright.Test, tags: false` no longer exists.
+- Devices are static data: `Playwright.device("iPhone 13")` (raises for an unknown name) or `Playwright.devices()["iPhone 13"]` (the map of all). No driver needed, so they work in `use` options. In `config/config.exs` or `config/test.exs` the library isn't compiled yet: for a suite-wide device use `config/runtime.exs` (`if config_env() == :test`).
+- Browser: `BrowserPool.browser/1` without `browser_name` (as `Playwright.Case` calls it) uses the module's `use` `browser_name`, else its project's, else the config's if set, else the `default_browser_type` of a device in their `context_options` (iPhone picks WebKit), else `:chromium`. The module's `launch_options` and `connect_options` apply to that call too. These are worker-scoped: `Test.use(browser_name: _)` raises, and a describe's or test's device doesn't switch the browser.
 - `BrowserPool` is upstream's worker model: at most `workers` drivers+browsers at once, each held by one module and replaced after a failure. A module's tests run in sequence, so prefer many small `async: true` modules. Register selectors per driver with `on_start: &MyApp.Selectors.register/1`.
 - Actions and navigations have no timeout of their own; ExUnit's test timeout (60 s, `@tag timeout:`) bounds them and fails a stuck call with its call log. Set `action_timeout`/`navigation_timeout` in config to fail sooner. For Playwright Test's 30 s, `ExUnit.start(timeout: 30_000)`.
-- `trace`, `screenshot` and `video` take upstream's modes as atoms (`:retain_on_failure`, `:only_on_failure`, `:on_first_retry`, ...), set in config, `use Playwright.Test` options or `@tag`/`@moduletag`. ExUnit has no retries: `mix test --failed` is the retry.
+- `trace`, `screenshot` and `video` take upstream's modes as atoms (`:retain_on_failure`, `:only_on_failure`, `:on_first_retry`, ...), set in config, `use Playwright.Test` options or `@tag Test.use(trace: :on)` (`@describetag`, `@moduletag`). ExUnit has no retries: `mix test --failed` is the retry.
 - Each test writes to `test-results/<test>/`. A failed test gets `error-context.md` (errors, source, an aria snapshot of the page): read it first. Open traces with `mix playwright.cli show-trace <path>`.
 - `Playwright.Test.step "log in" do ... end` is `test.step`; pass `box: true` in helpers. A `describe.serial` becomes one test with a step per test.
 - Porting traps: an `Expect.poll!` callback that raises fails at once (`Enum.at(list, 0)`, not `hd/1`, while the list can be empty); `add_init_script` with a function's source and no argument only defines it (`"(#{fun})()"`).
