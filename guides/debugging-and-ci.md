@@ -119,12 +119,12 @@ steps:
       path: test-results
 ```
 
-As upstream advises, don't cache the browsers: restoring takes about as long as downloading,
-and the system packages can't be cached. To cache them anyway, cache the driver
-(`~/.cache/playwright`) and the browsers (`~/.cache/ms-playwright`; on macOS
-`~/Library/Caches/playwright` and `~/Library/Caches/ms-playwright`) against
-`hashFiles('mix.lock')`, which pins the driver version. If
-the runner's apt mirror stalls, this repository's
+Don't cache the driver or the browsers: both download about as fast as a cache restores
+(upstream advises the same for browsers), and `--with-deps` installs system packages on every
+job anyway. For reference, if your network is slow or you run offline: the driver goes to
+`~/.cache/playwright` (`~/Library/Caches/playwright` on macOS; the `:cache_dir` option moves
+it), the browsers to `~/.cache/ms-playwright` (`~/Library/Caches/ms-playwright` on macOS, or
+`PLAYWRIGHT_BROWSERS_PATH`). If the runner's apt mirror stalls, this repository's
 [workflow](https://github.com/ftes/playwright_ex/blob/main/.github/workflows/elixir.yml) retries
 and caches the `.deb` files.
 
