@@ -98,6 +98,7 @@ end
 - Porting traps: an `Expect.poll!` callback that raises fails at once (`Enum.at(list, 0)`, not `hd/1`, while the list can be empty); `add_init_script` with a function's source and no argument only defines it (`"(#{fun})()"`).
 - Snapshots live in `<test file>-snapshots/`, named by `name:` or after the test; a missing one is written and fails the test: commit it. `Expect.soft/1` and errors in route handlers or listeners also fail the test at the end of its body.
 - Details, case templates without `Playwright.Case`, and what isn't supported: the [testing guide](https://hexdocs.pm/playwright_ex/testing-with-exunit.html).
+- Playwright Test's `request` fixture is `APIRequest.new_context!(Playwright.request(BrowserPool.playwright(browser)))`: own cookies, the test's `context_options`, disposed at the test's end. `Page.request/1` is upstream's `page.request` and shares the page's cookies.
 
 ## Configuration
 

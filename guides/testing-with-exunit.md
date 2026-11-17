@@ -258,6 +258,10 @@ setup %{browser: browser, storage_state: storage_state} do
 end
 ```
 
+A request context created in `setup_all` isn't disposed of by the runner either, as with
+upstream's manual `newContext` in `beforeAll`. Dispose of it yourself inside the `setup_all`:
+`on_exit(fn -> APIRequestContext.dispose!(request) end)`.
+
 To share the login between modules, `BrowserContext.storage_state!(context, path:
 "tmp/auth.json")` also writes it to a file, and `storage_state:` takes that path. An app that keeps
 its tokens in IndexedDB (Firebase Authentication) needs `storage_state!(context, indexed_db:
@@ -848,8 +852,8 @@ Most of a spec ports call for call. What differs (and see [Not supported](#not-s
   [Concurrency](concurrency.md)), also for each call of a `Promise.all`.
 - The `baseURL` fixture is `Playwright.Test.config().context_options[:base_url]`. The `request`
   fixture is a request context of its own, `APIRequest.new_context!(Playwright.request(BrowserPool.playwright(browser)))`,
-  which in a test gets the config's `context_options` and is disposed of at its end;
-  `Page.request/1` shares the page's cookies.
+  which in a test gets the config's `context_options` and is disposed of at its end; it is not
+  `Page.request/1` (upstream's `page.request`, which shares the page's cookies).
 - `addInitScript(fn)` calls the function, but a string is sent as is, so `"() => ..."` only
   defines one: pass `"(#{fun})()"`, or the function's body.
 - A selector with parentheses can't go in `~s(...)`: use `~s[...]` or a string.
