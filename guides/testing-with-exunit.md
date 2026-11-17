@@ -76,10 +76,13 @@ Options go in as arguments, merged over the config: `BrowserPool.browser(browser
 `Playwright.Browser.new_context/2`. Every context a test creates on a pooled browser starts from
 Playwright Test's defaults (`locale: "en-US"`, a 1280x720 viewport, `color_scheme: :light`, ...),
 then the config's `context_options`; the options the call gives win. So does every context the
-module's `setup_all` creates (or a process it starts, through `$callers`), as Playwright Test's
-`beforeAll` gets the `use` options: `goto("/")` works there with `base_url`. A context created
-elsewhere (an `on_exit` callback, a process of no test), or on a driver you started yourself,
-gets no defaults and no recording.
+module's `setup_all` creates, as Playwright Test's `beforeAll` gets the `use` options:
+`goto("/")` works there with `base_url`. A process the test or `setup_all` starts counts only
+with `$callers`: a `Task` has them, a `spawn`, a `GenServer` or `start_supervised` doesn't. A
+long-lived process started in `setup_all` with them (one that sets `$callers` itself) gives the
+module's defaults to every context it creates later, in a test too, but the test doesn't record
+those yet. A context created elsewhere (an `on_exit` callback, a process of no test), or on a
+driver you started yourself, gets no defaults and no recording.
 
 With `base_url`, `goto` and the URL matchers take paths. To set it from the shell, read an env
 var in the config: `context_options: [base_url: System.get_env("BASE_URL", "http://localhost:4000")]`.

@@ -118,16 +118,22 @@ defmodule Playwright.Test.Results do
   """
   def register_module(pid, defaults) do
     # Once (a case template's body and its `using` may both bring it).
-    if :ets.insert_new(table(), {{:module, pid}, Map.put(defaults, :module_pid, pid)}),
+    if :ets.insert_new(table(), {{:module, pid}, defaults}),
       do: GenServer.cast(Pool, {:monitor, pid})
 
     :ok
   end
 
-  @doc "The registration of the module whose `setup_all` process is `pid`, or `nil`."
-  def module(pid) do
-    case started?() && :ets.lookup(table(), {:module, pid}) do
-      [{_key, module}] -> module
+  @doc """
+  The registration of `pid` tagged by its kind: `{:test, test}` for a running test,
+  `{:module, module}` for a module's `setup_all` process, or `nil`.
+  """
+  def scope(pid) do
+    # One select, a key lookup per clause.
+    match = for tag <- [:test, :module], do: {{{tag, pid}, :"$1"}, [], [{{tag, :"$1"}}]}
+
+    case started?() && :ets.select(table(), match) do
+      [scope] -> scope
       _ -> nil
     end
   end

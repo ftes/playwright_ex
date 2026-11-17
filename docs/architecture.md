@@ -353,8 +353,10 @@ process creates before its registration (a template's `setup` with the `use` onl
 makes the registration raise with the fix. The module's `setup_all` process registers too (a
 `setup_all` of the `use`), as upstream's `beforeAll` gets its `all-hooks-included` fixtures: its
 contexts (and those of processes with it in `$callers`) get the defaults and timeouts, but no
-recording. One outside a test and a module gets no defaults and no recording. The driver also adds every call's stack to each trace on its connection, so the trace
-merge keeps a chunk's own actions' stacks and sources.
+recording. A context created outside both a test and a module's `setup_all` (no process of
+either in its `$callers`) gets no defaults and no recording. The driver also adds every call's
+stack to each trace on its connection, so the trace merge keeps a chunk's own actions' stacks
+and sources.
 
 The pool is upstream's worker model. `browser/1` is held by the scope that calls it: `setup_all`'s
 module (upstream runs a file in one worker), or the test (a `Task` resolves to it through

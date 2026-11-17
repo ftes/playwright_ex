@@ -345,7 +345,7 @@ defmodule Playwright.Test.RegistrationTest.LateTest do
         end
 
       Playwright.BrowserContext.close!(context)
-      send(test_pid, {:result, result, Playwright.Test.Results.module(self())})
+      send(test_pid, {:result, result, Playwright.Test.Results.scope(self())})
     end)
 
     assert_receive {:result, message, nil}
