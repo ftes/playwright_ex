@@ -63,6 +63,9 @@ Node 26.13.1. No API changes.
   template's own `setup_all` with the `use` only in its `using`, or a `setup_all` above the
   module's `use`) makes the module's `setup_all` raise, naming the fix, as such a context in
   `setup` already does.
+- A module's `setup_all` that hangs fails past ExUnit's timeout of the module, with
+  `"setup_all" hook timeout of 60000ms exceeded.`, as Playwright Test's `beforeAll` hook
+  times out (#257).
 
 ## [1.65.0-rc.1] 2026-11-16
 

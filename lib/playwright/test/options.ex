@@ -223,6 +223,16 @@ defmodule Playwright.Test.Options do
   """
   def timeouts(config \\ config()), do: Map.take(config, [:action_timeout, :navigation_timeout])
 
+  @doc """
+  ExUnit's timeout for `tags` (`get_timeout/2` in `ExUnit.Runner`): `:infinity` under `mix test
+  --trace`, else the `timeout` tag or `mix test --timeout`. A test's tags, or a module's for its
+  `setup_all`.
+  """
+  def ex_unit_timeout(tags) do
+    config = ExUnit.configuration()
+    if config[:trace], do: :infinity, else: Map.get(tags, :timeout, config[:timeout])
+  end
+
   @doc "Playwright Test's context option defaults, with the client's keys and values."
   def context_defaults, do: @context_defaults
 

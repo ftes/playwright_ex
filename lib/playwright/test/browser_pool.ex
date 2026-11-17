@@ -57,7 +57,7 @@ defmodule Playwright.Test.BrowserPool do
 
   At most `workers` seats are held at once (config, default half the schedulers, as Playwright
   Test's `workers`); other scopes wait, first come first served, within ExUnit's test timeout
-  (`setup_all` has none). A scope that waits costs nothing, so ExUnit's `max_cases` can stay
+  (not counted in `setup_all`'s). A scope that waits costs nothing, so ExUnit's `max_cases` can stay
   above `workers`. A scope that holds a seat takes its further options over `workers`, so it
   never waits while others wait for it; those seats stop at its end. A scope gets an idle seat
   of its options, else a new one, else the longest idle seat of other options, whose driver its
