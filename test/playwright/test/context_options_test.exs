@@ -56,6 +56,11 @@ defmodule Playwright.Test.ContextOptionsTest do
     assert_raise ArgumentError, ~r/invalid context_options: :dark, expected a keyword list/, fn ->
       compile("Invalid", "use Playwright.Test, context_options: :dark")
     end
+
+    # A mistyped option, not a `{Mod, :fun}`.
+    assert_raise ArgumentError, ~r/invalid context_options: \{:color_scheme, :dark\}, expected options/, fn ->
+      compile("Tuple", "use Playwright.Test, context_options: {:color_scheme, :dark}")
+    end
   end
 
   defp resolve(module, context \\ %{lang: "it-IT"}),
@@ -66,8 +71,16 @@ defmodule Playwright.Test.ContextOptionsTest do
     # The function after the options, and before them.
     assert resolve(__MODULE__.FunctionLast) == %{colorScheme: "dark", locale: "it-IT"}
     assert resolve(__MODULE__.FunctionFirst) == %{colorScheme: "dark", locale: "de-DE"}
+    # In `setup_all`, the options only, and none if a `use` gives a function.
+    assert resolve(__MODULE__.Merged, nil) == %{colorScheme: "dark", locale: "fr-FR"}
+    assert resolve(__MODULE__.FunctionLast, nil) == %{}
+    assert resolve(__MODULE__.FunctionFirst, nil) == %{}
     # The last of duplicated keys wins, a nil too.
     assert resolve(__MODULE__.Duplicated) == %{locale: "fr-FR"}
+  end
+
+  test "the same function in consecutive uses (a template's body and its using) is kept once" do
+    assert __MODULE__.Twice.__playwright_test__(:options).context_options == [&__MODULE__.options/1]
   end
 
   test "a nil option resets it past the earlier uses, to the config's or the default" do
@@ -113,9 +126,8 @@ defmodule Playwright.Test.ContextOptionsTest do
 end
 
 defmodule Playwright.Test.ContextOptionsTest.FunctionTest do
-  # A function of the ExUnit context (`&Mod.fun/1`): its `parameterize:` values (upstream's
-  # projects) and, in a test, the `setup_all` values. Called for `setup_all` too, with its
-  # context, before the module's `setup_all` values: as upstream's `beforeAll` gets them.
+  # A function of the test's context (`&Mod.fun/1`): its `parameterize:` values (upstream's
+  # projects) and `setup_all` values. Not applied in `setup_all`, which has no test.
   use Playwright.Case,
     async: true,
     parameterize: [%{lang: "de-DE"}, %{lang: "fr-FR"}],
@@ -128,9 +140,8 @@ defmodule Playwright.Test.ContextOptionsTest.FunctionTest do
   alias Playwright.APIResponse
   alias Playwright.TestServer
 
-  # No `server` yet for `setup_all`'s.
-  def context_options(%{lang: lang} = context),
-    do: [locale: lang, base_url: if(server = context[:server], do: server.prefix)]
+  # A `setup_all` context would raise here: no `test`.
+  def context_options(%{test: _, lang: lang, server: server}), do: [locale: lang, base_url: server.prefix]
 
   setup_all %{browser: browser} do
     server = TestServer.server(start_supervised!({TestServer, dir_path: System.tmp_dir!()}))
@@ -158,8 +169,8 @@ defmodule Playwright.Test.ContextOptionsTest.FunctionTest do
     assert language(page) == "it-IT"
   end
 
-  test "a context of setup_all gets the function's options for its context", %{setup_all_page: page, lang: lang} do
-    assert language(page) == lang
+  test "a context of setup_all gets no function's options", %{setup_all_page: page} do
+    assert language(page) == "en-US"
   end
 end
 
@@ -195,6 +206,32 @@ defmodule Playwright.Test.ContextOptionsTest.ConfigTest do
     assert language(ctx.page) == "fr-FR"
     Page.goto!(ctx.page, "/")
     assert Page.url(ctx.page) == ctx.server.prefix <> "/"
+  end
+end
+
+defmodule Playwright.Test.ContextOptionsTest.MixedTest do
+  # Options and a function: `setup_all`'s contexts get none of them, its tests all.
+  use Playwright.Case, async: true, context_options: [locale: "de-DE"]
+  use Playwright.Test, context_options: &__MODULE__.dark/1
+
+  import Playwright.Test.ContextOptionsTest, only: [language: 1, dark?: 1]
+
+  def dark(%{test: _}), do: [color_scheme: :dark]
+
+  setup_all %{browser: browser} do
+    context = Browser.new_context!(browser)
+    on_exit(fn -> BrowserContext.close!(context) end)
+    %{setup_all_page: BrowserContext.new_page!(context)}
+  end
+
+  test "a test's page gets both", %{page: page} do
+    assert language(page) == "de-DE"
+    assert dark?(page)
+  end
+
+  test "a context of setup_all gets neither", %{setup_all_page: page} do
+    assert language(page) == "en-US"
+    refute dark?(page)
   end
 end
 
@@ -244,4 +281,10 @@ end
 defmodule Playwright.Test.ContextOptionsTest.Duplicated do
   use ExUnit.Case, async: true
   use Playwright.Test, context_options: [locale: nil, locale: "fr-FR"]
+end
+
+defmodule Playwright.Test.ContextOptionsTest.Twice do
+  use ExUnit.Case, async: true
+  use Playwright.Test, context_options: &Playwright.Test.ContextOptionsTest.options/1
+  use Playwright.Test, context_options: &Playwright.Test.ContextOptionsTest.options/1
 end

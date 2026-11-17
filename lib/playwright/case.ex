@@ -43,7 +43,8 @@ defmodule Playwright.Case do
   A module that shares one page from `setup_all` (upstream's `beforeAll` page) would still pay
   for each test's `context` and `page`, about 40 ms per test on Chromium and 120 ms on Firefox:
   skip `Playwright.Case` and write the few lines yourself. The `setup_all` context gets the
-  defaults, the config's and the module's `context_options` and the timeouts, but no test records it (it is in no trace, screenshot or `error-context.md`):
+  defaults, the config's and the module's static `context_options` (none if a `use` gives a function) and the
+  timeouts, but no test records it (it is in no trace, screenshot or `error-context.md`):
 
       use ExUnit.Case, async: true
       use Playwright.Test

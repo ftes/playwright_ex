@@ -49,10 +49,11 @@ Node 26.13.1. No upstream API changes.
 - `Playwright.Promise.all/1`, `race/1` and `any/1`, as JS's `Promise.all`, `Promise.race` and
   `Promise.any` (with `Playwright.AggregateError`).
 - **RC only:** `use Playwright.Test` (and `use Playwright.Case`) takes `context_options:`,
-  Playwright Test's `test.use({ locale: 'de-DE' })`: the options, or a function of the ExUnit
+  Playwright Test's `test.use({ locale: 'de-DE' })`: the options, or a function of the test's
   context (`&Mod.fun/1`, e.g. over your `parameterize:` values), over the config's per key, under
-  the call's, for every context of the module's tests and its `setup_all` (#257). An option
-  given as `nil` resets it to the config's or the default, as upstream's `undefined`.
+  the call's, for every context of the module's tests, and the options for its `setup_all`'s
+  unless a `use` gives a function (#257). An option given as `nil` resets it to the config's or the default, as upstream's
+  `undefined`.
 
 ### Changed
 

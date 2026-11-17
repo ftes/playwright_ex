@@ -115,11 +115,12 @@ defmodule Playwright.Test.Options do
 
   # `context_options:` of `use Playwright.Test` (upstream's `test.use({ locale: 'de-DE' })`, or an
   # option fixture's function), as a list of what the module's `use`s give, in order: the options
-  # (a keyword list or a map), converted as the registration's, or a function of the ExUnit
+  # (a keyword list or a map), converted as the registration's, or a function of the test's ExUnit
   # context returning them. The `use` options are evaluated at compile time and kept in the
   # module, so the function is an external capture (`&Mod.fun/1`) or `{Mod, :fun}`: an anonymous
   # one can't be stored. Whether the function exists is checked when it's called: its module may
-  # not be compiled yet.
+  # not be compiled yet, but `Mod` must name a module (an Elixir alias, or one that is loaded), so
+  # a mistyped option (`{:color_scheme, :dark}`) raises here.
   defp use_context_options!(fun) when is_function(fun, 1) do
     case Function.info(fun, :type) do
       {:type, :external} ->
@@ -132,7 +133,17 @@ defmodule Playwright.Test.Options do
     end
   end
 
-  defp use_context_options!({module, function} = mf) when is_atom(module) and is_atom(function), do: [mf]
+  defp use_context_options!({module, function} = mf) when is_atom(module) and is_atom(function) do
+    if !(String.starts_with?(Atom.to_string(module), "Elixir.") or Code.ensure_loaded?(module)),
+      do:
+        raise(
+          ArgumentError,
+          "invalid context_options: #{inspect(mf)}, expected options (a keyword list or a map), " <>
+            "an external capture (&Mod.fun/1) or {Mod, :fun} of a module"
+        )
+
+    [mf]
+  end
 
   defp use_context_options!(options) when is_function(options),
     do: raise(ArgumentError, "invalid context_options: #{inspect(options)}, expected a function of arity 1")
@@ -140,20 +151,26 @@ defmodule Playwright.Test.Options do
   defp use_context_options!(options), do: [context_options!(options, "use Playwright.Test: ")]
 
   @doc """
-  The module's `use` option `context_options` (`use_options/1`) for the ExUnit `context` of a test
-  or of the module's `setup_all`, converted: the options and the functions' results for
-  `context`, each over those before it. An option given as `nil` resets it past every earlier
-  `use`, to the config's or the default, as upstream's `undefined` override
-  (`_appendFixtureList`).
+  The module's `use` option `context_options` (`use_options/1`) for the test of the ExUnit
+  `context`, converted: the options and the functions' results for `context`, each over those
+  before it. An option given as `nil` resets it past every earlier `use`, to the config's or the
+  default, as upstream's `undefined` override (`_appendFixtureList`). For a module's `setup_all`
+  (`context` `nil`) the options only if no `use` gives a function, else none: a function is of a
+  test's context, and applying only the rest would break the order and the resets.
   """
   def use_context_options(options, context) do
-    options
-    |> Map.get(:context_options, [])
-    |> Enum.reduce(%{}, fn
-      %{} = static, acc -> Map.merge(acc, static)
-      function, acc -> Map.merge(acc, call_context_options!(function, context))
-    end)
-    |> Map.reject(fn {_key, value} -> value == nil end)
+    uses = Map.get(options, :context_options, [])
+
+    if context == nil and not Enum.all?(uses, &is_map/1) do
+      %{}
+    else
+      uses
+      |> Enum.reduce(%{}, fn
+        %{} = static, acc -> Map.merge(acc, static)
+        function, acc -> Map.merge(acc, call_context_options!(function, context))
+      end)
+      |> Map.reject(fn {_key, value} -> value == nil end)
+    end
   end
 
   defp call_context_options!(function, context) do
