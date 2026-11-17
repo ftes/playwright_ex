@@ -327,4 +327,29 @@ defmodule Playwright.Test.RegistrationTest.LateTest do
     assert message =~ "this test created a context before `use Playwright.Test` registered it"
     assert message =~ "add `use Playwright.Test` as the first line of the case template's body"
   end
+
+  test "a context of setup_all before the module's registration makes it raise, with the fix" do
+    test_pid = self()
+    browser = Playwright.Test.BrowserPool.browser()
+
+    # A template's `setup_all` that creates a context, then the module's registration, as a
+    # module of a template with `use Playwright.Test` only in its `using` runs them.
+    spawn(fn ->
+      context = Playwright.Browser.new_context!(browser)
+
+      result =
+        try do
+          Playwright.Test.__setup_all__(%{module: __MODULE__})
+        rescue
+          e in ArgumentError -> e.message
+        end
+
+      Playwright.BrowserContext.close!(context)
+      send(test_pid, {:result, result, Playwright.Test.Results.module(self())})
+    end)
+
+    assert_receive {:result, message, nil}
+    assert message =~ "this module's setup_all created a context before `use Playwright.Test` registered it"
+    assert message =~ "add `use Playwright.Test` as the first line of the case template's body, or move"
+  end
 end

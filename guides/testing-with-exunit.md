@@ -80,7 +80,9 @@ then the config's `context_options`, then the module's (`use Playwright.Case, co
 gives win, each per key. So does every context the
 module's `setup_all` creates (or a process it starts, through `$callers`), as Playwright Test's
 `beforeAll` gets the `use` options: `goto("/")` works there with `base_url`. Each test records
-those still open (its trace, screenshots and `error-context.md`) and leaves them open. A context
+those still open (its trace, screenshots and `error-context.md`) and leaves them open, also at
+its timeout: a call that hangs on one fails with ExUnit's timeout, without its call log, and may
+still run during the next test, so give such calls a timeout (`action_timeout`). A context
 created elsewhere (an `on_exit` callback, a process of no test), or on a driver you started
 yourself, gets no defaults and no recording.
 
@@ -805,5 +807,12 @@ Not ported yet ([open an issue](https://github.com/ftes/playwright_ex/issues) if
   `launch_options`;
 - the actions of `setup_all` itself in the first test's trace (Playwright Test runs `beforeAll`
   as part of that test): each test's trace has those it ran on the module's contexts;
+- a fresh worker after a failed test: Playwright Test starts a new one and runs `beforeAll`
+  again, here the module's `setup_all` state, its pages included, carries on, so a call hanging
+  on a shared page can still run during the next test. Bound such calls with `action_timeout`
+  (and `navigation_timeout`);
+- recording a context created by a process outside the module's call chain (one with neither
+  the test nor the module's `setup_all` in its `$callers`): it gets no defaults and isn't
+  recorded;
 - the video's step overlay keeps the title of a process killed inside `step/2,3`, and shows an
   IPv6 host with a zone id as `fe80`.

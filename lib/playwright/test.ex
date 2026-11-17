@@ -52,8 +52,8 @@ defmodule Playwright.Test do
   is registered before them, and their contexts are recorded too. That `use` takes no options
   (they go in `using`); a module's later `use`s (a template's `using` and the module's own) only
   add their options (see "Artifacts"). A context that a test process creates before its
-  registration (a template's `setup` with no `use` in the body) makes the registration raise,
-  with that fix. It registers the module's `setup_all` too, as upstream runs its `beforeAll`
+  registration (a template's `setup` or `setup_all` with no `use` in the body) makes the
+  registration raise, with that fix. It registers the module's `setup_all` too, as upstream runs its `beforeAll`
   hooks with its `all-hooks-included` fixtures: see "Contexts of `setup_all`". A context created
   outside both (in an `on_exit` callback, in a module without `use Playwright.Test`, on a driver
   you started yourself) gets no defaults and no recording.
@@ -179,10 +179,18 @@ defmodule Playwright.Test do
 
   Each test then records those still open as upstream's `willStartTest` does a worker's existing
   contexts: their actions during the test go to its `trace.zip` (a trace chunk of its own), their
-  pages to its screenshots and `error-context.md`. They stay open after the test, and at its
-  timeout. A test that closes one keeps its artifacts. Deviation: the actions of `setup_all` itself
-  are in no trace, where upstream's are in the first test's (its `beforeAll` runs as part of
-  that test).
+  pages to its screenshots and `error-context.md`. So does a context the module's processes (a
+  GenServer started in `setup_all`) create while the test runs, as upstream's
+  `didCreateBrowserContext`. They stay open after the test, and at its timeout. A test that
+  closes one keeps its artifacts. Deviation: the actions of `setup_all` itself are in no trace,
+  where upstream's are in the first test's (its `beforeAll` runs as part of that test).
+
+  Not ported: the test timeout's close (see "Timeouts") leaves the module's contexts open, so a
+  call that hangs on one fails with ExUnit's `ExUnit.TimeoutError`, not with "Test timeout of
+  Nms exceeded." and its call log, and the driver may still carry it out while the next test
+  runs. Upstream replaces the worker after a failed test, which closes them; here the module's
+  further tests use them. Give calls on them a bound: config `action_timeout` and
+  `navigation_timeout`, or the call's `timeout:`.
 
   ## Timeouts
 
@@ -543,12 +551,21 @@ defmodule Playwright.Test do
   # record those still open.
   def __setup_all__(context) do
     Pool.ensure_started()
+
+    if :ets.take(Results.table(), {:unregistered, self()}) != [] do
+      raise ArgumentError,
+            "this module's setup_all created a context before `use Playwright.Test` registered it (a case " <>
+              "template's own `setup_all` runs before the `use` in its `using`, and a module's `setup_all` " <>
+              "before its `use Playwright.Test` runs first), so the context has no defaults and no recording: " <>
+              "add `use Playwright.Test` as the first line of the case template's body, or move the " <>
+              "`setup_all` after the module's `use Playwright.Test`"
+    end
+
     config = Options.config()
     # A function of the `use` option `context_options` is of a test's context: not applied here.
     module_options = Options.use_context_options(use_options(context[:module]), nil)
 
     Results.register_module(self(), %{
-      module: context[:module],
       context_options: Options.context_options(config, module_options),
       timeouts: Options.timeouts(config)
     })

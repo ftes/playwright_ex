@@ -107,6 +107,7 @@ defmodule Playwright.Test.SetupAllTest.RecordingTest do
   use ExUnit.Case, async: true
 
   import ExUnit.CaptureIO
+  import ExUnit.CaptureLog
 
   alias Playwright.APIRequest
   alias Playwright.APIRequestContext
@@ -206,6 +207,12 @@ defmodule Playwright.Test.SetupAllTest.RecordingTest do
     Enum.any?(trace.events, &(JSON.encode!(&1) =~ text))
   end
 
+  # In the context's own chunk (a DOM snapshot), not only in the test's steps.
+  defp snapshotted?(dir, browser, text) do
+    trace = Playwright.Utils.parse_trace_raw(Path.join(dir, "trace.zip"), browser)
+    Enum.any?(trace.events, &(&1["type"] == "frame-snapshot" and JSON.encode!(&1) =~ text))
+  end
+
   defp show(page, marker), do: Page.set_content!(page, "<h1>#{marker}</h1>")
 
   test "each test records the module's open contexts in its own trace and screenshots, and leaves them open",
@@ -220,8 +227,10 @@ defmodule Playwright.Test.SetupAllTest.RecordingTest do
       end)
 
     first = fake_test(%{trace: :on, screenshot: :on})
-    assert [%{guid: guid, shared: true}] = :sys.get_state(Recorder.lookup(first.pid)).contexts
-    assert guid == context.guid
+    # The context, then its `request` and the module's request context; none of the test's own.
+    state = :sys.get_state(Recorder.lookup(first.pid))
+    assert state.contexts == []
+    assert [^context, _context_request, ^request] = state.shared
 
     first.run.(fn ->
       show(page, "FIRST")
@@ -258,6 +267,64 @@ defmodule Playwright.Test.SetupAllTest.RecordingTest do
     APIRequestContext.dispose!(request)
   end
 
+  test "a chunk a test left recording (its recording killed) is discarded by the next test's", %{browser: browser} do
+    %{context: context, page: page} =
+      fake_module(fn ->
+        context = Browser.new_context!(browser)
+        %{context: context, page: BrowserContext.new_page!(context)}
+      end)
+
+    owner = Results.runner_module(self())
+
+    # Its recorder killed before its end saved the chunk, as when ExUnit kills a finish past its budget.
+    first = fake_test(%{trace: :on})
+    first.run.(fn -> show(page, "FIRST") end)
+    Process.exit(Recorder.lookup(first.pid), :kill)
+    capture_log(fn -> finish(first) end)
+    assert [{%BrowserContext{}, :recording}, {_request, :recording}] = Results.shared(owner)
+
+    second = fake_test(%{trace: :on})
+    second.run.(fn -> show(page, "SECOND") end)
+    finish(second)
+    assert snapshotted?(second.dir, browser, "SECOND")
+    assert [{_context, :idle}, {_request, :idle}] = Results.shared(owner)
+    BrowserContext.close!(context)
+    assert Results.shared(owner) == []
+  end
+
+  test "a context a process of the module's creates during a test is that test's, and stays open", %{
+    browser: browser
+  } do
+    # A GenServer of `setup_all`'s, with its `$callers` (as `Task` and `start_supervised` forward them).
+    agent =
+      fake_module(fn ->
+        callers = [self() | List.wrap(Process.get(:"$callers"))]
+        {:ok, agent} = Agent.start(fn -> Process.put(:"$callers", callers) end)
+        agent
+      end)
+
+    test = fake_test(%{trace: :on})
+
+    {context, page} =
+      Agent.get(agent, fn _state ->
+        context = Browser.new_context!(browser)
+        page = BrowserContext.new_page!(context)
+        show(page, "LATE")
+        {context, page}
+      end)
+
+    assert [^context, _request] = :sys.get_state(Recorder.lookup(test.pid)).shared
+    finish(test)
+    assert snapshotted?(test.dir, browser, "LATE")
+
+    # Still open, the module's: the next test records it as an existing one.
+    assert Page.text_content!(page, "h1") == "LATE"
+    next = fake_test(%{trace: :on})
+    assert [^context, _request] = :sys.get_state(Recorder.lookup(next.pid)).shared
+    finish(next)
+    BrowserContext.close!(context)
+  end
+
   test "a module context a test closes is collected in that test, and its next tests don't record it", %{
     browser: browser
   } do
@@ -278,7 +345,7 @@ defmodule Playwright.Test.SetupAllTest.RecordingTest do
     assert traced?(test.dir, browser, "CLOSED")
 
     next = fake_test(%{trace: :on})
-    assert :sys.get_state(Recorder.lookup(next.pid)).contexts == []
+    assert :sys.get_state(Recorder.lookup(next.pid)).shared == []
     finish(next)
   end
 
@@ -291,12 +358,11 @@ defmodule Playwright.Test.SetupAllTest.RecordingTest do
 
     # Spawned by another process than the module's `setup_all`.
     other = fake_test(%{trace: :on}, fn fun -> Task.await(Task.async(fn -> spawn(fun) end)) end)
-    assert :sys.get_state(Recorder.lookup(other.pid)).contexts == []
+    assert :sys.get_state(Recorder.lookup(other.pid)).shared == []
 
     # Its own context is its own.
     other.run.(fn -> Browser.new_context!(browser) end)
-    assert [entry] = :sys.get_state(Recorder.lookup(other.pid)).contexts
-    refute entry[:shared]
+    assert %{contexts: [_own], shared: []} = :sys.get_state(Recorder.lookup(other.pid))
     finish(other)
     BrowserContext.close!(context)
   end
