@@ -348,15 +348,18 @@ one static listener when it starts (`runBeforeCreateBrowserContext`, `runAfterCr
 process's test (an ETS lookup of it and its `$callers`) and hands the context to that test's
 recorder, so a test's recording sees the contexts of all its browsers. The recorder process
 starts at the test's first context (at its registration when it traces, for its steps): a test
-without contexts runs none, and its `error-context.md` comes from `TestInfo`. A context a test
+with no contexts of its own and none of its module's `setup_all` open runs none, and its
+`error-context.md` comes from `TestInfo`. A context a test
 process creates before its registration (a template's `setup` with the `use` only in `using`)
 makes the registration raise with the fix. The module's `setup_all` process registers too (a
 `setup_all` of the `use`), as upstream's `beforeAll` gets its `all-hooks-included` fixtures: its
 contexts (and those of processes with it in `$callers`) get the defaults and timeouts, and are
 kept as the module's, keyed by its ExUnit runner, which spawns its tests too. Each test's
 registration adopts those still open (upstream's `willStartTest` over the worker's existing
-contexts): its recorder records them, a chunk of its own, but leaves them open. A context
-created outside both a test and a module's `setup_all` (no process of either in its `$callers`)
+contexts): its recorder records them, a chunk of its own, but leaves them open. Their tracing
+state is on their tracing object, as upstream's `kTracingStarted`, and a closed one is dropped
+when the list is read. A process the module starts counts only with `$callers` (a `GenServer`
+start doesn't set them). A context created outside both a test and a module's `setup_all` (no process of either in its `$callers`)
 gets no defaults and no recording. The driver also adds every call's stack to each trace on its
 connection, so the trace merge keeps a chunk's own actions' stacks and sources.
 

@@ -11,6 +11,8 @@ defmodule Playwright.Test.Results do
   # body (`{:passed, pid}`) and its process then exited `:shutdown`, as ExUnit's runner ends it.
   # The messages a test process sends arrive before its `DOWN`.
 
+  alias Playwright.BrowserContext
+  alias Playwright.Runtime.Heap
   alias Playwright.Test.Pool
   alias Playwright.Test.TestInfo
 
@@ -153,33 +155,39 @@ defmodule Playwright.Test.Results do
 
   @doc """
   The table of the contexts and request contexts of the modules' `setup_all` processes, a bag
-  by process: `{owner, order, guid, object}`. Each also has a row `{{:shared, guid}, owner,
-  tracing}` in `table/0`, `tracing` `:off`, `:idle` (started, no chunk) or `:recording` (a
-  test's chunk).
+  by process: `{owner, order, guid, object}`. Their tracing state is on their tracing object
+  (`Playwright.Test.Recorder`'s `kTracingStarted`).
   """
   def shared_table, do: __MODULE__.Shared
 
   @doc "Shares `object` (a context or request context) of the module's `setup_all` process `owner`."
   def share(owner, object) do
-    :ets.insert(table(), {{:shared, object.guid}, owner, :off})
     :ets.insert(shared_table(), {owner, System.unique_integer([:monotonic]), object.guid, object})
     :ok
   end
 
-  @doc "The shared objects of `owner` still open, in creation order: `[{object, tracing}]`."
+  @doc """
+  The shared objects of `owner` still open, in creation order, as upstream reads its live
+  `_allContexts()` and `request._contexts`: those closed or disposed are dropped here, whether
+  or not a close hook ran (a browser closed, the driver gone).
+  """
   def shared(owner) do
-    for {_owner, _order, guid, object} <- Enum.sort_by(:ets.lookup(shared_table(), owner), &elem(&1, 1)),
-        [{_key, _owner, tracing}] <- [:ets.lookup(table(), {:shared, guid})],
-        do: {object, tracing}
+    {open, closed} =
+      shared_table()
+      |> :ets.lookup(owner)
+      |> Enum.sort_by(&elem(&1, 1))
+      |> Enum.split_with(fn {_owner, _order, _guid, object} -> open?(object) end)
+
+    for row <- closed, do: :ets.delete_object(shared_table(), row)
+    for {_owner, _order, _guid, object} <- open, do: object
   end
 
-  @doc "The tracing state of the shared object `guid` (`share/2`), `nil` once it closed."
-  def tracing(guid) do
-    case :ets.lookup(table(), {:shared, guid}) do
-      [{_key, _owner, tracing}] -> tracing
-      [] -> nil
-    end
-  end
+  @doc """
+  Whether the context or request context `object` is open: still the driver's (a request
+  context disposed, a context closed with its browser are not), and a context not closing.
+  """
+  def open?(%BrowserContext{} = context), do: Heap.alive?(context) and not BrowserContext.is_closed(context)
+  def open?(object), do: Heap.alive?(object)
 
   @doc "Notes `test_pid` as the running test of the module whose `setup_all` process is `owner`."
   def set_module_test(owner, test_pid) do
@@ -187,28 +195,20 @@ defmodule Playwright.Test.Results do
     :ok
   end
 
-  @doc "The test of the module of `owner` that runs (or ran last), or `nil`."
+  @doc """
+  Forgets `test_pid` as its module's running test (its end): a context the module's processes
+  create from now on waits for the next test.
+  """
+  def clear_module_test(test_pid) do
+    if started?(), do: :ets.match_delete(table(), {{:module_test, :_}, test_pid})
+    :ok
+  end
+
+  @doc "The running test of the module of `owner`, or `nil`."
   def module_test(owner) do
     case :ets.lookup(table(), {:module_test, owner}) do
       [{_key, test_pid}] -> test_pid
       [] -> nil
-    end
-  end
-
-  @doc "Notes the tracing state of the shared object `guid`, if still open."
-  def set_tracing(guid, tracing) do
-    :ets.update_element(table(), {:shared, guid}, {3, tracing})
-    :ok
-  end
-
-  @doc "Forgets the shared object `guid` (it closed): its tracing state, `nil` if it is none."
-  def unshare(guid) do
-    with true <- started?(),
-         [{_key, owner, tracing}] <- :ets.take(table(), {:shared, guid}) do
-      :ets.match_delete(shared_table(), {owner, :_, guid, :_})
-      tracing
-    else
-      _ -> nil
     end
   end
 
@@ -348,7 +348,7 @@ defmodule Playwright.Test.Results do
   defp module_ended(%{module_pid: pid, runner: runner}) do
     if runner, do: :ets.delete_object(table(), {{:runner_module, runner}, pid})
     :ets.delete(table(), {:module_test, pid})
-    for {_owner, _order, guid, _object} <- :ets.take(shared_table(), pid), do: :ets.delete(table(), {:shared, guid})
+    :ets.delete(shared_table(), pid)
   end
 
   defp test_ended(state, pid, test, reason) do

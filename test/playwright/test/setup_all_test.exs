@@ -114,6 +114,7 @@ defmodule Playwright.Test.SetupAllTest.RecordingTest do
   alias Playwright.Browser
   alias Playwright.BrowserContext
   alias Playwright.Page
+  alias Playwright.Runtime.Heap
   alias Playwright.Test.BrowserPool
   alias Playwright.Test.Pool
   alias Playwright.Test.Recorder
@@ -215,6 +216,27 @@ defmodule Playwright.Test.SetupAllTest.RecordingTest do
 
   defp show(page, marker), do: Page.set_content!(page, "<h1>#{marker}</h1>")
 
+  # The `kTracingStarted` of each of the module's open objects.
+  defp tracing_states(owner) do
+    for object <- Results.shared(owner) do
+      tracing =
+        if is_struct(object, BrowserContext),
+          do: BrowserContext.tracing(object),
+          else: APIRequestContext.tracing(object)
+
+      Heap.get(tracing, :kTracingStarted)
+    end
+  end
+
+  # A process of the module's `setup_all` with its `$callers` set (a `GenServer` start doesn't set them).
+  defp module_agent do
+    fake_module(fn ->
+      callers = [self() | List.wrap(Process.get(:"$callers"))]
+      {:ok, agent} = Agent.start(fn -> Process.put(:"$callers", callers) end)
+      agent
+    end)
+  end
+
   test "each test records the module's open contexts in its own trace and screenshots, and leaves them open",
        %{browser: browser, server: server} do
     %{context: context, page: page, request: request} =
@@ -281,27 +303,61 @@ defmodule Playwright.Test.SetupAllTest.RecordingTest do
     first.run.(fn -> show(page, "FIRST") end)
     Process.exit(Recorder.lookup(first.pid), :kill)
     capture_log(fn -> finish(first) end)
-    assert [{%BrowserContext{}, :recording}, {_request, :recording}] = Results.shared(owner)
+    assert tracing_states(owner) == [:recording, :recording]
 
     second = fake_test(%{trace: :on})
     second.run.(fn -> show(page, "SECOND") end)
     finish(second)
     assert snapshotted?(second.dir, browser, "SECOND")
-    assert [{_context, :idle}, {_request, :idle}] = Results.shared(owner)
+    assert tracing_states(owner) == [:idle, :idle]
     BrowserContext.close!(context)
     assert Results.shared(owner) == []
+  end
+
+  test "the module's list drops a context closed without its close hook (its browser closed)", %{browser: browser} do
+    %{context: context, other: other} =
+      fake_module(fn -> %{context: Browser.new_context!(browser), other: Browser.new_context!(browser)} end)
+
+    owner = Results.runner_module(self())
+    assert [^context, _request, ^other, _other_request] = Results.shared(owner)
+
+    # As its browser's close leaves it: closed, no `runBeforeCloseBrowserContext`.
+    Heap.put(other, :_closingStatus, "closed")
+    shared = Results.shared(owner)
+    assert [^context, _request, _other_request] = shared
+    refute other in shared
+
+    test = fake_test(%{trace: :on})
+    refute other in :sys.get_state(Recorder.lookup(test.pid)).shared
+    finish(test)
+
+    Heap.put(other, :_closingStatus, "none")
+    BrowserContext.close!(other)
+    BrowserContext.close!(context)
+  end
+
+  test "a context the module's process creates for a test whose recorder died waits for the next test", %{
+    browser: browser
+  } do
+    agent = module_agent()
+    owner = Results.runner_module(self())
+
+    test = fake_test(%{trace: :on})
+    Process.exit(Recorder.lookup(test.pid), :kill)
+    context = Agent.get(agent, fn _state -> Browser.new_context!(browser) end)
+    capture_log(fn -> finish(test) end)
+    assert Results.module_test(owner) == nil
+
+    next = fake_test(%{trace: :on})
+    assert [^context, _request] = :sys.get_state(Recorder.lookup(next.pid)).shared
+    finish(next)
+    BrowserContext.close!(context)
   end
 
   test "a context a process of the module's creates during a test is that test's, and stays open", %{
     browser: browser
   } do
-    # A GenServer of `setup_all`'s, with its `$callers` (as `Task` and `start_supervised` forward them).
-    agent =
-      fake_module(fn ->
-        callers = [self() | List.wrap(Process.get(:"$callers"))]
-        {:ok, agent} = Agent.start(fn -> Process.put(:"$callers", callers) end)
-        agent
-      end)
+    agent = module_agent()
 
     test = fake_test(%{trace: :on})
 

@@ -43,6 +43,7 @@ defmodule Playwright.Test.Recorder do
   alias Playwright.Isomorphic.StringUtils
   alias Playwright.Page
   alias Playwright.Runtime.Callers
+  alias Playwright.Runtime.Heap
   alias Playwright.Runtime.Invocation
   alias Playwright.Runtime.Promise
   alias Playwright.Runtime.Zones
@@ -418,7 +419,8 @@ defmodule Playwright.Test.Recorder do
   defp own_open(state),
     do: for(%{guid: guid, context: context} <- state.contexts, guid not in state.closed, do: context)
 
-  defp shared_contexts(shared), do: Enum.filter(shared, &is_struct(&1, BrowserContext))
+  # The module's still open: one closed without a close hook (its browser closed) is dropped too.
+  defp shared_contexts(shared), do: Enum.filter(shared, &(is_struct(&1, BrowserContext) and Results.open?(&1)))
 
   defp drop_guid(objects, guid), do: Enum.reject(objects, &(&1.guid == guid))
 
@@ -580,8 +582,8 @@ defmodule Playwright.Test.Recorder do
   # A module's `setup_all`'s: its timeouts, shared with its tests.
   defp after_create_browser_context(:module, module, context) do
     set_default_timeouts(context, module.timeouts)
-    Results.share(module.module_pid, context)
-    Results.share(module.module_pid, BrowserContext.request(context))
+    share(module.module_pid, context)
+    share(module.module_pid, BrowserContext.request(context))
     adopt_created([context, BrowserContext.request(context)], module.module_pid)
   end
 
@@ -620,7 +622,7 @@ defmodule Playwright.Test.Recorder do
   defp adopt_existing([], _test), do: :ok
 
   defp adopt_existing(shared, test) do
-    {contexts, requests} = Enum.split_with(shared, fn {object, _tracing} -> is_struct(object, BrowserContext) end)
+    {contexts, requests} = Enum.split_with(shared, &is_struct(&1, BrowserContext))
     adopt(contexts ++ requests, Results.recorder(test.test_pid), test)
   end
 
@@ -631,46 +633,78 @@ defmodule Playwright.Test.Recorder do
     with test_pid when is_pid(test_pid) <- Results.module_test(owner),
          %{} = test <- registration(test_pid),
          recorder when is_pid(recorder) <- Results.recorder(test_pid),
-         do: adopt(Enum.map(objects, &{&1, :off}), recorder, test)
+         do: adopt(objects, recorder, test)
   end
 
   # Noted in order, then the tracing of each at once, as upstream's `Promise.all`.
   defp adopt(shared, recorder, test) do
     shared
-    |> Enum.filter(fn {object, _tracing} ->
-      key = if is_struct(object, BrowserContext), do: :context, else: :request
-      :ets.insert_new(Results.table(), {{key, object.guid}, recorder}) and call(recorder, {:add_shared, object}) == :ok
-    end)
+    |> Enum.filter(&note_shared(&1, recorder))
     |> Task.async_stream(
-      fn {object, tracing} -> step("start tracing", fn -> start_shared_tracing(object, tracing, test) end) end,
+      fn object -> step("start tracing", fn -> start_shared_tracing(object, test) end) end,
       timeout: :infinity
     )
     |> Stream.run()
   end
 
-  # `_startTraceChunkOnContextCreation` (`kTracingStarted` is `:idle` or `:recording`). The state
-  # is noted once the call succeeded. `:recording` is a chunk an earlier test left (its end past
-  # its budget, or a failed save): discarded first.
-  defp start_shared_tracing(object, tracing_state, test) do
-    tracing = shared_tracing(object)
+  # Its row, then the recorder's note; the row rolled back if the recorder stopped, so the next
+  # test records it.
+  defp note_shared(object, recorder) do
+    row = {{if(is_struct(object, BrowserContext), do: :context, else: :request), object.guid}, recorder}
 
     cond do
-      test.trace[:mode] == :off and tracing_state == :off ->
+      not :ets.insert_new(Results.table(), row) ->
+        false
+
+      call(recorder, {:add_shared, object}) == :ok ->
+        true
+
+      true ->
+        :ets.delete_object(Results.table(), row)
+        false
+    end
+  end
+
+  # A shared object's (`Results.share/2`), its tracing state not started.
+  defp share(owner, object) do
+    put_tracing_started(object, false)
+    Results.share(owner, object)
+  end
+
+  # `(tracing as any)[kTracingStarted]` of a shared object's tracing: `false` (not started), or
+  # (deviation, as a test's end may give up on its chunk) `:idle` (started, no chunk) or
+  # `:recording` (a test's chunk). `nil` for a test's own, whose tracing a test starts once.
+  defp tracing_started(object), do: Heap.get(shared_tracing(object), :kTracingStarted)
+  defp put_tracing_started(object, value), do: Heap.put(shared_tracing(object), :kTracingStarted, value)
+
+  # `_startTraceChunkOnContextCreation`. The state is noted before a stop, as upstream's, and
+  # after a start succeeded. `:recording` is a chunk an earlier test left (its end past its
+  # budget, or a failed save): discarded first.
+  defp start_shared_tracing(object, test) do
+    tracing = shared_tracing(object)
+    tracing_started = tracing_started(object)
+
+    cond do
+      test.trace[:mode] == :off and !tracing_started ->
         :ok
 
       # `tracing.stop()` discards a chunk left recording.
       test.trace[:mode] == :off ->
+        put_tracing_started(object, false)
         ChannelOwner._wrap_api_call(object, fn _api_zone -> Tracing.stop!(tracing) end, %{internal: true})
-        Results.set_tracing(object.guid, :off)
 
-      tracing_state == :off ->
+      !tracing_started ->
         start_tracing(object, tracing, test)
-        Results.set_tracing(object.guid, :recording)
+        put_tracing_started(object, :recording)
 
       true ->
-        if tracing_state == :recording, do: discard_chunk(object, tracing)
+        if tracing_started == :recording do
+          discard_chunk(object, tracing)
+          put_tracing_started(object, :idle)
+        end
+
         start_chunk(object, tracing, test)
-        Results.set_tracing(object.guid, :recording)
+        put_tracing_started(object, :recording)
     end
   end
 
@@ -831,7 +865,7 @@ defmodule Playwright.Test.Recorder do
   end
 
   defp after_create_request_context(:module, module, request) do
-    Results.share(module.module_pid, request)
+    share(module.module_pid, request)
     adopt_created([request], module.module_pid)
   end
 
@@ -851,7 +885,7 @@ defmodule Playwright.Test.Recorder do
   # context, also a browser context's `request` (its close disposes it first).
   def before_close_request_context(request) do
     # A module's: its chunk only if one records.
-    chunk? = Results.unshare(request.guid) in [nil, :recording]
+    chunk? = tracing_started(request) in [nil, :recording]
 
     with [{_key, recorder}] <- :ets.take(Results.table(), {:request, request.guid}),
          %{} = state <- call(recorder, {:fields, [:opts]}) do
@@ -880,7 +914,7 @@ defmodule Playwright.Test.Recorder do
   # once per context, also when closes race.
   def before_close_browser_context(context) do
     # A module's: its chunk only if one records.
-    chunk? = Results.unshare(context.guid) in [nil, :recording]
+    chunk? = tracing_started(context) in [nil, :recording]
 
     with [{_key, recorder}] <- :ets.take(Results.table(), {:context, context.guid}),
          %{} = state <- call(recorder, {:fields, [:opts, :timed_out, :test_pid]}) do
@@ -1100,12 +1134,12 @@ defmodule Playwright.Test.Recorder do
   # user's own), at once; a chunk not saved stays `:recording`, for the next test to discard.
   defp stop_shared_tracing(pid, state) do
     state.shared
-    |> Enum.filter(&(Results.tracing(&1.guid) == :recording))
+    |> Enum.filter(&(Results.open?(&1) and tracing_started(&1) == :recording))
     |> Task.async_stream(
       fn object ->
         step("save the trace", fn ->
           stop_tracing(object, shared_tracing(object), pid, state)
-          Results.set_tracing(object.guid, :idle)
+          put_tracing_started(object, :idle)
         end)
       end,
       timeout: :infinity

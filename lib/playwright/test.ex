@@ -71,7 +71,8 @@ defmodule Playwright.Test do
 
   Every context the test creates on a `BrowserPool` browser, in the test or a process with it
   in `$callers`, is recorded. The recording starts with the test's first context (or at its
-  registration when it traces, for its steps); a test without contexts records nothing.
+  registration when it traces, for its steps); a test with no contexts of its own and none of
+  its module's `setup_all` open records nothing.
   Contexts left open are closed after the test, last in its `on_exit`, and request contexts of
   `Playwright.APIRequest.new_context/2` left are disposed; a context closed earlier keeps its
   artifacts. The module's contexts of `setup_all` still open are recorded too, and left open
@@ -167,13 +168,15 @@ defmodule Playwright.Test do
   (`Process.put(:"$callers", callers)`). A `spawn`, a `GenServer` or `Agent` start, and
   `start_supervised` don't set them, so their contexts get no defaults. A long-lived process
   started in `setup_all` that has them gets the module's defaults for every context it creates
-  later, during a test too, as upstream's worker-scoped fixtures do.
+  later, during a test too, as upstream's worker-scoped fixtures do, and the running test
+  records it (below). One without them is in no test's recording either.
 
   Each test then records those still open as upstream's `willStartTest` does a worker's existing
   contexts: their actions during the test go to its `trace.zip` (a trace chunk of its own), their
-  pages to its screenshots and `error-context.md`. So does a context the module's processes (a
-  GenServer started in `setup_all`) create while the test runs, as upstream's
-  `didCreateBrowserContext`. They stay open after the test, and at its timeout. A test that
+  pages to its screenshots and `error-context.md`. So does a context the module's processes
+  with `$callers` (a `GenServer` started in `setup_all` that sets them) create while the test
+  runs, as upstream's `didCreateBrowserContext`. They stay open after the test, and at its
+  timeout. A test that
   closes one keeps its artifacts. Deviation: the actions of `setup_all` itself are in no trace,
   where upstream's are in the first test's (its `beforeAll` runs as part of that test).
 
@@ -658,6 +661,9 @@ defmodule Playwright.Test do
   def __finish__(test_pid, budget) do
     deadline = if is_integer(budget), do: System.monotonic_time(:millisecond) + budget, else: :infinity
     Results.finishing(test_pid)
+    # Before its recorder stops: a context its module's processes create from now on is no
+    # longer this test's.
+    Results.clear_module_test(test_pid)
     {verdict, _failures} = result = Results.result(test_pid, budget)
     {test, recorder} = Results.take(test_pid)
     if !test, do: raise("its registration is gone (the pool restarted since)")
