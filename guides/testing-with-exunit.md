@@ -791,7 +791,8 @@ end
 ```
 
 and run it alone: `mix test test/my_app/sign_up_test.exs`, or `mix test --only debug`. The
-`launch_options` merge over the config's one key at a time, so its other launch options stay.
+call's `launch_options` merge over the module's (its own or its project's, else the config's)
+one key at a time, so the other launch options stay.
 
 To step through a test with `Page.pause/1`, tag it `@tag timeout: :infinity` (or run `mix test
 --trace`): otherwise ExUnit's timeout ends the test mid-pause, closing its contexts. The same goes

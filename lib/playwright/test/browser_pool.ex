@@ -18,7 +18,9 @@ defmodule Playwright.Test.BrowserPool do
   `browser/1` takes these options, merged over `config :playwright, :test` (`launch_options`
   and `driver` one level deep). In a module of `use Playwright.Test`, the module's
   `browser_name`, `launch_options` and `connect_options` (its `use` options and its project's,
-  see "Browser" in `Playwright.Test`) are between the two:
+  see "Browser" in `Playwright.Test`) are between the two, each replacing the config's as a
+  whole (`launch_options` too, as upstream's fixture); the call's `launch_options` merge over
+  them one key at a time:
 
     * `:browser_name` - `:chromium` (default), `:firefox` or `:webkit`; without one anywhere,
       that of the module's device.
