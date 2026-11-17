@@ -276,39 +276,51 @@ defmodule Playwright.Test.BrowserPoolTest do
   end
 
   describe "setup_all" do
-    # A `setup_all` scope's process, as ExUnit's: its callbacks `fun` after a lease of `opts`
-    # and a context on it, then the wait. Its `on_exit` release, after it exited.
-    defp failed_setup_all(opts, fun) do
+    # A `setup_all` scope's process, as ExUnit's: its callbacks, `failed` after a lease of `opts`
+    # and a context on it, their error caught, then the wait for the module's end. Its `on_exit`
+    # release, after it exited (the real one: the `modules` mode of `Playwright.Test.EndToEndTest`).
+    defp failed_setup_all(opts, failed) do
       test = self()
 
       {pid, ref} =
         spawn_monitor(fn ->
-          SetupAllTimeout.run(%{module: __MODULE__, timeout: 3000}, fn ->
-            %{browser: browser} = leased = Pool.browser(Options.pool(opts), {:process, self()})
-            Browser.new_context!(browser)
-            send(test, {:leased, leased})
-            fun.()
-          end)
+          try do
+            SetupAllTimeout.run(%{module: __MODULE__, timeout: 3000}, fn ->
+              %{browser: browser} = leased = Pool.browser(Options.pool(opts), {:process, self()})
+              Browser.new_context!(browser)
+              send(test, {:leased, leased})
+              fail(failed)
+            end)
+          catch
+            _kind, _reason -> :ok
+          end
 
-          Process.sleep(:infinity)
+          receive do: (:module_end -> :ok)
         end)
 
       assert_receive {:leased, leased}, 30_000
+      send(pid, :module_end)
       assert_receive {:DOWN, ^ref, :process, ^pid, _reason}, 10_000
       Pool.release(pid)
       leased
     end
 
-    defp callbacks(:raised), do: fn -> raise "boom" end
-    defp callbacks(:timed_out), do: fn -> Process.sleep(:infinity) end
+    # Raised: ExUnit catches it, the process exits normally.
+    defp fail(:raised), do: raise("boom")
+    defp fail(:timed_out), do: Process.sleep(:infinity)
 
-    # Raised, or past the timeout (none under `mix test --trace`).
-    for failed <- [:raised | if(ExUnit.configuration()[:trace], do: [], else: [:timed_out])] do
+    defp fail(:linked_crash) do
+      spawn_link(fn -> exit(:boom) end)
+      Process.sleep(:infinity)
+    end
+
+    # Past the timeout: none under `mix test --trace`.
+    for failed <- [:raised, :linked_crash | if(ExUnit.configuration()[:trace], do: [], else: [:timed_out])] do
       @tag :capture_log
       test "a #{failed} setup_all resets its seat: the next scope of its options gets a fresh browser, without its contexts" do
         opts = opts()
         warm = finish_leased_browser(opts)
-        leased = failed_setup_all(opts, callbacks(unquote(failed)))
+        leased = failed_setup_all(opts, unquote(failed))
         assert leased.playwright == warm.playwright
 
         t = fake_test()
@@ -318,6 +330,29 @@ defmodule Playwright.Test.BrowserPoolTest do
         assert gone?(warm.browser)
         finish(t, [passed()], :shutdown)
       end
+    end
+
+    test "a passed setup_all's seat goes back warm" do
+      opts = opts()
+      test = self()
+
+      {pid, ref} =
+        spawn_monitor(fn ->
+          SetupAllTimeout.run(%{module: __MODULE__, timeout: :infinity}, fn ->
+            send(test, {:leased, Pool.browser(Options.pool(opts), {:process, self()})})
+          end)
+
+          receive do: (:module_end -> :ok)
+        end)
+
+      assert_receive {:leased, leased}, 30_000
+      send(pid, :module_end)
+      assert_receive {:DOWN, ^ref, :process, ^pid, :normal}, 10_000
+      Pool.release(pid)
+
+      t = fake_test()
+      assert lease(t, opts).playwright == leased.playwright
+      finish(t, [passed()], :shutdown)
     end
   end
 

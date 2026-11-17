@@ -237,9 +237,9 @@ defmodule Playwright.Test do
   a failed `setup_all`'s are, as upstream stops a worker whose job failed. A `setup_all` process
   that traps exits is killed 1 s after the timeout instead: it fails with `:killed`, without the
   message. One timeout counts all of the module's `setup_all` callbacks, where upstream counts
-  each hook on its own. `BrowserPool.browser/1`'s wait for a worker is not counted, as upstream's
-  queue has no timeout; the worker's start is, as in a test (upstream's worker fixtures have a
-  timeout of their own). Its contexts get the config's `action_timeout` and
+  each hook on its own. `BrowserPool.browser/1` (the wait for a worker, its start) is not counted,
+  as upstream's queue has no timeout and its worker fixtures have a timeout of their own: there,
+  nothing bounds them. Its contexts get the config's `action_timeout` and
   `navigation_timeout` (`:infinity` by default, not the client's 30 s), as upstream's `beforeAll`
   contexts get `actionTimeout || 0`.
 
@@ -424,8 +424,8 @@ defmodule Playwright.Test do
   defmacro __before_compile__(env) do
     options = Module.get_attribute(env.module, :playwright_test)
 
-    # Without ExUnit's `__ex_unit__/2` (its internals changed, or no `use ExUnit.Case` before),
-    # no `setup_all` timeout: said at compile time.
+    # Without ExUnit's `__ex_unit__/2` (its internals changed), no `setup_all` timeout: said at
+    # compile time.
     setup_all_timeout =
       if Module.defines?(env.module, {:__ex_unit__, 2}) do
         quote do
@@ -439,8 +439,8 @@ defmodule Playwright.Test do
         end
       else
         IO.warn(
-          "use Playwright.Test found no ExUnit __ex_unit__/2 in #{inspect(env.module)} (no `use ExUnit.Case` " <>
-            "before it, or ExUnit's internals changed): its setup_all callbacks get no timeout",
+          "use Playwright.Test found no __ex_unit__/2 in #{inspect(env.module)}: ExUnit's internals " <>
+            "changed, so its setup_all timeout is off",
           Macro.Env.stacktrace(env)
         )
 

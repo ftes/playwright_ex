@@ -125,13 +125,14 @@ defmodule Playwright.Test.EndToEndTest do
            }
   end
 
-  test "pooled drivers: one per options and scope, back idle at its end, stopped after a failure",
+  test "pooled drivers: one per options and scope, back idle at its end, stopped after a failure (setup_all's too)",
        %{tmp_dir: tmp_dir} do
     {output, report} = report(start("modules", tmp_dir))
-    assert output =~ ~r"15 tests, 1 failure|Result: 14/15 passed"
+    assert output =~ ~r"18 tests, 1 failure, 3 invalid|Result: 14/15 passed, 3 invalid"
 
     assert report.leases == 0
-    # Not the failed module's; each parameter set's own (a driver has one label).
+    # Not the failed module's, nor the failed `setup_all`s'; each parameter set's own (a driver has
+    # one label).
     assert report.free == [:param_1, :param_2, :ten, :ten, :two_a, :two_b]
     # Ten tests and two browser options of one module: a worker each.
     assert report.drivers.ten == 2
@@ -324,12 +325,11 @@ defmodule Playwright.Test.EndToEndTest do
 
     for {module, timeout, frame} <- [
           {"SetupAllSleepsTest", 1000, "Process.sleep/1"},
-          # Its stack: in the wait, or in the launch, context or page on a slow browser.
-          {"SetupAllHangsTest", 6000, nil}
+          {"SetupAllHangsTest", 6000, "Frame.wait_for_selector/3"}
         ] do
       setup_all = failure(output, "#{module}: failure on setup_all callback, all tests have been invalidated")
       assert setup_all =~ ~s[** (RuntimeError) "setup_all" hook timeout of #{timeout}ms exceeded.]
-      if frame, do: assert(setup_all =~ frame)
+      assert setup_all =~ frame
     end
   end
 

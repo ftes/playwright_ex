@@ -7,7 +7,8 @@
 #     :only_on_failure`. It prints "(ready=>true)" in the passing test and waits there until the
 #     go file exists.
 #   * `modules` - pooled browsers (a module's of ten tests, a test's of two options, a
-#     failing module's, `parameterize:`) and a module with none; prints the pool after the run:
+#     failing module's, failed `setup_all`s', `parameterize:`) and a module with none; prints the
+#     pool after the run:
 #     `(report=>%{...})`.
 #   * `max_failures` - `max_failures: 1`, a module holding a browser running when another
 #     fails; prints the pool after the run.
@@ -21,8 +22,8 @@
 #   * `timeouts` - tests past their timeout: one in a Playwright call, one in `Process.sleep`, one
 #     in a Playwright call after a slow `setup` before `use Playwright.Test`.
 #   * `setup_all_timeout` - modules with a `timeout` tag: a `setup_all` in `Process.sleep` (1 s),
-#     one in a Playwright call (6 s, its browser's launch, context and page counted too), and one
-#     that ends in time, whose tests take longer together (5 s).
+#     one in a Playwright call after its context and page (6 s), and one that ends in time, whose
+#     tests take longer together (5 s).
 #   * `trace` - `trace: true` (`mix test --trace`): a test past its `timeout` tag passes, and a
 #     `setup_all` past its module's.
 #   * `rerun` - one failing and one passing test (writing a file of its own), `preserve_output:
@@ -196,6 +197,47 @@ case mode do
         Report.put(:fails, ctx.scope, ctx.browser)
         flunk("on purpose")
       end
+    end
+
+    # A failed `setup_all` (raised, past its timeout, taken down by a linked process) stops its
+    # module's drivers at the module's end (its `on_exit` release).
+    defmodule SetupAllRaisesTest do
+      use ExUnit.Case, async: true
+      use Playwright.Test
+
+      setup_all do
+        Report.put(:setup_all_raised, self(), BrowserPool.browser(Key.opts(:setup_all_raised)))
+        raise "on purpose"
+      end
+
+      test "never runs", do: :ok
+    end
+
+    defmodule SetupAllTimesOutTest do
+      use ExUnit.Case, async: true
+      use Playwright.Test
+
+      @moduletag timeout: 1000
+
+      setup_all do
+        Report.put(:setup_all_timed_out, self(), BrowserPool.browser(Key.opts(:setup_all_timed_out)))
+        Process.sleep(:infinity)
+      end
+
+      test "never runs", do: :ok
+    end
+
+    defmodule SetupAllLinkedCrashTest do
+      use ExUnit.Case, async: true
+      use Playwright.Test
+
+      setup_all do
+        Report.put(:setup_all_crashed, self(), BrowserPool.browser(Key.opts(:setup_all_crashed)))
+        spawn_link(fn -> exit(:boom) end)
+        Process.sleep(:infinity)
+      end
+
+      test "never runs", do: :ok
     end
 
     defmodule ParamTest do
@@ -382,8 +424,8 @@ case mode do
 
       alias Playwright.{Browser, BrowserContext, Page}
 
-      # Counts the browser's launch, context and page too: on a slow browser the deadline may
-      # land in one of them, so only the message is asserted.
+      # Time for the context and page on a slow browser (the launch is not counted): the deadline
+      # lands in the wait.
       @moduletag timeout: 6000
 
       setup_all %{browser: browser} do
