@@ -40,13 +40,13 @@ defmodule Mix.Tasks.Playwright.InstallTest do
 
     test "a -- raises, suggesting the args without it" do
       for {argv, fix} <- [
-            {~w(-- firefox), "firefox"},
-            {~w(--force -- chromium --with-deps), "--force chromium --with-deps"},
-            {~w(--no-browsers --), "--no-browsers"},
-            {~w(--), "chromium --with-deps"},
-            {~w(-- --), "chromium --with-deps"}
+            {~w(-- firefox), "mix playwright.install firefox"},
+            {~w(--force -- chromium --with-deps), "mix playwright.install --force chromium --with-deps"},
+            {~w(--no-browsers --), "mix playwright.install --no-browsers"},
+            {~w(--), "mix playwright.install"},
+            {~w(-- --), "mix playwright.install"}
           ] do
-        assert_raise Mix.Error, "`--` is no longer needed: `mix playwright.install #{fix}`", fn ->
+        assert_raise Mix.Error, "`--` is no longer needed: `#{fix}`", fn ->
           Install.parse_args(argv)
         end
       end
