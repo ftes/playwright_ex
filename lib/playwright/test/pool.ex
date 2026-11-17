@@ -55,16 +55,19 @@ defmodule Playwright.Test.Pool do
   def browser(opts, {kind, pid}) do
     ensure_started()
 
-    # Not in a `setup_all`'s time: the wait for a seat is the dispatcher's queue, which has no
-    # timeout upstream, and the driver's start and launch are a worker fixture's, with its own slot
-    # (a test's count, as ExUnit's timeout does).
-    SetupAllTimeout.paused(fn ->
-      case GenServer.call(__MODULE__, {:lease, Slot.key(opts), {kind, pid}, parent(pid)}, :infinity) do
-        {seat, key} -> Slot.browser(seat, key, opts)
-        :stopped -> raise "Playwright.Test's drivers were stopped (after the suite)"
-        :released -> raise ArgumentError, "BrowserPool.browser/1 waited past the end of its test or module"
-      end
-    end)
+    # The wait for a seat is not in a `setup_all`'s time: it is the dispatcher's queue, which has
+    # no timeout upstream. The driver's start and launch are (upstream's worker fixtures have a
+    # slot of their own), as in a test's, which ExUnit's timeout counts whole.
+    lease =
+      SetupAllTimeout.paused(fn ->
+        GenServer.call(__MODULE__, {:lease, Slot.key(opts), {kind, pid}, parent(pid)}, :infinity)
+      end)
+
+    case lease do
+      {seat, key} -> Slot.browser(seat, key, opts)
+      :stopped -> raise "Playwright.Test's drivers were stopped (after the suite)"
+      :released -> raise ArgumentError, "BrowserPool.browser/1 waited past the end of its test or module"
+    end
   end
 
   @doc "Ends the leases of `scope`: its seats idle and warm unless it failed, else reset."
@@ -79,6 +82,15 @@ defmodule Playwright.Test.Pool do
   """
   def fail(test_pid) do
     if Process.whereis(__MODULE__), do: GenServer.call(__MODULE__, {:fail, test_pid}, :infinity)
+    :ok
+  end
+
+  @doc """
+  Fails the leases of the scope `pid`, a `setup_all` that failed, as upstream stops a worker
+  whose job failed: its seats reset at its release.
+  """
+  def fail_scope(pid) do
+    if Process.whereis(__MODULE__), do: GenServer.call(__MODULE__, {:fail_scope, pid}, :infinity)
     :ok
   end
 
@@ -155,6 +167,8 @@ defmodule Playwright.Test.Pool do
 
   def handle_call({:fail, test_pid}, _from, state),
     do: {:reply, :ok, fail_scopes(state, test_pid, Results.runner(state.results, test_pid))}
+
+  def handle_call({:fail_scope, pid}, _from, state), do: {:reply, :ok, fail_scopes(state, pid, nil)}
 
   def handle_call(:started, _from, state), do: {:reply, :ok, state}
 

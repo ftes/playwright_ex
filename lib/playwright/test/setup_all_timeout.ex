@@ -13,12 +13,18 @@ defmodule Playwright.Test.SetupAllTimeout do
   # upstream's message with `beforeAll` renamed to `setup_all`, and the stack the process was at.
   # Elixir only: one slot for all of the module's `setup_all` callbacks, where upstream gives
   # each hook its own. A process that traps exits is killed 1 s later (`:killed`, without the
-  # message). A pooled browser (`Pool.browser/2`: the wait for a seat, a driver start and
-  # launch) is not counted (`paused/1`), as upstream's dispatcher queue has no timeout and its
-  # worker fixtures have their own slot. `paused/1` looks in the calling process only: a
-  # `setup_all` scope's `BrowserPool.browser/1` runs in the `setup_all` process itself.
+  # message). The wait for a pooled browser's seat (`Pool.browser/2`) is not counted
+  # (`paused/1`), as upstream's dispatcher queue has no timeout; the seat's driver start and
+  # launch are, as in a test (upstream gives its worker fixtures a slot of their own). `paused/1`
+  # looks in the calling process only: a `setup_all` scope's `BrowserPool.browser/1` runs in the
+  # `setup_all` process itself.
+  #
+  # A `setup_all` that fails, past its timeout too, fails its pooled seats' lease
+  # (`Pool.fail_scope/1`): they reset at its release, which closes its contexts, as upstream
+  # stops a worker whose job failed (`dispatcher.ts`, `worker.stop(true /* didFail */)`).
 
   alias Playwright.Test.Options
+  alias Playwright.Test.Pool
 
   @key {__MODULE__, :watchdog}
 
@@ -29,7 +35,7 @@ defmodule Playwright.Test.SetupAllTimeout do
   def run(context, fun) do
     case Process.get(@key) || Options.ex_unit_timeout(context) do
       :infinity ->
-        fun.()
+        failing_scope(fun)
 
       timeout when is_integer(timeout) ->
         owner = self()
@@ -39,7 +45,7 @@ defmodule Playwright.Test.SetupAllTimeout do
         Process.put(@key, watchdog)
 
         try do
-          fun.()
+          failing_scope(fun)
         after
           Process.delete(@key)
 
@@ -56,7 +62,16 @@ defmodule Playwright.Test.SetupAllTimeout do
     end
   end
 
-  @doc "Runs `fun` with the calling `setup_all`'s clock stopped (a pooled browser)."
+  # A failed `setup_all` (the watchdog's exit fails it in `expire/1`).
+  defp failing_scope(fun) do
+    fun.()
+  catch
+    kind, reason ->
+      Pool.fail_scope(self())
+      :erlang.raise(kind, reason, __STACKTRACE__)
+  end
+
+  @doc "Runs `fun` with the calling `setup_all`'s clock stopped (the wait for a pooled browser's seat)."
   def paused(fun) do
     case Process.get(@key) do
       nil ->
@@ -127,6 +142,8 @@ defmodule Playwright.Test.SetupAllTimeout do
         end
 
       error = RuntimeError.exception(~s("setup_all" hook timeout of #{timeout}ms exceeded.))
+      # Before the exit: ExUnit's `on_exit` callbacks, the release among them, run after it.
+      Pool.fail_scope(owner)
       Process.exit(owner, {error, stack})
 
       # A process that traps exits got a message instead.
