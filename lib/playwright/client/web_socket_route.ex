@@ -16,6 +16,7 @@ defmodule Playwright.Client.WebSocketRoute do
   """
   use Playwright.Client.ChannelOwner, struct: Playwright.WebSocketRoute
 
+  alias Playwright.Client.ClientHelper
   alias Playwright.Runtime.Callers
 
   def from(route) do
@@ -121,9 +122,11 @@ defmodule Playwright.Client.WebSocketRoute do
     route = _route(server)
 
     atomic(route, fn ->
-      if is_binary(message),
+      # deviation: a binary that is not UTF-8 is bytes (`ClientHelper.is_string/1`).
+      if ClientHelper.is_string(message),
         do: _fire_and_forget(route, :sendToServer, %{message: message, isBase64: false}),
-        else: _fire_and_forget(route, :sendToServer, %{message: Base.encode64(elem(message, 1)), isBase64: true})
+        else:
+          _fire_and_forget(route, :sendToServer, %{message: Base.encode64(ClientHelper.buffer(message)), isBase64: true})
     end)
 
     nil
@@ -131,9 +134,11 @@ defmodule Playwright.Client.WebSocketRoute do
 
   def send(this, message) do
     atomic(this, fn ->
-      if is_binary(message),
+      # deviation: a binary that is not UTF-8 is bytes (`ClientHelper.is_string/1`).
+      if ClientHelper.is_string(message),
         do: _fire_and_forget(this, :sendToPage, %{message: message, isBase64: false}),
-        else: _fire_and_forget(this, :sendToPage, %{message: Base.encode64(elem(message, 1)), isBase64: true})
+        else:
+          _fire_and_forget(this, :sendToPage, %{message: Base.encode64(ClientHelper.buffer(message)), isBase64: true})
     end)
 
     nil

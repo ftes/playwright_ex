@@ -245,7 +245,8 @@ jest-matcher-utils/pretty-format/jest-diff (ExUnit.Diff is private and colour-on
 - `undefined` is `nil`, JS `null` is `:null` (JSON `null` decodes to `:null`); `X | null`
   results are `nil`, as they are handles, not JS values. The facade passes omitted optional
   arguments as `nil`, so JS defaults apply in the body.
-- Bytes are `{:binary, b}` where JS branches on Buffer; binaries are strings.
+- Bytes are `{:binary, b}` where JS branches on Buffer; binaries are strings, but one that is not
+  UTF-8, which no JS string is, is bytes there too (`ClientHelper.is_string/1`).
 - `Playwright.RegExp` is public for JS-only syntax; a `Regex` is translated to a JS regex and
   PCRE-only syntax raises. Regexes from the driver always come back as `%RegExp{}` (lossless).
 - `evaluate` takes JS source; a string plus `arg` is function source (no `isFunction`, like

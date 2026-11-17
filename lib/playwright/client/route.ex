@@ -155,11 +155,12 @@ defmodule Playwright.Client.Route do
           buffer = File.read!(options.path)
           {Base.encode64(buffer), true, byte_size(buffer)}
 
-        is_binary(body) ->
+        # deviation: a binary that is not UTF-8 is bytes (`ClientHelper.is_string/1`).
+        ClientHelper.is_string(body) ->
           {body, false, byte_size(body)}
 
-        match?({:binary, _}, body) ->
-          {:binary, buffer} = body
+        is_binary(body) or match?({:binary, _}, body) ->
+          buffer = ClientHelper.buffer(body)
           {Base.encode64(buffer), true, byte_size(buffer)}
 
         true ->

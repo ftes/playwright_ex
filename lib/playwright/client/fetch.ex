@@ -301,14 +301,15 @@ defmodule Playwright.Client.APIRequestContext do
           data = options.data
 
           cond do
-            is_binary(data) ->
+            # deviation: a binary that is not UTF-8 is bytes (`ClientHelper.is_string/1`).
+            ClientHelper.is_string(data) ->
               if Fetch.is_json_content_type(headers),
                 do:
                   {if(Fetch.is_json_parsable(data), do: data, else: ClientHelper.json_stringify(data)), nil, nil, nil},
                 else: {nil, nil, nil, data}
 
-            match?({:binary, _}, data) ->
-              {nil, nil, nil, elem(data, 1)}
+            is_binary(data) or match?({:binary, _}, data) ->
+              {nil, nil, nil, ClientHelper.buffer(data)}
 
             # typeof null === 'object'
             data == :null or is_map(data) or is_list(data) or is_number(data) or is_boolean(data) ->
