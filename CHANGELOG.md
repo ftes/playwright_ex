@@ -47,6 +47,7 @@ upstream minor, so `~> 1.65.0` is safe.
   `test.use({ locale: 'de-DE' })`: the options, or a function of the test's context
   (`&Mod.fun/1`, e.g. over your `parameterize:` values), over the config's per key, under the
   call's, for every context of the module's tests (#257).
+- `use Playwright.Case` also aliases `Playwright.Keyboard` and `Playwright.Mouse`.
 
 ### Fixed
 

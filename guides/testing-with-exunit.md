@@ -38,7 +38,7 @@ end
 ```elixir
 use ExUnit.Case, async: true
 use Playwright.Test
-alias Playwright.{Browser, BrowserContext, Expect, Locator, Page}
+alias Playwright.{Browser, BrowserContext, Expect, Keyboard, Locator, Mouse, Page, Test}
 alias Playwright.Test.BrowserPool
 
 setup_all do

@@ -76,7 +76,7 @@ defmodule Playwright.Case do
     quote do
       use Playwright.Test, unquote(opts)
 
-      alias Playwright.{Browser, BrowserContext, Expect, Locator, Page, Test}
+      alias Playwright.{Browser, BrowserContext, Expect, Keyboard, Locator, Mouse, Page, Test}
       alias Playwright.Test.BrowserPool
     end
   end

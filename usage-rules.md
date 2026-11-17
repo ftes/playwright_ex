@@ -87,7 +87,7 @@ defmodule MyApp.SignUpTest do
 end
 ```
 
-- `use Playwright.Case` gives the module a `browser` (`setup_all`) and each test a fresh `context` and `page`, and aliases `Browser`, `BrowserContext`, `Expect`, `Locator`, `Page`, `Test` and `Test.BrowserPool`. In a case template, `use Playwright.Case` inside `using` and add your `setup` after it.
+- `use Playwright.Case` gives the module a `browser` (`setup_all`) and each test a fresh `context` and `page`, and aliases `Browser`, `BrowserContext`, `Expect`, `Keyboard`, `Locator`, `Mouse`, `Page`, `Test` and `Test.BrowserPool`. In a case template, `use Playwright.Case` inside `using` and add your `setup` after it.
 - Upstream's fixtures are functions: `browser` is `BrowserPool.browser/1`, `testInfo` is `Playwright.Test.info/0`, `test.use({...})` is `use Playwright.Test, trace: :on` or a tag, and `use Playwright.Case, context_options: [locale: "de-DE"]` (or `&Mod.fun/1` of the test's context, for run-time values and your own `parameterize:` keys) for context options; `projects` are `parameterize:` over `browser_name`. `beforeAll` is `setup_all`: its contexts get the context defaults and `base_url`, and each test records those still open.
 - `BrowserPool` is upstream's worker model: at most `workers` drivers+browsers at once, each held by one module and replaced after a failure. A module's tests run in sequence, so prefer many small `async: true` modules. Register selectors per driver with `on_start: &MyApp.Selectors.register/1`.
 - Actions and navigations have no timeout of their own; ExUnit's test timeout (60 s, `@tag timeout:`) bounds them and fails a stuck call with its call log. Set `action_timeout`/`navigation_timeout` in config to fail sooner.
