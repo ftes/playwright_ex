@@ -219,9 +219,9 @@ defmodule Playwright.Test.CallersTest do
       end)
 
     assert [{:error, %RuntimeError{message: "listener boom 1"}, _}] = TestInfo.take_errors(self())
-    # Each with the first's exit (the later one's, unless it came before the first exited).
+    # Once (`_isStopped`).
     assert_receive {:EXIT, _, {%RuntimeError{message: "listener boom 1"}, _}}, 5000
-    refute_receive {:EXIT, _, {%RuntimeError{message: "listener boom 2"}, _}}, 200
+    refute_receive {:EXIT, _, _}, 200
     refute log =~ "listener boom"
   end
 

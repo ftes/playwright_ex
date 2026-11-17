@@ -634,18 +634,18 @@ defmodule Playwright.Test.TestInfo do
   @doc """
   The worker's `unhandledError` (an error a callback of the test left unhandled: a listener's, a
   route handler's), from another process than the test's: the test's first one
-  (`_hasUnhandledError`) is `_failWithError`ed, and each one `_stop()`s the test, whose body is
-  abandoned. Here the test's process exits with the first one, which ExUnit reports as the
-  test's failure (`Playwright.Test.Results` keeps it once), after `_didFinishTestFunction`'s
-  screenshots (`Playwright.Test.Recorder.did_finish_test_function/2`), as upstream takes them
-  after the interrupt: the process takes them before it exits, so before the `on_exit` callbacks.
-  A test that traps exits gets the exit as a message, once per error. Once the test ended, the
-  error is printed (`_fail_with_error/2`).
+  (`_hasUnhandledError`) is `_failWithError`ed and `_stop()`s the test (`_isStopped`: once), whose
+  body is abandoned; later ones are dropped. Here the test's process exits with it, which ExUnit
+  reports as the test's failure (`Playwright.Test.Results` keeps it once), after
+  `_didFinishTestFunction`'s screenshots (`Playwright.Test.Recorder.did_finish_test_function/2`),
+  as upstream takes them after the interrupt: the process takes them before it exits, so before
+  the `on_exit` callbacks. A test that traps exits gets the exit as a message. Once the test
+  ended, the error is printed (`_fail_with_error/2`).
   """
   def _unhandled_error(this, {kind, reason, stacktrace} = error) do
     case first_unhandled_error(this, interrupt_reason(kind, reason, stacktrace), error) do
       :first -> if record_error(this, error), do: stop(this)
-      :later -> if interrupted?(this), do: exit_test(this)
+      :later -> :ok
       :ended -> _fail_with_error(this, error)
     end
 
@@ -653,7 +653,7 @@ defmodule Playwright.Test.TestInfo do
   end
 
   # `_hasUnhandledError`, set once (`insert_new`, atomic across the test's processes), with the
-  # first error and the exit that interrupts the test (`interrupt/1`, read by `Playwright.Test.Results`).
+  # exit that interrupts the test and the error (`interrupt/1`, read by `Playwright.Test.Results`).
   defp first_unhandled_error(this, reason, error) do
     key = {:test_info, this.test_pid, :has_unhandled_error}
 
@@ -661,7 +661,7 @@ defmodule Playwright.Test.TestInfo do
       not running?(this) ->
         :ended
 
-      :ets.insert_new(Results.table(), {key, {reason, error, false}}) ->
+      :ets.insert_new(Results.table(), {key, {reason, error}}) ->
         # Elixir only: the test ended meanwhile (see `put_row/3`).
         if running?(this) do
           :first
@@ -676,34 +676,15 @@ defmodule Playwright.Test.TestInfo do
   end
 
   # `_stop()` after `_didFinishTestFunction`, in a process of its own: the caller may be a
-  # listener the connection waits on, which the screenshots need. Then a later error's `_stop()`
-  # exits the test again (a test that traps exits); before, this exit is still to come.
+  # listener the connection waits on, which the screenshots need. Not once the test ended.
   defp stop(this) do
     spawn(fn ->
       Recorder.did_finish_test_function(this.test_pid, true)
-      exit_test(this)
-      key = {:test_info, this.test_pid, :has_unhandled_error}
-      # Replaced only while it is there: `ended/1` may have removed it.
-      :ets.select_replace(Results.table(), [
-        {{key, {:"$1", :"$2", false}}, [], [{{{:const, key}, {{:"$1", :"$2", true}}}}]}
-      ])
+
+      with true <- running?(this),
+           {reason, _error} <- interrupt(this.test_pid),
+           do: Process.exit(this.test_pid, reason)
     end)
-  end
-
-  defp interrupted?(this), do: match?({_, _, true}, interrupt_row(this.test_pid))
-
-  # With the first error's exit (`Playwright.Test.Results` dedupes it). Not once the test ended.
-  defp exit_test(this) do
-    with true <- running?(this),
-         {reason, _error, _done?} <- interrupt_row(this.test_pid),
-         do: Process.exit(this.test_pid, reason)
-  end
-
-  defp interrupt_row(test_pid) do
-    case :ets.lookup(Results.table(), {:test_info, test_pid, :has_unhandled_error}) do
-      [{_key, row}] -> row
-      [] -> nil
-    end
   end
 
   @doc """
@@ -711,7 +692,10 @@ defmodule Playwright.Test.TestInfo do
   Read by the pool as the test ends, before `ended/1` removes the row.
   """
   def interrupt(test_pid) do
-    with {reason, error, _done?} <- interrupt_row(test_pid), do: {reason, error}
+    case :ets.lookup(Results.table(), {:test_info, test_pid, :has_unhandled_error}) do
+      [{_key, interrupt}] -> interrupt
+      [] -> nil
+    end
   end
 
   # The exit reason of `_unhandled_error/2`, as ExUnit formats a crash: `{exception, stacktrace}`.
