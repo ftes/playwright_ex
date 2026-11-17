@@ -32,7 +32,9 @@ defmodule Mix.Tasks.Playwright.Install do
       end
 
     {opts, _} = OptionParser.parse!(own, strict: [browsers: :boolean, force: :boolean])
-    Application.ensure_all_started([:inets, :ssl, :crypto])
+    # Mix prunes the code paths of OTP apps that no compiled app lists, so before the project is
+    # compiled `:public_key` (needed by `:ssl`) can be missing. `Driver.download!` starts them.
+    Enum.each([:inets, :ssl], &Mix.ensure_application!/1)
 
     :ok = Playwright.Driver.install(force: Keyword.get(opts, :force, false))
     Mix.shell().info("Driver installed in #{Playwright.Driver.install_dir()}")
