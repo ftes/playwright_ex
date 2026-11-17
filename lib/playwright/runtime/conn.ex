@@ -289,11 +289,6 @@ defmodule Playwright.Runtime.Conn do
 
   def handle_info({:pw_release, inv}, state), do: {:noreply, state |> release(inv) |> drain() |> flush_out()}
 
-  def handle_info({:pw_callers, inv, callers}, state) do
-    frames = Enum.map(state.frames, &if(waits_for?(&1, inv), do: put_in(&1.waiting.callers, callers), else: &1))
-    {:noreply, %{state | frames: frames}}
-  end
-
   def handle_info({:DOWN, mref, :process, _pid, _reason}, %{stop_when_down: mons} = state)
       when is_map_key(mons, mref) do
     mons = Map.delete(mons, mref)
@@ -376,8 +371,8 @@ defmodule Playwright.Runtime.Conn do
   defp nested?(%{frames: [%{waiting: %{inv: inv}} | _]}, {inv, flag}), do: Invocation.live?(flag)
   defp nested?(_state, _token), do: false
 
-  # `waiting`: `%{inv, pid, flag, callers, event, timer}` of the section a blocked frame waits
-  # for (`block/6`), `nil` if none.
+  # `waiting`: `%{inv, pid, flag, event, timer}` of the section a blocked frame waits for
+  # (`block/5`), `nil` if none.
   defp frame(steps, from, result, wakes), do: %{steps: steps, waiting: nil, from: from, result: result, wakes: wakes}
 
   defp waits_for?(%{waiting: %{inv: inv}}, inv), do: true
@@ -461,8 +456,8 @@ defmodule Playwright.Runtime.Conn do
         else: Logger.error("Dispatch failed: " <> Exception.format(:error, e, __STACKTRACE__))
   end
 
-  defp block(%{frames: [top | below]} = state, inv, pid, flag, callers, event) do
-    waiting = %{inv: inv, pid: pid, flag: flag, callers: callers, event: event, timer: release_timer(inv)}
+  defp block(%{frames: [top | below]} = state, inv, pid, flag, event) do
+    waiting = %{inv: inv, pid: pid, flag: flag, event: event, timer: release_timer(inv)}
     %{state | frames: [%{top | waiting: waiting} | below]}
   end
 
@@ -487,7 +482,7 @@ defmodule Playwright.Runtime.Conn do
   # Only the top frame's section is released: the processes of the frames below wait for the top
   # one (a nested call), as JS's stack does; their timers start over once on top again (`rearm/1`).
   defp release(%{frames: [%{waiting: %{inv: inv} = waiting} | _]} = state, inv) do
-    case Invocation.try_release(waiting.pid, waiting.flag, waiting.event, waiting.callers) do
+    case Invocation.try_release(waiting.pid, waiting.flag, waiting.event) do
       # It goes on as after an await.
       :released -> unblock(state, inv)
       # Its `{:pw_yield, inv}` is on its way.
@@ -537,7 +532,6 @@ defmodule Playwright.Runtime.Conn do
 
   # A listener invocation: one process each, as each JS call is its own async chain (so a later
   # event's invocation runs while an earlier one awaits, as in JS).
-  # Its callers come from the handler it runs (`Invocation.adopted/1`, a route handler's).
   defp run_step({:internal, fun, arg, emitter, type, zone}, state),
     do: invocation(state, fun, arg, emitter, type, zone, nil)
 
@@ -550,7 +544,7 @@ defmodule Playwright.Runtime.Conn do
   defp run_step({:start, pid, inv, flag, event}, state) do
     mref = Process.monitor(pid)
     send(pid, {:pw_go, inv})
-    block(%{state | procs: Map.put(state.procs, mref, inv)}, inv, pid, flag, nil, event)
+    block(%{state | procs: Map.put(state.procs, mref, inv)}, inv, pid, flag, event)
   end
 
   defp invocation(state, fun, arg, emitter, type, zone, callers) do
@@ -578,7 +572,7 @@ defmodule Playwright.Runtime.Conn do
         pending: Map.put(state.pending, inv, {emitter.guid, type})
     }
 
-    block(state, inv, pid, flag, callers, event)
+    block(state, inv, pid, flag, event)
   end
 
   @doc false

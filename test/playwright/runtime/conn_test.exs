@@ -649,40 +649,6 @@ defmodule Playwright.RuntimeConnTest do
       flush()
     end
 
-    # A released route handler runs on behalf of the test that added the route (the client's own
-    # listener runs it): the test's end kills it, as it may wait forever.
-    test "a route handler stuck in receive is killed when its test finishes", %{page: page, server: server} do
-      test = self()
-      Page.goto!(page, server.empty_page)
-
-      fake_test =
-        spawn(fn ->
-          Page.route!(page, "**/stuck", fn _route ->
-            send(test, {:held, self()})
-            receive do: (:never -> :ok)
-          end)
-
-          send(test, :routed)
-          receive do: (:end -> exit(:shutdown))
-        end)
-
-      Playwright.Test.Results.watch(fake_test, false)
-      assert_receive :routed
-
-      capture_log(fn ->
-        Page.evaluate!(page, "fetch('/stuck'); 1")
-        assert_receive {:held, handler}, 5_000
-        ref = Process.monitor(handler)
-        # Dispatch goes on once the handler is released.
-        assert Page.evaluate!(page, "1 + 1") == 2
-        send(fake_test, :end)
-        Playwright.Test.Results.result(fake_test, 5_000)
-        refute_received {:DOWN, ^ref, _, _, _}
-        Playwright.Test.Results.forget(fake_test)
-        assert_receive {:DOWN, ^ref, :process, _, :killed}
-      end)
-    end
-
     # The flag decides between the function's yield and its caller's release: no yield message
     # is left behind, whichever wins.
     test "an async function that returns as it is released leaves no message" do

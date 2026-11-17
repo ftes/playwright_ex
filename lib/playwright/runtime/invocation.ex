@@ -91,18 +91,6 @@ defmodule Playwright.Runtime.Invocation do
   end
 
   @doc false
-  # The calling process, in a live section, now runs on behalf of `callers` (`Callers.adopt/1`, a
-  # route handler's or binding's registrant): its waiter notes them, for `Callers.detached/2`.
-  def adopted(callers) do
-    case Process.get(:pw_inv) do
-      {pid, inv, flag} -> if live?(flag), do: send(pid, {:pw_callers, inv, callers})
-      nil -> :ok
-    end
-
-    :ok
-  end
-
-  @doc false
   # The key of the release warning of a listener (`fun`) for `type` on `emitter`: one per
   # listener function, emitter type and event, so a new page's listener doesn't warn again.
   def event(emitter, type, fun), do: {type, {Map.get(emitter, :__struct__), type, fun_id(fun)}}
@@ -119,11 +107,10 @@ defmodule Playwright.Runtime.Invocation do
   @doc false
   # The waiter's `@release_after` timer fired for the section of `pid`: `:released` (its flag
   # flipped here: it goes on as after an await) or `:yielding` (it flipped the flag first: its
-  # yield is on its way). `event`: `{type, key}` (`event/3`, `async_event/1`); `callers`: the
-  # `$callers` it runs on behalf of (`nil`: none).
-  def try_release(pid, flag, event, callers) do
+  # yield is on its way). `event`: `{type, key}` (`event/3`, `async_event/1`).
+  def try_release(pid, flag, event) do
     if end_section(flag) do
-      released(pid, event, callers)
+      released(pid, event)
       :released
     else
       :yielding
@@ -134,11 +121,8 @@ defmodule Playwright.Runtime.Invocation do
   # logged from a process of its own (a `Logger` in sync mode must not block the waiter, the
   # connection maybe). None without such a frame (the library's own wait, such as loading a
   # module), nor for a process that waits for its async function (a route handler run by the
-  # client's listener): that one is released next, with its stacktrace. A finished test kills it
-  # (`Callers.detached/2`).
-  defp released(pid, {type, key}, callers) do
-    Playwright.Runtime.Callers.detached(pid, callers)
-
+  # client's listener): that one is released next, with its stacktrace.
+  defp released(pid, {type, key}) do
     stacktrace =
       case Process.info(pid, :current_stacktrace) do
         {:current_stacktrace, stacktrace} -> stacktrace

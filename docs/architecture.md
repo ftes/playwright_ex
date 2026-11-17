@@ -220,9 +220,10 @@ released, a frame below starts its timer over once on top again. Each section ha
 `:atomics` flag that goes from 1 to 0 once (`compare_exchange`), by its process at its first
 yield or by its releaser; the loser sends nothing, or waits for the yield already on its way. So
 a released process holds no live barrier token (its later calls queue behind the current
-dispatch, as JS continuations do) and no yield is left in a mailbox. A finished test's runner
-kills its released invocations (and those that called `yield/0`), route handlers included, as
-they may wait forever. Rejected: sampling the process (`Process.info` status and reductions) to
+dispatch, as JS continuations do) and no yield is left in a mailbox. A released listener keeps
+running, as upstream's does: its Playwright calls fail once its test's contexts close.
+Rejected: killing a finished test's released listeners (a handler registered by one test may
+serve the next on a shared page); and sampling the process (`Process.info` status and reductions) to
 tell a wait from CPU work, which released sooner but needed runtime waits marked and still
 misjudged synchronous IPC under load.
 

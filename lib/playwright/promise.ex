@@ -100,11 +100,7 @@ defmodule Playwright.Promise do
   synchronous code may run after later events. See the [Concurrency](concurrency.md) guide.
   """
   @spec yield() :: :ok
-  def yield do
-    # A finished test kills a process still waiting (`Runtime.Callers.detached/2`).
-    if Process.get(:pw_inv), do: Playwright.Runtime.Callers.detached(self(), Process.get(:"$callers"))
-    Playwright.Runtime.Invocation.yield()
-  end
+  def yield, do: Playwright.Runtime.Invocation.yield()
 
   @doc """
   `Promise.all(promises)`: the values in input order, or the first rejection, without waiting

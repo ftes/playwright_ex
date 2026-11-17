@@ -90,7 +90,7 @@ Node 26.13.1. No upstream API changes.
   longer stalls every call on its connection: one that hasn't reached a Playwright await within
   100 ms is released, so its remaining synchronous code may run after later events, with a
   warning. Call `Playwright.Promise.yield/0` before waiting outside Playwright. A handler the
-  test never released froze the module's later tests; a finished test's runner now kills it.
+  test never released froze the module's later tests.
 
 ## [1.65.0-rc.1] 2026-11-16
 

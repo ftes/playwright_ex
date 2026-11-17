@@ -26,9 +26,7 @@ defmodule Playwright.Runtime.Callers do
   @doc "Makes the calling process (one the client started for a callback) run on behalf of `callers`."
   def adopt(callers) do
     Process.put(:"$callers", callers)
-    # In a listener's synchronous section (a route handler run by the client's own listener):
-    # its waiter learns whose it is, so a finished test kills it once released (`detached/2`).
-    Playwright.Runtime.Invocation.adopted(callers)
+    :ok
   end
 
   @doc "Runs `fun` after `adopt/1` (in a process the client started for the callback)."
@@ -55,14 +53,6 @@ defmodule Playwright.Runtime.Callers do
   are gone (#209), so its listeners no longer run.
   """
   def test_finished?, do: Results.finished?(List.wrap(Process.get(:"$callers")))
-
-  @doc """
-  `pid`, a process started on behalf of `callers` (`nil`: none), was released before it reached
-  a Playwright await, or yielded (`Playwright.Promise.yield/0`): in a `Playwright.Test` test, it
-  is killed once the test is finished.
-  """
-  def detached(_pid, nil), do: :ok
-  def detached(pid, callers), do: Results.detached(pid, callers)
 
   @doc """
   An error nothing handled (JS: an uncaught exception or unhandled rejection): it fails and

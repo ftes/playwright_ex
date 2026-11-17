@@ -264,24 +264,6 @@ defmodule Playwright.Test.BrowserPoolTest do
       Results.forget(pid)
       assert Results.result(pid, 100) == {nil, []}
     end
-
-    # A listener released while it waited outside Playwright may wait forever (a handler the
-    # test never released).
-    test "a process released on a test's behalf is killed once the test is finished" do
-      pid = fake_test()
-      released = spawn(fn -> Process.sleep(:infinity) end)
-      ref = Process.monitor(released)
-      Results.detached(released, [pid])
-      assert end_test(pid, [passed()], :shutdown) == {:passed, []}
-      refute_received {:DOWN, ^ref, _, _, _}
-      Results.forget(pid)
-      assert_receive {:DOWN, ^ref, :process, _, :killed}
-      # Released after the test's end.
-      late = spawn(fn -> Process.sleep(:infinity) end)
-      ref = Process.monitor(late)
-      Results.detached(late, [pid])
-      assert_receive {:DOWN, ^ref, :process, _, :killed}
-    end
   end
 
   # `workers` for the test (the idle seats of the modules before it restart, or are trimmed at a
