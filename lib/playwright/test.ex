@@ -71,11 +71,13 @@ defmodule Playwright.Test do
 
   An error a listener or route handler of the test raises fails the test and stops it at once,
   as upstream's worker does (`unhandledError`): the test's process exits with the error, and
-  later such errors are dropped. A test that traps exits gets the exit as a message, and exits
-  with it at the end of its body (not one defined with `ExUnit.Case.test`, which goes on). Once
-  the body ended, the error is logged. A deviation: the
-  stopped test's failure screenshots are taken at teardown, as its contexts close, after its
-  `on_exit` callbacks may have run; upstream takes them first (`_didFinishTestFunction`).
+  later such errors are dropped. A test that traps exits isn't stopped: ExUnit may report it
+  passed, while the error is in `error-context.md` and `Playwright.Test.info/1`. A test
+  defined with `ExUnit.Case.test` isn't a Playwright test: its listener errors are only logged.
+  Two deviations: the stopped test's failure screenshots are taken at teardown, as its contexts
+  close, after its `on_exit` callbacks may have run, where upstream takes them first
+  (`_didFinishTestFunction`); and once the body ended (in `on_exit`), such an error is logged,
+  where upstream still fails the test during its `afterEach` hooks and teardown.
 
   ## Artifacts
 
@@ -530,8 +532,6 @@ defmodule Playwright.Test do
   # `__failed__/3`, which `--breakpoints` leaves out.
   @doc false
   def __passed__ do
-    interrupted()
-
     case TestInfo.finish(self()) do
       [] ->
         Results.notify({:passed, self()})
@@ -553,8 +553,6 @@ defmodule Playwright.Test do
   # this one as it is.
   @doc false
   def __failed__(kind, reason, stacktrace) do
-    interrupted()
-
     # `__passed__/0` raised the recorded errors and reported them already.
     if Process.delete(@reraised) do
       {kind, reason, stacktrace}
@@ -571,15 +569,6 @@ defmodule Playwright.Test do
       notify_failed(errors(error))
       finished_test_function(true)
       error
-    end
-  end
-
-  # Elixir only: an unhandled error interrupted the test (`TestInfo._unhandled_error/2`), which
-  # trapped the exit, or reached the end of its body before it: it exits with it here.
-  defp interrupted do
-    with {exit_reason, _error} <- TestInfo.interrupt(self()) do
-      Process.flag(:trap_exit, false)
-      Process.exit(self(), exit_reason)
     end
   end
 

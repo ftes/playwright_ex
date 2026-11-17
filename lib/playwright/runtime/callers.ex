@@ -14,7 +14,8 @@ defmodule Playwright.Runtime.Callers do
   once, as upstream's worker does its current test on its first one (`workerMain.ts`
   `unhandledError`: "so that you can, e.g. expect() from inside an event handler"); later ones
   are dropped (`Playwright.Test.TestInfo._unhandled_error/2`). Outside a test, and once the
-  test's body ended, it is logged.
+  test's body ended, it is logged (a deviation: upstream's worker still fails the test during its
+  `afterEach` hooks and teardown, and fails itself outside a test).
   """
   alias Playwright.Test.Results
   alias Playwright.Test.TestInfo

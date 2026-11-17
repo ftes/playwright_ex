@@ -427,14 +427,6 @@ case mode do
         Page.goto!(page, "http://interrupt.test/")
         Process.sleep(:infinity)
       end
-
-      # It gets the exit as a message, and exits with it at the end of its body.
-      test "traps the exit", %{page: page} do
-        Process.flag(:trap_exit, true)
-        Page.on(page, :console, fn _message -> raise "trapped boom" end)
-        Page.evaluate!(page, "() => console.log('actual')")
-        assert_received {:EXIT, _pid, {%RuntimeError{message: "trapped boom"}, _stacktrace}}
-      end
     end
 
   "timeouts" ->

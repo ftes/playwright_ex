@@ -278,9 +278,9 @@ defmodule Playwright.Test.Results do
     # died.
     errors = TestInfo.ended(pid)
 
-    # So does the unhandled error that interrupted it (`TestInfo._unhandled_error/2`), the last
-    # of its errors, which ExUnit reported as the exit that carries it. Taken once the test is
-    # unregistered: a later one finds the test ended, and is logged.
+    # So does the unhandled error that interrupted it (`TestInfo._unhandled_error/2`), after the
+    # errors recorded before it stopped the test, which ExUnit reported as the exit that carries
+    # it. Taken once the test is unregistered: a later one finds the test ended, and is logged.
     interrupt = TestInfo.take_interrupt(pid)
 
     unhandled =

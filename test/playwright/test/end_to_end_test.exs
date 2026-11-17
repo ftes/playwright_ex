@@ -314,13 +314,16 @@ defmodule Playwright.Test.EndToEndTest do
 
   test "an error in a listener or route handler stops the test at once, with its failure's artifacts",
        %{tmp_dir: tmp_dir} do
+    started = System.monotonic_time(:millisecond)
     child = start("interrupt", tmp_dir)
     assert ChildProcess.exit_code(child, 60_000) == 0
+    # The whole run, teardowns included, under the tests' timeout (45 s): none hung.
+    assert System.monotonic_time(:millisecond) - started < 40_000
     output = ChildProcess.output(child)
-    assert output =~ ~r"5 tests, 5 failures|Result: 0/5 passed"
-    # Each ended well under its timeout (45 s), which it would hang until.
+    assert output =~ ~r"4 tests, 4 failures|Result: 0/4 passed"
+    # Each ended well under its timeout, which it would hang until.
     durations = for [_, ms] <- Regex.scan(~r/\(duration=>(\d+)\)/, output), do: String.to_integer(ms)
-    assert length(durations) == 5
+    assert length(durations) == 4
     assert Enum.max(durations) < 15_000
     refute output =~ "TimeoutError"
     refute output =~ "Test timeout"
@@ -332,16 +335,6 @@ defmodule Playwright.Test.EndToEndTest do
 
     route = failure(output, "test fails in a route handler (InterruptTest)")
     assert route =~ "** (RuntimeError) route boom"
-
-    # A test that traps exits fails with it at the end of its body.
-    trapped = failure(output, "test traps the exit (InterruptTest)")
-
-    assert trapped =~
-             ~r"\*\* \(EXIT from #PID<[0-9.]+>\) an exception was raised:\n\s+\*\* \(RuntimeError\) trapped boom"
-
-    [dir] = Path.join(tmp_dir, "test-results") |> File.ls!() |> Enum.filter(&(&1 =~ "traps-the-exit"))
-    trapped_context = File.read!(Path.join([tmp_dir, "test-results", dir, "error-context.md"]))
-    assert [_] = Regex.scan(~r/^RuntimeError: trapped boom$/m, trapped_context)
 
     # The soft error recorded before the listener's, then that one: each once.
     soft = failure(output, "test fails softly, then in a console listener (InterruptTest)")

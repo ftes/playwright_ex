@@ -2,7 +2,7 @@ defmodule Playwright.Test.CallersTest do
   # User callbacks (route handlers, user listeners) run with the `$callers` of the process that
   # registered them (`Playwright.Runtime.Callers`): `expect`, `step` and an ownership lookup
   # (Ecto's sandbox, Mox) find the test, and an unhandled error fails it and stops it (an exit,
-  # which these tests trap).
+  # which these tests trap to see it: a test that traps exits isn't stopped).
   use Playwright.Case, async: true
 
   import ExUnit.CaptureLog
@@ -23,7 +23,7 @@ defmodule Playwright.Test.CallersTest do
   defp owner(owners), do: Enum.find([self() | List.wrap(Process.get(:"$callers"))], &(&1 in owners))
 
   # The interrupt of this test (`TestInfo._unhandled_error/2`), whose exit it trapped: the error.
-  # Taken back, so that the test goes on and passes (the end of its body would exit with it).
+  # Taken back, so that the pool does not count the test as failed.
   defp take_interrupt do
     assert_receive {:EXIT, _pid, exit_reason}, 5000
     assert {^exit_reason, error} = TestInfo.take_interrupt(self())
@@ -256,7 +256,7 @@ defmodule Playwright.Test.CallersTest do
     log = capture_log(fn -> Page.evaluate!(page, "() => console.log('hi')") end)
     assert log =~ "Uncaught in event listener" and log =~ "late boom"
     refute_receive {:EXIT, _, _}, 200
-    assert TestInfo.interrupt(self()) == nil
+    assert TestInfo.take_interrupt(self()) == nil
   end
 
   test "registered outside a test: nothing found, the error is logged", %{page: page} do
