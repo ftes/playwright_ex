@@ -85,10 +85,9 @@ defmodule Playwright.Guides.TestingWithExUnit.BrowserCase do
     %{base_url: server.prefix, browser: BrowserPool.browser()}
   end
 
-  # `@tag locale: "de-DE"` on a test.
+  # `@tag Test.use(locale: "de-DE")` on a test sets its options.
   setup %{browser: browser} = ctx do
-    options = [base_url: ctx.base_url] ++ Enum.to_list(Map.take(ctx, [:locale]))
-    context = Browser.new_context!(browser, options)
+    context = Browser.new_context!(browser, base_url: ctx.base_url)
     BrowserContext.set_default_timeout(context, 5_000)
     %{context: context, page: BrowserContext.new_page!(context)}
   end
@@ -117,8 +116,8 @@ defmodule Playwright.Guides.TestingWithExUnit.SignUpTest do
     Expect.to_have_text!(Page.get_by_role(page, :status), "Welcome, ada@example.com")
   end
 
-  @tag locale: "de-DE"
-  test "a tag of the case template", %{page: page} do
+  @tag Test.use(locale: "de-DE")
+  test "a test's options through the case template", %{page: page} do
     assert Page.evaluate!(page, "navigator.language") == "de-DE"
   end
 
