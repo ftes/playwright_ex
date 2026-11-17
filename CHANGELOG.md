@@ -50,7 +50,8 @@ Node 26.13.1. No API changes.
   function, whose clause matches its struct, not in `Playwright.Runtime.Heap.key/2`.
 - A string that is not UTF-8 (`Route.fulfill!(route, body: png)`) fails with a hint to pass bytes
   as `{:binary, bytes}`, not only "Message cannot be encoded as JSON".
-- A matcher's unknown `message:` option points to `Expect.message/2` (JS `expect(x, message)`).
+- A matcher's unknown `message:` option points to `Expect.message/2` (JS `expect(x, message)`),
+  for the matcher as called.
 - A failed test's "Trace of ..." hint prints after the run, below ExUnit's summary: above its own
   failure it read as the previous failure's.
 

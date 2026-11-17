@@ -457,7 +457,7 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
       Enum.join(
         [
           "{#{receiver}, info} = Facade.matcher_info(#{receiver}, #{matcher["isNot"]}, #{inspect(api_name)})"
-          | Enum.map(attrs, &conversion(name, api_name, &1))
+          | Enum.map(attrs, &matcher_conversion(name, api_name, &1))
         ],
         "\n"
       )
@@ -632,6 +632,13 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
 
   defp attribute(_name, {_, _, :event}), do: ""
   defp attribute(name, {_, var, schema}), do: "@#{name}_#{var} #{render(schema)}"
+
+  # A matcher's options name the function as called (`__ENV__.function`), for the hint of an
+  # unknown `:message` (`Facade.options!/4`).
+  defp matcher_conversion(name, api_name, {%{"name" => "options"}, var, _}),
+    do: "#{var} = Facade.options!(#{var}, @#{name}_#{var}, #{inspect(api_name)}, __ENV__.function)"
+
+  defp matcher_conversion(name, api_name, attr), do: conversion(name, api_name, attr)
 
   # Options that may be a result of the member (`"result"`, see `Mix.Playwright.ApiRules`).
   defp conversion(name, api_name, {%{"name" => "options", "result" => %{"ignored" => ignored}}, var, _}),
