@@ -852,8 +852,8 @@ Most of a spec ports call for call. What differs (and see [Not supported](#not-s
 - `expect(fn).toPass()` is `Expect.to_pass!/2`, which returns the passing attempt's value: a
   callback that assigns an outer `let` returns it instead (`box = Expect.to_pass!(fn -> ...; box
   end)`). `expect.poll(fn).toBe(x)` is `Expect.poll!(fn, &assert(&1 == x))`, and a call started
-  now and awaited later (`const p = locator.evaluate(...)`) is `Playwright.Promise.async/1` (see
-  [Concurrency](concurrency.md)), also for each call of a `Promise.all`.
+  now and awaited later (`const p = locator.evaluate(...)`) is `Playwright.Promise.async/1`, and
+  `Promise.all([...])` is `Playwright.Promise.all/1` of those (see [Concurrency](concurrency.md)).
 - The `baseURL` fixture is `Playwright.Test.config().context_options[:base_url]`. The `request`
   fixture is a request context of its own, `APIRequest.new_context!(Playwright.request(BrowserPool.playwright(browser)))`,
   which in a test gets the config's `context_options` and is disposed of at its end; it is not

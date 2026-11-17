@@ -186,7 +186,8 @@ defmodule Playwright.MixProject do
           Playwright.PlaywrightError,
           Playwright.TimeoutError,
           Playwright.TargetClosedError,
-          Playwright.AbortError
+          Playwright.AbortError,
+          Playwright.AggregateError
         ]
       ]
     ]

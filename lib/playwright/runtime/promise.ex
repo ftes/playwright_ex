@@ -17,8 +17,8 @@ defmodule Playwright.Runtime.Promise do
   caller process (`Playwright.Runtime.ProcessOwner`, freed when the caller exits).
 
   `then_/2` and `catch_/2` are lazy: they run in the awaiting process when the result arrives.
-  `race/1` and `all/1` arm their promises, then receive selectively: a losing local promise stays
-  pending (its message may come later), losing latches are disarmed. `void/1` runs a
+  `race/1`, `all/1` and `any/1` arm their promises when awaited, then receive selectively: a
+  losing local promise stays pending (its message may come later), losing latches are disarmed. `void/1` runs a
   function for its effects (`promise.catch(() => {})`).
 
   `await/1` first yields (`Playwright.Runtime.Invocation.yield/0`), as JS `await` returns
@@ -173,6 +173,9 @@ defmodule Playwright.Runtime.Promise do
 
   @doc "`Promise.all(promises)`"
   def all(promises), do: %__MODULE__{kind: :all, promises: promises}
+
+  @doc "`Promise.any(promises)`: rejects with a `Playwright.AggregateError` once all have rejected."
+  def any(promises), do: %__MODULE__{kind: :any, promises: promises}
 
   ## Async functions
 
@@ -361,13 +364,12 @@ defmodule Playwright.Runtime.Promise do
   def await(%__MODULE__{} = promise) do
     if Conn.in_conn?(), do: raise("await inside the connection process (dispatch must not block)")
     Invocation.yield()
-
-    case wait(promise) do
-      {:ok, value} -> value
-      {:error, %{__exception__: true} = error} -> raise error
-      {:error, other} -> raise "Promise rejected with #{inspect(other)}"
-    end
+    unwrap(wait(promise))
   end
+
+  defp unwrap({:ok, value}), do: value
+  defp unwrap({:error, %{__exception__: true} = error}), do: raise(error)
+  defp unwrap({:error, other}), do: raise("Promise rejected with #{inspect(other)}")
 
   @doc false
   # Waits for the promise: `{:ok, value} | {:error, error}`.
@@ -378,7 +380,7 @@ defmodule Playwright.Runtime.Promise do
     result
   end
 
-  # Armed nodes: {:done, result, leaves_to_finish} | {:leaf, ref, promise, mon} | {:race | :all, [node], handlers}.
+  # Armed nodes: {:done, result, leaves_to_finish} | {:leaf, ref, promise, mon} | {:race | :all | :any, [node], handlers}.
   # `mon` watches the process that settles the leaf (a latch's connection, a call's): its exit
   # rejects the leaf with `TargetClosedError`. A call's is its own; the others are armed here
   # and demonitored when the leaf is finished, won or lost.
@@ -404,7 +406,7 @@ defmodule Playwright.Runtime.Promise do
     armed_leaf(promise, wref, result)
   end
 
-  defp arm(%__MODULE__{kind: kind, promises: promises, handlers: handlers}) when kind in [:race, :all],
+  defp arm(%__MODULE__{kind: kind, promises: promises, handlers: handlers}) when kind in [:race, :all, :any],
     do: settle_node({kind, Enum.map(promises, &arm/1), handlers})
 
   # In the latch's connection: registers `me` as a waiter, or returns the result.
@@ -453,12 +455,7 @@ defmodule Playwright.Runtime.Promise do
 
     {result, armed} = receive_loop(armed)
     finish(armed)
-
-    case result do
-      {:ok, value} -> value
-      {:error, %{__exception__: true} = error} -> raise error
-      {:error, other} -> raise "Promise rejected with #{inspect(other)}"
-    end
+    unwrap(result)
   end
 
   defp done(:continue, _), do: raise("a settled promise cannot continue")
@@ -502,7 +499,7 @@ defmodule Playwright.Runtime.Promise do
     end
   end
 
-  defp feed({kind, children, handlers}, ref, payload) when kind in [:race, :all],
+  defp feed({kind, children, handlers}, ref, payload) when kind in [:race, :all, :any],
     do: settle_node({kind, Enum.map(children, &feed(&1, ref, payload)), handlers})
 
   defp feed(node, _ref, _payload), do: node
@@ -511,7 +508,8 @@ defmodule Playwright.Runtime.Promise do
   defp payload(_promise, {:down, _reason}), do: {:error, TargetClosedError.new("Playwright driver closed")}
   defp payload(_promise, payload), do: payload
 
-  # A race settles with its first settled child, an all with its first error or all values.
+  # A race settles with its first settled child, an all with its first error or all values, an
+  # any with its first value or all errors.
   defp settle_node({:race, children, handlers} = node) do
     case Enum.find(children, &match?({:done, _, _}, &1)) do
       {:done, result, _} -> done_composite(handlers, result, children)
@@ -532,9 +530,23 @@ defmodule Playwright.Runtime.Promise do
     end
   end
 
+  defp settle_node({:any, children, handlers} = node) do
+    cond do
+      value = Enum.find(children, &match?({:done, {:ok, _}, _}, &1)) ->
+        done_composite(handlers, elem(value, 1), children)
+
+      Enum.all?(children, &match?({:done, _, _}, &1)) ->
+        errors = Enum.map(children, fn {:done, {:error, error}, _} -> error end)
+        done_composite(handlers, {:error, %Playwright.AggregateError{errors: errors}}, children)
+
+      true ->
+        node
+    end
+  end
+
   defp done_composite(handlers, result, children) do
     case apply_handlers(handlers, result) do
-      :continue -> raise "a race or all cannot continue"
+      :continue -> raise "a race, all or any cannot continue"
       result -> {:done, result, Enum.flat_map(children, &leaves/1)}
     end
   end

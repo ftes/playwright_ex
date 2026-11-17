@@ -49,6 +49,8 @@ Node 26.13.1. No upstream API changes.
 - `Playwright.Promise.yield/0`, the port of an `await` on something that isn't Playwright's: in
   a listener or route handler, call it before a `receive` that waits for the test (JS
   `await blocked`), and the connection dispatches on meanwhile.
+- `Playwright.Promise.all/1`, `race/1` and `any/1`, as JS's `Promise.all`, `Promise.race` and
+  `Promise.any` (with `Playwright.AggregateError`).
 
 ### Changed
 
