@@ -280,11 +280,14 @@ defmodule Playwright.Test.BrowserPoolTest do
     # callbacks, `failed` after a lease of `opts` and a context on it, their error caught, then the
     # wait for the module's end. Its `on_exit` release, after it exited (the real one: the
     # `modules` mode of `Playwright.Test.EndToEndTest`).
-    defp failed_setup_all(opts, failed) do
+    # With `leased_first`, its lease comes before its registration, as a case template's own
+    # `setup_all` takes it with the `use Playwright.Test` only in its `using`.
+    defp failed_setup_all(opts, failed, leased_first \\ false) do
       test = self()
 
       {pid, ref} =
         spawn_monitor(fn ->
+          if leased_first, do: Pool.browser(Options.pool(opts), {:process, self()})
           Playwright.Test.__setup_all__(%{})
 
           try do
@@ -362,6 +365,21 @@ defmodule Playwright.Test.BrowserPoolTest do
 
       t = fake_test()
       assert lease(t, opts).playwright == leased.playwright
+      finish(t, [passed()], :shutdown)
+    end
+
+    @tag :capture_log
+    test "a setup_all registered after its first lease (a case template's own) resets its seat" do
+      opts = opts()
+      warm = finish_leased_browser(opts)
+      # A crash: its `DOWN` (a raise is told to the pool however it registered).
+      leased = failed_setup_all(opts, :linked_crash, true)
+      assert leased.playwright == warm.playwright
+
+      t = fake_test()
+      fresh = lease(t, opts)
+      assert fresh.playwright != warm.playwright
+      assert Browser.contexts(fresh.browser) == []
       finish(t, [passed()], :shutdown)
     end
 
