@@ -109,8 +109,8 @@ end
 - Start a wait before the action that triggers it. Use `Page.expect_download!(page, fn -> ... end)`, or `expect_popup!`, `expect_request!`, `expect_response!`, `expect_console_message!`, `expect_event!`.
 - Or start `promise = Page.wait_for_event(page, :download)`, act, then `Playwright.Promise.await!(promise)`. `Page.wait_for_event!/3` awaits at once and misses what the code before it triggered.
 - Your own check-then-wait can miss an event. Start the wait, read the state, then await the wait or call `Playwright.Promise.free/1`. The client's own waits and matchers already do this.
-- `on/3`, `once/3` and `off/3` take a listener that runs in its own process. The connection waits for it to return or await a Playwright call before dispatching the next message.
-- Keep listeners short. `Process.sleep/1`, `receive`, HTTP or a busy `GenServer.call` in a listener stalls every page on the connection. Send the work elsewhere:
+- `on/3`, `once/3` and `off/3` take a listener that runs in a process of its own for each event. The connection waits for it to return or await before dispatching the next message.
+- Keep listeners short: `Process.sleep/1`, `receive` or HTTP in a listener stalls every page on the connection. Where JS awaits such a wait (`await released` in a route handler), call `Playwright.Promise.yield/0` before it, then `receive`. Send other work elsewhere:
 
 ```elixir
 owner = self()

@@ -22,7 +22,7 @@ defmodule Playwright.Promise do
   (`Playwright.Page.expect_popup(page, fn -> ... end)`).
 
   `async/1` starts any calls this way, as JS's `const p = locator.evaluate(...)` (see the
-  [Concurrency](concurrency.md) guide).
+  [Concurrency](concurrency.md) guide). `yield/0` is the `await` of a wait that isn't Playwright's.
   """
 
   @typedoc "A promise handle."
@@ -66,6 +66,33 @@ defmodule Playwright.Promise do
   @doc "Like `await/1`, but returns the value and raises if the promise is rejected."
   @spec await!(t()) :: term()
   def await!(%Playwright.Runtime.Promise{} = promise), do: Playwright.Runtime.Promise.await(promise)
+
+  @doc """
+  Elixir only: the port of an `await` on something that isn't Playwright's (a promise the test
+  resolves, a timer, `fetch`). An event listener or route handler runs synchronously, holding up
+  its connection's dispatch, until it returns or first awaits; Playwright's own waits do that by
+  themselves, a `receive` or `Process.sleep/1` does not. Call `yield/0` before such a wait, and
+  the connection dispatches on while it lasts (in an `async/1` function, its caller continues):
+
+      # JS: `await page.route('**/api', async route => { await released; await route.continue(); })`
+      Page.route!(page, "**/api", fn route ->
+        send(test_pid, {:held, self()})
+        Playwright.Promise.yield()
+
+        receive do
+          :release -> Route.continue!(route)
+        end
+      end)
+
+  Elsewhere, and after the first await, it does nothing. See the [Concurrency](concurrency.md)
+  guide.
+  """
+  @spec yield() :: :ok
+  def yield do
+    # A finished test kills a process still waiting (`Runtime.Callers.detached/2`).
+    if Process.get(:pw_inv), do: Playwright.Runtime.Callers.detached(self(), Process.get(:"$callers"))
+    Playwright.Runtime.Invocation.yield()
+  end
 
   @doc """
   Elixir only: drops a promise nobody will await, such as a wait started before checking state

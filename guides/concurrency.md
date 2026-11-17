@@ -29,28 +29,26 @@ owner = self()
 Page.on(page, :console, fn msg -> send(owner, {:console, ConsoleMessage.text(msg)}) end)
 ```
 
-## No blocking work in listeners
+## Waiting in listeners
 
-Since the connection waits for each listener, one that blocks on something other than
-Playwright (`Process.sleep/1`, `receive`, an HTTP request, a `GenServer.call` to a busy server)
-stalls every page on that connection, as blocking the event loop does in JS. Hand slow work to
-another process with `send/2` or `Task.start/1`.
-
-A handler that waits for the test (JS awaits a promise the test resolves later) hands the work to
-a process that waits instead, and returns:
+The connection waits for each listener until it returns or awaits. Playwright's own waits
+count as awaits; a wait on anything else (`receive`, `Process.sleep/1`, an HTTP request) is
+synchronous code to the connection, and stalls every page on it, as blocking the event loop does
+in JS. Where JS awaits such a wait (a promise the test resolves later), call
+`Playwright.Promise.yield/0` first: the listener's synchronous section ends there, as at a JS
+`await`, and the connection dispatches on while the listener waits:
 
 ```elixir
 test_pid = self()
 
 Page.route(page, "**/api/data", fn route ->
   # JS: `await released; await route.continue()`.
-  spawn(fn ->
-    send(test_pid, {:held, self()})
+  send(test_pid, {:held, self()})
+  Promise.yield()
 
-    receive do
-      :release -> Route.continue!(route)
-    end
-  end)
+  receive do
+    :release -> Route.continue!(route)
+  end
 end)
 
 # ... the page requests /api/data ...
@@ -58,6 +56,9 @@ assert_receive {:held, held}
 Expect.to_be_visible!(Page.get_by_text(page, "Loading"))
 send(held, :release)
 ```
+
+Slow work that JS would not await (logging to a service, say) goes to another process with
+`send/2` or `Task.start/1`.
 
 ## Subscribe before you check
 

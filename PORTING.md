@@ -126,7 +126,8 @@ single thread. Use each only where the JS code needs it, with its marker.
 ## Traps
 
 - A listener runs in a process of its own while the connection waits for it to return or first
-  await. Blocking on non-Playwright work there stalls dispatch, as it would in JS.
+  await ([why](docs/architecture.md#ordering)). A spec's `await` on a non-Playwright promise
+  (`await blocked`) is `Playwright.Promise.yield()` before the `receive`.
 - A closed context (and what it owned) stays readable until the processes that created or
   closed it have exited; reads after that raise TargetClosedError
   ([why](docs/architecture.md#object-lifetimes)). Tests read closed objects in the test process.

@@ -212,6 +212,43 @@ defmodule Playwright.RuntimeConnTest do
       assert {:ok, _} = Task.yield(wait, 10_000) || Task.shutdown(wait)
     end
 
+    # crit-web's case (#257). JS: `await blocked` in the handler yields, so other pages' calls go
+    # on meanwhile.
+    test "a route handler that yields, then waits outside Playwright, does not stall dispatch", context do
+      route_held_outside_playwright(context, &Promise.yield/0)
+    end
+
+    test "a listener that yields, then waits outside Playwright, does not stall dispatch", context do
+      listener_held_outside_playwright(context, &Promise.yield/0)
+    end
+
+    # Nothing of dispatch's goes to a listener's process: a catch-all `receive` takes no event.
+    test "a listener that yields and then receives anything gets only its own messages", %{page: page} do
+      test = self()
+
+      Page.on(page, :console, fn _ ->
+        send(test, {:held, self()})
+        Promise.yield()
+
+        receive do
+          message -> send(test, {:got, message})
+        end
+      end)
+
+      Page.evaluate!(page, "console.log(1); console.log(2); console.log(3)")
+
+      held =
+        Enum.map(1..3, fn _ ->
+          assert_receive {:held, pid}
+          pid
+        end)
+
+      assert length(Enum.uniq(held)) == 3
+      Enum.each(held, &send(&1, :release))
+      for _ <- 1..3, do: assert_receive({:got, :release})
+      assert Page.remove_all_listeners!(page, :console, behavior: :wait) == :ok
+    end
+
     test "a once listener that fired turns its protocol subscription off", %{page: page} do
       test = self()
       guid = page.guid
@@ -541,6 +578,45 @@ defmodule Playwright.RuntimeConnTest do
     connection = Conn.connection(conn)
     wait_until(fn -> id not in Playwright.Client.Connection.callbacks(connection) end)
     awaiter
+  end
+
+  # A route handler holds its request until the test releases it (`before_wait` runs before its
+  # `receive`): other pages' calls, in its context and in another, go on meanwhile.
+  defp route_held_outside_playwright(%{page: page, context: context, server: server} = ctx, before_wait) do
+    test = self()
+    same_context = BrowserContext.new_page!(context)
+    other_context = BrowserContext.new_page!(ctx.context_factory.([]))
+
+    Page.route!(page, "**/empty.html", fn route ->
+      send(test, {:held, self()})
+      before_wait.()
+      receive do: (:release -> Route.continue!(route))
+    end)
+
+    goto = Task.async(fn -> Page.goto!(page, server.empty_page) end)
+    assert_receive {:held, held}, 5_000
+    assert Page.evaluate!(same_context, "1 + 1") == 2
+    assert Page.evaluate!(other_context, "2 + 2") == 4
+    send(held, :release)
+    assert Response.ok(Task.await(goto))
+  end
+
+  # A once listener waits for the test (`before_wait` runs before its `receive`): another page's
+  # call goes on meanwhile.
+  defp listener_held_outside_playwright(%{page: page, context: context}, before_wait) do
+    test = self()
+
+    Page.once(page, :console, fn _ ->
+      send(test, {:held, self()})
+      before_wait.()
+      receive do: (:release -> send(test, :released))
+    end)
+
+    Page.evaluate!(page, "console.log('x')")
+    assert_receive {:held, held}
+    assert Page.evaluate!(BrowserContext.new_page!(context), "1 + 1") == 2
+    send(held, :release)
+    assert_receive :released
   end
 
   # Only the suspending process (the connection) can resume.
