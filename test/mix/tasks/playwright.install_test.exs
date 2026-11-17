@@ -7,52 +7,48 @@ defmodule Mix.Tasks.Playwright.InstallTest do
 
   describe "parse_args/1" do
     test "forwards positionals and upstream's flags in order" do
-      assert Install.parse_args([]) == {[browsers: true, force: false], []}
+      assert Install.parse_args([]) == {true, false, []}
+      assert Install.parse_args(~w(chromium firefox --with-deps)) == {true, false, ~w(chromium firefox --with-deps)}
 
-      assert Install.parse_args(~w(chromium firefox --with-deps)) ==
-               {[browsers: true, force: false], ~w(chromium firefox --with-deps)}
-
-      assert Install.parse_args(~w(--with-deps chromium --dry-run)) ==
-               {[browsers: true, force: false], ~w(--with-deps chromium --dry-run)}
+      assert Install.parse_args(~w(--with-deps chromium --only-shell)) ==
+               {true, false, ~w(--with-deps chromium --only-shell)}
     end
 
-    test "forwards a --, and what follows" do
-      assert Install.parse_args(~w(-- chromium --with-deps)) ==
-               {[browsers: true, force: false], ~w(-- chromium --with-deps)}
-
-      assert Install.parse_args(~w(chromium -- --)) == {[browsers: true, force: false], ~w(chromium -- --)}
-    end
-
-    test "takes --force before a --, in any position, and forwards it" do
-      assert Install.parse_args(~w(chromium --force --with-deps)) ==
-               {[browsers: true, force: true], ~w(chromium --force --with-deps)}
-
-      assert Install.parse_args(~w(--force -- chromium)) == {[browsers: true, force: true], ~w(--force -- chromium)}
-    end
-
-    test "leaves a --force after a -- to upstream" do
-      assert Install.parse_args(~w(-- --force chromium)) == {[browsers: true, force: false], ~w(-- --force chromium)}
+    test "takes --force in any position, and forwards it" do
+      assert Install.parse_args(~w(chromium --force --with-deps)) == {true, true, ~w(chromium --force --with-deps)}
+      assert Install.parse_args(~w(--force)) == {true, true, ~w(--force)}
     end
 
     test "doesn't reinstall the driver when upstream installs nothing" do
       for flag <- ~w(--dry-run --list --help -h) do
-        assert Install.parse_args(["--force", flag]) == {[browsers: true, force: false], ["--force", flag]}
+        assert Install.parse_args(["--force", "chromium", flag]) == {true, false, ["--force", "chromium", flag]}
       end
     end
 
     test "takes --no-browsers, alone or with --force" do
-      assert Install.parse_args(~w(--no-browsers)) == {[browsers: false, force: false], []}
-      assert Install.parse_args(~w(--force --no-browsers --force)) == {[browsers: false, force: true], []}
+      assert Install.parse_args(~w(--no-browsers)) == {false, false, []}
+      assert Install.parse_args(~w(--force --no-browsers --force)) == {false, true, []}
     end
 
-    test "--no-browsers with browser args raises, naming them" do
-      assert_raise Mix.Error, ~r/--no-browsers .* no browser args, got: chromium --with-deps$/, fn ->
+    test "--no-browsers with other args raises, naming them" do
+      assert_raise Mix.Error, ~r/--no-browsers .* takes no other args, got: chromium --with-deps$/, fn ->
         Install.parse_args(~w(chromium --no-browsers --with-deps))
       end
 
-      assert_raise Mix.Error, ~r/got: -- --force$/, fn -> Install.parse_args(~w(--no-browsers -- --force)) end
-      assert_raise Mix.Error, ~r/got: --browsers$/, fn -> Install.parse_args(~w(--no-browsers --browsers)) end
+      assert_raise Mix.Error, ~r/got: --dry-run$/, fn -> Install.parse_args(~w(--force --no-browsers --dry-run)) end
     end
+
+    test "a -- raises, naming the fix" do
+      for argv <- [~w(-- chromium --with-deps), ~w(chromium --), ~w(--no-browsers --), ~w(-- --force chromium)] do
+        assert_raise Mix.Error, "`--` is no longer needed: `mix playwright.install chromium --with-deps`", fn ->
+          Install.parse_args(argv)
+        end
+      end
+    end
+  end
+
+  test "a -- raises before installing anything" do
+    assert_raise Mix.Error, ~r/^`--` is no longer needed/, fn -> Install.run(["--", "chromium"]) end
   end
 
   test "a failed browser install raises with the exit status" do
