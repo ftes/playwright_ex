@@ -690,8 +690,13 @@ defmodule Playwright.Guides.TestingWithExUnit.OnExitTest do
   setup %{test_pid: test_pid} do
     on_exit(fn ->
       %{output_dir: dir} = Playwright.Test.info(test_pid)
-      assert File.exists?(Path.join(dir, "trace.zip"))
+      {:ok, files} = :zip.unzip(String.to_charlist(Path.join(dir, "trace.zip")), [:memory])
       File.rm_rf!(dir)
+      # The context's own trace, not the test's steps (`test.trace`), has the `on_exit`'s call.
+      context_traces =
+        for {name, data} <- files, Path.extname(to_string(name)) == ".trace", to_string(name) != "test.trace", do: data
+
+      assert Enum.any?(context_traces, &(&1 =~ "from on_exit"))
     end)
   end
 
@@ -703,7 +708,7 @@ defmodule Playwright.Guides.TestingWithExUnit.OnExitTest do
 
     on_exit(fn ->
       Page.set_content!(page, "<p>after</p>")
-      assert Page.text_content!(page, "p") == "after"
+      assert Page.evaluate!(page, "document.querySelector('p').textContent + ' from on_exit'") == "after from on_exit"
       BrowserContext.close!(context)
     end)
 
