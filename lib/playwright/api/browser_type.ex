@@ -93,7 +93,7 @@ defmodule Playwright.BrowserType do
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec connect(t(), String.t(), connect_options()) :: {:ok, Playwright.Browser.t()} | {:error, Playwright.error()}
-  def connect(browser_type, endpoint, options \\ []) do
+  def connect(%Playwright.BrowserType{} = browser_type, endpoint, options \\ []) do
     options = Facade.options!(options, @connect_options, "browserType.connect")
 
     Facade.async("browserType.connect", browser_type, fn ->
@@ -103,7 +103,7 @@ defmodule Playwright.BrowserType do
 
   @doc "Like `connect/3`, but returns the value and raises on error."
   @spec connect!(t(), String.t(), connect_options()) :: Playwright.Browser.t()
-  def connect!(browser_type, endpoint, options \\ []) do
+  def connect!(%Playwright.BrowserType{} = browser_type, endpoint, options \\ []) do
     options = Facade.options!(options, @connect_options, "browserType.connect")
 
     Facade.async!("browserType.connect", browser_type, fn ->
@@ -199,7 +199,7 @@ defmodule Playwright.BrowserType do
   """
   @spec connect_over_cdp(t(), String.t(), connect_over_cdp_options()) ::
           {:ok, Playwright.Browser.t()} | {:error, Playwright.error()}
-  def connect_over_cdp(browser_type, endpoint_url, options \\ []) do
+  def connect_over_cdp(%Playwright.BrowserType{} = browser_type, endpoint_url, options \\ []) do
     options = Facade.options!(options, @connect_over_cdp_options, "browserType.connectOverCDP")
 
     Facade.async("browserType.connectOverCDP", browser_type, fn ->
@@ -209,7 +209,7 @@ defmodule Playwright.BrowserType do
 
   @doc "Like `connect_over_cdp/3`, but returns the value and raises on error."
   @spec connect_over_cdp!(t(), String.t(), connect_over_cdp_options()) :: Playwright.Browser.t()
-  def connect_over_cdp!(browser_type, endpoint_url, options \\ []) do
+  def connect_over_cdp!(%Playwright.BrowserType{} = browser_type, endpoint_url, options \\ []) do
     options = Facade.options!(options, @connect_over_cdp_options, "browserType.connectOverCDP")
 
     Facade.async!("browserType.connectOverCDP", browser_type, fn ->
@@ -223,7 +223,7 @@ defmodule Playwright.BrowserType do
   *Since Playwright 1.8.*
   """
   @spec executable_path(t()) :: String.t()
-  def executable_path(browser_type) do
+  def executable_path(%Playwright.BrowserType{} = browser_type) do
     Playwright.Client.BrowserType.executable_path(browser_type)
   end
 
@@ -391,7 +391,7 @@ defmodule Playwright.BrowserType do
   * `:traces_dir` (`t:String.t/0`) - If specified, traces are saved into this directory.
   """
   @spec launch(t(), launch_options()) :: {:ok, Playwright.Browser.t()} | {:error, Playwright.error()}
-  def launch(browser_type, options \\ []) do
+  def launch(%Playwright.BrowserType{} = browser_type, options \\ []) do
     options = Facade.options!(options, @launch_options, "browserType.launch")
 
     Facade.async("browserType.launch", browser_type, fn ->
@@ -401,7 +401,7 @@ defmodule Playwright.BrowserType do
 
   @doc "Like `launch/2`, but returns the value and raises on error."
   @spec launch!(t(), launch_options()) :: Playwright.Browser.t()
-  def launch!(browser_type, options \\ []) do
+  def launch!(%Playwright.BrowserType{} = browser_type, options \\ []) do
     options = Facade.options!(options, @launch_options, "browserType.launch")
 
     Facade.async!("browserType.launch", browser_type, fn ->
@@ -903,7 +903,7 @@ defmodule Playwright.BrowserType do
   """
   @spec launch_persistent_context(t(), String.t(), launch_persistent_context_options()) ::
           {:ok, Playwright.BrowserContext.t()} | {:error, Playwright.error()}
-  def launch_persistent_context(browser_type, user_data_dir, options \\ []) do
+  def launch_persistent_context(%Playwright.BrowserType{} = browser_type, user_data_dir, options \\ []) do
     options = Facade.options!(options, @launch_persistent_context_options, "browserType.launchPersistentContext")
 
     Facade.async("browserType.launchPersistentContext", browser_type, fn ->
@@ -914,7 +914,7 @@ defmodule Playwright.BrowserType do
   @doc "Like `launch_persistent_context/3`, but returns the value and raises on error."
   @spec launch_persistent_context!(t(), String.t(), launch_persistent_context_options()) ::
           Playwright.BrowserContext.t()
-  def launch_persistent_context!(browser_type, user_data_dir, options \\ []) do
+  def launch_persistent_context!(%Playwright.BrowserType{} = browser_type, user_data_dir, options \\ []) do
     options = Facade.options!(options, @launch_persistent_context_options, "browserType.launchPersistentContext")
 
     Facade.async!("browserType.launchPersistentContext", browser_type, fn ->
@@ -928,7 +928,7 @@ defmodule Playwright.BrowserType do
   *Since Playwright 1.8.*
   """
   @spec name(t()) :: String.t()
-  def name(browser_type) do
+  def name(%Playwright.BrowserType{} = browser_type) do
     Playwright.Client.BrowserType.name(browser_type)
   end
 

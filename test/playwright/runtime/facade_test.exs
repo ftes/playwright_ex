@@ -135,4 +135,22 @@ defmodule Playwright.Runtime.FacadeTest do
       refute_received {:pw, _, _}
     end
   end
+
+  test "a handle of another class as the receiver fails in the facade function, naming it" do
+    # Not known at compile time, as in a user's helper.
+    locator = Process.get(:not_set, %Playwright.Locator{_selector: "internal:testid=[data-testid=\"x\"s]"})
+
+    {e, stacktrace} =
+      try do
+        Playwright.Page.get_by_test_id(locator, "y")
+      rescue
+        e -> {e, __STACKTRACE__}
+      end
+
+    assert %FunctionClauseError{module: Playwright.Page, function: :get_by_test_id, arity: 2} = e
+    {blamed, _} = Exception.blame(:error, e, stacktrace)
+    message = Exception.message(blamed)
+    assert message =~ "#Playwright.Locator<"
+    assert message =~ "def get_by_test_id(-%Playwright.Page{} = page-, test_id)"
+  end
 end

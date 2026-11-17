@@ -37,7 +37,7 @@ defmodule Playwright.Selectors do
           String.t() | %{optional(:path) => String.t(), optional(:content) => String.t()},
           register_options()
         ) :: :ok | {:error, Playwright.error()}
-  def register(selectors, name, script, options \\ []) do
+  def register(%Playwright.Selectors{} = selectors, name, script, options \\ []) do
     script = Facade.arg!(script, @register_script, "selectors.register")
     options = Facade.options!(options, @register_options, "selectors.register")
 
@@ -53,7 +53,7 @@ defmodule Playwright.Selectors do
           String.t() | %{optional(:path) => String.t(), optional(:content) => String.t()},
           register_options()
         ) :: :ok
-  def register!(selectors, name, script, options \\ []) do
+  def register!(%Playwright.Selectors{} = selectors, name, script, options \\ []) do
     script = Facade.arg!(script, @register_script, "selectors.register")
     options = Facade.options!(options, @register_options, "selectors.register")
 
@@ -73,7 +73,7 @@ defmodule Playwright.Selectors do
     comma-separated list, e.g. `"data-pw,data-ti"`.
   """
   @spec set_test_id_attribute(t(), String.t()) :: :ok
-  def set_test_id_attribute(selectors, attribute_name) do
+  def set_test_id_attribute(%Playwright.Selectors{} = selectors, attribute_name) do
     Playwright.Client.Selectors.set_test_id_attribute(selectors, attribute_name)
     :ok
   end

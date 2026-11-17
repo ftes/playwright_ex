@@ -37,7 +37,7 @@ defmodule Playwright.WebError do
   *Since Playwright 1.38.*
   """
   @spec page(t()) :: nil | Playwright.Page.t()
-  def page(web_error) do
+  def page(%Playwright.WebError{} = web_error) do
     Playwright.Client.WebError.page(web_error)
   end
 
@@ -47,7 +47,7 @@ defmodule Playwright.WebError do
   *Since Playwright 1.38.*
   """
   @spec error(t()) :: Exception.t()
-  def error(web_error) do
+  def error(%Playwright.WebError{} = web_error) do
     Playwright.Client.WebError.error(web_error)
   end
 
@@ -55,7 +55,7 @@ defmodule Playwright.WebError do
   *Since Playwright 1.60.*
   """
   @spec location(t()) :: %{url: String.t(), line: integer(), column: integer()}
-  def location(web_error) do
+  def location(%Playwright.WebError{} = web_error) do
     Playwright.Client.WebError.location(web_error)
   end
 end

@@ -55,7 +55,7 @@ defmodule Playwright.Browser do
   *Since Playwright 1.23.*
   """
   @spec browser_type(t()) :: Playwright.BrowserType.t()
-  def browser_type(browser) do
+  def browser_type(%Playwright.Browser{} = browser) do
     Playwright.Client.Browser.browser_type(browser)
   end
 
@@ -84,14 +84,14 @@ defmodule Playwright.Browser do
   * `:reason` (`t:String.t/0`) - *Since Playwright 1.40.* The reason to be reported to the operations interrupted by the browser closure.
   """
   @spec close(t(), close_options()) :: :ok | {:error, Playwright.error()}
-  def close(browser, options \\ []) do
+  def close(%Playwright.Browser{} = browser, options \\ []) do
     options = Facade.options!(options, @close_options, "browser.close")
     Facade.async_void("browser.close", browser, fn -> Playwright.Client.Browser.close(browser, options) end)
   end
 
   @doc "Like `close/2`, but returns the value and raises on error."
   @spec close!(t(), close_options()) :: :ok
-  def close!(browser, options \\ []) do
+  def close!(%Playwright.Browser{} = browser, options \\ []) do
     options = Facade.options!(options, @close_options, "browser.close")
     Facade.async_void!("browser.close", browser, fn -> Playwright.Client.Browser.close(browser, options) end)
   end
@@ -114,7 +114,7 @@ defmodule Playwright.Browser do
   *Since Playwright 1.8.*
   """
   @spec contexts(t()) :: [Playwright.BrowserContext.t()]
-  def contexts(browser) do
+  def contexts(%Playwright.Browser{} = browser) do
     Playwright.Client.Browser.contexts(browser)
   end
 
@@ -124,7 +124,7 @@ defmodule Playwright.Browser do
   *Since Playwright 1.8.*
   """
   @spec is_connected(t()) :: boolean()
-  def is_connected(browser) do
+  def is_connected(%Playwright.Browser{} = browser) do
     Playwright.Client.Browser.is_connected(browser)
   end
 
@@ -138,7 +138,7 @@ defmodule Playwright.Browser do
   *Since Playwright 1.11.*
   """
   @spec new_browser_cdp_session(t()) :: {:ok, Playwright.CDPSession.t()} | {:error, Playwright.error()}
-  def new_browser_cdp_session(browser) do
+  def new_browser_cdp_session(%Playwright.Browser{} = browser) do
     Facade.async("browser.newBrowserCDPSession", browser, fn ->
       Playwright.Client.Browser.new_browser_cdp_session(browser)
     end)
@@ -146,7 +146,7 @@ defmodule Playwright.Browser do
 
   @doc "Like `new_browser_cdp_session/1`, but returns the value and raises on error."
   @spec new_browser_cdp_session!(t()) :: Playwright.CDPSession.t()
-  def new_browser_cdp_session!(browser) do
+  def new_browser_cdp_session!(%Playwright.Browser{} = browser) do
     Facade.async!("browser.newBrowserCDPSession", browser, fn ->
       Playwright.Client.Browser.new_browser_cdp_session(browser)
     end)
@@ -631,14 +631,14 @@ defmodule Playwright.Browser do
   * `:default_browser_type` (`t:String.t/0`) - Ignored: the browser type of a device descriptor (`Playwright.devices/1`), so one can be passed as options.
   """
   @spec new_context(t(), new_context_options()) :: {:ok, Playwright.BrowserContext.t()} | {:error, Playwright.error()}
-  def new_context(browser, options \\ []) do
+  def new_context(%Playwright.Browser{} = browser, options \\ []) do
     options = Facade.options!(options, @new_context_options, "browser.newContext")
     Facade.async("browser.newContext", browser, fn -> Playwright.Client.Browser.new_context(browser, options) end)
   end
 
   @doc "Like `new_context/2`, but returns the value and raises on error."
   @spec new_context!(t(), new_context_options()) :: Playwright.BrowserContext.t()
-  def new_context!(browser, options \\ []) do
+  def new_context!(%Playwright.Browser{} = browser, options \\ []) do
     options = Facade.options!(options, @new_context_options, "browser.newContext")
     Facade.async!("browser.newContext", browser, fn -> Playwright.Client.Browser.new_context(browser, options) end)
   end
@@ -1104,14 +1104,14 @@ defmodule Playwright.Browser do
   * `:default_browser_type` (`t:String.t/0`) - Ignored: the browser type of a device descriptor (`Playwright.devices/1`), so one can be passed as options.
   """
   @spec new_page(t(), new_page_options()) :: {:ok, Playwright.Page.t()} | {:error, Playwright.error()}
-  def new_page(browser, options \\ []) do
+  def new_page(%Playwright.Browser{} = browser, options \\ []) do
     options = Facade.options!(options, @new_page_options, "browser.newPage")
     Facade.async("browser.newPage", browser, fn -> Playwright.Client.Browser.new_page(browser, options) end)
   end
 
   @doc "Like `new_page/2`, but returns the value and raises on error."
   @spec new_page!(t(), new_page_options()) :: Playwright.Page.t()
-  def new_page!(browser, options \\ []) do
+  def new_page!(%Playwright.Browser{} = browser, options \\ []) do
     options = Facade.options!(options, @new_page_options, "browser.newPage")
     Facade.async!("browser.newPage", browser, fn -> Playwright.Client.Browser.new_page(browser, options) end)
   end
@@ -1151,14 +1151,14 @@ defmodule Playwright.Browser do
   * `:workspace_dir` (`t:String.t/0`) - Working directory associated with this browser server.
   """
   @spec bind(t(), String.t(), bind_options()) :: {:ok, %{endpoint: String.t()}} | {:error, Playwright.error()}
-  def bind(browser, title, options \\ []) do
+  def bind(%Playwright.Browser{} = browser, title, options \\ []) do
     options = Facade.options!(options, @bind_options, "browser.bind")
     Facade.async("browser.bind", browser, fn -> Playwright.Client.Browser.bind(browser, title, options) end)
   end
 
   @doc "Like `bind/3`, but returns the value and raises on error."
   @spec bind!(t(), String.t(), bind_options()) :: %{endpoint: String.t()}
-  def bind!(browser, title, options \\ []) do
+  def bind!(%Playwright.Browser{} = browser, title, options \\ []) do
     options = Facade.options!(options, @bind_options, "browser.bind")
     Facade.async!("browser.bind", browser, fn -> Playwright.Client.Browser.bind(browser, title, options) end)
   end
@@ -1199,7 +1199,7 @@ defmodule Playwright.Browser do
   def remove_all_listeners(browser, options, []) when is_list(options) or (is_map(options) and not is_struct(options)),
     do: remove_all_listeners(browser, nil, options)
 
-  def remove_all_listeners(browser, event, options) do
+  def remove_all_listeners(%Playwright.Browser{} = browser, event, options) do
     event = Facade.event!(event, @events, "browser.removeAllListeners")
     options = Facade.options!(options, @remove_all_listeners_options, "browser.removeAllListeners")
 
@@ -1216,7 +1216,7 @@ defmodule Playwright.Browser do
   def remove_all_listeners!(browser, options, []) when is_list(options) or (is_map(options) and not is_struct(options)),
     do: remove_all_listeners!(browser, nil, options)
 
-  def remove_all_listeners!(browser, event, options) do
+  def remove_all_listeners!(%Playwright.Browser{} = browser, event, options) do
     event = Facade.event!(event, @events, "browser.removeAllListeners")
     options = Facade.options!(options, @remove_all_listeners_options, "browser.removeAllListeners")
 
@@ -1270,7 +1270,7 @@ defmodule Playwright.Browser do
   def start_tracing(browser, options, []) when is_list(options) or (is_map(options) and not is_struct(options)),
     do: start_tracing(browser, nil, options)
 
-  def start_tracing(browser, page, options) do
+  def start_tracing(%Playwright.Browser{} = browser, page, options) do
     options = Facade.options!(options, @start_tracing_options, "browser.startTracing")
 
     Facade.async_void("browser.startTracing", browser, fn ->
@@ -1286,7 +1286,7 @@ defmodule Playwright.Browser do
   def start_tracing!(browser, options, []) when is_list(options) or (is_map(options) and not is_struct(options)),
     do: start_tracing!(browser, nil, options)
 
-  def start_tracing!(browser, page, options) do
+  def start_tracing!(%Playwright.Browser{} = browser, page, options) do
     options = Facade.options!(options, @start_tracing_options, "browser.startTracing")
 
     Facade.async_void!("browser.startTracing", browser, fn ->
@@ -1304,13 +1304,13 @@ defmodule Playwright.Browser do
   *Since Playwright 1.11.*
   """
   @spec stop_tracing(t()) :: {:ok, binary()} | {:error, Playwright.error()}
-  def stop_tracing(browser) do
+  def stop_tracing(%Playwright.Browser{} = browser) do
     Facade.async("browser.stopTracing", browser, fn -> Playwright.Client.Browser.stop_tracing(browser) end)
   end
 
   @doc "Like `stop_tracing/1`, but returns the value and raises on error."
   @spec stop_tracing!(t()) :: binary()
-  def stop_tracing!(browser) do
+  def stop_tracing!(%Playwright.Browser{} = browser) do
     Facade.async!("browser.stopTracing", browser, fn -> Playwright.Client.Browser.stop_tracing(browser) end)
   end
 
@@ -1320,13 +1320,13 @@ defmodule Playwright.Browser do
   *Since Playwright 1.59.*
   """
   @spec unbind(t()) :: :ok | {:error, Playwright.error()}
-  def unbind(browser) do
+  def unbind(%Playwright.Browser{} = browser) do
     Facade.async_void("browser.unbind", browser, fn -> Playwright.Client.Browser.unbind(browser) end)
   end
 
   @doc "Like `unbind/1`, but returns the value and raises on error."
   @spec unbind!(t()) :: :ok
-  def unbind!(browser) do
+  def unbind!(%Playwright.Browser{} = browser) do
     Facade.async_void!("browser.unbind", browser, fn -> Playwright.Client.Browser.unbind(browser) end)
   end
 
@@ -1336,7 +1336,7 @@ defmodule Playwright.Browser do
   *Since Playwright 1.8.*
   """
   @spec version(t()) :: String.t()
-  def version(browser) do
+  def version(%Playwright.Browser{} = browser) do
     Playwright.Client.Browser.version(browser)
   end
 
@@ -1344,7 +1344,7 @@ defmodule Playwright.Browser do
   @doc group: "Events"
   @spec on(t(), :context, (Playwright.BrowserContext.t() -> term())) :: t()
   @spec on(t(), :disconnected, (Playwright.Browser.t() -> term())) :: t()
-  def on(browser, event, listener) do
+  def on(%Playwright.Browser{} = browser, event, listener) do
     event = Facade.event!(event, @events, "browser.on")
     Facade.listen(fn -> Playwright.Client.Browser.on(browser, event, listener) end)
   end
@@ -1353,7 +1353,7 @@ defmodule Playwright.Browser do
   @doc group: "Events"
   @spec once(t(), :context, (Playwright.BrowserContext.t() -> term())) :: t()
   @spec once(t(), :disconnected, (Playwright.Browser.t() -> term())) :: t()
-  def once(browser, event, listener) do
+  def once(%Playwright.Browser{} = browser, event, listener) do
     event = Facade.event!(event, @events, "browser.once")
     Facade.listen(fn -> Playwright.Client.Browser.once(browser, event, listener) end)
   end
@@ -1362,7 +1362,7 @@ defmodule Playwright.Browser do
   @doc group: "Events"
   @spec add_listener(t(), :context, (Playwright.BrowserContext.t() -> term())) :: t()
   @spec add_listener(t(), :disconnected, (Playwright.Browser.t() -> term())) :: t()
-  def add_listener(browser, event, listener) do
+  def add_listener(%Playwright.Browser{} = browser, event, listener) do
     event = Facade.event!(event, @events, "browser.addListener")
     Facade.listen(fn -> Playwright.Client.Browser.add_listener(browser, event, listener) end)
   end
@@ -1371,7 +1371,7 @@ defmodule Playwright.Browser do
   @doc group: "Events"
   @spec remove_listener(t(), :context, (Playwright.BrowserContext.t() -> term())) :: t()
   @spec remove_listener(t(), :disconnected, (Playwright.Browser.t() -> term())) :: t()
-  def remove_listener(browser, event, listener) do
+  def remove_listener(%Playwright.Browser{} = browser, event, listener) do
     event = Facade.event!(event, @events, "browser.removeListener")
     Facade.listen(fn -> Playwright.Client.Browser.remove_listener(browser, event, listener) end)
   end
@@ -1380,7 +1380,7 @@ defmodule Playwright.Browser do
   @doc group: "Events"
   @spec off(t(), :context, (Playwright.BrowserContext.t() -> term())) :: t()
   @spec off(t(), :disconnected, (Playwright.Browser.t() -> term())) :: t()
-  def off(browser, event, listener) do
+  def off(%Playwright.Browser{} = browser, event, listener) do
     event = Facade.event!(event, @events, "browser.off")
     Facade.listen(fn -> Playwright.Client.Browser.off(browser, event, listener) end)
   end
@@ -1389,7 +1389,7 @@ defmodule Playwright.Browser do
   @doc group: "Events"
   @spec prepend_listener(t(), :context, (Playwright.BrowserContext.t() -> term())) :: t()
   @spec prepend_listener(t(), :disconnected, (Playwright.Browser.t() -> term())) :: t()
-  def prepend_listener(browser, event, listener) do
+  def prepend_listener(%Playwright.Browser{} = browser, event, listener) do
     event = Facade.event!(event, @events, "browser.prependListener")
     Facade.listen(fn -> Playwright.Client.Browser.prepend_listener(browser, event, listener) end)
   end

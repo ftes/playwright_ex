@@ -29,13 +29,13 @@ defmodule Playwright.APIResponse do
   *Since Playwright 1.16.*
   """
   @spec body(t()) :: {:ok, binary()} | {:error, Playwright.error()}
-  def body(api_response) do
+  def body(%Playwright.APIResponse{} = api_response) do
     Facade.async("apiResponse.body", api_response, fn -> Playwright.Client.APIResponse.body(api_response) end)
   end
 
   @doc "Like `body/1`, but returns the value and raises on error."
   @spec body!(t()) :: binary()
-  def body!(api_response) do
+  def body!(%Playwright.APIResponse{} = api_response) do
     Facade.async!("apiResponse.body", api_response, fn -> Playwright.Client.APIResponse.body(api_response) end)
   end
 
@@ -45,13 +45,13 @@ defmodule Playwright.APIResponse do
   *Since Playwright 1.16.*
   """
   @spec dispose(t()) :: :ok | {:error, Playwright.error()}
-  def dispose(api_response) do
+  def dispose(%Playwright.APIResponse{} = api_response) do
     Facade.async_void("apiResponse.dispose", api_response, fn -> Playwright.Client.APIResponse.dispose(api_response) end)
   end
 
   @doc "Like `dispose/1`, but returns the value and raises on error."
   @spec dispose!(t()) :: :ok
-  def dispose!(api_response) do
+  def dispose!(%Playwright.APIResponse{} = api_response) do
     Facade.async_void!("apiResponse.dispose", api_response, fn ->
       Playwright.Client.APIResponse.dispose(api_response)
     end)
@@ -63,7 +63,7 @@ defmodule Playwright.APIResponse do
   *Since Playwright 1.16.*
   """
   @spec headers(t()) :: %{optional(String.t()) => String.t()}
-  def headers(api_response) do
+  def headers(%Playwright.APIResponse{} = api_response) do
     Playwright.Client.APIResponse.headers(api_response)
   end
 
@@ -74,7 +74,7 @@ defmodule Playwright.APIResponse do
   *Since Playwright 1.16.*
   """
   @spec headers_array(t()) :: [%{name: String.t(), value: String.t()}]
-  def headers_array(api_response) do
+  def headers_array(%Playwright.APIResponse{} = api_response) do
     Playwright.Client.APIResponse.headers_array(api_response)
   end
 
@@ -86,13 +86,13 @@ defmodule Playwright.APIResponse do
   *Since Playwright 1.16.*
   """
   @spec json(t()) :: {:ok, term()} | {:error, Playwright.error()}
-  def json(api_response) do
+  def json(%Playwright.APIResponse{} = api_response) do
     Facade.async("apiResponse.json", api_response, fn -> Playwright.Client.APIResponse.json(api_response) end)
   end
 
   @doc "Like `json/1`, but returns the value and raises on error."
   @spec json!(t()) :: term()
-  def json!(api_response) do
+  def json!(%Playwright.APIResponse{} = api_response) do
     Facade.async!("apiResponse.json", api_response, fn -> Playwright.Client.APIResponse.json(api_response) end)
   end
 
@@ -102,7 +102,7 @@ defmodule Playwright.APIResponse do
   *Since Playwright 1.16.*
   """
   @spec ok(t()) :: boolean()
-  def ok(api_response) do
+  def ok(%Playwright.APIResponse{} = api_response) do
     Playwright.Client.APIResponse.ok(api_response)
   end
 
@@ -122,7 +122,7 @@ defmodule Playwright.APIResponse do
                optional(:validTo) => number()
              }}
           | {:error, Playwright.error()}
-  def security_details(api_response) do
+  def security_details(%Playwright.APIResponse{} = api_response) do
     Facade.async("apiResponse.securityDetails", api_response, fn ->
       Playwright.Client.APIResponse.security_details(api_response)
     end)
@@ -138,7 +138,7 @@ defmodule Playwright.APIResponse do
               optional(:validFrom) => number(),
               optional(:validTo) => number()
             }
-  def security_details!(api_response) do
+  def security_details!(%Playwright.APIResponse{} = api_response) do
     Facade.async!("apiResponse.securityDetails", api_response, fn ->
       Playwright.Client.APIResponse.security_details(api_response)
     end)
@@ -150,7 +150,7 @@ defmodule Playwright.APIResponse do
   *Since Playwright 1.61.*
   """
   @spec server_addr(t()) :: {:ok, nil | %{ipAddress: String.t(), port: integer()}} | {:error, Playwright.error()}
-  def server_addr(api_response) do
+  def server_addr(%Playwright.APIResponse{} = api_response) do
     Facade.async("apiResponse.serverAddr", api_response, fn ->
       Playwright.Client.APIResponse.server_addr(api_response)
     end)
@@ -158,7 +158,7 @@ defmodule Playwright.APIResponse do
 
   @doc "Like `server_addr/1`, but returns the value and raises on error."
   @spec server_addr!(t()) :: nil | %{ipAddress: String.t(), port: integer()}
-  def server_addr!(api_response) do
+  def server_addr!(%Playwright.APIResponse{} = api_response) do
     Facade.async!("apiResponse.serverAddr", api_response, fn ->
       Playwright.Client.APIResponse.server_addr(api_response)
     end)
@@ -170,7 +170,7 @@ defmodule Playwright.APIResponse do
   *Since Playwright 1.16.*
   """
   @spec status(t()) :: integer()
-  def status(api_response) do
+  def status(%Playwright.APIResponse{} = api_response) do
     Playwright.Client.APIResponse.status(api_response)
   end
 
@@ -180,7 +180,7 @@ defmodule Playwright.APIResponse do
   *Since Playwright 1.16.*
   """
   @spec status_text(t()) :: String.t()
-  def status_text(api_response) do
+  def status_text(%Playwright.APIResponse{} = api_response) do
     Playwright.Client.APIResponse.status_text(api_response)
   end
 
@@ -190,13 +190,13 @@ defmodule Playwright.APIResponse do
   *Since Playwright 1.16.*
   """
   @spec text(t()) :: {:ok, String.t()} | {:error, Playwright.error()}
-  def text(api_response) do
+  def text(%Playwright.APIResponse{} = api_response) do
     Facade.async("apiResponse.text", api_response, fn -> Playwright.Client.APIResponse.text(api_response) end)
   end
 
   @doc "Like `text/1`, but returns the value and raises on error."
   @spec text!(t()) :: String.t()
-  def text!(api_response) do
+  def text!(%Playwright.APIResponse{} = api_response) do
     Facade.async!("apiResponse.text", api_response, fn -> Playwright.Client.APIResponse.text(api_response) end)
   end
 
@@ -219,7 +219,7 @@ defmodule Playwright.APIResponse do
           responseStart: number(),
           responseEnd: number()
         }
-  def timing(api_response) do
+  def timing(%Playwright.APIResponse{} = api_response) do
     Playwright.Client.APIResponse.timing(api_response)
   end
 
@@ -229,7 +229,7 @@ defmodule Playwright.APIResponse do
   *Since Playwright 1.16.*
   """
   @spec url(t()) :: String.t()
-  def url(api_response) do
+  def url(%Playwright.APIResponse{} = api_response) do
     Playwright.Client.APIResponse.url(api_response)
   end
 end

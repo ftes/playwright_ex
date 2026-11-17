@@ -59,7 +59,7 @@ defmodule Playwright.Coverage do
   * `:reset_on_navigation` (`t:boolean/0`) - Whether to reset coverage on every navigation. Defaults to `true`.
   """
   @spec start_css_coverage(t(), start_css_coverage_options()) :: :ok | {:error, Playwright.error()}
-  def start_css_coverage(coverage, options \\ []) do
+  def start_css_coverage(%Playwright.Coverage{} = coverage, options \\ []) do
     options = Facade.options!(options, @start_css_coverage_options, "coverage.startCSSCoverage")
 
     Facade.async_void("coverage.startCSSCoverage", coverage, fn ->
@@ -69,7 +69,7 @@ defmodule Playwright.Coverage do
 
   @doc "Like `start_css_coverage/2`, but returns the value and raises on error."
   @spec start_css_coverage!(t(), start_css_coverage_options()) :: :ok
-  def start_css_coverage!(coverage, options \\ []) do
+  def start_css_coverage!(%Playwright.Coverage{} = coverage, options \\ []) do
     options = Facade.options!(options, @start_css_coverage_options, "coverage.startCSSCoverage")
 
     Facade.async_void!("coverage.startCSSCoverage", coverage, fn ->
@@ -105,7 +105,7 @@ defmodule Playwright.Coverage do
   * `:reset_on_navigation` (`t:boolean/0`) - Whether to reset coverage on every navigation. Defaults to `true`. Note that passing `false` does not guarantee that coverage persists through navigations, due to browser architecture limitations.
   """
   @spec start_js_coverage(t(), start_js_coverage_options()) :: :ok | {:error, Playwright.error()}
-  def start_js_coverage(coverage, options \\ []) do
+  def start_js_coverage(%Playwright.Coverage{} = coverage, options \\ []) do
     options = Facade.options!(options, @start_js_coverage_options, "coverage.startJSCoverage")
 
     Facade.async_void("coverage.startJSCoverage", coverage, fn ->
@@ -115,7 +115,7 @@ defmodule Playwright.Coverage do
 
   @doc "Like `start_js_coverage/2`, but returns the value and raises on error."
   @spec start_js_coverage!(t(), start_js_coverage_options()) :: :ok
-  def start_js_coverage!(coverage, options \\ []) do
+  def start_js_coverage!(%Playwright.Coverage{} = coverage, options \\ []) do
     options = Facade.options!(options, @start_js_coverage_options, "coverage.startJSCoverage")
 
     Facade.async_void!("coverage.startJSCoverage", coverage, fn ->
@@ -142,7 +142,7 @@ defmodule Playwright.Coverage do
              }
            ]}
           | {:error, Playwright.error()}
-  def stop_css_coverage(coverage) do
+  def stop_css_coverage(%Playwright.Coverage{} = coverage) do
     Facade.async("coverage.stopCSSCoverage", coverage, fn -> Playwright.Client.Coverage.stop_css_coverage(coverage) end)
   end
 
@@ -154,7 +154,7 @@ defmodule Playwright.Coverage do
             required(:ranges) => [%{start: integer(), end: integer()}]
           }
         ]
-  def stop_css_coverage!(coverage) do
+  def stop_css_coverage!(%Playwright.Coverage{} = coverage) do
     Facade.async!("coverage.stopCSSCoverage", coverage, fn -> Playwright.Client.Coverage.stop_css_coverage(coverage) end)
   end
 
@@ -185,7 +185,7 @@ defmodule Playwright.Coverage do
              }
            ]}
           | {:error, Playwright.error()}
-  def stop_js_coverage(coverage) do
+  def stop_js_coverage(%Playwright.Coverage{} = coverage) do
     Facade.async("coverage.stopJSCoverage", coverage, fn -> Playwright.Client.Coverage.stop_js_coverage(coverage) end)
   end
 
@@ -204,7 +204,7 @@ defmodule Playwright.Coverage do
             ]
           }
         ]
-  def stop_js_coverage!(coverage) do
+  def stop_js_coverage!(%Playwright.Coverage{} = coverage) do
     Facade.async!("coverage.stopJSCoverage", coverage, fn -> Playwright.Client.Coverage.stop_js_coverage(coverage) end)
   end
 

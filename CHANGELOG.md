@@ -44,6 +44,11 @@ upstream minor, so `~> 1.65.0` is safe.
 Drives [Playwright 1.65.1](https://github.com/microsoft/playwright/releases/tag/v1.65.1), on
 Node 26.13.1. No API changes.
 
+### Changed
+
+- A handle of the wrong class (a `Locator` passed to `Page.get_by_test_id/2`) fails in the facade
+  function, whose clause matches its struct, not in `Playwright.Runtime.Heap.key/2`.
+
 ### Fixed
 
 - `mix playwright.install` and `mix playwright.cli` failed with "module :public_key is not

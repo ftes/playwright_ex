@@ -54,13 +54,13 @@ defmodule Playwright.Dialog do
   * `prompt_text` - A text to enter in prompt. Does not cause any effects if the dialog's `type` is not prompt. Optional.
   """
   @spec accept(t(), String.t() | nil) :: :ok | {:error, Playwright.error()}
-  def accept(dialog, prompt_text \\ nil) do
+  def accept(%Playwright.Dialog{} = dialog, prompt_text \\ nil) do
     Facade.async_void("dialog.accept", dialog, fn -> Playwright.Client.Dialog.accept(dialog, prompt_text) end)
   end
 
   @doc "Like `accept/2`, but returns the value and raises on error."
   @spec accept!(t(), String.t() | nil) :: :ok
-  def accept!(dialog, prompt_text \\ nil) do
+  def accept!(%Playwright.Dialog{} = dialog, prompt_text \\ nil) do
     Facade.async_void!("dialog.accept", dialog, fn -> Playwright.Client.Dialog.accept(dialog, prompt_text) end)
   end
 
@@ -70,7 +70,7 @@ defmodule Playwright.Dialog do
   *Since Playwright 1.8.*
   """
   @spec default_value(t()) :: String.t()
-  def default_value(dialog) do
+  def default_value(%Playwright.Dialog{} = dialog) do
     Playwright.Client.Dialog.default_value(dialog)
   end
 
@@ -80,13 +80,13 @@ defmodule Playwright.Dialog do
   *Since Playwright 1.8.*
   """
   @spec dismiss(t()) :: :ok | {:error, Playwright.error()}
-  def dismiss(dialog) do
+  def dismiss(%Playwright.Dialog{} = dialog) do
     Facade.async_void("dialog.dismiss", dialog, fn -> Playwright.Client.Dialog.dismiss(dialog) end)
   end
 
   @doc "Like `dismiss/1`, but returns the value and raises on error."
   @spec dismiss!(t()) :: :ok
-  def dismiss!(dialog) do
+  def dismiss!(%Playwright.Dialog{} = dialog) do
     Facade.async_void!("dialog.dismiss", dialog, fn -> Playwright.Client.Dialog.dismiss(dialog) end)
   end
 
@@ -96,7 +96,7 @@ defmodule Playwright.Dialog do
   *Since Playwright 1.8.*
   """
   @spec message(t()) :: String.t()
-  def message(dialog) do
+  def message(%Playwright.Dialog{} = dialog) do
     Playwright.Client.Dialog.message(dialog)
   end
 
@@ -106,7 +106,7 @@ defmodule Playwright.Dialog do
   *Since Playwright 1.34.*
   """
   @spec page(t()) :: nil | Playwright.Page.t()
-  def page(dialog) do
+  def page(%Playwright.Dialog{} = dialog) do
     Playwright.Client.Dialog.page(dialog)
   end
 
@@ -116,7 +116,7 @@ defmodule Playwright.Dialog do
   *Since Playwright 1.8.*
   """
   @spec type(t()) :: String.t()
-  def type(dialog) do
+  def type(%Playwright.Dialog{} = dialog) do
     Playwright.Client.Dialog.type(dialog)
   end
 end
