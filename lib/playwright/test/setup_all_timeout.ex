@@ -12,7 +12,8 @@ defmodule Playwright.Test.SetupAllTimeout do
   # the module (`Options.ex_unit_timeout/1`). ExUnit then fails the module with the exit reason:
   # upstream's message with `beforeAll` renamed to `setup_all`, and the stack the process was at.
   # Elixir only: one slot for all of the module's `setup_all` callbacks, where upstream gives
-  # each hook its own. A pooled browser (`Pool.browser/2`: the wait for a seat, a driver start and
+  # each hook its own. A process that traps exits is killed 1 s later (`:killed`, without the
+  # message). A pooled browser (`Pool.browser/2`: the wait for a seat, a driver start and
   # launch) is not counted (`paused/1`), as upstream's dispatcher queue has no timeout and its
   # worker fixtures have their own slot. `paused/1` looks in the calling process only: a
   # `setup_all` scope's `BrowserPool.browser/1` runs in the `setup_all` process itself.
@@ -32,14 +33,21 @@ defmodule Playwright.Test.SetupAllTimeout do
 
       timeout when is_integer(timeout) ->
         owner = self()
-        watchdog = spawn(fn -> watch(owner, timeout) end)
+        # The handshake at the deadline (0 running, 1 done, 2 expired): who sets it first decides.
+        state = :atomics.new(1, [])
+        watchdog = spawn(fn -> watch(owner, state, timeout) end)
         Process.put(@key, watchdog)
 
         try do
           fun.()
         after
           Process.delete(@key)
-          send(watchdog, :done)
+
+          case :atomics.compare_exchange(state, 1, 0, 1) do
+            :ok -> send(watchdog, :done)
+            # Expired: the watchdog's exit is on its way, so the callbacks' result never reaches ExUnit.
+            _expired -> Process.sleep(:infinity)
+          end
         end
 
       # Inside a running one.
@@ -65,62 +73,66 @@ defmodule Playwright.Test.SetupAllTimeout do
     end
   end
 
-  defp watch(owner, timeout) do
+  defp watch(owner, state, timeout) do
     ref = Process.monitor(owner)
-    %{owner: owner, ref: ref, timeout: timeout, left: timeout} |> start_timer() |> loop()
+    %{owner: owner, ref: ref, state: state, timeout: timeout, left: timeout, paused: 0} |> start_timer() |> loop()
   end
 
-  # `timer` is the current timer's tag (`nil` while paused), `left` its time when paused.
-  # The callbacks' end (`:done`) wins over a timer that fired at the same time.
-  defp loop(state) do
+  # `timer` is the running timer (`nil` while paused), `left` its time when paused, `paused` the
+  # depth of nested `paused/1` calls.
+  defp loop(watch) do
     receive do
-      {:DOWN, ref, :process, _, _} when ref == state.ref ->
+      {:DOWN, ref, :process, _, _} when ref == watch.ref ->
         :ok
 
       :done ->
         :ok
 
-      :pause when state.timer != nil ->
-        left = Process.cancel_timer(state.timer_ref) || 0
-        loop(%{state | timer: nil, left: left})
+      :pause when watch.paused > 0 ->
+        loop(%{watch | paused: watch.paused + 1})
+
+      :pause ->
+        left = :erlang.cancel_timer(watch.timer) || 0
+        loop(%{watch | timer: nil, left: left, paused: 1})
+
+      :resume when watch.paused > 1 ->
+        loop(%{watch | paused: watch.paused - 1})
 
       :resume ->
-        state |> start_timer() |> loop()
+        watch |> start_timer() |> Map.put(:paused, 0) |> loop()
 
-      # A stale timer's (cancelled after it fired) is ignored.
-      {:timeout, tag} when tag == state.timer ->
-        receive do
-          :done -> :ok
-        after
-          0 -> expire(state)
-        end
+      # A timer cancelled after it fired leaves a message of another ref.
+      {:timeout, ref, :setup_all} when ref == watch.timer ->
+        expire(watch)
 
-      {:timeout, _stale} ->
-        loop(state)
+      {:timeout, _stale, :setup_all} ->
+        loop(watch)
     end
   end
 
-  defp start_timer(state) do
-    tag = make_ref()
-    Map.merge(state, %{timer: tag, timer_ref: Process.send_after(self(), {:timeout, tag}, state.left)})
+  defp start_timer(watch) do
+    if watch[:timer], do: :erlang.cancel_timer(watch.timer)
+    Map.put(watch, :timer, :erlang.start_timer(watch.left, self(), :setup_all))
   end
 
-  defp expire(%{owner: owner, ref: ref, timeout: timeout}) do
-    stack =
-      case Process.info(owner, :current_stacktrace) do
-        {:current_stacktrace, stack} -> stack
-        nil -> []
+  defp expire(%{owner: owner, ref: ref, state: state, timeout: timeout}) do
+    # The callbacks ended first: nothing to do.
+    if :atomics.compare_exchange(state, 1, 0, 2) == :ok do
+      stack =
+        case Process.info(owner, :current_stacktrace) do
+          {:current_stacktrace, stack} -> stack
+          nil -> []
+        end
+
+      error = RuntimeError.exception(~s("setup_all" hook timeout of #{timeout}ms exceeded.))
+      Process.exit(owner, {error, stack})
+
+      # A process that traps exits got a message instead.
+      receive do
+        {:DOWN, ^ref, :process, _, _} -> :ok
+      after
+        1000 -> Process.exit(owner, :kill)
       end
-
-    error = RuntimeError.exception(~s("setup_all" hook timeout of #{timeout}ms exceeded.))
-    Process.exit(owner, {error, stack})
-
-    # A process that traps exits got a message instead: killed, unless its callbacks end first.
-    receive do
-      {:DOWN, ^ref, :process, _, _} -> :ok
-      :done -> :ok
-    after
-      1000 -> Process.exit(owner, :kill)
     end
 
     :ok

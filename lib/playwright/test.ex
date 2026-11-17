@@ -51,7 +51,8 @@ defmodule Playwright.Test do
   body: a template's own `setup` callbacks run before those its `using` brings in, so the test
   is registered before them, and their contexts are recorded too. That `use` takes no options
   (they go in `using`); a module's later `use`s (a template's `using` and the module's own) only
-  add their options (see "Artifacts"). A context that a test process creates before its
+  add their options (see "Artifacts"). With the `use` only in the template's body, the
+  `setup_all` timeout (see "Timeouts") covers only the template's `setup_all` callbacks. A context that a test process creates before its
   registration (a template's `setup` or `setup_all` with no `use` in the body) makes the
   registration raise, with that fix. It registers the module's `setup_all` too, as upstream runs its `beforeAll`
   hooks with its `all-hooks-included` fixtures: see "Contexts of `setup_all`". A context created
@@ -195,7 +196,9 @@ defmodule Playwright.Test do
   60000ms exceeded.`, and the stack it was at. ExUnit has no timeout there, so the runner exits
   the `setup_all` process, which fails the module as a crash does; its `on_exit` callbacks still
   run. Unlike a test's, its contexts are not closed with a reason first, so a hung call fails
-  without its call log. One timeout counts all of the module's `setup_all` callbacks, where
+  without its call log, and the failure is ExUnit's for an exit (`** (EXIT from #PID<...>)`), with
+  the stack unpruned. A `setup_all` process that traps exits is killed 1 s after the timeout
+  instead: it fails with `:killed`, without the message. One timeout counts all of the module's `setup_all` callbacks, where
   upstream counts each hook on its own. `BrowserPool.browser/1` (the wait for a worker, its
   start) is not counted, as upstream's queue has no timeout and its worker fixtures have their
   own.
@@ -377,17 +380,25 @@ defmodule Playwright.Test do
   defmacro __before_compile__(env) do
     options = Module.get_attribute(env.module, :playwright_test)
 
+    # Without ExUnit's `__ex_unit__/2` (its internals changed), no `setup_all` timeout.
+    setup_all_timeout =
+      if Module.defines?(env.module, {:__ex_unit__, 2}) do
+        quote do
+          defoverridable __ex_unit__: 2
+
+          @doc false
+          def __ex_unit__(:setup_all, context),
+            do: Playwright.Test.SetupAllTimeout.run(context, fn -> super(:setup_all, context) end)
+
+          def __ex_unit__(kind, context), do: super(kind, context)
+        end
+      end
+
     quote do
       @doc false
       def __playwright_test__(:options), do: unquote(Macro.escape(options))
 
-      defoverridable __ex_unit__: 2
-
-      @doc false
-      def __ex_unit__(:setup_all, context),
-        do: Playwright.Test.SetupAllTimeout.run(context, fn -> super(:setup_all, context) end)
-
-      def __ex_unit__(kind, context), do: super(kind, context)
+      unquote(setup_all_timeout)
     end
   end
 

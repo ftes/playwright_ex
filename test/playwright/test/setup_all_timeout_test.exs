@@ -62,7 +62,7 @@ defmodule Playwright.Test.SetupAllTimeoutTest do
     assert_receive {:DOWN, ^ref, :process, _, {%RuntimeError{}, _stack}}, 5000
   end
 
-  test "callbacks that trap exits: killed a second later, unless they end before" do
+  test "callbacks that trap exits: killed a second later, also when they end in that second" do
     trapping = fn after_ms ->
       fn ->
         Process.flag(:trap_exit, true)
@@ -74,7 +74,37 @@ defmodule Playwright.Test.SetupAllTimeoutTest do
     assert_receive {:DOWN, ^ref, :process, _, :killed}, 5000
 
     ref = run_setup_all(100, trapping.(500))
-    refute_receive {:DOWN, ^ref, _, _, _}, 2000
+    assert_receive {:DOWN, ^ref, :process, _, :killed}, 5000
+  end
+
+  test "callbacks that end as the timer fires: one of the two decides" do
+    for _ <- 1..10 do
+      ref = run_setup_all(50, fn -> Process.sleep(50) end)
+
+      receive do
+        {:DOWN, ^ref, :process, _, reason} -> assert {%RuntimeError{}, _stack} = reason
+      after
+        300 -> :ok
+      end
+    end
+  end
+
+  test "nested pauses: the clock runs again after the outermost" do
+    test_pid = self()
+
+    ref =
+      run_setup_all(1000, fn ->
+        SetupAllTimeout.paused(fn ->
+          SetupAllTimeout.paused(fn -> Process.sleep(600) end)
+          Process.sleep(600)
+        end)
+
+        send(test_pid, :waited)
+        Process.sleep(:infinity)
+      end)
+
+    assert_receive :waited, 5000
+    assert_receive {:DOWN, ^ref, :process, _, {%RuntimeError{}, _stack}}, 5000
   end
 
   test "no timeout: no watchdog" do
