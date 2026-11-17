@@ -232,21 +232,10 @@ defmodule Playwright.Protocol.Serializers do
     end
   end
 
-  # Reads a JS `name`/`stack` when the exception carries them as strings, otherwise falls back to
-  # `new Error()`'s ("Error", ""). The stack is the driver's: stack rewriting isn't ported (see
-  # `channel_owner.ex`).
-  defp serialize_error(e) do
-    name = Map.get(e, :name)
-    stack = Map.get(e, :stack)
-
-    %{
-      e: %{
-        n: if(is_binary(name), do: name, else: "Error"),
-        m: Exception.message(e),
-        s: if(is_binary(stack), do: stack, else: "")
-      }
-    }
-  end
+  # An exception without a JS name or stack: `new Error()`. The stack is the driver's: stack
+  # rewriting isn't ported (see `channel_owner.ex`).
+  defp serialize_error(e),
+    do: %{e: %{n: Map.get(e, :name) || "Error", m: Exception.message(e), s: Map.get(e, :stack) || ""}}
 
   # Date.prototype.toJSON: millisecond precision, UTC.
   defp to_json_date(value),
