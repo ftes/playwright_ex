@@ -74,6 +74,11 @@ Node 26.13.1. No upstream API changes.
   `action_timeout` and `navigation_timeout`, a request context `timeout:` the `action_timeout`
   (`0` for `:infinity`) and no navigation timeout: no limit by default, where they had the
   client's 30 s.
+- **RC only:** **Breaking:** a module's `setup_all` callbacks fail past ExUnit's timeout of the
+  module (`@moduletag timeout:`, else ExUnit's `timeout`), with `"setup_all" hook timeout of
+  60000ms exceeded.`, as Playwright Test's `beforeAll` hook times out (#257). A longer
+  `setup_all` needs a `@moduletag timeout:`. A failed `setup_all`'s pooled browsers reset at the
+  module's end, as a failed test's do.
 - **RC only:** a handle of the wrong class (a `Locator` passed to `Page.get_by_test_id/2`) fails
   in the facade function, whose clause matches its struct, not in `Playwright.Runtime.Heap.key/2`.
 - **RC only:** a string that is not UTF-8 (`Route.fulfill!(route, body: png)`) fails with a hint

@@ -100,8 +100,11 @@ milliseconds) and its call log, and the artifacts are kept. To fail sooner, set 
 default, is no limit, and so is `0`, in the config as in every `timeout:` option: as in
 Playwright, `0` never means "fail at once" ([API conventions](api-conventions.md)). A context of
 `setup_all` gets the same `action_timeout` and `navigation_timeout` (no limit by default, as
-Playwright Test's `beforeAll` contexts), but no test timeout bounds `setup_all`, where Playwright
-Test bounds each `beforeAll` hook: set them to bound its calls.
+Playwright Test's `beforeAll` contexts). The module's timeout (`@moduletag timeout:`, else
+ExUnit's) bounds its `setup_all` callbacks, as Playwright Test bounds each `beforeAll` hook: past
+it, the `setup_all` fails with `"setup_all" hook timeout of 60000ms exceeded.`, but without the
+call log, as its contexts aren't closed before. Its pooled browsers reset at the module's end,
+as after a failed test, which closes them.
 
 Each driver call logs `pw:api ...` at `:debug` ([Logging](getting-started.md#logging)), so give
 the test env a logger level (`config :logger, level: :warning`). `ExUnit.start(capture_log:
@@ -616,7 +619,7 @@ config :playwright, :test, test_id_attribute: "data-pw"
 ```
 
 At most `workers` drivers run at once; the others wait, first come first served, inside
-`BrowserPool.browser/1`: in `setup_all` with no timeout, in `setup` or a test within ExUnit's
+`BrowserPool.browser/1`: in `setup_all` outside its timeout, in `setup` or a test within ExUnit's
 test timeout. A worker is a driver and one browser of one
 set of options, as Playwright Test's worker runs one project: a call with other options (another
 `browser_name`, `launch_options`, `driver` or `on_start`) takes another worker, which may

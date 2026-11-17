@@ -130,13 +130,14 @@ defmodule Playwright.Test.EndToEndTest do
            }
   end
 
-  test "pooled drivers: one per options and scope, back idle at its end, stopped after a failure",
+  test "pooled drivers: one per options and scope, back idle at its end, stopped after a failure (setup_all's too)",
        %{tmp_dir: tmp_dir} do
     {output, report} = report(start("modules", tmp_dir))
-    assert output =~ ~r"15 tests, 1 failure|Result: 14/15 passed"
+    assert output =~ ~r"18 tests, 1 failure, 3 invalid|Result: 14/15 passed, 3 invalid"
 
     assert report.leases == 0
-    # Not the failed module's; each parameter set's own (a driver has one label).
+    # Not the failed module's, nor the failed `setup_all`s'; each parameter set's own (a driver has
+    # one label).
     assert report.free == [:param_1, :param_2, :ten, :ten, :two_a, :two_b]
     # Ten tests and two browser options of one module: a worker each.
     assert report.drivers.ten == 2
@@ -311,10 +312,31 @@ defmodule Playwright.Test.EndToEndTest do
     refute slow_setup =~ "ExUnit.TimeoutError"
   end
 
-  test "--trace: no test timeout, so no timer", %{tmp_dir: tmp_dir} do
+  test "--trace: no test timeout, so no timer, and no setup_all timeout", %{tmp_dir: tmp_dir} do
     child = start("trace", tmp_dir)
     assert ChildProcess.exit_code(child, 60_000) == 0
-    assert ChildProcess.output(child) =~ ~r"1 test, 0 failures|Result: 1 passed"
+    assert ChildProcess.output(child) =~ ~r"2 tests, 0 failures|Result: 2 passed"
+  end
+
+  # Upstream's `beforeAll` hook gets the test timeout, `"beforeAll" hook timeout of 30000ms
+  # exceeded.` (`workerMain.ts` `_runAllHooksForSuite`, `timeoutManager.ts`).
+  test "a setup_all past its module's timeout fails with upstream's beforeAll message, renamed, and its stack", %{
+    tmp_dir: tmp_dir
+  } do
+    child = start("setup_all_timeout", tmp_dir)
+    assert ChildProcess.exit_code(child, 60_000) == 0
+    output = ChildProcess.output(child)
+    assert output =~ ~r"5 tests, 0 failures, 2 invalid|Result: 3 passed, 2 invalid"
+
+    for {module, timeout, frame} <- [
+          {"SetupAllSleepsTest", 1000, "Process.sleep/1"},
+          # Its stack: in the wait, or in the context or page on a slow browser.
+          {"SetupAllHangsTest", 6000, nil}
+        ] do
+      setup_all = failure(output, "#{module}: failure on setup_all callback, all tests have been invalidated")
+      assert setup_all =~ ~s[** (RuntimeError) "setup_all" hook timeout of #{timeout}ms exceeded.]
+      if frame, do: assert(setup_all =~ frame)
+    end
   end
 
   defp alive(processes) do

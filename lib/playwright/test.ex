@@ -51,8 +51,10 @@ defmodule Playwright.Test do
   body: a template's own `setup` callbacks run before those its `using` brings in, so the test
   is registered before them, and their contexts are recorded too. That `use` takes no options
   (they go in `using`); a module's later `use`s (a template's `using` and the module's own) only
-  add their options (see "Artifacts"). A context that a test process creates before its
-  registration (a template's `setup` with no `use` in the body) makes the registration raise,
+  add their options (see "Artifacts"). With the `use` only in the template's body, the
+  `setup_all` timeout (see "Timeouts") covers only the template's `setup_all` callbacks. A
+  context that a test process creates before its registration (a template's `setup` with no
+  `use` in the body) makes the registration raise,
   with that fix. It registers the module's `setup_all` process too, as upstream runs its
   `beforeAll` hooks with its `all-hooks-included` fixtures: see "Contexts of `setup_all`". A
   `setup_all` runs in that process, not a test's, so one that creates a context before the
@@ -195,16 +197,29 @@ defmodule Playwright.Test do
   hangs until then fails with that message and its call log, after the close kept the artifacts.
   A test stuck elsewhere (`Process.sleep/1`, a `receive`) still fails with ExUnit's
   `ExUnit.TimeoutError`. The timeout is ExUnit's: the `@tag timeout:` (`:infinity` for none) or
-  `mix test --timeout`; `mix test --trace` has none. `setup_all` is not covered. Its contexts
-  get the config's `action_timeout` and `navigation_timeout` (`:infinity` by default, not the
-  client's 30 s), as upstream's `beforeAll` contexts get `actionTimeout || 0`, but nothing
-  closes them. ExUnit's `setup_all` has no timeout of its own (upstream bounds each `beforeAll`
-  hook): until `Playwright.Test` bounds it, set `action_timeout` and `navigation_timeout` to
-  bound its calls. As ExUnit's
-  (and upstream's, which counts `beforeEach` hooks), the timeout counts the test's `setup`
-  callbacks: the clock starts at the module's first one, also one defined before `use
-  Playwright.Test` or in its case template. What ExUnit does before them (`@tag :tmp_dir`'s
-  cleanup, `capture_log`) is not counted, and comes out of the margin.
+  `mix test --timeout`; `mix test --trace` has none. As ExUnit's (and upstream's, which counts
+  `beforeEach` hooks), the timeout counts the test's `setup` callbacks: the clock starts at the
+  module's first one, also one defined before `use Playwright.Test` or in its case template.
+  What ExUnit does before them (`@tag :tmp_dir`'s cleanup, `capture_log`) is not counted, and
+  comes out of the margin.
+
+  A module's `setup_all` callbacks get the same timeout, the module's (`@moduletag timeout:`, else
+  ExUnit's `timeout`: `ExUnit.start(timeout:)` or `mix test --timeout`), as upstream's `beforeAll`
+  hook gets the test timeout: past it, the `setup_all` fails with upstream's message with
+  `beforeAll` renamed, `"setup_all" hook timeout of 60000ms exceeded.`, and the stack it was at.
+  ExUnit has no timeout there, so the runner exits the `setup_all` process, which fails the
+  module as a crash does; its `on_exit` callbacks still run. The failure is ExUnit's for an exit
+  (`** (EXIT from #PID<...>)`), with the stack unpruned, and a hung call fails without its call
+  log: unlike a test's, its contexts aren't closed with a reason before the exit. Its pooled
+  browsers are reset at the module's end instead, as a failed test's, which closes its contexts:
+  a failed `setup_all`'s are, as upstream stops a worker whose job failed. A `setup_all` process
+  that traps exits is killed 1 s after the timeout instead: it fails with `:killed`, without the
+  message. One timeout counts all of the module's `setup_all` callbacks, where upstream counts
+  each hook on its own. `BrowserPool.browser/1` (the wait for a worker, its start) is not counted,
+  as upstream's queue has no timeout and its worker fixtures have a timeout of their own: there,
+  nothing bounds them. Its contexts get the config's `action_timeout` and
+  `navigation_timeout` (`:infinity` by default, not the client's 30 s), as upstream's `beforeAll`
+  contexts get `actionTimeout || 0`.
 
   ## Snapshots
 
@@ -377,13 +392,40 @@ defmodule Playwright.Test do
 
   @doc false
   # The module's merged `use` options, for its registration (`__register__/1`): a function, so the
-  # test's context stays the test author's.
+  # test's context stays the test author's. And the timeout of its `setup_all` callbacks
+  # (`Playwright.Test.SetupAllTimeout`), around all of them: this hook runs after ExUnit's, which
+  # compiled them into `__ex_unit__/2`.
   defmacro __before_compile__(env) do
     options = Module.get_attribute(env.module, :playwright_test)
+
+    # Without ExUnit's `__ex_unit__/2` (its internals changed), no `setup_all` timeout: said at
+    # compile time.
+    setup_all_timeout =
+      if Module.defines?(env.module, {:__ex_unit__, 2}) do
+        quote do
+          defoverridable __ex_unit__: 2
+
+          @doc false
+          def __ex_unit__(:setup_all, context),
+            do: Playwright.Test.SetupAllTimeout.run(context, fn -> super(:setup_all, context) end)
+
+          def __ex_unit__(kind, context), do: super(kind, context)
+        end
+      else
+        IO.warn(
+          "use Playwright.Test found no __ex_unit__/2 in #{inspect(env.module)}: ExUnit's internals " <>
+            "changed, so its setup_all timeout is off",
+          Macro.Env.stacktrace(env)
+        )
+
+        nil
+      end
 
     quote do
       @doc false
       def __playwright_test__(:options), do: unquote(Macro.escape(options))
+
+      unquote(setup_all_timeout)
     end
   end
 
@@ -599,7 +641,7 @@ defmodule Playwright.Test do
 
     file = context.file
     marked? = context[:playwright_test] == :marked
-    timeout = test_timeout(context)
+    timeout = Options.ex_unit_timeout(context)
 
     test =
       test_info
@@ -643,12 +685,6 @@ defmodule Playwright.Test do
   # deadline (`Recorder.test_timeout_margin/1`). Now, for a registration from elsewhere.
   defp started(context) do
     (self() == context.test_pid && Process.get(@started)) || System.monotonic_time(:millisecond)
-  end
-
-  # ExUnit's `get_timeout/2`: none under `--trace`, else the test's `timeout` tag or the config's.
-  defp test_timeout(context) do
-    config = ExUnit.configuration()
-    if config[:trace], do: :infinity, else: Map.get(context, :timeout, config[:timeout])
   end
 
   @doc false
