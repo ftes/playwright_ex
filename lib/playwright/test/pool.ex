@@ -55,18 +55,16 @@ defmodule Playwright.Test.Pool do
   def browser(opts, {kind, pid}) do
     ensure_started()
 
-    # The wait for a seat is the dispatcher's queue: not in a `setup_all`'s time, as upstream's
-    # queue has no timeout (a test's counts, as ExUnit's timeout does).
-    lease =
-      SetupAllTimeout.paused(fn ->
-        GenServer.call(__MODULE__, {:lease, Slot.key(opts), {kind, pid}, parent(pid)}, :infinity)
-      end)
-
-    case lease do
-      {seat, key} -> Slot.browser(seat, key, opts)
-      :stopped -> raise "Playwright.Test's drivers were stopped (after the suite)"
-      :released -> raise ArgumentError, "BrowserPool.browser/1 waited past the end of its test or module"
-    end
+    # Not in a `setup_all`'s time: the wait for a seat is the dispatcher's queue, which has no
+    # timeout upstream, and the driver's start and launch are a worker fixture's, with its own slot
+    # (a test's count, as ExUnit's timeout does).
+    SetupAllTimeout.paused(fn ->
+      case GenServer.call(__MODULE__, {:lease, Slot.key(opts), {kind, pid}, parent(pid)}, :infinity) do
+        {seat, key} -> Slot.browser(seat, key, opts)
+        :stopped -> raise "Playwright.Test's drivers were stopped (after the suite)"
+        :released -> raise ArgumentError, "BrowserPool.browser/1 waited past the end of its test or module"
+      end
+    end)
   end
 
   @doc "Ends the leases of `scope`: its seats idle and warm unless it failed, else reset."

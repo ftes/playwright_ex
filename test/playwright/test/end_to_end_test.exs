@@ -314,7 +314,9 @@ defmodule Playwright.Test.EndToEndTest do
 
   # Upstream's `beforeAll` hook gets the test timeout, `"beforeAll" hook timeout of 30000ms
   # exceeded.` (`workerMain.ts` `_runAllHooksForSuite`, `timeoutManager.ts`).
-  test "a setup_all past its module's timeout fails with upstream's message and its stack", %{tmp_dir: tmp_dir} do
+  test "a setup_all past its module's timeout fails with upstream's beforeAll message, renamed, and its stack", %{
+    tmp_dir: tmp_dir
+  } do
     child = start("setup_all_timeout", tmp_dir)
     assert ChildProcess.exit_code(child, 60_000) == 0
     output = ChildProcess.output(child)
