@@ -12,9 +12,10 @@ defmodule Playwright.Runtime.Conn do
   (`Playwright.Client.EventEmitter`), run in order behind a barrier: a step that runs a
   listener in another process (a user listener's subscription process, an internal listener's
   process per event, an async function started here) holds dispatch until the listener returns or
-  first blocks on Playwright (`Playwright.Runtime.Invocation.yield/0`), as JS runs listeners
-  synchronously until their first `await`. Calls from other processes (`run/2`) are served
-  meanwhile, so a listener calling back into the API cannot deadlock.
+  first blocks on Playwright (`Playwright.Runtime.Invocation.yield/0`) or on a wait outside it
+  (checked, `Playwright.Runtime.Invocation.awaiting/2`), as JS runs listeners synchronously until
+  their first `await`. Calls from other processes (`run/2`) are served meanwhile, so a listener
+  calling back into the API cannot deadlock.
 
   The barrier keeps a stack of frames: an `emit` from the process dispatch waits for (it holds the
   barrier token) pushes a frame and returns once its listeners returned or yielded, which keeps
@@ -98,7 +99,8 @@ defmodule Playwright.Runtime.Conn do
   end
 
   defp call(conn, request) do
-    case GenServer.call(conn, request, :infinity) do
+    # Part of the caller's synchronous section, not an `await` (`Invocation.awaiting/2`).
+    case Invocation.sync_wait(fn -> GenServer.call(conn, request, :infinity) end) do
       {:ok, value} -> value
       {:raise, kind, reason, stacktrace} -> :erlang.raise(kind, reason, stacktrace)
     end
@@ -285,6 +287,22 @@ defmodule Playwright.Runtime.Conn do
 
   def handle_info({:pw_yield, inv}, state), do: {:noreply, state |> unblock(inv) |> drain() |> flush_out()}
 
+  # The process dispatch waits for (`block/3`), checked: blocked outside Playwright, it yielded.
+  def handle_info({:pw_check, inv, pid, last}, state) do
+    if Enum.any?(state.frames, &(&1.blocked == inv)) do
+      case Invocation.awaiting(pid, last) do
+        true ->
+          {:noreply, state |> unblock(inv) |> drain() |> flush_out()}
+
+        last ->
+          Process.send_after(self(), {:pw_check, inv, pid, last}, Invocation.check_interval())
+          {:noreply, state}
+      end
+    else
+      {:noreply, state}
+    end
+  end
+
   def handle_info({:pw_done, inv, pid}, state) do
     busy = if state.busy[pid], do: Map.update!(state.busy, pid, &List.delete(&1, inv)), else: state.busy
     {:noreply, %{state | busy: busy} |> done(inv) |> drain() |> flush_out()}
@@ -460,7 +478,11 @@ defmodule Playwright.Runtime.Conn do
         else: Logger.error("Dispatch failed: " <> Exception.format(:error, e, __STACKTRACE__))
   end
 
-  defp block(%{frames: [top | below]} = state, inv), do: %{state | frames: [%{top | blocked: inv} | below]}
+  # Dispatch waits for `pid` to yield (`inv`), and checks whether it awaits outside Playwright.
+  defp block(%{frames: [top | below]} = state, inv, pid) do
+    Process.send_after(self(), {:pw_check, inv, pid, nil}, Invocation.check_interval())
+    %{state | frames: [%{top | blocked: inv} | below]}
+  end
 
   defp unblock(state, inv) do
     %{state | frames: Enum.map(state.frames, &if(&1.blocked == inv, do: %{&1 | blocked: nil}, else: &1))}
@@ -501,7 +523,7 @@ defmodule Playwright.Runtime.Conn do
     inv = make_ref()
     conn = self()
 
-    {_pid, mref} =
+    {pid, mref} =
       spawn_monitor(fn ->
         Zones.restore(zone)
         Playwright.Runtime.Invocation.start(conn, inv, inv)
@@ -514,7 +536,7 @@ defmodule Playwright.Runtime.Conn do
         pending: Map.put(state.pending, inv, {emitter.guid, type})
     }
 
-    block(state, inv)
+    block(state, inv, pid)
   end
 
   # A user listener runs in its subscription process, one invocation at a time (FIFO). If it is
@@ -531,7 +553,7 @@ defmodule Playwright.Runtime.Conn do
         pending: Map.put(state.pending, inv, {emitter.guid, type})
     }
 
-    if was_busy, do: state, else: block(state, inv)
+    if was_busy, do: state, else: block(state, inv, pid)
   end
 
   defp run_step({:stop, pid}, state) do
@@ -543,7 +565,7 @@ defmodule Playwright.Runtime.Conn do
   defp run_step({:start, pid, inv}, state) do
     mref = Process.monitor(pid)
     send(pid, {:pw_go, inv})
-    block(%{state | procs: Map.put(state.procs, mref, inv)}, inv)
+    block(%{state | procs: Map.put(state.procs, mref, inv)}, inv, pid)
   end
 
   @doc false

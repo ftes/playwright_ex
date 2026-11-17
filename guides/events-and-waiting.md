@@ -49,8 +49,8 @@ assert_receive {:request, "GET", _url}, 1_000
 Page.off(page, :request, listener)
 ```
 
-Keep listeners short: [one that blocks stalls the
-connection](concurrency.md#no-blocking-work-in-listeners).
+Keep listeners short: [one that waits or computes holds up the
+connection](concurrency.md#waiting-in-listeners).
 
 ## Dialogs
 

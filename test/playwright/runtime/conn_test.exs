@@ -212,6 +212,45 @@ defmodule Playwright.RuntimeConnTest do
       assert {:ok, _} = Task.yield(wait, 10_000) || Task.shutdown(wait)
     end
 
+    # JS: `await blocked` in the handler yields, so other pages' calls go on meanwhile.
+    test "a route handler waiting outside Playwright does not stall dispatch", %{
+      page: page,
+      context: context,
+      context_factory: context_factory,
+      server: server
+    } do
+      test = self()
+      same_context = BrowserContext.new_page!(context)
+      other_context = context_factory.([]) |> BrowserContext.new_page!()
+
+      Page.route!(page, "**/empty.html", fn route ->
+        send(test, {:held, self()})
+        receive do: (:release -> Route.continue!(route))
+      end)
+
+      goto = Task.async(fn -> Page.goto!(page, server.empty_page) end)
+      assert_receive {:held, held}, 5_000
+      assert Page.evaluate!(same_context, "1 + 1") == 2
+      assert Page.evaluate!(other_context, "2 + 2") == 4
+      send(held, :release)
+      assert Response.ok(Task.await(goto))
+    end
+
+    test "a listener waiting outside Playwright does not stall dispatch", %{page: page, context: context} do
+      test = self()
+
+      Page.once(page, :console, fn _ ->
+        send(test, {:held, self()})
+        receive do: (:release -> send(test, :released))
+      end)
+
+      Page.evaluate!(page, "console.log('x')")
+      assert_receive {:held, held}
+      assert Page.evaluate!(BrowserContext.new_page!(context), "1 + 1") == 2
+      send(held, :release)
+      assert_receive :released
+    end
+
     test "a once listener that fired turns its protocol subscription off", %{page: page} do
       test = self()
       guid = page.guid
@@ -294,7 +333,8 @@ defmodule Playwright.RuntimeConnTest do
       EventEmitter.once(page, "x", fn _ -> RuntimePromise.resolve(latch, nil) end)
 
       EventEmitter.on(page, "x", fn _ ->
-        Process.sleep(50)
+        # Busy work: a wait would count as an await (`Invocation.awaiting/2`).
+        busy_until(System.monotonic_time(:millisecond) + 50)
         send(test, :later_listener)
       end)
 
@@ -318,13 +358,13 @@ defmodule Playwright.RuntimeConnTest do
         send(test, :settled)
       end)
 
-      # Holds the emit's synchronous section open until the test says so.
-      EventEmitter.on(page, "x", fn _ ->
-        send(test, {:holding, self()})
+      # Holds the emit's synchronous section open until the test says so: busy, as a wait would
+      # count as an await (`Invocation.awaiting/2`).
+      go = :atomics.new(1, [])
 
-        receive do
-          :go -> :ok
-        end
+      EventEmitter.on(page, "x", fn _ ->
+        send(test, {:holding, go})
+        busy_until(fn -> :atomics.get(go, 1) == 1 end)
       end)
 
       racer =
@@ -346,7 +386,7 @@ defmodule Playwright.RuntimeConnTest do
       assert_receive {:holding, holder}
       RuntimePromise.resolve(other, :other)
       assert_receive {:raced, :other}
-      send(holder, :go)
+      :atomics.put(holder, 1, 1)
       Task.await(emitter)
       send(racer.pid, :report)
       assert Task.await(racer) == {:messages, []}
@@ -496,6 +536,11 @@ defmodule Playwright.RuntimeConnTest do
 
   # Only the suspending process (the connection) can resume.
   defp resume(%{conn: conn}, awaiter), do: Conn.run(conn, fn -> :erlang.resume_process(awaiter) end)
+
+  defp busy_until(deadline) when is_integer(deadline),
+    do: busy_until(fn -> System.monotonic_time(:millisecond) >= deadline end)
+
+  defp busy_until(done?), do: if(!done?.(), do: busy_until(done?))
 
   defp wait_until(fun, tries \\ 500) do
     cond do

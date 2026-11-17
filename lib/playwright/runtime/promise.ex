@@ -178,9 +178,10 @@ defmodule Playwright.Runtime.Promise do
 
   @doc """
   Calls an async function without awaiting it: `fun` runs in a process of its own (with the
-  caller's zone); this returns once `fun` returned or first blocked on Playwright, so what it set
-  up (subscriptions, sent messages) is in place, as in JS. Inside the connection the process
-  starts at the current dispatch step, and dispatch waits for it the same way.
+  caller's zone); this returns once `fun` returned or first blocked on Playwright (or on a wait
+  outside it, `Playwright.Runtime.Invocation.awaiting/2`), so what it set up (subscriptions, sent
+  messages) is in place, as in JS. Inside the connection the process starts at the current
+  dispatch step, and dispatch waits for it the same way.
 
   The result settles a local promise of the caller (awaited by it, once), or with `shared: true`
   a latch owned by the caller process: awaitable from any process, any number of times, until
@@ -268,10 +269,11 @@ defmodule Playwright.Runtime.Promise do
   # Starts `body` in a process that runs as the caller until its first yield. It works on the
   # caller's behalf, so it gets its `$callers` as a `Task` does; not the connection's (shared).
   defp start(body) do
-    caller = self()
+    in_conn = Conn.in_conn?()
+    # Outside the connection an alias: a yield after the caller went on (`await_start/4`) is dropped.
+    caller = if in_conn, do: self(), else: :erlang.alias()
     zone = Zones.current_zone()
     barrier = Process.get(:pw_barrier)
-    in_conn = Conn.in_conn?()
     callers = if !in_conn, do: Callers.capture()
     inv = make_ref()
 
@@ -298,13 +300,28 @@ defmodule Playwright.Runtime.Promise do
     else
       mref = Process.monitor(pid)
 
-      receive do
-        {:pw_yield, ^inv} -> Process.demonitor(mref, [:flush])
-        {:DOWN, ^mref, :process, _, reason} -> exit(reason)
+      try do
+        Invocation.sync_wait(fn -> await_start(pid, inv, mref, nil) end)
+      after
+        :erlang.unalias(caller)
       end
     end
 
     pid
+  end
+
+  # Until `pid` yields, or awaits outside Playwright (`Invocation.awaiting/2`).
+  defp await_start(pid, inv, mref, last) do
+    receive do
+      {:pw_yield, ^inv} -> Process.demonitor(mref, [:flush])
+      {:DOWN, ^mref, :process, _, reason} -> exit(reason)
+    after
+      Invocation.check_interval() ->
+        case Invocation.awaiting(pid, last) do
+          true -> Process.demonitor(mref, [:flush])
+          last -> await_start(pid, inv, mref, last)
+        end
+    end
   end
 
   ## Awaiting

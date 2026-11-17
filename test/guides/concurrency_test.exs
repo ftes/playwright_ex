@@ -25,7 +25,7 @@ defmodule Playwright.Guides.ConcurrencyTest do
     assert Page.title!(page) == "true"
   end
 
-  test "a route handler that waits for the test hands off to a process", %{page: page} do
+  test "a route handler that waits for the test waits in receive", %{page: page} do
     Page.route(
       page,
       "**/empty.html",
@@ -40,13 +40,11 @@ defmodule Playwright.Guides.ConcurrencyTest do
 
     Page.route(page, "**/api/data", fn route ->
       # JS: `await released; await route.continue()`. Deviation: fulfilled, with no server.
-      spawn(fn ->
-        send(test_pid, {:held, self()})
+      send(test_pid, {:held, self()})
 
-        receive do
-          :release -> Route.fulfill!(route, body: "Done")
-        end
-      end)
+      receive do
+        :release -> Route.fulfill!(route, body: "Done")
+      end
     end)
 
     Page.goto!(page, "https://example.com/empty.html")

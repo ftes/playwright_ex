@@ -40,7 +40,8 @@ defmodule Playwright.Promise do
       1 = Promise.await!(clicked)
 
   A `Task` gives no such order: its first call may be sent after the next action. Work before the
-  first Playwright call (a `Process.sleep/1`) delays the return.
+  first Playwright call delays the return; a wait outside Playwright (a `receive`,
+  `Process.sleep/1`) counts as an await after 20-40 ms.
 
   The promise is owned by the calling process, as the waits' are: any process can await it, any
   number of times, until that process exits. An error of `fun` is its result, raised by

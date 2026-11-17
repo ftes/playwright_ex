@@ -442,6 +442,8 @@ defmodule Playwright.Test.ArtifactsTest do
   end
 
   # A process blocked in `Promise.await/1`.
+  defp spin_until(done?), do: if(!done?.(), do: spin_until(done?))
+
   defp awaiting?(pid) do
     case Process.info(pid, :current_stacktrace) do
       {:current_stacktrace, stack} -> Enum.any?(stack, &match?({Playwright.Runtime.Promise, :receive_loop, _, _}, &1))
@@ -459,13 +461,13 @@ defmodule Playwright.Test.ArtifactsTest do
       callers = [self() | Process.get(:"$callers")]
       page = page(Browser.new_context!(browser), "TITLED")
 
-      # A listener that blocks holds the connection's dispatch: the replies to the overlay's calls wait.
-      Page.on(page, :console, fn _ ->
-        send(me, {:stalled, self()})
+      # A busy listener holds the connection's dispatch: the replies to the overlay's calls wait.
+      # Busy, as a wait would count as an await (`Playwright.Runtime.Invocation.awaiting/2`).
+      release = :atomics.new(1, [])
 
-        receive do
-          :release -> :ok
-        end
+      Page.on(page, :console, fn _ ->
+        send(me, {:stalled, release})
+        spin_until(fn -> :atomics.get(release, 1) == 1 end)
       end)
 
       spawn(fn -> Page.evaluate(page, "console.log(1)") end)
@@ -489,7 +491,7 @@ defmodule Playwright.Test.ArtifactsTest do
       Process.exit(w, :kill)
       refute_receive {:body, _}, 200
 
-      send(listener, :release)
+      :atomics.put(listener, 1, 1)
       assert_receive {:body, "M"}
       assert_receive {:body, "T"}
       Playwright.Test.step("last", fn -> :ok end)

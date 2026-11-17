@@ -45,6 +45,10 @@ upstream minor, so `~> 1.65.0` is safe.
 
 - `mix playwright.install` and `mix playwright.cli` failed with "module :public_key is not
   available" when run before the project was compiled (e.g. right after `mix deps.get` in CI).
+- A route handler or listener waiting outside Playwright (`receive`, `Process.sleep/1`), as
+  ported from JS `await blocked`, no longer stalls every other call on its connection: the wait
+  counts as an `await` after 20-40 ms, as in JS. Before, a handler never released froze the
+  connection for the module's later tests.
 
 ## [1.65.0-rc.1] 2026-11-16
 

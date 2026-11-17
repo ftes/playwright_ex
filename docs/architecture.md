@@ -194,8 +194,16 @@ tracing GC's 500-object graveyard.
 
 A dispatch barrier keeps JS's guarantees: an event is handled before the reply that follows it,
 and listeners run in order. Each listener is a dispatch step; the connection waits until the
-listener returns or first awaits Playwright, as JS runs listeners synchronously until their
-first `await`. Calls from listeners are served meanwhile, so re-entrant callbacks (routes,
+listener returns or first awaits, as JS runs listeners synchronously until their first `await`.
+A Playwright await yields at once. A wait outside Playwright (a `receive`, `Process.sleep/1`, a
+call to another process: JS awaits a non-Playwright promise there) has no hook, so the waiting
+side checks the process every 20 ms and counts it as yielded once it stayed blocked in a
+`receive` for a whole interval with no work done (status and reductions, `Invocation.awaiting/2`).
+The runtime's own waits within a synchronous section (a call into the connection, an async
+function starting) are marked and never count. An async function started outside the connection
+(`Promise.async`) is checked the same way by its caller. Before, such a wait held dispatch until
+it ended, so a route handler ported from `await blocked` froze the connection for every later
+test. Rejected: a timeout on any step (it would release busy work too, which JS never does). Calls from listeners are served meanwhile, so re-entrant callbacks (routes,
 bindings, locator handlers) don't deadlock. The barrier keeps a frame stack, so a nested `emit`
 returns after its own listeners, in JS order. A listener process that dies releases the barrier.
 A promise settled in that synchronous section (by the dispatch, a step, or a listener the barrier
@@ -220,7 +228,9 @@ What differs from JS, accepted:
   not guaranteed. A fix needs a blocking mailbox step with acks plus a per-process event buffer
   (150-250 lines, deadlock risk), and a `.catch` would still run in another process.
 - An async user listener queues its subscription's later events; JS interleaves them. A
-  listener blocking on non-Playwright work stalls its connection, as in JS.
+  listener busy without waiting stalls its connection, as in JS. One that waits outside
+  Playwright holds dispatch for 20-40 ms before it counts as awaiting; a short wait (an `IO`
+  or `Agent` call) is part of the synchronous section, as JS's synchronous equivalents are.
 - A route callback pending at teardown rejects with `TargetClosedError`, dropped unlogged; JS
   leaves it pending (which would keep a process per callback stuck).
 

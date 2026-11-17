@@ -126,7 +126,10 @@ single thread. Use each only where the JS code needs it, with its marker.
 ## Traps
 
 - A listener runs in a process of its own while the connection waits for it to return or first
-  await. Blocking on non-Playwright work there stalls dispatch, as it would in JS.
+  await. A wait outside Playwright (`receive`, `Process.sleep/1`) counts as an await after a
+  check interval (`Runtime.Invocation.awaiting/2`); busy work stalls dispatch, as it would in JS.
+  A runtime wait that belongs to a synchronous section (a call into the connection) is wrapped in
+  `Invocation.sync_wait/1`.
 - A closed context (and what it owned) stays readable until the processes that created or
   closed it have exited; reads after that raise TargetClosedError
   ([why](docs/architecture.md#object-lifetimes)). Tests read closed objects in the test process.

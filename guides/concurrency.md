@@ -14,8 +14,8 @@ your own processes and read that state without a round trip, so calls from many 
 
 A listener added with `on/3` or `once/3` runs in a process of its own, one per subscription,
 taking its events one at a time; a route handler runs in a process per request. The connection
-waits until the listener or handler returns or awaits a Playwright call before it dispatches the
-next message, as JS runs a listener until its first `await`. That keeps JS's guarantees:
+waits until the listener or handler returns or awaits before it dispatches the next message, as
+JS runs a listener until its first `await`. That keeps JS's guarantees:
 
 - an event is handled before the reply of the call that caused it, so after
   `Page.evaluate!(page, "console.log('hi')")` returns, your `:console` listener has run;
@@ -29,28 +29,28 @@ owner = self()
 Page.on(page, :console, fn msg -> send(owner, {:console, ConsoleMessage.text(msg)}) end)
 ```
 
-## No blocking work in listeners
+## Waiting in listeners
 
-Since the connection waits for each listener, one that blocks on something other than
-Playwright (`Process.sleep/1`, `receive`, an HTTP request, a `GenServer.call` to a busy server)
-stalls every page on that connection, as blocking the event loop does in JS. Hand slow work to
-another process with `send/2` or `Task.start/1`.
+A Playwright call in a listener is an `await`: the connection goes on at once. A wait outside
+Playwright (`receive`, `Process.sleep/1`, an HTTP request, a `GenServer.call`) is one too, as it
+is in JS, but the connection only notices after 20-40 ms, so a listener on a busy event that
+waits slows every page on the connection. Busy work (a long computation, as synchronous code in
+JS) stalls the connection until it ends. Hand slow work to another process with `send/2` or
+`Task.start/1`.
 
-A handler that waits for the test (JS awaits a promise the test resolves later) hands the work to
-a process that waits instead, and returns:
+A handler that waits for the test (JS awaits a promise the test resolves later) waits in
+`receive`:
 
 ```elixir
 test_pid = self()
 
 Page.route(page, "**/api/data", fn route ->
   # JS: `await released; await route.continue()`.
-  spawn(fn ->
-    send(test_pid, {:held, self()})
+  send(test_pid, {:held, self()})
 
-    receive do
-      :release -> Route.continue!(route)
-    end
-  end)
+  receive do
+    :release -> Route.continue!(route)
+  end
 end)
 
 # ... the page requests /api/data ...
@@ -58,6 +58,9 @@ assert_receive {:held, held}
 Expect.to_be_visible!(Page.get_by_text(page, "Loading"))
 send(held, :release)
 ```
+
+Release it before the test ends: a handler never released keeps its process waiting, as the
+JS callback stays pending.
 
 ## Subscribe before you check
 
