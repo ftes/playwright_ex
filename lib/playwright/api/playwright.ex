@@ -63,7 +63,7 @@ defmodule Playwright do
   *Since Playwright 1.8.*
   """
   @spec chromium(t()) :: Playwright.BrowserType.t()
-  def chromium(playwright) do
+  def chromium(%Playwright{} = playwright) do
     Playwright.Client.Playwright.chromium(playwright)
   end
 
@@ -86,7 +86,7 @@ defmodule Playwright do
   *Since Playwright 1.8.*
   """
   @spec devices(t()) :: %{optional(String.t()) => Playwright.Browser.new_context_options()}
-  def devices(playwright) do
+  def devices(%Playwright{} = playwright) do
     Facade.options_dictionary(Playwright.Client.Playwright.devices(playwright), %{
       acceptDownloads: :accept_downloads,
       baseURL: :base_url,
@@ -144,7 +144,7 @@ defmodule Playwright do
   *Since Playwright 1.8.*
   """
   @spec errors(t()) :: %{TimeoutError: Playwright.TimeoutError}
-  def errors(playwright) do
+  def errors(%Playwright{} = playwright) do
     Playwright.Client.Playwright.errors(playwright)
   end
 
@@ -154,7 +154,7 @@ defmodule Playwright do
   *Since Playwright 1.8.*
   """
   @spec firefox(t()) :: Playwright.BrowserType.t()
-  def firefox(playwright) do
+  def firefox(%Playwright{} = playwright) do
     Playwright.Client.Playwright.firefox(playwright)
   end
 
@@ -164,7 +164,7 @@ defmodule Playwright do
   *Since Playwright 1.16.*
   """
   @spec request(t()) :: Playwright.APIRequest.t()
-  def request(playwright) do
+  def request(%Playwright{} = playwright) do
     Playwright.Client.Playwright.request(playwright)
   end
 
@@ -175,7 +175,7 @@ defmodule Playwright do
   *Since Playwright 1.8.*
   """
   @spec selectors(t()) :: Playwright.Selectors.t()
-  def selectors(playwright) do
+  def selectors(%Playwright{} = playwright) do
     Playwright.Client.Playwright.selectors(playwright)
   end
 
@@ -185,7 +185,7 @@ defmodule Playwright do
   *Since Playwright 1.8.*
   """
   @spec webkit(t()) :: Playwright.BrowserType.t()
-  def webkit(playwright) do
+  def webkit(%Playwright{} = playwright) do
     Playwright.Client.Playwright.webkit(playwright)
   end
 end

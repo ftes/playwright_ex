@@ -108,6 +108,25 @@ defmodule Playwright.Runtime.FacadeTest do
     assert_raise FunctionClauseError, fn -> Facade.async_void(nil, nil, fn -> String.trim(number) end) end
   end
 
+  test "a matcher's message: option points to Expect.message/2, for the matcher as called" do
+    locator = %Playwright.Locator{}
+
+    assert_raise ArgumentError,
+                 ~r/^expect\.toBeVisible: unknown option :message, expected one of .*\. A matcher's custom message goes with Playwright\.Expect\.message\/2 \(JS expect\(actual, message\)\), for Expect\.to_be_visible!\/2: x \|> Expect\.message\("\.\.\."\) \|> Expect\.to_be_visible!\(\.\.\.\)$/,
+                 fn -> Playwright.Expect.to_be_visible!(locator, message: "visible") end
+
+    assert_raise ArgumentError,
+                 ~r/for Expect\.to_have_text\/3: x \|> Expect\.message\("\.\.\."\) \|> Expect\.to_have_text\(\.\.\.\)$/,
+                 fn ->
+                   Playwright.Expect.to_have_text(locator, "Hi", message: "text")
+                 end
+
+    # Elsewhere, no hint.
+    assert_raise ArgumentError, ~r/^x\.y: unknown option :message, expected one of [^.]*$/, fn ->
+      Facade.options!([message: "m"], @schema, "x.y")
+    end
+  end
+
   test "a failed bang matcher raises the ExpectError" do
     error = %Playwright.ExpectError{message: "Expect failed"}
     assert Facade.matcher(nil, fn -> raise error end) == {:error, error}
@@ -134,5 +153,37 @@ defmodule Playwright.Runtime.FacadeTest do
       assert_receive {:DOWN, ^ref, :process, ^pid, _}
       refute_received {:pw, _, _}
     end
+  end
+
+  test "a handle of another class as the receiver fails in the facade function, naming it" do
+    # Not known at compile time, as in a user's helper.
+    locator = Process.get(:not_set, %Playwright.Locator{_selector: "internal:testid=[data-testid=\"x\"s]"})
+
+    {e, stacktrace} =
+      try do
+        Playwright.Page.get_by_test_id(locator, "y")
+      rescue
+        e -> {e, __STACKTRACE__}
+      end
+
+    assert %FunctionClauseError{module: Playwright.Page, function: :get_by_test_id, arity: 2} = e
+    {blamed, _} = Exception.blame(:error, e, stacktrace)
+    message = Exception.message(blamed)
+    assert message =~ "#Playwright.Locator<"
+    assert message =~ "def get_by_test_id(-%Playwright.Page{} = page-, test_id)"
+
+    # A clause for a function in place of the options matches it too: the error has the
+    # arguments as given, not as that clause passes them on (`predicate: predicate`).
+    predicate = fn _ -> true end
+
+    {e, stacktrace} =
+      try do
+        Playwright.Page.wait_for_event(locator, :load, predicate)
+      rescue
+        e -> {e, __STACKTRACE__}
+      end
+
+    assert {%FunctionClauseError{function: :wait_for_event, args: args}, _} = Exception.blame(:error, e, stacktrace)
+    assert args == [locator, :load, predicate]
   end
 end

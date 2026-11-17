@@ -35,6 +35,8 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. The why
   A method under another name says so: `# send  -- ported as send_message/2 (Kernel.send/2)`.
   `mix playwright.parity` reads both markers: a method named on such a line counts as covered,
   and a module-level marker line counts for the upstream order.
+  Prose docs follow the same rule: they describe our code, and name a deviation as one
+  ([AGENTS.md](AGENTS.md)).
   Markers are per line. Upstream `TODO:` comments become `Upstream to-do:` (credo fails on TODO).
 - Deviate only where the port requires it: the OTP runtime, testInfo only in a `Playwright.Test`
   test (`Playwright.Test.TestInfo`), Elixir's public API.

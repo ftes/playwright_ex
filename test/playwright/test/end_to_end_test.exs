@@ -40,7 +40,12 @@ defmodule Playwright.Test.EndToEndTest do
     File.write!(go, "")
 
     assert ChildProcess.exit_code(child, 60_000) == 0
-    assert ChildProcess.output(child) =~ ~r"2 tests, 1 failure|Result: 1/2 passed"
+    output = ChildProcess.output(child)
+    assert output =~ ~r"2 tests, 1 failure|Result: 1/2 passed"
+    # The trace hint follows ExUnit's failures and summary, not the failure before its own.
+    [_, after_failure] = String.split(output, "test fails (SampleTest)")
+    [_, after_summary] = String.split(after_failure, ~r"2 tests, 1 failure|Result: 1/2 passed")
+    assert after_summary =~ ~r/\nTrace of ".*fails": mix playwright.cli show-trace .*fails-[0-9a-f]{5}\/trace.zip\n/
     # The halt came after the drivers had exited.
     assert alive(drivers) == []
 

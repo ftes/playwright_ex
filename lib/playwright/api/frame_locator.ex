@@ -86,7 +86,7 @@ defmodule Playwright.FrameLocator do
   *Since Playwright 1.17.*
   """
   @spec first(t()) :: Playwright.FrameLocator.t()
-  def first(frame_locator) do
+  def first(%Playwright.FrameLocator{} = frame_locator) do
     Playwright.Client.FrameLocator.first(frame_locator)
   end
 
@@ -101,7 +101,7 @@ defmodule Playwright.FrameLocator do
   * `selector` - A selector to use when resolving DOM element.
   """
   @spec frame_locator(t(), String.t()) :: Playwright.FrameLocator.t()
-  def frame_locator(frame_locator, selector) do
+  def frame_locator(%Playwright.FrameLocator{} = frame_locator, selector) do
     Playwright.Client.FrameLocator.frame_locator(frame_locator, selector)
   end
 
@@ -137,7 +137,7 @@ defmodule Playwright.FrameLocator do
   """
   @spec get_by_alt_text(t(), String.t() | Regex.t() | Playwright.RegExp.t(), get_by_alt_text_options()) ::
           Playwright.Locator.t()
-  def get_by_alt_text(frame_locator, text, options \\ []) do
+  def get_by_alt_text(%Playwright.FrameLocator{} = frame_locator, text, options \\ []) do
     options = Facade.options!(options, @get_by_alt_text_options, "frameLocator.getByAltText")
     Playwright.Client.FrameLocator.get_by_alt_text(frame_locator, text, options)
   end
@@ -177,7 +177,7 @@ defmodule Playwright.FrameLocator do
   """
   @spec get_by_label(t(), String.t() | Regex.t() | Playwright.RegExp.t(), get_by_label_options()) ::
           Playwright.Locator.t()
-  def get_by_label(frame_locator, text, options \\ []) do
+  def get_by_label(%Playwright.FrameLocator{} = frame_locator, text, options \\ []) do
     options = Facade.options!(options, @get_by_label_options, "frameLocator.getByLabel")
     Playwright.Client.FrameLocator.get_by_label(frame_locator, text, options)
   end
@@ -216,7 +216,7 @@ defmodule Playwright.FrameLocator do
   """
   @spec get_by_placeholder(t(), String.t() | Regex.t() | Playwright.RegExp.t(), get_by_placeholder_options()) ::
           Playwright.Locator.t()
-  def get_by_placeholder(frame_locator, text, options \\ []) do
+  def get_by_placeholder(%Playwright.FrameLocator{} = frame_locator, text, options \\ []) do
     options = Facade.options!(options, @get_by_placeholder_options, "frameLocator.getByPlaceholder")
     Playwright.Client.FrameLocator.get_by_placeholder(frame_locator, text, options)
   end
@@ -505,7 +505,7 @@ defmodule Playwright.FrameLocator do
           | :treeitem,
           get_by_role_options()
         ) :: Playwright.Locator.t()
-  def get_by_role(frame_locator, role, options \\ []) do
+  def get_by_role(%Playwright.FrameLocator{} = frame_locator, role, options \\ []) do
     role = Facade.arg!(role, @get_by_role_role, "frameLocator.getByRole")
     options = Facade.options!(options, @get_by_role_options, "frameLocator.getByRole")
     Playwright.Client.FrameLocator.get_by_role(frame_locator, role, options)
@@ -544,7 +544,7 @@ defmodule Playwright.FrameLocator do
   * `test_id` - Id to locate the element by.
   """
   @spec get_by_test_id(t(), String.t() | Regex.t() | Playwright.RegExp.t()) :: Playwright.Locator.t()
-  def get_by_test_id(frame_locator, test_id) do
+  def get_by_test_id(%Playwright.FrameLocator{} = frame_locator, test_id) do
     Playwright.Client.FrameLocator.get_by_test_id(frame_locator, test_id)
   end
 
@@ -604,7 +604,7 @@ defmodule Playwright.FrameLocator do
   """
   @spec get_by_text(t(), String.t() | Regex.t() | Playwright.RegExp.t(), get_by_text_options()) ::
           Playwright.Locator.t()
-  def get_by_text(frame_locator, text, options \\ []) do
+  def get_by_text(%Playwright.FrameLocator{} = frame_locator, text, options \\ []) do
     options = Facade.options!(options, @get_by_text_options, "frameLocator.getByText")
     Playwright.Client.FrameLocator.get_by_text(frame_locator, text, options)
   end
@@ -643,7 +643,7 @@ defmodule Playwright.FrameLocator do
   """
   @spec get_by_title(t(), String.t() | Regex.t() | Playwright.RegExp.t(), get_by_title_options()) ::
           Playwright.Locator.t()
-  def get_by_title(frame_locator, text, options \\ []) do
+  def get_by_title(%Playwright.FrameLocator{} = frame_locator, text, options \\ []) do
     options = Facade.options!(options, @get_by_title_options, "frameLocator.getByTitle")
     Playwright.Client.FrameLocator.get_by_title(frame_locator, text, options)
   end
@@ -655,7 +655,7 @@ defmodule Playwright.FrameLocator do
   *Since Playwright 1.17.*
   """
   @spec last(t()) :: Playwright.FrameLocator.t()
-  def last(frame_locator) do
+  def last(%Playwright.FrameLocator{} = frame_locator) do
     Playwright.Client.FrameLocator.last(frame_locator)
   end
 
@@ -710,7 +710,7 @@ defmodule Playwright.FrameLocator do
     For example, `"Playwright"` matches `<article><div>Playwright</div></article>`.
   """
   @spec locator(t(), String.t() | Playwright.Locator.t(), locator_options()) :: Playwright.Locator.t()
-  def locator(frame_locator, selector_or_locator, options \\ []) do
+  def locator(%Playwright.FrameLocator{} = frame_locator, selector_or_locator, options \\ []) do
     options = Facade.options!(options, @locator_options, "frameLocator.locator")
     Playwright.Client.FrameLocator.locator(frame_locator, selector_or_locator, options)
   end
@@ -722,7 +722,7 @@ defmodule Playwright.FrameLocator do
   *Since Playwright 1.17.*
   """
   @spec nth(t(), integer()) :: Playwright.FrameLocator.t()
-  def nth(frame_locator, index) do
+  def nth(%Playwright.FrameLocator{} = frame_locator, index) do
     Playwright.Client.FrameLocator.nth(frame_locator, index)
   end
 
@@ -745,7 +745,7 @@ defmodule Playwright.FrameLocator do
   *Since Playwright 1.43.*
   """
   @spec owner(t()) :: Playwright.Locator.t()
-  def owner(frame_locator) do
+  def owner(%Playwright.FrameLocator{} = frame_locator) do
     Playwright.Client.FrameLocator.owner(frame_locator)
   end
 
