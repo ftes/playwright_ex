@@ -130,11 +130,12 @@ defmodule Playwright.Runtime.Invocation do
     end
   end
 
-  # One warning per key and code location (the first frame outside Playwright and Elixir),
+  # One warning per key and code location (the first frame outside Playwright, Elixir and OTP),
   # logged from a process of its own (a `Logger` in sync mode must not block the waiter, the
-  # connection maybe). None for a process that waits for its async function (a route handler run
-  # by the client's listener): that one is released next, with its stacktrace. A finished test
-  # kills it (`Callers.detached/2`).
+  # connection maybe). None without such a frame (the library's own wait, such as loading a
+  # module), nor for a process that waits for its async function (a route handler run by the
+  # client's listener): that one is released next, with its stacktrace. A finished test kills it
+  # (`Callers.detached/2`).
   defp released(pid, {type, key}, callers) do
     Playwright.Runtime.Callers.detached(pid, callers)
 
@@ -144,8 +145,10 @@ defmodule Playwright.Runtime.Invocation do
         nil -> []
       end
 
-    if !match?([{Playwright.Runtime.Promise, :handoff, _, _} | _], stacktrace) and
-         first_warning?({key, location(stacktrace)}) do
+    location = location(stacktrace)
+
+    if location != nil and not match?([{Playwright.Runtime.Promise, :handoff, _, _} | _], stacktrace) and
+         first_warning?({key, location}) do
       what = if type, do: "A listener for #{inspect(type)}", else: "An async function"
 
       spawn(fn ->
