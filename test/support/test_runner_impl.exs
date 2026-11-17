@@ -46,7 +46,9 @@ Application.put_env(:playwright, :test,
   trace: :retain_on_failure,
   screenshot: :only_on_failure,
   preserve_output: if(mode == "rerun", do: :failures_only, else: :always),
-  workers: 8
+  # `modules` leases ten seats at once, four of them failed scopes': under fewer workers a release
+  # trims a warm seat when it comes before the failed ones'.
+  workers: if(mode == "modules", do: 10, else: 8)
 )
 
 # The test build's .app lists the test-only deps: start the library's own tree.
