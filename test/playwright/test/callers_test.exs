@@ -224,6 +224,34 @@ defmodule Playwright.Test.CallersTest do
     refute log =~ "listener boom"
   end
 
+  # A listener released after 100 ms without a Playwright await (`Playwright.Runtime.Invocation`)
+  # goes on in its own process: its later error still fails and interrupts the test.
+  test "a listener released while it waits, then raising, fails the test and interrupts it", %{page: page} do
+    Process.flag(:trap_exit, true)
+
+    Page.on(page, :console, fn _ ->
+      receive do
+      after
+        300 -> :ok
+      end
+
+      raise "late boom"
+    end)
+
+    log =
+      capture_log(fn ->
+        # Returns once the listener is released, before it raises.
+        Page.evaluate!(page, "() => console.log('hi')")
+        assert TestInfo.take_errors(self()) == []
+        await_error(self())
+      end)
+
+    assert [{:error, %RuntimeError{message: "late boom"}, _}] = TestInfo.take_errors(self())
+    assert_receive {:EXIT, _, {%RuntimeError{message: "late boom"}, _}}
+    assert log =~ "Playwright.Promise.yield/0"
+    refute log =~ "late boom"
+  end
+
   test "a listener's exit interrupts the test, also a normal one", %{page: page} do
     Process.flag(:trap_exit, true)
     Page.on(page, :console, fn _ -> exit(:normal) end)
