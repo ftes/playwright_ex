@@ -100,14 +100,14 @@ defmodule Playwright.Tracing do
   * `:title` (`t:String.t/0`) - *Since Playwright 1.17.* Trace name to be shown in the Trace Viewer.
   """
   @spec start(t(), start_options()) :: {:ok, Playwright.Disposable.t()} | {:error, Playwright.error()}
-  def start(tracing, options \\ []) do
+  def start(%Playwright.Tracing{} = tracing, options \\ []) do
     options = Facade.options!(options, @start_options, "tracing.start")
     Facade.async("tracing.start", tracing, fn -> Playwright.Client.Tracing.start(tracing, options) end)
   end
 
   @doc "Like `start/2`, but returns the value and raises on error."
   @spec start!(t(), start_options()) :: Playwright.Disposable.t()
-  def start!(tracing, options \\ []) do
+  def start!(%Playwright.Tracing{} = tracing, options \\ []) do
     options = Facade.options!(options, @start_options, "tracing.start")
     Facade.async!("tracing.start", tracing, fn -> Playwright.Client.Tracing.start(tracing, options) end)
   end
@@ -150,14 +150,14 @@ defmodule Playwright.Tracing do
   * `:title` (`t:String.t/0`) - *Since Playwright 1.17.* Trace name to be shown in the Trace Viewer.
   """
   @spec start_chunk(t(), start_chunk_options()) :: {:ok, Playwright.Disposable.t()} | {:error, Playwright.error()}
-  def start_chunk(tracing, options \\ []) do
+  def start_chunk(%Playwright.Tracing{} = tracing, options \\ []) do
     options = Facade.options!(options, @start_chunk_options, "tracing.startChunk")
     Facade.async("tracing.startChunk", tracing, fn -> Playwright.Client.Tracing.start_chunk(tracing, options) end)
   end
 
   @doc "Like `start_chunk/2`, but returns the value and raises on error."
   @spec start_chunk!(t(), start_chunk_options()) :: Playwright.Disposable.t()
-  def start_chunk!(tracing, options \\ []) do
+  def start_chunk!(%Playwright.Tracing{} = tracing, options \\ []) do
     options = Facade.options!(options, @start_chunk_options, "tracing.startChunk")
     Facade.async!("tracing.startChunk", tracing, fn -> Playwright.Client.Tracing.start_chunk(tracing, options) end)
   end
@@ -215,14 +215,14 @@ defmodule Playwright.Tracing do
   """
   @spec start_har(t(), String.t(), start_har_options()) ::
           {:ok, Playwright.Disposable.t()} | {:error, Playwright.error()}
-  def start_har(tracing, path, options \\ []) do
+  def start_har(%Playwright.Tracing{} = tracing, path, options \\ []) do
     options = Facade.options!(options, @start_har_options, "tracing.startHar")
     Facade.async("tracing.startHar", tracing, fn -> Playwright.Client.Tracing.start_har(tracing, path, options) end)
   end
 
   @doc "Like `start_har/3`, but returns the value and raises on error."
   @spec start_har!(t(), String.t(), start_har_options()) :: Playwright.Disposable.t()
-  def start_har!(tracing, path, options \\ []) do
+  def start_har!(%Playwright.Tracing{} = tracing, path, options \\ []) do
     options = Facade.options!(options, @start_har_options, "tracing.startHar")
     Facade.async!("tracing.startHar", tracing, fn -> Playwright.Client.Tracing.start_har(tracing, path, options) end)
   end
@@ -272,14 +272,14 @@ defmodule Playwright.Tracing do
     * `:column`
   """
   @spec group(t(), String.t(), group_options()) :: {:ok, Playwright.Disposable.t()} | {:error, Playwright.error()}
-  def group(tracing, name, options \\ []) do
+  def group(%Playwright.Tracing{} = tracing, name, options \\ []) do
     options = Facade.options!(options, @group_options, "tracing.group")
     Facade.async("tracing.group", tracing, fn -> Playwright.Client.Tracing.group(tracing, name, options) end)
   end
 
   @doc "Like `group/3`, but returns the value and raises on error."
   @spec group!(t(), String.t(), group_options()) :: Playwright.Disposable.t()
-  def group!(tracing, name, options \\ []) do
+  def group!(%Playwright.Tracing{} = tracing, name, options \\ []) do
     options = Facade.options!(options, @group_options, "tracing.group")
     Facade.async!("tracing.group", tracing, fn -> Playwright.Client.Tracing.group(tracing, name, options) end)
   end
@@ -290,13 +290,13 @@ defmodule Playwright.Tracing do
   *Since Playwright 1.49.*
   """
   @spec group_end(t()) :: :ok | {:error, Playwright.error()}
-  def group_end(tracing) do
+  def group_end(%Playwright.Tracing{} = tracing) do
     Facade.async_void("tracing.groupEnd", tracing, fn -> Playwright.Client.Tracing.group_end(tracing) end)
   end
 
   @doc "Like `group_end/1`, but returns the value and raises on error."
   @spec group_end!(t()) :: :ok
-  def group_end!(tracing) do
+  def group_end!(%Playwright.Tracing{} = tracing) do
     Facade.async_void!("tracing.groupEnd", tracing, fn -> Playwright.Client.Tracing.group_end(tracing) end)
   end
 
@@ -315,14 +315,14 @@ defmodule Playwright.Tracing do
   * `:path` (`t:String.t/0`) - Export trace into the file with the given path.
   """
   @spec stop(t(), stop_options()) :: :ok | {:error, Playwright.error()}
-  def stop(tracing, options \\ []) do
+  def stop(%Playwright.Tracing{} = tracing, options \\ []) do
     options = Facade.options!(options, @stop_options, "tracing.stop")
     Facade.async_void("tracing.stop", tracing, fn -> Playwright.Client.Tracing.stop(tracing, options) end)
   end
 
   @doc "Like `stop/2`, but returns the value and raises on error."
   @spec stop!(t(), stop_options()) :: :ok
-  def stop!(tracing, options \\ []) do
+  def stop!(%Playwright.Tracing{} = tracing, options \\ []) do
     options = Facade.options!(options, @stop_options, "tracing.stop")
     Facade.async_void!("tracing.stop", tracing, fn -> Playwright.Client.Tracing.stop(tracing, options) end)
   end
@@ -342,14 +342,14 @@ defmodule Playwright.Tracing do
   * `:path` (`t:String.t/0`) - Export trace collected since the last `Playwright.Tracing.start_chunk/2` call into the file with the given path.
   """
   @spec stop_chunk(t(), stop_chunk_options()) :: :ok | {:error, Playwright.error()}
-  def stop_chunk(tracing, options \\ []) do
+  def stop_chunk(%Playwright.Tracing{} = tracing, options \\ []) do
     options = Facade.options!(options, @stop_chunk_options, "tracing.stopChunk")
     Facade.async_void("tracing.stopChunk", tracing, fn -> Playwright.Client.Tracing.stop_chunk(tracing, options) end)
   end
 
   @doc "Like `stop_chunk/2`, but returns the value and raises on error."
   @spec stop_chunk!(t(), stop_chunk_options()) :: :ok
-  def stop_chunk!(tracing, options \\ []) do
+  def stop_chunk!(%Playwright.Tracing{} = tracing, options \\ []) do
     options = Facade.options!(options, @stop_chunk_options, "tracing.stopChunk")
     Facade.async_void!("tracing.stopChunk", tracing, fn -> Playwright.Client.Tracing.stop_chunk(tracing, options) end)
   end
@@ -360,13 +360,13 @@ defmodule Playwright.Tracing do
   *Since Playwright 1.60.*
   """
   @spec stop_har(t()) :: :ok | {:error, Playwright.error()}
-  def stop_har(tracing) do
+  def stop_har(%Playwright.Tracing{} = tracing) do
     Facade.async_void("tracing.stopHar", tracing, fn -> Playwright.Client.Tracing.stop_har(tracing) end)
   end
 
   @doc "Like `stop_har/1`, but returns the value and raises on error."
   @spec stop_har!(t()) :: :ok
-  def stop_har!(tracing) do
+  def stop_har!(%Playwright.Tracing{} = tracing) do
     Facade.async_void!("tracing.stopHar", tracing, fn -> Playwright.Client.Tracing.stop_har(tracing) end)
   end
 

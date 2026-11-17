@@ -9,6 +9,9 @@ Read them before changing ported code. When reviewing a change or fixing review 
   `mix playwright.*`); only the Hex package and the GitHub repo are `playwright_ex`.
 - Deviate only where the port requires it. For an edge case upstream's client shares, keep
   upstream's behaviour, even when it looks wrong, and don't add a special case.
+- Docs (moduledocs, guides, CHANGELOG, `docs/architecture.md`) describe what this code does.
+  Write "as upstream" only after checking both upstream at the pin and our code. Where they
+  differ, say so as a deviation or under "Not ported yet", never as upstream's behaviour.
 - Upstream's sources at the pin (client, server, injected script, specs, API docs) are the
   reference: `mix playwright.upstream` (part of `mix setup`) downloads them and prints their
   directory, `<cache_dir>/<version>/upstream`.

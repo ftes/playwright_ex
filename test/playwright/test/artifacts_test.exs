@@ -569,8 +569,23 @@ defmodule Playwright.Test.ArtifactsTest do
     assert error_context =~ "```\nRuntimeError: on purpose\n```"
     assert error_context =~ ~s(heading "FIRST")
     refute error_context =~ "RUNNING" or error_context =~ "SECOND"
-    assert output =~ "mix playwright.cli show-trace #{Path.relative_to_cwd(Path.join(test.dir, "trace.zip"))}"
-    assert length(String.split(output, "show-trace")) == 2
+    # The trace hint waits for the end of the suite, after ExUnit's failures (`Pool.print_after_suite/1`).
+    refute output =~ "show-trace"
+    trace = Path.relative_to_cwd(Path.join(test.dir, "trace.zip"))
+
+    # Taken back, so this suite's end doesn't print it.
+    {mine, others} = Enum.split_with(:sys.get_state(Pool).held, &(&1 =~ trace))
+    :sys.replace_state(Pool, &%{&1 | held: &1.held -- mine})
+    assert [hint] = mine
+    refute Enum.any?(others, &(&1 =~ trace))
+    assert hint =~ ~r/^Trace of ".*": mix playwright.cli show-trace #{Regex.escape(trace)}$/
+  end
+
+  test "held trace hints print after the suite in their order, or when the pool stops before" do
+    assert capture_io(fn -> Pool.terminate(:shutdown, %{held: ["second", "first"]}) end) == "\nfirst\nsecond\n"
+    assert capture_io(fn -> Pool.terminate(:shutdown, %{held: []}) end) == ""
+    # Without ExUnit's after_suite callback, nothing is held.
+    assert capture_io(fn -> Pool.terminate(:shutdown, %{held: nil}) end) == ""
   end
 
   # Upstream's `_takePageSnapshot` as a context closes: `testInfo.errors` has the soft ones.

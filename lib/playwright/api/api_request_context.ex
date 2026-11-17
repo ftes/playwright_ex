@@ -81,7 +81,7 @@ defmodule Playwright.APIRequestContext do
             optional(atom()) => term()
           }
         ]) :: :ok | {:error, Playwright.error()}
-  def add_cookies(api_request_context, cookies) do
+  def add_cookies(%Playwright.APIRequestContext{} = api_request_context, cookies) do
     Facade.async_void("apiRequestContext.addCookies", api_request_context, fn ->
       Playwright.Client.APIRequestContext.add_cookies(api_request_context, cookies)
     end)
@@ -103,7 +103,7 @@ defmodule Playwright.APIRequestContext do
             optional(atom()) => term()
           }
         ]) :: :ok
-  def add_cookies!(api_request_context, cookies) do
+  def add_cookies!(%Playwright.APIRequestContext{} = api_request_context, cookies) do
     Facade.async_void!("apiRequestContext.addCookies", api_request_context, fn ->
       Playwright.Client.APIRequestContext.add_cookies(api_request_context, cookies)
     end)
@@ -148,7 +148,7 @@ defmodule Playwright.APIRequestContext do
   * `:path` (`t:String.t/0` | `t:Regex.t/0` | `t:Playwright.RegExp.t/0`) - Only removes cookies with the given path.
   """
   @spec clear_cookies(t(), clear_cookies_options()) :: :ok | {:error, Playwright.error()}
-  def clear_cookies(api_request_context, options \\ []) do
+  def clear_cookies(%Playwright.APIRequestContext{} = api_request_context, options \\ []) do
     options = Facade.options!(options, @clear_cookies_options, "apiRequestContext.clearCookies")
 
     Facade.async_void("apiRequestContext.clearCookies", api_request_context, fn ->
@@ -158,7 +158,7 @@ defmodule Playwright.APIRequestContext do
 
   @doc "Like `clear_cookies/2`, but returns the value and raises on error."
   @spec clear_cookies!(t(), clear_cookies_options()) :: :ok
-  def clear_cookies!(api_request_context, options \\ []) do
+  def clear_cookies!(%Playwright.APIRequestContext{} = api_request_context, options \\ []) do
     options = Facade.options!(options, @clear_cookies_options, "apiRequestContext.clearCookies")
 
     Facade.async_void!("apiRequestContext.clearCookies", api_request_context, fn ->
@@ -193,7 +193,7 @@ defmodule Playwright.APIRequestContext do
              }
            ]}
           | {:error, Playwright.error()}
-  def cookies(api_request_context, urls \\ nil) do
+  def cookies(%Playwright.APIRequestContext{} = api_request_context, urls \\ nil) do
     Facade.async("apiRequestContext.cookies", api_request_context, fn ->
       Playwright.Client.APIRequestContext.cookies(api_request_context, urls)
     end)
@@ -213,7 +213,7 @@ defmodule Playwright.APIRequestContext do
             optional(:partitionKey) => String.t()
           }
         ]
-  def cookies!(api_request_context, urls \\ nil) do
+  def cookies!(%Playwright.APIRequestContext{} = api_request_context, urls \\ nil) do
     Facade.async!("apiRequestContext.cookies", api_request_context, fn ->
       Playwright.Client.APIRequestContext.cookies(api_request_context, urls)
     end)
@@ -324,7 +324,7 @@ defmodule Playwright.APIRequestContext do
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec delete(t(), String.t(), delete_options()) :: {:ok, Playwright.APIResponse.t()} | {:error, Playwright.error()}
-  def delete(api_request_context, url, options \\ []) do
+  def delete(%Playwright.APIRequestContext{} = api_request_context, url, options \\ []) do
     options = Facade.options!(options, @delete_options, "apiRequestContext.delete")
 
     Facade.async("apiRequestContext.delete", api_request_context, fn ->
@@ -334,7 +334,7 @@ defmodule Playwright.APIRequestContext do
 
   @doc "Like `delete/3`, but returns the value and raises on error."
   @spec delete!(t(), String.t(), delete_options()) :: Playwright.APIResponse.t()
-  def delete!(api_request_context, url, options \\ []) do
+  def delete!(%Playwright.APIRequestContext{} = api_request_context, url, options \\ []) do
     options = Facade.options!(options, @delete_options, "apiRequestContext.delete")
 
     Facade.async!("apiRequestContext.delete", api_request_context, fn ->
@@ -357,7 +357,7 @@ defmodule Playwright.APIRequestContext do
   * `:reason` (`t:String.t/0`) - *Since Playwright 1.45.* The reason to be reported to the operations interrupted by the context disposal.
   """
   @spec dispose(t(), dispose_options()) :: :ok | {:error, Playwright.error()}
-  def dispose(api_request_context, options \\ []) do
+  def dispose(%Playwright.APIRequestContext{} = api_request_context, options \\ []) do
     options = Facade.options!(options, @dispose_options, "apiRequestContext.dispose")
 
     Facade.async_void("apiRequestContext.dispose", api_request_context, fn ->
@@ -367,7 +367,7 @@ defmodule Playwright.APIRequestContext do
 
   @doc "Like `dispose/2`, but returns the value and raises on error."
   @spec dispose!(t(), dispose_options()) :: :ok
-  def dispose!(api_request_context, options \\ []) do
+  def dispose!(%Playwright.APIRequestContext{} = api_request_context, options \\ []) do
     options = Facade.options!(options, @dispose_options, "apiRequestContext.dispose")
 
     Facade.async_void!("apiRequestContext.dispose", api_request_context, fn ->
@@ -510,7 +510,7 @@ defmodule Playwright.APIRequestContext do
   """
   @spec fetch(t(), String.t() | Playwright.Request.t(), fetch_options()) ::
           {:ok, Playwright.APIResponse.t()} | {:error, Playwright.error()}
-  def fetch(api_request_context, url_or_request, options \\ []) do
+  def fetch(%Playwright.APIRequestContext{} = api_request_context, url_or_request, options \\ []) do
     options = Facade.options!(options, @fetch_options, "apiRequestContext.fetch")
 
     Facade.async("apiRequestContext.fetch", api_request_context, fn ->
@@ -520,7 +520,7 @@ defmodule Playwright.APIRequestContext do
 
   @doc "Like `fetch/3`, but returns the value and raises on error."
   @spec fetch!(t(), String.t() | Playwright.Request.t(), fetch_options()) :: Playwright.APIResponse.t()
-  def fetch!(api_request_context, url_or_request, options \\ []) do
+  def fetch!(%Playwright.APIRequestContext{} = api_request_context, url_or_request, options \\ []) do
     options = Facade.options!(options, @fetch_options, "apiRequestContext.fetch")
 
     Facade.async!("apiRequestContext.fetch", api_request_context, fn ->
@@ -650,7 +650,7 @@ defmodule Playwright.APIRequestContext do
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec get(t(), String.t(), get_options()) :: {:ok, Playwright.APIResponse.t()} | {:error, Playwright.error()}
-  def get(api_request_context, url, options \\ []) do
+  def get(%Playwright.APIRequestContext{} = api_request_context, url, options \\ []) do
     options = Facade.options!(options, @get_options, "apiRequestContext.get")
 
     Facade.async("apiRequestContext.get", api_request_context, fn ->
@@ -660,7 +660,7 @@ defmodule Playwright.APIRequestContext do
 
   @doc "Like `get/3`, but returns the value and raises on error."
   @spec get!(t(), String.t(), get_options()) :: Playwright.APIResponse.t()
-  def get!(api_request_context, url, options \\ []) do
+  def get!(%Playwright.APIRequestContext{} = api_request_context, url, options \\ []) do
     options = Facade.options!(options, @get_options, "apiRequestContext.get")
 
     Facade.async!("apiRequestContext.get", api_request_context, fn ->
@@ -773,7 +773,7 @@ defmodule Playwright.APIRequestContext do
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec head(t(), String.t(), head_options()) :: {:ok, Playwright.APIResponse.t()} | {:error, Playwright.error()}
-  def head(api_request_context, url, options \\ []) do
+  def head(%Playwright.APIRequestContext{} = api_request_context, url, options \\ []) do
     options = Facade.options!(options, @head_options, "apiRequestContext.head")
 
     Facade.async("apiRequestContext.head", api_request_context, fn ->
@@ -783,7 +783,7 @@ defmodule Playwright.APIRequestContext do
 
   @doc "Like `head/3`, but returns the value and raises on error."
   @spec head!(t(), String.t(), head_options()) :: Playwright.APIResponse.t()
-  def head!(api_request_context, url, options \\ []) do
+  def head!(%Playwright.APIRequestContext{} = api_request_context, url, options \\ []) do
     options = Facade.options!(options, @head_options, "apiRequestContext.head")
 
     Facade.async!("apiRequestContext.head", api_request_context, fn ->
@@ -896,7 +896,7 @@ defmodule Playwright.APIRequestContext do
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec patch(t(), String.t(), patch_options()) :: {:ok, Playwright.APIResponse.t()} | {:error, Playwright.error()}
-  def patch(api_request_context, url, options \\ []) do
+  def patch(%Playwright.APIRequestContext{} = api_request_context, url, options \\ []) do
     options = Facade.options!(options, @patch_options, "apiRequestContext.patch")
 
     Facade.async("apiRequestContext.patch", api_request_context, fn ->
@@ -906,7 +906,7 @@ defmodule Playwright.APIRequestContext do
 
   @doc "Like `patch/3`, but returns the value and raises on error."
   @spec patch!(t(), String.t(), patch_options()) :: Playwright.APIResponse.t()
-  def patch!(api_request_context, url, options \\ []) do
+  def patch!(%Playwright.APIRequestContext{} = api_request_context, url, options \\ []) do
     options = Facade.options!(options, @patch_options, "apiRequestContext.patch")
 
     Facade.async!("apiRequestContext.patch", api_request_context, fn ->
@@ -1051,7 +1051,7 @@ defmodule Playwright.APIRequestContext do
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec post(t(), String.t(), post_options()) :: {:ok, Playwright.APIResponse.t()} | {:error, Playwright.error()}
-  def post(api_request_context, url, options \\ []) do
+  def post(%Playwright.APIRequestContext{} = api_request_context, url, options \\ []) do
     options = Facade.options!(options, @post_options, "apiRequestContext.post")
 
     Facade.async("apiRequestContext.post", api_request_context, fn ->
@@ -1061,7 +1061,7 @@ defmodule Playwright.APIRequestContext do
 
   @doc "Like `post/3`, but returns the value and raises on error."
   @spec post!(t(), String.t(), post_options()) :: Playwright.APIResponse.t()
-  def post!(api_request_context, url, options \\ []) do
+  def post!(%Playwright.APIRequestContext{} = api_request_context, url, options \\ []) do
     options = Facade.options!(options, @post_options, "apiRequestContext.post")
 
     Facade.async!("apiRequestContext.post", api_request_context, fn ->
@@ -1174,7 +1174,7 @@ defmodule Playwright.APIRequestContext do
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec put(t(), String.t(), put_options()) :: {:ok, Playwright.APIResponse.t()} | {:error, Playwright.error()}
-  def put(api_request_context, url, options \\ []) do
+  def put(%Playwright.APIRequestContext{} = api_request_context, url, options \\ []) do
     options = Facade.options!(options, @put_options, "apiRequestContext.put")
 
     Facade.async("apiRequestContext.put", api_request_context, fn ->
@@ -1184,7 +1184,7 @@ defmodule Playwright.APIRequestContext do
 
   @doc "Like `put/3`, but returns the value and raises on error."
   @spec put!(t(), String.t(), put_options()) :: Playwright.APIResponse.t()
-  def put!(api_request_context, url, options \\ []) do
+  def put!(%Playwright.APIRequestContext{} = api_request_context, url, options \\ []) do
     options = Facade.options!(options, @put_options, "apiRequestContext.put")
 
     Facade.async!("apiRequestContext.put", api_request_context, fn ->
@@ -1240,7 +1240,7 @@ defmodule Playwright.APIRequestContext do
              optional(atom()) => term()
            }}
           | {:error, Playwright.error()}
-  def storage_state(api_request_context, options \\ []) do
+  def storage_state(%Playwright.APIRequestContext{} = api_request_context, options \\ []) do
     options = Facade.options!(options, @storage_state_options, "apiRequestContext.storageState")
 
     Facade.async("apiRequestContext.storageState", api_request_context, fn ->
@@ -1274,7 +1274,7 @@ defmodule Playwright.APIRequestContext do
           ],
           optional(atom()) => term()
         }
-  def storage_state!(api_request_context, options \\ []) do
+  def storage_state!(%Playwright.APIRequestContext{} = api_request_context, options \\ []) do
     options = Facade.options!(options, @storage_state_options, "apiRequestContext.storageState")
 
     Facade.async!("apiRequestContext.storageState", api_request_context, fn ->
@@ -1288,7 +1288,7 @@ defmodule Playwright.APIRequestContext do
   *Since Playwright 1.60.*
   """
   @spec tracing(t()) :: Playwright.Tracing.t()
-  def tracing(api_request_context) do
+  def tracing(%Playwright.APIRequestContext{} = api_request_context) do
     Playwright.Client.APIRequestContext.tracing(api_request_context)
   end
 

@@ -66,6 +66,7 @@ defmodule Playwright.SupervisorTest do
              BrowserType.launch(chromium, executable_path: <<0xFF>>, timeout: 1_000)
 
     assert message =~ "cannot be encoded as JSON"
+    assert message =~ "pass {:binary, bytes}"
     assert Playwright.instance(name) == playwright
     assert BrowserType.name(chromium) == "chromium"
   end

@@ -14,7 +14,8 @@ defmodule Playwright.Runtime.Conn do
   process per event, an async function started here) holds dispatch until the listener returns or
   first blocks on Playwright (`Playwright.Runtime.Invocation.yield/0`), as JS runs listeners
   synchronously until their first `await`. Calls from other processes (`run/2`) are served
-  meanwhile, so a listener calling back into the API cannot deadlock.
+  meanwhile, so a listener calling back into the API cannot deadlock. A step that holds dispatch
+  past a threshold is logged, once, and still waited for.
 
   The barrier keeps a stack of frames: an `emit` from the process dispatch waits for (it holds the
   barrier token) pushes a frame and returns once its listeners returned or yielded, which keeps
@@ -41,10 +42,16 @@ defmodule Playwright.Runtime.Conn do
 
   require Logger
 
+  # How long the barrier waits for one step before it warns (`stall/4`): far above a listener that
+  # only sends a message or calls Playwright, and well below the test timeouts (Playwright's 30 s,
+  # ExUnit's 60 s), so the warning comes before the timeout it explains.
+  @stall_warning 5_000
+
   @doc """
   Options: `:transport` (1-arity fun called here with each batch of outgoing messages; or set
   later, `set_transport/2`), `:local_utils`, `:headers`, `:on_dispatch_error` (1-arity fun called
-  here with an exception raised by dispatch; default: log it).
+  here with an exception raised by dispatch; default: log it), `:stall_warning` (ms the barrier
+  waits for one step before it logs a warning; default 5 s).
   """
   def start_link(opts \\ []), do: GenServer.start_link(__MODULE__, Map.new(opts))
 
@@ -170,6 +177,7 @@ defmodule Playwright.Runtime.Conn do
   def init(opts) do
     Process.flag(:trap_exit, true)
     Process.put(:pw_conn, true)
+    Process.put(:pw_stall_after, Map.get(opts, :stall_warning, @stall_warning))
     table = :ets.new(:playwright_conn, [:ordered_set, :protected, read_concurrency: true])
     handle = struct(Connection, guid: :connection, conn: self(), table: table)
 
@@ -193,6 +201,8 @@ defmodule Playwright.Runtime.Conn do
        # inv => {emitter guid, type}: listener invocations still running (`_pendingHandlers`)
        pending: %{},
        pending_waiters: [],
+       # the running stall timer's tag (`arm_stall/2`)
+       stall: nil,
        # monitor ref => pid: the processes whose exit stops this one (`stop_when_down/2`)
        stop_when_down: nil
      }
@@ -326,6 +336,29 @@ defmodule Playwright.Runtime.Conn do
   end
 
   def handle_info({:EXIT, _pid, _reason}, state), do: {:noreply, state}
+
+  # The stall timer: the step the barrier waits for now has waited past the threshold (warned once:
+  # the waiting steps' `since` goes), or the timer is re-armed for the rest of its threshold.
+  def handle_info({:pw_stall, tag}, %{stall: tag} = state) do
+    state = %{state | stall: nil}
+
+    case state.frames do
+      [%{blocked: {inv, pid, since}} | _] when since != nil ->
+        waited = System.monotonic_time(:millisecond) - since
+
+        if waited >= Process.get(:pw_stall_after) do
+          stall(state, inv, pid, waited)
+          frames = Enum.map(state.frames, &with(%{blocked: {i, p, _}} <- &1, do: %{&1 | blocked: {i, p, nil}}))
+          {:noreply, %{state | frames: frames}}
+        else
+          {:noreply, arm_stall(state, Process.get(:pw_stall_after) - waited)}
+        end
+
+      _ ->
+        {:noreply, state}
+    end
+  end
+
   def handle_info(_message, state), do: {:noreply, state}
 
   @impl true
@@ -379,7 +412,7 @@ defmodule Playwright.Runtime.Conn do
     {result, Enum.reverse(steps), wakes}
   end
 
-  defp nested?(%{frames: [%{blocked: inv} | _]}, inv) when inv != nil, do: true
+  defp nested?(%{frames: [%{blocked: {inv, _, _}} | _]}, inv), do: true
   defp nested?(_state, _token), do: false
 
   # A frame's wake-ups are held until the stack is empty.
@@ -460,10 +493,56 @@ defmodule Playwright.Runtime.Conn do
         else: Logger.error("Dispatch failed: " <> Exception.format(:error, e, __STACKTRACE__))
   end
 
-  defp block(%{frames: [top | below]} = state, inv), do: %{state | frames: [%{top | blocked: inv} | below]}
+  # Dispatch waits for `inv`, run by `pid`, since now.
+  defp block(%{frames: [top | below]} = state, inv, pid) do
+    state = %{state | frames: [%{top | blocked: {inv, pid, System.monotonic_time(:millisecond)}} | below]}
+    if state.stall, do: state, else: arm_stall(state, Process.get(:pw_stall_after))
+  end
 
   defp unblock(state, inv) do
-    %{state | frames: Enum.map(state.frames, &if(&1.blocked == inv, do: %{&1 | blocked: nil}, else: &1))}
+    %{state | frames: Enum.map(state.frames, &if(match?({^inv, _, _}, &1.blocked), do: %{&1 | blocked: nil}, else: &1))}
+  end
+
+  # One timer for the barrier: armed when it blocks with none running, re-armed when it fires early
+  # for the step it waits for then.
+  defp arm_stall(state, ms) do
+    tag = make_ref()
+    Process.send_after(self(), {:pw_stall, tag}, ms)
+    %{state | stall: tag}
+  end
+
+  defp stall(state, inv, pid, waited) do
+    what =
+      case state.pending[inv] do
+        {guid, "route"} -> "a route handler of #{object(guid)}"
+        {guid, type} -> ~s(a "#{type}" listener of #{object(guid)})
+        nil -> "an async function"
+      end
+
+    # None if it is gone (its `:DOWN` still queued).
+    with {_, stacktrace} <- Process.info(holder(pid), :current_stacktrace) do
+      Logger.warning("""
+      Dispatch has waited #{waited} ms for #{what}, which \
+      stalls every page on this connection: the connection waits until a listener or route handler \
+      returns or awaits a Playwright call. Hand blocking work (receive, Process.sleep/1, HTTP) to \
+      another process with send/2 or Task.start/1 and return: \
+      https://hexdocs.pm/playwright_ex/concurrency.html#no-blocking-work-in-listeners. It waits at:
+      #{Exception.format_stacktrace(stacktrace)}\
+      """)
+    end
+  end
+
+  # A channel's guid (`{guid, :channel}`) or a local object's (`{owner, ref}`) names its object.
+  defp object({guid, _}), do: guid
+  defp object(guid), do: guid
+
+  # The process that holds the barrier: `pid`, or the async function it waits for to yield
+  # (`Playwright.Runtime.Promise.async/2` monitors it, its `:pw_inv` names `pid`), as a route handler.
+  defp holder(pid) do
+    {_, monitors} = Process.info(pid, :monitors) || {nil, []}
+    waits_for? = &match?({_, {^pid, _}}, Process.info(&1, {:dictionary, :pw_inv}))
+    child = Enum.find(for({:process, p} when node(p) == node() <- monitors, do: p), waits_for?)
+    if child, do: holder(child), else: pid
   end
 
   defp done(state, inv) do
@@ -501,7 +580,7 @@ defmodule Playwright.Runtime.Conn do
     inv = make_ref()
     conn = self()
 
-    {_pid, mref} =
+    {pid, mref} =
       spawn_monitor(fn ->
         Zones.restore(zone)
         Playwright.Runtime.Invocation.start(conn, inv, inv)
@@ -514,7 +593,7 @@ defmodule Playwright.Runtime.Conn do
         pending: Map.put(state.pending, inv, {emitter.guid, type})
     }
 
-    block(state, inv)
+    block(state, inv, pid)
   end
 
   # A user listener runs in its subscription process, one invocation at a time (FIFO). If it is
@@ -531,7 +610,7 @@ defmodule Playwright.Runtime.Conn do
         pending: Map.put(state.pending, inv, {emitter.guid, type})
     }
 
-    if was_busy, do: state, else: block(state, inv)
+    if was_busy, do: state, else: block(state, inv, pid)
   end
 
   defp run_step({:stop, pid}, state) do
@@ -543,7 +622,7 @@ defmodule Playwright.Runtime.Conn do
   defp run_step({:start, pid, inv}, state) do
     mref = Process.monitor(pid)
     send(pid, {:pw_go, inv})
-    block(%{state | procs: Map.put(state.procs, mref, inv)}, inv)
+    block(%{state | procs: Map.put(state.procs, mref, inv)}, inv, pid)
   end
 
   @doc false

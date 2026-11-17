@@ -34,7 +34,8 @@ Page.on(page, :console, fn msg -> send(owner, {:console, ConsoleMessage.text(msg
 Since the connection waits for each listener, one that blocks on something other than
 Playwright (`Process.sleep/1`, `receive`, an HTTP request, a `GenServer.call` to a busy server)
 stalls every page on that connection, as blocking the event loop does in JS. Hand slow work to
-another process with `send/2` or `Task.start/1`.
+another process with `send/2` or `Task.start/1`. When the connection has waited 5 s for one
+listener or handler, it logs a warning with the listener and where it waits.
 
 A handler that waits for the test (JS awaits a promise the test resolves later) hands the work to
 a process that waits instead, and returns:

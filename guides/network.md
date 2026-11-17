@@ -45,6 +45,25 @@ end)
 
 Like listeners, handlers run in their own processes; see the [Concurrency](concurrency.md) guide.
 
+## Delaying a response
+
+To hold a response back, say to see a loading state, the handler starts a process that waits and
+then fulfills, and returns at once (JS awaits a timer in the handler):
+
+```elixir
+Page.route!(page, "**/api/users", fn route ->
+  Task.start(fn ->
+    Process.sleep(500)
+    Route.fulfill!(route, json: [%{name: "Grace"}])
+  end)
+end)
+```
+
+The request completes when the task fulfills, and the page's other requests and your calls go on
+meanwhile. A `Process.sleep/1` or `receive` in the handler itself stalls every page on that
+connection ([Concurrency](concurrency.md#no-blocking-work-in-listeners)); the task can `receive`
+instead, to wait for the test.
+
 ## Replaying a HAR
 
 A HAR file records requests and responses. Record one against the real backend with

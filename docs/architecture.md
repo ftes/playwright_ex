@@ -316,7 +316,7 @@ module, not put in the context) and ExUnit tags; the rest are arguments.
 | `testInfo.outputPath`/`snapshotPath` | `output_path(name)` (one string, no segments), `snapshot_path(name, opts)` (a string or a list of segments) |
 | `test.step` | `step/2,3` (no timeout) |
 | `testInfo.attach` | `attach/2` (`test.attach` step, `trace.attachments`) |
-| list reporter's `npx playwright show-trace <path>` | a failure prints `mix playwright.cli show-trace <path>` |
+| list reporter's `npx playwright show-trace <path>` | a failure's `Trace of "<test>": mix playwright.cli show-trace <path>`, held by the pool and printed after ExUnit's summary (ExUnit prints a failure only after its `on_exit`) |
 | `testInfo.retry`, retry modes (`on-first-retry`, ...) | ExUnit has no retries in a run: `mix test --failed` is the retry (`info/0`'s `retry`), and the modes (`:on_first_retry`, ...) go by it, as upstream's `_shouldCaptureTrace`, `shouldCaptureVideo` and `SnapshotRecorder` |
 
 Deviations the port requires:

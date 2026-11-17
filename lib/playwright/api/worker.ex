@@ -67,13 +67,13 @@ defmodule Playwright.Worker do
   * `arg` - Optional argument to pass to `expression`.
   """
   @spec evaluate(t(), String.t(), term() | nil) :: {:ok, term()} | {:error, Playwright.error()}
-  def evaluate(worker, expression, arg \\ nil) do
+  def evaluate(%Playwright.Worker{} = worker, expression, arg \\ nil) do
     Facade.async("worker.evaluate", worker, fn -> Playwright.Client.Worker.evaluate(worker, expression, arg) end)
   end
 
   @doc "Like `evaluate/3`, but returns the value and raises on error."
   @spec evaluate!(t(), String.t(), term() | nil) :: term()
-  def evaluate!(worker, expression, arg \\ nil) do
+  def evaluate!(%Playwright.Worker{} = worker, expression, arg \\ nil) do
     Facade.async!("worker.evaluate", worker, fn -> Playwright.Client.Worker.evaluate(worker, expression, arg) end)
   end
 
@@ -95,7 +95,7 @@ defmodule Playwright.Worker do
   * `arg` - Optional argument to pass to `expression`.
   """
   @spec evaluate_handle(t(), String.t(), term() | nil) :: {:ok, Playwright.JSHandle.t()} | {:error, Playwright.error()}
-  def evaluate_handle(worker, expression, arg \\ nil) do
+  def evaluate_handle(%Playwright.Worker{} = worker, expression, arg \\ nil) do
     Facade.async("worker.evaluateHandle", worker, fn ->
       Playwright.Client.Worker.evaluate_handle(worker, expression, arg)
     end)
@@ -103,7 +103,7 @@ defmodule Playwright.Worker do
 
   @doc "Like `evaluate_handle/3`, but returns the value and raises on error."
   @spec evaluate_handle!(t(), String.t(), term() | nil) :: Playwright.JSHandle.t()
-  def evaluate_handle!(worker, expression, arg \\ nil) do
+  def evaluate_handle!(%Playwright.Worker{} = worker, expression, arg \\ nil) do
     Facade.async!("worker.evaluateHandle", worker, fn ->
       Playwright.Client.Worker.evaluate_handle(worker, expression, arg)
     end)
@@ -113,7 +113,7 @@ defmodule Playwright.Worker do
   *Since Playwright 1.8.*
   """
   @spec url(t()) :: String.t()
-  def url(worker) do
+  def url(%Playwright.Worker{} = worker) do
     Playwright.Client.Worker.url(worker)
   end
 
@@ -180,10 +180,10 @@ defmodule Playwright.Worker do
   @spec wait_for_event(t(), event() | String.t(), wait_for_event_options() | fun()) :: Playwright.Promise.t()
   def wait_for_event(worker, event, options \\ [])
 
-  def wait_for_event(worker, event, predicate) when is_function(predicate),
+  def wait_for_event(%Playwright.Worker{} = worker, event, predicate) when is_function(predicate),
     do: wait_for_event(worker, event, predicate: predicate)
 
-  def wait_for_event(worker, event, options) do
+  def wait_for_event(%Playwright.Worker{} = worker, event, options) do
     event = Facade.event!(event, @events, "worker.waitForEvent")
     options = Facade.options!(options, @wait_for_event_options, "worker.waitForEvent")
 
@@ -210,7 +210,7 @@ defmodule Playwright.Worker do
   > ```
   """
   @spec wait_for_event!(t(), event() | String.t(), wait_for_event_options() | fun()) :: term()
-  def wait_for_event!(worker, event, options \\ []),
+  def wait_for_event!(%Playwright.Worker{} = worker, event, options \\ []),
     do: Facade.await!(wait_for_event(worker, event, options))
 
   @expect_event_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}, signal: {:signal, nil}}}
@@ -266,10 +266,10 @@ defmodule Playwright.Worker do
           {:ok, term()} | {:error, Playwright.error()}
   def expect_event(worker, event, action, options \\ [])
 
-  def expect_event(worker, event, action, predicate) when is_function(predicate),
+  def expect_event(%Playwright.Worker{} = worker, event, action, predicate) when is_function(predicate),
     do: expect_event(worker, event, action, predicate: predicate)
 
-  def expect_event(worker, event, action, options) do
+  def expect_event(%Playwright.Worker{} = worker, event, action, options) do
     event = Facade.event!(event, @events, "worker.waitForEvent")
     options = Facade.options!(options, @expect_event_options, "worker.waitForEvent")
 
@@ -285,10 +285,10 @@ defmodule Playwright.Worker do
   @spec expect_event!(t(), event() | String.t(), (-> term()), expect_event_options() | fun()) :: term()
   def expect_event!(worker, event, action, options \\ [])
 
-  def expect_event!(worker, event, action, predicate) when is_function(predicate),
+  def expect_event!(%Playwright.Worker{} = worker, event, action, predicate) when is_function(predicate),
     do: expect_event!(worker, event, action, predicate: predicate)
 
-  def expect_event!(worker, event, action, options) do
+  def expect_event!(%Playwright.Worker{} = worker, event, action, options) do
     event = Facade.event!(event, @events, "worker.waitForEvent")
     options = Facade.options!(options, @expect_event_options, "worker.waitForEvent")
 
@@ -304,7 +304,7 @@ defmodule Playwright.Worker do
   @doc group: "Events"
   @spec on(t(), :close, (Playwright.Worker.t() -> term())) :: t()
   @spec on(t(), :console, (Playwright.ConsoleMessage.t() -> term())) :: t()
-  def on(worker, event, listener) do
+  def on(%Playwright.Worker{} = worker, event, listener) do
     event = Facade.event!(event, @events, "worker.on")
     Facade.listen(fn -> Playwright.Client.Worker.on(worker, event, listener) end)
   end
@@ -313,7 +313,7 @@ defmodule Playwright.Worker do
   @doc group: "Events"
   @spec once(t(), :close, (Playwright.Worker.t() -> term())) :: t()
   @spec once(t(), :console, (Playwright.ConsoleMessage.t() -> term())) :: t()
-  def once(worker, event, listener) do
+  def once(%Playwright.Worker{} = worker, event, listener) do
     event = Facade.event!(event, @events, "worker.once")
     Facade.listen(fn -> Playwright.Client.Worker.once(worker, event, listener) end)
   end
@@ -322,7 +322,7 @@ defmodule Playwright.Worker do
   @doc group: "Events"
   @spec add_listener(t(), :close, (Playwright.Worker.t() -> term())) :: t()
   @spec add_listener(t(), :console, (Playwright.ConsoleMessage.t() -> term())) :: t()
-  def add_listener(worker, event, listener) do
+  def add_listener(%Playwright.Worker{} = worker, event, listener) do
     event = Facade.event!(event, @events, "worker.addListener")
     Facade.listen(fn -> Playwright.Client.Worker.add_listener(worker, event, listener) end)
   end
@@ -331,7 +331,7 @@ defmodule Playwright.Worker do
   @doc group: "Events"
   @spec remove_listener(t(), :close, (Playwright.Worker.t() -> term())) :: t()
   @spec remove_listener(t(), :console, (Playwright.ConsoleMessage.t() -> term())) :: t()
-  def remove_listener(worker, event, listener) do
+  def remove_listener(%Playwright.Worker{} = worker, event, listener) do
     event = Facade.event!(event, @events, "worker.removeListener")
     Facade.listen(fn -> Playwright.Client.Worker.remove_listener(worker, event, listener) end)
   end
@@ -340,7 +340,7 @@ defmodule Playwright.Worker do
   @doc group: "Events"
   @spec off(t(), :close, (Playwright.Worker.t() -> term())) :: t()
   @spec off(t(), :console, (Playwright.ConsoleMessage.t() -> term())) :: t()
-  def off(worker, event, listener) do
+  def off(%Playwright.Worker{} = worker, event, listener) do
     event = Facade.event!(event, @events, "worker.off")
     Facade.listen(fn -> Playwright.Client.Worker.off(worker, event, listener) end)
   end
@@ -349,7 +349,7 @@ defmodule Playwright.Worker do
   @doc group: "Events"
   @spec prepend_listener(t(), :close, (Playwright.Worker.t() -> term())) :: t()
   @spec prepend_listener(t(), :console, (Playwright.ConsoleMessage.t() -> term())) :: t()
-  def prepend_listener(worker, event, listener) do
+  def prepend_listener(%Playwright.Worker{} = worker, event, listener) do
     event = Facade.event!(event, @events, "worker.prependListener")
     Facade.listen(fn -> Playwright.Client.Worker.prepend_listener(worker, event, listener) end)
   end
