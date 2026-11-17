@@ -68,7 +68,11 @@ stop after the suite.
 
 A module's tests run one after another (ExUnit balances whole modules, where Playwright Test's
 `fullyParallel` balances single tests), so many small `async: true` modules parallelise better
-than a few big ones: split a big spec into a module per `describe`.
+than a few big ones: split a big spec into a module per `describe`. Modules that share state in
+the app can stay async in one ExUnit group (`use Playwright.Case, async: true, group: :tree`,
+Elixir 1.18+): no two tests of a group run at once, while other modules keep running, which beats
+`async: false`. `mix test --slowest N` turns on `--trace`, which runs one module at a time, so it
+can't time a parallel run.
 
 Options go in as arguments, merged over the config: `BrowserPool.browser(browser_name: :webkit)`,
 `Browser.new_context!(browser, locale: "de-DE")`. `launch_options` are those of
@@ -862,8 +866,8 @@ Playwright Test features ExUnit can't host, or that ExUnit and Elixir already co
 | `test.fail` | ExUnit has no expected-failure mode | none |
 | `retries` | ExUnit has no retries in a run | `mix test --failed` is the retry, and the retry modes (`trace: :on_first_retry`, ...) go by it (see "Traces, screenshots and videos") |
 | nested or duplicate-name `describe` | ExUnit's `describe` doesn't nest, and its names are unique in a module | a module per outer `describe` (its `beforeEach` a module `setup`, its `beforeAll` the module's `setup_all`, which a `describe` can't have); a `describe` repeated in a loop becomes one `describe` with the loop inside |
-| `fullyParallel` | ExUnit runs a module's tests one after another | a module per `describe` |
-| `describe.serial`, `mode: 'serial'` | ExUnit runs a module's tests in random order | one test, with a `Test.step` per test; modules sharing state in the app `async: false` |
+| `fullyParallel` | ExUnit runs a module's tests one after another | a module per `describe`; for `fullyParallel: false` on shared state, a `group:` |
+| `describe.serial`, `mode: 'serial'` | ExUnit runs a module's tests in random order | one test, with a `Test.step` per test; modules sharing state in the app in one `group:` (see "Setup") |
 | `globalSetup`, project `dependencies` | ExUnit has no projects | `test_helper.exs` (see "Logging in once") |
 | asymmetric and value matchers (`expect.objectContaining`, `expect.any(String)`, `toMatchObject`, `toBeCloseTo`, ...) | the jest matchers aren't ported | patterns: `assert %{"id" => id} = hd(list)`, then `assert is_binary(id)`; `assert_in_delta/3` |
 | `expect.configure({ timeout, soft })` | the options are the receiver's, not a configured `expect` | the matchers' `timeout:`, `Expect.soft/1` |

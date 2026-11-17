@@ -714,3 +714,12 @@ defmodule Playwright.Guides.TestingWithExUnit.OnExitTest do
     Page.set_content!(page, "<p>Hi</p>")
   end
 end
+
+defmodule Playwright.Guides.TestingWithExUnit.GroupTest do
+  # "Setup": modules sharing state in the app, async in one group.
+  use Playwright.Case, async: true, group: :guide_group
+
+  test "the module's group" do
+    assert %{async?: true, group: :guide_group} = __MODULE__.__ex_unit__(:config)
+  end
+end
