@@ -119,14 +119,18 @@ steps:
       path: test-results
 ```
 
-Don't cache the driver or the browsers: both download about as fast as a cache restores
-(upstream advises the same for browsers), and `--with-deps` installs system packages on every
-job anyway. For reference, if your network is slow or you run offline: the driver goes to
-`~/.cache/playwright` (`~/Library/Caches/playwright` on macOS; the `:cache_dir` option moves
-it), the browsers to `~/.cache/ms-playwright` (`~/Library/Caches/ms-playwright` on macOS, or
-`PLAYWRIGHT_BROWSERS_PATH`). If the runner's apt mirror stalls, this repository's
-[workflow](https://github.com/ftes/playwright_ex/blob/main/.github/workflows/elixir.yml) retries
-and caches the `.deb` files.
+Cache neither the driver, the browsers nor the apt packages. On `ubuntu-latest` (26.04) a cold
+driver download takes about 2 s and Chromium about 8 s, while restoring a cache of both takes
+about 3 s: it saves roughly 6 s per job and churns the cache on every Playwright bump. With the
+system libraries already on the image, `--with-deps` installs only 9 font packages (21 MB), and
+caching them (`cache-apt-pkgs-action`, or the `.deb` files) didn't speed up the roughly 14 s
+step, which `apt-get update` and dpkg dominate. Upstream
+[advises the same](https://playwright.dev/docs/ci): restoring a browser cache takes about as
+long as downloading, and operating system dependencies aren't cacheable. For reference, if your
+network is slow or you run offline: the driver goes to `~/.cache/playwright`
+(`~/Library/Caches/playwright` on macOS; the `:cache_dir` option moves it), the browsers to
+`~/.cache/ms-playwright` (`~/Library/Caches/ms-playwright` on macOS, or
+`PLAYWRIGHT_BROWSERS_PATH`).
 
 ### In Playwright's image
 
