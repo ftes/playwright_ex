@@ -2,6 +2,8 @@ defmodule Playwright.Guides.NetworkTest do
   # The snippets of `guides/network.md`, against `Playwright.TestServer`.
   use ExUnit.Case, async: true
 
+  import ExUnit.CaptureLog
+
   alias Playwright.APIRequest
   alias Playwright.APIRequestContext
   alias Playwright.APIResponse
@@ -16,6 +18,11 @@ defmodule Playwright.Guides.NetworkTest do
   alias Playwright.Route
   alias Playwright.TestBrowser
   alias Playwright.TestServer
+  alias Playwright.Tracing
+  alias Playwright.WebSocket
+  alias Playwright.WebSocketRoute
+
+  require Logger
 
   @moduletag :tmp_dir
 
@@ -158,6 +165,82 @@ defmodule Playwright.Guides.NetworkTest do
       end)
 
     assert Response.status(response) == 404
+  end
+
+  # A page's socket to the server's `/ws` that logs the frames it gets.
+  defp open_web_socket(page) do
+    Page.evaluate!(page, """
+    () => {
+      window.log = [];
+      window.ws = new WebSocket('ws://' + location.host + '/ws');
+      window.ws.addEventListener('message', event => window.log.push(event.data));
+      return new Promise(f => window.ws.addEventListener('open', f));
+    }
+    """)
+  end
+
+  @tag capture_log: true
+  test "WebSockets: delay the server's frames, watch them on the wire", %{context: context, page: page, server: server} do
+    tracing = BrowserContext.tracing(context)
+    Tracing.start!(tracing, snapshots: true)
+
+    Page.route_web_socket!(page, "**/ws", fn ws ->
+      server = WebSocketRoute.connect_to_server(ws)
+
+      WebSocketRoute.on_message(server, fn message ->
+        Task.start(fn ->
+          Process.sleep(500)
+          WebSocketRoute.send(ws, message)
+        end)
+      end)
+    end)
+
+    log =
+      capture_log(fn ->
+        Page.on(page, :web_socket, fn ws ->
+          Logger.info("WebSocket opened: #{WebSocket.url(ws)}")
+          WebSocket.on(ws, :frame_sent, &Logger.info("sent: #{inspect(&1.payload)}"))
+          WebSocket.on(ws, :frame_received, &Logger.info("received: #{inspect(&1.payload)}"))
+          WebSocket.on(ws, :close, fn _ -> Logger.info("WebSocket closed") end)
+        end)
+
+        test_pid = self()
+        Page.on(page, :web_socket, &WebSocket.on(&1, :close, fn _ -> send(test_pid, :closed) end))
+
+        Page.goto!(page, "/")
+        server_ws = TestServer.wait_for_web_socket(server)
+        open_web_socket(page)
+        server_ws = Task.await(server_ws)
+
+        TestServer.WebSocket.send(server_ws, "hello")
+        sent = System.monotonic_time(:millisecond)
+        # The page's frames go on to the server, unhandled.
+        TestServer.WebSocket.once(server_ws, :message, &send(test_pid, {:message, &1}))
+        Page.evaluate!(page, "() => window.ws.send('hi')")
+        assert_receive {:message, "hi"}, 5000
+
+        # Held back: on the wire, not in the page yet.
+        assert Page.evaluate!(page, "() => window.log") == []
+        Expect.poll!(fn -> Page.evaluate!(page, "() => window.log") end, &assert(&1 == ["hello"]))
+        assert System.monotonic_time(:millisecond) - sent >= 500
+
+        Page.evaluate!(page, "() => window.ws.close()")
+        assert_receive :closed, 5000
+        Logger.flush()
+      end)
+
+    assert log =~ "WebSocket opened: ws://#{server.host}/ws"
+    assert log =~ ~s(received: "hello")
+    assert log =~ ~s(sent: "hi")
+
+    path = Path.join(System.tmp_dir!(), "guide-ws-#{System.unique_integer([:positive])}.zip")
+    Tracing.stop!(tracing, path: path)
+    {:ok, files} = :zip.unzip(String.to_charlist(path), [:memory])
+    File.rm!(path)
+    # The socket in the network log, its frames in a resource.
+    assert Enum.any?(files, fn {name, body} -> name == ~c"trace.network" and body =~ ~s("_resourceType":"websocket") end)
+
+    assert Enum.any?(files, fn {_name, body} -> body =~ ~s("data":"hello") end)
   end
 
   test "API testing", %{server: server, base_url: base_url} do
