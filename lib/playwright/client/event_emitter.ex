@@ -35,16 +35,10 @@ defmodule Playwright.Client.EventEmitter do
   Elixir has no variadic functions, so `emit` takes one event argument and listeners one
   parameter (as every listener in the client and the facade).
 
-  A local emitter's (no heap table) listener runs in the emitting process, as JS's synchronous
-  one: what it raises goes to the `error` listeners, else leaves `emit` (`_callHandler`'s
-  `catch`).
-
   Deviations: an async user listener queues later events of its subscription behind it; JS
-  interleaves them. A listener of a connection's emitter that raises is caught alone: the later
-  listeners still run, and the error goes to `_rejectionHandler`, else to the `error` listeners,
-  else to `Playwright.Runtime.Callers.unhandled/4`: it fails the running test, else it is logged
-  (JS: a synchronous throw skips `_rejectionHandler`, and without `error` listeners leaves
-  `emit`), as the emitting process is the connection. `removeAllListeners(type, %{behavior: "wait"})`
+  interleaves them. A listener that raises is caught alone: the later listeners still run, and
+  the error goes to `_rejectionHandler`, else to the `error` listeners, else the log (JS: a
+  synchronous throw skips `_rejectionHandler`, and without `error` listeners leaves `emit`). `removeAllListeners(type, %{behavior: "wait"})`
   also waits for invocations that start after the call (JS: a snapshot of `_pendingHandlers`).
   """
   import Playwright.Runtime.Heap
@@ -182,17 +176,11 @@ defmodule Playwright.Client.EventEmitter do
     this
   end
 
-  # `_callHandler` of a sync listener: a throw skips `_rejectionHandler`.
-  defp _call_handler_local(this, type, entry, arg) do
-    entry.fun.(arg)
-  catch
-    kind, reason -> _handle_listener_error(this, type, kind, reason, __STACKTRACE__)
-  end
+  defp _call_handler_local(this, type, entry, arg), do: Conn.invoke(entry.fun, arg, this, type)
 
   @doc false
   # From `Conn.invoke/4`, where a listener's exception is caught (`_callHandler`'s `catch` and its
-  # promise's `.catch`). `throw error` re-raises it to `Conn.invoke/4`, which hands it to
-  # `Playwright.Runtime.Callers.unhandled/4` (JS: an uncaught exception).
+  # promise's `.catch`). `throw error` re-raises it to `Conn.invoke/4`, which logs it as uncaught.
   def _handle_listener_error(this, type, kind, reason, stacktrace) do
     if type == "error" or error_listener_count(this) == 0,
       do: :erlang.raise(kind, reason, stacktrace),

@@ -549,8 +549,7 @@ defmodule Playwright.Runtime.Conn do
   @doc false
   # Runs a listener of `type` (`EventEmitter._callHandler`); an exception goes to the emitter's
   # rejection handler (`removeAllListeners` with a behavior), else to its `error` listeners
-  # (`EventEmitter._handle_listener_error/5`); what that throws goes to `Callers.unhandled/4`
-  # (JS: an uncaught exception): it fails the test, else is logged.
+  # (`EventEmitter._handle_listener_error/5`); what that throws is logged (JS: an uncaught exception).
   def invoke(fun, arg, emitter, type) do
     fun.(arg)
   catch

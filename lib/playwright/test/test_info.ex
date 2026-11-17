@@ -614,12 +614,6 @@ defmodule Playwright.Test.TestInfo do
   ended (a process of it outlived its body), the error is printed, as outside a test.
   """
   def _fail_with_error(this, error) do
-    record_error(this, error)
-    :ok
-  end
-
-  # Whether `error` was recorded on the running test, else printed.
-  defp record_error(this, error) do
     key = {:test_info, this.test_pid, {:error, System.unique_integer([:monotonic])}}
 
     # Taken back if the test ended meanwhile, unless its end took it already (one `take` wins).
@@ -628,96 +622,8 @@ defmodule Playwright.Test.TestInfo do
         (running?(this) or :ets.take(Results.table(), key) == [])
 
     if recorded?, do: TestTracing.append_for_error(_tracing(this), error), else: IO.puts(error_message(error))
-    recorded?
-  end
-
-  @doc """
-  The worker's `unhandledError` (an error a callback of the test left unhandled: a listener's, a
-  route handler's): the test's first one (`_hasUnhandledError`) is `_failWithError`ed and
-  `_stop()`s the test (`_isStopped`: once), whose body is abandoned; later ones are dropped. Here
-  the test's process exits with it, which ExUnit reports as the test's failure
-  (`Playwright.Test.Results` keeps it once), after `_didFinishTestFunction`'s screenshots
-  (`Playwright.Test.Recorder.did_finish_test_function/2`), the body suspended meanwhile: so
-  before the `on_exit` callbacks. A test that traps exits gets the exit as a message. If the test
-  ended meanwhile, the error is printed (`_fail_with_error/2`).
-  """
-  def _unhandled_error(this, {kind, reason, stacktrace} = error) do
-    case first_unhandled_error(this, interrupt_reason(kind, reason, stacktrace), error) do
-      :first -> if record_error(this, error), do: stop(this)
-      :later -> :ok
-      :ended -> _fail_with_error(this, error)
-    end
-
     :ok
   end
-
-  # `_hasUnhandledError`, set once (`insert_new`, atomic across the test's processes), with the
-  # exit that interrupts the test and the error (`interrupt/1`, read by `Playwright.Test.Results`).
-  defp first_unhandled_error(this, reason, error) do
-    key = {:test_info, this.test_pid, :has_unhandled_error}
-
-    cond do
-      not running?(this) ->
-        :ended
-
-      :ets.insert_new(Results.table(), {key, {reason, error}}) ->
-        # Elixir only: the test ended meanwhile (see `put_row/3`).
-        if running?(this) do
-          :first
-        else
-          :ets.delete(Results.table(), key)
-          :ended
-        end
-
-      true ->
-        :later
-    end
-  end
-
-  # `_stop()` (`_interrupt()`), then `_didFinishTestFunction`, then the exit: the body is
-  # suspended, so ExUnit's `on_exit` callbacks start only after the screenshots, as upstream's
-  # `afterEach` hooks after `_didFinishTestFunction`. In a process of its own: the caller may be
-  # a listener the connection waits on, which the screenshots need. Not once the body ended (it
-  # takes its own screenshots then); a suspended process's mailbox still fills.
-  defp stop(this) do
-    spawn(fn ->
-      with true <- running?(this),
-           true <- suspend(this.test_pid) do
-        with true <- running?(this),
-             {reason, _error} <- interrupt(this.test_pid) do
-          Recorder.did_finish_test_function(this.test_pid, true)
-          Process.exit(this.test_pid, reason)
-        end
-
-        # The exit (or the body) goes on.
-        :erlang.resume_process(this.test_pid)
-      end
-    end)
-  end
-
-  defp suspend(pid) do
-    :erlang.suspend_process(pid)
-  rescue
-    # It exited meanwhile.
-    ArgumentError -> false
-  end
-
-  @doc """
-  The interrupt of the test `test_pid` (`_unhandled_error/2`), if any: `{exit_reason, error}`.
-  Read by the pool as the test ends, before `ended/1` removes the row.
-  """
-  def interrupt(test_pid) do
-    case :ets.lookup(Results.table(), {:test_info, test_pid, :has_unhandled_error}) do
-      [{_key, interrupt}] -> interrupt
-      [] -> nil
-    end
-  end
-
-  # The exit reason of `_unhandled_error/2`, as ExUnit formats a crash: `{exception, stacktrace}`.
-  # An exit is wrapped, so that `:normal` interrupts the test too and `:kill` is not a plain kill.
-  defp interrupt_reason(:error, exception, stacktrace), do: {exception, stacktrace}
-  defp interrupt_reason(:throw, value, stacktrace), do: {{:nocatch, value}, stacktrace}
-  defp interrupt_reason(:exit, reason, _stacktrace), do: {:exit_in_callback, reason}
 
   @doc "Elixir only: the `message` of an error `{kind, reason, stacktrace}`."
   def error_message({:error, reason, stacktrace}),

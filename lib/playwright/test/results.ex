@@ -245,18 +245,11 @@ defmodule Playwright.Test.Results do
     # at the test's end: they fail it here, for `error-context.md` and the driver's release.
     # ExUnit reported the test already, without them: its output can't change once the process
     # died.
-    interrupt = TestInfo.interrupt(pid)
-
     {verdict, failures} =
       case {TestInfo.ended(pid), verdict(test, pid, reason)} do
-        {[], result} ->
-          result
-
-        {errors, {_verdict, failures}} ->
-          {:failed, Enum.map(errors, &normalize/1) ++ failures}
+        {[], result} -> result
+        {errors, {_verdict, failures}} -> {:failed, Enum.map(errors, &normalize/1) ++ failures}
       end
-
-    failures = interrupted(failures, interrupt)
 
     for from <- test.awaiting, do: GenServer.reply(from, {verdict, failures})
     duration = System.monotonic_time(:millisecond) - test.started
@@ -273,19 +266,6 @@ defmodule Playwright.Test.Results do
   defp verdict(%{marked: failure}, _pid, :shutdown), do: {:failed, [failure]}
   defp verdict(test, _pid, :killed), do: {:failed, test.failures ++ [@killed]}
   defp verdict(test, pid, reason), do: {:failed, test.failures ++ [{{:EXIT, pid}, reason, []}]}
-
-  # The exit of an unhandled error's interrupt (`TestInfo._unhandled_error/2`): that error, once.
-  # It is among the failures when the end of the body took it before the exit, else the exit
-  # stands for it.
-  defp interrupted(failures, nil), do: failures
-
-  defp interrupted(failures, {reason, error}) do
-    interrupt? = &match?({{:EXIT, _pid}, ^reason, []}, &1)
-
-    if error in failures,
-      do: Enum.reject(failures, interrupt?),
-      else: Enum.map(failures, &if(interrupt?.(&1), do: error, else: &1))
-  end
 
   defp normalize({kind, reason, stacktrace}), do: {kind, Exception.normalize(kind, reason, stacktrace), stacktrace}
 end

@@ -60,10 +60,6 @@ Node 26.13.1. No API changes.
 
 ### Fixed
 
-- **RC only:** an error a listener or route handler leaves unhandled (a failed assertion in a
-  `:dialog` listener) fails the test at once, with that error, as Playwright Test interrupts the
-  test; later ones are dropped, as there. It used to be recorded only: the test ran on, often
-  into ExUnit's timeout, and the error showed only in `error-context.md`.
 - **RC only:** `mix playwright.install` and `mix playwright.cli` failed with "module :public_key
   is not available" when run before the project was compiled (e.g. right after `mix deps.get` in
   CI).

@@ -19,8 +19,7 @@
 #   * `soft` - soft matchers (`Expect.soft/1`): failing ones, then the rest of the body, then a
 #     hard failure; and a passing one.
 #   * `timeouts` - tests past their timeout: one in a Playwright call, one in `Process.sleep`, one
-#     in a Playwright call after a slow `setup` before `use Playwright.Test`, and two whose
-#     listener (`:dialog`, `:console`) fails before they would hang.
+#     in a Playwright call after a slow `setup` before `use Playwright.Test`.
 #   * `trace` - `trace: true` (`mix test --trace`): a test past its `timeout` tag passes.
 #   * `rerun` - one failing and one passing test (writing a file of its own), `preserve_output:
 #     :failures_only`; with a further `failed` argument, only the failing one, as `mix test
@@ -333,29 +332,6 @@ case mode do
       @tag timeout: 3000
       test "hangs elsewhere", %{page: page} do
         Page.set_content!(page, "<h1>Sleeps</h1>")
-        Process.sleep(:infinity)
-      end
-
-      # Fails at once, as the listener's error interrupts it: the dialog it doesn't accept would
-      # hang it past its timeout. The interrupt's screenshot first waits its 5 s on the open
-      # dialog (as upstream's), within the timeout.
-      @tag timeout: 10_000
-      test "fails in a dialog listener, then hangs", %{page: page} do
-        Page.on(page, :dialog, fn dialog ->
-          assert Playwright.Dialog.message(dialog) == "expected"
-          Playwright.Dialog.accept!(dialog)
-        end)
-
-        Page.evaluate!(page, "() => alert('actual')")
-      end
-
-      # Its failure's artifacts, as any failure's (the open dialog above blocks the screenshot and
-      # the snapshot past the budget, as upstream it blocks them for their 5 s).
-      @tag timeout: 3000
-      test "fails in a console listener, then sleeps", %{page: page} do
-        Page.on(page, :console, fn message -> assert Playwright.ConsoleMessage.text(message) == "expected" end)
-        Page.set_content!(page, "<h1>Logs</h1>")
-        Page.evaluate!(page, "() => console.log('actual')")
         Process.sleep(:infinity)
       end
     end

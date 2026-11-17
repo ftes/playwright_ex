@@ -281,12 +281,12 @@ defmodule Playwright.Test.EndToEndTest do
     assert frame["line"] == line.("(the boxed call)")
   end
 
-  test "a test past its timeout: a hanging Playwright call fails with the call log, other code as ExUnit's; a listener's error first",
+  test "a test past its timeout: a hanging Playwright call fails with the call log, other code as ExUnit's",
        %{tmp_dir: tmp_dir} do
     child = start("timeouts", tmp_dir)
     assert ChildProcess.exit_code(child, 60_000) == 0
     output = ChildProcess.output(child)
-    assert output =~ ~r"5 tests, 5 failures|Result: 0/5 passed"
+    assert output =~ ~r"3 tests, 3 failures|Result: 0/3 passed"
 
     hangs = failure(output, "test hangs in a Playwright call (TimeoutsTest)")
     assert hangs =~ "Test timeout of 3000ms exceeded."
@@ -309,30 +309,6 @@ defmodule Playwright.Test.EndToEndTest do
     slow_setup = failure(output, "test hangs in a Playwright call after a slow setup (SlowSetupTest)")
     assert slow_setup =~ "Test timeout of 3000ms exceeded."
     refute slow_setup =~ "ExUnit.TimeoutError"
-
-    # The listener's error interrupts the test (upstream's worker `_stop()`s it), before the
-    # dialog it doesn't accept hangs it.
-    listener = failure(output, "test fails in a dialog listener, then hangs (TimeoutsTest)")
-    assert listener =~ ~r"\*\* \(EXIT from #PID<[0-9.]+>\) an exception was raised:\n\s+Assertion with == failed"
-    assert listener =~ ~S|code:  assert Playwright.Dialog.message(dialog) == "expected"|
-    refute listener =~ "TimeoutError"
-    refute listener =~ "Test timeout"
-
-    # Its failure's artifacts, the error once.
-    console = failure(output, "test fails in a console listener, then sleeps (TimeoutsTest)")
-    assert console =~ ~S|code:  assert Playwright.ConsoleMessage.text(message) == "expected"|
-    refute console =~ "TimeoutError"
-    [dir] = output_dir |> File.ls!() |> Enum.filter(&(&1 =~ "listener-then-sleeps"))
-    files = File.ls!(Path.join(output_dir, dir))
-    assert "trace.zip" in files
-    assert "test-failed-1.png" in files
-    error_context = File.read!(Path.join([output_dir, dir, "error-context.md"]))
-    assert length(String.split(error_context, "Assertion with == failed")) == 2
-    assert error_context =~ ~s(heading "Logs")
-    {:ok, zip} = :zip.unzip(String.to_charlist(Path.join([output_dir, dir, "trace.zip"])), [:memory])
-    {_, trace} = List.keyfind(zip, ~c"test.trace", 0)
-    assert trace =~ ~s("type":"error")
-    assert trace =~ "Assertion with == failed"
   end
 
   test "--trace: no test timeout, so no timer", %{tmp_dir: tmp_dir} do
