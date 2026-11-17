@@ -24,6 +24,21 @@ defmodule Playwright.Protocol.SerializersTest do
     assert %{e: %{n: "Error", m: "bad"}} = Serializers.serialize_plain_value(%ArgumentError{message: "bad"})
   end
 
+  defmodule OddError do
+    @moduledoc false
+    defexception [:message, :name, :stack]
+  end
+
+  test "error name and stack are read only when they are strings" do
+    assert %{e: %{n: "Error", m: "bad", s: "trace"}} =
+             Serializers.serialize_plain_value(%Playwright.PlaywrightError{message: "bad", stack: "trace"})
+
+    assert %{e: %{n: "Error", m: "odd", s: ""}} =
+             Serializers.serialize_plain_value(%OddError{message: "odd", name: :oops, stack: ["frame"]})
+
+    assert %{e: %{n: "Error", m: "plain", s: ""}} = Serializers.serialize_plain_value(%RuntimeError{message: "plain"})
+  end
+
   test "arrays and objects get increasing ids; atom keys become strings" do
     assert Serializers.serialize_plain_value([%{a: [1]}, %{}]) == %{
              a: [%{o: [%{k: "a", v: %{a: [%{n: 1}], id: 3}}], id: 2}, %{o: [], id: 4}],
