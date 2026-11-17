@@ -66,9 +66,21 @@ Node 26.13.1. No upstream API changes.
 - **RC only:** `Expect.to_pass!/2` returns the callback's value from the attempt that passed,
   which JS assigns to an outer `let`. **Breaking:** `Expect.to_pass/2` returns `{:ok, value}`,
   not `:ok`.
+- A handle of the wrong class (a `Locator` passed to `Page.get_by_test_id/2`) fails in the facade
+  function, whose clause matches its struct, not in `Playwright.Runtime.Heap.key/2`.
+- A string that is not UTF-8 (`Route.fulfill!(route, body: png)`) fails with a hint to pass bytes
+  as `{:binary, bytes}`, not only "Message cannot be encoded as JSON".
+- A matcher's unknown `message:` option points to `Expect.message/2` (JS `expect(x, message)`),
+  for the matcher as called.
+- A failed test's "Trace of ..." hint prints after the run, below ExUnit's summary: above its own
+  failure it read as the previous failure's.
 
 ### Fixed
 
+- An error a listener or route handler leaves unhandled (a failed assertion in a `:dialog`
+  listener) fails the test at once, with that error, as Playwright Test interrupts the test; later
+  ones are dropped, as there. It used to be recorded only: the test ran on, often into ExUnit's
+  timeout, and the error showed only in `error-context.md`.
 - **RC only:** `mix playwright.install` and `mix playwright.cli` failed with "module :public_key
   is not available" when run before the project was compiled (e.g. right after `mix deps.get` in
   CI).

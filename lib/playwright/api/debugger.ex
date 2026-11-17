@@ -46,7 +46,7 @@ defmodule Playwright.Debugger do
               location: %{required(:file) => String.t(), optional(:line) => integer(), optional(:column) => integer()},
               title: String.t()
             }
-  def paused_details(debugger) do
+  def paused_details(%Playwright.Debugger{} = debugger) do
     Playwright.Client.Debugger.paused_details(debugger)
   end
 
@@ -60,13 +60,13 @@ defmodule Playwright.Debugger do
   *Since Playwright 1.59.*
   """
   @spec request_pause(t()) :: :ok | {:error, Playwright.error()}
-  def request_pause(debugger) do
+  def request_pause(%Playwright.Debugger{} = debugger) do
     Facade.async_void("debugger.requestPause", debugger, fn -> Playwright.Client.Debugger.request_pause(debugger) end)
   end
 
   @doc "Like `request_pause/1`, but returns the value and raises on error."
   @spec request_pause!(t()) :: :ok
-  def request_pause!(debugger) do
+  def request_pause!(%Playwright.Debugger{} = debugger) do
     Facade.async_void!("debugger.requestPause", debugger, fn -> Playwright.Client.Debugger.request_pause(debugger) end)
   end
 
@@ -76,13 +76,13 @@ defmodule Playwright.Debugger do
   *Since Playwright 1.59.*
   """
   @spec resume(t()) :: :ok | {:error, Playwright.error()}
-  def resume(debugger) do
+  def resume(%Playwright.Debugger{} = debugger) do
     Facade.async_void("debugger.resume", debugger, fn -> Playwright.Client.Debugger.resume(debugger) end)
   end
 
   @doc "Like `resume/1`, but returns the value and raises on error."
   @spec resume!(t()) :: :ok
-  def resume!(debugger) do
+  def resume!(%Playwright.Debugger{} = debugger) do
     Facade.async_void!("debugger.resume", debugger, fn -> Playwright.Client.Debugger.resume(debugger) end)
   end
 
@@ -92,13 +92,13 @@ defmodule Playwright.Debugger do
   *Since Playwright 1.59.*
   """
   @spec next(t()) :: :ok | {:error, Playwright.error()}
-  def next(debugger) do
+  def next(%Playwright.Debugger{} = debugger) do
     Facade.async_void("debugger.next", debugger, fn -> Playwright.Client.Debugger.next(debugger) end)
   end
 
   @doc "Like `next/1`, but returns the value and raises on error."
   @spec next!(t()) :: :ok
-  def next!(debugger) do
+  def next!(%Playwright.Debugger{} = debugger) do
     Facade.async_void!("debugger.next", debugger, fn -> Playwright.Client.Debugger.next(debugger) end)
   end
 
@@ -118,7 +118,7 @@ defmodule Playwright.Debugger do
   """
   @spec run_to(t(), %{required(:file) => String.t(), optional(:line) => integer(), optional(:column) => integer()}) ::
           :ok | {:error, Playwright.error()}
-  def run_to(debugger, location) do
+  def run_to(%Playwright.Debugger{} = debugger, location) do
     location = Facade.arg!(location, @run_to_location, "debugger.runTo")
     Facade.async_void("debugger.runTo", debugger, fn -> Playwright.Client.Debugger.run_to(debugger, location) end)
   end
@@ -126,7 +126,7 @@ defmodule Playwright.Debugger do
   @doc "Like `run_to/2`, but returns the value and raises on error."
   @spec run_to!(t(), %{required(:file) => String.t(), optional(:line) => integer(), optional(:column) => integer()}) ::
           :ok
-  def run_to!(debugger, location) do
+  def run_to!(%Playwright.Debugger{} = debugger, location) do
     location = Facade.arg!(location, @run_to_location, "debugger.runTo")
     Facade.async_void!("debugger.runTo", debugger, fn -> Playwright.Client.Debugger.run_to(debugger, location) end)
   end
@@ -134,7 +134,7 @@ defmodule Playwright.Debugger do
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
   @spec on(t(), :paused_state_changed, (nil -> term())) :: t()
-  def on(debugger, event, listener) do
+  def on(%Playwright.Debugger{} = debugger, event, listener) do
     event = Facade.event!(event, @events, "debugger.on")
     Facade.listen(fn -> Playwright.Client.Debugger.on(debugger, event, listener) end)
   end
@@ -142,7 +142,7 @@ defmodule Playwright.Debugger do
   @doc "Adds an event listener that is removed after it is triggered once. See `on/3`."
   @doc group: "Events"
   @spec once(t(), :paused_state_changed, (nil -> term())) :: t()
-  def once(debugger, event, listener) do
+  def once(%Playwright.Debugger{} = debugger, event, listener) do
     event = Facade.event!(event, @events, "debugger.once")
     Facade.listen(fn -> Playwright.Client.Debugger.once(debugger, event, listener) end)
   end
@@ -150,7 +150,7 @@ defmodule Playwright.Debugger do
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
   @spec add_listener(t(), :paused_state_changed, (nil -> term())) :: t()
-  def add_listener(debugger, event, listener) do
+  def add_listener(%Playwright.Debugger{} = debugger, event, listener) do
     event = Facade.event!(event, @events, "debugger.addListener")
     Facade.listen(fn -> Playwright.Client.Debugger.add_listener(debugger, event, listener) end)
   end
@@ -158,7 +158,7 @@ defmodule Playwright.Debugger do
   @doc "Removes an event listener added by `on/3` or `add_listener/3`."
   @doc group: "Events"
   @spec remove_listener(t(), :paused_state_changed, (nil -> term())) :: t()
-  def remove_listener(debugger, event, listener) do
+  def remove_listener(%Playwright.Debugger{} = debugger, event, listener) do
     event = Facade.event!(event, @events, "debugger.removeListener")
     Facade.listen(fn -> Playwright.Client.Debugger.remove_listener(debugger, event, listener) end)
   end
@@ -166,7 +166,7 @@ defmodule Playwright.Debugger do
   @doc "Removes an event listener added by `on/3` or `add_listener/3`."
   @doc group: "Events"
   @spec off(t(), :paused_state_changed, (nil -> term())) :: t()
-  def off(debugger, event, listener) do
+  def off(%Playwright.Debugger{} = debugger, event, listener) do
     event = Facade.event!(event, @events, "debugger.off")
     Facade.listen(fn -> Playwright.Client.Debugger.off(debugger, event, listener) end)
   end
@@ -174,7 +174,7 @@ defmodule Playwright.Debugger do
   @doc "Adds an event listener for `event`, see the module docs for the events."
   @doc group: "Events"
   @spec prepend_listener(t(), :paused_state_changed, (nil -> term())) :: t()
-  def prepend_listener(debugger, event, listener) do
+  def prepend_listener(%Playwright.Debugger{} = debugger, event, listener) do
     event = Facade.event!(event, @events, "debugger.prependListener")
     Facade.listen(fn -> Playwright.Client.Debugger.prepend_listener(debugger, event, listener) end)
   end

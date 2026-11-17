@@ -392,7 +392,7 @@ test-results/sign_up-signs-up-5d41a/test-failed-1.png
 
 A failed test also gets Playwright Test's `error-context.md`: its errors, its source and an aria
 snapshot of its page, for you or an agent to read. A failed test that keeps a trace prints how
-to open it: `mix playwright.cli show-trace test-results/.../trace.zip`. More in the
+to open it after the run: `mix playwright.cli show-trace test-results/.../trace.zip`. More in the
 [Debugging and CI](debugging-and-ci.md) guide.
 
 `trace`, `screenshot` and `video` are `:off` by default, as in Playwright Test.
@@ -555,8 +555,11 @@ Route handlers (`Page.route/3`, `route_web_socket/3` and their WebSocket `on_mes
 predicates run in processes of their own, on behalf of the process that registered them: they
 get its `$callers`, as a `Task` does. So the Ecto sandbox, Mox and `Req.Test` find the test in
 them without an explicit allowance, and matchers and `step` count for the test. An error a route
-handler, listener or locator handler raises fails the test at the end of its body, as in
-Playwright Test (outside a test, and once the test has ended, it is logged).
+handler, listener or locator handler raises fails the test and interrupts it at once, as
+Playwright Test's worker does: the test's process exits with that error (a test that traps exits
+gets it as a message instead). Outside a test, and once the test has ended, it is logged. In a
+`:dialog` listener, accept or dismiss the dialog before asserting on it: a dialog left open blocks
+the page, so the failure's screenshot and snapshot wait on it.
 
 The test's contexts close last in its `on_exit`: after your `on_exit` callbacks, as Playwright
 Test runs `afterEach` hooks before the `context` fixture's teardown, and after the test process

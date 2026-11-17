@@ -86,7 +86,7 @@ defmodule Playwright.ElementHandle do
   """
   @spec bounding_box(t()) ::
           {:ok, nil | %{x: number(), y: number(), width: number(), height: number()}} | {:error, Playwright.error()}
-  def bounding_box(element_handle) do
+  def bounding_box(%Playwright.ElementHandle{} = element_handle) do
     Facade.async("elementHandle.boundingBox", element_handle, fn ->
       Playwright.Client.ElementHandle.bounding_box(element_handle)
     end)
@@ -94,7 +94,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `bounding_box/1`, but returns the value and raises on error."
   @spec bounding_box!(t()) :: nil | %{x: number(), y: number(), width: number(), height: number()}
-  def bounding_box!(element_handle) do
+  def bounding_box!(%Playwright.ElementHandle{} = element_handle) do
     Facade.async!("elementHandle.boundingBox", element_handle, fn ->
       Playwright.Client.ElementHandle.bounding_box(element_handle)
     end)
@@ -177,7 +177,7 @@ defmodule Playwright.ElementHandle do
   * `:trial` (`t:boolean/0`) - *Since Playwright 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
   """
   @spec check(t(), check_options()) :: :ok | {:error, Playwright.error()}
-  def check(element_handle, options \\ []) do
+  def check(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @check_options, "elementHandle.check")
 
     Facade.async_void("elementHandle.check", element_handle, fn ->
@@ -187,7 +187,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `check/2`, but returns the value and raises on error."
   @spec check!(t(), check_options()) :: :ok
-  def check!(element_handle, options \\ []) do
+  def check!(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @check_options, "elementHandle.check")
 
     Facade.async_void!("elementHandle.check", element_handle, fn ->
@@ -304,7 +304,7 @@ defmodule Playwright.ElementHandle do
   * `:trial` (`t:boolean/0`) - *Since Playwright 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
   """
   @spec click(t(), click_options()) :: :ok | {:error, Playwright.error()}
-  def click(element_handle, options \\ []) do
+  def click(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @click_options, "elementHandle.click")
 
     Facade.async_void("elementHandle.click", element_handle, fn ->
@@ -314,7 +314,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `click/2`, but returns the value and raises on error."
   @spec click!(t(), click_options()) :: :ok
-  def click!(element_handle, options \\ []) do
+  def click!(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @click_options, "elementHandle.click")
 
     Facade.async_void!("elementHandle.click", element_handle, fn ->
@@ -328,7 +328,7 @@ defmodule Playwright.ElementHandle do
   *Since Playwright 1.8.*
   """
   @spec content_frame(t()) :: {:ok, nil | Playwright.Frame.t()} | {:error, Playwright.error()}
-  def content_frame(element_handle) do
+  def content_frame(%Playwright.ElementHandle{} = element_handle) do
     Facade.async("elementHandle.contentFrame", element_handle, fn ->
       Playwright.Client.ElementHandle.content_frame(element_handle)
     end)
@@ -336,7 +336,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `content_frame/1`, but returns the value and raises on error."
   @spec content_frame!(t()) :: nil | Playwright.Frame.t()
-  def content_frame!(element_handle) do
+  def content_frame!(%Playwright.ElementHandle{} = element_handle) do
     Facade.async!("elementHandle.contentFrame", element_handle, fn ->
       Playwright.Client.ElementHandle.content_frame(element_handle)
     end)
@@ -448,7 +448,7 @@ defmodule Playwright.ElementHandle do
   * `:trial` (`t:boolean/0`) - *Since Playwright 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
   """
   @spec dblclick(t(), dblclick_options()) :: :ok | {:error, Playwright.error()}
-  def dblclick(element_handle, options \\ []) do
+  def dblclick(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @dblclick_options, "elementHandle.dblclick")
 
     Facade.async_void("elementHandle.dblclick", element_handle, fn ->
@@ -458,7 +458,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `dblclick/2`, but returns the value and raises on error."
   @spec dblclick!(t(), dblclick_options()) :: :ok
-  def dblclick!(element_handle, options \\ []) do
+  def dblclick!(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @dblclick_options, "elementHandle.dblclick")
 
     Facade.async_void!("elementHandle.dblclick", element_handle, fn ->
@@ -515,7 +515,7 @@ defmodule Playwright.ElementHandle do
   * `event_init` - Optional event-specific initialization properties.
   """
   @spec dispatch_event(t(), String.t(), term() | nil) :: :ok | {:error, Playwright.error()}
-  def dispatch_event(element_handle, type, event_init \\ nil) do
+  def dispatch_event(%Playwright.ElementHandle{} = element_handle, type, event_init \\ nil) do
     Facade.async_void("elementHandle.dispatchEvent", element_handle, fn ->
       Playwright.Client.ElementHandle.dispatch_event(element_handle, type, event_init)
     end)
@@ -523,7 +523,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `dispatch_event/3`, but returns the value and raises on error."
   @spec dispatch_event!(t(), String.t(), term() | nil) :: :ok
-  def dispatch_event!(element_handle, type, event_init \\ nil) do
+  def dispatch_event!(%Playwright.ElementHandle{} = element_handle, type, event_init \\ nil) do
     Facade.async_void!("elementHandle.dispatchEvent", element_handle, fn ->
       Playwright.Client.ElementHandle.dispatch_event(element_handle, type, event_init)
     end)
@@ -561,7 +561,7 @@ defmodule Playwright.ElementHandle do
   * `arg` - Optional argument to pass to `expression`.
   """
   @spec eval_on_selector(t(), String.t(), String.t(), term() | nil) :: {:ok, term()} | {:error, Playwright.error()}
-  def eval_on_selector(element_handle, selector, expression, arg \\ nil) do
+  def eval_on_selector(%Playwright.ElementHandle{} = element_handle, selector, expression, arg \\ nil) do
     Facade.async("elementHandle.$eval", element_handle, fn ->
       Playwright.Client.ElementHandle.eval_on_selector(element_handle, selector, expression, arg)
     end)
@@ -569,7 +569,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `eval_on_selector/4`, but returns the value and raises on error."
   @spec eval_on_selector!(t(), String.t(), String.t(), term() | nil) :: term()
-  def eval_on_selector!(element_handle, selector, expression, arg \\ nil) do
+  def eval_on_selector!(%Playwright.ElementHandle{} = element_handle, selector, expression, arg \\ nil) do
     Facade.async!("elementHandle.$eval", element_handle, fn ->
       Playwright.Client.ElementHandle.eval_on_selector(element_handle, selector, expression, arg)
     end)
@@ -614,7 +614,7 @@ defmodule Playwright.ElementHandle do
   * `arg` - Optional argument to pass to `expression`.
   """
   @spec eval_on_selector_all(t(), String.t(), String.t(), term() | nil) :: {:ok, term()} | {:error, Playwright.error()}
-  def eval_on_selector_all(element_handle, selector, expression, arg \\ nil) do
+  def eval_on_selector_all(%Playwright.ElementHandle{} = element_handle, selector, expression, arg \\ nil) do
     Facade.async("elementHandle.$$eval", element_handle, fn ->
       Playwright.Client.ElementHandle.eval_on_selector_all(element_handle, selector, expression, arg)
     end)
@@ -622,7 +622,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `eval_on_selector_all/4`, but returns the value and raises on error."
   @spec eval_on_selector_all!(t(), String.t(), String.t(), term() | nil) :: term()
-  def eval_on_selector_all!(element_handle, selector, expression, arg \\ nil) do
+  def eval_on_selector_all!(%Playwright.ElementHandle{} = element_handle, selector, expression, arg \\ nil) do
     Facade.async!("elementHandle.$$eval", element_handle, fn ->
       Playwright.Client.ElementHandle.eval_on_selector_all(element_handle, selector, expression, arg)
     end)
@@ -683,7 +683,7 @@ defmodule Playwright.ElementHandle do
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec fill(t(), String.t(), fill_options()) :: :ok | {:error, Playwright.error()}
-  def fill(element_handle, value, options \\ []) do
+  def fill(%Playwright.ElementHandle{} = element_handle, value, options \\ []) do
     options = Facade.options!(options, @fill_options, "elementHandle.fill")
 
     Facade.async_void("elementHandle.fill", element_handle, fn ->
@@ -693,7 +693,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `fill/3`, but returns the value and raises on error."
   @spec fill!(t(), String.t(), fill_options()) :: :ok
-  def fill!(element_handle, value, options \\ []) do
+  def fill!(%Playwright.ElementHandle{} = element_handle, value, options \\ []) do
     options = Facade.options!(options, @fill_options, "elementHandle.fill")
 
     Facade.async_void!("elementHandle.fill", element_handle, fn ->
@@ -711,7 +711,7 @@ defmodule Playwright.ElementHandle do
   *Since Playwright 1.8.*
   """
   @spec focus(t()) :: :ok | {:error, Playwright.error()}
-  def focus(element_handle) do
+  def focus(%Playwright.ElementHandle{} = element_handle) do
     Facade.async_void("elementHandle.focus", element_handle, fn ->
       Playwright.Client.ElementHandle.focus(element_handle)
     end)
@@ -719,7 +719,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `focus/1`, but returns the value and raises on error."
   @spec focus!(t()) :: :ok
-  def focus!(element_handle) do
+  def focus!(%Playwright.ElementHandle{} = element_handle) do
     Facade.async_void!("elementHandle.focus", element_handle, fn ->
       Playwright.Client.ElementHandle.focus(element_handle)
     end)
@@ -739,7 +739,7 @@ defmodule Playwright.ElementHandle do
   * `name` - Attribute name to get the value for.
   """
   @spec get_attribute(t(), String.t()) :: {:ok, nil | String.t()} | {:error, Playwright.error()}
-  def get_attribute(element_handle, name) do
+  def get_attribute(%Playwright.ElementHandle{} = element_handle, name) do
     Facade.async("elementHandle.getAttribute", element_handle, fn ->
       Playwright.Client.ElementHandle.get_attribute(element_handle, name)
     end)
@@ -747,7 +747,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `get_attribute/2`, but returns the value and raises on error."
   @spec get_attribute!(t(), String.t()) :: nil | String.t()
-  def get_attribute!(element_handle, name) do
+  def get_attribute!(%Playwright.ElementHandle{} = element_handle, name) do
     Facade.async!("elementHandle.getAttribute", element_handle, fn ->
       Playwright.Client.ElementHandle.get_attribute(element_handle, name)
     end)
@@ -843,7 +843,7 @@ defmodule Playwright.ElementHandle do
   * `:trial` (`t:boolean/0`) - *Since Playwright 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
   """
   @spec hover(t(), hover_options()) :: :ok | {:error, Playwright.error()}
-  def hover(element_handle, options \\ []) do
+  def hover(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @hover_options, "elementHandle.hover")
 
     Facade.async_void("elementHandle.hover", element_handle, fn ->
@@ -853,7 +853,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `hover/2`, but returns the value and raises on error."
   @spec hover!(t(), hover_options()) :: :ok
-  def hover!(element_handle, options \\ []) do
+  def hover!(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @hover_options, "elementHandle.hover")
 
     Facade.async_void!("elementHandle.hover", element_handle, fn ->
@@ -871,7 +871,7 @@ defmodule Playwright.ElementHandle do
   *Since Playwright 1.8.*
   """
   @spec inner_html(t()) :: {:ok, String.t()} | {:error, Playwright.error()}
-  def inner_html(element_handle) do
+  def inner_html(%Playwright.ElementHandle{} = element_handle) do
     Facade.async("elementHandle.innerHTML", element_handle, fn ->
       Playwright.Client.ElementHandle.inner_html(element_handle)
     end)
@@ -879,7 +879,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `inner_html/1`, but returns the value and raises on error."
   @spec inner_html!(t()) :: String.t()
-  def inner_html!(element_handle) do
+  def inner_html!(%Playwright.ElementHandle{} = element_handle) do
     Facade.async!("elementHandle.innerHTML", element_handle, fn ->
       Playwright.Client.ElementHandle.inner_html(element_handle)
     end)
@@ -895,7 +895,7 @@ defmodule Playwright.ElementHandle do
   *Since Playwright 1.8.*
   """
   @spec inner_text(t()) :: {:ok, String.t()} | {:error, Playwright.error()}
-  def inner_text(element_handle) do
+  def inner_text(%Playwright.ElementHandle{} = element_handle) do
     Facade.async("elementHandle.innerText", element_handle, fn ->
       Playwright.Client.ElementHandle.inner_text(element_handle)
     end)
@@ -903,7 +903,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `inner_text/1`, but returns the value and raises on error."
   @spec inner_text!(t()) :: String.t()
-  def inner_text!(element_handle) do
+  def inner_text!(%Playwright.ElementHandle{} = element_handle) do
     Facade.async!("elementHandle.innerText", element_handle, fn ->
       Playwright.Client.ElementHandle.inner_text(element_handle)
     end)
@@ -921,7 +921,7 @@ defmodule Playwright.ElementHandle do
   *Since Playwright 1.13.*
   """
   @spec input_value(t()) :: {:ok, String.t()} | {:error, Playwright.error()}
-  def input_value(element_handle) do
+  def input_value(%Playwright.ElementHandle{} = element_handle) do
     Facade.async("elementHandle.inputValue", element_handle, fn ->
       Playwright.Client.ElementHandle.input_value(element_handle)
     end)
@@ -929,7 +929,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `input_value/1`, but returns the value and raises on error."
   @spec input_value!(t()) :: String.t()
-  def input_value!(element_handle) do
+  def input_value!(%Playwright.ElementHandle{} = element_handle) do
     Facade.async!("elementHandle.inputValue", element_handle, fn ->
       Playwright.Client.ElementHandle.input_value(element_handle)
     end)
@@ -945,7 +945,7 @@ defmodule Playwright.ElementHandle do
   *Since Playwright 1.8.*
   """
   @spec is_checked(t()) :: {:ok, boolean()} | {:error, Playwright.error()}
-  def is_checked(element_handle) do
+  def is_checked(%Playwright.ElementHandle{} = element_handle) do
     Facade.async("elementHandle.isChecked", element_handle, fn ->
       Playwright.Client.ElementHandle.is_checked(element_handle)
     end)
@@ -953,7 +953,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `is_checked/1`, but returns the value and raises on error."
   @spec is_checked!(t()) :: boolean()
-  def is_checked!(element_handle) do
+  def is_checked!(%Playwright.ElementHandle{} = element_handle) do
     Facade.async!("elementHandle.isChecked", element_handle, fn ->
       Playwright.Client.ElementHandle.is_checked(element_handle)
     end)
@@ -969,7 +969,7 @@ defmodule Playwright.ElementHandle do
   *Since Playwright 1.8.*
   """
   @spec is_disabled(t()) :: {:ok, boolean()} | {:error, Playwright.error()}
-  def is_disabled(element_handle) do
+  def is_disabled(%Playwright.ElementHandle{} = element_handle) do
     Facade.async("elementHandle.isDisabled", element_handle, fn ->
       Playwright.Client.ElementHandle.is_disabled(element_handle)
     end)
@@ -977,7 +977,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `is_disabled/1`, but returns the value and raises on error."
   @spec is_disabled!(t()) :: boolean()
-  def is_disabled!(element_handle) do
+  def is_disabled!(%Playwright.ElementHandle{} = element_handle) do
     Facade.async!("elementHandle.isDisabled", element_handle, fn ->
       Playwright.Client.ElementHandle.is_disabled(element_handle)
     end)
@@ -993,7 +993,7 @@ defmodule Playwright.ElementHandle do
   *Since Playwright 1.8.*
   """
   @spec is_editable(t()) :: {:ok, boolean()} | {:error, Playwright.error()}
-  def is_editable(element_handle) do
+  def is_editable(%Playwright.ElementHandle{} = element_handle) do
     Facade.async("elementHandle.isEditable", element_handle, fn ->
       Playwright.Client.ElementHandle.is_editable(element_handle)
     end)
@@ -1001,7 +1001,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `is_editable/1`, but returns the value and raises on error."
   @spec is_editable!(t()) :: boolean()
-  def is_editable!(element_handle) do
+  def is_editable!(%Playwright.ElementHandle{} = element_handle) do
     Facade.async!("elementHandle.isEditable", element_handle, fn ->
       Playwright.Client.ElementHandle.is_editable(element_handle)
     end)
@@ -1017,7 +1017,7 @@ defmodule Playwright.ElementHandle do
   *Since Playwright 1.8.*
   """
   @spec is_enabled(t()) :: {:ok, boolean()} | {:error, Playwright.error()}
-  def is_enabled(element_handle) do
+  def is_enabled(%Playwright.ElementHandle{} = element_handle) do
     Facade.async("elementHandle.isEnabled", element_handle, fn ->
       Playwright.Client.ElementHandle.is_enabled(element_handle)
     end)
@@ -1025,7 +1025,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `is_enabled/1`, but returns the value and raises on error."
   @spec is_enabled!(t()) :: boolean()
-  def is_enabled!(element_handle) do
+  def is_enabled!(%Playwright.ElementHandle{} = element_handle) do
     Facade.async!("elementHandle.isEnabled", element_handle, fn ->
       Playwright.Client.ElementHandle.is_enabled(element_handle)
     end)
@@ -1041,7 +1041,7 @@ defmodule Playwright.ElementHandle do
   *Since Playwright 1.8.*
   """
   @spec is_hidden(t()) :: {:ok, boolean()} | {:error, Playwright.error()}
-  def is_hidden(element_handle) do
+  def is_hidden(%Playwright.ElementHandle{} = element_handle) do
     Facade.async("elementHandle.isHidden", element_handle, fn ->
       Playwright.Client.ElementHandle.is_hidden(element_handle)
     end)
@@ -1049,7 +1049,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `is_hidden/1`, but returns the value and raises on error."
   @spec is_hidden!(t()) :: boolean()
-  def is_hidden!(element_handle) do
+  def is_hidden!(%Playwright.ElementHandle{} = element_handle) do
     Facade.async!("elementHandle.isHidden", element_handle, fn ->
       Playwright.Client.ElementHandle.is_hidden(element_handle)
     end)
@@ -1065,7 +1065,7 @@ defmodule Playwright.ElementHandle do
   *Since Playwright 1.8.*
   """
   @spec is_visible(t()) :: {:ok, boolean()} | {:error, Playwright.error()}
-  def is_visible(element_handle) do
+  def is_visible(%Playwright.ElementHandle{} = element_handle) do
     Facade.async("elementHandle.isVisible", element_handle, fn ->
       Playwright.Client.ElementHandle.is_visible(element_handle)
     end)
@@ -1073,7 +1073,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `is_visible/1`, but returns the value and raises on error."
   @spec is_visible!(t()) :: boolean()
-  def is_visible!(element_handle) do
+  def is_visible!(%Playwright.ElementHandle{} = element_handle) do
     Facade.async!("elementHandle.isVisible", element_handle, fn ->
       Playwright.Client.ElementHandle.is_visible(element_handle)
     end)
@@ -1085,7 +1085,7 @@ defmodule Playwright.ElementHandle do
   *Since Playwright 1.8.*
   """
   @spec owner_frame(t()) :: {:ok, nil | Playwright.Frame.t()} | {:error, Playwright.error()}
-  def owner_frame(element_handle) do
+  def owner_frame(%Playwright.ElementHandle{} = element_handle) do
     Facade.async("elementHandle.ownerFrame", element_handle, fn ->
       Playwright.Client.ElementHandle.owner_frame(element_handle)
     end)
@@ -1093,7 +1093,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `owner_frame/1`, but returns the value and raises on error."
   @spec owner_frame!(t()) :: nil | Playwright.Frame.t()
-  def owner_frame!(element_handle) do
+  def owner_frame!(%Playwright.ElementHandle{} = element_handle) do
     Facade.async!("elementHandle.ownerFrame", element_handle, fn ->
       Playwright.Client.ElementHandle.owner_frame(element_handle)
     end)
@@ -1165,7 +1165,7 @@ defmodule Playwright.ElementHandle do
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec press(t(), String.t(), press_options()) :: :ok | {:error, Playwright.error()}
-  def press(element_handle, key, options \\ []) do
+  def press(%Playwright.ElementHandle{} = element_handle, key, options \\ []) do
     options = Facade.options!(options, @press_options, "elementHandle.press")
 
     Facade.async_void("elementHandle.press", element_handle, fn ->
@@ -1175,7 +1175,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `press/3`, but returns the value and raises on error."
   @spec press!(t(), String.t(), press_options()) :: :ok
-  def press!(element_handle, key, options \\ []) do
+  def press!(%Playwright.ElementHandle{} = element_handle, key, options \\ []) do
     options = Facade.options!(options, @press_options, "elementHandle.press")
 
     Facade.async_void!("elementHandle.press", element_handle, fn ->
@@ -1198,7 +1198,7 @@ defmodule Playwright.ElementHandle do
   * `selector` - A selector to query for.
   """
   @spec query_selector(t(), String.t()) :: {:ok, nil | Playwright.ElementHandle.t()} | {:error, Playwright.error()}
-  def query_selector(element_handle, selector) do
+  def query_selector(%Playwright.ElementHandle{} = element_handle, selector) do
     Facade.async("elementHandle.$", element_handle, fn ->
       Playwright.Client.ElementHandle.query_selector(element_handle, selector)
     end)
@@ -1206,7 +1206,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `query_selector/2`, but returns the value and raises on error."
   @spec query_selector!(t(), String.t()) :: nil | Playwright.ElementHandle.t()
-  def query_selector!(element_handle, selector) do
+  def query_selector!(%Playwright.ElementHandle{} = element_handle, selector) do
     Facade.async!("elementHandle.$", element_handle, fn ->
       Playwright.Client.ElementHandle.query_selector(element_handle, selector)
     end)
@@ -1227,7 +1227,7 @@ defmodule Playwright.ElementHandle do
   * `selector` - A selector to query for.
   """
   @spec query_selector_all(t(), String.t()) :: {:ok, [Playwright.ElementHandle.t()]} | {:error, Playwright.error()}
-  def query_selector_all(element_handle, selector) do
+  def query_selector_all(%Playwright.ElementHandle{} = element_handle, selector) do
     Facade.async("elementHandle.$$", element_handle, fn ->
       Playwright.Client.ElementHandle.query_selector_all(element_handle, selector)
     end)
@@ -1235,7 +1235,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `query_selector_all/2`, but returns the value and raises on error."
   @spec query_selector_all!(t(), String.t()) :: [Playwright.ElementHandle.t()]
-  def query_selector_all!(element_handle, selector) do
+  def query_selector_all!(%Playwright.ElementHandle{} = element_handle, selector) do
     Facade.async!("elementHandle.$$", element_handle, fn ->
       Playwright.Client.ElementHandle.query_selector_all(element_handle, selector)
     end)
@@ -1340,7 +1340,7 @@ defmodule Playwright.ElementHandle do
   * `:type` (`:png` | `:jpeg` | `:webp`) - Specify screenshot type, defaults to `:png`.
   """
   @spec screenshot(t(), screenshot_options()) :: {:ok, binary()} | {:error, Playwright.error()}
-  def screenshot(element_handle, options \\ []) do
+  def screenshot(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @screenshot_options, "elementHandle.screenshot")
 
     Facade.async("elementHandle.screenshot", element_handle, fn ->
@@ -1350,7 +1350,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `screenshot/2`, but returns the value and raises on error."
   @spec screenshot!(t(), screenshot_options()) :: binary()
-  def screenshot!(element_handle, options \\ []) do
+  def screenshot!(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @screenshot_options, "elementHandle.screenshot")
 
     Facade.async!("elementHandle.screenshot", element_handle, fn ->
@@ -1394,7 +1394,7 @@ defmodule Playwright.ElementHandle do
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec scroll_into_view_if_needed(t(), scroll_into_view_if_needed_options()) :: :ok | {:error, Playwright.error()}
-  def scroll_into_view_if_needed(element_handle, options \\ []) do
+  def scroll_into_view_if_needed(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @scroll_into_view_if_needed_options, "elementHandle.scrollIntoViewIfNeeded")
 
     Facade.async_void("elementHandle.scrollIntoViewIfNeeded", element_handle, fn ->
@@ -1404,7 +1404,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `scroll_into_view_if_needed/2`, but returns the value and raises on error."
   @spec scroll_into_view_if_needed!(t(), scroll_into_view_if_needed_options()) :: :ok
-  def scroll_into_view_if_needed!(element_handle, options \\ []) do
+  def scroll_into_view_if_needed!(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @scroll_into_view_if_needed_options, "elementHandle.scrollIntoViewIfNeeded")
 
     Facade.async_void!("elementHandle.scrollIntoViewIfNeeded", element_handle, fn ->
@@ -1515,7 +1515,7 @@ defmodule Playwright.ElementHandle do
             ],
           select_option_options()
         ) :: {:ok, [String.t()]} | {:error, Playwright.error()}
-  def select_option(element_handle, values, options \\ []) do
+  def select_option(%Playwright.ElementHandle{} = element_handle, values, options \\ []) do
     values = Facade.arg!(values, @select_option_values, "elementHandle.selectOption")
     options = Facade.options!(options, @select_option_options, "elementHandle.selectOption")
 
@@ -1548,7 +1548,7 @@ defmodule Playwright.ElementHandle do
             ],
           select_option_options()
         ) :: [String.t()]
-  def select_option!(element_handle, values, options \\ []) do
+  def select_option!(%Playwright.ElementHandle{} = element_handle, values, options \\ []) do
     values = Facade.arg!(values, @select_option_values, "elementHandle.selectOption")
     options = Facade.options!(options, @select_option_options, "elementHandle.selectOption")
 
@@ -1594,7 +1594,7 @@ defmodule Playwright.ElementHandle do
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec select_text(t(), select_text_options()) :: :ok | {:error, Playwright.error()}
-  def select_text(element_handle, options \\ []) do
+  def select_text(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @select_text_options, "elementHandle.selectText")
 
     Facade.async_void("elementHandle.selectText", element_handle, fn ->
@@ -1604,7 +1604,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `select_text/2`, but returns the value and raises on error."
   @spec select_text!(t(), select_text_options()) :: :ok
-  def select_text!(element_handle, options \\ []) do
+  def select_text!(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @select_text_options, "elementHandle.selectText")
 
     Facade.async_void!("elementHandle.selectText", element_handle, fn ->
@@ -1692,7 +1692,7 @@ defmodule Playwright.ElementHandle do
   * `:trial` (`t:boolean/0`) - When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
   """
   @spec set_checked(t(), boolean(), set_checked_options()) :: :ok | {:error, Playwright.error()}
-  def set_checked(element_handle, checked, options \\ []) do
+  def set_checked(%Playwright.ElementHandle{} = element_handle, checked, options \\ []) do
     options = Facade.options!(options, @set_checked_options, "elementHandle.setChecked")
 
     Facade.async_void("elementHandle.setChecked", element_handle, fn ->
@@ -1702,7 +1702,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `set_checked/3`, but returns the value and raises on error."
   @spec set_checked!(t(), boolean(), set_checked_options()) :: :ok
-  def set_checked!(element_handle, checked, options \\ []) do
+  def set_checked!(%Playwright.ElementHandle{} = element_handle, checked, options \\ []) do
     options = Facade.options!(options, @set_checked_options, "elementHandle.setChecked")
 
     Facade.async_void!("elementHandle.setChecked", element_handle, fn ->
@@ -1769,7 +1769,7 @@ defmodule Playwright.ElementHandle do
           | [%{name: String.t(), mimeType: String.t(), buffer: binary()}],
           set_input_files_options()
         ) :: :ok | {:error, Playwright.error()}
-  def set_input_files(element_handle, files, options \\ []) do
+  def set_input_files(%Playwright.ElementHandle{} = element_handle, files, options \\ []) do
     files = Facade.arg!(files, @set_input_files_files, "elementHandle.setInputFiles")
     options = Facade.options!(options, @set_input_files_options, "elementHandle.setInputFiles")
 
@@ -1787,7 +1787,7 @@ defmodule Playwright.ElementHandle do
           | [%{name: String.t(), mimeType: String.t(), buffer: binary()}],
           set_input_files_options()
         ) :: :ok
-  def set_input_files!(element_handle, files, options \\ []) do
+  def set_input_files!(%Playwright.ElementHandle{} = element_handle, files, options \\ []) do
     files = Facade.arg!(files, @set_input_files_files, "elementHandle.setInputFiles")
     options = Facade.options!(options, @set_input_files_options, "elementHandle.setInputFiles")
 
@@ -1884,7 +1884,7 @@ defmodule Playwright.ElementHandle do
   * `:trial` (`t:boolean/0`) - *Since Playwright 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
   """
   @spec tap(t(), tap_options()) :: :ok | {:error, Playwright.error()}
-  def tap(element_handle, options \\ []) do
+  def tap(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @tap_options, "elementHandle.tap")
 
     Facade.async_void("elementHandle.tap", element_handle, fn ->
@@ -1894,7 +1894,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `tap/2`, but returns the value and raises on error."
   @spec tap!(t(), tap_options()) :: :ok
-  def tap!(element_handle, options \\ []) do
+  def tap!(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @tap_options, "elementHandle.tap")
 
     Facade.async_void!("elementHandle.tap", element_handle, fn ->
@@ -1912,7 +1912,7 @@ defmodule Playwright.ElementHandle do
   *Since Playwright 1.8.*
   """
   @spec text_content(t()) :: {:ok, nil | String.t()} | {:error, Playwright.error()}
-  def text_content(element_handle) do
+  def text_content(%Playwright.ElementHandle{} = element_handle) do
     Facade.async("elementHandle.textContent", element_handle, fn ->
       Playwright.Client.ElementHandle.text_content(element_handle)
     end)
@@ -1920,7 +1920,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `text_content/1`, but returns the value and raises on error."
   @spec text_content!(t()) :: nil | String.t()
-  def text_content!(element_handle) do
+  def text_content!(%Playwright.ElementHandle{} = element_handle) do
     Facade.async!("elementHandle.textContent", element_handle, fn ->
       Playwright.Client.ElementHandle.text_content(element_handle)
     end)
@@ -1974,7 +1974,7 @@ defmodule Playwright.ElementHandle do
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec type(t(), String.t(), type_options()) :: :ok | {:error, Playwright.error()}
-  def type(element_handle, text, options \\ []) do
+  def type(%Playwright.ElementHandle{} = element_handle, text, options \\ []) do
     options = Facade.options!(options, @type_options, "elementHandle.type")
 
     Facade.async_void("elementHandle.type", element_handle, fn ->
@@ -1986,7 +1986,7 @@ defmodule Playwright.ElementHandle do
          "In most cases, you should use Playwright.Locator.fill/3 instead. You only need to press keys one by one if there is special keyboard handling on the page - in this case use Playwright.Locator.press_sequentially/3"
   @doc "Like `type/3`, but returns the value and raises on error."
   @spec type!(t(), String.t(), type_options()) :: :ok
-  def type!(element_handle, text, options \\ []) do
+  def type!(%Playwright.ElementHandle{} = element_handle, text, options \\ []) do
     options = Facade.options!(options, @type_options, "elementHandle.type")
 
     Facade.async_void!("elementHandle.type", element_handle, fn ->
@@ -2071,7 +2071,7 @@ defmodule Playwright.ElementHandle do
   * `:trial` (`t:boolean/0`) - *Since Playwright 1.11.* When set, this method only performs the [actionability](https://playwright.dev/docs/actionability) checks and skips the action. Defaults to `false`. Useful to wait until the element is ready for the action without performing it.
   """
   @spec uncheck(t(), uncheck_options()) :: :ok | {:error, Playwright.error()}
-  def uncheck(element_handle, options \\ []) do
+  def uncheck(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @uncheck_options, "elementHandle.uncheck")
 
     Facade.async_void("elementHandle.uncheck", element_handle, fn ->
@@ -2081,7 +2081,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `uncheck/2`, but returns the value and raises on error."
   @spec uncheck!(t(), uncheck_options()) :: :ok
-  def uncheck!(element_handle, options \\ []) do
+  def uncheck!(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @uncheck_options, "elementHandle.uncheck")
 
     Facade.async_void!("elementHandle.uncheck", element_handle, fn ->
@@ -2145,7 +2145,7 @@ defmodule Playwright.ElementHandle do
           :visible | :hidden | :stable | :enabled | :disabled | :editable,
           wait_for_element_state_options()
         ) :: :ok | {:error, Playwright.error()}
-  def wait_for_element_state(element_handle, state, options \\ []) do
+  def wait_for_element_state(%Playwright.ElementHandle{} = element_handle, state, options \\ []) do
     state = Facade.arg!(state, @wait_for_element_state_state, "elementHandle.waitForElementState")
     options = Facade.options!(options, @wait_for_element_state_options, "elementHandle.waitForElementState")
 
@@ -2160,7 +2160,7 @@ defmodule Playwright.ElementHandle do
           :visible | :hidden | :stable | :enabled | :disabled | :editable,
           wait_for_element_state_options()
         ) :: :ok
-  def wait_for_element_state!(element_handle, state, options \\ []) do
+  def wait_for_element_state!(%Playwright.ElementHandle{} = element_handle, state, options \\ []) do
     state = Facade.arg!(state, @wait_for_element_state_state, "elementHandle.waitForElementState")
     options = Facade.options!(options, @wait_for_element_state_options, "elementHandle.waitForElementState")
 
@@ -2251,7 +2251,7 @@ defmodule Playwright.ElementHandle do
   """
   @spec wait_for_selector(t(), String.t(), wait_for_selector_options()) ::
           {:ok, nil | Playwright.ElementHandle.t()} | {:error, Playwright.error()}
-  def wait_for_selector(element_handle, selector, options \\ []) do
+  def wait_for_selector(%Playwright.ElementHandle{} = element_handle, selector, options \\ []) do
     options = Facade.options!(options, @wait_for_selector_options, "elementHandle.waitForSelector")
 
     Facade.async("elementHandle.waitForSelector", element_handle, fn ->
@@ -2261,7 +2261,7 @@ defmodule Playwright.ElementHandle do
 
   @doc "Like `wait_for_selector/3`, but returns the value and raises on error."
   @spec wait_for_selector!(t(), String.t(), wait_for_selector_options()) :: nil | Playwright.ElementHandle.t()
-  def wait_for_selector!(element_handle, selector, options \\ []) do
+  def wait_for_selector!(%Playwright.ElementHandle{} = element_handle, selector, options \\ []) do
     options = Facade.options!(options, @wait_for_selector_options, "elementHandle.waitForSelector")
 
     Facade.async!("elementHandle.waitForSelector", element_handle, fn ->

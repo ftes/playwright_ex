@@ -161,7 +161,7 @@ defmodule Playwright.Expect do
           :ok | {:error, Playwright.error()}
   def to_be_attached(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toBeAttached")
-    options = Facade.options!(options, @to_be_attached_options, "expect.toBeAttached")
+    options = Facade.options!(options, @to_be_attached_options, "expect.toBeAttached", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -177,7 +177,7 @@ defmodule Playwright.Expect do
   @spec to_be_attached!(Playwright.Locator.t() | t(Playwright.Locator.t()), to_be_attached_options()) :: :ok
   def to_be_attached!(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toBeAttached")
-    options = Facade.options!(options, @to_be_attached_options, "expect.toBeAttached")
+    options = Facade.options!(options, @to_be_attached_options, "expect.toBeAttached", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -222,7 +222,7 @@ defmodule Playwright.Expect do
           :ok | {:error, Playwright.error()}
   def not_to_be_attached(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeAttached")
-    options = Facade.options!(options, @not_to_be_attached_options, "expect.notToBeAttached")
+    options = Facade.options!(options, @not_to_be_attached_options, "expect.notToBeAttached", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -238,7 +238,7 @@ defmodule Playwright.Expect do
   @spec not_to_be_attached!(Playwright.Locator.t() | t(Playwright.Locator.t()), not_to_be_attached_options()) :: :ok
   def not_to_be_attached!(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeAttached")
-    options = Facade.options!(options, @not_to_be_attached_options, "expect.notToBeAttached")
+    options = Facade.options!(options, @not_to_be_attached_options, "expect.notToBeAttached", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -305,7 +305,7 @@ defmodule Playwright.Expect do
           :ok | {:error, Playwright.error()}
   def to_be_checked(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toBeChecked")
-    options = Facade.options!(options, @to_be_checked_options, "expect.toBeChecked")
+    options = Facade.options!(options, @to_be_checked_options, "expect.toBeChecked", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -321,7 +321,7 @@ defmodule Playwright.Expect do
   @spec to_be_checked!(Playwright.Locator.t() | t(Playwright.Locator.t()), to_be_checked_options()) :: :ok
   def to_be_checked!(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toBeChecked")
-    options = Facade.options!(options, @to_be_checked_options, "expect.toBeChecked")
+    options = Facade.options!(options, @to_be_checked_options, "expect.toBeChecked", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -381,7 +381,7 @@ defmodule Playwright.Expect do
           :ok | {:error, Playwright.error()}
   def not_to_be_checked(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeChecked")
-    options = Facade.options!(options, @not_to_be_checked_options, "expect.notToBeChecked")
+    options = Facade.options!(options, @not_to_be_checked_options, "expect.notToBeChecked", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -397,7 +397,7 @@ defmodule Playwright.Expect do
   @spec not_to_be_checked!(Playwright.Locator.t() | t(Playwright.Locator.t()), not_to_be_checked_options()) :: :ok
   def not_to_be_checked!(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeChecked")
-    options = Facade.options!(options, @not_to_be_checked_options, "expect.notToBeChecked")
+    options = Facade.options!(options, @not_to_be_checked_options, "expect.notToBeChecked", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -448,7 +448,7 @@ defmodule Playwright.Expect do
           :ok | {:error, Playwright.error()}
   def to_be_disabled(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toBeDisabled")
-    options = Facade.options!(options, @to_be_disabled_options, "expect.toBeDisabled")
+    options = Facade.options!(options, @to_be_disabled_options, "expect.toBeDisabled", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -464,7 +464,7 @@ defmodule Playwright.Expect do
   @spec to_be_disabled!(Playwright.Locator.t() | t(Playwright.Locator.t()), to_be_disabled_options()) :: :ok
   def to_be_disabled!(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toBeDisabled")
-    options = Facade.options!(options, @to_be_disabled_options, "expect.toBeDisabled")
+    options = Facade.options!(options, @to_be_disabled_options, "expect.toBeDisabled", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -504,7 +504,7 @@ defmodule Playwright.Expect do
           :ok | {:error, Playwright.error()}
   def not_to_be_disabled(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeDisabled")
-    options = Facade.options!(options, @not_to_be_disabled_options, "expect.notToBeDisabled")
+    options = Facade.options!(options, @not_to_be_disabled_options, "expect.notToBeDisabled", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -520,7 +520,7 @@ defmodule Playwright.Expect do
   @spec not_to_be_disabled!(Playwright.Locator.t() | t(Playwright.Locator.t()), not_to_be_disabled_options()) :: :ok
   def not_to_be_disabled!(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeDisabled")
-    options = Facade.options!(options, @not_to_be_disabled_options, "expect.notToBeDisabled")
+    options = Facade.options!(options, @not_to_be_disabled_options, "expect.notToBeDisabled", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -572,7 +572,7 @@ defmodule Playwright.Expect do
           :ok | {:error, Playwright.error()}
   def to_be_editable(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toBeEditable")
-    options = Facade.options!(options, @to_be_editable_options, "expect.toBeEditable")
+    options = Facade.options!(options, @to_be_editable_options, "expect.toBeEditable", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -588,7 +588,7 @@ defmodule Playwright.Expect do
   @spec to_be_editable!(Playwright.Locator.t() | t(Playwright.Locator.t()), to_be_editable_options()) :: :ok
   def to_be_editable!(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toBeEditable")
-    options = Facade.options!(options, @to_be_editable_options, "expect.toBeEditable")
+    options = Facade.options!(options, @to_be_editable_options, "expect.toBeEditable", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -633,7 +633,7 @@ defmodule Playwright.Expect do
           :ok | {:error, Playwright.error()}
   def not_to_be_editable(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeEditable")
-    options = Facade.options!(options, @not_to_be_editable_options, "expect.notToBeEditable")
+    options = Facade.options!(options, @not_to_be_editable_options, "expect.notToBeEditable", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -649,7 +649,7 @@ defmodule Playwright.Expect do
   @spec not_to_be_editable!(Playwright.Locator.t() | t(Playwright.Locator.t()), not_to_be_editable_options()) :: :ok
   def not_to_be_editable!(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeEditable")
-    options = Facade.options!(options, @not_to_be_editable_options, "expect.notToBeEditable")
+    options = Facade.options!(options, @not_to_be_editable_options, "expect.notToBeEditable", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -696,7 +696,7 @@ defmodule Playwright.Expect do
           :ok | {:error, Playwright.error()}
   def to_be_empty(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toBeEmpty")
-    options = Facade.options!(options, @to_be_empty_options, "expect.toBeEmpty")
+    options = Facade.options!(options, @to_be_empty_options, "expect.toBeEmpty", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher("toBeEmpty", info, locator, &Playwright.Matchers.Matchers.to_be_empty/3).(
@@ -709,7 +709,7 @@ defmodule Playwright.Expect do
   @spec to_be_empty!(Playwright.Locator.t() | t(Playwright.Locator.t()), to_be_empty_options()) :: :ok
   def to_be_empty!(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toBeEmpty")
-    options = Facade.options!(options, @to_be_empty_options, "expect.toBeEmpty")
+    options = Facade.options!(options, @to_be_empty_options, "expect.toBeEmpty", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher("toBeEmpty", info, locator, &Playwright.Matchers.Matchers.to_be_empty/3).(
@@ -746,7 +746,7 @@ defmodule Playwright.Expect do
           :ok | {:error, Playwright.error()}
   def not_to_be_empty(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeEmpty")
-    options = Facade.options!(options, @not_to_be_empty_options, "expect.notToBeEmpty")
+    options = Facade.options!(options, @not_to_be_empty_options, "expect.notToBeEmpty", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher("toBeEmpty", info, locator, &Playwright.Matchers.Matchers.to_be_empty/3).(
@@ -759,7 +759,7 @@ defmodule Playwright.Expect do
   @spec not_to_be_empty!(Playwright.Locator.t() | t(Playwright.Locator.t()), not_to_be_empty_options()) :: :ok
   def not_to_be_empty!(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeEmpty")
-    options = Facade.options!(options, @not_to_be_empty_options, "expect.notToBeEmpty")
+    options = Facade.options!(options, @not_to_be_empty_options, "expect.notToBeEmpty", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher("toBeEmpty", info, locator, &Playwright.Matchers.Matchers.to_be_empty/3).(
@@ -808,7 +808,7 @@ defmodule Playwright.Expect do
           :ok | {:error, Playwright.error()}
   def to_be_enabled(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toBeEnabled")
-    options = Facade.options!(options, @to_be_enabled_options, "expect.toBeEnabled")
+    options = Facade.options!(options, @to_be_enabled_options, "expect.toBeEnabled", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -824,7 +824,7 @@ defmodule Playwright.Expect do
   @spec to_be_enabled!(Playwright.Locator.t() | t(Playwright.Locator.t()), to_be_enabled_options()) :: :ok
   def to_be_enabled!(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toBeEnabled")
-    options = Facade.options!(options, @to_be_enabled_options, "expect.toBeEnabled")
+    options = Facade.options!(options, @to_be_enabled_options, "expect.toBeEnabled", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -869,7 +869,7 @@ defmodule Playwright.Expect do
           :ok | {:error, Playwright.error()}
   def not_to_be_enabled(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeEnabled")
-    options = Facade.options!(options, @not_to_be_enabled_options, "expect.notToBeEnabled")
+    options = Facade.options!(options, @not_to_be_enabled_options, "expect.notToBeEnabled", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -885,7 +885,7 @@ defmodule Playwright.Expect do
   @spec not_to_be_enabled!(Playwright.Locator.t() | t(Playwright.Locator.t()), not_to_be_enabled_options()) :: :ok
   def not_to_be_enabled!(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeEnabled")
-    options = Facade.options!(options, @not_to_be_enabled_options, "expect.notToBeEnabled")
+    options = Facade.options!(options, @not_to_be_enabled_options, "expect.notToBeEnabled", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -932,7 +932,7 @@ defmodule Playwright.Expect do
           :ok | {:error, Playwright.error()}
   def to_be_focused(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toBeFocused")
-    options = Facade.options!(options, @to_be_focused_options, "expect.toBeFocused")
+    options = Facade.options!(options, @to_be_focused_options, "expect.toBeFocused", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -948,7 +948,7 @@ defmodule Playwright.Expect do
   @spec to_be_focused!(Playwright.Locator.t() | t(Playwright.Locator.t()), to_be_focused_options()) :: :ok
   def to_be_focused!(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toBeFocused")
-    options = Facade.options!(options, @to_be_focused_options, "expect.toBeFocused")
+    options = Facade.options!(options, @to_be_focused_options, "expect.toBeFocused", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -988,7 +988,7 @@ defmodule Playwright.Expect do
           :ok | {:error, Playwright.error()}
   def not_to_be_focused(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeFocused")
-    options = Facade.options!(options, @not_to_be_focused_options, "expect.notToBeFocused")
+    options = Facade.options!(options, @not_to_be_focused_options, "expect.notToBeFocused", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -1004,7 +1004,7 @@ defmodule Playwright.Expect do
   @spec not_to_be_focused!(Playwright.Locator.t() | t(Playwright.Locator.t()), not_to_be_focused_options()) :: :ok
   def not_to_be_focused!(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeFocused")
-    options = Facade.options!(options, @not_to_be_focused_options, "expect.notToBeFocused")
+    options = Facade.options!(options, @not_to_be_focused_options, "expect.notToBeFocused", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -1051,7 +1051,7 @@ defmodule Playwright.Expect do
           :ok | {:error, Playwright.error()}
   def to_be_hidden(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toBeHidden")
-    options = Facade.options!(options, @to_be_hidden_options, "expect.toBeHidden")
+    options = Facade.options!(options, @to_be_hidden_options, "expect.toBeHidden", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -1067,7 +1067,7 @@ defmodule Playwright.Expect do
   @spec to_be_hidden!(Playwright.Locator.t() | t(Playwright.Locator.t()), to_be_hidden_options()) :: :ok
   def to_be_hidden!(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toBeHidden")
-    options = Facade.options!(options, @to_be_hidden_options, "expect.toBeHidden")
+    options = Facade.options!(options, @to_be_hidden_options, "expect.toBeHidden", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -1107,7 +1107,7 @@ defmodule Playwright.Expect do
           :ok | {:error, Playwright.error()}
   def not_to_be_hidden(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeHidden")
-    options = Facade.options!(options, @not_to_be_hidden_options, "expect.notToBeHidden")
+    options = Facade.options!(options, @not_to_be_hidden_options, "expect.notToBeHidden", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -1123,7 +1123,7 @@ defmodule Playwright.Expect do
   @spec not_to_be_hidden!(Playwright.Locator.t() | t(Playwright.Locator.t()), not_to_be_hidden_options()) :: :ok
   def not_to_be_hidden!(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeHidden")
-    options = Facade.options!(options, @not_to_be_hidden_options, "expect.notToBeHidden")
+    options = Facade.options!(options, @not_to_be_hidden_options, "expect.notToBeHidden", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -1181,7 +1181,7 @@ defmodule Playwright.Expect do
           :ok | {:error, Playwright.error()}
   def to_be_in_viewport(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toBeInViewport")
-    options = Facade.options!(options, @to_be_in_viewport_options, "expect.toBeInViewport")
+    options = Facade.options!(options, @to_be_in_viewport_options, "expect.toBeInViewport", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -1197,7 +1197,7 @@ defmodule Playwright.Expect do
   @spec to_be_in_viewport!(Playwright.Locator.t() | t(Playwright.Locator.t()), to_be_in_viewport_options()) :: :ok
   def to_be_in_viewport!(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toBeInViewport")
-    options = Facade.options!(options, @to_be_in_viewport_options, "expect.toBeInViewport")
+    options = Facade.options!(options, @to_be_in_viewport_options, "expect.toBeInViewport", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -1243,7 +1243,7 @@ defmodule Playwright.Expect do
           :ok | {:error, Playwright.error()}
   def not_to_be_in_viewport(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeInViewport")
-    options = Facade.options!(options, @not_to_be_in_viewport_options, "expect.notToBeInViewport")
+    options = Facade.options!(options, @not_to_be_in_viewport_options, "expect.notToBeInViewport", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -1260,7 +1260,7 @@ defmodule Playwright.Expect do
           :ok
   def not_to_be_in_viewport!(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeInViewport")
-    options = Facade.options!(options, @not_to_be_in_viewport_options, "expect.notToBeInViewport")
+    options = Facade.options!(options, @not_to_be_in_viewport_options, "expect.notToBeInViewport", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -1323,7 +1323,7 @@ defmodule Playwright.Expect do
           :ok | {:error, Playwright.error()}
   def to_be_visible(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toBeVisible")
-    options = Facade.options!(options, @to_be_visible_options, "expect.toBeVisible")
+    options = Facade.options!(options, @to_be_visible_options, "expect.toBeVisible", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -1339,7 +1339,7 @@ defmodule Playwright.Expect do
   @spec to_be_visible!(Playwright.Locator.t() | t(Playwright.Locator.t()), to_be_visible_options()) :: :ok
   def to_be_visible!(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toBeVisible")
-    options = Facade.options!(options, @to_be_visible_options, "expect.toBeVisible")
+    options = Facade.options!(options, @to_be_visible_options, "expect.toBeVisible", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -1384,7 +1384,7 @@ defmodule Playwright.Expect do
           :ok | {:error, Playwright.error()}
   def not_to_be_visible(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeVisible")
-    options = Facade.options!(options, @not_to_be_visible_options, "expect.notToBeVisible")
+    options = Facade.options!(options, @not_to_be_visible_options, "expect.notToBeVisible", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -1400,7 +1400,7 @@ defmodule Playwright.Expect do
   @spec not_to_be_visible!(Playwright.Locator.t() | t(Playwright.Locator.t()), not_to_be_visible_options()) :: :ok
   def not_to_be_visible!(locator, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToBeVisible")
-    options = Facade.options!(options, @not_to_be_visible_options, "expect.notToBeVisible")
+    options = Facade.options!(options, @not_to_be_visible_options, "expect.notToBeVisible", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -1475,7 +1475,7 @@ defmodule Playwright.Expect do
         ) :: :ok | {:error, Playwright.error()}
   def to_contain_class(locator, expected, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toContainClass")
-    options = Facade.options!(options, @to_contain_class_options, "expect.toContainClass")
+    options = Facade.options!(options, @to_contain_class_options, "expect.toContainClass", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -1495,7 +1495,7 @@ defmodule Playwright.Expect do
         ) :: :ok
   def to_contain_class!(locator, expected, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toContainClass")
-    options = Facade.options!(options, @to_contain_class_options, "expect.toContainClass")
+    options = Facade.options!(options, @to_contain_class_options, "expect.toContainClass", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -1542,7 +1542,7 @@ defmodule Playwright.Expect do
         ) :: :ok | {:error, Playwright.error()}
   def not_to_contain_class(locator, expected, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToContainClass")
-    options = Facade.options!(options, @not_to_contain_class_options, "expect.notToContainClass")
+    options = Facade.options!(options, @not_to_contain_class_options, "expect.notToContainClass", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -1562,7 +1562,7 @@ defmodule Playwright.Expect do
         ) :: :ok
   def not_to_contain_class!(locator, expected, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToContainClass")
-    options = Facade.options!(options, @not_to_contain_class_options, "expect.notToContainClass")
+    options = Facade.options!(options, @not_to_contain_class_options, "expect.notToContainClass", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -1674,7 +1674,7 @@ defmodule Playwright.Expect do
         ) :: :ok | {:error, Playwright.error()}
   def to_contain_text(locator, expected, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toContainText")
-    options = Facade.options!(options, @to_contain_text_options, "expect.toContainText")
+    options = Facade.options!(options, @to_contain_text_options, "expect.toContainText", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -1694,7 +1694,7 @@ defmodule Playwright.Expect do
         ) :: :ok
   def to_contain_text!(locator, expected, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toContainText")
-    options = Facade.options!(options, @to_contain_text_options, "expect.toContainText")
+    options = Facade.options!(options, @to_contain_text_options, "expect.toContainText", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -1759,7 +1759,7 @@ defmodule Playwright.Expect do
         ) :: :ok | {:error, Playwright.error()}
   def not_to_contain_text(locator, expected, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToContainText")
-    options = Facade.options!(options, @not_to_contain_text_options, "expect.notToContainText")
+    options = Facade.options!(options, @not_to_contain_text_options, "expect.notToContainText", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -1779,7 +1779,7 @@ defmodule Playwright.Expect do
         ) :: :ok
   def not_to_contain_text!(locator, expected, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToContainText")
-    options = Facade.options!(options, @not_to_contain_text_options, "expect.notToContainText")
+    options = Facade.options!(options, @not_to_contain_text_options, "expect.notToContainText", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -1843,7 +1843,14 @@ defmodule Playwright.Expect do
         ) :: :ok | {:error, Playwright.error()}
   def to_have_accessible_description(locator, description, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveAccessibleDescription")
-    options = Facade.options!(options, @to_have_accessible_description_options, "expect.toHaveAccessibleDescription")
+
+    options =
+      Facade.options!(
+        options,
+        @to_have_accessible_description_options,
+        "expect.toHaveAccessibleDescription",
+        __ENV__.function
+      )
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -1863,7 +1870,14 @@ defmodule Playwright.Expect do
         ) :: :ok
   def to_have_accessible_description!(locator, description, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveAccessibleDescription")
-    options = Facade.options!(options, @to_have_accessible_description_options, "expect.toHaveAccessibleDescription")
+
+    options =
+      Facade.options!(
+        options,
+        @to_have_accessible_description_options,
+        "expect.toHaveAccessibleDescription",
+        __ENV__.function
+      )
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -1922,7 +1936,12 @@ defmodule Playwright.Expect do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveAccessibleDescription")
 
     options =
-      Facade.options!(options, @not_to_have_accessible_description_options, "expect.notToHaveAccessibleDescription")
+      Facade.options!(
+        options,
+        @not_to_have_accessible_description_options,
+        "expect.notToHaveAccessibleDescription",
+        __ENV__.function
+      )
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -1944,7 +1963,12 @@ defmodule Playwright.Expect do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveAccessibleDescription")
 
     options =
-      Facade.options!(options, @not_to_have_accessible_description_options, "expect.notToHaveAccessibleDescription")
+      Facade.options!(
+        options,
+        @not_to_have_accessible_description_options,
+        "expect.notToHaveAccessibleDescription",
+        __ENV__.function
+      )
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -2008,7 +2032,14 @@ defmodule Playwright.Expect do
         ) :: :ok | {:error, Playwright.error()}
   def to_have_accessible_error_message(locator, error_message, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveAccessibleErrorMessage")
-    options = Facade.options!(options, @to_have_accessible_error_message_options, "expect.toHaveAccessibleErrorMessage")
+
+    options =
+      Facade.options!(
+        options,
+        @to_have_accessible_error_message_options,
+        "expect.toHaveAccessibleErrorMessage",
+        __ENV__.function
+      )
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -2028,7 +2059,14 @@ defmodule Playwright.Expect do
         ) :: :ok
   def to_have_accessible_error_message!(locator, error_message, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveAccessibleErrorMessage")
-    options = Facade.options!(options, @to_have_accessible_error_message_options, "expect.toHaveAccessibleErrorMessage")
+
+    options =
+      Facade.options!(
+        options,
+        @to_have_accessible_error_message_options,
+        "expect.toHaveAccessibleErrorMessage",
+        __ENV__.function
+      )
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -2087,7 +2125,12 @@ defmodule Playwright.Expect do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveAccessibleErrorMessage")
 
     options =
-      Facade.options!(options, @not_to_have_accessible_error_message_options, "expect.notToHaveAccessibleErrorMessage")
+      Facade.options!(
+        options,
+        @not_to_have_accessible_error_message_options,
+        "expect.notToHaveAccessibleErrorMessage",
+        __ENV__.function
+      )
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -2109,7 +2152,12 @@ defmodule Playwright.Expect do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveAccessibleErrorMessage")
 
     options =
-      Facade.options!(options, @not_to_have_accessible_error_message_options, "expect.notToHaveAccessibleErrorMessage")
+      Facade.options!(
+        options,
+        @not_to_have_accessible_error_message_options,
+        "expect.notToHaveAccessibleErrorMessage",
+        __ENV__.function
+      )
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -2169,7 +2217,9 @@ defmodule Playwright.Expect do
         ) :: :ok | {:error, Playwright.error()}
   def to_have_accessible_name(locator, name, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveAccessibleName")
-    options = Facade.options!(options, @to_have_accessible_name_options, "expect.toHaveAccessibleName")
+
+    options =
+      Facade.options!(options, @to_have_accessible_name_options, "expect.toHaveAccessibleName", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -2189,7 +2239,9 @@ defmodule Playwright.Expect do
         ) :: :ok
   def to_have_accessible_name!(locator, name, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveAccessibleName")
-    options = Facade.options!(options, @to_have_accessible_name_options, "expect.toHaveAccessibleName")
+
+    options =
+      Facade.options!(options, @to_have_accessible_name_options, "expect.toHaveAccessibleName", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -2246,7 +2298,9 @@ defmodule Playwright.Expect do
         ) :: :ok | {:error, Playwright.error()}
   def not_to_have_accessible_name(locator, name, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveAccessibleName")
-    options = Facade.options!(options, @not_to_have_accessible_name_options, "expect.notToHaveAccessibleName")
+
+    options =
+      Facade.options!(options, @not_to_have_accessible_name_options, "expect.notToHaveAccessibleName", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -2266,7 +2320,9 @@ defmodule Playwright.Expect do
         ) :: :ok
   def not_to_have_accessible_name!(locator, name, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveAccessibleName")
-    options = Facade.options!(options, @not_to_have_accessible_name_options, "expect.notToHaveAccessibleName")
+
+    options =
+      Facade.options!(options, @not_to_have_accessible_name_options, "expect.notToHaveAccessibleName", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -2348,7 +2404,7 @@ defmodule Playwright.Expect do
 
   def to_have_attribute(locator, name, value, options) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveAttribute")
-    options = Facade.options!(options, @to_have_attribute_options, "expect.toHaveAttribute")
+    options = Facade.options!(options, @to_have_attribute_options, "expect.toHaveAttribute", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -2380,7 +2436,7 @@ defmodule Playwright.Expect do
 
   def to_have_attribute!(locator, name, value, options) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveAttribute")
-    options = Facade.options!(options, @to_have_attribute_options, "expect.toHaveAttribute")
+    options = Facade.options!(options, @to_have_attribute_options, "expect.toHaveAttribute", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -2448,7 +2504,7 @@ defmodule Playwright.Expect do
 
   def not_to_have_attribute(locator, name, value, options) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveAttribute")
-    options = Facade.options!(options, @not_to_have_attribute_options, "expect.notToHaveAttribute")
+    options = Facade.options!(options, @not_to_have_attribute_options, "expect.notToHaveAttribute", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -2480,7 +2536,7 @@ defmodule Playwright.Expect do
 
   def not_to_have_attribute!(locator, name, value, options) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveAttribute")
-    options = Facade.options!(options, @not_to_have_attribute_options, "expect.notToHaveAttribute")
+    options = Facade.options!(options, @not_to_have_attribute_options, "expect.notToHaveAttribute", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -2546,7 +2602,7 @@ defmodule Playwright.Expect do
         ) :: :ok | {:error, Playwright.error()}
   def to_have_class(locator, expected, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveClass")
-    options = Facade.options!(options, @to_have_class_options, "expect.toHaveClass")
+    options = Facade.options!(options, @to_have_class_options, "expect.toHaveClass", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -2566,7 +2622,7 @@ defmodule Playwright.Expect do
         ) :: :ok
   def to_have_class!(locator, expected, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveClass")
-    options = Facade.options!(options, @to_have_class_options, "expect.toHaveClass")
+    options = Facade.options!(options, @to_have_class_options, "expect.toHaveClass", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -2613,7 +2669,7 @@ defmodule Playwright.Expect do
         ) :: :ok | {:error, Playwright.error()}
   def not_to_have_class(locator, expected, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveClass")
-    options = Facade.options!(options, @not_to_have_class_options, "expect.notToHaveClass")
+    options = Facade.options!(options, @not_to_have_class_options, "expect.notToHaveClass", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -2633,7 +2689,7 @@ defmodule Playwright.Expect do
         ) :: :ok
   def not_to_have_class!(locator, expected, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveClass")
-    options = Facade.options!(options, @not_to_have_class_options, "expect.notToHaveClass")
+    options = Facade.options!(options, @not_to_have_class_options, "expect.notToHaveClass", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -2684,7 +2740,7 @@ defmodule Playwright.Expect do
           :ok | {:error, Playwright.error()}
   def to_have_count(locator, count, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveCount")
-    options = Facade.options!(options, @to_have_count_options, "expect.toHaveCount")
+    options = Facade.options!(options, @to_have_count_options, "expect.toHaveCount", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -2700,7 +2756,7 @@ defmodule Playwright.Expect do
   @spec to_have_count!(Playwright.Locator.t() | t(Playwright.Locator.t()), integer(), to_have_count_options()) :: :ok
   def to_have_count!(locator, count, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveCount")
-    options = Facade.options!(options, @to_have_count_options, "expect.toHaveCount")
+    options = Facade.options!(options, @to_have_count_options, "expect.toHaveCount", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -2744,7 +2800,7 @@ defmodule Playwright.Expect do
           :ok | {:error, Playwright.error()}
   def not_to_have_count(locator, count, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveCount")
-    options = Facade.options!(options, @not_to_have_count_options, "expect.notToHaveCount")
+    options = Facade.options!(options, @not_to_have_count_options, "expect.notToHaveCount", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -2761,7 +2817,7 @@ defmodule Playwright.Expect do
           :ok
   def not_to_have_count!(locator, count, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveCount")
-    options = Facade.options!(options, @not_to_have_count_options, "expect.notToHaveCount")
+    options = Facade.options!(options, @not_to_have_count_options, "expect.notToHaveCount", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -2827,7 +2883,7 @@ defmodule Playwright.Expect do
         ) :: :ok | {:error, Playwright.error()}
   def to_have_css(locator, name, value, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveCSS")
-    options = Facade.options!(options, @to_have_css_options, "expect.toHaveCSS")
+    options = Facade.options!(options, @to_have_css_options, "expect.toHaveCSS", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher("toHaveCSS", info, locator, &Playwright.Matchers.Matchers.to_have_css/5).(
@@ -2845,7 +2901,7 @@ defmodule Playwright.Expect do
         ) :: :ok
   def to_have_css!(locator, name, value, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveCSS")
-    options = Facade.options!(options, @to_have_css_options, "expect.toHaveCSS")
+    options = Facade.options!(options, @to_have_css_options, "expect.toHaveCSS", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher("toHaveCSS", info, locator, &Playwright.Matchers.Matchers.to_have_css/5).(
@@ -2901,7 +2957,7 @@ defmodule Playwright.Expect do
         ) :: :ok | {:error, Playwright.error()}
   def not_to_have_css(locator, name, value, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveCSS")
-    options = Facade.options!(options, @not_to_have_css_options, "expect.notToHaveCSS")
+    options = Facade.options!(options, @not_to_have_css_options, "expect.notToHaveCSS", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher("toHaveCSS", info, locator, &Playwright.Matchers.Matchers.to_have_css/5).(
@@ -2919,7 +2975,7 @@ defmodule Playwright.Expect do
         ) :: :ok
   def not_to_have_css!(locator, name, value, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveCSS")
-    options = Facade.options!(options, @not_to_have_css_options, "expect.notToHaveCSS")
+    options = Facade.options!(options, @not_to_have_css_options, "expect.notToHaveCSS", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher("toHaveCSS", info, locator, &Playwright.Matchers.Matchers.to_have_css/5).(
@@ -2970,7 +3026,7 @@ defmodule Playwright.Expect do
         ) :: :ok | {:error, Playwright.error()}
   def to_have_id(locator, id, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveId")
-    options = Facade.options!(options, @to_have_id_options, "expect.toHaveId")
+    options = Facade.options!(options, @to_have_id_options, "expect.toHaveId", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher("toHaveId", info, locator, &Playwright.Matchers.Matchers.to_have_id/4).(
@@ -2987,7 +3043,7 @@ defmodule Playwright.Expect do
         ) :: :ok
   def to_have_id!(locator, id, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveId")
-    options = Facade.options!(options, @to_have_id_options, "expect.toHaveId")
+    options = Facade.options!(options, @to_have_id_options, "expect.toHaveId", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher("toHaveId", info, locator, &Playwright.Matchers.Matchers.to_have_id/4).(
@@ -3031,7 +3087,7 @@ defmodule Playwright.Expect do
         ) :: :ok | {:error, Playwright.error()}
   def not_to_have_id(locator, id, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveId")
-    options = Facade.options!(options, @not_to_have_id_options, "expect.notToHaveId")
+    options = Facade.options!(options, @not_to_have_id_options, "expect.notToHaveId", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher("toHaveId", info, locator, &Playwright.Matchers.Matchers.to_have_id/4).(
@@ -3048,7 +3104,7 @@ defmodule Playwright.Expect do
         ) :: :ok
   def not_to_have_id!(locator, id, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveId")
-    options = Facade.options!(options, @not_to_have_id_options, "expect.notToHaveId")
+    options = Facade.options!(options, @not_to_have_id_options, "expect.notToHaveId", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher("toHaveId", info, locator, &Playwright.Matchers.Matchers.to_have_id/4).(
@@ -3102,7 +3158,7 @@ defmodule Playwright.Expect do
         ) :: :ok | {:error, Playwright.error()}
   def to_have_js_property(locator, name, value, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveJSProperty")
-    options = Facade.options!(options, @to_have_js_property_options, "expect.toHaveJSProperty")
+    options = Facade.options!(options, @to_have_js_property_options, "expect.toHaveJSProperty", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -3123,7 +3179,7 @@ defmodule Playwright.Expect do
         ) :: :ok
   def to_have_js_property!(locator, name, value, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveJSProperty")
-    options = Facade.options!(options, @to_have_js_property_options, "expect.toHaveJSProperty")
+    options = Facade.options!(options, @to_have_js_property_options, "expect.toHaveJSProperty", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -3172,7 +3228,7 @@ defmodule Playwright.Expect do
         ) :: :ok | {:error, Playwright.error()}
   def not_to_have_js_property(locator, name, value, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveJSProperty")
-    options = Facade.options!(options, @not_to_have_js_property_options, "expect.notToHaveJSProperty")
+    options = Facade.options!(options, @not_to_have_js_property_options, "expect.notToHaveJSProperty", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -3193,7 +3249,7 @@ defmodule Playwright.Expect do
         ) :: :ok
   def not_to_have_js_property!(locator, name, value, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveJSProperty")
-    options = Facade.options!(options, @not_to_have_js_property_options, "expect.notToHaveJSProperty")
+    options = Facade.options!(options, @not_to_have_js_property_options, "expect.notToHaveJSProperty", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -3416,7 +3472,7 @@ defmodule Playwright.Expect do
   def to_have_role(locator, role, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveRole")
     role = Facade.arg!(role, @to_have_role_role, "expect.toHaveRole")
-    options = Facade.options!(options, @to_have_role_options, "expect.toHaveRole")
+    options = Facade.options!(options, @to_have_role_options, "expect.toHaveRole", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -3518,7 +3574,7 @@ defmodule Playwright.Expect do
   def to_have_role!(locator, role, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveRole")
     role = Facade.arg!(role, @to_have_role_role, "expect.toHaveRole")
-    options = Facade.options!(options, @to_have_role_options, "expect.toHaveRole")
+    options = Facade.options!(options, @to_have_role_options, "expect.toHaveRole", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -3732,7 +3788,7 @@ defmodule Playwright.Expect do
   def not_to_have_role(locator, role, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveRole")
     role = Facade.arg!(role, @not_to_have_role_role, "expect.notToHaveRole")
-    options = Facade.options!(options, @not_to_have_role_options, "expect.notToHaveRole")
+    options = Facade.options!(options, @not_to_have_role_options, "expect.notToHaveRole", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -3834,7 +3890,7 @@ defmodule Playwright.Expect do
   def not_to_have_role!(locator, role, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveRole")
     role = Facade.arg!(role, @not_to_have_role_role, "expect.notToHaveRole")
-    options = Facade.options!(options, @not_to_have_role_options, "expect.notToHaveRole")
+    options = Facade.options!(options, @not_to_have_role_options, "expect.notToHaveRole", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -3971,7 +4027,7 @@ defmodule Playwright.Expect do
         ) :: :ok | {:error, Playwright.error()}
   def to_have_screenshot(locator_or_page, options \\ []) do
     {locator_or_page, info} = Facade.matcher_info(locator_or_page, false, "expect.toHaveScreenshot")
-    options = Facade.options!(options, @to_have_screenshot_options, "expect.toHaveScreenshot")
+    options = Facade.options!(options, @to_have_screenshot_options, "expect.toHaveScreenshot", __ENV__.function)
 
     Facade.matcher(locator_or_page, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -3990,7 +4046,7 @@ defmodule Playwright.Expect do
         ) :: :ok
   def to_have_screenshot!(locator_or_page, options \\ []) do
     {locator_or_page, info} = Facade.matcher_info(locator_or_page, false, "expect.toHaveScreenshot")
-    options = Facade.options!(options, @to_have_screenshot_options, "expect.toHaveScreenshot")
+    options = Facade.options!(options, @to_have_screenshot_options, "expect.toHaveScreenshot", __ENV__.function)
 
     Facade.matcher!(locator_or_page, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -4117,7 +4173,7 @@ defmodule Playwright.Expect do
         ) :: :ok | {:error, Playwright.error()}
   def not_to_have_screenshot(locator_or_page, options \\ []) do
     {locator_or_page, info} = Facade.matcher_info(locator_or_page, true, "expect.notToHaveScreenshot")
-    options = Facade.options!(options, @not_to_have_screenshot_options, "expect.notToHaveScreenshot")
+    options = Facade.options!(options, @not_to_have_screenshot_options, "expect.notToHaveScreenshot", __ENV__.function)
 
     Facade.matcher(locator_or_page, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -4136,7 +4192,7 @@ defmodule Playwright.Expect do
         ) :: :ok
   def not_to_have_screenshot!(locator_or_page, options \\ []) do
     {locator_or_page, info} = Facade.matcher_info(locator_or_page, true, "expect.notToHaveScreenshot")
-    options = Facade.options!(options, @not_to_have_screenshot_options, "expect.notToHaveScreenshot")
+    options = Facade.options!(options, @not_to_have_screenshot_options, "expect.notToHaveScreenshot", __ENV__.function)
 
     Facade.matcher!(locator_or_page, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -4246,7 +4302,7 @@ defmodule Playwright.Expect do
         ) :: :ok | {:error, Playwright.error()}
   def to_have_text(locator, expected, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveText")
-    options = Facade.options!(options, @to_have_text_options, "expect.toHaveText")
+    options = Facade.options!(options, @to_have_text_options, "expect.toHaveText", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -4266,7 +4322,7 @@ defmodule Playwright.Expect do
         ) :: :ok
   def to_have_text!(locator, expected, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveText")
-    options = Facade.options!(options, @to_have_text_options, "expect.toHaveText")
+    options = Facade.options!(options, @to_have_text_options, "expect.toHaveText", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -4331,7 +4387,7 @@ defmodule Playwright.Expect do
         ) :: :ok | {:error, Playwright.error()}
   def not_to_have_text(locator, expected, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveText")
-    options = Facade.options!(options, @not_to_have_text_options, "expect.notToHaveText")
+    options = Facade.options!(options, @not_to_have_text_options, "expect.notToHaveText", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -4351,7 +4407,7 @@ defmodule Playwright.Expect do
         ) :: :ok
   def not_to_have_text!(locator, expected, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveText")
-    options = Facade.options!(options, @not_to_have_text_options, "expect.notToHaveText")
+    options = Facade.options!(options, @not_to_have_text_options, "expect.notToHaveText", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -4405,7 +4461,7 @@ defmodule Playwright.Expect do
         ) :: :ok | {:error, Playwright.error()}
   def to_have_value(locator, value, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveValue")
-    options = Facade.options!(options, @to_have_value_options, "expect.toHaveValue")
+    options = Facade.options!(options, @to_have_value_options, "expect.toHaveValue", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -4425,7 +4481,7 @@ defmodule Playwright.Expect do
         ) :: :ok
   def to_have_value!(locator, value, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveValue")
-    options = Facade.options!(options, @to_have_value_options, "expect.toHaveValue")
+    options = Facade.options!(options, @to_have_value_options, "expect.toHaveValue", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -4472,7 +4528,7 @@ defmodule Playwright.Expect do
         ) :: :ok | {:error, Playwright.error()}
   def not_to_have_value(locator, value, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveValue")
-    options = Facade.options!(options, @not_to_have_value_options, "expect.notToHaveValue")
+    options = Facade.options!(options, @not_to_have_value_options, "expect.notToHaveValue", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -4492,7 +4548,7 @@ defmodule Playwright.Expect do
         ) :: :ok
   def not_to_have_value!(locator, value, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveValue")
-    options = Facade.options!(options, @not_to_have_value_options, "expect.notToHaveValue")
+    options = Facade.options!(options, @not_to_have_value_options, "expect.notToHaveValue", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -4557,7 +4613,7 @@ defmodule Playwright.Expect do
         ) :: :ok | {:error, Playwright.error()}
   def to_have_values(locator, values, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveValues")
-    options = Facade.options!(options, @to_have_values_options, "expect.toHaveValues")
+    options = Facade.options!(options, @to_have_values_options, "expect.toHaveValues", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -4577,7 +4633,7 @@ defmodule Playwright.Expect do
         ) :: :ok
   def to_have_values!(locator, values, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveValues")
-    options = Facade.options!(options, @to_have_values_options, "expect.toHaveValues")
+    options = Facade.options!(options, @to_have_values_options, "expect.toHaveValues", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -4624,7 +4680,7 @@ defmodule Playwright.Expect do
         ) :: :ok | {:error, Playwright.error()}
   def not_to_have_values(locator, values, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveValues")
-    options = Facade.options!(options, @not_to_have_values_options, "expect.notToHaveValues")
+    options = Facade.options!(options, @not_to_have_values_options, "expect.notToHaveValues", __ENV__.function)
 
     Facade.matcher(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -4644,7 +4700,7 @@ defmodule Playwright.Expect do
         ) :: :ok
   def not_to_have_values!(locator, values, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveValues")
-    options = Facade.options!(options, @not_to_have_values_options, "expect.notToHaveValues")
+    options = Facade.options!(options, @not_to_have_values_options, "expect.notToHaveValues", __ENV__.function)
 
     Facade.matcher!(locator, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -4692,7 +4748,7 @@ defmodule Playwright.Expect do
 
   def to_match_aria_snapshot(locator_or_page, expected, options) do
     {locator_or_page, info} = Facade.matcher_info(locator_or_page, false, "expect.toMatchAriaSnapshot")
-    options = Facade.options!(options, @to_match_aria_snapshot_options, "expect.toMatchAriaSnapshot")
+    options = Facade.options!(options, @to_match_aria_snapshot_options, "expect.toMatchAriaSnapshot", __ENV__.function)
 
     Facade.matcher(locator_or_page, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -4722,7 +4778,7 @@ defmodule Playwright.Expect do
 
   def to_match_aria_snapshot!(locator_or_page, expected, options) do
     {locator_or_page, info} = Facade.matcher_info(locator_or_page, false, "expect.toMatchAriaSnapshot")
-    options = Facade.options!(options, @to_match_aria_snapshot_options, "expect.toMatchAriaSnapshot")
+    options = Facade.options!(options, @to_match_aria_snapshot_options, "expect.toMatchAriaSnapshot", __ENV__.function)
 
     Facade.matcher!(locator_or_page, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -4792,7 +4848,9 @@ defmodule Playwright.Expect do
 
   def not_to_match_aria_snapshot(locator_or_page, expected, options) do
     {locator_or_page, info} = Facade.matcher_info(locator_or_page, true, "expect.notToMatchAriaSnapshot")
-    options = Facade.options!(options, @not_to_match_aria_snapshot_options, "expect.notToMatchAriaSnapshot")
+
+    options =
+      Facade.options!(options, @not_to_match_aria_snapshot_options, "expect.notToMatchAriaSnapshot", __ENV__.function)
 
     Facade.matcher(locator_or_page, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -4822,7 +4880,9 @@ defmodule Playwright.Expect do
 
   def not_to_match_aria_snapshot!(locator_or_page, expected, options) do
     {locator_or_page, info} = Facade.matcher_info(locator_or_page, true, "expect.notToMatchAriaSnapshot")
-    options = Facade.options!(options, @not_to_match_aria_snapshot_options, "expect.notToMatchAriaSnapshot")
+
+    options =
+      Facade.options!(options, @not_to_match_aria_snapshot_options, "expect.notToMatchAriaSnapshot", __ENV__.function)
 
     Facade.matcher!(locator_or_page, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -4937,7 +4997,7 @@ defmodule Playwright.Expect do
         ) :: :ok | {:error, Playwright.error()}
   def to_have_title(page, title_or_reg_exp, options \\ []) do
     {page, info} = Facade.matcher_info(page, false, "expect.toHaveTitle")
-    options = Facade.options!(options, @to_have_title_options, "expect.toHaveTitle")
+    options = Facade.options!(options, @to_have_title_options, "expect.toHaveTitle", __ENV__.function)
 
     Facade.matcher(page, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -4957,7 +5017,7 @@ defmodule Playwright.Expect do
         ) :: :ok
   def to_have_title!(page, title_or_reg_exp, options \\ []) do
     {page, info} = Facade.matcher_info(page, false, "expect.toHaveTitle")
-    options = Facade.options!(options, @to_have_title_options, "expect.toHaveTitle")
+    options = Facade.options!(options, @to_have_title_options, "expect.toHaveTitle", __ENV__.function)
 
     Facade.matcher!(page, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -5004,7 +5064,7 @@ defmodule Playwright.Expect do
         ) :: :ok | {:error, Playwright.error()}
   def not_to_have_title(page, title_or_reg_exp, options \\ []) do
     {page, info} = Facade.matcher_info(page, true, "expect.notToHaveTitle")
-    options = Facade.options!(options, @not_to_have_title_options, "expect.notToHaveTitle")
+    options = Facade.options!(options, @not_to_have_title_options, "expect.notToHaveTitle", __ENV__.function)
 
     Facade.matcher(page, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -5024,7 +5084,7 @@ defmodule Playwright.Expect do
         ) :: :ok
   def not_to_have_title!(page, title_or_reg_exp, options \\ []) do
     {page, info} = Facade.matcher_info(page, true, "expect.notToHaveTitle")
-    options = Facade.options!(options, @not_to_have_title_options, "expect.notToHaveTitle")
+    options = Facade.options!(options, @not_to_have_title_options, "expect.notToHaveTitle", __ENV__.function)
 
     Facade.matcher!(page, fn ->
       Playwright.Matchers.Expect.create_matcher(
@@ -5097,7 +5157,7 @@ defmodule Playwright.Expect do
         ) :: :ok | {:error, Playwright.error()}
   def to_have_url(page, url, options \\ []) do
     {page, info} = Facade.matcher_info(page, false, "expect.toHaveURL")
-    options = Facade.options!(options, @to_have_url_options, "expect.toHaveURL")
+    options = Facade.options!(options, @to_have_url_options, "expect.toHaveURL", __ENV__.function)
 
     Facade.matcher(page, fn ->
       Playwright.Matchers.Expect.create_matcher("toHaveURL", info, page, &Playwright.Matchers.Matchers.to_have_url/4).([
@@ -5115,7 +5175,7 @@ defmodule Playwright.Expect do
         ) :: :ok
   def to_have_url!(page, url, options \\ []) do
     {page, info} = Facade.matcher_info(page, false, "expect.toHaveURL")
-    options = Facade.options!(options, @to_have_url_options, "expect.toHaveURL")
+    options = Facade.options!(options, @to_have_url_options, "expect.toHaveURL", __ENV__.function)
 
     Facade.matcher!(page, fn ->
       Playwright.Matchers.Expect.create_matcher("toHaveURL", info, page, &Playwright.Matchers.Matchers.to_have_url/4).([
@@ -5167,7 +5227,7 @@ defmodule Playwright.Expect do
         ) :: :ok | {:error, Playwright.error()}
   def not_to_have_url(page, url, options \\ []) do
     {page, info} = Facade.matcher_info(page, true, "expect.notToHaveURL")
-    options = Facade.options!(options, @not_to_have_url_options, "expect.notToHaveURL")
+    options = Facade.options!(options, @not_to_have_url_options, "expect.notToHaveURL", __ENV__.function)
 
     Facade.matcher(page, fn ->
       Playwright.Matchers.Expect.create_matcher("toHaveURL", info, page, &Playwright.Matchers.Matchers.to_have_url/4).([
@@ -5185,7 +5245,7 @@ defmodule Playwright.Expect do
         ) :: :ok
   def not_to_have_url!(page, url, options \\ []) do
     {page, info} = Facade.matcher_info(page, true, "expect.notToHaveURL")
-    options = Facade.options!(options, @not_to_have_url_options, "expect.notToHaveURL")
+    options = Facade.options!(options, @not_to_have_url_options, "expect.notToHaveURL", __ENV__.function)
 
     Facade.matcher!(page, fn ->
       Playwright.Matchers.Expect.create_matcher("toHaveURL", info, page, &Playwright.Matchers.Matchers.to_have_url/4).([
@@ -5256,7 +5316,7 @@ defmodule Playwright.Expect do
   @spec to_pass((-> term()) | t((-> term())), to_pass_options()) :: :ok | {:ok, term()} | {:error, Playwright.error()}
   def to_pass(callback, options \\ []) do
     {callback, info} = Facade.matcher_info(callback, false, "expect.toPass")
-    options = Facade.options!(options, @to_pass_options, "expect.toPass")
+    options = Facade.options!(options, @to_pass_options, "expect.toPass", __ENV__.function)
 
     Facade.matcher_value(callback, info, fn ->
       Playwright.Matchers.Expect.create_matcher("toPass", info, callback, &Playwright.Matchers.Matchers.to_pass/3).([
@@ -5269,7 +5329,7 @@ defmodule Playwright.Expect do
   @spec to_pass!((-> term()) | t((-> term())), to_pass_options()) :: term()
   def to_pass!(callback, options \\ []) do
     {callback, info} = Facade.matcher_info(callback, false, "expect.toPass")
-    options = Facade.options!(options, @to_pass_options, "expect.toPass")
+    options = Facade.options!(options, @to_pass_options, "expect.toPass", __ENV__.function)
 
     Facade.matcher_value!(callback, info, fn ->
       Playwright.Matchers.Expect.create_matcher("toPass", info, callback, &Playwright.Matchers.Matchers.to_pass/3).([
@@ -5300,7 +5360,7 @@ defmodule Playwright.Expect do
   @spec not_to_pass((-> term()) | t((-> term())), not_to_pass_options()) :: :ok | {:error, Playwright.error()}
   def not_to_pass(callback, options \\ []) do
     {callback, info} = Facade.matcher_info(callback, true, "expect.notToPass")
-    options = Facade.options!(options, @not_to_pass_options, "expect.notToPass")
+    options = Facade.options!(options, @not_to_pass_options, "expect.notToPass", __ENV__.function)
 
     Facade.matcher(callback, fn ->
       Playwright.Matchers.Expect.create_matcher("toPass", info, callback, &Playwright.Matchers.Matchers.to_pass/3).([
@@ -5313,7 +5373,7 @@ defmodule Playwright.Expect do
   @spec not_to_pass!((-> term()) | t((-> term())), not_to_pass_options()) :: :ok
   def not_to_pass!(callback, options \\ []) do
     {callback, info} = Facade.matcher_info(callback, true, "expect.notToPass")
-    options = Facade.options!(options, @not_to_pass_options, "expect.notToPass")
+    options = Facade.options!(options, @not_to_pass_options, "expect.notToPass", __ENV__.function)
 
     Facade.matcher!(callback, fn ->
       Playwright.Matchers.Expect.create_matcher("toPass", info, callback, &Playwright.Matchers.Matchers.to_pass/3).([
@@ -5398,7 +5458,7 @@ defmodule Playwright.Expect do
   @spec poll((-> term()) | t((-> term())), (term() -> term()), poll_options()) :: :ok | {:error, Playwright.error()}
   def poll(callback, assertion, options \\ []) do
     {callback, info} = Facade.matcher_info(callback, false, "expect.poll")
-    options = Facade.options!(options, @poll_options, "expect.poll")
+    options = Facade.options!(options, @poll_options, "expect.poll", __ENV__.function)
     Facade.matcher(callback, fn -> Playwright.Matchers.Expect.poll(info, callback, options).([assertion]) end)
   end
 
@@ -5406,7 +5466,7 @@ defmodule Playwright.Expect do
   @spec poll!((-> term()) | t((-> term())), (term() -> term()), poll_options()) :: :ok
   def poll!(callback, assertion, options \\ []) do
     {callback, info} = Facade.matcher_info(callback, false, "expect.poll")
-    options = Facade.options!(options, @poll_options, "expect.poll")
+    options = Facade.options!(options, @poll_options, "expect.poll", __ENV__.function)
     Facade.matcher!(callback, fn -> Playwright.Matchers.Expect.poll(info, callback, options).([assertion]) end)
   end
 

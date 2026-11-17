@@ -10,9 +10,10 @@ defmodule Playwright.Runtime.Callers do
   time (`currentTestInfo()`); here `Playwright.Test.TestInfo`, the Ecto sandbox, Mox and
   `Req.Test` find the test through `$callers`.
 
-  An unhandled error of such a callback fails the running `Playwright.Test` test, as
-  upstream's worker fails its current test on one (`workerMain.ts` `unhandledError`: "so that you
-  can, e.g. expect() from inside an event handler"). Outside a test it is logged, as before.
+  An unhandled error of such a callback fails the running `Playwright.Test` test at once, as
+  upstream's worker fails and interrupts its current test on one (`workerMain.ts`
+  `unhandledError`: "so that you can, e.g. expect() from inside an event handler"). Outside a
+  test it is logged, as before.
   """
   alias Playwright.Test.Results
   alias Playwright.Test.TestInfo
@@ -64,8 +65,9 @@ defmodule Playwright.Runtime.Callers do
   def detached(pid, callers), do: Results.detached(pid, callers)
 
   @doc """
-  An error nothing handled (JS: an uncaught exception or unhandled rejection): it fails the
-  running test of the calling process or its `$callers`, else it is logged with `label`.
+  An error nothing handled (JS: an uncaught exception or unhandled rejection): it fails and
+  interrupts the running test of the calling process or its `$callers`
+  (`Playwright.Test.TestInfo._unhandled_error/2`), else it is logged with `label`.
   """
   def unhandled(label, kind, reason, stacktrace) do
     case TestInfo.current() do
@@ -73,7 +75,7 @@ defmodule Playwright.Runtime.Callers do
         Logger.error(label <> Exception.format(kind, reason, stacktrace))
 
       test_info ->
-        TestInfo._fail_with_error(test_info, {kind, Exception.normalize(kind, reason, stacktrace), stacktrace})
+        TestInfo._unhandled_error(test_info, {kind, Exception.normalize(kind, reason, stacktrace), stacktrace})
     end
   end
 end

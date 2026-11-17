@@ -35,6 +35,9 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
     * Handles: a class whose client module exports `__struct_fields__/0` gets the struct
       (`%Playwright.Page{}`) and `__client__/1`, its client module (`Playwright.Runtime.Heap.impl/1`).
       A client module that exports `__client__/1` itself picks the implementation per handle.
+      Its functions match the struct as their receiver (`%Playwright.Page{} = page`), so a handle
+      of another class fails there, naming the function; a class with subclasses (`JSHandle`)
+      matches none.
     * Classes with events: `on/3`, `once/3`, `add_listener/3`, `remove_listener/3`, `off/3`,
       `prepend_listener/3` with event atoms (`:disconnected`), as `types.d.ts` has them; any
       string too for `"openEvents"` classes (`CDPSession`, see `Mix.Playwright.ApiRules`). The
@@ -255,7 +258,7 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
       |> Enum.map(&rename_clashing_args(&1, receiver))
 
     events = for m <- class["members"], m["kind"] == "event", do: m
-    ctx = Map.put(ctx, :receiver, receiver)
+    ctx = Map.merge(ctx, %{receiver: receiver, receiver_param: receiver_param(ctx, name, receiver)})
     listeners = if events != [], do: @listener_methods, else: []
 
     # `@events` maps event atoms to JS names, for listeners and `event` arguments (`wait_for_event`).
@@ -300,11 +303,20 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
 
   # A subclass handle is one too (an `ElementHandle` is a `JSHandle`).
   defp struct_type(ctx, name) do
-    subclasses = for {sub, %{"extends" => ^name}} <- ctx.classes, do: sub
-
     if handle?(name),
-      do: Enum.join(["%__MODULE__{}" | Enum.map(Enum.sort(subclasses), &"%#{inspect(facade(&1))}{}")], " | "),
+      do:
+        Enum.join(["%__MODULE__{}" | Enum.map(Enum.sort(subclasses(ctx, name)), &"%#{inspect(facade(&1))}{}")], " | "),
       else: "term()"
+  end
+
+  defp subclasses(ctx, name), do: for({sub, %{"extends" => ^name}} <- ctx.classes, do: sub)
+
+  # The receiver in a function head: its handle struct matched, unless it has subclasses (`JSHandle`)
+  # or is no handle (`Expect`).
+  defp receiver_param(ctx, name, receiver) do
+    if handle?(name) and subclasses(ctx, name) == [],
+      do: "%#{inspect(facade(name))}{} = #{receiver}",
+      else: receiver
   end
 
   # The handle struct of a class whose client module has one (`__struct_fields__/0`), and the
@@ -434,7 +446,8 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
           "#{receiver}, #{capture}).([#{Enum.join(vars, ", ")}])"
       end
 
-    m = %{params: params, function: nil, or_options: or_options(member["args"], vars)}
+    # The receiver is not matched: a matcher takes several (`matcher["receivers"]`).
+    m = %{params: params, matched: params, function: nil, or_options: or_options(member["args"], vars)}
     receiver_spec = Enum.map_join(matcher["receivers"], " | ", &receiver_type/1)
     # A negated or soft receiver (`not_/1`, `soft/1`) takes the place of the receiver (a `not_to_*`
     # matcher raises for a negated one).
@@ -445,7 +458,7 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
       Enum.join(
         [
           "{#{receiver}, info} = Facade.matcher_info(#{receiver}, #{matcher["isNot"]}, #{inspect(api_name)})"
-          | Enum.map(attrs, &conversion(name, api_name, &1))
+          | Enum.map(attrs, &matcher_conversion(name, api_name, &1))
         ],
         "\n"
       )
@@ -496,6 +509,8 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
     vars = Enum.map(args, &arg_var/1)
     attrs = for {arg, var} <- Enum.zip(args, vars), schema = arg_schema(ctx, arg), do: {arg, var, schema}
     params = [receiver | Enum.map(Enum.zip(args, vars), &param/1)]
+    # The params of a function head with a body: the receiver matched.
+    matched = [ctx.receiver_param | tl(params)]
     void? = get_in(member, ["type", "name"]) == "void"
     examples = wait_examples(ctx, class, member, receiver, args, vars)
     doc = promise_doc(member_doc(ctx, member, args), member, length(params), examples)
@@ -517,7 +532,8 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
       api_name: inspect(api_name),
       receiver: receiver,
       params: params,
-      head: head(name, params, function || or_options),
+      matched: matched,
+      head: head(name, matched, function || or_options),
       function: function,
       or_options: or_options,
       attributes: attributes,
@@ -586,11 +602,13 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
 
   defp clauses(m, name) do
     plain = Enum.map(m.params, &no_default/1)
+    # The receiver matched in the clauses' heads too, so a wrong one fails there.
+    matched = Enum.map(m.matched, &no_default/1)
 
     function =
       if function = m.function do
         var = snake(function)
-        fun_params = Enum.map(plain, &if(&1 == "options", do: var, else: &1))
+        fun_params = Enum.map(matched, &if(&1 == "options", do: var, else: &1))
         call_args = Enum.map(plain, &if(&1 == "options", do: "#{var}: #{var}", else: &1))
 
         """
@@ -601,7 +619,7 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
 
     or_options =
       if var = m.or_options do
-        opt_params = Enum.map(plain, &(%{var => "options", "options" => "[]"}[&1] || &1))
+        opt_params = Enum.map(matched, &(%{var => "options", "options" => "[]"}[&1] || &1))
         call_args = Enum.map(plain, &if(&1 == var, do: "nil", else: &1))
 
         """
@@ -624,6 +642,13 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
 
   defp attribute(_name, {_, _, :event}), do: ""
   defp attribute(name, {_, var, schema}), do: "@#{name}_#{var} #{render(schema)}"
+
+  # A matcher's options name the function as called (`__ENV__.function`), for the hint of an
+  # unknown `:message` (`Facade.options!/4`).
+  defp matcher_conversion(name, api_name, {%{"name" => "options"}, var, _}),
+    do: "#{var} = Facade.options!(#{var}, @#{name}_#{var}, #{inspect(api_name)}, __ENV__.function)"
+
+  defp matcher_conversion(name, api_name, attr), do: conversion(name, api_name, attr)
 
   # Options that may be a result of the member (`"result"`, see `Mix.Playwright.ApiRules`).
   defp conversion(name, api_name, {%{"name" => "options", "result" => %{"ignored" => ignored}}, var, _}),
@@ -660,7 +685,7 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
 
     #{m.deprecated}@doc #{doc(promise_bang_doc(member, m))}
     #{spec(m.name <> "!", m, m.return)}
-    def #{m.name}!(#{Enum.join(m.params, ", ")}),
+    def #{m.name}!(#{Enum.join(m.matched, ", ")}),
       do: Facade.await!(#{m.name}(#{Enum.map_join(m.params, ", ", &no_default/1)}))
     """
   end
@@ -685,7 +710,7 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
 
     #{m.deprecated}@doc "Like `#{m.name}/#{length(m.params)}`, but returns the value and raises on error."
     #{spec(m.name <> "!", m, m.return)}
-    #{clauses(m, m.name <> "!")}def #{head(m.name <> "!", m.params, m.function || m.or_options)} do
+    #{clauses(m, m.name <> "!")}def #{head(m.name <> "!", m.matched, m.function || m.or_options)} do
       #{m.conversions}
       Facade.#{async!}(#{m.api_name}, #{m.receiver}, fn -> #{m.call} end#{extra})
     end
@@ -994,7 +1019,7 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
       @doc #{inspect(doc)}
       @doc group: "Events"
       #{Enum.map_join(events, "\n", &listener_spec(ctx, name, &1))}#{if class["openEvents"], do: "\n@spec #{name}(t(), String.t(), (term() -> term())) :: t()"}
-      def #{name}(#{receiver}, event, listener) do
+      def #{name}(#{ctx.receiver_param}, event, listener) do
         event = Facade.event!(event, @events, #{inspect(api_name)}#{if class["openEvents"], do: ", true"})
         Facade.listen(fn -> #{inspect(impl(class["name"]))}.#{name}(#{receiver}, event, listener) end)
       end

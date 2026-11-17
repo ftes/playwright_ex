@@ -73,13 +73,13 @@ defmodule Playwright.CDPSession do
   *Since Playwright 1.8.*
   """
   @spec detach(t()) :: :ok | {:error, Playwright.error()}
-  def detach(cdp_session) do
+  def detach(%Playwright.CDPSession{} = cdp_session) do
     Facade.async_void("cdpSession.detach", cdp_session, fn -> Playwright.Client.CDPSession.detach(cdp_session) end)
   end
 
   @doc "Like `detach/1`, but returns the value and raises on error."
   @spec detach!(t()) :: :ok
-  def detach!(cdp_session) do
+  def detach!(%Playwright.CDPSession{} = cdp_session) do
     Facade.async_void!("cdpSession.detach", cdp_session, fn -> Playwright.Client.CDPSession.detach(cdp_session) end)
   end
 
@@ -108,7 +108,7 @@ defmodule Playwright.CDPSession do
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec send(t(), String.t(), map() | nil, send_options()) :: {:ok, map()} | {:error, Playwright.error()}
-  def send(cdp_session, method, params \\ nil, options \\ []) do
+  def send(%Playwright.CDPSession{} = cdp_session, method, params \\ nil, options \\ []) do
     options = Facade.options!(options, @send_options, "cdpSession.send")
 
     Facade.async("cdpSession.send", cdp_session, fn ->
@@ -118,7 +118,7 @@ defmodule Playwright.CDPSession do
 
   @doc "Like `send/4`, but returns the value and raises on error."
   @spec send!(t(), String.t(), map() | nil, send_options()) :: map()
-  def send!(cdp_session, method, params \\ nil, options \\ []) do
+  def send!(%Playwright.CDPSession{} = cdp_session, method, params \\ nil, options \\ []) do
     options = Facade.options!(options, @send_options, "cdpSession.send")
 
     Facade.async!("cdpSession.send", cdp_session, fn ->
@@ -131,7 +131,7 @@ defmodule Playwright.CDPSession do
   @spec on(t(), :close, (Playwright.CDPSession.t() -> term())) :: t()
   @spec on(t(), :event, (%{required(:method) => String.t(), optional(:params) => map()} -> term())) :: t()
   @spec on(t(), String.t(), (term() -> term())) :: t()
-  def on(cdp_session, event, listener) do
+  def on(%Playwright.CDPSession{} = cdp_session, event, listener) do
     event = Facade.event!(event, @events, "cdpSession.on", true)
     Facade.listen(fn -> Playwright.Client.CDPSession.on(cdp_session, event, listener) end)
   end
@@ -141,7 +141,7 @@ defmodule Playwright.CDPSession do
   @spec once(t(), :close, (Playwright.CDPSession.t() -> term())) :: t()
   @spec once(t(), :event, (%{required(:method) => String.t(), optional(:params) => map()} -> term())) :: t()
   @spec once(t(), String.t(), (term() -> term())) :: t()
-  def once(cdp_session, event, listener) do
+  def once(%Playwright.CDPSession{} = cdp_session, event, listener) do
     event = Facade.event!(event, @events, "cdpSession.once", true)
     Facade.listen(fn -> Playwright.Client.CDPSession.once(cdp_session, event, listener) end)
   end
@@ -151,7 +151,7 @@ defmodule Playwright.CDPSession do
   @spec add_listener(t(), :close, (Playwright.CDPSession.t() -> term())) :: t()
   @spec add_listener(t(), :event, (%{required(:method) => String.t(), optional(:params) => map()} -> term())) :: t()
   @spec add_listener(t(), String.t(), (term() -> term())) :: t()
-  def add_listener(cdp_session, event, listener) do
+  def add_listener(%Playwright.CDPSession{} = cdp_session, event, listener) do
     event = Facade.event!(event, @events, "cdpSession.addListener", true)
     Facade.listen(fn -> Playwright.Client.CDPSession.add_listener(cdp_session, event, listener) end)
   end
@@ -161,7 +161,7 @@ defmodule Playwright.CDPSession do
   @spec remove_listener(t(), :close, (Playwright.CDPSession.t() -> term())) :: t()
   @spec remove_listener(t(), :event, (%{required(:method) => String.t(), optional(:params) => map()} -> term())) :: t()
   @spec remove_listener(t(), String.t(), (term() -> term())) :: t()
-  def remove_listener(cdp_session, event, listener) do
+  def remove_listener(%Playwright.CDPSession{} = cdp_session, event, listener) do
     event = Facade.event!(event, @events, "cdpSession.removeListener", true)
     Facade.listen(fn -> Playwright.Client.CDPSession.remove_listener(cdp_session, event, listener) end)
   end
@@ -171,7 +171,7 @@ defmodule Playwright.CDPSession do
   @spec off(t(), :close, (Playwright.CDPSession.t() -> term())) :: t()
   @spec off(t(), :event, (%{required(:method) => String.t(), optional(:params) => map()} -> term())) :: t()
   @spec off(t(), String.t(), (term() -> term())) :: t()
-  def off(cdp_session, event, listener) do
+  def off(%Playwright.CDPSession{} = cdp_session, event, listener) do
     event = Facade.event!(event, @events, "cdpSession.off", true)
     Facade.listen(fn -> Playwright.Client.CDPSession.off(cdp_session, event, listener) end)
   end
@@ -181,7 +181,7 @@ defmodule Playwright.CDPSession do
   @spec prepend_listener(t(), :close, (Playwright.CDPSession.t() -> term())) :: t()
   @spec prepend_listener(t(), :event, (%{required(:method) => String.t(), optional(:params) => map()} -> term())) :: t()
   @spec prepend_listener(t(), String.t(), (term() -> term())) :: t()
-  def prepend_listener(cdp_session, event, listener) do
+  def prepend_listener(%Playwright.CDPSession{} = cdp_session, event, listener) do
     event = Facade.event!(event, @events, "cdpSession.prependListener", true)
     Facade.listen(fn -> Playwright.Client.CDPSession.prepend_listener(cdp_session, event, listener) end)
   end

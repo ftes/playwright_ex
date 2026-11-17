@@ -51,7 +51,7 @@ defmodule Playwright.ConsoleMessage do
   *Since Playwright 1.8.*
   """
   @spec args(t()) :: [Playwright.JSHandle.t()]
-  def args(console_message) do
+  def args(%Playwright.ConsoleMessage{} = console_message) do
     Playwright.Client.ConsoleMessage.args(console_message)
   end
 
@@ -65,7 +65,7 @@ defmodule Playwright.ConsoleMessage do
           lineNumber: integer(),
           columnNumber: integer()
         }
-  def location(console_message) do
+  def location(%Playwright.ConsoleMessage{} = console_message) do
     Playwright.Client.ConsoleMessage.location(console_message)
   end
 
@@ -75,7 +75,7 @@ defmodule Playwright.ConsoleMessage do
   *Since Playwright 1.34.*
   """
   @spec page(t()) :: nil | Playwright.Page.t()
-  def page(console_message) do
+  def page(%Playwright.ConsoleMessage{} = console_message) do
     Playwright.Client.ConsoleMessage.page(console_message)
   end
 
@@ -85,7 +85,7 @@ defmodule Playwright.ConsoleMessage do
   *Since Playwright 1.8.*
   """
   @spec text(t()) :: String.t()
-  def text(console_message) do
+  def text(%Playwright.ConsoleMessage{} = console_message) do
     Playwright.Client.ConsoleMessage.text(console_message)
   end
 
@@ -95,7 +95,7 @@ defmodule Playwright.ConsoleMessage do
   *Since Playwright 1.59.*
   """
   @spec timestamp(t()) :: number()
-  def timestamp(console_message) do
+  def timestamp(%Playwright.ConsoleMessage{} = console_message) do
     Playwright.Client.ConsoleMessage.timestamp(console_message)
   end
 
@@ -103,7 +103,7 @@ defmodule Playwright.ConsoleMessage do
   *Since Playwright 1.8.*
   """
   @spec type(t()) :: String.t()
-  def type(console_message) do
+  def type(%Playwright.ConsoleMessage{} = console_message) do
     Playwright.Client.ConsoleMessage.type(console_message)
   end
 
@@ -113,7 +113,7 @@ defmodule Playwright.ConsoleMessage do
   *Since Playwright 1.57.*
   """
   @spec worker(t()) :: nil | Playwright.Worker.t()
-  def worker(console_message) do
+  def worker(%Playwright.ConsoleMessage{} = console_message) do
     Playwright.Client.ConsoleMessage.worker(console_message)
   end
 end

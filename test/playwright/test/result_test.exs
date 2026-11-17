@@ -97,6 +97,22 @@ defmodule Playwright.Test.ResultTest do
     assert_raise ArgumentError, ~r/no test/, fn -> until_raises(fn -> Playwright.Test.info(pid) end) end
   end
 
+  # `Playwright.Test.TestInfo._unhandled_error/2`'s exit, after the end of the body took the error
+  # (its failure): the error once.
+  test "an unhandled error's interrupt after the body failed with it: the error once" do
+    pid = fake_test()
+    error = %RuntimeError{message: "listener boom"}
+    stacktrace = [{__MODULE__, :listener, 1, []}]
+
+    end_test(
+      pid,
+      [&{:failed, &1, {:error, error, stacktrace}}],
+      Playwright.Test.TestInfo.interrupt_reason(:error, error, stacktrace)
+    )
+
+    assert %{status: :failed, errors: [%{message: "RuntimeError: listener boom"}]} = Playwright.Test.info(pid)
+  end
+
   test "passed, timed out, and unknown for another macro's test" do
     passed = fake_test()
     end_test(passed, [&{:passed, &1}], :shutdown)

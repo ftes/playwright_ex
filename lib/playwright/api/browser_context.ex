@@ -229,7 +229,7 @@ defmodule Playwright.BrowserContext do
   *Since Playwright 1.45.*
   """
   @spec clock(t()) :: Playwright.Clock.t()
-  def clock(browser_context) do
+  def clock(%Playwright.BrowserContext{} = browser_context) do
     Playwright.Client.BrowserContext.clock(browser_context)
   end
 
@@ -240,7 +240,7 @@ defmodule Playwright.BrowserContext do
   *Since Playwright 1.61.*
   """
   @spec credentials(t()) :: Playwright.Credentials.t()
-  def credentials(browser_context) do
+  def credentials(%Playwright.BrowserContext{} = browser_context) do
     Playwright.Client.BrowserContext.credentials(browser_context)
   end
 
@@ -250,7 +250,7 @@ defmodule Playwright.BrowserContext do
   *Since Playwright 1.59.*
   """
   @spec debugger(t()) :: Playwright.Debugger.t()
-  def debugger(browser_context) do
+  def debugger(%Playwright.BrowserContext{} = browser_context) do
     Playwright.Client.BrowserContext.debugger(browser_context)
   end
 
@@ -295,7 +295,7 @@ defmodule Playwright.BrowserContext do
             optional(atom()) => term()
           }
         ]) :: :ok | {:error, Playwright.error()}
-  def add_cookies(browser_context, cookies) do
+  def add_cookies(%Playwright.BrowserContext{} = browser_context, cookies) do
     Facade.async_void("browserContext.addCookies", browser_context, fn ->
       Playwright.Client.BrowserContext.add_cookies(browser_context, cookies)
     end)
@@ -317,7 +317,7 @@ defmodule Playwright.BrowserContext do
             optional(atom()) => term()
           }
         ]) :: :ok
-  def add_cookies!(browser_context, cookies) do
+  def add_cookies!(%Playwright.BrowserContext{} = browser_context, cookies) do
     Facade.async_void!("browserContext.addCookies", browser_context, fn ->
       Playwright.Client.BrowserContext.add_cookies(browser_context, cookies)
     end)
@@ -378,7 +378,7 @@ defmodule Playwright.BrowserContext do
           term() | nil,
           add_init_script_options()
         ) :: {:ok, Playwright.Disposable.t()} | {:error, Playwright.error()}
-  def add_init_script(browser_context, script, arg \\ nil, options \\ []) do
+  def add_init_script(%Playwright.BrowserContext{} = browser_context, script, arg \\ nil, options \\ []) do
     script = Facade.arg!(script, @add_init_script_script, "browserContext.addInitScript")
     options = Facade.options!(options, @add_init_script_options, "browserContext.addInitScript")
 
@@ -394,7 +394,7 @@ defmodule Playwright.BrowserContext do
           term() | nil,
           add_init_script_options()
         ) :: Playwright.Disposable.t()
-  def add_init_script!(browser_context, script, arg \\ nil, options \\ []) do
+  def add_init_script!(%Playwright.BrowserContext{} = browser_context, script, arg \\ nil, options \\ []) do
     script = Facade.arg!(script, @add_init_script_script, "browserContext.addInitScript")
     options = Facade.options!(options, @add_init_script_options, "browserContext.addInitScript")
 
@@ -410,7 +410,7 @@ defmodule Playwright.BrowserContext do
   *Since Playwright 1.11.*
   """
   @spec background_pages(t()) :: [Playwright.Page.t()]
-  def background_pages(browser_context) do
+  def background_pages(%Playwright.BrowserContext{} = browser_context) do
     Playwright.Client.BrowserContext.background_pages(browser_context)
   end
 
@@ -420,7 +420,7 @@ defmodule Playwright.BrowserContext do
   *Since Playwright 1.8.*
   """
   @spec browser(t()) :: nil | Playwright.Browser.t()
-  def browser(browser_context) do
+  def browser(%Playwright.BrowserContext{} = browser_context) do
     Playwright.Client.BrowserContext.browser(browser_context)
   end
 
@@ -462,7 +462,7 @@ defmodule Playwright.BrowserContext do
   * `:path` (`t:String.t/0` | `t:Regex.t/0` | `t:Playwright.RegExp.t/0`) - *Since Playwright 1.43.* Only removes cookies with the given path.
   """
   @spec clear_cookies(t(), clear_cookies_options()) :: :ok | {:error, Playwright.error()}
-  def clear_cookies(browser_context, options \\ []) do
+  def clear_cookies(%Playwright.BrowserContext{} = browser_context, options \\ []) do
     options = Facade.options!(options, @clear_cookies_options, "browserContext.clearCookies")
 
     Facade.async_void("browserContext.clearCookies", browser_context, fn ->
@@ -472,7 +472,7 @@ defmodule Playwright.BrowserContext do
 
   @doc "Like `clear_cookies/2`, but returns the value and raises on error."
   @spec clear_cookies!(t(), clear_cookies_options()) :: :ok
-  def clear_cookies!(browser_context, options \\ []) do
+  def clear_cookies!(%Playwright.BrowserContext{} = browser_context, options \\ []) do
     options = Facade.options!(options, @clear_cookies_options, "browserContext.clearCookies")
 
     Facade.async_void!("browserContext.clearCookies", browser_context, fn ->
@@ -495,7 +495,7 @@ defmodule Playwright.BrowserContext do
   *Since Playwright 1.8.*
   """
   @spec clear_permissions(t()) :: :ok | {:error, Playwright.error()}
-  def clear_permissions(browser_context) do
+  def clear_permissions(%Playwright.BrowserContext{} = browser_context) do
     Facade.async_void("browserContext.clearPermissions", browser_context, fn ->
       Playwright.Client.BrowserContext.clear_permissions(browser_context)
     end)
@@ -503,7 +503,7 @@ defmodule Playwright.BrowserContext do
 
   @doc "Like `clear_permissions/1`, but returns the value and raises on error."
   @spec clear_permissions!(t()) :: :ok
-  def clear_permissions!(browser_context) do
+  def clear_permissions!(%Playwright.BrowserContext{} = browser_context) do
     Facade.async_void!("browserContext.clearPermissions", browser_context, fn ->
       Playwright.Client.BrowserContext.clear_permissions(browser_context)
     end)
@@ -528,7 +528,7 @@ defmodule Playwright.BrowserContext do
   * `:reason` (`t:String.t/0`) - *Since Playwright 1.40.* The reason to be reported to the operations interrupted by the context closure.
   """
   @spec close(t(), close_options()) :: :ok | {:error, Playwright.error()}
-  def close(browser_context, options \\ []) do
+  def close(%Playwright.BrowserContext{} = browser_context, options \\ []) do
     options = Facade.options!(options, @close_options, "browserContext.close")
 
     Facade.async_void("browserContext.close", browser_context, fn ->
@@ -538,7 +538,7 @@ defmodule Playwright.BrowserContext do
 
   @doc "Like `close/2`, but returns the value and raises on error."
   @spec close!(t(), close_options()) :: :ok
-  def close!(browser_context, options \\ []) do
+  def close!(%Playwright.BrowserContext{} = browser_context, options \\ []) do
     options = Facade.options!(options, @close_options, "browserContext.close")
 
     Facade.async_void!("browserContext.close", browser_context, fn ->
@@ -572,7 +572,7 @@ defmodule Playwright.BrowserContext do
              }
            ]}
           | {:error, Playwright.error()}
-  def cookies(browser_context, urls \\ nil) do
+  def cookies(%Playwright.BrowserContext{} = browser_context, urls \\ nil) do
     Facade.async("browserContext.cookies", browser_context, fn ->
       Playwright.Client.BrowserContext.cookies(browser_context, urls)
     end)
@@ -592,7 +592,7 @@ defmodule Playwright.BrowserContext do
             optional(:partitionKey) => String.t()
           }
         ]
-  def cookies!(browser_context, urls \\ nil) do
+  def cookies!(%Playwright.BrowserContext{} = browser_context, urls \\ nil) do
     Facade.async!("browserContext.cookies", browser_context, fn ->
       Playwright.Client.BrowserContext.cookies(browser_context, urls)
     end)
@@ -600,7 +600,7 @@ defmodule Playwright.BrowserContext do
 
   @doc "The method adds a function called `name` on the `window` object of every frame in every page in the context.\nWhen called, the function executes `callback` and returns a `Promise` which resolves to the return value of\n`callback`. If `callback` returns a `Playwright.Promise`, it is awaited.\n\nThe first argument of the `callback` function contains information about the caller: `{ browserContext:\nBrowserContext, page: Page, frame: Frame }`.\n\nSee `Playwright.Page.expose_binding/3` for page-only version.\n\n**Usage**\n\nAn example of exposing page URL to all frames in all pages in the context:\n\n```elixir\n# Or Playwright.chromium/1 or Playwright.firefox/1.\nbrowser = BrowserType.launch!(Playwright.webkit(playwright))\ncontext = Browser.new_context!(browser)\nBrowserContext.expose_binding!(context, \"pageURL\", fn %{page: page} -> Page.url(page) end)\npage = BrowserContext.new_page!(context)\n\nPage.set_content!(page, \"\"\"\n<script>\n  async function onClick() {\n    document.querySelector('div').textContent = await window.pageURL();\n  }\n</script>\n<button onclick=\"onClick()\">Click me</button>\n<div></div>\n\"\"\")\n\nPage.get_by_role(page, :button) |> Locator.click!()\n```\n\n*Since Playwright 1.8.*\n\n## Arguments\n\n* `name` - Name of the function on the window object.\n* `callback` - Callback function that will be called in the Playwright's context."
   @spec expose_binding(t(), String.t(), fun()) :: {:ok, Playwright.Disposable.t()} | {:error, Playwright.error()}
-  def expose_binding(browser_context, name, callback) do
+  def expose_binding(%Playwright.BrowserContext{} = browser_context, name, callback) do
     Facade.async("browserContext.exposeBinding", browser_context, fn ->
       Playwright.Client.BrowserContext.expose_binding(browser_context, name, callback)
     end)
@@ -608,7 +608,7 @@ defmodule Playwright.BrowserContext do
 
   @doc "Like `expose_binding/3`, but returns the value and raises on error."
   @spec expose_binding!(t(), String.t(), fun()) :: Playwright.Disposable.t()
-  def expose_binding!(browser_context, name, callback) do
+  def expose_binding!(%Playwright.BrowserContext{} = browser_context, name, callback) do
     Facade.async!("browserContext.exposeBinding", browser_context, fn ->
       Playwright.Client.BrowserContext.expose_binding(browser_context, name, callback)
     end)
@@ -616,7 +616,7 @@ defmodule Playwright.BrowserContext do
 
   @doc "The method adds a function called `name` on the `window` object of every frame in every page in the context.\nWhen called, the function executes `callback` and returns a `Promise` which resolves to the return value of\n`callback`.\n\nIf `callback` returns a `Playwright.Promise`, it is awaited.\n\nSee `Playwright.Page.expose_function/3` for page-only version.\n\n**Usage**\n\nAn example of adding a `sha256` function to all pages in the context:\n\n```elixir\n# Or Playwright.chromium/1 or Playwright.firefox/1.\nbrowser = BrowserType.launch!(Playwright.webkit(playwright))\ncontext = Browser.new_context!(browser)\n\nBrowserContext.expose_function!(context, \"sha256\", fn text ->\n  :crypto.hash(:sha256, text) |> Base.encode16(case: :lower)\nend)\n\npage = BrowserContext.new_page!(context)\n\nPage.set_content!(page, \"\"\"\n<script>\n  async function onClick() {\n    document.querySelector('div').textContent = await window.sha256('PLAYWRIGHT');\n  }\n</script>\n<button onclick=\"onClick()\">Click me</button>\n<div></div>\n\"\"\")\n\nPage.get_by_role(page, :button) |> Locator.click!()\n```\n\n*Since Playwright 1.8.*\n\n## Arguments\n\n* `name` - Name of the function on the window object.\n* `callback` - Callback function that will be called in the Playwright's context."
   @spec expose_function(t(), String.t(), fun()) :: {:ok, Playwright.Disposable.t()} | {:error, Playwright.error()}
-  def expose_function(browser_context, name, callback) do
+  def expose_function(%Playwright.BrowserContext{} = browser_context, name, callback) do
     Facade.async("browserContext.exposeFunction", browser_context, fn ->
       Playwright.Client.BrowserContext.expose_function(browser_context, name, callback)
     end)
@@ -624,7 +624,7 @@ defmodule Playwright.BrowserContext do
 
   @doc "Like `expose_function/3`, but returns the value and raises on error."
   @spec expose_function!(t(), String.t(), fun()) :: Playwright.Disposable.t()
-  def expose_function!(browser_context, name, callback) do
+  def expose_function!(%Playwright.BrowserContext{} = browser_context, name, callback) do
     Facade.async!("browserContext.exposeFunction", browser_context, fn ->
       Playwright.Client.BrowserContext.expose_function(browser_context, name, callback)
     end)
@@ -675,7 +675,7 @@ defmodule Playwright.BrowserContext do
   * `:origin` (`t:String.t/0`) - The [origin](https://developer.mozilla.org/en-US/docs/Glossary/Origin) to grant permissions to, e.g. "https://example.com".
   """
   @spec grant_permissions(t(), [String.t()], grant_permissions_options()) :: :ok | {:error, Playwright.error()}
-  def grant_permissions(browser_context, permissions, options \\ []) do
+  def grant_permissions(%Playwright.BrowserContext{} = browser_context, permissions, options \\ []) do
     options = Facade.options!(options, @grant_permissions_options, "browserContext.grantPermissions")
 
     Facade.async_void("browserContext.grantPermissions", browser_context, fn ->
@@ -685,7 +685,7 @@ defmodule Playwright.BrowserContext do
 
   @doc "Like `grant_permissions/3`, but returns the value and raises on error."
   @spec grant_permissions!(t(), [String.t()], grant_permissions_options()) :: :ok
-  def grant_permissions!(browser_context, permissions, options \\ []) do
+  def grant_permissions!(%Playwright.BrowserContext{} = browser_context, permissions, options \\ []) do
     options = Facade.options!(options, @grant_permissions_options, "browserContext.grantPermissions")
 
     Facade.async_void!("browserContext.grantPermissions", browser_context, fn ->
@@ -699,7 +699,7 @@ defmodule Playwright.BrowserContext do
   *Since Playwright 1.59.*
   """
   @spec is_closed(t()) :: boolean()
-  def is_closed(browser_context) do
+  def is_closed(%Playwright.BrowserContext{} = browser_context) do
     Playwright.Client.BrowserContext.is_closed(browser_context)
   end
 
@@ -719,7 +719,7 @@ defmodule Playwright.BrowserContext do
   """
   @spec new_cdp_session(t(), Playwright.Page.t() | Playwright.Frame.t()) ::
           {:ok, Playwright.CDPSession.t()} | {:error, Playwright.error()}
-  def new_cdp_session(browser_context, page) do
+  def new_cdp_session(%Playwright.BrowserContext{} = browser_context, page) do
     Facade.async("browserContext.newCDPSession", browser_context, fn ->
       Playwright.Client.BrowserContext.new_cdp_session(browser_context, page)
     end)
@@ -727,7 +727,7 @@ defmodule Playwright.BrowserContext do
 
   @doc "Like `new_cdp_session/2`, but returns the value and raises on error."
   @spec new_cdp_session!(t(), Playwright.Page.t() | Playwright.Frame.t()) :: Playwright.CDPSession.t()
-  def new_cdp_session!(browser_context, page) do
+  def new_cdp_session!(%Playwright.BrowserContext{} = browser_context, page) do
     Facade.async!("browserContext.newCDPSession", browser_context, fn ->
       Playwright.Client.BrowserContext.new_cdp_session(browser_context, page)
     end)
@@ -739,7 +739,7 @@ defmodule Playwright.BrowserContext do
   *Since Playwright 1.8.*
   """
   @spec new_page(t()) :: {:ok, Playwright.Page.t()} | {:error, Playwright.error()}
-  def new_page(browser_context) do
+  def new_page(%Playwright.BrowserContext{} = browser_context) do
     Facade.async("browserContext.newPage", browser_context, fn ->
       Playwright.Client.BrowserContext.new_page(browser_context)
     end)
@@ -747,7 +747,7 @@ defmodule Playwright.BrowserContext do
 
   @doc "Like `new_page/1`, but returns the value and raises on error."
   @spec new_page!(t()) :: Playwright.Page.t()
-  def new_page!(browser_context) do
+  def new_page!(%Playwright.BrowserContext{} = browser_context) do
     Facade.async!("browserContext.newPage", browser_context, fn ->
       Playwright.Client.BrowserContext.new_page(browser_context)
     end)
@@ -759,7 +759,7 @@ defmodule Playwright.BrowserContext do
   *Since Playwright 1.8.*
   """
   @spec pages(t()) :: [Playwright.Page.t()]
-  def pages(browser_context) do
+  def pages(%Playwright.BrowserContext{} = browser_context) do
     Playwright.Client.BrowserContext.pages(browser_context)
   end
 
@@ -796,11 +796,11 @@ defmodule Playwright.BrowserContext do
           :ok | {:error, Playwright.error()}
   def remove_all_listeners(browser_context, event \\ nil, options \\ [])
 
-  def remove_all_listeners(browser_context, options, [])
+  def remove_all_listeners(%Playwright.BrowserContext{} = browser_context, options, [])
       when is_list(options) or (is_map(options) and not is_struct(options)),
       do: remove_all_listeners(browser_context, nil, options)
 
-  def remove_all_listeners(browser_context, event, options) do
+  def remove_all_listeners(%Playwright.BrowserContext{} = browser_context, event, options) do
     event = Facade.event!(event, @events, "browserContext.removeAllListeners")
     options = Facade.options!(options, @remove_all_listeners_options, "browserContext.removeAllListeners")
 
@@ -814,11 +814,11 @@ defmodule Playwright.BrowserContext do
   @spec remove_all_listeners!(t(), event() | String.t() | nil | remove_all_listeners_options()) :: :ok
   def remove_all_listeners!(browser_context, event \\ nil, options \\ [])
 
-  def remove_all_listeners!(browser_context, options, [])
+  def remove_all_listeners!(%Playwright.BrowserContext{} = browser_context, options, [])
       when is_list(options) or (is_map(options) and not is_struct(options)),
       do: remove_all_listeners!(browser_context, nil, options)
 
-  def remove_all_listeners!(browser_context, event, options) do
+  def remove_all_listeners!(%Playwright.BrowserContext{} = browser_context, event, options) do
     event = Facade.event!(event, @events, "browserContext.removeAllListeners")
     options = Facade.options!(options, @remove_all_listeners_options, "browserContext.removeAllListeners")
 
@@ -833,7 +833,7 @@ defmodule Playwright.BrowserContext do
   *Since Playwright 1.16.*
   """
   @spec request(t()) :: Playwright.APIRequestContext.t()
-  def request(browser_context) do
+  def request(%Playwright.BrowserContext{} = browser_context) do
     Playwright.Client.BrowserContext.request(browser_context)
   end
 
@@ -910,7 +910,7 @@ defmodule Playwright.BrowserContext do
           (Playwright.Route.t() -> term()) | (Playwright.Route.t(), Playwright.Request.t() -> term()),
           route_options()
         ) :: {:ok, Playwright.Disposable.t()} | {:error, Playwright.error()}
-  def route(browser_context, url, handler, options \\ []) do
+  def route(%Playwright.BrowserContext{} = browser_context, url, handler, options \\ []) do
     options = Facade.options!(options, @route_options, "browserContext.route")
 
     Facade.async("browserContext.route", browser_context, fn ->
@@ -925,7 +925,7 @@ defmodule Playwright.BrowserContext do
           (Playwright.Route.t() -> term()) | (Playwright.Route.t(), Playwright.Request.t() -> term()),
           route_options()
         ) :: Playwright.Disposable.t()
-  def route!(browser_context, url, handler, options \\ []) do
+  def route!(%Playwright.BrowserContext{} = browser_context, url, handler, options \\ []) do
     options = Facade.options!(options, @route_options, "browserContext.route")
 
     Facade.async!("browserContext.route", browser_context, fn ->
@@ -984,7 +984,7 @@ defmodule Playwright.BrowserContext do
   * `:url` (`t:String.t/0` | `t:Regex.t/0` | `t:Playwright.RegExp.t/0`) - A glob pattern, regular expression or predicate to match the request URL. Only requests with URL matching the pattern will be served from the HAR file. If not specified, all requests are served from the HAR file.
   """
   @spec route_from_har(t(), String.t(), route_from_har_options()) :: :ok | {:error, Playwright.error()}
-  def route_from_har(browser_context, har, options \\ []) do
+  def route_from_har(%Playwright.BrowserContext{} = browser_context, har, options \\ []) do
     options = Facade.options!(options, @route_from_har_options, "browserContext.routeFromHAR")
 
     Facade.async_void("browserContext.routeFromHAR", browser_context, fn ->
@@ -994,7 +994,7 @@ defmodule Playwright.BrowserContext do
 
   @doc "Like `route_from_har/3`, but returns the value and raises on error."
   @spec route_from_har!(t(), String.t(), route_from_har_options()) :: :ok
-  def route_from_har!(browser_context, har, options \\ []) do
+  def route_from_har!(%Playwright.BrowserContext{} = browser_context, har, options \\ []) do
     options = Facade.options!(options, @route_from_har_options, "browserContext.routeFromHAR")
 
     Facade.async_void!("browserContext.routeFromHAR", browser_context, fn ->
@@ -1034,7 +1034,7 @@ defmodule Playwright.BrowserContext do
           String.t() | Regex.t() | Playwright.RegExp.t() | (URI.t() -> boolean()),
           (Playwright.WebSocketRoute.t() -> term())
         ) :: :ok | {:error, Playwright.error()}
-  def route_web_socket(browser_context, url, handler) do
+  def route_web_socket(%Playwright.BrowserContext{} = browser_context, url, handler) do
     Facade.async_void("browserContext.routeWebSocket", browser_context, fn ->
       Playwright.Client.BrowserContext.route_web_socket(browser_context, url, handler)
     end)
@@ -1046,7 +1046,7 @@ defmodule Playwright.BrowserContext do
           String.t() | Regex.t() | Playwright.RegExp.t() | (URI.t() -> boolean()),
           (Playwright.WebSocketRoute.t() -> term())
         ) :: :ok
-  def route_web_socket!(browser_context, url, handler) do
+  def route_web_socket!(%Playwright.BrowserContext{} = browser_context, url, handler) do
     Facade.async_void!("browserContext.routeWebSocket", browser_context, fn ->
       Playwright.Client.BrowserContext.route_web_socket(browser_context, url, handler)
     end)
@@ -1062,7 +1062,7 @@ defmodule Playwright.BrowserContext do
   *Since Playwright 1.11.*
   """
   @spec service_workers(t()) :: [Playwright.Worker.t()]
-  def service_workers(browser_context) do
+  def service_workers(%Playwright.BrowserContext{} = browser_context) do
     Playwright.Client.BrowserContext.service_workers(browser_context)
   end
 
@@ -1092,7 +1092,7 @@ defmodule Playwright.BrowserContext do
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec set_default_navigation_timeout(t(), number() | :infinity) :: :ok
-  def set_default_navigation_timeout(browser_context, timeout) do
+  def set_default_navigation_timeout(%Playwright.BrowserContext{} = browser_context, timeout) do
     timeout =
       Facade.arg!(timeout, @set_default_navigation_timeout_timeout, "browserContext.setDefaultNavigationTimeout")
 
@@ -1119,7 +1119,7 @@ defmodule Playwright.BrowserContext do
     In Elixir, `:infinity` is the same as `0`: no timeout.
   """
   @spec set_default_timeout(t(), number() | :infinity) :: :ok
-  def set_default_timeout(browser_context, timeout) do
+  def set_default_timeout(%Playwright.BrowserContext{} = browser_context, timeout) do
     timeout = Facade.arg!(timeout, @set_default_timeout_timeout, "browserContext.setDefaultTimeout")
     Playwright.Client.BrowserContext.set_default_timeout(browser_context, timeout)
     :ok
@@ -1141,7 +1141,7 @@ defmodule Playwright.BrowserContext do
   * `headers` - An object containing additional HTTP headers to be sent with every request. All header values must be strings.
   """
   @spec set_extra_http_headers(t(), %{optional(String.t()) => String.t()}) :: :ok | {:error, Playwright.error()}
-  def set_extra_http_headers(browser_context, headers) do
+  def set_extra_http_headers(%Playwright.BrowserContext{} = browser_context, headers) do
     Facade.async_void("browserContext.setExtraHTTPHeaders", browser_context, fn ->
       Playwright.Client.BrowserContext.set_extra_http_headers(browser_context, headers)
     end)
@@ -1149,7 +1149,7 @@ defmodule Playwright.BrowserContext do
 
   @doc "Like `set_extra_http_headers/2`, but returns the value and raises on error."
   @spec set_extra_http_headers!(t(), %{optional(String.t()) => String.t()}) :: :ok
-  def set_extra_http_headers!(browser_context, headers) do
+  def set_extra_http_headers!(%Playwright.BrowserContext{} = browser_context, headers) do
     Facade.async_void!("browserContext.setExtraHTTPHeaders", browser_context, fn ->
       Playwright.Client.BrowserContext.set_extra_http_headers(browser_context, headers)
     end)
@@ -1184,7 +1184,7 @@ defmodule Playwright.BrowserContext do
           t(),
           :null | %{required(:latitude) => number(), required(:longitude) => number(), optional(:accuracy) => number()}
         ) :: :ok | {:error, Playwright.error()}
-  def set_geolocation(browser_context, geolocation) do
+  def set_geolocation(%Playwright.BrowserContext{} = browser_context, geolocation) do
     geolocation = Facade.arg!(geolocation, @set_geolocation_geolocation, "browserContext.setGeolocation")
 
     Facade.async_void("browserContext.setGeolocation", browser_context, fn ->
@@ -1197,7 +1197,7 @@ defmodule Playwright.BrowserContext do
           t(),
           :null | %{required(:latitude) => number(), required(:longitude) => number(), optional(:accuracy) => number()}
         ) :: :ok
-  def set_geolocation!(browser_context, geolocation) do
+  def set_geolocation!(%Playwright.BrowserContext{} = browser_context, geolocation) do
     geolocation = Facade.arg!(geolocation, @set_geolocation_geolocation, "browserContext.setGeolocation")
 
     Facade.async_void!("browserContext.setGeolocation", browser_context, fn ->
@@ -1233,7 +1233,7 @@ defmodule Playwright.BrowserContext do
           | %{required(:username) => String.t(), required(:password) => String.t(), optional(:origin) => String.t()}
           | [%{required(:username) => String.t(), required(:password) => String.t(), optional(:origin) => String.t()}]
         ) :: :ok | {:error, Playwright.error()}
-  def set_http_credentials(browser_context, http_credentials) do
+  def set_http_credentials(%Playwright.BrowserContext{} = browser_context, http_credentials) do
     http_credentials =
       Facade.arg!(http_credentials, @set_http_credentials_http_credentials, "browserContext.setHTTPCredentials")
 
@@ -1249,7 +1249,7 @@ defmodule Playwright.BrowserContext do
           | %{required(:username) => String.t(), required(:password) => String.t(), optional(:origin) => String.t()}
           | [%{required(:username) => String.t(), required(:password) => String.t(), optional(:origin) => String.t()}]
         ) :: :ok
-  def set_http_credentials!(browser_context, http_credentials) do
+  def set_http_credentials!(%Playwright.BrowserContext{} = browser_context, http_credentials) do
     http_credentials =
       Facade.arg!(http_credentials, @set_http_credentials_http_credentials, "browserContext.setHTTPCredentials")
 
@@ -1270,7 +1270,7 @@ defmodule Playwright.BrowserContext do
     > Offline emulation only affects requests that go through the browser's regular network stack, such as page navigations, `fetch()`, `XMLHttpRequest` and WebSockets. It does not affect WebRTC traffic: established `RTCPeerConnection`s keep sending and receiving media over UDP. To test WebRTC connection loss, interrupt the connection outside the browser, for example by stopping the TURN server or using an OS-level firewall.
   """
   @spec set_offline(t(), boolean()) :: :ok | {:error, Playwright.error()}
-  def set_offline(browser_context, offline) do
+  def set_offline(%Playwright.BrowserContext{} = browser_context, offline) do
     Facade.async_void("browserContext.setOffline", browser_context, fn ->
       Playwright.Client.BrowserContext.set_offline(browser_context, offline)
     end)
@@ -1278,7 +1278,7 @@ defmodule Playwright.BrowserContext do
 
   @doc "Like `set_offline/2`, but returns the value and raises on error."
   @spec set_offline!(t(), boolean()) :: :ok
-  def set_offline!(browser_context, offline) do
+  def set_offline!(%Playwright.BrowserContext{} = browser_context, offline) do
     Facade.async_void!("browserContext.setOffline", browser_context, fn ->
       Playwright.Client.BrowserContext.set_offline(browser_context, offline)
     end)
@@ -1353,7 +1353,7 @@ defmodule Playwright.BrowserContext do
              optional(atom()) => term()
            }}
           | {:error, Playwright.error()}
-  def storage_state(browser_context, options \\ []) do
+  def storage_state(%Playwright.BrowserContext{} = browser_context, options \\ []) do
     options = Facade.options!(options, @storage_state_options, "browserContext.storageState")
 
     Facade.async("browserContext.storageState", browser_context, fn ->
@@ -1387,7 +1387,7 @@ defmodule Playwright.BrowserContext do
           ],
           optional(atom()) => term()
         }
-  def storage_state!(browser_context, options \\ []) do
+  def storage_state!(%Playwright.BrowserContext{} = browser_context, options \\ []) do
     options = Facade.options!(options, @storage_state_options, "browserContext.storageState")
 
     Facade.async!("browserContext.storageState", browser_context, fn ->
@@ -1459,7 +1459,7 @@ defmodule Playwright.BrowserContext do
               optional(atom()) => term()
             }
         ) :: :ok | {:error, Playwright.error()}
-  def set_storage_state(browser_context, storage_state) do
+  def set_storage_state(%Playwright.BrowserContext{} = browser_context, storage_state) do
     Facade.async_void("browserContext.setStorageState", browser_context, fn ->
       Playwright.Client.BrowserContext.set_storage_state(browser_context, storage_state)
     end)
@@ -1495,7 +1495,7 @@ defmodule Playwright.BrowserContext do
               optional(atom()) => term()
             }
         ) :: :ok
-  def set_storage_state!(browser_context, storage_state) do
+  def set_storage_state!(%Playwright.BrowserContext{} = browser_context, storage_state) do
     Facade.async_void!("browserContext.setStorageState", browser_context, fn ->
       Playwright.Client.BrowserContext.set_storage_state(browser_context, storage_state)
     end)
@@ -1505,7 +1505,7 @@ defmodule Playwright.BrowserContext do
   *Since Playwright 1.12.*
   """
   @spec tracing(t()) :: Playwright.Tracing.t()
-  def tracing(browser_context) do
+  def tracing(%Playwright.BrowserContext{} = browser_context) do
     Playwright.Client.BrowserContext.tracing(browser_context)
   end
 
@@ -1533,7 +1533,7 @@ defmodule Playwright.BrowserContext do
     * `:ignore_errors` - do not wait for current handler calls (if any) to finish, all errors raised by the handlers after unrouting are silently caught
   """
   @spec unroute_all(t(), unroute_all_options()) :: :ok | {:error, Playwright.error()}
-  def unroute_all(browser_context, options \\ []) do
+  def unroute_all(%Playwright.BrowserContext{} = browser_context, options \\ []) do
     options = Facade.options!(options, @unroute_all_options, "browserContext.unrouteAll")
 
     Facade.async_void("browserContext.unrouteAll", browser_context, fn ->
@@ -1543,7 +1543,7 @@ defmodule Playwright.BrowserContext do
 
   @doc "Like `unroute_all/2`, but returns the value and raises on error."
   @spec unroute_all!(t(), unroute_all_options()) :: :ok
-  def unroute_all!(browser_context, options \\ []) do
+  def unroute_all!(%Playwright.BrowserContext{} = browser_context, options \\ []) do
     options = Facade.options!(options, @unroute_all_options, "browserContext.unrouteAll")
 
     Facade.async_void!("browserContext.unrouteAll", browser_context, fn ->
@@ -1568,7 +1568,7 @@ defmodule Playwright.BrowserContext do
           String.t() | Regex.t() | Playwright.RegExp.t() | (URI.t() -> boolean()),
           (Playwright.Route.t() -> term()) | (Playwright.Route.t(), Playwright.Request.t() -> term()) | nil
         ) :: :ok | {:error, Playwright.error()}
-  def unroute(browser_context, url, handler \\ nil) do
+  def unroute(%Playwright.BrowserContext{} = browser_context, url, handler \\ nil) do
     Facade.async_void("browserContext.unroute", browser_context, fn ->
       Playwright.Client.BrowserContext.unroute(browser_context, url, handler)
     end)
@@ -1580,7 +1580,7 @@ defmodule Playwright.BrowserContext do
           String.t() | Regex.t() | Playwright.RegExp.t() | (URI.t() -> boolean()),
           (Playwright.Route.t() -> term()) | (Playwright.Route.t(), Playwright.Request.t() -> term()) | nil
         ) :: :ok
-  def unroute!(browser_context, url, handler \\ nil) do
+  def unroute!(%Playwright.BrowserContext{} = browser_context, url, handler \\ nil) do
     Facade.async_void!("browserContext.unroute", browser_context, fn ->
       Playwright.Client.BrowserContext.unroute(browser_context, url, handler)
     end)
@@ -1646,10 +1646,10 @@ defmodule Playwright.BrowserContext do
   @spec wait_for_event(t(), event() | String.t(), wait_for_event_options() | fun()) :: Playwright.Promise.t()
   def wait_for_event(browser_context, event, options \\ [])
 
-  def wait_for_event(browser_context, event, predicate) when is_function(predicate),
+  def wait_for_event(%Playwright.BrowserContext{} = browser_context, event, predicate) when is_function(predicate),
     do: wait_for_event(browser_context, event, predicate: predicate)
 
-  def wait_for_event(browser_context, event, options) do
+  def wait_for_event(%Playwright.BrowserContext{} = browser_context, event, options) do
     event = Facade.event!(event, @events, "browserContext.waitForEvent")
     options = Facade.options!(options, @wait_for_event_options, "browserContext.waitForEvent")
 
@@ -1676,7 +1676,7 @@ defmodule Playwright.BrowserContext do
   > ```
   """
   @spec wait_for_event!(t(), event() | String.t(), wait_for_event_options() | fun()) :: term()
-  def wait_for_event!(browser_context, event, options \\ []),
+  def wait_for_event!(%Playwright.BrowserContext{} = browser_context, event, options \\ []),
     do: Facade.await!(wait_for_event(browser_context, event, options))
 
   @expect_console_message_options {:object,
@@ -1726,10 +1726,11 @@ defmodule Playwright.BrowserContext do
           {:ok, Playwright.ConsoleMessage.t()} | {:error, Playwright.error()}
   def expect_console_message(browser_context, action, options \\ [])
 
-  def expect_console_message(browser_context, action, predicate) when is_function(predicate),
-    do: expect_console_message(browser_context, action, predicate: predicate)
+  def expect_console_message(%Playwright.BrowserContext{} = browser_context, action, predicate)
+      when is_function(predicate),
+      do: expect_console_message(browser_context, action, predicate: predicate)
 
-  def expect_console_message(browser_context, action, options) do
+  def expect_console_message(%Playwright.BrowserContext{} = browser_context, action, options) do
     options = Facade.options!(options, @expect_console_message_options, "browserContext.waitForEvent")
 
     Facade.expect(
@@ -1745,10 +1746,11 @@ defmodule Playwright.BrowserContext do
           Playwright.ConsoleMessage.t()
   def expect_console_message!(browser_context, action, options \\ [])
 
-  def expect_console_message!(browser_context, action, predicate) when is_function(predicate),
-    do: expect_console_message!(browser_context, action, predicate: predicate)
+  def expect_console_message!(%Playwright.BrowserContext{} = browser_context, action, predicate)
+      when is_function(predicate),
+      do: expect_console_message!(browser_context, action, predicate: predicate)
 
-  def expect_console_message!(browser_context, action, options) do
+  def expect_console_message!(%Playwright.BrowserContext{} = browser_context, action, options) do
     options = Facade.options!(options, @expect_console_message_options, "browserContext.waitForEvent")
 
     Facade.expect!(
@@ -1809,10 +1811,11 @@ defmodule Playwright.BrowserContext do
           {:ok, term()} | {:error, Playwright.error()}
   def expect_event(browser_context, event, action, options \\ [])
 
-  def expect_event(browser_context, event, action, predicate) when is_function(predicate),
-    do: expect_event(browser_context, event, action, predicate: predicate)
+  def expect_event(%Playwright.BrowserContext{} = browser_context, event, action, predicate)
+      when is_function(predicate),
+      do: expect_event(browser_context, event, action, predicate: predicate)
 
-  def expect_event(browser_context, event, action, options) do
+  def expect_event(%Playwright.BrowserContext{} = browser_context, event, action, options) do
     event = Facade.event!(event, @events, "browserContext.waitForEvent")
     options = Facade.options!(options, @expect_event_options, "browserContext.waitForEvent")
 
@@ -1828,10 +1831,11 @@ defmodule Playwright.BrowserContext do
   @spec expect_event!(t(), event() | String.t(), (-> term()), expect_event_options() | fun()) :: term()
   def expect_event!(browser_context, event, action, options \\ [])
 
-  def expect_event!(browser_context, event, action, predicate) when is_function(predicate),
-    do: expect_event!(browser_context, event, action, predicate: predicate)
+  def expect_event!(%Playwright.BrowserContext{} = browser_context, event, action, predicate)
+      when is_function(predicate),
+      do: expect_event!(browser_context, event, action, predicate: predicate)
 
-  def expect_event!(browser_context, event, action, options) do
+  def expect_event!(%Playwright.BrowserContext{} = browser_context, event, action, options) do
     event = Facade.event!(event, @events, "browserContext.waitForEvent")
     options = Facade.options!(options, @expect_event_options, "browserContext.waitForEvent")
 
@@ -1889,10 +1893,10 @@ defmodule Playwright.BrowserContext do
           {:ok, Playwright.Page.t()} | {:error, Playwright.error()}
   def expect_page(browser_context, action, options \\ [])
 
-  def expect_page(browser_context, action, predicate) when is_function(predicate),
+  def expect_page(%Playwright.BrowserContext{} = browser_context, action, predicate) when is_function(predicate),
     do: expect_page(browser_context, action, predicate: predicate)
 
-  def expect_page(browser_context, action, options) do
+  def expect_page(%Playwright.BrowserContext{} = browser_context, action, options) do
     options = Facade.options!(options, @expect_page_options, "browserContext.waitForEvent")
 
     Facade.expect(
@@ -1907,10 +1911,10 @@ defmodule Playwright.BrowserContext do
   @spec expect_page!(t(), (-> term()), expect_page_options() | fun()) :: Playwright.Page.t()
   def expect_page!(browser_context, action, options \\ [])
 
-  def expect_page!(browser_context, action, predicate) when is_function(predicate),
+  def expect_page!(%Playwright.BrowserContext{} = browser_context, action, predicate) when is_function(predicate),
     do: expect_page!(browser_context, action, predicate: predicate)
 
-  def expect_page!(browser_context, action, options) do
+  def expect_page!(%Playwright.BrowserContext{} = browser_context, action, options) do
     options = Facade.options!(options, @expect_page_options, "browserContext.waitForEvent")
 
     Facade.expect!(
@@ -1941,7 +1945,7 @@ defmodule Playwright.BrowserContext do
   @spec on(t(), :request_finished, (Playwright.Request.t() -> term())) :: t()
   @spec on(t(), :response, (Playwright.Response.t() -> term())) :: t()
   @spec on(t(), :service_worker, (Playwright.Worker.t() -> term())) :: t()
-  def on(browser_context, event, listener) do
+  def on(%Playwright.BrowserContext{} = browser_context, event, listener) do
     event = Facade.event!(event, @events, "browserContext.on")
     Facade.listen(fn -> Playwright.Client.BrowserContext.on(browser_context, event, listener) end)
   end
@@ -1966,7 +1970,7 @@ defmodule Playwright.BrowserContext do
   @spec once(t(), :request_finished, (Playwright.Request.t() -> term())) :: t()
   @spec once(t(), :response, (Playwright.Response.t() -> term())) :: t()
   @spec once(t(), :service_worker, (Playwright.Worker.t() -> term())) :: t()
-  def once(browser_context, event, listener) do
+  def once(%Playwright.BrowserContext{} = browser_context, event, listener) do
     event = Facade.event!(event, @events, "browserContext.once")
     Facade.listen(fn -> Playwright.Client.BrowserContext.once(browser_context, event, listener) end)
   end
@@ -1991,7 +1995,7 @@ defmodule Playwright.BrowserContext do
   @spec add_listener(t(), :request_finished, (Playwright.Request.t() -> term())) :: t()
   @spec add_listener(t(), :response, (Playwright.Response.t() -> term())) :: t()
   @spec add_listener(t(), :service_worker, (Playwright.Worker.t() -> term())) :: t()
-  def add_listener(browser_context, event, listener) do
+  def add_listener(%Playwright.BrowserContext{} = browser_context, event, listener) do
     event = Facade.event!(event, @events, "browserContext.addListener")
     Facade.listen(fn -> Playwright.Client.BrowserContext.add_listener(browser_context, event, listener) end)
   end
@@ -2016,7 +2020,7 @@ defmodule Playwright.BrowserContext do
   @spec remove_listener(t(), :request_finished, (Playwright.Request.t() -> term())) :: t()
   @spec remove_listener(t(), :response, (Playwright.Response.t() -> term())) :: t()
   @spec remove_listener(t(), :service_worker, (Playwright.Worker.t() -> term())) :: t()
-  def remove_listener(browser_context, event, listener) do
+  def remove_listener(%Playwright.BrowserContext{} = browser_context, event, listener) do
     event = Facade.event!(event, @events, "browserContext.removeListener")
     Facade.listen(fn -> Playwright.Client.BrowserContext.remove_listener(browser_context, event, listener) end)
   end
@@ -2041,7 +2045,7 @@ defmodule Playwright.BrowserContext do
   @spec off(t(), :request_finished, (Playwright.Request.t() -> term())) :: t()
   @spec off(t(), :response, (Playwright.Response.t() -> term())) :: t()
   @spec off(t(), :service_worker, (Playwright.Worker.t() -> term())) :: t()
-  def off(browser_context, event, listener) do
+  def off(%Playwright.BrowserContext{} = browser_context, event, listener) do
     event = Facade.event!(event, @events, "browserContext.off")
     Facade.listen(fn -> Playwright.Client.BrowserContext.off(browser_context, event, listener) end)
   end
@@ -2066,7 +2070,7 @@ defmodule Playwright.BrowserContext do
   @spec prepend_listener(t(), :request_finished, (Playwright.Request.t() -> term())) :: t()
   @spec prepend_listener(t(), :response, (Playwright.Response.t() -> term())) :: t()
   @spec prepend_listener(t(), :service_worker, (Playwright.Worker.t() -> term())) :: t()
-  def prepend_listener(browser_context, event, listener) do
+  def prepend_listener(%Playwright.BrowserContext{} = browser_context, event, listener) do
     event = Facade.event!(event, @events, "browserContext.prependListener")
     Facade.listen(fn -> Playwright.Client.BrowserContext.prepend_listener(browser_context, event, listener) end)
   end

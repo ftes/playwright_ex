@@ -175,13 +175,18 @@ defmodule Playwright.Runtime.Facade do
   def matcher_value!(receiver, %{isNot: true}, fun), do: matcher!(receiver, fun)
   def matcher_value!(receiver, _info, fun), do: async!(nil, receiver, fun)
 
-  @doc "Converts `options` (keyword list or map) of type `{:object, schema}` for the call `api_name`."
-  def options!(options, {:object, schema}, api_name) when is_list(options) or is_map(options),
-    do: object!(options, schema, api_name, [])
+  @doc """
+  Converts `options` (keyword list or map) of type `{:object, schema}` for the call `api_name`.
+  A matcher passes its `function` (`__ENV__.function`), named in the hint of an unknown `:message`.
+  """
+  def options!(options, type, api_name, function \\ nil)
+
+  def options!(options, {:object, schema}, api_name, function) when is_list(options) or is_map(options),
+    do: object!(options, schema, api_name, [], function)
 
   # Not an options object (`page.evaluate(fn, 1, 2)`): passed on, the client checks it
   # (`assertEvaluateOptions`).
-  def options!(options, {:object, _schema}, _api_name), do: options
+  def options!(options, {:object, _schema}, _api_name, _function), do: options
 
   @doc """
   Like `options!/3`, but the options may also be a result of the call (a map with the JS keys,
@@ -263,7 +268,7 @@ defmodule Playwright.Runtime.Facade do
 
   defp convert!(value, _type, _api_name, _path), do: value
 
-  defp object!(value, schema, api_name, path) do
+  defp object!(value, schema, api_name, path, function) do
     Map.new(value, fn {key, value} ->
       case Map.get(schema, key) do
         {js_key, type} ->
@@ -271,10 +276,20 @@ defmodule Playwright.Runtime.Facade do
 
         nil ->
           raise ArgumentError,
-                "#{api_name}: unknown option #{name([key | path])}, expected one of #{keys(schema)}"
+                "#{api_name}: unknown option #{name([key | path])}, expected one of #{keys(schema)}" <>
+                  hint(function, [key | path])
       end
     end)
   end
+
+  # A matcher's message is its receiver's (JS `expect(actual, message)`), not an option: the
+  # matcher as called, its arguments elided.
+  defp hint({name, arity}, [:message]),
+    do:
+      ". A matcher's custom message goes with Playwright.Expect.message/2 (JS expect(actual, message)), " <>
+        ~s[for Expect.#{name}/#{arity}: x |> Expect.message("...") |> Expect.#{name}(...)]
+
+  defp hint(_function, _path), do: ""
 
   defp fields!(value, fields, api_name, path) do
     for {key, value} <- value do

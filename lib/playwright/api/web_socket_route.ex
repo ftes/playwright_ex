@@ -105,7 +105,7 @@ defmodule Playwright.WebSocketRoute do
   * `:reason` (`t:String.t/0`) - Optional [close reason](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/close#reason).
   """
   @spec close(t(), close_options()) :: :ok | {:error, Playwright.error()}
-  def close(web_socket_route, options \\ []) do
+  def close(%Playwright.WebSocketRoute{} = web_socket_route, options \\ []) do
     options = Facade.options!(options, @close_options, "webSocketRoute.close")
 
     Facade.async_void("webSocketRoute.close", web_socket_route, fn ->
@@ -115,7 +115,7 @@ defmodule Playwright.WebSocketRoute do
 
   @doc "Like `close/2`, but returns the value and raises on error."
   @spec close!(t(), close_options()) :: :ok
-  def close!(web_socket_route, options \\ []) do
+  def close!(%Playwright.WebSocketRoute{} = web_socket_route, options \\ []) do
     options = Facade.options!(options, @close_options, "webSocketRoute.close")
 
     Facade.async_void!("webSocketRoute.close", web_socket_route, fn ->
@@ -136,7 +136,7 @@ defmodule Playwright.WebSocketRoute do
   *Since Playwright 1.48.*
   """
   @spec connect_to_server(t()) :: Playwright.WebSocketRoute.t()
-  def connect_to_server(web_socket_route) do
+  def connect_to_server(%Playwright.WebSocketRoute{} = web_socket_route) do
     Playwright.Client.WebSocketRoute.connect_to_server(web_socket_route)
   end
 
@@ -152,7 +152,7 @@ defmodule Playwright.WebSocketRoute do
   * `handler` - Function that will handle WebSocket closure. Received an optional [close code](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/close#code) and an optional [close reason](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/close#reason).
   """
   @spec on_close(t(), (integer() | nil, String.t() | nil -> term())) :: :ok
-  def on_close(web_socket_route, handler) do
+  def on_close(%Playwright.WebSocketRoute{} = web_socket_route, handler) do
     Playwright.Client.WebSocketRoute.on_close(web_socket_route, handler)
     :ok
   end
@@ -173,7 +173,7 @@ defmodule Playwright.WebSocketRoute do
   * `handler` - Function that will handle messages.
   """
   @spec on_message(t(), (String.t() | {:binary, binary()} -> term())) :: :ok
-  def on_message(web_socket_route, handler) do
+  def on_message(%Playwright.WebSocketRoute{} = web_socket_route, handler) do
     Playwright.Client.WebSocketRoute.on_message(web_socket_route, handler)
     :ok
   end
@@ -188,7 +188,7 @@ defmodule Playwright.WebSocketRoute do
   * `message` - Message to send.
   """
   @spec send(t(), String.t() | {:binary, binary()}) :: :ok
-  def send(web_socket_route, message) do
+  def send(%Playwright.WebSocketRoute{} = web_socket_route, message) do
     Playwright.Client.WebSocketRoute.send(web_socket_route, message)
     :ok
   end
@@ -213,7 +213,7 @@ defmodule Playwright.WebSocketRoute do
   *Since Playwright 1.60.*
   """
   @spec protocols(t()) :: [String.t()]
-  def protocols(web_socket_route) do
+  def protocols(%Playwright.WebSocketRoute{} = web_socket_route) do
     Playwright.Client.WebSocketRoute.protocols(web_socket_route)
   end
 
@@ -223,7 +223,7 @@ defmodule Playwright.WebSocketRoute do
   *Since Playwright 1.48.*
   """
   @spec url(t()) :: String.t()
-  def url(web_socket_route) do
+  def url(%Playwright.WebSocketRoute{} = web_socket_route) do
     Playwright.Client.WebSocketRoute.url(web_socket_route)
   end
 
