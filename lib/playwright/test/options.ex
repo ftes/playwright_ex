@@ -106,7 +106,7 @@ defmodule Playwright.Test.Options do
 
   @doc """
   The pool options (`BrowserPool.browser/1`): the config, then `worker`, the calling scope's
-  (`worker/3`), then `opts`.
+  (`worker/3`), then `opts` (`launch_options` and `driver` one level deep).
   """
   def pool(opts, worker \\ []) do
     if !Keyword.keyword?(opts), do: raise(ArgumentError, "expected a keyword list of options, got: #{inspect(opts)}")
@@ -120,7 +120,9 @@ defmodule Playwright.Test.Options do
 
     @pool_keys
     |> Map.new(&{&1, config[&1]})
-    |> Map.merge(Map.new(worker), &merge_value/3)
+    # The worker's replace the config's as a whole, as upstream's `launchOptions` fixture; the
+    # call's `launch_options` merge over them per key.
+    |> Map.merge(Map.new(worker))
     |> Map.merge(Map.new(opts), &merge_value/3)
     |> validate!()
   end
@@ -276,7 +278,6 @@ defmodule Playwright.Test.Options do
   def merge(past, options) do
     Map.merge(past, options, fn
       :context, past, options -> Map.merge(past, options)
-      :launch_options, past, options -> Keyword.merge(past, options)
       _key, _past, options -> options
     end)
   end
@@ -411,7 +412,7 @@ defmodule Playwright.Test.Options do
 
   @doc """
   The worker options of a module's run, over the config's, for its `BrowserPool.browser/1`
-  calls: `browser_name/3`, and the `launch_options` (the module's over the project's per key)
+  calls: `browser_name/3`, and the `launch_options` (the module's, else the project's, as a whole)
   and `connect_options` of the module's `use_options` or its `project`.
   """
   def worker(config \\ config(), project \\ %{}, use_options \\ %{}) do

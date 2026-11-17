@@ -220,7 +220,7 @@ defmodule Playwright.Test do
   WebKit's) and upstream's `browserName` defaults to; else `:chromium`. A describe's or a
   test's `default_browser_type` is ignored, a deviation: upstream rejects it there, so the
   device's other options apply on the module's browser. The module's
-  `launch_options` (its `use`'s over its project's over the config's, per key) and
+  `launch_options` (its `use`'s, else its project's, else the config's, each as a whole) and
   `connect_options` are that call's defaults too, upstream's `launchOptions` and
   `connectOptions`: a project with `launch_options: [channel: "chrome"]` gets a worker of its
   own. These three are the worker's, as upstream's, where a describe with another one starts a
@@ -295,8 +295,8 @@ defmodule Playwright.Test do
   message. One timeout counts all of the module's `setup_all` callbacks, where upstream counts
   each hook on its own. `BrowserPool.browser/1` (the wait for a worker, its start) is not counted,
   as upstream's queue has no timeout and its worker fixtures have a timeout of their own: there,
-  nothing bounds them. Its contexts get the config's `action_timeout` and
-  `navigation_timeout` (`:infinity` by default, not the client's 30 s), as upstream's `beforeAll`
+  nothing bounds them. Its contexts get the `action_timeout` and
+  `navigation_timeout` of the config, the project and the module (`:infinity` by default, not the client's 30 s), as upstream's `beforeAll`
   contexts get `actionTimeout || 0`.
 
   ## Snapshots

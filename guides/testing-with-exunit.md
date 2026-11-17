@@ -116,7 +116,8 @@ set:
 | `test_id_attribute` | yes | no | no | no (a deviation: the value is global to the VM, which concurrent tests share) |
 | `output_dir`, `preserve_output`, `workers`, `snapshot_dir`, `snapshot_path_template`, `driver`, `on_start` | yes | no | no | no |
 
-The module's `browser_name`, `launch_options` (per key) and `connect_options` are the defaults
+The module's `browser_name`, `launch_options` (as a whole, over the config's) and
+`connect_options` are the defaults
 of its `BrowserPool.browser/1` calls, in `setup_all`, a test or a `Task` of either, so of
 `Playwright.Case`'s `browser` and of your own template's `BrowserPool.browser()`: a module or a
 project with `launch_options: [channel: "chrome"]` gets a worker of its own. A

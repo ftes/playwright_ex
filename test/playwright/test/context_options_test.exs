@@ -179,18 +179,19 @@ defmodule Playwright.Test.ContextOptionsTest do
     end
   end
 
-  test "the worker options: the module's use over its project's over the config's, launch_options per key" do
+  test "the worker options: the module's use over its project's over the config's, launch_options as a whole" do
     project = Options.used(Playwright.Test.parameters(launch_options: [slow_mo: 1, timeout: 5000]))
     use_options = Options.use_options(launch_options: %{slow_mo: 2}, connect_options: [ws_endpoint: "ws://localhost"])
     worker = Options.worker(Options.config(), project, use_options)
 
-    assert Enum.sort(worker[:launch_options]) == [slow_mo: 2, timeout: 5000]
+    assert worker[:launch_options] == [slow_mo: 2]
+    assert Options.worker(Options.config(), project, %{})[:launch_options] == [slow_mo: 1, timeout: 5000]
     assert worker[:connect_options] == [ws_endpoint: "ws://localhost"]
-    # The call's over them, the config's under them.
+    # The call's over them per key.
     assert %{launch_options: launch, connect_options: nil} =
-             Options.pool([launch_options: [slow_mo: 3], connect_options: nil], worker)
+             Options.pool([launch_options: [timeout: 5000], connect_options: nil], worker)
 
-    assert launch[:slow_mo] == 3 and launch[:timeout] == 5000
+    assert Enum.sort(launch) == [slow_mo: 2, timeout: 5000]
     assert Options.pool([], Options.worker()) == Options.pool([])
   end
 
