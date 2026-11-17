@@ -119,9 +119,8 @@ defmodule Playwright.Runtime.Invocation do
 
   # One warning per key and code location (the first frame outside Playwright, Elixir and OTP),
   # logged from a process of its own (a `Logger` in sync mode must not block the waiter, the
-  # connection maybe). None without such a frame (the library's own wait, such as loading a
-  # module), nor for a process that waits for its async function (a route handler run by the
-  # client's listener): that one is released next, with its stacktrace.
+  # connection maybe). None without such a frame: the library's own wait (loading a module, the
+  # client's route listener waiting for the handler's async function, which is released next).
   defp released(pid, {type, key}) do
     stacktrace =
       case Process.info(pid, :current_stacktrace) do
@@ -131,8 +130,7 @@ defmodule Playwright.Runtime.Invocation do
 
     location = location(stacktrace)
 
-    if location != nil and not match?([{Playwright.Runtime.Promise, :handoff, _, _} | _], stacktrace) and
-         first_warning?({key, location}) do
+    if location != nil and first_warning?({key, location}) do
       what = if type, do: "A listener for #{inspect(type)}", else: "An async function"
 
       spawn(fn ->
@@ -152,8 +150,8 @@ defmodule Playwright.Runtime.Invocation do
   defp location(stacktrace) do
     Enum.find_value(stacktrace, fn {module, name, arity, _location} ->
       case :application.get_application(module) do
-        {:ok, app} when app in [:playwright, :elixir, :stdlib, :kernel] -> nil
-        _ -> {module, name, arity}
+        {:ok, app} when app in [:playwright, :elixir, :logger, :stdlib, :kernel] -> nil
+        _ -> if :code.which(module) != :preloaded, do: {module, name, arity}
       end
     end)
   end

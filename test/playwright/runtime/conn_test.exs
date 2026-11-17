@@ -649,6 +649,95 @@ defmodule Playwright.RuntimeConnTest do
       flush()
     end
 
+    # Its async function's nested emit is on top (the function released by the listener after
+    # 100 ms): the listener's own call nests as well, instead of queueing behind the frame that
+    # waits for it.
+    test "a listener's call while its async function's nested emit runs nests", %{page: page} do
+      test = self()
+      EventEmitter.set_max_listeners(page, 0)
+      EventEmitter.on(page, "z", fn _ -> send(test, :z) end)
+
+      for i <- 1..5 do
+        EventEmitter.on(page, "y", fn _ ->
+          Playwright.Spin.until(80)
+          if i == 5, do: send(test, :y_done)
+        end)
+      end
+
+      EventEmitter.on(page, "x", fn _ ->
+        RuntimePromise.void(fn -> EventEmitter.emit(page, "y") end)
+        EventEmitter.emit(page, "z")
+        send(test, :x_done)
+      end)
+
+      capture_log(fn -> EventEmitter.emit(page, "x") end)
+      assert {:messages, [:z, :x_done, :y_done]} = Process.info(self(), :messages)
+      flush()
+    end
+
+    # Its time below a nested frame doesn't count, only its own: 100 ms in all.
+    test "a listener making nested calls is released after 100 ms of its own", %{page: page} do
+      test = self()
+      EventEmitter.on(page, "inner", fn _ -> :ok end)
+
+      EventEmitter.on(page, "outer", fn _ ->
+        for _ <- 1..30 do
+          EventEmitter.emit(page, "inner")
+          Process.sleep(10)
+        end
+
+        send(test, :outer_done)
+      end)
+
+      log =
+        capture_log(fn ->
+          started = System.monotonic_time(:millisecond)
+          EventEmitter.emit(page, "outer")
+          assert System.monotonic_time(:millisecond) - started < 250
+          refute_received :outer_done
+          assert_receive :outer_done, 2_000
+          Process.sleep(100)
+        end)
+
+      assert release_warnings(log) == 1
+    end
+
+    # A listener's async function settles after the listener's registrant exited: its latch row
+    # doesn't stay behind.
+    test "a shared latch settled after its owner exited is freed", %{page: page} do
+      test = self()
+
+      registrant =
+        spawn(fn ->
+          Page.on(page, :console, fn _ ->
+            promise =
+              Promise.async(fn ->
+                send(test, {:child, self()})
+                Promise.yield()
+                receive do: (:settle -> :ok)
+              end)
+
+            send(test, {:async, promise})
+          end)
+
+          send(test, :registered)
+          receive do: (:exit -> :ok)
+        end)
+
+      assert_receive :registered
+      Page.evaluate!(page, "console.log(1)")
+      assert_receive {:child, child}
+      assert_receive {:async, %{owner: %{guid: ^registrant}}}
+      ref = Process.monitor(registrant)
+      send(registrant, :exit)
+      assert_receive {:DOWN, ^ref, _, _, _}
+      ref = Process.monitor(child)
+      send(child, :settle)
+      assert_receive {:DOWN, ^ref, _, _, _}
+      table = :sys.get_state(Playwright.Runtime.ProcessOwner).table
+      assert :ets.select(table, [{{{registrant, :_}, :_}, [], [true]}]) == []
+    end
+
     # The flag decides between the function's yield and its caller's release: no yield message
     # is left behind, whichever wins.
     test "an async function that returns as it is released leaves no message" do

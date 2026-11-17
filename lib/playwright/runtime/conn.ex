@@ -368,11 +368,14 @@ defmodule Playwright.Runtime.Conn do
 
   # A call from the process the top frame waits for (or its async function), while its section
   # is live.
-  defp nested?(%{frames: [%{waiting: %{inv: inv}} | _]}, {inv, flag}), do: Invocation.live?(flag)
-  defp nested?(_state, _token), do: false
+  # A call from a process a frame waits for (or its async function), while its section is live:
+  # also one below the top (a listener whose async function's nested emit runs on top).
+  defp nested?(_state, nil), do: false
+  defp nested?(state, {inv, flag}), do: Enum.any?(state.frames, &waits_for?(&1, inv)) and Invocation.live?(flag)
 
-  # `waiting`: `%{inv, pid, flag, event, timer}` of the section a blocked frame waits for
-  # (`block/5`), `nil` if none.
+  # `waiting`: `%{inv, pid, flag, event, left, since, timer}` of the section a blocked frame waits
+  # for (`block/5`), `nil` if none. `left`: the ms of `Invocation.release_after/0` it has left,
+  # counted while its frame is on top (`since`, `timer`; both `nil` below a nested frame).
   defp frame(steps, from, result, wakes), do: %{steps: steps, waiting: nil, from: from, result: result, wakes: wakes}
 
   defp waits_for?(%{waiting: %{inv: inv}}, inv), do: true
@@ -380,7 +383,7 @@ defmodule Playwright.Runtime.Conn do
 
   # A frame's wake-ups are held until the stack is empty.
   defp push_frame(state, frame),
-    do: hold_wakes(%{state | frames: [Map.delete(frame, :wakes) | state.frames]}, frame.wakes)
+    do: hold_wakes(%{state | frames: [Map.delete(frame, :wakes) | pause(state.frames)]}, frame.wakes)
 
   defp hold_wakes(state, wakes), do: %{state | wakes: wakes ++ state.wakes}
 
@@ -444,7 +447,7 @@ defmodule Playwright.Runtime.Conn do
 
   defp drain(%{frames: [%{steps: []} = frame | below]} = state) do
     if frame.from, do: GenServer.reply(frame.from, frame.result)
-    drain(%{state | frames: rearm(below)})
+    drain(%{state | frames: resume(below)})
   end
 
   defp dispatch(message, state) do
@@ -457,15 +460,15 @@ defmodule Playwright.Runtime.Conn do
   end
 
   defp block(%{frames: [top | below]} = state, inv, pid, flag, event) do
-    waiting = %{inv: inv, pid: pid, flag: flag, event: event, timer: release_timer(inv)}
-    %{state | frames: [%{top | waiting: waiting} | below]}
+    waiting = %{inv: inv, pid: pid, flag: flag, event: event, left: Invocation.release_after()}
+    %{state | frames: [%{top | waiting: arm(waiting)} | below]}
   end
 
   defp unblock(state, inv) do
     frames =
       Enum.map(state.frames, fn frame ->
         if waits_for?(frame, inv) do
-          Process.cancel_timer(frame.waiting.timer)
+          if frame.waiting.timer, do: Process.cancel_timer(frame.waiting.timer)
           %{frame | waiting: nil}
         else
           frame
@@ -475,12 +478,15 @@ defmodule Playwright.Runtime.Conn do
     %{state | frames: frames}
   end
 
-  ## The fallback (`Invocation.try_release/4`)
+  ## The fallback (`Invocation.try_release/3`)
 
-  defp release_timer(inv), do: Process.send_after(self(), {:pw_release, inv}, Invocation.release_after())
+  defp arm(waiting) do
+    timer = Process.send_after(self(), {:pw_release, waiting.inv}, max(waiting.left, 0))
+    Map.merge(waiting, %{since: System.monotonic_time(:millisecond), timer: timer})
+  end
 
   # Only the top frame's section is released: the processes of the frames below wait for the top
-  # one (a nested call), as JS's stack does; their timers start over once on top again (`rearm/1`).
+  # one (a nested call), as JS's stack does; their time runs again once on top (`resume/1`).
   defp release(%{frames: [%{waiting: %{inv: inv} = waiting} | _]} = state, inv) do
     case Invocation.try_release(waiting.pid, waiting.flag, waiting.event) do
       # It goes on as after an await.
@@ -492,13 +498,18 @@ defmodule Playwright.Runtime.Conn do
 
   defp release(state, _inv), do: state
 
-  # A frame on top again: its process was in a nested call, its timer starts over.
-  defp rearm([%{waiting: %{inv: inv, timer: timer} = waiting} = top | below]) do
+  # A nested frame goes on top: the time of the frame below stops.
+  defp pause([%{waiting: %{timer: timer} = waiting} = top | below]) when timer != nil do
     Process.cancel_timer(timer)
-    [%{top | waiting: %{waiting | timer: release_timer(inv)}} | below]
+    left = waiting.left - (System.monotonic_time(:millisecond) - waiting.since)
+    [%{top | waiting: %{waiting | left: left, since: nil, timer: nil}} | below]
   end
 
-  defp rearm(frames), do: frames
+  defp pause(frames), do: frames
+
+  # A frame on top again: its time runs on.
+  defp resume([%{waiting: %{} = waiting} = top | below]), do: [%{top | waiting: arm(waiting)} | below]
+  defp resume(frames), do: frames
 
   defp done(state, inv) do
     state = unblock(state, inv)

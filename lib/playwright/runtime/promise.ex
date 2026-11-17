@@ -239,7 +239,14 @@ defmodule Playwright.Runtime.Promise do
   end
 
   defp settle_async(%__MODULE__{kind: :local, ref: ref}, result), do: send(ref, {:pw, ref, result})
-  defp settle_async(promise, result), do: settle(promise, result)
+
+  defp settle_async(promise, result) do
+    settle(promise, result)
+    # Elixir only: a latch of a process that exited before it was settled (a listener's
+    # registrant): its owner's rows went at its exit, this one is freed here.
+    if match?(%{kind: :latch, owner: %{guid: pid}} when is_pid(pid), promise) and not Process.alive?(promise.owner.guid),
+      do: free(promise)
+  end
 
   @doc """
   `if (!obj.field) obj.field = (async () => fun())(); return obj.field;` with the check and the
