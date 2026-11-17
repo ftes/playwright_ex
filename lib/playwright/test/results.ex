@@ -15,6 +15,9 @@ defmodule Playwright.Test.Results do
   @killed "The test process was killed (ExUnit's timeout, or an explicit kill)."
   # A marked test that raised nothing in its body and did not pass.
   @outside "The test failed outside its body (setup, context pattern or a linked process); see ExUnit's output."
+  # How long a finished test kills its late released processes (`detached/2`), in ms: a release
+  # comes `Playwright.Runtime.Invocation.release_after/0` ms after its section started.
+  @finished_for 60_000
 
   @doc "`Playwright.Test`'s table (public, owned by the pool): test, recorder, context, driver and test info rows."
   def table, do: __MODULE__
@@ -84,9 +87,9 @@ defmodule Playwright.Test.Results do
   def finished?(pids), do: started?() and Enum.any?(pids, &:ets.member(table(), {:info, &1}))
 
   @doc """
-  Notes `pid`, a listener invocation or async function released while it waited outside
+  Notes `pid`, a listener invocation or async function released or yielded before a wait outside
   Playwright (`Playwright.Runtime.Invocation`), on behalf of `callers`: killed when their test is
-  finished (`forget/1`, or its finisher's exit), as it would wait forever.
+  finished (`forget/1`, or its finisher's exit), as it may wait forever.
   """
   def detached(pid, callers) do
     if Process.whereis(Pool), do: GenServer.cast(Pool, {:detached, pid, callers})
@@ -125,12 +128,12 @@ defmodule Playwright.Test.Results do
   The registry's state, its table created: `tests`, the watched test processes alive; `results`,
   those ended (`{verdict, failures, duration, runner}`), until forgotten; `kept`, the tests by the
   process that finishes them (`finishing/1`); `detached`, the released processes by test
-  (`detached/2`); `finished`, the tests whose released processes were killed (a later one is
-  killed at once).
+  (`detached/2`); `finished`, the tests whose released processes were killed, by when (a later
+  one is killed at once, for `@finished_for` ms).
   """
   def new do
     :ets.new(table(), [:named_table, :public, :set])
-    %{tests: %{}, results: %{}, kept: %{}, detached: %{}, finished: MapSet.new()}
+    %{tests: %{}, results: %{}, kept: %{}, detached: %{}, finished: %{}}
   end
 
   @doc "A request of this module's functions: `{:reply, reply, state}` or `{:noreply, state}`."
@@ -203,12 +206,17 @@ defmodule Playwright.Test.Results do
 
   def handle_cast({:detached, pid, callers}, state) do
     cond do
-      Enum.any?(callers, &MapSet.member?(state.finished, &1)) ->
+      !Process.alive?(pid) ->
+        state
+
+      Enum.any?(callers, &Map.has_key?(state.finished, &1)) ->
         Process.exit(pid, :kill)
         state
 
       test_pid = Enum.find(callers, &(Map.has_key?(state.tests, &1) or Map.has_key?(state.results, &1))) ->
-        update_in(state.detached, &Map.update(&1, test_pid, [pid], fn pids -> [pid | pids] end))
+        # The test's processes that exited go.
+        pids = [pid | Enum.filter(Map.get(state.detached, test_pid, []), &Process.alive?/1)]
+        put_in(state.detached[test_pid], pids)
 
       true ->
         state
@@ -268,7 +276,15 @@ defmodule Playwright.Test.Results do
   defp kill_detached(state, test_pids) do
     {pids, detached} = Map.split(state.detached, test_pids)
     for {_test_pid, pids} <- pids, pid <- pids, do: Process.exit(pid, :kill)
-    %{state | detached: detached, finished: MapSet.union(state.finished, MapSet.new(test_pids))}
+    now = System.monotonic_time(:millisecond)
+
+    finished =
+      for {test_pid, at} <- state.finished,
+          now - at < @finished_for,
+          into: Map.from_keys(test_pids, now),
+          do: {test_pid, at}
+
+    %{state | detached: detached, finished: finished}
   end
 
   defp test_ended(state, pid, test, reason) do

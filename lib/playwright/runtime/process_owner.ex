@@ -38,7 +38,10 @@ defmodule Playwright.Runtime.ProcessOwner do
 
   @warned Playwright.Runtime.ProcessOwner.Warned
 
-  @doc "The public table of the release warnings logged (`Playwright.Runtime.Invocation.try_release/5`): one per key."
+  @doc """
+  The public table of the release warnings logged (`Playwright.Runtime.Invocation.try_release/4`):
+  one per listener function, emitter type and event (bounded by the code).
+  """
   def warned, do: @warned
 
   @impl true

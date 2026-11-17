@@ -16,10 +16,10 @@ defmodule Playwright.Runtime.Conn do
   `await`. Calls from other processes (`run/2`) are served meanwhile, so a listener calling back
   into the API cannot deadlock.
 
-  A wait outside Playwright (a `receive`) is an await only to its author. As a fallback, the
-  process the top frame waits for is sampled every 10 ms while it is blocked
-  (`Invocation.judge/3`): one that waits doing little work for about 30 ms is released as if it
-  had yielded, with a warning. CPU work holds dispatch, as in JS.
+  A wait outside Playwright (a `receive`) is an await only to its author. As a fallback, a
+  section the top frame has waited for `Invocation.release_after/0` ms (100) is released as if
+  it had yielded, with a warning (`Invocation.try_release/4`): its remaining synchronous code may
+  run after later events.
 
   The barrier keeps a stack of frames: an `emit` from the process dispatch waits for (it holds the
   barrier token) pushes a frame and returns once its listeners returned or yielded, which keeps
@@ -70,11 +70,7 @@ defmodule Playwright.Runtime.Conn do
     if self() == conn do
       fun.()
     else
-      # A section's process waits on the runtime here (a nested call is served while the barrier
-      # waits): it is not judged meanwhile. So a call to another connection, which waits for that
-      # one's dispatch, is not released either (a cycle of two stalls both, as before).
-      token = Process.get(:pw_barrier)
-      Invocation.runtime_wait(Invocation.section_flag(), fn -> call(conn, {:run, fun, token}) end)
+      call(conn, {:run, fun, Process.get(:pw_barrier)})
     end
   end
 
@@ -193,8 +189,6 @@ defmodule Playwright.Runtime.Conn do
        on_dispatch_error: opts[:on_dispatch_error],
        queue: :queue.new(),
        frames: [],
-       # a sampling tick of the blocked top frame is pending (`sample/1`)
-       tick: false,
        # wake-ups held back until the frame stack is empty (`wake/2`), newest first
        wakes: [],
        # monitor ref => inv of a listener or async process the barrier may wait for
@@ -293,7 +287,12 @@ defmodule Playwright.Runtime.Conn do
 
   def handle_info({:pw_yield, inv}, state), do: {:noreply, state |> unblock(inv) |> drain() |> flush_out()}
 
-  def handle_info(:pw_tick, state), do: {:noreply, %{state | tick: false} |> sample() |> drain() |> flush_out()}
+  def handle_info({:pw_release, inv}, state), do: {:noreply, state |> release(inv) |> drain() |> flush_out()}
+
+  def handle_info({:pw_callers, inv, callers}, state) do
+    frames = Enum.map(state.frames, &if(waits_for?(&1, inv), do: put_in(&1.waiting.callers, callers), else: &1))
+    {:noreply, %{state | frames: frames}}
+  end
 
   def handle_info({:DOWN, mref, :process, _pid, _reason}, %{stop_when_down: mons} = state)
       when is_map_key(mons, mref) do
@@ -374,12 +373,15 @@ defmodule Playwright.Runtime.Conn do
 
   # A call from the process the top frame waits for (or its async function), while its section
   # is live.
-  defp nested?(%{frames: [%{blocked: inv} | _]}, {inv, flag}) when inv != nil, do: Invocation.live?(flag)
+  defp nested?(%{frames: [%{waiting: %{inv: inv}} | _]}, {inv, flag}), do: Invocation.live?(flag)
   defp nested?(_state, _token), do: false
 
-  # `waiting`: `%{pid, flag, callers, since, quiet}` of the process a blocked frame waits for (`block/5`).
-  defp frame(steps, from, result, wakes),
-    do: %{steps: steps, blocked: nil, waiting: nil, from: from, result: result, wakes: wakes}
+  # `waiting`: `%{inv, pid, flag, callers, event, timer}` of the section a blocked frame waits
+  # for (`block/6`), `nil` if none.
+  defp frame(steps, from, result, wakes), do: %{steps: steps, waiting: nil, from: from, result: result, wakes: wakes}
+
+  defp waits_for?(%{waiting: %{inv: inv}}, inv), do: true
+  defp waits_for?(_frame, _inv), do: false
 
   # A frame's wake-ups are held until the stack is empty.
   defp push_frame(state, frame),
@@ -436,7 +438,7 @@ defmodule Playwright.Runtime.Conn do
     end
   end
 
-  defp drain(%{frames: [%{blocked: inv} | _]} = state) when inv != nil, do: arm_tick(state)
+  defp drain(%{frames: [%{waiting: %{}} | _]} = state), do: state
 
   defp drain(%{frames: [%{steps: [step | rest]} = frame | below]} = state) do
     state = %{state | frames: [%{frame | steps: rest} | below]}
@@ -447,7 +449,7 @@ defmodule Playwright.Runtime.Conn do
 
   defp drain(%{frames: [%{steps: []} = frame | below]} = state) do
     if frame.from, do: GenServer.reply(frame.from, frame.result)
-    drain(%{state | frames: resample(below)})
+    drain(%{state | frames: rearm(below)})
   end
 
   defp dispatch(message, state) do
@@ -459,51 +461,49 @@ defmodule Playwright.Runtime.Conn do
         else: Logger.error("Dispatch failed: " <> Exception.format(:error, e, __STACKTRACE__))
   end
 
-  defp block(%{frames: [top | below]} = state, inv, pid, flag, callers) do
-    waiting = %{pid: pid, flag: flag, callers: callers, since: System.monotonic_time(:millisecond), quiet: nil}
-    %{state | frames: [%{top | blocked: inv, waiting: waiting} | below]}
+  defp block(%{frames: [top | below]} = state, inv, pid, flag, callers, event) do
+    waiting = %{inv: inv, pid: pid, flag: flag, callers: callers, event: event, timer: release_timer(inv)}
+    %{state | frames: [%{top | waiting: waiting} | below]}
   end
 
   defp unblock(state, inv) do
-    frames = Enum.map(state.frames, &if(&1.blocked == inv, do: %{&1 | blocked: nil, waiting: nil}, else: &1))
+    frames =
+      Enum.map(state.frames, fn frame ->
+        if waits_for?(frame, inv) do
+          Process.cancel_timer(frame.waiting.timer)
+          %{frame | waiting: nil}
+        else
+          frame
+        end
+      end)
+
     %{state | frames: frames}
   end
 
-  ## The fallback (`Invocation.judge/3`)
+  ## The fallback (`Invocation.try_release/4`)
 
-  # One timer per connection, while the top frame is blocked.
-  defp arm_tick(%{tick: false} = state) do
-    Process.send_after(self(), :pw_tick, Invocation.interval())
-    %{state | tick: true}
-  end
+  defp release_timer(inv), do: Process.send_after(self(), {:pw_release, inv}, Invocation.release_after())
 
-  defp arm_tick(state), do: state
-
-  # Only the top frame's process is judged, once it has waited an interval: the processes of the
-  # frames below wait for the top one (a nested call), as JS's stack does.
-  defp sample(%{frames: [%{blocked: inv, waiting: waiting} = top | below]} = state) when inv != nil do
-    if System.monotonic_time(:millisecond) - waiting.since < Invocation.interval() do
-      state
-    else
-      event = with {guid, type} <- state.pending[inv], do: {self(), guid, type}
-
-      case Invocation.try_release(waiting.pid, waiting.flag, waiting.quiet, event, waiting.callers) do
-        {:hold, quiet} -> %{state | frames: [%{top | waiting: %{waiting | quiet: quiet}} | below]}
-        # It goes on as after an await.
-        :released -> unblock(state, inv)
-        # Its `{:pw_yield, inv}` is on its way.
-        :yielding -> state
-      end
+  # Only the top frame's section is released: the processes of the frames below wait for the top
+  # one (a nested call), as JS's stack does; their timers start over once on top again (`rearm/1`).
+  defp release(%{frames: [%{waiting: %{inv: inv} = waiting} | _]} = state, inv) do
+    case Invocation.try_release(waiting.pid, waiting.flag, waiting.event, waiting.callers) do
+      # It goes on as after an await.
+      :released -> unblock(state, inv)
+      # Its `{:pw_yield, inv}` is on its way.
+      :yielding -> state
     end
   end
 
-  defp sample(state), do: state
+  defp release(state, _inv), do: state
 
-  # A frame on top again: its process was in a nested call, its samples start over.
-  defp resample([%{waiting: %{} = waiting} = top | below]),
-    do: [%{top | waiting: %{waiting | since: System.monotonic_time(:millisecond), quiet: nil}} | below]
+  # A frame on top again: its process was in a nested call, its timer starts over.
+  defp rearm([%{waiting: %{inv: inv, timer: timer} = waiting} = top | below]) do
+    Process.cancel_timer(timer)
+    [%{top | waiting: %{waiting | timer: release_timer(inv)}} | below]
+  end
 
-  defp resample(frames), do: frames
+  defp rearm(frames), do: frames
 
   defp done(state, inv) do
     state = unblock(state, inv)
@@ -537,6 +537,7 @@ defmodule Playwright.Runtime.Conn do
 
   # A listener invocation: one process each, as each JS call is its own async chain (so a later
   # event's invocation runs while an earlier one awaits, as in JS).
+  # Its callers come from the handler it runs (`Invocation.adopted/1`, a route handler's).
   defp run_step({:internal, fun, arg, emitter, type, zone}, state),
     do: invocation(state, fun, arg, emitter, type, zone, nil)
 
@@ -546,16 +547,17 @@ defmodule Playwright.Runtime.Conn do
     do: invocation(state, fun, arg, emitter, type, zone, callers)
 
   # An async function (or `void`) called here: it starts now and holds dispatch until it yields.
-  defp run_step({:start, pid, inv, flag}, state) do
+  defp run_step({:start, pid, inv, flag, event}, state) do
     mref = Process.monitor(pid)
     send(pid, {:pw_go, inv})
-    block(%{state | procs: Map.put(state.procs, mref, inv)}, inv, pid, flag, nil)
+    block(%{state | procs: Map.put(state.procs, mref, inv)}, inv, pid, flag, nil, event)
   end
 
   defp invocation(state, fun, arg, emitter, type, zone, callers) do
     inv = make_ref()
     flag = Invocation.new_flag()
     conn = self()
+    event = Invocation.event(emitter, type, fun)
 
     {pid, mref} =
       spawn_monitor(fn ->
@@ -565,7 +567,7 @@ defmodule Playwright.Runtime.Conn do
         end
 
         Zones.restore(zone)
-        Process.put(:pw_event, {conn, emitter.guid, type})
+        Process.put(:pw_event, event)
         Invocation.start(conn, inv, flag, inv)
         if !(callers && Callers.test_finished?()), do: invoke(fun, arg, emitter, type)
       end)
@@ -576,7 +578,7 @@ defmodule Playwright.Runtime.Conn do
         pending: Map.put(state.pending, inv, {emitter.guid, type})
     }
 
-    block(state, inv, pid, flag, callers)
+    block(state, inv, pid, flag, callers, event)
   end
 
   @doc false

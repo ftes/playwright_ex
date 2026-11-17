@@ -97,6 +97,8 @@ defmodule Playwright.RuntimeConnTest do
         page,
         "**/empty.html",
         fn route, _ ->
+          # await new Promise(f => setTimeout(f, 100))
+          Promise.yield()
           Process.sleep(100)
           Route.fulfill!(route, body: "<html>intercepted</html>", content_type: "text/html")
         end,
@@ -420,14 +422,12 @@ defmodule Playwright.RuntimeConnTest do
         send(test, :settled)
       end)
 
-      # Holds the emit's synchronous section open until the test says so (busy: a wait would be
-      # released as an await).
+      # Holds the emit's synchronous section open until the test says so: listeners in turn, each
+      # for under 100 ms (one past it is released).
       holding = Playwright.Spin.new()
-
-      EventEmitter.on(page, "x", fn _ ->
-        send(test, :holding)
-        Playwright.Spin.hold(holding)
-      end)
+      EventEmitter.set_max_listeners(page, 0)
+      EventEmitter.on(page, "x", fn _ -> send(test, :holding) end)
+      for _ <- 1..50, do: EventEmitter.on(page, "x", fn _ -> Playwright.Spin.hold(holding, 80) end)
 
       racer =
         Task.async(fn ->
@@ -491,9 +491,9 @@ defmodule Playwright.RuntimeConnTest do
     end
   end
 
-  # A wait outside Playwright that its author did not mark (`Promise.yield/0`) is released as an
-  # await after about 30 ms, with one warning per emitter and event; busy work is never released.
-  describe "the fallback for waits outside Playwright" do
+  # A listener that hasn't reached a Playwright await (or `Promise.yield/0`) within 100 ms is
+  # released as if it had awaited, with one warning per listener function, emitter type and event.
+  describe "the release of a listener that hasn't awaited within 100 ms" do
     test "a route handler waiting in receive is released, with one warning", context do
       log = capture_log(fn -> route_held_outside_playwright(context, fn -> :ok end) end)
       assert release_warnings(log) == 1
@@ -535,14 +535,15 @@ defmodule Playwright.RuntimeConnTest do
           Process.exit(sleeper, :kill)
         end)
 
-      assert release_warnings(log) == 1
+      # One per code location.
+      assert release_warnings(log) == 2
     end
 
-    test "a busy listener holds dispatch until it returns", %{page: page} do
+    test "a listener busy for less than 100 ms holds dispatch until it returns", %{page: page} do
       test = self()
 
       Page.once(page, :console, fn _ ->
-        Playwright.Spin.until(200)
+        Playwright.Spin.until(50)
         send(test, :spun)
       end)
 
@@ -551,13 +552,35 @@ defmodule Playwright.RuntimeConnTest do
       assert release_warnings(log) == 0
     end
 
-    test "a busy route handler holds dispatch until it returns", %{page: page, context: context, server: server} do
+    test "a listener busy for longer is released too, with one warning", %{page: page} do
+      test = self()
+
+      Page.once(page, :console, fn _ ->
+        Playwright.Spin.until(1_000)
+        send(test, :spun)
+      end)
+
+      log =
+        capture_log(fn ->
+          Page.evaluate!(page, "console.log(1)")
+          refute_received :spun
+          assert_receive :spun, 2_000
+        end)
+
+      assert release_warnings(log) == 1
+    end
+
+    test "a route handler busy for less than 100 ms holds dispatch until it returns", %{
+      page: page,
+      context: context,
+      server: server
+    } do
       test = self()
       other = BrowserContext.new_page!(context)
 
       Page.route!(page, "**/empty.html", fn route ->
         send(test, :handling)
-        Playwright.Spin.until(200)
+        Playwright.Spin.until(50)
         send(test, :spun)
         Route.continue!(route)
       end)
@@ -569,8 +592,9 @@ defmodule Playwright.RuntimeConnTest do
       Task.await(goto)
     end
 
-    # The listener's process waits in its nested emit, served by the connection: not released.
-    test "a listener waiting for a nested emit's busy listener is not released", %{page: page} do
+    # The listener's process waits in its nested emit, served by the connection: its timer
+    # starts over once its frame is on top again.
+    test "a listener waiting for a nested emit's listeners is not released", %{page: page} do
       test = self()
 
       EventEmitter.on(page, "outer", fn _ ->
@@ -580,54 +604,58 @@ defmodule Playwright.RuntimeConnTest do
 
       EventEmitter.on(page, "outer", fn _ -> send(test, :second_outer) end)
 
-      EventEmitter.on(page, "inner", fn _ ->
-        Playwright.Spin.until(200)
-        send(test, :inner)
-      end)
+      for _ <- 1..2 do
+        EventEmitter.on(page, "inner", fn _ ->
+          Playwright.Spin.until(60)
+          send(test, :inner)
+        end)
+      end
 
-      EventEmitter.emit(page, "outer")
-      assert {:messages, [:inner, :outer, :second_outer]} = Process.info(self(), :messages)
+      log = capture_log(fn -> EventEmitter.emit(page, "outer") end)
+      assert {:messages, [:inner, :inner, :outer, :second_outer]} = Process.info(self(), :messages)
+      assert release_warnings(log) == 0
       flush()
     end
 
-    # Its section is over: what its later calls emit queues behind the current dispatch, as JS
-    # continuations do, instead of nesting in its caller's section.
-    test "an async function released by its caller no longer nests its emits", %{page: page} do
+    # A released route handler runs on behalf of the test that added the route (the client's own
+    # listener runs it): the test's end kills it, as it may wait forever.
+    test "a route handler stuck in receive is killed when its test finishes", %{page: page, server: server} do
       test = self()
-      holding = Playwright.Spin.new()
-      EventEmitter.on(page, "y", fn _ -> send(test, :child_call) end)
+      Page.goto!(page, server.empty_page)
 
-      EventEmitter.on(page, "x", fn _ ->
-        Playwright.Runtime.Promise.void(fn ->
-          send(test, {:child, self()})
-          receive do: (:go -> :ok)
-          EventEmitter.emit(page, "y")
+      fake_test =
+        spawn(fn ->
+          Page.route!(page, "**/stuck", fn _route ->
+            send(test, {:held, self()})
+            receive do: (:never -> :ok)
+          end)
+
+          send(test, :routed)
+          receive do: (:end -> exit(:shutdown))
         end)
 
-        send(test, :listener_on)
-        Playwright.Spin.hold(holding)
+      Playwright.Test.Results.watch(fake_test, false)
+      assert_receive :routed
+
+      capture_log(fn ->
+        Page.evaluate!(page, "fetch('/stuck'); 1")
+        assert_receive {:held, handler}, 5_000
+        ref = Process.monitor(handler)
+        # Dispatch goes on once the handler is released.
+        assert Page.evaluate!(page, "1 + 1") == 2
+        send(fake_test, :end)
+        Playwright.Test.Results.result(fake_test, 5_000)
+        refute_received {:DOWN, ^ref, _, _, _}
+        Playwright.Test.Results.forget(fake_test)
+        assert_receive {:DOWN, ^ref, :process, _, :killed}
       end)
-
-      log =
-        capture_log(fn ->
-          emit = Task.async(fn -> EventEmitter.emit(page, "x") end)
-          assert_receive {:child, child}
-          assert_receive :listener_on
-          send(child, :go)
-          refute_receive :child_call, 200
-          Playwright.Spin.release(holding)
-          assert_receive :child_call
-          Task.await(emit)
-        end)
-
-      assert release_warnings(log) == 1
     end
 
     # The flag decides between the function's yield and its caller's release: no yield message
     # is left behind, whichever wins.
     test "an async function that returns as it is released leaves no message" do
       capture_log(fn ->
-        for _ <- 1..3, ms <- 20..40 do
+        for ms <- 95..105 do
           promise =
             RuntimePromise.async(fn ->
               receive do

@@ -6,6 +6,7 @@ defmodule Playwright.Isomorphic.TimeoutRunner do
   @upstream "packages/isomorphic/timeoutRunner.ts"
   @moduledoc "Port of `#{@upstream}`."
 
+  alias Playwright.Runtime.Invocation
   alias Playwright.Runtime.Promise
 
   def race_against_deadline(cb, deadline) do
@@ -71,6 +72,8 @@ defmodule Playwright.Isomorphic.TimeoutRunner do
         if deadline?(deadline) and deadline <= monotonic_time() + interval do
           %{timedOut: true, result: last_result}
         else
+          # await new Promise(x => setTimeout(x, interval))
+          Invocation.yield()
           Process.sleep(interval)
           poll_loop(callback, deadline, poll_intervals, last_poll_interval, last_result)
         end

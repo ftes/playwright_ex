@@ -25,7 +25,9 @@ defmodule Playwright.Runtime.Callers do
   @doc "Makes the calling process (one the client started for a callback) run on behalf of `callers`."
   def adopt(callers) do
     Process.put(:"$callers", callers)
-    :ok
+    # In a listener's synchronous section (a route handler run by the client's own listener):
+    # its waiter learns whose it is, so a finished test kills it once released (`detached/2`).
+    Playwright.Runtime.Invocation.adopted(callers)
   end
 
   @doc "Runs `fun` after `adopt/1` (in a process the client started for the callback)."
@@ -54,8 +56,9 @@ defmodule Playwright.Runtime.Callers do
   def test_finished?, do: Results.finished?(List.wrap(Process.get(:"$callers")))
 
   @doc """
-  `pid`, a process started on behalf of `callers` (`nil`: none), was released while it waited
-  outside Playwright: in a `Playwright.Test` test, it is killed once the test is finished.
+  `pid`, a process started on behalf of `callers` (`nil`: none), was released before it reached
+  a Playwright await, or yielded (`Playwright.Promise.yield/0`): in a `Playwright.Test` test, it
+  is killed once the test is finished.
   """
   def detached(_pid, nil), do: :ok
   def detached(pid, callers), do: Results.detached(pid, callers)

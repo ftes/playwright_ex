@@ -1,8 +1,8 @@
 defmodule Playwright.Spin do
   @moduledoc false
   # Synchronous work for tests that hold a synchronous section open (a listener's, an async
-  # function's): a `receive` or `Process.sleep/1` there is released as an await after about 30 ms
-  # (`Playwright.Runtime.Invocation.judge/3`), busy work is not, as in JS.
+  # function's) for under 100 ms (`Playwright.Runtime.Invocation.release_after/0`): longer, it is
+  # released. Several listeners holding in turn hold dispatch longer.
 
   import ExUnit.Assertions
 
@@ -14,8 +14,11 @@ defmodule Playwright.Spin do
 
   def until(done?) when is_function(done?, 0), do: until(done?, now() + 10_000)
 
-  @doc "Spins until the `:atomics` cell `ref` (1 cell) is set to 1 (`release/1`)."
-  def hold(ref), do: until(fn -> :atomics.get(ref, 1) == 1 end)
+  @doc "Spins until the `:atomics` cell `ref` (1 cell) is set to 1 (`release/1`), or for `ms` ms."
+  def hold(ref, ms) do
+    deadline = now() + ms
+    until(fn -> :atomics.get(ref, 1) == 1 or now() >= deadline end)
+  end
 
   @doc "A cell for `hold/1`."
   def new, do: :atomics.new(1, [])

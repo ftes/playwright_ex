@@ -9,10 +9,10 @@ defmodule Playwright.Runtime.Invocation do
   a synchronous section.
 
   A section ends when its process yields (`yield/0`: a Playwright await, or
-  `Playwright.Promise.yield/0`), returns, dies, or is released by its waiter (`judge/3`). Its
-  flag (`new_flag/0`, an `:atomics` cell) goes from 1 to 0 once (`end_section/1`): whoever flips
-  it ends the section, so a released process never sends a yield and a waiter never waits for
-  one that won't come.
+  `Playwright.Promise.yield/0`), returns, dies, or is released by its waiter once it has been
+  open for `release_after/0` ms (`try_release/4`). Its flag (`new_flag/0`, an `:atomics` cell)
+  goes from 1 to 0 once (`end_section/1`): whoever flips it ends the section, so a released
+  process never sends a yield and a waiter never waits for one that won't come.
 
   Process dictionary of the invoked process:
 
@@ -21,27 +21,21 @@ defmodule Playwright.Runtime.Invocation do
       behalf (the `inv` the connection waits for, also inherited by an async function it starts,
       with that function's own flag): a `Conn.run/2` with a live token nests, the connection runs
       its listeners before the call returns.
-    * `:pw_event` - `{conn, emitter guid, type}` of the listener the section runs for (inherited
-      by its async functions), for the release warning.
+    * `:pw_event` - `{type, key}` of the listener the section runs for (`event/3`, inherited by
+      its async functions), for the release warning.
   """
   require Logger
 
-  # The fallback: a section process that waits at this many consecutive samples, this many ms
-  # apart, doing fewer reductions than this between them, is released as if it had yielded.
-  @samples 3
-  @interval 10
-  @reductions 2_000
+  # The fallback: a section still open this many ms after it started is released as if it had
+  # yielded (a wait outside Playwright, treated as an await).
+  @release_after 100
 
-  @doc "The sampling interval of `judge/3`, in ms."
-  def interval, do: @interval
+  @doc "How long a section may stay open before its waiter releases it, in ms."
+  def release_after, do: @release_after
 
-  @doc """
-  A section's flag: cell 1 is 1 while the section is live; cell 2 is 1 while its process waits on
-  the runtime itself (a call its connection serves, or the start of its own async function, whose
-  waiter judges that one instead), so it is not judged meanwhile.
-  """
+  @doc "A section's flag: 1 while the section is live."
   def new_flag do
-    flag = :atomics.new(2, [])
+    flag = :atomics.new(1, [])
     :atomics.put(flag, 1, 1)
     flag
   end
@@ -76,18 +70,14 @@ defmodule Playwright.Runtime.Invocation do
   # The calling process's live section flag, if it runs one. A released one's entries go: what it
   # starts or calls from now on is outside the section.
   def own_flag do
-    case Process.get(:pw_inv) do
-      {_pid, _inv, flag} ->
-        if live?(flag) do
-          flag
-        else
-          Process.delete(:pw_inv)
-          Process.delete(:pw_barrier)
-          nil
-        end
+    flag = section_flag()
 
-      nil ->
-        nil
+    if flag && !live?(flag) do
+      Process.delete(:pw_inv)
+      Process.delete(:pw_barrier)
+      nil
+    else
+      flag
     end
   end
 
@@ -101,95 +91,84 @@ defmodule Playwright.Runtime.Invocation do
   end
 
   @doc false
-  # Runs `fun` (a wait on the runtime itself) with the calling process's section marked as not
-  # judged (cell 2 of its flag).
-  def runtime_wait(nil, fun), do: fun.()
-
-  def runtime_wait(flag, fun) do
-    :atomics.put(flag, 2, 1)
-
-    try do
-      fun.()
-    after
-      :atomics.put(flag, 2, 0)
+  # The calling process, in a live section, now runs on behalf of `callers` (`Callers.adopt/1`, a
+  # route handler's or binding's registrant): its waiter notes them, for `Callers.detached/2`.
+  def adopted(callers) do
+    case Process.get(:pw_inv) do
+      {pid, inv, flag} -> if live?(flag), do: send(pid, {:pw_callers, inv, callers})
+      nil -> :ok
     end
-  end
 
-  @doc """
-  One sample of the section process `pid` (the waiter's, every `interval/0` ms): `{:release,
-  quiet}` once it waited at `@samples` consecutive samples doing little work (a wait outside
-  Playwright, treated as an await), else `{:hold, quiet}` (`quiet`: `nil` at first). CPU work
-  never counts (the process is running or runnable), nor does a wait on the runtime (`new_flag/0`).
-  """
-  def judge(pid, flag, quiet) do
-    # Cell 2 read before and after: a runtime wait that starts or ends meanwhile is seen.
-    with 0 <- :atomics.get(flag, 2),
-         [status: :waiting, reductions: reductions] <- Process.info(pid, [:status, :reductions]),
-         0 <- :atomics.get(flag, 2) do
-      count =
-        case quiet do
-          {count, last} when reductions - last < @reductions -> count + 1
-          _ -> 1
-        end
-
-      {if(count >= @samples, do: :release, else: :hold), {count, reductions}}
-    else
-      _ -> {:hold, nil}
-    end
+    :ok
   end
 
   @doc false
-  # One sample by the waiter of the section of `pid` (the connection, or the caller of its async
-  # function): `{:hold, quiet}`; `:released` (judged waiting, and its flag flipped here: it goes
-  # on as after an await); or `:yielding` (it flipped the flag first: its yield is on its way).
-  def try_release(pid, flag, quiet, event, callers) do
-    case judge(pid, flag, quiet) do
-      {:hold, quiet} ->
-        {:hold, quiet}
+  # The key of the release warning of a listener (`fun`) for `type` on `emitter`: one per
+  # listener function, emitter type and event, so a new page's listener doesn't warn again.
+  def event(emitter, type, fun), do: {type, {Map.get(emitter, :__struct__), type, fun_id(fun)}}
 
-      {:release, _quiet} ->
-        if end_section(flag) do
-          released(pid, event, callers)
-          :released
-        else
-          :yielding
-        end
+  @doc false
+  # The same for an async function (`fun`) called outside a listener.
+  def async_event(fun), do: {nil, {:async, fun_id(fun)}}
+
+  defp fun_id(fun) do
+    info = Function.info(fun)
+    {info[:module], info[:name], info[:arity]}
+  end
+
+  @doc false
+  # The waiter's `@release_after` timer fired for the section of `pid`: `:released` (its flag
+  # flipped here: it goes on as after an await) or `:yielding` (it flipped the flag first: its
+  # yield is on its way). `event`: `{type, key}` (`event/3`, `async_event/1`); `callers`: the
+  # `$callers` it runs on behalf of (`nil`: none).
+  def try_release(pid, flag, event, callers) do
+    if end_section(flag) do
+      released(pid, event, callers)
+      :released
+    else
+      :yielding
     end
   end
 
-  # The waiter released the section of `pid` (`judge/3`, then `end_section/1`): one warning per
-  # listener event (`event`, `{conn, guid, type}`) or per waiting process, logged from a process
-  # of its own (a `Logger` in sync mode must not block the waiter, the connection maybe). A
-  # finished test kills it (`Callers.detached/2`, `callers` its `$callers`).
-  defp released(pid, event, callers) do
+  # One warning per key and code location (the first frame outside Playwright and Elixir),
+  # logged from a process of its own (a `Logger` in sync mode must not block the waiter, the
+  # connection maybe). None for a process that waits for its async function (a route handler run
+  # by the client's listener): that one is released next, with its stacktrace. A finished test
+  # kills it (`Callers.detached/2`).
+  defp released(pid, {type, key}, callers) do
     Playwright.Runtime.Callers.detached(pid, callers)
-    key = event || {:async, self()}
 
-    if first_warning?(key) do
-      stacktrace =
-        case Process.info(pid, :current_stacktrace) do
-          {:current_stacktrace, stacktrace} -> stacktrace
-          nil -> []
-        end
+    stacktrace =
+      case Process.info(pid, :current_stacktrace) do
+        {:current_stacktrace, stacktrace} -> stacktrace
+        nil -> []
+      end
 
-      what =
-        case event do
-          {_conn, _guid, type} -> "A listener for #{inspect(type)}"
-          nil -> "An async function"
-        end
+    if !match?([{Playwright.Runtime.Promise, :handoff, _, _} | _], stacktrace) and
+         first_warning?({key, location(stacktrace)}) do
+      what = if type, do: "A listener for #{inspect(type)}", else: "An async function"
 
       spawn(fn ->
         Logger.warning(
           what <>
-            " waited outside Playwright for #{@samples * @interval} ms in its synchronous section, " <>
-            "so it was treated as awaiting and dispatch went on. Call Playwright.Promise.yield/0 " <>
-            "before such a wait (JS: an await) to skip the delay.\n" <>
+            " did not reach a Playwright await within #{@release_after} ms, so it was treated as " <>
+            "awaiting and dispatch went on: its remaining synchronous code may run after later " <>
+            "events. Call Playwright.Promise.yield/0 before waiting outside Playwright (JS: an await).\n" <>
             Exception.format_stacktrace(stacktrace)
         )
       end)
     end
 
     :ok
+  end
+
+  defp location(stacktrace) do
+    Enum.find_value(stacktrace, fn {module, name, arity, _location} ->
+      case :application.get_application(module) do
+        {:ok, app} when app in [:playwright, :elixir, :stdlib, :kernel] -> nil
+        _ -> {module, name, arity}
+      end
+    end)
   end
 
   defp first_warning?(key) do

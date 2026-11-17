@@ -86,6 +86,28 @@ defmodule Playwright.Guides.NetworkTest do
     assert fetch_json(page, "/api/users") == [%{"name" => "Ada"}, %{"name" => "Grace"}]
   end
 
+  test "delaying a response", %{page: page} do
+    log =
+      ExUnit.CaptureLog.capture_log(fn ->
+        Page.route!(page, "**/api/**", fn route ->
+          Playwright.Promise.yield()
+          Process.sleep(1000)
+          Route.fulfill!(route, json: [%{name: "Ada"}])
+        end)
+
+        started = System.monotonic_time(:millisecond)
+        fetch = Task.async(fn -> fetch_json(page, "/api/users") end)
+        # The connection dispatches on while the handler sleeps.
+        Process.sleep(50)
+        assert Page.evaluate!(page, "1 + 1") == 2
+        assert System.monotonic_time(:millisecond) - started < 1000
+        assert Task.await(fetch) == [%{"name" => "Ada"}]
+        assert System.monotonic_time(:millisecond) - started >= 1000
+      end)
+
+    refute log =~ "network_test.exs"
+  end
+
   test "patterns, fallback, times, unroute", %{page: page} do
     Page.route!(page, "/api/users", &Route.fulfill(&1, json: "first"))
     Page.route!(page, "/api/users", &Route.fallback/1)

@@ -61,10 +61,11 @@ Node 26.13.1.
 
 - `mix playwright.install` and `mix playwright.cli` failed with "module :public_key is not
   available" when run before the project was compiled (e.g. right after `mix deps.get` in CI).
-- A listener or route handler that waits outside Playwright (`receive`, `Process.sleep/1`)
-  without `Playwright.Promise.yield/0` no longer stalls every call on its connection: after about
-  30 ms the wait is taken for an await, with a warning. A handler the test never released froze
-  the module's later tests; a finished test's runner now kills it.
+- A listener or route handler that waits outside Playwright (`receive`, `Process.sleep/1`) no
+  longer stalls every call on its connection: one that hasn't reached a Playwright await within
+  100 ms is released, so its remaining synchronous code may run after later events, with a
+  warning. Call `Playwright.Promise.yield/0` before waiting outside Playwright. A handler the
+  test never released froze the module's later tests; a finished test's runner now kills it.
 
 ## [1.65.0-rc.1] 2026-11-16
 

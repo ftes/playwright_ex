@@ -45,6 +45,22 @@ end)
 
 Like listeners, handlers run in their own processes; see the [Concurrency](concurrency.md) guide.
 
+### Delaying a response
+
+To test a loading state, hold the response back:
+
+```elixir
+Page.route!(page, "**/api/**", fn route ->
+  Playwright.Promise.yield()
+  Process.sleep(1000)
+  Route.fulfill!(route, json: [%{name: "Ada"}])
+end)
+```
+
+`yield/0` comes first, as JS's `await new Promise(r => setTimeout(r, 1000))` is an await: the
+connection dispatches on while the handler sleeps. Without it, the handler holds the connection
+for 100 ms before it is released, with a warning.
+
 ## Replaying a HAR
 
 A HAR file records requests and responses. Record one against the real backend with

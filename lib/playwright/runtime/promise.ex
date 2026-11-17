@@ -194,7 +194,7 @@ defmodule Playwright.Runtime.Promise do
         true -> local_alias()
       end
 
-    start(fn ->
+    start(fun, fn ->
       result = run_async(fun)
       settle_async(promise, result)
       Invocation.yield()
@@ -267,7 +267,7 @@ defmodule Playwright.Runtime.Promise do
   `async/1`, but its result and errors are dropped.
   """
   def void(fun) when is_function(fun, 0) do
-    start(fn ->
+    start(fun, fn ->
       run_async(fun)
       Invocation.yield()
     end)
@@ -281,17 +281,18 @@ defmodule Playwright.Runtime.Promise do
     kind, reason -> {:error, Exception.normalize(kind, reason, __STACKTRACE__)}
   end
 
-  # Starts `body` in a process that runs as the caller until its first yield. It works on the
-  # caller's behalf, so it gets its `$callers` as a `Task` does; not the connection's (shared).
-  # In the caller's synchronous section, it inherits its barrier token (with a flag of its own).
-  defp start(body) do
+  # Starts `body` (running `fun`) in a process that runs as the caller until its first yield. It
+  # works on the caller's behalf, so it gets its `$callers` as a `Task` does; not the
+  # connection's (shared). In the caller's synchronous section, it inherits its barrier token
+  # (with a flag of its own).
+  defp start(fun, body) do
     caller = self()
     zone = Zones.current_zone()
     in_conn = Conn.in_conn?()
-    own = if !in_conn, do: Invocation.own_flag()
-    barrier = if own, do: elem(Process.get(:pw_barrier, {nil, nil}), 0)
+    barrier = if !in_conn && Invocation.own_flag(), do: elem(Process.get(:pw_barrier, {nil, nil}), 0)
     callers = if !in_conn, do: Callers.capture()
-    event = Process.get(:pw_event)
+    inherited = Process.get(:pw_event)
+    event = inherited || Invocation.async_event(fun)
     inv = make_ref()
     flag = Invocation.new_flag()
 
@@ -299,7 +300,7 @@ defmodule Playwright.Runtime.Promise do
       spawn(fn ->
         if callers, do: Callers.adopt(callers)
         Zones.restore(zone)
-        if event, do: Process.put(:pw_event, event)
+        if inherited, do: Process.put(:pw_event, inherited)
         # Inside the connection: started (and waited for) at the current dispatch step.
         barrier =
           if in_conn do
@@ -315,36 +316,40 @@ defmodule Playwright.Runtime.Promise do
       end)
 
     if in_conn do
-      Conn.push_step({:start, pid, inv, flag})
+      Conn.push_step({:start, pid, inv, flag, event})
     else
       mref = Process.monitor(pid)
-      # The caller's own waiter skips it meanwhile: it judges its child instead.
-      Invocation.runtime_wait(own, fn -> handoff(pid, mref, inv, flag, {event, callers}, nil) end)
+      deadline = System.monotonic_time(:millisecond) + Invocation.release_after()
+      handoff(pid, mref, inv, flag, {event, callers}, deadline)
     end
 
     pid
   end
 
-  # Waits for the first yield of the async function's process, judging it as the connection
-  # judges a listener (`Invocation.judge/3`): one released goes on in its own process.
-  defp handoff(pid, mref, inv, flag, {event, callers} = of, quiet) do
+  # Waits for the first yield of the async function's process, releasing it as the connection
+  # releases a listener (`Invocation.try_release/4`): one released goes on in its own process.
+  defp handoff(pid, mref, inv, flag, {event, _callers} = of, deadline) do
     receive do
-      {:pw_yield, ^inv} -> Process.demonitor(mref, [:flush])
-      {:DOWN, ^mref, :process, _, reason} -> exit(reason)
-    after
-      Invocation.interval() ->
-        case Invocation.try_release(pid, flag, quiet, event, callers) do
-          {:hold, quiet} ->
-            handoff(pid, mref, inv, flag, of, quiet)
+      {:pw_yield, ^inv} ->
+        Process.demonitor(mref, [:flush])
 
+      {:DOWN, ^mref, :process, _, reason} ->
+        exit(reason)
+
+      {:pw_callers, ^inv, callers} ->
+        handoff(pid, mref, inv, flag, {event, callers}, deadline)
+    after
+      max(deadline - System.monotonic_time(:millisecond), 0) ->
+        case Invocation.try_release(pid, flag, event, elem(of, 1)) do
           :released ->
             Process.demonitor(mref, [:flush])
 
-          # It yielded meanwhile: its message is on its way.
+          # It yielded meanwhile: its message is on its way, unless it was killed first (then it
+          # is released as well: its section ended).
           :yielding ->
             receive do
               {:pw_yield, ^inv} -> Process.demonitor(mref, [:flush])
-              {:DOWN, ^mref, :process, _, reason} -> exit(reason)
+              {:DOWN, ^mref, :process, _, _reason} -> :ok
             end
         end
     end

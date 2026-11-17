@@ -127,9 +127,10 @@ single thread. Use each only where the JS code needs it, with its marker.
 
 - A listener runs in a process of its own while the connection waits for it to return or first
   await ([why](docs/architecture.md#ordering)). A spec's `await` on a non-Playwright promise
-  (`await blocked`) is `Playwright.Promise.yield()` before the `receive` (unmarked, the wait is
-  released after about 30 ms, with a warning). A test that holds a synchronous section open
-  spins (`Playwright.Spin`): a `receive` there is released.
+  (`await blocked`) is `Playwright.Promise.yield()` before the `receive`: a listener that hasn't
+  reached a Playwright await within 100 ms is released, so its remaining synchronous code may
+  run after later events. A library wait (a poll's sleep) yields first, as JS awaits it. A test
+  that holds a synchronous section open does so for under 100 ms (`Playwright.Spin`).
 - A closed context (and what it owned) stays readable until the processes that created or
   closed it have exited; reads after that raise TargetClosedError
   ([why](docs/architecture.md#object-lifetimes)). Tests read closed objects in the test process.

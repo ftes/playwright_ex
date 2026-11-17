@@ -459,14 +459,12 @@ defmodule Playwright.Test.ArtifactsTest do
       callers = [self() | Process.get(:"$callers")]
       page = page(Browser.new_context!(browser), "TITLED")
 
-      # A busy listener holds the connection's dispatch: the replies to the overlay's calls wait.
-      # (A wait would be released as an await.)
+      # Listeners hold the connection's dispatch: the replies to the overlay's calls wait. Each
+      # holds for under 100 ms (one past it is released), in turn.
       release = Playwright.Spin.new()
-
-      Page.on(page, :console, fn _ ->
-        send(me, :stalled)
-        Playwright.Spin.hold(release)
-      end)
+      Playwright.Client.EventEmitter.set_max_listeners(page, 0)
+      Page.once(page, :console, fn _ -> send(me, :stalled) end)
+      for _ <- 1..50, do: Page.on(page, :console, fn _ -> Playwright.Spin.hold(release, 80) end)
 
       spawn(fn -> Page.evaluate(page, "console.log(1)") end)
       assert_receive :stalled

@@ -204,21 +204,23 @@ microtask after the whole `emit`: `Browser.close` returns after the `disconnecte
 
 What counts as an await. In JS every wait is an `await`, and only CPU work holds the loop. Here a
 `receive` stands for both an `await` and synchronous JS code (an `Agent` used as an array,
-`IO.puts`, `Logger` in sync mode, `Conn.run`), and nothing tells them apart from outside: all
-are `status: :waiting`, and a scheduling trace has no reason either. So the author's intent is
-the contract: Playwright's awaits and `Playwright.Promise.yield/0` end a synchronous section.
-As a fallback for liveness, a section's process that waits doing little work for about 30 ms
-(three samples 10 ms apart, under 2,000 reductions between them, `Runtime.Invocation.judge/3`)
-is released as if it had yielded, with one warning per emitter and event: a wait nobody marked
-costs about 30 ms instead of the connection. CPU work is never released (the process is
-running), as in JS. Only the top frame's process is sampled, and one waiting on the runtime
-itself is skipped (a call its connection serves, the start of an async function, whose caller
-samples that function instead), so runtime waits need no marker. Each section has an `:atomics`
-flag that goes from 1 to 0 once (`compare_exchange`), by its process at its first yield or by
-its releaser; the loser sends nothing, or waits for the yield already on its way. So a released
-process holds no live barrier token (its later calls queue behind the current dispatch, as JS
-continuations do) and no yield is left in a mailbox. A finished test's runner kills its
-released invocations (and those that called `yield/0`), as they may wait forever.
+`IO.puts`, `Logger` in sync mode), and nothing tells them apart from outside. So the author's
+intent is the contract: Playwright's awaits (its own polls and sleeps included) and
+`Playwright.Promise.yield/0` end a synchronous section. The rule, as a fallback for liveness: a
+listener (or async function) that hasn't reached a Playwright await within 100 ms is released
+as if it had awaited (`Runtime.Invocation.release_after/0`), so its remaining synchronous code
+may run after later events; call `yield/0` before waiting outside Playwright. One warning per
+listener function, emitter type and event names `yield/0`. The waiter (the connection, or the
+caller of an async function) arms one timer per section; only the top frame's section is
+released, a frame below starts its timer over once on top again. Each section has an
+`:atomics` flag that goes from 1 to 0 once (`compare_exchange`), by its process at its first
+yield or by its releaser; the loser sends nothing, or waits for the yield already on its way. So
+a released process holds no live barrier token (its later calls queue behind the current
+dispatch, as JS continuations do) and no yield is left in a mailbox. A finished test's runner
+kills its released invocations (and those that called `yield/0`), route handlers included, as
+they may wait forever. Rejected: sampling the process (`Process.info` status and reductions) to
+tell a wait from CPU work, which released sooner but needed runtime waits marked and still
+misjudged synchronous IPC under load.
 
 Listener kinds (`Playwright.Client.EventEmitter`): user listeners (added through the facade)
 and internal ones get a process per invocation (a user one runs on behalf of its registrant,
@@ -238,10 +240,11 @@ What differs from JS, accepted:
 - A waiter rejects in its own process, not inside `emit`, so "rejected before the next emit" is
   not guaranteed. A fix needs a blocking mailbox step with acks plus a per-process event buffer
   (150-250 lines, deadlock risk), and a `.catch` would still run in another process.
-- A wait outside Playwright that its author did not mark with `yield/0` holds dispatch for about
-  30 ms; the rest of the listener then runs as after an `await`. A synchronous-like wait over
-  30 ms (an `Agent` call on an overloaded machine) is released too: benign, but an
-  `assert_received` right after the triggering call can miss it (`assert_receive` is fine).
+- A listener that hasn't reached a Playwright await within 100 ms is released, waiting or busy:
+  JS would hold the loop for synchronous code that long. Its remaining synchronous code may run
+  after later events, and an `assert_received` right after the triggering call can miss what it
+  sends (`assert_receive` is fine). An unmarked wait outside Playwright holds dispatch for those
+  100 ms.
 - Continuations of one listener's invocations (the code after their awaits) run in separate
   processes, so their order is close to JS's settle order but not exact.
 - A route callback pending at teardown rejects with `TargetClosedError`, dropped unlogged; JS
