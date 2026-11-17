@@ -598,8 +598,20 @@ Route handlers (`Page.route/3`, `route_web_socket/3` and their WebSocket `on_mes
 predicates run in processes of their own, on behalf of the process that registered them: they
 get its `$callers`, as a `Task` does. So the Ecto sandbox, Mox and `Req.Test` find the test in
 them without an explicit allowance, and matchers and `step` count for the test. An error a route
-handler, listener or locator handler raises fails the test at the end of its body, as in
-Playwright Test (outside a test, and once the test has ended, it is logged).
+handler, listener or locator handler raises fails the test and stops it at once, as Playwright
+Test's worker does: the test's process exits with that error, and later such errors are dropped.
+Soft errors recorded before it are reported with it. A test that traps exits isn't stopped:
+ExUnit may report it passed, while the error is in `error-context.md` and
+`Playwright.Test.info/1`. A test defined with `ExUnit.Case.test` in place of the `test` macro
+isn't a Playwright test: its listener errors are only logged.
+
+Two points differ from Playwright Test. Once the test's body has ended (in your `on_exit`
+callbacks), and outside a test, such an error is only logged; Playwright Test still fails the
+test during its `afterEach` hooks and teardown. And a test stopped this way gets its failure
+screenshots at teardown, as its contexts close, so after your `on_exit` callbacks; Playwright
+Test takes them before the `afterEach` hooks, as for any other failure. In a `:dialog` listener,
+accept or dismiss the dialog before asserting on it: a dialog left open blocks the page, so the
+screenshot and the snapshot of `error-context.md` wait on it until they time out.
 
 The test's contexts close last in its `on_exit`: after your `on_exit` callbacks, as Playwright
 Test runs `afterEach` hooks before the `context` fixture's teardown, and after the test process

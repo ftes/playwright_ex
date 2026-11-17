@@ -283,10 +283,10 @@ defmodule Playwright.Runtime.Facade do
 
   # A matcher's message is its receiver's (JS `expect(actual, message)`), not an option: the
   # matcher as called, its arguments elided.
-  defp hint({name, arity}, [:message]),
+  defp hint({name, _arity}, [:message]),
     do:
       ". A matcher's custom message goes with Playwright.Expect.message/2 (JS expect(actual, message)), " <>
-        ~s[for Expect.#{name}/#{arity}: x |> Expect.message("...") |> Expect.#{name}(...)]
+        ~s[for Expect.#{name}: x |> Expect.message("...") |> Expect.#{name}(...)]
 
   defp hint(_function, _path), do: ""
 

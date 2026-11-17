@@ -21,6 +21,8 @@
 #     hard failure; and a passing one.
 #   * `timeouts` - tests past their timeout: one in a Playwright call, one in `Process.sleep`, one
 #     in a Playwright call after a slow `setup` before `use Playwright.Test`.
+#   * `interrupt` - tests whose listener (`:dialog`, `:console`) or route handler fails before
+#     they would hang.
 #   * `setup_all_timeout` - modules with a `timeout` tag: a `setup_all` in `Process.sleep` (1 s),
 #     one in a Playwright call after its context and page (6 s), and one that ends in time, whose
 #     tests take longer together (5 s).
@@ -364,6 +366,66 @@ case mode do
           # (inside the boxed step)
           raise "cannot log in"
         end
+      end
+    end
+
+  # Each fails at once, as the callback's error stops it; it would hang past its timeout.
+  "interrupt" ->
+    # Prints how long each test ran, without its teardown: `(duration=><ms>)`.
+    defmodule InterruptDuration do
+      def print(%{test_pid: test_pid}) do
+        ExUnit.Callbacks.on_exit(fn -> IO.puts("(duration=>#{Playwright.Test.info(test_pid).duration})") end)
+      end
+    end
+
+    # The dialog it doesn't accept would hang the call. The open dialog then blocks the
+    # teardown's screenshot and snapshot for their 5 s each.
+    defmodule InterruptDialogTest do
+      use Playwright.Case, async: true
+
+      setup {InterruptDuration, :print}
+
+      @tag timeout: 45_000
+      test "fails in a dialog listener", %{page: page} do
+        Page.on(page, :dialog, fn dialog ->
+          assert Playwright.Dialog.message(dialog) == "expected"
+          Playwright.Dialog.accept!(dialog)
+        end)
+
+        Page.evaluate!(page, "() => alert('actual')")
+      end
+    end
+
+    defmodule InterruptTest do
+      use Playwright.Case, async: true
+
+      @moduletag timeout: 45_000
+      setup {InterruptDuration, :print}
+
+      # The soft error recorded before it is reported with it.
+      test "fails softly, then in a console listener", %{page: page} do
+        Page.set_content!(page, "<h1>One</h1>")
+        page |> Page.locator("h1") |> Expect.soft() |> Expect.to_have_text!("Uno", timeout: 100)
+        Page.on(page, :console, fn _message -> raise "after soft boom" end)
+        Page.evaluate!(page, "() => console.log('actual')")
+        Process.sleep(:infinity)
+      end
+
+      test "fails in a console listener", %{page: page} do
+        Page.on(page, :console, fn message -> assert Playwright.ConsoleMessage.text(message) == "expected" end)
+        Page.set_content!(page, "<h1>Logs</h1>")
+        Page.evaluate!(page, "() => console.log('actual')")
+        Process.sleep(:infinity)
+      end
+
+      test "fails in a route handler", %{page: page} do
+        Page.route!(page, "**/*", fn route ->
+          Playwright.Route.fulfill!(route, body: "ok")
+          raise "route boom"
+        end)
+
+        Page.goto!(page, "http://interrupt.test/")
+        Process.sleep(:infinity)
       end
     end
 

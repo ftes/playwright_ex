@@ -69,6 +69,16 @@ defmodule Playwright.Test do
   processes, see "Route handlers and listeners" in the Testing with ExUnit guide); outside a
   test they raise.
 
+  An error a listener or route handler of the test raises fails the test and stops it at once,
+  as upstream's worker does (`unhandledError`): the test's process exits with the error, and
+  later such errors are dropped. A test that traps exits isn't stopped: ExUnit may report it
+  passed, while the error is in `error-context.md` and `Playwright.Test.info/1`. A test
+  defined with `ExUnit.Case.test` isn't a Playwright test: its listener errors are only logged.
+  Two deviations: the stopped test's failure screenshots are taken at teardown, as its contexts
+  close, after its `on_exit` callbacks may have run, where upstream takes them first
+  (`_didFinishTestFunction`); and once the body ended (in `on_exit`), such an error is logged,
+  where upstream still fails the test during its `afterEach` hooks and teardown.
+
   ## Artifacts
 
   Every context the test creates on a `BrowserPool` browser, in the test or a process with it
@@ -86,7 +96,10 @@ defmodule Playwright.Test do
       `mix playwright.cli show-trace <path>` after the run, below ExUnit's summary.
     * `test-finished-N.png`, or `test-failed-N.png` for a failed test - a screenshot of every
       page open at the end of the test's body (before its `on_exit` callbacks), then of those
-      open when their context closes (`timeout: 5000, caret: :initial`, as upstream).
+      open when their context closes (`timeout: 5000, caret: :initial`, as upstream). A test
+      that a listener's or route handler's error stopped (above) has no end of its body: its
+      pages' screenshots are taken as its contexts close, after its `on_exit` callbacks
+      (upstream takes them before the `afterEach` hooks).
     * `video.webm`, `video-1.webm`, ... - every page's video. A context created with its own
       `record_video` keeps it, and its video is copied here too.
     * `error-context.md` - a failed test's errors, source and an aria snapshot (`mode: :ai`) of
