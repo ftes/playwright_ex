@@ -627,25 +627,49 @@ defmodule Playwright.Test.TestInfo do
 
   @doc """
   The worker's `unhandledError` (an error a callback of the test left unhandled: a listener's, a
-  route handler's): `_failWithError`, then upstream's `_stop()` interrupts the test, whose body
-  is abandoned. Here the test's process exits with the error, which ExUnit reports as the test's
-  failure (`Playwright.Test.Results` keeps it once). A test that traps exits gets it as a message.
+  route handler's): the test's first one (`_hasUnhandledError`) is `_failWithError`ed, then
+  upstream's `_stop()` interrupts the test, whose body is abandoned. Here the test's process exits
+  with the error, which ExUnit reports as the test's failure (`Playwright.Test.Results` keeps it
+  once). A test that traps exits gets it as a message. Later ones are dropped, as upstream.
+
+  Elixir only: from the test's own process (a listener of an emitter it emits on, run in place),
+  the error is raised there, as upstream's sync listener's error is thrown to `emit`'s caller.
+  Once the test ended, it is printed (`_fail_with_error/2`).
   """
   def _unhandled_error(this, {kind, reason, stacktrace} = error) do
-    _fail_with_error(this, error)
+    cond do
+      not running?(this) ->
+        _fail_with_error(this, error)
 
-    # Not from the test's own process, where the error is raised as any other.
-    if running?(this) and this.test_pid != self(),
-      do: Process.exit(this.test_pid, interrupt_reason(kind, reason, stacktrace))
+      this.test_pid == self() ->
+        :erlang.raise(kind, reason, stacktrace)
+
+      first_unhandled_error?(this) ->
+        _fail_with_error(this, error)
+        Process.exit(this.test_pid, interrupt_reason(kind, reason, stacktrace))
+
+      true ->
+        :ok
+    end
 
     :ok
   end
 
+  # `_hasUnhandledError`, set once (`insert_new`, atomic across the test's processes).
+  defp first_unhandled_error?(this) do
+    key = {:test_info, this.test_pid, :has_unhandled_error}
+    first? = :ets.insert_new(Results.table(), {key, true})
+    # Elixir only: the test ended (see `put_row/3`).
+    if !running?(this), do: :ets.delete(Results.table(), key)
+    first?
+  end
+
   @doc false
   # The exit reason of `_unhandled_error/2`, as ExUnit formats a crash: `{exception, stacktrace}`.
+  # An exit is wrapped, so that `:normal` interrupts the test too and `:kill` is not a plain kill.
   def interrupt_reason(:error, exception, stacktrace), do: {exception, stacktrace}
   def interrupt_reason(:throw, value, stacktrace), do: {{:nocatch, value}, stacktrace}
-  def interrupt_reason(:exit, reason, _stacktrace), do: reason
+  def interrupt_reason(:exit, reason, _stacktrace), do: {:exit_in_callback, reason}
 
   @doc "Elixir only: the `message` of an error `{kind, reason, stacktrace}`."
   def error_message({:error, reason, stacktrace}),

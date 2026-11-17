@@ -21,6 +21,8 @@ defmodule Playwright.Test.Pool do
   #   * `waiting`: callers whose scope held no seat while `workers` were held, monitored, first come
   #     first served (`serve_waiting/1`). A waiter that exits, or whose scope was released, is
   #     dropped.
+  #   * `held`: the lines `print_after_suite/1` holds for `after_suite/1`, newest first, printed by
+  #     `terminate/2` if the pool stops before; `nil` without the `ExUnit.after_suite/1` callback.
   #
   # Started unlinked on first use (`ensure_started/0`), never with the application (a release
   # has no ExUnit): its lifetime is the run. It registers the `ExUnit.after_suite/1` that stops
@@ -141,7 +143,6 @@ defmodule Playwright.Test.Pool do
     # `setBoxedStackPrefixes([packageRoot])` (`packages/playwright/src/common/process.ts`).
     ClientStackTrace.set_boxed_stack_prefixes(runner_modules())
 
-    # `held`: the lines `print_after_suite/1` holds, newest first; `nil` without the callback.
     held =
       if Code.ensure_loaded?(ExUnit) and is_list(Application.get_env(:ex_unit, :after_suite)) do
         ExUnit.after_suite(&__MODULE__.after_suite/1)

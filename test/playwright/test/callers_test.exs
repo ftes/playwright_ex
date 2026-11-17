@@ -185,7 +185,7 @@ defmodule Playwright.Test.CallersTest do
     Screencast.stop!(Page.screencast(page))
   end
 
-  test "an unhandled error of a route handler or a listener fails the test and interrupts it", %{page: page} do
+  test "an unhandled error of a route handler fails the test and interrupts it", %{page: page} do
     Process.flag(:trap_exit, true)
 
     Page.route!(page, "**/*", fn route ->
@@ -201,21 +201,45 @@ defmodule Playwright.Test.CallersTest do
 
     assert [{:error, %RuntimeError{message: "route boom"}, _}] = TestInfo.take_errors(self())
     assert_receive {:EXIT, _, {%RuntimeError{message: "route boom"}, _}}
+    # Recorded on the test, not logged.
+    refute log =~ "route boom"
+  end
 
-    Page.on(page, :console, fn _ -> raise "listener boom" end)
+  # Upstream's `_hasUnhandledError`: the first error fails and interrupts the test, later ones are
+  # dropped.
+  test "a listener's first unhandled error fails the test and interrupts it, not later ones", %{page: page} do
+    Process.flag(:trap_exit, true)
+    Page.on(page, :console, fn message -> raise "listener boom #{Playwright.ConsoleMessage.text(message)}" end)
 
     log =
-      log <>
-        capture_log(fn ->
-          Page.evaluate!(page, "() => console.log('hi')")
-          await_error(self())
-        end)
+      capture_log(fn ->
+        Page.evaluate!(page, "() => { console.log('1'); console.log('2') }")
+        await_error(self())
+        Process.sleep(200)
+      end)
 
-    assert [{:error, %RuntimeError{message: "listener boom"}, _}] = TestInfo.take_errors(self())
-    assert_receive {:EXIT, _, {%RuntimeError{message: "listener boom"}, _}}
-
-    # Recorded on the test, not logged.
+    assert [{:error, %RuntimeError{message: "listener boom 1"}, _}] = TestInfo.take_errors(self())
+    assert_receive {:EXIT, _, {%RuntimeError{message: "listener boom 1"}, _}}
+    refute_received {:EXIT, _, _}
     refute log =~ "listener boom"
+  end
+
+  test "a listener's exit interrupts the test, also a normal one", %{page: page} do
+    Process.flag(:trap_exit, true)
+    Page.on(page, :console, fn _ -> exit(:normal) end)
+    Page.evaluate!(page, "() => console.log('hi')")
+    await_error(self())
+
+    assert [{:exit, :normal, _}] = TestInfo.take_errors(self())
+    assert_receive {:EXIT, _, {:exit_in_callback, :normal}}
+  end
+
+  # As upstream's sync listener's error is thrown to `emit`'s caller.
+  test "a listener run in the test's own process raises there" do
+    emitter = Playwright.Client.EventEmitter.new()
+    Playwright.Client.EventEmitter.on(emitter, "x", fn _ -> raise "local boom" end)
+    assert_raise RuntimeError, "local boom", fn -> Playwright.Client.EventEmitter.emit(emitter, "x") end
+    assert TestInfo.take_errors(self()) == []
   end
 
   test "registered outside a test: nothing found, the error is logged", %{page: page} do

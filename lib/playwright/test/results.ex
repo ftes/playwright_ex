@@ -251,9 +251,11 @@ defmodule Playwright.Test.Results do
           result
 
         {errors, {_verdict, failures}} ->
-          errors = Enum.map(errors, &normalize/1)
-          {:failed, errors ++ Enum.reject(failures, &interrupted_by?(&1, errors))}
+          {:failed, Enum.map(errors, &normalize/1) ++ failures}
       end
+
+    # Also when the end of its body took the error already.
+    failures = Enum.reject(failures, &interrupted_by?(&1, failures))
 
     for from <- test.awaiting, do: GenServer.reply(from, {verdict, failures})
     duration = System.monotonic_time(:millisecond) - test.started
@@ -272,11 +274,17 @@ defmodule Playwright.Test.Results do
   defp verdict(test, pid, reason), do: {:failed, test.failures ++ [{{:EXIT, pid}, reason, []}]}
 
   # The exit of an unhandled error's interrupt (`TestInfo._unhandled_error/2`): that error, once.
-  defp interrupted_by?({{:EXIT, _pid}, reason, []}, errors),
-    do:
-      Enum.any?(errors, fn {kind, error, stacktrace} -> TestInfo.interrupt_reason(kind, error, stacktrace) == reason end)
+  defp interrupted_by?({{:EXIT, _pid}, reason, []}, failures) do
+    Enum.any?(failures, fn
+      {kind, error, stacktrace} when kind in [:error, :throw, :exit] ->
+        TestInfo.interrupt_reason(kind, error, stacktrace) == reason
 
-  defp interrupted_by?(_failure, _errors), do: false
+      _failure ->
+        false
+    end)
+  end
+
+  defp interrupted_by?(_failure, _failures), do: false
 
   defp normalize({kind, reason, stacktrace}), do: {kind, Exception.normalize(kind, reason, stacktrace), stacktrace}
 end

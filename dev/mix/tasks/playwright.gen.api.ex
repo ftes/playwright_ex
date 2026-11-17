@@ -303,17 +303,18 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
 
   # A subclass handle is one too (an `ElementHandle` is a `JSHandle`).
   defp struct_type(ctx, name) do
-    subclasses = for {sub, %{"extends" => ^name}} <- ctx.classes, do: sub
-
     if handle?(name),
-      do: Enum.join(["%__MODULE__{}" | Enum.map(Enum.sort(subclasses), &"%#{inspect(facade(&1))}{}")], " | "),
+      do:
+        Enum.join(["%__MODULE__{}" | Enum.map(Enum.sort(subclasses(ctx, name)), &"%#{inspect(facade(&1))}{}")], " | "),
       else: "term()"
   end
+
+  defp subclasses(ctx, name), do: for({sub, %{"extends" => ^name}} <- ctx.classes, do: sub)
 
   # The receiver in a function head: its handle struct matched, unless it has subclasses (`JSHandle`)
   # or is no handle (`Expect`).
   defp receiver_param(ctx, name, receiver) do
-    if handle?(name) and not Enum.any?(ctx.classes, &match?({_sub, %{"extends" => ^name}}, &1)),
+    if handle?(name) and subclasses(ctx, name) == [],
       do: "%#{inspect(facade(name))}{} = #{receiver}",
       else: receiver
   end

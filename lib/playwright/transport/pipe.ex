@@ -125,11 +125,12 @@ defmodule Playwright.Transport.Pipe do
 
   # A string that is not UTF-8 (`:json` stops at its first invalid byte): bytes are
   # `{:binary, bytes}` (a JS Buffer), as JS strings are always text.
-  defp reason(%ErlangError{original: original} = e)
-       when original == :unexpected_end or (is_tuple(original) and elem(original, 0) == :invalid_byte),
-       do: "#{Exception.message(e)}, a string that is not UTF-8. Where bytes are meant, pass {:binary, bytes}"
-
+  defp reason(%ErlangError{original: {:invalid_byte, _byte}} = e), do: not_utf8(e)
+  defp reason(%ErlangError{original: :unexpected_end} = e), do: not_utf8(e)
   defp reason(e), do: Exception.message(e)
+
+  defp not_utf8(e),
+    do: "#{Exception.message(e)}, a string that is not UTF-8. Where bytes are meant, pass {:binary, bytes}"
 
   # The driver never answers `__waitInfo__`.
   defp unencodable(state, %{id: id, method: method}, reason) when id != nil and method != "__waitInfo__" do
