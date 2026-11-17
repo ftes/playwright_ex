@@ -216,7 +216,8 @@ defmodule Playwright.Test.Options do
   @doc """
   `Playwright.Test.use/1`: `opts` validated as `use_options/1`'s, as a keyword list for a tag
   or a `parameterize:` map, with a private key per option: `:"playwright.use.trace"` for a
-  mode, `:"playwright.use.context_options.locale"` for a context option (its client key), so
+  mode, `:"playwright.use.context.locale"` for a context option (its client key), next to
+  `:"playwright.use.context_options"` for `context_options` as a whole, so
   ExUnit's merge of tags per key layers them per option, as upstream's, where each option is a
   fixture of its own. The keys are of the known options only.
   """
@@ -390,9 +391,10 @@ defmodule Playwright.Test.Options do
   @doc """
   Upstream's `browserName` of a module's run, for its `BrowserPool.browser/1` calls without one:
   the module's `use_options`' `browser_name`, else the `project`'s (`Playwright.Test.parameters/1`),
-  else the config's if it sets one. Else the `default_browser_type` of a device in their
-  `context_options` (the module's, the project's, the config's), as upstream's `browserName`
-  defaults to its `defaultBrowserType`, else the config's default, `:chromium`. Tags don't
+  else the config's if it sets one. Else the `default_browser_type` of the module's
+  `use_options`, the project's or the config's (a spread device's; one in `context_options`
+  doesn't count, as upstream's `contextOptions`), as upstream's `browserName` defaults to its
+  `defaultBrowserType`, else the config's default, `:chromium`. Tags don't
   count: the browser is the worker's. Whether the config sets one is the application env's:
   `config` has the default filled in.
   """
