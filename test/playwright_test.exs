@@ -19,6 +19,11 @@ defmodule PlaywrightTest do
     assert %{"iPhone 15" => %{user_agent: _, viewport: %{width: _}}} = Playwright.devices(playwright)
   end
 
+  test "the static devices are the driver's", %{playwright: playwright} do
+    assert Playwright.devices() == Playwright.devices(playwright)
+    assert %{user_agent: _, viewport: %{width: 390}, default_browser_type: "webkit"} = Playwright.devices()["iPhone 13"]
+  end
+
   test "launches and closes the browser", %{playwright: playwright} do
     assert {:ok, browser} = BrowserType.launch(TestBrowser.browser_type(playwright))
     assert inspect(browser) =~ ~r/^#Playwright\.Browser<browser@\w+>$/
