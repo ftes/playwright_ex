@@ -46,6 +46,9 @@ Node 26.13.1. No API changes.
 
 ### Changed
 
+- **RC only:** `Expect.to_pass!/2` returns the callback's value from the attempt that passed,
+  which JS assigns to an outer `let`. **Breaking:** `Expect.to_pass/2` returns `{:ok, value}`,
+  not `:ok`.
 - **RC only:** **Breaking:** a context created in `setup_all` before `use Playwright.Test`
   registered the module (a case template's own `setup_all` with the `use` only in its `using`,
   or a `setup_all` above the module's `use`) makes the module's `setup_all` raise, naming the
@@ -53,8 +56,9 @@ Node 26.13.1. No API changes.
 
 ### Fixed
 
-- `mix playwright.install` and `mix playwright.cli` failed with "module :public_key is not
-  available" when run before the project was compiled (e.g. right after `mix deps.get` in CI).
+- **RC only:** `mix playwright.install` and `mix playwright.cli` failed with "module :public_key
+  is not available" when run before the project was compiled (e.g. right after `mix deps.get` in
+  CI).
 - Contexts and request contexts created in a module's `setup_all` get the context defaults, the
   config's `context_options` (`base_url` too) and timeouts, as Playwright Test's `beforeAll`
   does (#257).
