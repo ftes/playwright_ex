@@ -56,11 +56,15 @@ Node 26.13.1.
   a listener's later events run while an earlier one awaits, as in JS, instead of queueing
   behind it. `self()` differs per invocation, so state a listener kept in its process
   dictionary is gone between events.
+- **RC only:** `Expect.to_pass!/2` returns the callback's value from the attempt that passed,
+  which JS assigns to an outer `let`. **Breaking:** `Expect.to_pass/2` returns `{:ok, value}`,
+  not `:ok`.
 
 ### Fixed
 
-- `mix playwright.install` and `mix playwright.cli` failed with "module :public_key is not
-  available" when run before the project was compiled (e.g. right after `mix deps.get` in CI).
+- **RC only:** `mix playwright.install` and `mix playwright.cli` failed with "module :public_key
+  is not available" when run before the project was compiled (e.g. right after `mix deps.get` in
+  CI).
 - A listener or route handler that waits outside Playwright (`receive`, `Process.sleep/1`) no
   longer stalls every call on its connection: one that hasn't reached a Playwright await within
   100 ms is released, so its remaining synchronous code may run after later events, with a

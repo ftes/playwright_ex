@@ -123,7 +123,8 @@ Expect.to_have_url!(page, ~r"/settings$")
 current page. Avoid `:networkidle` in tests; wait for what the user sees instead.
 
 `to_have_url` and `wait_for_url` take a glob, a `Regex` or a function, which gets the URL as a
-`URI` (`URI.parse/1`), as JS gets a `URL`:
+`URI` (`URI.parse/1`), as JS gets a `URL`. Its missing parts are `nil` (the `path` of
+`http://localhost:4000`, a `query`), where a `URL`'s are `""`:
 
 ```elixir
 Page.wait_for_url!(page, &match?(%URI{path: "/authorize"}, &1))

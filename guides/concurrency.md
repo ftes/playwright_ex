@@ -115,6 +115,8 @@ Elixir form fits depends on when the call completes:
   true = Promise.await!(clicked)
   ```
 
+  `Promise.all([a, b])` is a `Promise.async/1` for each, then a `Promise.await!/1` for each.
+
 - `Task.async/1` when the call only completes after a later action of yours, such as a `click`
   that opens a dialog you then handle: awaiting it in line would deadlock, and the order of the
   sends doesn't matter, as you wait for the event the call causes.
