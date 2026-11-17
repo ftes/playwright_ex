@@ -71,15 +71,16 @@ Node 26.13.1. No upstream API changes.
   `action_timeout` and `navigation_timeout`, a request context `timeout:` the `action_timeout`
   (`0` for `:infinity`) and no navigation timeout: no limit by default, where they had the
   client's 30 s.
+- **RC only:** **Breaking:** a module's `setup_all` callbacks fail past ExUnit's timeout of the
+  module (`@moduletag timeout:`, else `mix test --timeout`), with `"setup_all" hook timeout of
+  60000ms exceeded.`, as Playwright Test's `beforeAll` hook times out (#257). A longer
+  `setup_all` needs a `@moduletag timeout:`.
 
 ### Fixed
 
 - **RC only:** `mix playwright.install` and `mix playwright.cli` failed with "module :public_key
   is not available" when run before the project was compiled (e.g. right after `mix deps.get` in
   CI).
-- A module's `setup_all` that hangs fails past ExUnit's timeout of the module, with
-  `"setup_all" hook timeout of 60000ms exceeded.`, as Playwright Test's `beforeAll` hook
-  times out (#257).
 
 ## [1.65.0-rc.1] 2026-11-16
 
