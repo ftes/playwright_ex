@@ -594,6 +594,36 @@ defmodule Playwright.RuntimeConnTest do
       Task.await(goto)
     end
 
+    # `await/1` yields before it arms the combined waits: the section ends there, however long
+    # the waits take.
+    test "a listener awaiting Promise.all of API waits is not released", %{page: page} do
+      test = self()
+
+      Page.once(page, :console, fn _ ->
+        all =
+          Promise.all([
+            Page.wait_for_event(page, :console),
+            Promise.async(fn -> Page.evaluate!(page, "1 + 1") end)
+          ])
+
+        send(test, :awaiting)
+        [message, 2] = Promise.await!(all)
+        send(test, {:done, Playwright.ConsoleMessage.text(message)})
+      end)
+
+      log =
+        capture_log(fn ->
+          Page.evaluate!(page, "console.log('a')")
+          assert_receive :awaiting
+          Process.sleep(300)
+          Page.evaluate!(page, "console.log('b')")
+          assert_receive {:done, "b"}
+          Process.sleep(100)
+        end)
+
+      assert release_warnings(log) == 0
+    end
+
     # The listener's process waits in its nested emit, served by the connection: its timer
     # starts over once its frame is on top again.
     test "a listener waiting for a nested emit's listeners is not released", %{page: page} do
