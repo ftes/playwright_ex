@@ -1,9 +1,11 @@
 defmodule Playwright.Case do
   @moduledoc """
   A case template with Playwright Test's default fixtures: the module holds a `browser`
-  (`Playwright.Test.BrowserPool.browser/1` in `setup_all`, upstream's worker for the file), and
-  each test gets a `context` of it and a `page`, recorded as the `:test` config and the test's
-  tags say (see `Playwright.Test`).
+  (`Playwright.Test.BrowserPool.browser/1` in `setup_all`, upstream's worker for the file) and
+  its `browser_name` (upstream's `browserName`, read from the browser: `:chromium`, `:firefox` or
+  `:webkit`; it replaces a parameter of that name), for the module's `setup_all` and its tests,
+  and each test gets a `context` of it and a `page`, recorded as the `:test` config and the
+  test's tags say (see `Playwright.Test`).
 
       defmodule MyApp.SignUpTest do
         use Playwright.Case, async: true
@@ -74,6 +76,7 @@ defmodule Playwright.Case do
 
   alias Playwright.Browser
   alias Playwright.BrowserContext
+  alias Playwright.BrowserType
   alias Playwright.Test.BrowserPool
 
   using opts do
@@ -86,7 +89,9 @@ defmodule Playwright.Case do
   end
 
   setup_all do
-    %{browser: BrowserPool.browser()}
+    browser = BrowserPool.browser()
+    browser_name = browser |> Browser.browser_type() |> BrowserType.name() |> String.to_existing_atom()
+    %{browser: browser, browser_name: browser_name}
   end
 
   setup %{browser: browser} do
