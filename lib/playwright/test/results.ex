@@ -111,7 +111,7 @@ defmodule Playwright.Test.Results do
   `BrowserPool.browser/1`, until it exits.
   """
   def note_unregistered(pid) do
-    if :ets.insert_new(table(), {{:unregistered, pid}, true}), do: GenServer.cast(Pool, {:monitor, pid})
+    if :ets.insert_new(table(), {{:unregistered, pid}}), do: GenServer.cast(Pool, {:monitor, pid})
     :ok
   end
 

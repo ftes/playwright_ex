@@ -311,7 +311,7 @@ defmodule Playwright.Test.RegistrationTest.LateTest do
     # A template's `setup` that creates a context, then the registration, as a test of a template
     # with `use Playwright.Test` only in its `using` runs them; in a process of its own.
     spawn(fn ->
-      Playwright.Browser.new_context!(browser)
+      context = Playwright.Browser.new_context!(browser)
 
       result =
         try do
@@ -320,6 +320,7 @@ defmodule Playwright.Test.RegistrationTest.LateTest do
           e in ArgumentError -> e.message
         end
 
+      Playwright.BrowserContext.close!(context)
       send(test_pid, {:result, result})
     end)
 
@@ -385,10 +386,10 @@ defmodule Playwright.Test.RegistrationTest.LateTest do
     assert Playwright.Test.Results.scope(self()) == nil
   end
 
-  test "a browser and a context before the registration: one error, naming both" do
+  test "a second early call keeps one note and one error" do
     context = Playwright.Browser.new_context!(Playwright.Test.BrowserPool.browser())
+    on_exit(fn -> Playwright.BrowserContext.close!(context) end)
     message = assert_raise(ArgumentError, fn -> Playwright.Test.__setup__(%{test_pid: self()}) end).message
-    Playwright.BrowserContext.close!(context)
 
     assert message =~
              "this test fetched a browser (`BrowserPool.browser/1`) or created a context before `use Playwright.Test` registered it"
@@ -400,6 +401,6 @@ defmodule Playwright.Test.RegistrationTest.LateTest do
   test "a browser of a test without `use Playwright.Test` is the config's" do
     browser = Playwright.Test.BrowserPool.browser()
     assert browser == Playwright.Test.BrowserPool.browser()
-    assert Playwright.Browser.new_context!(browser)
+    Playwright.BrowserContext.close!(Playwright.Browser.new_context!(browser))
   end
 end

@@ -203,7 +203,8 @@ defmodule Playwright.Test do
   upstream's `undefined` option override, falls back to the layer under it for a context option
   (the config's to `context_options`, then Playwright Test's default; a module's or a tag's to
   the project's or the config's, past the earlier ones of its layer), for `connect_options` and
-  for `default_browser_type`. For `browser_name`, `launch_options`, `context_options`, the
+  for `default_browser_type`, which exist only at the project and module layers (`use/1` rejects
+  the worker keys, and ignores a describe's or a test's `default_browser_type`). For `browser_name`, `launch_options`, `context_options`, the
   timeouts, `trace`, `screenshot` and `video`, `nil` raises. The config's, the project's and the
   module's reach every context the module creates: a test's, those of its `Task`s, and those of
   `setup_all`, as upstream's `beforeAll` gets the `use` options. A describe's and a test's reach
@@ -686,8 +687,8 @@ defmodule Playwright.Test do
   # registration (`Playwright.Test.Results.note_unregistered/1`).
   defp check_registered!(pid, message) do
     case :ets.take(Results.table(), {:unregistered, pid}) do
-      [{_key, true}] -> raise ArgumentError, message
       [] -> :ok
+      [_noted] -> raise ArgumentError, message
     end
   end
 
