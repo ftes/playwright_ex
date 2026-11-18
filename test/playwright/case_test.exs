@@ -16,14 +16,22 @@ defmodule Playwright.CaseTest.Extended do
 end
 
 defmodule Playwright.CaseTest.NoConfiguredBrowser do
-  # A template without the config's `browser_name` for its module's run, so a device picks the
-  # browser. Its own `setup_all` runs before `Playwright.Case`'s registers the module.
+  # A template without the config's `browser_name` for its module's run, so the module's `use`
+  # or device picks the browser. Its own `setup_all` runs before `Playwright.Case`'s registers
+  # the module. For sync modules: it changes the config.
   use ExUnit.CaseTemplate
 
   setup_all do
-    env = Application.get_env(:playwright, :test)
-    on_exit(fn -> Application.put_env(:playwright, :test, env) end)
-    Application.put_env(:playwright, :test, Keyword.delete(env, :browser_name))
+    env = Application.fetch_env(:playwright, :test)
+
+    on_exit(fn ->
+      case env do
+        {:ok, env} -> Application.put_env(:playwright, :test, env)
+        :error -> Application.delete_env(:playwright, :test)
+      end
+    end)
+
+    Application.put_env(:playwright, :test, Keyword.delete(Application.get_env(:playwright, :test, []), :browser_name))
   end
 
   using opts do
@@ -42,6 +50,7 @@ defmodule Playwright.CaseTest do
 
   test "the module's browser_name, in setup_all and the test", ctx do
     assert ctx.browser_name == String.to_existing_atom(Playwright.TestBrowser.name())
+    assert Atom.to_string(ctx.browser_name) == ctx.browser |> Browser.browser_type() |> Playwright.BrowserType.name()
     assert ctx.setup_all_browser_name == ctx.browser_name
   end
 
@@ -82,8 +91,9 @@ defmodule Playwright.CaseTest.BrowserNameParameterTest do
 end
 
 defmodule Playwright.CaseTest.BrowserNameUseTest do
-  # Launches WebKit: run when it is the browser under test (CI installs one browser).
-  use Playwright.Case, async: true, browser_name: :webkit
+  # Without the config's `browser_name`, so the `use` option picks WebKit. Launches WebKit: run
+  # when it is the browser under test (CI installs one browser).
+  use Playwright.CaseTest.NoConfiguredBrowser, async: false, browser_name: :webkit
 
   @moduletag skip: if(Playwright.TestBrowser.name() != "webkit", do: "needs WebKit")
 
@@ -92,14 +102,27 @@ defmodule Playwright.CaseTest.BrowserNameUseTest do
   end
 
   test "the module's use option", ctx do
+    refute Keyword.has_key?(Application.get_env(:playwright, :test), :browser_name)
     assert ctx.browser_name == :webkit
     assert ctx.setup_all_browser_name == :webkit
   end
 end
 
+defmodule Playwright.CaseTest.BrowserNameDefaultTest do
+  # Without a browser_name or device anywhere: Chromium. Run when it is the browser under test.
+  use Playwright.CaseTest.NoConfiguredBrowser, async: false
+
+  @moduletag skip: if(Playwright.TestBrowser.name() != "chromium", do: "needs Chromium")
+
+  test "chromium by default", %{browser_name: browser_name} do
+    refute Keyword.has_key?(Application.get_env(:playwright, :test), :browser_name)
+    assert browser_name == :chromium
+  end
+end
+
 defmodule Playwright.CaseTest.BrowserNameDeviceTest do
-  # A device project without a browser_name (in the config either) picks the browser. Sync: it
-  # changes the config. Launches Firefox: run when it is the browser under test.
+  # A device project without a browser_name (in the config either) picks the browser. Launches
+  # Firefox: run when it is the browser under test.
   use Playwright.CaseTest.NoConfiguredBrowser,
     async: false,
     parameterize: [Playwright.Test.parameters(Playwright.device("Desktop Firefox"))]

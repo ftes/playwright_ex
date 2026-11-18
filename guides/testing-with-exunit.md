@@ -43,8 +43,7 @@ alias Playwright.Test.BrowserPool
 
 setup_all do
   browser = BrowserPool.browser()
-  browser_name = browser |> Browser.browser_type() |> Playwright.BrowserType.name() |> String.to_existing_atom()
-  %{browser: browser, browser_name: browser_name}
+  %{browser: browser, browser_name: browser |> Browser.browser_type() |> Playwright.BrowserType.name() |> String.to_existing_atom()}
 end
 
 setup %{browser: browser} do
