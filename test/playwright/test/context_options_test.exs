@@ -118,7 +118,7 @@ defmodule Playwright.Test.ContextOptionsTest do
       end
     end
 
-    # A map too (a device).
+    # A map too.
     assert Playwright.Test.use(%{trace: :on}) == Playwright.Test.use(trace: :on)
     assert_raise ArgumentError, ~r/expected a keyword list or a map/, fn -> Playwright.Test.use(:on) end
   end
