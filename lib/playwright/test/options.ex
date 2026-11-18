@@ -130,10 +130,8 @@ defmodule Playwright.Test.Options do
   @doc """
   The options of `use Playwright.Test`, validated, as a map: the recording modes, the timeouts
   and the worker options as the config takes them, the context options (`:context`) and
-  `context_options`, converted. A `nil` context option (also one in `context_options`),
-  `connect_options` or `default_browser_type` is kept, for the resolution to fall back on
-  (`context_options/2`, `worker/3`, `browser_name/3`); a `nil` of any other key raises, the
-  `context_options` bag's too.
+  `context_options`, converted. A `nil` option is kept: it wins over the earlier `use`s'
+  (`merge/2`), then `layers/3` drops it, so the layer under gives the option.
   ExUnit.Case's keys are ignored (`without_ex_unit_keys/1`); any other key, a duplicated one or
   a bad value raises.
   """
@@ -188,6 +186,7 @@ defmodule Playwright.Test.Options do
 
     options =
       Map.new(opts, fn
+        {key, nil} -> {key, nil}
         {:context_options, options} -> {:context_options, context_options!(options, "#{label}: ")}
         {key, value} -> {key, validate!(key, value, label)}
       end)
@@ -265,17 +264,28 @@ defmodule Playwright.Test.Options do
   The options of a test, or of a module's `setup_all`, by their layers: `project`, the `use/1`
   options in its `parameters` (the module's `parameterize:` map, upstream's `project.use`), and
   `module`, the module's `use_options` with the `use/1` options in its `tags` over them (`merge/2`;
-  ExUnit merged a test's `@moduletag`, `@describetag` and `@tag` per option).
+  ExUnit merged a test's `@moduletag`, `@describetag` and `@tag` per option). A `nil` option is
+  dropped from its layer (`unset_nil/1`).
   """
   def layers(parameters, use_options, tags),
-    do: %{project: used(parameters), module: merge(use_options, used(tags))}
+    do: %{project: unset_nil(used(parameters)), module: unset_nil(merge(use_options, used(tags)))}
+
+  # Upstream's `undefined` option: no value at its layer, so the layer under gives the option, in
+  # the end its default. A `test.use` of it goes back to the config's and the project's
+  # (`_appendFixtureList`), past the file's and the describes' own; the project's and the config's
+  # are skipped (`mergeObjects`, `takeFirst`). Of every option, one level deep: the context
+  # options of their own (`:context`) too.
+  defp unset_nil(options) do
+    for {key, value} <- options, value != nil, into: %{} do
+      if key == :context, do: {key, unset_nil(value)}, else: {key, value}
+    end
+  end
 
   @doc """
   `options` over `past`, both `use_options/1`'s: the later wins per key, the context options of
   their own (`:context`) per option, as upstream's `test.use` calls (each option its own
   fixture), and the `context_options` bag as a whole, as upstream's one `contextOptions` fixture.
-  A `nil` (`use_options/1` keeps one only for a context option, `connect_options` and
-  `default_browser_type`) wins as any value does: the resolution falls back past it.
+  A `nil` wins as any value does, so `layers/3` drops the option past the earlier ones.
   """
   def merge(past, options) do
     Map.merge(past, options, fn
@@ -289,14 +299,6 @@ defmodule Playwright.Test.Options do
   # options: upstream's option fixtures (`test.use({ locale: async ({}, use) => ... })`) aren't
   # ported.
   defp context_options!(options, prefix) do
-    if options == nil,
-      do:
-        raise(
-          ArgumentError,
-          "invalid context_options: nil, expected a keyword list or a map " <>
-            "(Playwright.devices()[name] of a name it doesn't have? Playwright.device/1 raises for one)"
-        )
-
     :context_options
     |> to_keyword(options)
     |> Facade.options!(Playwright.Browser.__options_type__(:new_context), "browser.newContext")
@@ -328,27 +330,24 @@ defmodule Playwright.Test.Options do
   `_combinedContextOptions`, as the client takes them: Playwright Test's context defaults, then
   the config's `context_options`, then those of `layers` (`layers/3`), the project's, then the
   module's and the tags', each a key over the one before (facade options, converted as
-  `Playwright.Browser.new_context/2` converts them). A `nil` one falls back: the config's to
-  the default, the project's to the config's (upstream's `mergeObjects` skips `undefined`), a
-  module's or a tag's to the project's, the config's or the default, past the earlier ones of
-  its layer, as upstream's `undefined` override (`_appendFixtureList`).
+  `Playwright.Browser.new_context/2` converts them). A `nil` key of a `context_options` is
+  none, as upstream's fixture reads it (`contextOptions.locale ?? 'en-US'`).
   Upstream's `PLAYWRIGHT_TEST_BASE_URL` default is not read: config only.
   """
   def context_options(config \\ config(), layers \\ %{project: %{}, module: %{}}) do
     prefix = "config :playwright, :test: "
-    without_nil = fn options -> Map.reject(options, fn {_key, value} -> value == nil end) end
     # `contextOptions`, one fixture: the highest level's, as a whole.
     bag =
       layers.module[:context_options] || layers.project[:context_options] ||
         context_options!(config[:context_options] || [], prefix)
 
-    # Each context option, a fixture of its own: a `nil` one falls back to the one under it.
+    # Each context option, a fixture of its own.
     options =
       [context_options!(Map.take(config, context_keys()), prefix), layers.project[:context], layers.module[:context]]
-      |> Enum.reduce(%{}, &Map.merge(&2, without_nil.(&1 || %{})))
+      |> Enum.reduce(%{}, &Map.merge(&2, &1 || %{}))
 
     @context_defaults
-    |> Map.merge(without_nil.(bag))
+    |> Map.merge(Map.reject(bag, fn {_key, value} -> value == nil end))
     |> Map.merge(options)
     # A device's in `context_options`: not a context's option.
     |> Map.delete(:defaultBrowserType)
@@ -392,7 +391,7 @@ defmodule Playwright.Test.Options do
   """
   def browser_name(config \\ config(), project \\ %{}, use_options \\ %{}) do
     env = Application.get_env(:playwright, :test, [])
-    configured = if Keyword.keyword?(env) and Keyword.has_key?(env, :browser_name), do: config.browser_name
+    configured = if Keyword.keyword?(env) and env[:browser_name] != nil, do: config.browser_name
 
     use_options[:browser_name] || project[:browser_name] || configured || use_options[:default_browser_type] ||
       project[:default_browser_type] || config[:default_browser_type] || config.browser_name
@@ -408,16 +407,13 @@ defmodule Playwright.Test.Options do
   @doc """
   The worker options of a module's run, over the config's, for its `BrowserPool.browser/1`
   calls: `browser_name/3`, and the `launch_options` (the module's, else the project's, as a whole)
-  and `connect_options` of the module's `use_options` or its `project`. A `nil` `connect_options`
-  falls back to the level under it, as upstream's `undefined` one (`mergeObjects` skips it in a
-  project's `use`, and a `test.use` of it restores the config's), as a `nil`
-  `default_browser_type` does in `browser_name/3`; a `nil` `browser_name` or `launch_options`
-  never gets here, `use_options/1` raises for it.
+  and `connect_options` of the module's `use_options` or its `project`. A `nil` one is dropped
+  (`unset_nil/1`), as `layers/3` drops it.
   """
   def worker(config \\ config(), project \\ %{}, use_options \\ %{}) do
+    {project, use_options} = {unset_nil(project), unset_nil(use_options)}
     keys = @worker_keys -- [:browser_name]
-    set = &(&1 |> Map.take(keys) |> Map.reject(fn {_key, value} -> value == nil end))
-    options = merge(set.(project), set.(use_options))
+    options = merge(Map.take(project, keys), Map.take(use_options, keys))
     options |> Map.put(:browser_name, browser_name(config, project, use_options)) |> Enum.to_list()
   end
 
@@ -476,8 +472,9 @@ defmodule Playwright.Test.Options do
                 "#{inspect(@config_keys)} or a context option (locale, viewport, ...)"
     end
 
+    # A `nil` key is unset: its default.
     defaults()
-    |> Map.merge(Map.new(config))
+    |> Map.merge(unset_nil(Map.new(config)))
     |> validate!()
   end
 

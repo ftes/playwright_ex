@@ -56,9 +56,9 @@ Node 26.13.1. No upstream API changes.
 - `use Playwright.Test` (and `use Playwright.Case`) takes the context options as
   options of their own, Playwright Test's `test.use({ locale: 'de-DE' })`: `use Playwright.Case,
   locale: "de-DE"`, over the config's per option, under the call's, for every context of the
-  module, its `setup_all`'s included (#257). A context option, `connect_options` or
-  `default_browser_type` given as `nil` resets it to the project's, the config's or the default,
-  as upstream's `undefined`; `nil` raises for the other options. `context_options:` is
+  module, its `setup_all`'s included (#257). Any option given as `nil`, at any level, resets it
+  to the level under (the project's, the config's or the default), as upstream's `undefined`.
+  `context_options:` is
   upstream's `contextOptions`, for the other options of `new_context`, under an option of its
   own. The config takes both too (`config :playwright, :test, base_url: "..."`).
 - `Playwright.Test.use/1` gives a describe block or a test its options, as

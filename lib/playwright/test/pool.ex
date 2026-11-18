@@ -221,18 +221,6 @@ defmodule Playwright.Test.Pool do
   end
 
   @impl true
-  # A module's `setup_all` registered (`Results.register_module/2`): also after its first lease
-  # (a case template's own `setup_all` with the `use` only in its `using`), which then starts
-  # counting its failure. Its own cast: after that lease, before its `DOWN`.
-  def handle_cast({:module_registered, pid}, state) do
-    state = %{state | results: Results.handle_cast({:monitor, pid}, state.results)}
-
-    case state.scopes[pid] do
-      %{down: nil} -> {:noreply, put_in(state.scopes[pid].down, Process.monitor(pid))}
-      _lease -> {:noreply, state}
-    end
-  end
-
   def handle_cast(request, state), do: {:noreply, %{state | results: Results.handle_cast(request, state.results)}}
 
   @impl true

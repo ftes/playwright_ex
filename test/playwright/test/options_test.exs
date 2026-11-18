@@ -6,7 +6,7 @@ defmodule Playwright.Test.OptionsTest do
 
   # The modes of `use` options over the config's.
   defp artifacts(options),
-    do: Options.artifacts(Options.config(), %{project: %{}, module: Options.use_options(Map.to_list(options))})
+    do: Options.artifacts(Options.config(), Options.layers(%{}, Options.use_options(Map.to_list(options)), %{}))
 
   describe "validation" do
     test "config :playwright takes :test, :expect, :driver and existing modules' keys" do
@@ -127,8 +127,7 @@ defmodule Playwright.Test.OptionsTest do
             {%{screenshot: [mode: :on, full_page: "yes"]}, ~r/invalid screenshot full_page: "yes"/},
             {%{video: [mode: :on, size: [width: 320, height: 240]]}, ~r/invalid video size: \[/},
             {%{video: [mode: :on, size: %{width: 320}]}, ~r/invalid video size: %{width: 320}/},
-            {%{trace: "on"}, ~r/invalid trace: "on"/},
-            {%{trace: nil}, ~r/invalid trace: nil/}
+            {%{trace: "on"}, ~r/invalid trace: "on"/}
           ],
           do: assert_raise(ArgumentError, message, fn -> artifacts(option) end)
     end
@@ -152,11 +151,12 @@ defmodule Playwright.Test.ConfigTest do
   alias Playwright.Runtime.Heap
   alias Playwright.Selectors
   alias Playwright.Test.BrowserPool
+  alias Playwright.Test.ConfigTest.Nils
   alias Playwright.Test.Options
 
   # The modes of `use` options over the config's.
   defp artifacts(options),
-    do: Options.artifacts(Options.config(), %{project: %{}, module: Options.use_options(Map.to_list(options))})
+    do: Options.artifacts(Options.config(), Options.layers(%{}, Options.use_options(Map.to_list(options)), %{}))
 
   setup do
     config = Application.get_env(:playwright, :test)
@@ -291,6 +291,106 @@ defmodule Playwright.Test.ConfigTest do
              pool.(project, connect_options: [ws_endpoint: "ws://module"])
   end
 
+  # Upstream's `undefined` option override: unset at its layer, so the layer under gives it. A
+  # module's or a tag's goes to the project's or the config's, past the module's own.
+  test "nil of any option at any layer falls back to the layer under, then to the default", %{config: config} do
+    resolve = fn project, uses, tags ->
+      config = Options.config()
+      use_options = uses |> Enum.map(&Options.use_options/1) |> Enum.reduce(%{}, &Options.merge(&2, &1))
+      layers = Options.layers(project, use_options, Map.new(Playwright.Test.use(tags)))
+      modes = Options.artifacts(config, layers)
+      pool = Options.pool([], Options.worker(config, layers.project, use_options))
+
+      Map.merge(Options.timeouts(config, layers), %{
+        modes: {modes.trace[:mode], modes.screenshot[:mode], modes.video[:mode]},
+        locale: Options.context_options(config, layers).locale,
+        browser: {pool.browser_name, pool.launch_options}
+      })
+    end
+
+    set = [
+      trace: :on,
+      screenshot: :on,
+      video: :on,
+      action_timeout: 1,
+      navigation_timeout: 2,
+      context_options: [locale: "es-ES"]
+    ]
+
+    worker = [browser_name: :firefox, launch_options: [slow_mo: 1]]
+    nils = Enum.map(set, &{elem(&1, 0), nil})
+    worker_nils = Enum.map(worker, &{elem(&1, 0), nil})
+
+    Application.put_env(
+      :playwright,
+      :test,
+      Keyword.merge(config,
+        trace: :retain_on_failure,
+        screenshot: :only_on_failure,
+        video: :retain_on_failure,
+        action_timeout: 10,
+        navigation_timeout: 20,
+        context_options: [locale: "de-DE"],
+        browser_name: :webkit,
+        launch_options: [slow_mo: 5]
+      )
+    )
+
+    configured = %{
+      modes: {:retain_on_failure, :only_on_failure, :retain_on_failure},
+      action_timeout: 10,
+      navigation_timeout: 20,
+      locale: "de-DE",
+      browser: {:webkit, [slow_mo: 5]}
+    }
+
+    # The module's `use`s compile to these.
+    assert Nils.__playwright_test__(:options) ==
+             Options.merge(Options.use_options(set ++ worker), Options.use_options(nils ++ worker_nils))
+
+    # A module's `use` of nil, also after one that set them; a tag's; a project's.
+    assert resolve.(%{}, [nils ++ worker_nils], []) == configured
+    assert resolve.(%{}, [set ++ worker, nils ++ worker_nils], []) == configured
+    assert resolve.(%{}, [set], nils) == configured
+    assert resolve.(Playwright.Test.parameters(nils ++ worker_nils), [], []) == configured
+
+    # A tag's nil goes to the project's, past the module's `use` (the worker options are the module's).
+    project =
+      Playwright.Test.parameters(
+        trace: :on_first_retry,
+        screenshot: :on_first_failure,
+        video: :on_first_retry,
+        action_timeout: 3,
+        navigation_timeout: 4,
+        context_options: [locale: "it-IT"],
+        browser_name: :chromium,
+        launch_options: [slow_mo: 3]
+      )
+
+    assert resolve.(project, [set ++ worker], nils) == %{
+             modes: {:on_first_retry, :on_first_failure, :on_first_retry},
+             action_timeout: 3,
+             navigation_timeout: 4,
+             locale: "it-IT",
+             browser: {:firefox, [slow_mo: 1]}
+           }
+
+    # Then the defaults: without the config's, or with the config's nil.
+    defaults = %{
+      modes: {:off, :off, :off},
+      action_timeout: :infinity,
+      navigation_timeout: :infinity,
+      locale: "en-US",
+      browser: {:chromium, []}
+    }
+
+    Application.put_env(:playwright, :test, Keyword.drop(config, [:launch_options, :browser_name]))
+    assert resolve.(%{}, [set ++ worker, nils ++ worker_nils], []) == defaults
+    assert resolve.(%{}, [set], nils) == defaults
+    Application.put_env(:playwright, :test, Keyword.merge(config, nils ++ worker_nils))
+    assert resolve.(%{}, [nils ++ worker_nils], nils) == defaults
+  end
+
   # Playwright Test's `testIdAttribute`: the client's value is the VM's, so this module is not
   # async, and resets it.
   test "test_id_attribute: each new pooled driver gets it, as the client does", %{config: config} do
@@ -397,7 +497,7 @@ defmodule Playwright.Test.ConfigTest do
     Application.put_env(:playwright, :test, config ++ [context_options: [lokale: "x"]])
     assert_raise ArgumentError, fn -> Options.context_options() end
 
-    for value <- [-1, 1.5, nil, "1000"] do
+    for value <- [-1, 1.5, "1000"] do
       Application.put_env(:playwright, :test, config ++ [action_timeout: value])
 
       assert_raise ArgumentError, ~r/invalid action_timeout: #{Regex.escape(inspect(value))}/, fn ->
@@ -410,4 +510,29 @@ defmodule Playwright.Test.ConfigTest do
     Application.put_env(:playwright, :test, config ++ [action_timeout: 0, navigation_timeout: 5000])
     assert Options.timeouts() == %{action_timeout: 0, navigation_timeout: 5000}
   end
+end
+
+defmodule Playwright.Test.ConfigTest.Nils do
+  # No tests: a `use` of nil for every option, after one that set them.
+  use ExUnit.Case, async: true
+
+  use Playwright.Test,
+    trace: :on,
+    screenshot: :on,
+    video: :on,
+    action_timeout: 1,
+    navigation_timeout: 2,
+    context_options: [locale: "es-ES"],
+    browser_name: :firefox,
+    launch_options: [slow_mo: 1]
+
+  use Playwright.Test,
+    trace: nil,
+    screenshot: nil,
+    video: nil,
+    action_timeout: nil,
+    navigation_timeout: nil,
+    context_options: nil,
+    browser_name: nil,
+    launch_options: nil
 end
