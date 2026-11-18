@@ -466,7 +466,7 @@ worker. So `browser_name` is an option of the module's `use` and of a project, a
 `Test.use(browser_name: _)` raises; nor does a tag's device switch the browser.
 
 For the whole suite (one project), the device goes in the config, the bottom layer, as Playwright
-Test's config-level project: `config :playwright, :test, Playwright.device("Desktop Chrome")` in
+Test's config-level project: `config :playwright, :test, Enum.to_list(Playwright.device("Desktop Chrome"))` in
 `config/runtime.exs`. `config/config.exs` and
 `config/test.exs` are evaluated before the dependencies are compiled, so `Playwright.device/1`
 can't be called there: write the options out, or set them in `config/runtime.exs`, which runs
