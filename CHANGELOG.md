@@ -74,13 +74,13 @@ Node 26.13.1. No upstream API changes.
 - `Playwright.device/1` and `Playwright.devices/0`, Playwright's device
   descriptors as static data (upstream's `import { devices }`), so a device works at compile
   time, spread as upstream's `...devices['iPhone 13']`: `use Playwright.Test,
-  Playwright.device("iPhone 13")`, `@tag Test.use(Playwright.device("Pixel 7"))`.
-  `Playwright.devices/1` stays.
+  Playwright.device("iPhone 13")`, `@tag Test.use(Playwright.device("Pixel 7"))`. The
+  driver's `Playwright.devices/1` remains.
 
 ### Changed
 
 - **RC only:** **Breaking:** the tags `trace`, `screenshot` and `video` no longer set the
-  recording modes, and `use Playwright.Test, tags: false` is gone (it raises, naming the fix):
+  recording modes, and `use Playwright.Test, tags: false` is gone (an unknown option now):
   write `@tag Test.use(trace: :on)` for `@tag trace: :on`, likewise for `@describetag` and
   `@moduletag`. Only `Test.use/1`'s keys are read, so tags named as options are yours.
 - **RC only:** **Breaking:** `mix playwright.install` forwards its args to `playwright install`
@@ -96,7 +96,8 @@ Node 26.13.1. No upstream API changes.
 - **RC only:** **Breaking:** a context created in `setup_all` before `use Playwright.Test`
   registered the module (a case template's own `setup_all` with the `use` only in its `using`,
   or a `setup_all` above the module's `use`) makes the module's `setup_all` raise, naming the
-  fix, as such a context in `setup` already does.
+  fix, as such a context in `setup` already does. So does a `BrowserPool.browser/1` call there,
+  or in `setup` before the test's registration, as it would miss the module's worker options.
 - **RC only:** **Breaking:** contexts and request contexts created in a module's `setup_all` (or
   a process with it in `$callers`) get the context defaults and the config's `context_options`
   (`base_url` too), as Playwright Test's `beforeAll` does (#257). A context gets the config's

@@ -144,7 +144,8 @@ defmodule Playwright.Guides.TestingWithExUnit.SignUpTest do
     iphone = Playwright.device("iPhone 13")
     page = BrowserContext.new_page!(Browser.new_context!(browser, Map.put(iphone, :locale, "de-DE")))
     assert iphone.default_browser_type == "webkit"
-    assert Playwright.devices(BrowserPool.playwright(browser))["iPhone 13"] == iphone
+    assert Playwright.devices()["iPhone 13"] == iphone
+    assert_raise ArgumentError, ~r/"iPhone 13"/, fn -> Playwright.device("iPhone13") end
     assert Page.viewport_size(page) == %{width: 390, height: 664}
     assert Page.evaluate!(page, "[navigator.language, navigator.userAgent]") == ["de-DE", iphone.user_agent]
   end

@@ -9,12 +9,12 @@ defmodule Playwright.Test.ParameterizeTest do
   alias Playwright.Test.BrowserPool
   alias Playwright.Test.TestInfo
 
-  setup_all do: %{browser: BrowserPool.browser()}
-
   # Before the registration, so its `on_exit` runs after the test's end has saved the trace.
   setup ctx, do: check(ctx, "PARAM-#{ctx.n}", [%{ctx | n: 3 - ctx.n}, %{ctx | module: __MODULE__.Other}])
 
   use Playwright.Test
+
+  setup_all do: %{browser: BrowserPool.browser()}
 
   @moduletag Playwright.Test.use(trace: :on)
 
@@ -50,14 +50,14 @@ defmodule Playwright.Test.ParameterizeTest.Other do
   alias Playwright.Test.BrowserPool
   alias Playwright.Test.ParameterizeTest
 
-  setup_all do: %{browser: BrowserPool.browser()}
-
   setup ctx do
     others = for n <- [1, 2], do: Map.merge(ctx, %{module: ParameterizeTest, n: n})
     ParameterizeTest.check(ctx, "OTHER-MODULE", others)
   end
 
   use Playwright.Test
+
+  setup_all do: %{browser: BrowserPool.browser()}
 
   @moduletag Playwright.Test.use(trace: :on)
 

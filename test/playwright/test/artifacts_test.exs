@@ -885,10 +885,6 @@ defmodule Playwright.Test.ArtifactsTest.UseOptionsTest do
       compile("video: [mode: :on, full_page: true]")
     end
 
-    assert_raise ArgumentError, ~r/unknown options \[:tags\].*@tag Playwright.Test.use\(trace: :on\)/, fn ->
-      compile("tags: false")
-    end
-
     assert_raise ArgumentError, ~r/duplicated option :trace for use Playwright.Test/, fn ->
       compile("trace: :on, trace: :off")
     end

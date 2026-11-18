@@ -272,6 +272,25 @@ defmodule Playwright.Test.ConfigTest do
     assert %{connect_options: nil} = Options.pool(connect_options: nil)
   end
 
+  # Upstream's `undefined`: `mergeObjects` skips it in a project's `use`, a `test.use` of it
+  # restores the config's.
+  test "connect_options: nil of a project or a module falls back to the level under it", %{config: config} do
+    Application.put_env(:playwright, :test, config ++ [connect_options: [ws_endpoint: "ws://config"]])
+    config = Options.config()
+    project = Options.parameters(connect_options: [ws_endpoint: "ws://project"])
+
+    pool = fn project, use ->
+      Options.pool([], Options.worker(config, Options.used(project), Options.use_options(use)))
+    end
+
+    assert %{connect_options: [ws_endpoint: "ws://config"]} = pool.(Options.parameters(connect_options: nil), [])
+    assert %{connect_options: [ws_endpoint: "ws://config"]} = pool.(%{}, connect_options: nil)
+    assert %{connect_options: [ws_endpoint: "ws://project"]} = pool.(project, connect_options: nil)
+
+    assert %{connect_options: [ws_endpoint: "ws://module"]} =
+             pool.(project, connect_options: [ws_endpoint: "ws://module"])
+  end
+
   # Playwright Test's `testIdAttribute`: the client's value is the VM's, so this module is not
   # async, and resets it.
   test "test_id_attribute: each new pooled driver gets it, as the client does", %{config: config} do

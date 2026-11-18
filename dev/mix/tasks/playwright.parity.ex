@@ -289,8 +289,18 @@ defmodule Mix.Tasks.Playwright.Parity do
           not List.keymember?(differences, name, 0),
           do: "#{name}: in @fixture_exclusions but the same here as upstream's at this pin, drop it"
 
-    literals =
-      for {name, %{default: {:ok, value}}} <- upstream, ours.scopes[name] == :test, into: %{}, do: {name, value}
+    # The defaults of the context options, compared: the test-scoped fixtures' only.
+    parsed =
+      for {name, %{default: source}} <- upstream,
+          source != nil,
+          ours.scopes[name] == :test,
+          do: {name, source, js_literal(source)}
+
+    unparsed =
+      for {name, source, :error} <- parsed,
+          do: "#{name}: Playwright Test's default `#{source}` is no literal js_literal/1 parses, parse it here"
+
+    literals = for {name, _source, {:ok, value}} <- parsed, value != nil, into: %{}, do: {name, value}
 
     defaults =
       for name <- Enum.sort(Map.keys(literals) ++ (Map.keys(ours.defaults) -- Map.keys(literals))),
@@ -299,7 +309,7 @@ defmodule Mix.Tasks.Playwright.Parity do
           "#{inspect(ours.defaults[name])} (Playwright.Test.Options)"
       end
 
-    unexcluded ++ stale ++ defaults
+    unexcluded ++ stale ++ unparsed ++ defaults
   end
 
   defp fixture_problem(name, nil, _ours),
@@ -316,16 +326,16 @@ defmodule Mix.Tasks.Playwright.Parity do
       "#{name}: #{scope}-scoped in Playwright Test, #{ours}-scoped here (Playwright.Test.Options), or list it in @fixture_exclusions"
 
   @doc false
-  # The `option: true` fixtures of index.ts: `%{name => %{scope: :worker | :test, default: {:ok, literal} | nil}}`,
-  # `default` the literal a context option falls back to (`contextOptions.locale ?? 'en-US'`,
-  # `=== undefined ? 'light' : ...`).
+  # The `option: true` fixtures of index.ts: `%{name => %{scope: :worker | :test, default: source | nil}}`,
+  # `default` the JS source of the value a context option falls back to (`contextOptions.locale ??
+  # 'en-US'`, `=== undefined ? 'light' : ...`), parsed only where compared (`js_literal/1`).
   def ts_option_fixtures(source) do
     for [_all, name, body] <- Regex.scan(~r/^  (\w+): \[(.*?)(?=^  \w+: \[|\z)/ms, source),
         body =~ ~r/\boption: true\b/,
         into: %{} do
       default =
         case Regex.run(~r/\?\? (.+?)\), \{|=== undefined \? (.+?) : /, body) do
-          [_all | captures] -> {:ok, js_literal(List.last(captures))}
+          [_all | captures] -> List.last(captures)
           nil -> nil
         end
 
@@ -333,14 +343,37 @@ defmodule Mix.Tasks.Playwright.Parity do
     end
   end
 
-  defp js_literal("true"), do: true
-  defp js_literal("false"), do: false
-  defp js_literal("'" <> _ = string), do: String.trim(string, "'")
+  @doc false
+  # A JS literal of `source` as the client takes it: `{:ok, value}`, `{:ok, nil}` for `null` and
+  # `undefined` (no default), or `:error` for one it doesn't parse.
+  def js_literal(source) do
+    source = String.trim(source)
 
-  defp js_literal("{" <> _ = object) do
-    for [_all, key, value] <- Regex.scan(~r/(\w+): (\d+)/, object),
-        into: %{},
-        do: {String.to_atom(key), String.to_integer(value)}
+    cond do
+      source == "true" -> {:ok, true}
+      source == "false" -> {:ok, false}
+      source in ["null", "undefined"] -> {:ok, nil}
+      source =~ ~r/^-?\d+$/ -> {:ok, String.to_integer(source)}
+      source =~ ~r/^-?\d+\.\d+$/ -> {:ok, String.to_float(source)}
+      match = Regex.run(~r/^'([^'\\]*)'$|^"([^"\\]*)"$/, source) -> {:ok, List.last(match)}
+      match = Regex.run(~r/^\{(.*)\}$/s, source) -> js_object(List.last(match))
+      true -> :error
+    end
+  end
+
+  # The entries of an object literal without nested objects or arrays (`{ width: 1280, height: 720 }`).
+  defp js_object(entries) do
+    entries
+    |> String.split(",", trim: true)
+    |> Enum.reject(&(String.trim(&1) == ""))
+    |> Enum.reduce_while({:ok, %{}}, fn entry, {:ok, object} ->
+      with [_all, key, value] <- Regex.run(~r/^\s*(\w+)\s*:(.*)$/s, entry),
+           {:ok, value} <- js_literal(value) do
+        {:cont, {:ok, Map.put(object, String.to_atom(key), value)}}
+      else
+        _error -> {:halt, :error}
+      end
+    end)
   end
 
   @doc false

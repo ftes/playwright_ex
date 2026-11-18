@@ -106,9 +106,12 @@ defmodule Playwright.Test.Results do
   @doc "Unregisters the test `test_pid`: its registration row and its recorder (each `nil` if none)."
   def take(test_pid), do: GenServer.call(Pool, {:take, test_pid}, :infinity)
 
-  @doc "Notes `pid` as a process that created a context before it was registered, until it exits."
-  def note_unregistered(pid) do
-    if :ets.insert_new(table(), {{:unregistered, pid}, true}), do: GenServer.cast(Pool, {:monitor, pid})
+  @doc """
+  Notes `pid` as a process that, before it was registered, created a context (`what`
+  `:context`) or called `BrowserPool.browser/1` (`:browser`), the first of them, until it exits.
+  """
+  def note_unregistered(pid, what) do
+    if :ets.insert_new(table(), {{:unregistered, pid}, what}), do: GenServer.cast(Pool, {:monitor, pid})
     :ok
   end
 

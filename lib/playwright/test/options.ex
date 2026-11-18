@@ -195,10 +195,6 @@ defmodule Playwright.Test.Options do
   # Why `unknown` are no options of a `use`.
   defp unknown_hint(unknown) do
     cond do
-      # The option of the releases that read the `trace`, `screenshot` and `video` tags.
-      :tags in unknown ->
-        "tags no longer set the modes: `@tag Playwright.Test.use(trace: :on)` does"
-
       :test_id_attribute in unknown ->
         "test_id_attribute is config only: the client's value is global to the VM, which the tests " <>
           "running at once share, where upstream's is global to a worker, which runs one test at a time"
@@ -272,9 +268,10 @@ defmodule Playwright.Test.Options do
     do: %{project: used(parameters), module: merge(use_options, used(tags))}
 
   @doc """
-  `options` over `past`, both `use_options/1`'s: the later wins per key, the `context_options`
-  per option, as upstream's `test.use` calls (each option its own fixture); a `nil` one stays,
-  as the reset it is.
+  `options` over `past`, both `use_options/1`'s: the later wins per key, the context options of
+  their own (`:context`) per option, as upstream's `test.use` calls (each option its own
+  fixture), and the `context_options` bag as a whole, as upstream's one `contextOptions` fixture;
+  a `nil` one stays, as the reset it is.
   """
   def merge(past, options) do
     Map.merge(past, options, fn
@@ -288,21 +285,12 @@ defmodule Playwright.Test.Options do
   # options: upstream's option fixtures (`test.use({ locale: async ({}, use) => ... })`) aren't
   # ported.
   defp context_options!(options, prefix) do
-    # `Playwright.devices()["iPhone13"]`.
     if options == nil,
       do:
         raise(
           ArgumentError,
-          "invalid context_options: nil, expected a keyword list or a map (a device name that is not in Playwright.devices()?)"
-        )
-
-    if is_function(options),
-      do:
-        raise(
-          ArgumentError,
-          "invalid context_options: #{inspect(options)}, expected a keyword list or a map: a function isn't " <>
-            "supported, as the options are for every context of the module, those of setup_all too " <>
-            "(a device is static: Playwright.device(\"iPhone 13\"); per test or project, see Playwright.Test.use/1)"
+          "invalid context_options: nil, expected a keyword list or a map " <>
+            "(Playwright.devices()[name] of a name it doesn't have? Playwright.device/1 raises for one)"
         )
 
     :context_options
@@ -416,11 +404,14 @@ defmodule Playwright.Test.Options do
   @doc """
   The worker options of a module's run, over the config's, for its `BrowserPool.browser/1`
   calls: `browser_name/3`, and the `launch_options` (the module's, else the project's, as a whole)
-  and `connect_options` of the module's `use_options` or its `project`.
+  and `connect_options` of the module's `use_options` or its `project`. A `nil` one falls back to
+  the level under it, as upstream's `undefined` one (`mergeObjects` skips it in a project's `use`,
+  and a `test.use` of it restores the config's).
   """
   def worker(config \\ config(), project \\ %{}, use_options \\ %{}) do
     keys = @worker_keys -- [:browser_name]
-    options = merge(Map.take(project, keys), Map.take(use_options, keys))
+    set = &(&1 |> Map.take(keys) |> Map.reject(fn {_key, value} -> value == nil end))
+    options = merge(set.(project), set.(use_options))
     options |> Map.put(:browser_name, browser_name(config, project, use_options)) |> Enum.to_list()
   end
 

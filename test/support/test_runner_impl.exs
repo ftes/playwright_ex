@@ -452,15 +452,15 @@ case mode do
 
       alias Playwright.{Browser, BrowserContext, Page}
 
-      setup_all do
-        %{browser: Playwright.Test.BrowserPool.browser()}
-      end
-
       setup do
         Process.sleep(1500)
       end
 
       use Playwright.Test
+
+      setup_all do
+        %{browser: Playwright.Test.BrowserPool.browser()}
+      end
 
       @tag timeout: 3000
       test "hangs in a Playwright call after a slow setup", %{browser: browser} do

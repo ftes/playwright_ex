@@ -449,8 +449,7 @@ end
 A describe's and a test's options are of the test's contexts, on the module's browser: the
 browser is the worker's, as in Playwright Test, where a describe with another one starts a new
 worker. So `browser_name` is an option of the module's `use` and of a project, and
-`Test.use(browser_name: _)` raises; nor does a tag's device switch the browser. Only what
-`Test.use/1` returns is read: a tag named as an option (`@tag trace: :on`) sets nothing.
+`Test.use(browser_name: _)` raises; nor does a tag's device switch the browser.
 
 For the whole suite, the device's options go in the config. `config/config.exs` and
 `config/test.exs` are evaluated before the dependencies are compiled, so `Playwright.device/1`
@@ -495,8 +494,11 @@ Firefox and WebKit here (not with a `browser_name` in the config, which wins ove
 give the projects one, `Test.parameters(browser_name: :firefox)`). A
 module adds its own options over the project's (`use Playwright.Case, parameterize:
 MyApp.Projects.all(), locale: "de-DE"`), and parameters of your own go next
-to them: `Map.put(Test.parameters(...), :role, :admin)`. They also name the project in
-`Playwright.Test.GitHubFormatter`'s report, as its `browser_name` does (`[firefox]`). A test reads its browser from the
+to them: `Map.put(Test.parameters(...), :role, :admin)`. They name the project in
+`Playwright.Test.GitHubFormatter`'s report, with its browser: its `browser_name`, else its
+device's `default_browser_type` (`[firefox]`). Its other options are no part of the name, so
+projects that differ only in them (two locales on one browser) need a parameter of your own to
+tell them apart: `Map.put(Test.parameters(locale: "de-DE"), :name, "de")`. A test reads its browser from the
 `browser`: `Playwright.BrowserType.name(Browser.browser_type(browser))`. ExUnit's filters don't see
 `parameterize:` values, so to run one project, read an env var where the list is built, as
 above.
@@ -535,9 +537,7 @@ test "checks out", %{page: page} do
 end
 ```
 
-Tags named `trace`, `screenshot` or `video` set nothing (they did before 1.65.0-rc.2): only
-`Test.use/1`'s keys are read, so a `@tag :screenshot` label is yours. As in
-Playwright Test, each takes options too, with the mode as `:mode`: `trace: [mode: :on,
+As in Playwright Test, `trace`, `screenshot` and `video` take options too, with the mode as `:mode`: `trace: [mode: :on,
 snapshots: false]`, `screenshot: [mode: :only_on_failure, full_page: true]`, `video: [mode: :on,
 size: %{width: 640, height: 480}, fps: 10, show: %{test: %{level: "step"}}]` (`show.test` writes
 the test's title and steps over the video). Each replaces the value under it as a whole; an
@@ -986,7 +986,7 @@ Most of a spec ports call for call. What differs (and see [Not supported](#not-s
   end)`). `expect.poll(fn).toBe(x)` is `Expect.poll!(fn, &assert(&1 == x))`, and a call started
   now and awaited later (`const p = locator.evaluate(...)`) is `Playwright.Promise.async/1`, and
   `Promise.all([...])` is `Playwright.Promise.all/1` of those (see [Concurrency](concurrency.md)).
-- The `baseURL` fixture is `Playwright.Test.config()[:base_url]`. The `request`
+- The `baseURL` fixture is `Playwright.Test.info().use[:base_url]`. The `request`
   fixture is a request context of its own, `APIRequest.new_context!(Playwright.request(BrowserPool.playwright(browser)))`,
   which in a test gets the test's context options and is disposed of at its end; it is not
   `Page.request/1` (upstream's `page.request`, which shares the page's cookies).

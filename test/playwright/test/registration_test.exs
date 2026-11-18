@@ -352,4 +352,31 @@ defmodule Playwright.Test.RegistrationTest.LateTest do
     assert message =~ "this module's setup_all created a context before `use Playwright.Test` registered it"
     assert message =~ "add `use Playwright.Test` as the first line of the case template's body, or move"
   end
+
+  # A template's `setup` that calls `BrowserPool.browser/1`, then the registration, in the test's
+  # process: the browser had none of the module's worker options.
+  test "a browser before the registration makes it raise, with the fix" do
+    Playwright.Test.BrowserPool.browser()
+
+    message = assert_raise(ArgumentError, fn -> Playwright.Test.__setup__(%{test_pid: self()}) end).message
+    assert message =~ "this test called BrowserPool.browser/1 before `use Playwright.Test` registered it"
+    assert message =~ "none of the module's worker options"
+    assert message =~ "add `use Playwright.Test` as the first line of the case template's body"
+  end
+
+  test "a browser of setup_all before the module's registration makes it raise, with the fix" do
+    Playwright.Test.BrowserPool.browser()
+
+    message = assert_raise(ArgumentError, fn -> Playwright.Test.__setup_all__(%{module: __MODULE__}) end).message
+    assert message =~ "this module's setup_all called BrowserPool.browser/1 before `use Playwright.Test` registered it"
+    assert message =~ "or move the `setup_all` after the module's `use Playwright.Test`"
+    assert Playwright.Test.Results.scope(self()) == nil
+  end
+
+  # A process that never registers: its browser has the config's options, and nothing raises.
+  test "a browser of a test without `use Playwright.Test` is the config's" do
+    browser = Playwright.Test.BrowserPool.browser()
+    assert browser == Playwright.Test.BrowserPool.browser()
+    assert Playwright.Browser.new_context!(browser)
+  end
 end

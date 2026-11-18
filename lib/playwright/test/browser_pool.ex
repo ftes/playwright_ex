@@ -93,10 +93,14 @@ defmodule Playwright.Test.BrowserPool do
   @doc """
   The browser of `opts` held by the calling scope (see the moduledoc): a registered test (the
   caller or a process in its `$callers`; its module's, if the module holds one), else the
-  calling process, a `setup_all`'s. Raises outside ExUnit's processes.
+  calling process, a `setup_all`'s. Raises outside ExUnit's processes. A call before `use
+  Playwright.Test` registered its test or `setup_all` (a case template's own `setup`) gets none of
+  the module's options, so the registration raises.
   """
   @spec browser(keyword()) :: Browser.t()
   def browser(opts \\ []) do
+    # For `Recorder.worker_options/0`'s note of an unregistered caller.
+    Pool.ensure_started()
     # Under them, the worker options of the module's run (upstream's `browserName`,
     # `launchOptions`, `connectOptions`), over the config's.
     opts = Options.pool(opts, Recorder.worker_options())

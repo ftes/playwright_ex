@@ -27,7 +27,6 @@ defmodule Playwright.Test.StepsTest do
   # The checks of `on_trace/1`, by test pid, in a table of the module's.
   setup_all do
     :ets.new(__MODULE__, [:public, :named_table])
-    BrowserPool.browser()
     :ok
   end
 
@@ -49,6 +48,11 @@ defmodule Playwright.Test.StepsTest do
   end
 
   use Playwright.Test
+
+  setup_all do
+    BrowserPool.browser()
+    :ok
+  end
 
   # `fun` gets the `test.trace` events of the test's `trace.zip`, once its recording finished.
   defp on_trace(fun), do: :ets.insert(__MODULE__, {self(), fun})

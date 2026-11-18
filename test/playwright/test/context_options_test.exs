@@ -59,7 +59,7 @@ defmodule Playwright.Test.ContextOptionsTest do
           {"Anonymous", "fn _context -> [] end"},
           {"Capture", "&Playwright.Test.ContextOptionsTest.language/1"}
         ] do
-      assert_raise ArgumentError, ~r/invalid context_options: .*a function isn't supported/, fn ->
+      assert_raise ArgumentError, ~r/invalid context_options: (#Function<|&).*, expected a keyword list or a map/, fn ->
         compile(name, "use Playwright.Case, context_options: #{function}")
       end
     end
@@ -73,9 +73,11 @@ defmodule Playwright.Test.ContextOptionsTest do
     end
 
     # A misspelled device.
-    assert_raise ArgumentError, ~r/invalid context_options: nil, .*a device name that is not in/, fn ->
-      compile("Nil", "use Playwright.Case, context_options: Playwright.devices()[\"iPhone13\"]")
-    end
+    assert_raise ArgumentError,
+                 ~r/invalid context_options: nil, .*Playwright.devices\(\)\[name\] of a name it doesn't have/,
+                 fn ->
+                   compile("Nil", "use Playwright.Case, context_options: Playwright.devices()[\"iPhone13\"]")
+                 end
 
     assert_raise ArgumentError, ~r/invalid context_options: \{Mod, :fun\}, expected a keyword list/, fn ->
       compile("Tuple", "use Playwright.Test, context_options: {Mod, :fun}")
@@ -101,9 +103,8 @@ defmodule Playwright.Test.ContextOptionsTest do
 
     for {message, options} <- [
           {~r/Playwright.Test.(use|parameters): .*lokale/, ~s(context_options: [lokale: "de-DE"])},
-          {~r/invalid context_options: nil, .*a device name that is not in/,
+          {~r/invalid context_options: nil, .*Playwright.devices\(\)\[name\] of a name it doesn't have/,
            ~s|context_options: Playwright.devices()["iPhone13"]|},
-          {~r/invalid context_options: .*a function isn't supported/, "context_options: &Function.identity/1"},
           {~r/unknown options \[:lokale\] for Playwright.Test.(use|parameters)/, ~s(lokale: "de-DE")},
           {~r/invalid trace: :sometimes/, "trace: :sometimes"},
           {~r/duplicated option :trace/, "trace: :on, trace: :off"}
