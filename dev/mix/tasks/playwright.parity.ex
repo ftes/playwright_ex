@@ -51,6 +51,12 @@ defmodule Mix.Tasks.Playwright.Parity do
     * Function-typed parameters of the facade (`api.json` after `Mix.Playwright.ApiRules`, by
       `Class.member(param)`, options by path) must be in `@function_params`, which says where the
       function runs (PORTING.md, `$callers`); an entry that is no such parameter is stale.
+    * Playwright Test's option fixtures (`option: true` in `packages/playwright/src/index.ts`),
+      which `Playwright.Test` is not ported from but takes its `use` options from: each must
+      be an option here (`Playwright.Test.Options.fixtures/0`) of the same scope (`worker`: a
+      module's or a project's; else every level), each option here must be a fixture, and the
+      context options' defaults must be upstream's literals (`?? 'en-US'`). A difference needs
+      a reason in `@fixture_exclusions`; an exclusion that excludes nothing is stale.
 
   Fails when anything is missing. `--extra` also lists public functions with no upstream
   counterpart (informational: Elixir-only helpers are expected). `--north-star` compares our
@@ -171,6 +177,7 @@ defmodule Mix.Tasks.Playwright.Parity do
         check_rule_reasons(registry.rules, &ported?/2) ++
         check_facade(upstream) ++
         check_function_params(function_params(upstream)) ++
+        check_fixtures(File.read!(Path.join(upstream, "packages/playwright/src/index.ts"))) ++
         Mix.Playwright.Notices.check(upstream)
 
     shell = Mix.shell()
@@ -247,6 +254,127 @@ defmodule Mix.Tasks.Playwright.Parity do
   end
 
   defp function_paths(_type, _path), do: []
+
+  # --- Playwright Test's option fixtures --------------------------------------
+
+  # Upstream fixture => why it is no option here, or one of another scope.
+  @fixture_exclusions %{
+    "headless" => "set in launch_options (upstream derives both from launchOptions)",
+    "channel" => "set in launch_options (upstream derives both from launchOptions)",
+    "_optionContextReuseMode" => "internal: context reuse (the VS Code extension, UI mode)",
+    "_optionConnectOptions" => "internal: connect_options is the option",
+    "reuseContext" => "internal: context reuse",
+    "testIdAttribute" => "config only: the client's value is global to the VM, which concurrent tests share",
+    "trace" => "every level, an addition: resolved per test, no worker to restart",
+    "screenshot" => "every level, an addition: resolved per test, no worker to restart",
+    "video" => "every level, an addition: resolved per test, no worker to restart"
+  }
+
+  @doc false
+  # Problems for the option fixtures of `source` (upstream's index.ts) against `ours`
+  # (`Playwright.Test.Options.fixtures/0`), but for `exclusions`; and for stale exclusions.
+  def check_fixtures(source, ours \\ Playwright.Test.Options.fixtures(), exclusions \\ @fixture_exclusions) do
+    upstream = ts_option_fixtures(source)
+    scopes = Map.new(upstream, fn {name, fixture} -> {name, fixture.scope} end)
+
+    differences =
+      for name <- Enum.sort(Map.keys(scopes) ++ (Map.keys(ours.scopes) -- Map.keys(scopes))),
+          problem = fixture_problem(name, scopes[name], ours.scopes[name]),
+          do: {name, problem}
+
+    unexcluded = for {name, problem} <- differences, not Map.has_key?(exclusions, name), do: problem
+
+    stale =
+      for {name, _reason} <- Enum.sort(exclusions),
+          not List.keymember?(differences, name, 0),
+          do: "#{name}: in @fixture_exclusions but the same here as upstream's at this pin, drop it"
+
+    # The defaults of the context options, compared: the test-scoped fixtures' only.
+    parsed =
+      for {name, %{default: source}} <- upstream,
+          source != nil,
+          ours.scopes[name] == :test,
+          do: {name, source, js_literal(source)}
+
+    unparsed =
+      for {name, source, :error} <- parsed,
+          do: "#{name}: Playwright Test's default `#{source}` is no literal js_literal/1 parses, parse it here"
+
+    literals = for {name, _source, {:ok, value}} <- parsed, value != nil, into: %{}, do: {name, value}
+
+    defaults =
+      for name <- Enum.sort(Map.keys(literals) ++ (Map.keys(ours.defaults) -- Map.keys(literals))),
+          literals[name] != ours.defaults[name] or Map.has_key?(literals, name) != Map.has_key?(ours.defaults, name) do
+        "#{name}: Playwright Test's default is #{inspect(literals[name])}, @context_defaults has " <>
+          "#{inspect(ours.defaults[name])} (Playwright.Test.Options)"
+      end
+
+    unexcluded ++ stale ++ unparsed ++ defaults
+  end
+
+  defp fixture_problem(name, nil, _ours),
+    do: "#{name}: an option of Playwright.Test, but no option fixture of Playwright Test's"
+
+  defp fixture_problem(name, scope, nil),
+    do:
+      "#{name}: an option fixture of Playwright Test's (#{scope}-scoped) that Playwright.Test lacks, add it or list it in @fixture_exclusions"
+
+  defp fixture_problem(_name, scope, scope), do: nil
+
+  defp fixture_problem(name, scope, ours),
+    do:
+      "#{name}: #{scope}-scoped in Playwright Test, #{ours}-scoped here (Playwright.Test.Options), or list it in @fixture_exclusions"
+
+  @doc false
+  # The `option: true` fixtures of index.ts: `%{name => %{scope: :worker | :test, default: source | nil}}`,
+  # `default` the JS source of the value a context option falls back to (`contextOptions.locale ??
+  # 'en-US'`, `=== undefined ? 'light' : ...`), parsed only where compared (`js_literal/1`).
+  def ts_option_fixtures(source) do
+    for [_all, name, body] <- Regex.scan(~r/^  (\w+): \[(.*?)(?=^  \w+: \[|\z)/ms, source),
+        body =~ ~r/\boption: true\b/,
+        into: %{} do
+      default =
+        case Regex.run(~r/\?\? (.+?)\), \{|=== undefined \? (.+?) : /, body) do
+          [_all | captures] -> List.last(captures)
+          nil -> nil
+        end
+
+      {name, %{scope: if(body =~ ~r/scope: 'worker'/, do: :worker, else: :test), default: default}}
+    end
+  end
+
+  @doc false
+  # A JS literal of `source` as the client takes it: `{:ok, value}`, `{:ok, nil}` for `null` and
+  # `undefined` (no default), or `:error` for one it doesn't parse.
+  def js_literal(source) do
+    source = String.trim(source)
+
+    cond do
+      source == "true" -> {:ok, true}
+      source == "false" -> {:ok, false}
+      source in ["null", "undefined"] -> {:ok, nil}
+      source =~ ~r/^-?\d+$/ -> {:ok, String.to_integer(source)}
+      source =~ ~r/^-?\d+\.\d+$/ -> {:ok, String.to_float(source)}
+      match = Regex.run(~r/^'([^'\\]*)'$|^"([^"\\]*)"$/, source) -> {:ok, List.last(match)}
+      match = Regex.run(~r/^\{(.*)\}$/s, source) -> js_object(List.last(match))
+      true -> :error
+    end
+  end
+
+  # The entries of an object literal without nested objects or arrays (`{ width: 1280, height: 720 }`).
+  defp js_object(entries) do
+    entries
+    |> String.split(",", trim: true)
+    |> Enum.reject(&(String.trim(&1) == ""))
+    |> Enum.reduce_while({:ok, %{}}, fn entry, {:ok, object} ->
+      with [_all, key, value] <- Regex.run(~r/^\s*(\w+)\s*:(.*)$/s, entry),
+           {:ok, value} <- js_literal(value) do
+        {:cont, {:ok, Map.put(object, String.to_atom(key), value)}}
+      else
+        _error -> {:halt, :error}
+      end
+    end)
+  end
 
   @doc false
   # Problems for function-typed `params` that `table` (`@function_params`) does not classify,

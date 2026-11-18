@@ -279,6 +279,80 @@ defmodule Mix.Tasks.Playwright.ParityTest do
     assert Parity.check_files(~w(a.ts b.ts), claimed, %{"b.ts" => "type-only"}, "no module") == []
   end
 
+  test "check_fixtures/3: option fixtures missing here or upstream, of another scope, defaults, stale exclusions" do
+    source = """
+    const playwrightFixtures = ({
+      trace: ['off', { scope: 'worker', option: true, box: true }],
+      browserName: [({ defaultBrowserType }, use) => use(defaultBrowserType), { scope: 'worker', option: true, box: true }],
+      browser: [async ({ playwright }, use) => {
+        await use(browser);
+      }, { scope: 'worker', timeout: 0 }],
+      locale: [({ contextOptions }, use) => use(contextOptions.locale ?? 'en-GB'), { option: true, box: true }],
+      colorScheme: [({ contextOptions }, use) => use(contextOptions.colorScheme === undefined ? 'light' : contextOptions.colorScheme), { option: true, box: true }],
+      viewport: [({ contextOptions }, use) => use(contextOptions.viewport === undefined ? { width: 1280, height: 720 } : contextOptions.viewport), { option: true, box: true }],
+      baseURL: [async ({ }, use) => {
+        await use(process.env.PLAYWRIGHT_TEST_BASE_URL);
+      }, { option: true, box: true }],
+      newOption: [undefined, { option: true, box: true }],
+      headless: [({ launchOptions }, use) => use(launchOptions.headless ?? someDefault()), { scope: 'worker', option: true, box: true }],
+      deviceScaleFactor: [({ contextOptions }, use) => use(contextOptions.deviceScaleFactor ?? DEFAULT_SCALE), { option: true, box: true }],
+    });
+    """
+
+    assert Parity.ts_option_fixtures(source)["viewport"] == %{scope: :test, default: "{ width: 1280, height: 720 }"}
+    assert Parity.ts_option_fixtures(source)["baseURL"] == %{scope: :test, default: nil}
+    refute Map.has_key?(Parity.ts_option_fixtures(source), "browser")
+
+    ours = %{
+      scopes: %{
+        "trace" => :test,
+        "browserName" => :test,
+        "locale" => :test,
+        "colorScheme" => :test,
+        "viewport" => :test,
+        "baseURL" => :test,
+        "gone" => :test,
+        "headless" => :worker,
+        "deviceScaleFactor" => :test
+      },
+      defaults: %{
+        "locale" => "en-US",
+        "colorScheme" => "light",
+        "viewport" => %{width: 1280, height: 720},
+        "offline" => false
+      }
+    }
+
+    assert Parity.check_fixtures(source, ours, %{"trace" => "per test", "locale" => "stale"}) == [
+             "browserName: worker-scoped in Playwright Test, test-scoped here (Playwright.Test.Options), or list it in @fixture_exclusions",
+             "gone: an option of Playwright.Test, but no option fixture of Playwright Test's",
+             "newOption: an option fixture of Playwright Test's (test-scoped) that Playwright.Test lacks, add it or list it in @fixture_exclusions",
+             "locale: in @fixture_exclusions but the same here as upstream's at this pin, drop it",
+             "deviceScaleFactor: Playwright Test's default `DEFAULT_SCALE` is no literal js_literal/1 parses, parse it here",
+             ~s(locale: Playwright Test's default is "en-GB", @context_defaults has "en-US" \(Playwright.Test.Options\)),
+             ~s(offline: Playwright Test's default is nil, @context_defaults has false \(Playwright.Test.Options\))
+           ]
+  end
+
+  test "js_literal/1: the literals of upstream's defaults, :error for the rest" do
+    for {source, value} <- [
+          {"true", true},
+          {"false", false},
+          {"0", 0},
+          {"-1.5", -1.5},
+          {"null", nil},
+          {"undefined", nil},
+          {"'en-US'", "en-US"},
+          {~s("en-US"), "en-US"},
+          {"{ width: 1280, height: 720 }", %{width: 1280, height: 720}},
+          {"{}", %{}}
+        ],
+        do: assert(Parity.js_literal(source) == {:ok, value})
+
+    for source <- ["someDefault()", "DEFAULT", "{ a: 1, b: f() }", "[1, 2]", "'it\\'s'"],
+        do: assert(Parity.js_literal(source) == :error)
+  end
+
   test "check_function_params/2: unclassified params, stale entries, a registrant without Callers" do
     params = ~w[Page.route(url) Page.onX(handler) Page.waitForX(predicate) Page.onY(handler)]
 

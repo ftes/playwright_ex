@@ -74,7 +74,7 @@ ExUnit is the runner. `Playwright.Test` adds Playwright Test's per-test machiner
 ```elixir
 # config/test.exs
 config :playwright, :test,
-  context_options: [base_url: "http://localhost:4000"],
+  base_url: "http://localhost:4000",
   trace: :retain_on_failure,
   screenshot: :only_on_failure
 
@@ -89,22 +89,44 @@ end
 ```
 
 - `use Playwright.Case` gives the module a `browser` (`setup_all`) and each test a fresh `context` and `page`, and aliases `Browser`, `BrowserContext`, `Expect`, `Keyboard`, `Locator`, `Mouse`, `Page`, `Test` and `Test.BrowserPool`. In a case template, `use Playwright.Case` inside `using` and add your `setup` after it.
-- Upstream's fixtures are functions: `browser` is `BrowserPool.browser/1`, `testInfo` is `Playwright.Test.info/0`, `test.use({...})` is `use Playwright.Test, trace: :on` or a tag, and `use Playwright.Case, context_options: [locale: "de-DE"]` (or `&Mod.fun/1` of the test's context, for run-time values and your own `parameterize:` keys) for context options; `projects` are `parameterize:` over `browser_name`. `beforeAll` is `setup_all`: its contexts get the context defaults and `base_url`.
+- Upstream's fixtures are functions: `browser` is `BrowserPool.browser/1`, `testInfo` is `Playwright.Test.info/0`. `beforeAll` is `setup_all`.
+- `test.use({...})` by level, with the context options as options of their own (`Browser.new_context/2`'s names: `locale`, `viewport`, `color_scheme`, `timezone_id`, `base_url`, `storage_state`, ...), `action_timeout`, `navigation_timeout`, `trace`, `screenshot`, `video` (values known at compile time, never functions):
+  - file: `use Playwright.Case, locale: "de-DE", trace: :on` (also `browser_name: :webkit`);
+  - `test.describe`: `@describetag Test.use(timezone_id: "Europe/Berlin")`;
+  - one test: `@tag Test.use(trace: :on)`;
+  - project: `use Playwright.Case, parameterize: [Playwright.Test.parameters(Playwright.device("Desktop Firefox")), ...]` (the `Test` alias only exists after the `use`) (`Test.parameters/1` and the module's `use` also take the worker's `browser_name`, `launch_options`, `connect_options`; add your own parameters with `Map.put/3`).
+- Where each option can be set:
+
+| Option | Config | Project (`Test.parameters/1`) | Module (`use`) | Describe, test (`Test.use/1`) |
+|---|---|---|---|---|
+| the context options (`locale`, `viewport`, `base_url`, ...), `context_options`, `action_timeout`, `navigation_timeout` | yes | yes | yes | yes |
+| `trace`, `screenshot`, `video` | yes | yes | yes | yes (an addition: worker-scoped in Playwright Test, which rejects them in a describe) |
+| `browser_name`, `launch_options`, `connect_options` | yes | yes | yes | no: the worker's, as in Playwright Test, where they force a new worker |
+| `default_browser_type` (a device's) | picks the browser | picks the browser | picks the browser | ignored (a deviation: Playwright Test rejects it there; the device's emulation applies on the module's browser) |
+| `test_id_attribute` | yes | no | no | no (a deviation: the value is global to the VM, which concurrent tests share) |
+| `output_dir`, `preserve_output`, `workers`, `snapshot_dir`, `snapshot_path_template`, `driver`, `on_start` | yes | no | no | no |
+
+- Layers, each over the one before per option: Playwright Test's defaults, config, project, module `use`, `@describetag`, `@tag`, the call's own options (`Browser.new_context!(browser, locale: "fr-FR")`). `setup_all` contexts get config, project and module; describe and test options reach only the test's contexts.
+- Plain tags named like options set nothing: `@tag trace: :on` is ignored, write `@tag Test.use(trace: :on)`.
+- `context_options` is upstream's `contextOptions` bag for the other `new_context` options (`record_har`, ...): one option, so the highest level that sets it replaces the lower ones' as a whole, and it is under every option of its own (`locale: "de-DE"` beats `context_options: [locale: "fr-FR"]` wherever each is set). Prefer the options of their own.
+- `Playwright.Test.info().use` is the test's resolved options (context options, timeouts, modes, `browser_name`, `launch_options`, `connect_options`). A call's options replace the resolved ones as a whole, so a library merges into them: `extra_http_headers: Map.merge(Test.info().use[:extra_http_headers] || %{}, headers)`.
+- Devices are static data: `Playwright.device("iPhone 13")` (raises for an unknown name) or `Playwright.devices()["iPhone 13"]` (the map of all). A device is a map of options, spread as upstream's `...devices['iPhone 13']`: `use Playwright.Test, Playwright.device("iPhone 13")` (after `use Playwright.Case, async: true`), `@tag Test.use(Playwright.device("Pixel 7"))`, `Playwright.Test.parameters(Playwright.device("Desktop Firefox"))`. No driver needed, so they work in `use` options. In `config/config.exs` or `config/test.exs` the library isn't compiled yet: for a suite-wide device use `config/runtime.exs` (`if config_env() == :test, do: config(:playwright, :test, Enum.to_list(Playwright.device("iPhone 13")))`).
+- Browser: `BrowserPool.browser/1` without `browser_name` (as `Playwright.Case` calls it) uses the module's `use` `browser_name`, else its project's, else the config's if set, else their `default_browser_type`, which a device has (iPhone picks WebKit), else `:chromium`. The module's `launch_options` and `connect_options` apply to that call too. These are worker-scoped: `Test.use(browser_name: _)` raises, and a describe's or test's device doesn't switch the browser.
 - `BrowserPool` is upstream's worker model: at most `workers` drivers+browsers at once, each held by one module and replaced after a failure. A module's tests run in sequence, so prefer many small `async: true` modules. Register selectors per driver with `on_start: &MyApp.Selectors.register/1`.
 - Actions and navigations have no timeout of their own; ExUnit's test timeout (60 s, `@tag timeout:`) bounds them and fails a stuck call with its call log. Set `action_timeout`/`navigation_timeout` in config to fail sooner. For Playwright Test's 30 s, `ExUnit.start(timeout: 30_000)`.
-- `trace`, `screenshot` and `video` take upstream's modes as atoms (`:retain_on_failure`, `:only_on_failure`, `:on_first_retry`, ...), set in config, `use Playwright.Test` options or `@tag`/`@moduletag`. ExUnit has no retries: `mix test --failed` is the retry.
+- `trace`, `screenshot` and `video` take upstream's modes as atoms (`:retain_on_failure`, `:only_on_failure`, `:on_first_retry`, ...), set in config, `use Playwright.Test` options or `@tag Test.use(trace: :on)` (`@describetag`, `@moduletag`). ExUnit has no retries: `mix test --failed` is the retry.
 - Each test writes to `test-results/<test>/`. A failed test gets `error-context.md` (errors, source, an aria snapshot of the page): read it first. Open traces with `mix playwright.cli show-trace <path>`.
 - `Playwright.Test.step "log in" do ... end` is `test.step`; pass `box: true` in helpers. A `describe.serial` becomes one test with a step per test.
 - Porting traps: an `Expect.poll!` callback that raises fails at once (`Enum.at(list, 0)`, not `hd/1`, while the list can be empty); `add_init_script` with a function's source and no argument only defines it (`"(#{fun})()"`).
 - Snapshots live in `<test file>-snapshots/`, named by `name:` or after the test; a missing one is written and fails the test: commit it. `Expect.soft/1` also fails the test at the end of its body. An error in a route handler or listener fails the test and stops it at once (in a `:dialog` listener, accept or dismiss before asserting).
 - Details, case templates without `Playwright.Case`, and what isn't supported: the [testing guide](https://hexdocs.pm/playwright_ex/testing-with-exunit.html).
-- Playwright Test's `request` fixture is `APIRequest.new_context!(Playwright.request(BrowserPool.playwright(browser)))`: own cookies, the test's `context_options`, disposed at the test's end. `Page.request/1` is upstream's `page.request` and shares the page's cookies.
+- Playwright Test's `request` fixture is `APIRequest.new_context!(Playwright.request(BrowserPool.playwright(browser)))`: own cookies, the test's context options, disposed at the test's end. `Page.request/1` is upstream's `page.request` and shares the page's cookies.
 
 ## Configuration
 
 - There is no `playwright.config.ts`, `package.json` or npm `playwright`/`@playwright/test`. Configure in Elixir config: the runner under `config :playwright, :test`, the matchers under `config :playwright, :expect`, the driver under `config :playwright, :driver`. Other `config :playwright` keys (but a module's own, such as `Playwright.Test.GitHubFormatter`) raise at startup, as do unknown keys and bad values in these.
-- `config :playwright, :test` keys: `browser_name` (`:chromium`), `launch_options`, `connect_options` (`[ws_endpoint: _, ...]`), `driver`, `on_start`, `workers` (half the schedulers), `context_options`, `action_timeout`, `navigation_timeout`, `trace`, `screenshot`, `video`, `output_dir` (`"test-results"`), `preserve_output` (`:always`, `:failures_only`, `:never`), `snapshot_dir`, `snapshot_path_template`, `test_id_attribute` (`"data-testid"`). The test id attribute is global to the VM: set it here, not per module.
-- Neither Playwright Test's environment variables (`PLAYWRIGHT_TEST_BASE_URL`, `PW_TEST_CONNECT_WS_ENDPOINT`) nor any of the library's own are read. Read the ones you want in config: `context_options: [base_url: System.get_env("BASE_URL", "http://localhost:4000")]`. The driver and its CLI still read theirs (`PWDEBUG=1`, `DEBUG=pw:api`, `PLAYWRIGHT_BROWSERS_PATH`).
+- `config :playwright, :test` keys: `browser_name` (`:chromium`), `launch_options`, `connect_options` (`[ws_endpoint: _, ...]`), `driver`, `on_start`, `workers` (half the schedulers), the context options (`base_url`, `locale`, `storage_state`, ...) and `context_options` for the rest, `default_browser_type`, `action_timeout`, `navigation_timeout`, `trace`, `screenshot`, `video`, `output_dir` (`"test-results"`), `preserve_output` (`:always`, `:failures_only`, `:never`), `snapshot_dir`, `snapshot_path_template`, `test_id_attribute` (`"data-testid"`). The test id attribute is global to the VM: set it here, not per module.
+- Neither Playwright Test's environment variables (`PLAYWRIGHT_TEST_BASE_URL`, `PW_TEST_CONNECT_WS_ENDPOINT`) nor any of the library's own are read. Read the ones you want in config: `base_url: System.get_env("BASE_URL", "http://localhost:4000")`. The driver and its CLI still read theirs (`PWDEBUG=1`, `DEBUG=pw:api`, `PLAYWRIGHT_BROWSERS_PATH`).
 - Driver settings are `config :playwright, :driver` with `cache_dir:`, `executable:` (an npm-managed `playwright` CLI) and `node:` (a Node.js binary). Put them in `config/config.exs`, not `config/test.exs` or `config/runtime.exs`: `mix playwright.install` runs in `:dev` unless `MIX_ENV` says otherwise and doesn't compile the project, so it sees only `config/config.exs` and what it imports. Take an env var there: `if dir = System.get_env("PLAYWRIGHT_CACHE_DIR"), do: config(:playwright, :driver, cache_dir: dir)`. The `:test` config's `driver:` reaches only the pooled drivers, not `mix playwright.install`.
 
 ## Events and concurrency

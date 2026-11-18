@@ -51,15 +51,39 @@ Node 26.13.1. No upstream API changes.
 - A warning when the connection has waited 5 s for one listener or route handler, which stalls
   every page on it: it names the listener, shows where it waits and points to the fix
   ([Concurrency](guides/concurrency.md#no-blocking-work-in-listeners)).
-- **RC only:** `use Playwright.Test` (and `use Playwright.Case`) takes `context_options:`,
-  Playwright Test's `test.use({ locale: 'de-DE' })`: the options, or a function of the test's
-  context (`&Mod.fun/1`, e.g. over your `parameterize:` values), over the config's per key, under
-  the call's, for every context of the module's tests, and the options for its `setup_all`'s
-  unless a `use` gives a function (#257). An option given as `nil` resets it to the config's or
-  the default, as upstream's `undefined`.
+- `use Playwright.Test` (and `use Playwright.Case`) takes the context options as
+  options of their own, Playwright Test's `test.use({ locale: 'de-DE' })`: `use Playwright.Case,
+  locale: "de-DE"`, over the config's per option, under the call's, for every context of the
+  module, its `setup_all`'s included (#257). A context option, `connect_options` or
+  `default_browser_type` given as `nil` resets it to the project's, the config's or the default,
+  as upstream's `undefined`; `nil` raises for the other options. `context_options:` is
+  upstream's `contextOptions`, for the other options of `new_context`, under an option of its
+  own. The config takes both too (`config :playwright, :test, base_url: "..."`).
+- `Playwright.Test.use/1` gives a describe block or a test its options, as
+  Playwright Test's `test.use` in a `test.describe`: `@describetag Test.use(timezone_id:
+  "Europe/Berlin")`, `@tag Test.use(trace: :on)`. They layer per option, over the module's.
+- `Playwright.Test.parameters/1` is a project for `parameterize:`, Playwright
+  Test's `projects: [{ use }]`: its options are over the config's and under the module's, for
+  every context of the module's run.
+- `browser_name`, `launch_options` and `connect_options` are options of `use
+  Playwright.Test` and of `Test.parameters/1`, and the defaults of the module's
+  `BrowserPool.browser/1` calls. Without a `browser_name` (in the config either), a device's
+  `default_browser_type` picks the browser, as upstream's `browserName` defaults to
+  `defaultBrowserType`.
+- `action_timeout` and `navigation_timeout` are options of `use Playwright.Test`,
+  `Test.use/1` and `Test.parameters/1` too.
+- `Playwright.device/1` and `Playwright.devices/0`, Playwright's device
+  descriptors as static data (upstream's `import { devices }`), so a device works at compile
+  time, spread as upstream's `...devices['iPhone 13']`: `use Playwright.Test,
+  Playwright.device("iPhone 13")`, `@tag Test.use(Playwright.device("Pixel 7"))`. The
+  driver's `Playwright.devices/1` remains.
 
 ### Changed
 
+- **RC only:** **Breaking:** the tags `trace`, `screenshot` and `video` no longer set the
+  recording modes, and `use Playwright.Test, tags: false` is gone (an unknown option now):
+  write `@tag Test.use(trace: :on)` for `@tag trace: :on`, likewise for `@describetag` and
+  `@moduletag`. Only `Test.use/1`'s keys are read, so tags named as options are yours.
 - **RC only:** **Breaking:** `mix playwright.install` forwards its args to `playwright install`
   as they are, without `--`: `mix playwright.install chromium --with-deps`. A `--` now raises,
   naming that fix.
@@ -73,7 +97,8 @@ Node 26.13.1. No upstream API changes.
 - **RC only:** **Breaking:** a context created in `setup_all` before `use Playwright.Test`
   registered the module (a case template's own `setup_all` with the `use` only in its `using`,
   or a `setup_all` above the module's `use`) makes the module's `setup_all` raise, naming the
-  fix, as such a context in `setup` already does.
+  fix, as such a context in `setup` already does. So does a `BrowserPool.browser/1` call there,
+  or in `setup` before the test's registration, as it would miss the module's worker options.
 - **RC only:** **Breaking:** contexts and request contexts created in a module's `setup_all` (or
   a process with it in `$callers`) get the context defaults and the config's `context_options`
   (`base_url` too), as Playwright Test's `beforeAll` does (#257). A context gets the config's

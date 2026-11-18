@@ -196,7 +196,7 @@ defmodule Playwright.Test.RegistrationTest do
   end
 
   # Kept on failure only, so the passing test leaves no files.
-  @tag trace: :retain_on_failure
+  @tag Playwright.Test.use(trace: :retain_on_failure)
   test "a traced test's recorder starts at its registration, for its steps" do
     assert is_pid(Recorder.lookup(self()))
   end
@@ -283,7 +283,7 @@ defmodule Playwright.Test.RegistrationTest.TemplateTest do
 
   alias Playwright.Test.Recorder
 
-  @tag trace: :retain_on_failure
+  @tag Playwright.Test.use(trace: :retain_on_failure)
   test "a context of the case template's setup gets the defaults and is recorded" do
     assert_received {:options, %{locale: "en-US", viewport: %{width: 1280, height: 720}}}
     assert [%{}] = :sys.get_state(Recorder.lookup(self())).contexts
@@ -311,7 +311,7 @@ defmodule Playwright.Test.RegistrationTest.LateTest do
     # A template's `setup` that creates a context, then the registration, as a test of a template
     # with `use Playwright.Test` only in its `using` runs them; in a process of its own.
     spawn(fn ->
-      Playwright.Browser.new_context!(browser)
+      context = Playwright.Browser.new_context!(browser)
 
       result =
         try do
@@ -320,12 +320,16 @@ defmodule Playwright.Test.RegistrationTest.LateTest do
           e in ArgumentError -> e.message
         end
 
+      Playwright.BrowserContext.close!(context)
       send(test_pid, {:result, result})
     end)
 
     assert_receive {:result, message}
-    assert message =~ "this test created a context before `use Playwright.Test` registered it"
-    assert message =~ "add `use Playwright.Test` as the first line of the case template's body"
+
+    assert message =~
+             "this test fetched a browser (`BrowserPool.browser/1`) or created a context before `use Playwright.Test` registered it"
+
+    assert message =~ "Add `use Playwright.Test` as the first line of the case template's body"
   end
 
   test "a context of setup_all before the module's registration makes it raise, with the fix" do
@@ -349,7 +353,54 @@ defmodule Playwright.Test.RegistrationTest.LateTest do
     end)
 
     assert_receive {:result, message, nil}
-    assert message =~ "this module's setup_all created a context before `use Playwright.Test` registered it"
-    assert message =~ "add `use Playwright.Test` as the first line of the case template's body, or move"
+
+    assert message =~
+             "this module's setup_all fetched a browser (`BrowserPool.browser/1`) or created a context before `use Playwright.Test` registered it"
+
+    assert message =~ "Add `use Playwright.Test` as the first line of the case template's body, or move"
+  end
+
+  # A template's `setup` that calls `BrowserPool.browser/1`, then the registration, in the test's
+  # process: the browser had none of the module's worker options.
+  test "a browser before the registration makes it raise, with the fix" do
+    Playwright.Test.BrowserPool.browser()
+
+    message = assert_raise(ArgumentError, fn -> Playwright.Test.__setup__(%{test_pid: self()}) end).message
+
+    assert message =~
+             "this test fetched a browser (`BrowserPool.browser/1`) or created a context before `use Playwright.Test` registered it"
+
+    assert message =~ "a browser gets none of the module's worker options, a context none of its defaults or recording"
+    assert message =~ "Add `use Playwright.Test` as the first line of the case template's body"
+  end
+
+  test "a browser of setup_all before the module's registration makes it raise, with the fix" do
+    Playwright.Test.BrowserPool.browser()
+
+    message = assert_raise(ArgumentError, fn -> Playwright.Test.__setup_all__(%{module: __MODULE__}) end).message
+
+    assert message =~
+             "this module's setup_all fetched a browser (`BrowserPool.browser/1`) or created a context before `use Playwright.Test` registered it"
+
+    assert message =~ "or move the `setup_all` after the module's `use Playwright.Test`"
+    assert Playwright.Test.Results.scope(self()) == nil
+  end
+
+  test "a second early call keeps one note and one error" do
+    context = Playwright.Browser.new_context!(Playwright.Test.BrowserPool.browser())
+    on_exit(fn -> Playwright.BrowserContext.close!(context) end)
+    message = assert_raise(ArgumentError, fn -> Playwright.Test.__setup__(%{test_pid: self()}) end).message
+
+    assert message =~
+             "this test fetched a browser (`BrowserPool.browser/1`) or created a context before `use Playwright.Test` registered it"
+
+    assert message =~ "a browser gets none of the module's worker options, a context none of its defaults or recording"
+  end
+
+  # A process that never registers: its browser has the config's options, and nothing raises.
+  test "a browser of a test without `use Playwright.Test` is the config's" do
+    browser = Playwright.Test.BrowserPool.browser()
+    assert browser == Playwright.Test.BrowserPool.browser()
+    Playwright.BrowserContext.close!(Playwright.Browser.new_context!(browser))
   end
 end

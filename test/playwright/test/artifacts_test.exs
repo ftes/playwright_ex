@@ -47,14 +47,15 @@ defmodule Playwright.Test.ArtifactsTest do
 
     pid =
       spawn(fn ->
+        # The tags as `Playwright.Test.use/1`'s.
         context =
-          Map.merge(tags, %{
+          Map.merge(Map.new(Playwright.Test.use(Enum.to_list(tags))), %{
             test_pid: self(),
             module: __MODULE__,
             test: :"test #{name}",
             file: __ENV__.file,
             line: 1,
-            playwright_test: if(marked?, do: :marked)
+            "playwright.test": if(marked?, do: :marked)
           })
 
         send(parent, {:registered, Playwright.Test.__register__(context)})
@@ -247,7 +248,7 @@ defmodule Playwright.Test.ArtifactsTest do
     refute File.exists?(tmp)
   end
 
-  @tag screenshot: :on
+  @tag Playwright.Test.use(screenshot: :on)
   test "the end of the body with a recorder gone leaves the test's result as is" do
     :ets.insert(Results.table(), {{:recorder, self()}, spawn(fn -> :ok end)})
     assert Playwright.Test.__passed__() == :ok
@@ -796,14 +797,14 @@ defmodule Playwright.Test.ArtifactsTest do
 end
 
 defmodule Playwright.Test.ArtifactsTest.TagsTest do
-  # The modes from tags, over the config: a test's `@tag` over its `@describetag` over the
-  # module's `@moduletag`.
+  # The modes from `Playwright.Test.use/1` in tags, over the config: a test's `@tag` over its
+  # `@describetag` over the module's `@moduletag`.
   use ExUnit.Case, async: true
   use Playwright.Test
 
   alias Playwright.Test.Recorder
 
-  @moduletag video: true, screenshot: [mode: :only_on_failure, full_page: true]
+  @moduletag Playwright.Test.use(video: true, screenshot: [mode: :only_on_failure, full_page: true])
 
   defp modes, do: Map.take(Recorder.registration(self()), [:trace, :screenshot, :video])
 
@@ -816,19 +817,19 @@ defmodule Playwright.Test.ArtifactsTest.TagsTest do
   end
 
   describe "a describe block" do
-    @describetag video: false, trace: :on
+    @describetag Playwright.Test.use(video: false, trace: :on)
 
     # Kept on failure only, so the passing test leaves no files.
-    @tag trace: :retain_on_failure
+    @tag Playwright.Test.use(trace: :retain_on_failure)
     test "the test's over the describe's over the module's" do
       assert %{trace: [mode: :retain_on_failure] ++ _, video: [mode: :off], screenshot: [mode: :only_on_failure] ++ _} =
                modes()
     end
   end
 
-  test "an invalid tag raises at registration, with the accepted values" do
+  test "an invalid value raises in Test.use, with the accepted values" do
     for {key, value} <- [trace: :retry_with_trace, screenshot: :retain_on_failure, video: "on"] do
-      message = assert_raise(ArgumentError, fn -> Playwright.Test.Options.artifacts(%{key => value}) end).message
+      message = assert_raise(ArgumentError, fn -> Playwright.Test.use([{key, value}]) end).message
       assert message =~ "invalid #{key}: #{inspect(value)}, expected one of"
       assert message =~ "true, false"
     end
@@ -843,7 +844,7 @@ defmodule Playwright.Test.ArtifactsTest.UseOptionsTest do
 
   alias Playwright.Test.Recorder
 
-  @moduletag screenshot: [mode: :only_on_failure, full_page: true]
+  @moduletag Playwright.Test.use(screenshot: [mode: :only_on_failure, full_page: true])
 
   @trace_defaults [snapshots: true, screenshots: true, sources: true, attachments: true]
 
@@ -857,7 +858,7 @@ defmodule Playwright.Test.ArtifactsTest.UseOptionsTest do
            }
   end
 
-  @tag video: false
+  @tag Playwright.Test.use(video: false)
   test "the test's tag over them" do
     assert %{trace: [mode: :retain_on_failure] ++ _, video: [mode: :off]} = modes()
   end
@@ -872,8 +873,8 @@ defmodule Playwright.Test.ArtifactsTest.UseOptionsTest do
   end
 
   test "an unknown option or an invalid value raises at compile time" do
-    assert_raise ArgumentError, ~r/unknown options \[:browser_name\] for use Playwright.Test, expected one of/, fn ->
-      compile("browser_name: :webkit")
+    assert_raise ArgumentError, ~r/unknown options \[:headless\] for use Playwright.Test, expected one of/, fn ->
+      compile("headless: false")
     end
 
     assert_raise ArgumentError, ~r/invalid trace: :retry_with_trace, expected one of/, fn ->
@@ -883,8 +884,6 @@ defmodule Playwright.Test.ArtifactsTest.UseOptionsTest do
     assert_raise ArgumentError, ~r/unknown video options \[:full_page\]/, fn ->
       compile("video: [mode: :on, full_page: true]")
     end
-
-    assert_raise ArgumentError, ~r/invalid tags: :off, expected a boolean/, fn -> compile("tags: :off") end
 
     assert_raise ArgumentError, ~r/duplicated option :trace for use Playwright.Test/, fn ->
       compile("trace: :on, trace: :off")
@@ -916,9 +915,9 @@ defmodule Playwright.Test.ArtifactsTest.UseOptionsTest do
 end
 
 defmodule Playwright.Test.ArtifactsTest.UseTagsOffTest do
-  # `tags: false`: the tags set no mode, a `@tag :screenshot` is only a label.
+  # Tags named as the options set no mode: a `@tag :screenshot` is only a label.
   use ExUnit.Case, async: true
-  use Playwright.Test, tags: false, trace: :retain_on_failure
+  use Playwright.Test, trace: :retain_on_failure
 
   import Playwright.Test.ArtifactsTest.UseOptionsTest, only: [modes: 0]
 

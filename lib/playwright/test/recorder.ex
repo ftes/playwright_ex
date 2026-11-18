@@ -74,6 +74,24 @@ defmodule Playwright.Test.Recorder do
     end
   end
 
+  @doc """
+  The worker options (`Playwright.Test.Options.worker/3`) of the scope of the calling process
+  (a test's or a module's `setup_all`'s, as `registration/0` finds it), for
+  `BrowserPool.browser/1`; `[]` outside one, the process noted
+  (`Playwright.Test.Results.note_unregistered/1`): a test or `setup_all` process that called it
+  before `use Playwright.Test` registered it fails its registration.
+  """
+  def worker_options do
+    case defaults() do
+      {_kind, %{worker: worker}} ->
+        worker
+
+      nil ->
+        note_unregistered()
+        []
+    end
+  end
+
   # The registration of the nearest of the calling process and its `$callers` that is a running
   # test (`{:test, test}`) or a module's `setup_all` (`{:module, module}`,
   # `Playwright.Test.Results.scope/1`), or `nil`: whose context defaults a context gets.

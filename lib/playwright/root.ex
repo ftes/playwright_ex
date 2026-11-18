@@ -5,7 +5,58 @@ defmodule Playwright.Root do
   # generates with `use Playwright.Root`. Its moduledoc's introduction is in
   # `Mix.Playwright.ApiRules`.
 
+  # A descriptor's JS keys as the option keys of `Playwright.Browser.new_context/2`, as the
+  # generated `Playwright.devices/1` converts the driver's.
+  @doc false
+  # Converted once per VM.
+  def devices do
+    case :persistent_term.get(__MODULE__, nil) do
+      nil ->
+        {:object, schema} = Playwright.Browser.__options_type__(:new_context)
+        keys = Map.new(schema, fn {key, {js_key, _type}} -> {js_key, key} end)
+        descriptors = Playwright.Isomorphic.DeviceDescriptors.device_descriptors()
+        devices = Playwright.Runtime.Facade.options_dictionary(descriptors, keys)
+        :persistent_term.put(__MODULE__, devices)
+        devices
+
+      devices ->
+        devices
+    end
+  end
+
+  @doc false
+  def device(name) do
+    devices = devices()
+
+    case devices do
+      %{^name => device} ->
+        device
+
+      _unknown ->
+        closest =
+          if is_binary(name),
+            do: devices |> Map.keys() |> Enum.sort_by(&String.jaro_distance(&1, name), :desc) |> Enum.take(3),
+            else: []
+
+        raise ArgumentError,
+              "unknown device #{inspect(name)}" <>
+                if(closest == [], do: "", else: ", did you mean #{Enum.map_join(closest, ", ", &inspect/1)}?") <>
+                " (the docs of Playwright.devices/0 list the names)"
+    end
+  end
+
+  # The device names for the docs of `devices/0`: without the `landscape` variants, and those
+  # that have none.
+  defp device_names do
+    names = Playwright.Isomorphic.DeviceDescriptors.device_descriptors() |> Map.keys() |> Enum.sort()
+    {landscape, names} = Enum.split_with(names, &String.ends_with?(&1, " landscape"))
+    {names, Enum.reject(names, &((&1 <> " landscape") in landscape))}
+  end
+
   defmacro __using__(_opts) do
+    {names, no_landscape} = device_names()
+    code = fn names -> Enum.map_join(names, ", ", &"`#{inspect(&1)}`") end
+
     quote do
       @typedoc """
       An error a call fails with: the tuple forms return `{:error, error}`, the bang forms raise it.
@@ -27,6 +78,39 @@ defmodule Playwright.Root do
               | %Playwright.Protocol.ValidatorPrimitives.ValidationError{}
               | %JSON.DecodeError{}
               | %File.Error{}
+
+      @doc """
+      Playwright's device descriptors by name, as static data: upstream's
+      `import { devices } from '@playwright/test'`. A descriptor is the options of
+      `Playwright.Browser.new_context/2` for that device (`user_agent`, `viewport`,
+      `device_scale_factor`, `is_mobile`, `has_touch`, and its `default_browser_type`, which
+      `new_context` ignores), as `devices/1` returns it from a driver:
+
+          iphone = Playwright.devices()["iPhone 13"]
+          context = Browser.new_context!(browser, iphone)
+
+      It needs no driver, so it works at compile time. A name that isn't a device's gives
+      `nil`, which `context_options:` rejects: `device/1` raises instead, naming the closest.
+      The data is that of the pinned Playwright version.
+
+      ## Devices
+
+      #{unquote(code.(names))}.
+
+      Each also has a landscape variant (`"iPhone 13 landscape"`), but
+      #{unquote(code.(no_landscape))}.
+      """
+      @spec devices() :: %{optional(String.t()) => Playwright.Browser.new_context_options()}
+      def devices, do: Playwright.Root.devices()
+
+      @doc """
+      The device descriptor of `name` in `devices/0`, upstream's `devices['iPhone 13']`. An
+      unknown name raises `ArgumentError`, naming the closest ones.
+
+          use Playwright.Test, Playwright.device("iPhone 13")
+      """
+      @spec device(String.t()) :: Playwright.Browser.new_context_options()
+      def device(name), do: Playwright.Root.device(name)
 
       @doc """
       The root `Playwright` object of the driver started as `name`.

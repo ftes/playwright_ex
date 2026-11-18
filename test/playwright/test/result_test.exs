@@ -18,7 +18,7 @@ defmodule Playwright.Test.ResultTest do
           test: :"test t#{System.unique_integer([:positive])}",
           file: __ENV__.file,
           line: 1,
-          playwright_test: if(marked?, do: :marked)
+          "playwright.test": if(marked?, do: :marked)
         }
 
         send(parent, {:registered, Playwright.Test.__register__(context)})

@@ -245,15 +245,16 @@ defmodule Playwright.Test.BrowserPoolTest do
       lease(t, opts())
       [seat] = for {pid, %{scope: ^t}} <- :sys.get_state(Pool).seats, do: pid
 
-      Playwright.Test.__register__(%{
-        test_pid: t,
-        module: __MODULE__,
-        test: :"test abandoned",
-        file: __ENV__.file,
-        line: 1,
-        trace: :on,
-        playwright_test: :marked
-      })
+      Playwright.Test.__register__(
+        Map.merge(Map.new(Playwright.Test.use(trace: :on)), %{
+          test_pid: t,
+          module: __MODULE__,
+          test: :"test abandoned",
+          file: __ENV__.file,
+          line: 1,
+          "playwright.test": :marked
+        })
+      )
 
       # A recorder that is blocked: the finish's budget runs out waiting for it.
       recorder = Results.recorder(t)

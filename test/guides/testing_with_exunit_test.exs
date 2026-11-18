@@ -85,10 +85,9 @@ defmodule Playwright.Guides.TestingWithExUnit.BrowserCase do
     %{base_url: server.prefix, browser: BrowserPool.browser()}
   end
 
-  # `@tag locale: "de-DE"` on a test.
+  # `@tag Test.use(locale: "de-DE")` on a test sets its options.
   setup %{browser: browser} = ctx do
-    options = [base_url: ctx.base_url] ++ Enum.to_list(Map.take(ctx, [:locale]))
-    context = Browser.new_context!(browser, options)
+    context = Browser.new_context!(browser, base_url: ctx.base_url)
     BrowserContext.set_default_timeout(context, 5_000)
     %{context: context, page: BrowserContext.new_page!(context)}
   end
@@ -117,8 +116,8 @@ defmodule Playwright.Guides.TestingWithExUnit.SignUpTest do
     Expect.to_have_text!(Page.get_by_role(page, :status), "Welcome, ada@example.com")
   end
 
-  @tag locale: "de-DE"
-  test "a tag of the case template", %{page: page} do
+  @tag Test.use(locale: "de-DE")
+  test "a test's options through the case template", %{page: page} do
     assert Page.evaluate!(page, "navigator.language") == "de-DE"
   end
 
@@ -142,9 +141,11 @@ defmodule Playwright.Guides.TestingWithExUnit.SignUpTest do
   # "Devices". Deviation: the browser is `BROWSER`'s.
   test "on a phone" do
     browser = BrowserPool.browser()
-    iphone = Playwright.devices(BrowserPool.playwright(browser))["iPhone 13"]
+    iphone = Playwright.device("iPhone 13")
     page = BrowserContext.new_page!(Browser.new_context!(browser, Map.put(iphone, :locale, "de-DE")))
     assert iphone.default_browser_type == "webkit"
+    assert Playwright.devices()["iPhone 13"] == iphone
+    assert_raise ArgumentError, ~r/"iPhone 13"/, fn -> Playwright.device("iPhone13") end
     assert Page.viewport_size(page) == %{width: 390, height: 664}
     assert Page.evaluate!(page, "[navigator.language, navigator.userAgent]") == ["de-DE", iphone.user_agent]
   end
@@ -294,8 +295,7 @@ defmodule Playwright.Guides.TestingWithExUnit.UseOptionsTest do
     video: :on,
     sandbox: false
 
-  @moduletag video: :retain_on_failure
-
+  @tag Playwright.Test.use(video: :retain_on_failure)
   test "checks out", %{page: page} = ctx do
     refute ctx.sandbox
     Page.goto!(page, "/sign-up")
@@ -372,7 +372,7 @@ defmodule Playwright.Guides.TestingWithExUnit.ResultInOnExitTest do
   # Deviation: it asserts where the guide uploads a failure's trace.
   use ExUnit.Case, async: true
 
-  @moduletag trace: :retain_on_failure
+  @moduletag Playwright.Test.use(trace: :retain_on_failure)
 
   setup %{test_pid: test_pid} do
     on_exit(fn ->
@@ -505,51 +505,81 @@ defmodule Playwright.Guides.TestingWithExUnit.PageChecksTest do
   end
 end
 
-defmodule Playwright.Guides.TestingWithExUnit.ProjectsCase do
+defmodule Playwright.Guides.TestingWithExUnit.Projects do
   @moduledoc false
-  # "Projects". Deviation: `BROWSER`'s browser only.
-  use ExUnit.CaseTemplate
-  use Playwright.Test
-
-  alias Playwright.{Browser, BrowserContext}
-  alias Playwright.Test.BrowserPool
-
-  @devices %{chromium: "Desktop Chrome", firefox: "Desktop Firefox", webkit: "Desktop Safari"}
-
-  def projects, do: for(name <- [String.to_atom(Playwright.TestBrowser.name())], do: %{browser_name: name})
-
-  using do
-    quote do
-      use Playwright.Test
-      alias Playwright.{Browser, BrowserContext, Expect, Locator, Page, Test}
-    end
-  end
-
-  setup_all %{browser_name: name} do
-    %{browser: BrowserPool.browser(browser_name: name)}
-  end
-
-  setup %{browser: browser, browser_name: name} do
-    device = Map.fetch!(Playwright.devices(BrowserPool.playwright(browser)), @devices[name])
-    context = Browser.new_context!(browser, device)
-    %{context: context, page: BrowserContext.new_page!(context)}
+  # "Projects". Deviation: one project by default, as the suite's config sets `browser_name`
+  # (`BROWSER`), which wins over a device's browser.
+  def all do
+    names = String.split(System.get_env("PROJECTS", "Desktop Chrome"), ",")
+    for name <- names, do: Playwright.Test.parameters(Playwright.device(name))
   end
 end
 
 defmodule Playwright.Guides.TestingWithExUnit.ProjectsTest do
-  use Playwright.Guides.TestingWithExUnit.ProjectsCase,
-    async: true,
-    parameterize: Playwright.Guides.TestingWithExUnit.ProjectsCase.projects()
+  use Playwright.Case, async: true, parameterize: Playwright.Guides.TestingWithExUnit.Projects.all()
 
-  @user_agents %{chromium: "Chrome", firefox: "Firefox", webkit: "Safari"}
+  @chrome Playwright.device("Desktop Chrome")
 
-  test "a page of the project's browser, with its device", %{page: page, browser_name: name} do
-    assert Page.evaluate!(page, "navigator.userAgent") =~ @user_agents[name]
-    assert Page.viewport_size(page) == %{width: 1280, height: 720}
+  setup_all %{browser: browser} do
+    context = Browser.new_context!(browser)
+    on_exit(fn -> BrowserContext.close!(context) end)
+    %{setup_all_page: BrowserContext.new_page!(context)}
   end
 
-  test "Test.step through the template's alias", %{page: page} do
-    assert Test.step("set content", fn -> Page.set_content!(page, "<p>Hi</p>") end) == :ok
+  test "every context of the run has the project's device", %{page: page, browser: browser} = ctx do
+    assert Playwright.BrowserType.name(Browser.browser_type(browser)) == Playwright.TestBrowser.name()
+
+    for page <- [page, ctx.setup_all_page, BrowserContext.new_page!(Browser.new_context!(browser))] do
+      assert Page.evaluate!(page, "navigator.userAgent") == @chrome.user_agent
+      assert Page.viewport_size(page) == %{width: 1280, height: 720}
+    end
+  end
+end
+
+defmodule Playwright.Guides.TestingWithExUnit.ProjectsOptionsTest do
+  # "Projects": the module's `use` options over the project's device, parameters of your own.
+  use Playwright.Case,
+    async: true,
+    parameterize:
+      for(project <- Playwright.Guides.TestingWithExUnit.Projects.all(), do: Map.put(project, :role, :admin)),
+    locale: "de-DE"
+
+  test "the module's options over the device", %{page: page, role: :admin} do
+    assert Page.evaluate!(page, "navigator.language") == "de-DE"
+    assert Page.evaluate!(page, "navigator.userAgent") == Playwright.device("Desktop Chrome").user_agent
+  end
+end
+
+defmodule Playwright.Guides.TestingWithExUnit.DeviceLevelsTest do
+  # "Devices": a describe block's options, a test's, and generated tests.
+  use Playwright.Case, async: true
+
+  defp timezone(page), do: Page.evaluate!(page, "Intl.DateTimeFormat().resolvedOptions().timeZone")
+
+  describe "in Berlin" do
+    @describetag Test.use(timezone_id: "Europe/Berlin", locale: "de-DE")
+
+    test "shows local time", %{page: page} do
+      assert timezone(page) == "Europe/Berlin"
+      assert Page.evaluate!(page, "navigator.language") == "de-DE"
+    end
+  end
+
+  @tag Test.use(color_scheme: :dark, trace: :retain_on_failure)
+  test "is readable in the dark", %{page: page} do
+    assert Page.evaluate!(page, "matchMedia('(prefers-color-scheme: dark)').matches")
+    assert [mode: :retain_on_failure] ++ _ = Playwright.Test.Recorder.registration(self()).trace
+  end
+
+  for name <- ["iPhone 13", "Pixel 7"] do
+    @tag Test.use(Playwright.device(name))
+    test "the menu collapses on #{name}", %{page: page, browser: browser} do
+      device = Playwright.device(unquote(name))
+      assert Page.evaluate!(page, "navigator.userAgent") == device.user_agent
+      assert Page.viewport_size(page) == device.viewport
+      # A tag's device doesn't switch the browser: its `default_browser_type` is ignored.
+      assert Playwright.BrowserType.name(Browser.browser_type(browser)) == Playwright.TestBrowser.name()
+    end
   end
 end
 
@@ -642,13 +672,13 @@ defmodule Playwright.Guides.TestingWithExUnit.OncePerRunTest do
     server = App.start!(dir)
     config = Application.get_env(:playwright, :test)
     on_exit(fn -> Application.put_env(:playwright, :test, config) end)
-    Application.put_env(:playwright, :test, Keyword.put(config, :context_options, base_url: server.prefix))
+    Application.put_env(:playwright, :test, Keyword.put(config, :base_url, server.prefix))
     auth = Path.join(dir, "auth.json")
 
     # Deviation: the browser under test, and the guide's `tmp/auth.json` in a temporary dir.
     {:ok, driver} = Playwright.Supervisor.start_link(name: MyApp.GlobalSetup)
     browser = Playwright.instance(MyApp.GlobalSetup) |> Playwright.TestBrowser.browser_type() |> BrowserType.launch!()
-    context = Browser.new_context!(browser, base_url: Playwright.Test.config().context_options[:base_url])
+    context = Browser.new_context!(browser, base_url: Playwright.Test.config()[:base_url])
     page = BrowserContext.new_page!(context)
     Page.goto!(page, "/login")
     Page.get_by_role(page, :button, name: "Log in") |> Locator.click!()
@@ -656,8 +686,7 @@ defmodule Playwright.Guides.TestingWithExUnit.OncePerRunTest do
     BrowserContext.storage_state!(context, path: auth)
     Supervisor.stop(driver)
 
-    options = [base_url: server.prefix, storage_state: auth]
-    Application.put_env(:playwright, :test, Keyword.put(config, :context_options, options))
+    Application.put_env(:playwright, :test, Keyword.merge(config, base_url: server.prefix, storage_state: auth))
 
     %{browser: BrowserPool.browser(), base_url: server.prefix}
   end
@@ -669,7 +698,7 @@ defmodule Playwright.Guides.TestingWithExUnit.OncePerRunTest do
   end
 
   test "the baseURL and request fixtures", %{browser: browser, base_url: base_url} do
-    assert Playwright.Test.config().context_options[:base_url] == base_url
+    assert Playwright.Test.config()[:base_url] == base_url
     request = APIRequest.new_context!(Playwright.request(BrowserPool.playwright(browser)))
     assert %{"status" => _} = APIResponse.json!(APIRequestContext.get!(request, "/api/exports/1"))
   end
@@ -685,7 +714,7 @@ defmodule Playwright.Guides.TestingWithExUnit.OnExitTest do
   alias Playwright.Page
   alias Playwright.Test.BrowserPool
 
-  @moduletag trace: :on
+  @moduletag Playwright.Test.use(trace: :on)
 
   setup %{test_pid: test_pid} do
     on_exit(fn ->
@@ -730,18 +759,28 @@ defmodule Playwright.Guides.TestingWithExUnit.GroupTest do
 end
 
 defmodule Playwright.Guides.TestingWithExUnit.PhoneTest do
-  # "Devices": the module's context options of a function. Deviation: the browser is `BROWSER`'s.
-  use Playwright.Case, async: true, context_options: &__MODULE__.iphone/1
+  # "Devices": the module's context options of a device. Deviation: the browser is `BROWSER`'s.
+  use Playwright.Case, async: true
+  use Playwright.Test, Playwright.device("iPhone 13")
 
-  def iphone(%{browser: browser}), do: Playwright.devices(BrowserPool.playwright(browser))["iPhone 13"]
+  @iphone Playwright.device("iPhone 13")
 
   test "on a phone", %{page: page, browser: browser} do
     assert Page.viewport_size(page) == %{width: 390, height: 664}
-    assert Page.evaluate!(page, "navigator.userAgent") == iphone(%{browser: browser}).user_agent
+    assert Page.evaluate!(page, "navigator.userAgent") == @iphone.user_agent
 
     page = BrowserContext.new_page!(Browser.new_context!(browser, viewport: %{width: 800, height: 600}))
     assert Page.viewport_size(page) == %{width: 800, height: 600}
-    assert Page.evaluate!(page, "navigator.userAgent") == iphone(%{browser: browser}).user_agent
+    assert Page.evaluate!(page, "navigator.userAgent") == @iphone.user_agent
+  end
+
+  describe "in German" do
+    @describetag Test.use(locale: "de-DE")
+
+    test "the module's device with the describe's locale: the levels merge per option", %{page: page} do
+      assert Page.viewport_size(page) == %{width: 390, height: 664}
+      assert Page.evaluate!(page, "[navigator.language, navigator.userAgent]") == ["de-DE", @iphone.user_agent]
+    end
   end
 end
 

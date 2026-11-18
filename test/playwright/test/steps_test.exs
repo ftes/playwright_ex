@@ -22,12 +22,11 @@ defmodule Playwright.Test.StepsTest do
   alias Playwright.Test.TestInfo
   alias Playwright.Tracing
 
-  @moduletag trace: :on
+  @moduletag Playwright.Test.use(trace: :on)
 
   # The checks of `on_trace/1`, by test pid, in a table of the module's.
   setup_all do
     :ets.new(__MODULE__, [:public, :named_table])
-    BrowserPool.browser()
     :ok
   end
 
@@ -49,6 +48,11 @@ defmodule Playwright.Test.StepsTest do
   end
 
   use Playwright.Test
+
+  setup_all do
+    BrowserPool.browser()
+    :ok
+  end
 
   # `fun` gets the `test.trace` events of the test's `trace.zip`, once its recording finished.
   defp on_trace(fun), do: :ets.insert(__MODULE__, {self(), fun})
@@ -444,7 +448,7 @@ defmodule Playwright.Test.StepsTest do
     end
   end
 
-  @tag screenshot: :on
+  @tag Playwright.Test.use(screenshot: :on)
   test "the recording's own calls are no steps" do
     on_trace(fn events, _files ->
       assert for(e <- api_steps(events), do: e["title"]) == [
@@ -465,7 +469,8 @@ defmodule Playwright.Test.StepsTest do
 
   # Each step updates the title overlay (`show.test`) while route handlers, which the dispatch
   # waits for, report their calls as steps: the overlay's calls must not hold up those reports.
-  @tag video: [mode: :on, show: %{test: %{level: "step"}}], timeout: 10_000
+  @tag Playwright.Test.use(video: [mode: :on, show: %{test: %{level: "step"}}])
+  @tag timeout: 10_000
   test "the title overlay's updates don't block the steps of route handlers" do
     on_trace(fn events, _files ->
       assert after_of(events, before(events, "s300"))
