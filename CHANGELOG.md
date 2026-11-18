@@ -77,6 +77,8 @@ Node 26.13.1. No upstream API changes.
   `BrowserPool.browser/1` calls. Without a `browser_name` (in the config either), a device's
   `default_browser_type` picks the browser, as upstream's `browserName` defaults to
   `defaultBrowserType`.
+- `Playwright.Case` puts `browser_name`, Playwright Test's `browserName` fixture, in the context
+  of `setup_all` and the tests: the module's browser, `:chromium`, `:firefox` or `:webkit`.
 - `action_timeout` and `navigation_timeout` are options of `use Playwright.Test`,
   `Test.use/1` and `Test.parameters/1` too.
 - `Playwright.device/1` and `Playwright.devices/0`, Playwright's device

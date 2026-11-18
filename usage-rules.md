@@ -88,8 +88,8 @@ defmodule MyApp.SignUpTest do
 end
 ```
 
-- `use Playwright.Case` gives the module a `browser` (`setup_all`) and each test a fresh `context` and `page`, and aliases `Browser`, `BrowserContext`, `Expect`, `Keyboard`, `Locator`, `Mouse`, `Page`, `Test` and `Test.BrowserPool`. In a case template, `use Playwright.Case` inside `using` and add your `setup` after it.
-- Upstream's fixtures are functions: `browser` is `BrowserPool.browser/1`, `testInfo` is `Playwright.Test.info/0`. `beforeAll` is `setup_all`.
+- `use Playwright.Case` gives the module a `browser` and its `browser_name` (`:chromium`, `:firefox` or `:webkit`, in `setup_all`'s context and the test's) and each test a fresh `context` and `page`, and aliases `Browser`, `BrowserContext`, `Expect`, `Keyboard`, `Locator`, `Mouse`, `Page`, `Test` and `Test.BrowserPool`. In a case template, `use Playwright.Case` inside `using` and add your `setup` after it.
+- Upstream's fixtures are functions: `browser` is `BrowserPool.browser/1`, `testInfo` is `Playwright.Test.info/0`; `browserName` is `browser_name` in `Playwright.Case`'s context (`%{page: page, browser_name: name}`). `beforeAll` is `setup_all`.
 - `test.use({...})` by level, with the context options as options of their own (`Browser.new_context/2`'s names: `locale`, `viewport`, `color_scheme`, `timezone_id`, `base_url`, `storage_state`, ...), `action_timeout`, `navigation_timeout`, `trace`, `screenshot`, `video` (values known at compile time, never functions):
   - file: `use Playwright.Case, locale: "de-DE", trace: :on` (also `browser_name: :webkit`);
   - `test.describe`: `@describetag Test.use(timezone_id: "Europe/Berlin")`;

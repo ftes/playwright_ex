@@ -42,7 +42,8 @@ alias Playwright.{Browser, BrowserContext, Expect, Keyboard, Locator, Mouse, Pag
 alias Playwright.Test.BrowserPool
 
 setup_all do
-  %{browser: BrowserPool.browser()}
+  browser = BrowserPool.browser()
+  %{browser: browser, browser_name: browser |> Browser.browser_type() |> Playwright.BrowserType.name() |> String.to_existing_atom()}
 end
 
 setup %{browser: browser} do
@@ -430,7 +431,8 @@ As in Playwright Test, the device also picks the browser: without a `browser_nam
 module's `use`, its project or the config, `BrowserPool.browser/1` (so `Playwright.Case`'s
 `browser`) launches the device's `default_browser_type`, WebKit here. A `browser_name` set in
 any of those wins (`use Playwright.Case, browser_name: :chromium`, or
-`config :playwright, :test, browser_name: :chromium`).
+`config :playwright, :test, browser_name: :chromium`). `Playwright.Case` puts the browser's name
+in the context, `%{browser_name: :webkit}` here.
 
 For a describe block, Playwright Test's `test.use` in a `test.describe`, tag it with
 `Playwright.Test.use/1`, which takes the `use` options a describe may set: the context options,
@@ -1010,6 +1012,9 @@ Most of a spec ports call for call. What differs (and see [Not supported](#not-s
   end)`). `expect.poll(fn).toBe(x)` is `Expect.poll!(fn, &assert(&1 == x))`, and a call started
   now and awaited later (`const p = locator.evaluate(...)`) is `Playwright.Promise.async/1`, and
   `Promise.all([...])` is `Playwright.Promise.all/1` of those (see [Concurrency](concurrency.md)).
+- The `browserName` fixture is `browser_name` in `Playwright.Case`'s context (`setup_all`'s
+  and the test's): `test "...", %{page: page, browser_name: name}`, `:chromium`, `:firefox` or
+  `:webkit`.
 - The `baseURL` fixture is `Playwright.Test.info().use[:base_url]`. The `request`
   fixture is a request context of its own, `APIRequest.new_context!(Playwright.request(BrowserPool.playwright(browser)))`,
   which in a test gets the test's context options and is disposed of at its end; it is not
