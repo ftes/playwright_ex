@@ -20,7 +20,7 @@ which is built on this library.
 ```elixir
 def deps do
   [
-    {:playwright, "~> 1.65.0-rc.1", hex: :playwright_ex}
+    {:playwright, "~> 1.65.0-rc.2", hex: :playwright_ex}
   ]
 end
 ```
