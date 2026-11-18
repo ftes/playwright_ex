@@ -85,7 +85,17 @@ Node 26.13.1. No upstream API changes.
 - **RC only:** **Breaking:** the tags `trace`, `screenshot` and `video` no longer set the
   recording modes, and `use Playwright.Test, tags: false` is gone (an unknown option now):
   write `@tag Test.use(trace: :on)` for `@tag trace: :on`, likewise for `@describetag` and
-  `@moduletag`. Only `Test.use/1`'s keys are read, so tags named as options are yours.
+  `@moduletag`. Only `Test.use/1`'s keys are read, so tags named as options are yours. A
+  leftover plain tag is ignored silently, with no error, no warning and no recording: search for
+  them (`rg "@(module|describe)?tag (trace|screenshot|video):"`) and write `@tag
+  Playwright.Test.use(trace: :on)`.
+- **RC only:** **Breaking:** `Playwright.Test.config().context_options` holds only the bag. A
+  context option set as a config key of its own (`config :playwright, :test, base_url: "...",
+  extra_http_headers: ...`) isn't in it: a library that read options from it should read the
+  test's resolved options with `Playwright.Test.info().use`.
+- **RC only:** **Breaking:** a config or `use` `context_options:` keyword still works, but it is
+  upstream's `contextOptions` bag, under every context option given as a key of its own. The
+  upstream-shaped form is flat keys (`config :playwright, :test, locale: "de-DE"`).
 - **RC only:** **Breaking:** `mix playwright.install` forwards its args to `playwright install`
   as they are, without `--`: `mix playwright.install chromium --with-deps`. A `--` now raises,
   naming that fix.
