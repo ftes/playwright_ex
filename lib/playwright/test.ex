@@ -206,10 +206,11 @@ defmodule Playwright.Test do
   the config's, and a module's or a tag's to the project's or the config's, past the module's
   own `use`s and tags, as upstream's `test.use` of `undefined` goes back to the config's.
   `context_options: nil` is the bag of the layer under. A call's own options are no layer: a
-  `nil` there is passed as given, over the layers, as upstream's `newContext({ locale:
-  undefined })` spreads it over the defaults. So `Browser.new_context!(browser, locale: nil)`
-  gets the client's default, not the layers', and `BrowserPool.browser(connect_options: nil)`
-  launches. The config's, the project's and the
+  context option's `nil` there is passed as given, over the layers, as upstream's
+  `newContext({ locale: undefined })` spreads it over the defaults, so
+  `Browser.new_context!(browser, locale: nil)` gets the client's default, not the layers'.
+  `BrowserPool.browser(connect_options: nil)` launches; its `browser_name` and
+  `launch_options` take no `nil`. The config's, the project's and the
   module's reach every context the module creates: a test's, those of its `Task`s, and those of
   `setup_all`, as upstream's `beforeAll` gets the `use` options. A describe's and a test's reach
   the test's contexts only: ExUnit runs `setup_all` without them. The project's options are read

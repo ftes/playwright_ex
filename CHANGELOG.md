@@ -58,7 +58,8 @@ Node 26.13.1. No upstream API changes.
   locale: "de-DE"`, over the config's per option, under the call's, for every context of the
   module, its `setup_all`'s included (#257). Any option a layer (config, project, module
   `use`, tags) gives as `nil` resets it to the layer under (the project's, the config's or the
-  default), as upstream's `undefined`; a call's own `nil` is passed as given.
+  default), as upstream's `undefined`; a call's own `nil` of a context option or
+  `connect_options` is passed as given.
   `context_options:` is upstream's `contextOptions`, for the other options of `new_context`,
   under an option of its own. The config takes both too (`config :playwright, :test, base_url: "..."`).
 - `Playwright.Test.use/1` gives a describe block or a test its options, as
