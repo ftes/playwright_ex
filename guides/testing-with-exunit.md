@@ -42,7 +42,8 @@ alias Playwright.{Browser, BrowserContext, Expect, Keyboard, Locator, Mouse, Pag
 alias Playwright.Test.BrowserPool
 
 setup_all do
-  %{browser: BrowserPool.browser()}
+  browser = BrowserPool.browser()
+  %{browser: browser, browser_name: browser |> Browser.browser_type() |> Playwright.BrowserType.name() |> String.to_existing_atom()}
 end
 
 setup %{browser: browser} do
@@ -100,6 +101,14 @@ example of each level. `context_options` is Playwright Test's `contextOptions`, 
 option of `new_context` (`record_har`, `strict_selectors`): one option, so the highest level
 that sets it replaces the others' as a whole, and it is under every option of its own
 (`locale: "de-DE"` wins over `context_options: [locale: "fr-FR"]`, whichever level sets each).
+
+Any option a layer (the config, a project, the module's `use`, a tag) gives as `nil` is unset
+there, as Playwright Test's `undefined`: the layer under gives it, in the end the default. A
+`nil` in the module's `use` or in a tag goes to the project's or the config's, past the
+module's own options (`context_options: nil` to their bag). A call's own options are no layer:
+`Browser.new_context!(browser, locale: nil)` passes the `nil` as given, so the client's default
+applies, as `newContext({ locale: undefined })` does, and `BrowserPool.browser(connect_options:
+nil)` launches.
 
 A library that passes options in a call merges into the test's resolved ones,
 `Playwright.Test.info().use`, as the call's replace them as a whole (`extra_http_headers` too):
@@ -170,6 +179,20 @@ defmodule MyApp.BrowserCase do
         :ok
       end
     end
+  end
+end
+```
+
+If the template sets options itself (it has several `use`s), the later `use` wins per option, so
+its own `use Playwright.Test, ...` lines come before the forwarded options, which go last. Else the
+template's options (a device's viewport, say) override the test module's, the reverse of Playwright
+Test, where the file's `test.use` beats the project's device:
+
+```elixir
+using opts do
+  quote do
+    use Playwright.Test, Playwright.device("iPhone 13")
+    use Playwright.Case, unquote(opts)
   end
 end
 ```
@@ -411,7 +434,8 @@ As in Playwright Test, the device also picks the browser: without a `browser_nam
 module's `use`, its project or the config, `BrowserPool.browser/1` (so `Playwright.Case`'s
 `browser`) launches the device's `default_browser_type`, WebKit here. A `browser_name` set in
 any of those wins (`use Playwright.Case, browser_name: :chromium`, or
-`config :playwright, :test, browser_name: :chromium`).
+`config :playwright, :test, browser_name: :chromium`). `Playwright.Case` puts the browser's name
+in the context, `%{browser_name: :webkit}` here.
 
 For a describe block, Playwright Test's `test.use` in a `test.describe`, tag it with
 `Playwright.Test.use/1`, which takes the `use` options a describe may set: the context options,
@@ -454,15 +478,17 @@ browser is the worker's, as in Playwright Test, where a describe with another on
 worker. So `browser_name` is an option of the module's `use` and of a project, and
 `Test.use(browser_name: _)` raises; nor does a tag's device switch the browser.
 
-For the whole suite, the device's options go in the config. `config/config.exs` and
+For the whole suite (one project), the device goes in the config, the bottom layer, as Playwright
+Test's config-level project. `config/config.exs` and
 `config/test.exs` are evaluated before the dependencies are compiled, so `Playwright.device/1`
 can't be called there: write the options out, or set them in `config/runtime.exs`, which runs
-after the compilation (the runner reads the config at run time):
+after the compilation (the runner reads the config at run time). Guard it with `config_env()`: the
+dependency is `only: [:dev, :test]`, so `Playwright.device/1` fails in every other env:
 
 ```elixir
 # config/runtime.exs
 if config_env() == :test do
-  config :playwright, :test, Playwright.device("iPhone 13")
+  config :playwright, :test, Playwright.device("Desktop Chrome")
 end
 ```
 
@@ -989,6 +1015,9 @@ Most of a spec ports call for call. What differs (and see [Not supported](#not-s
   end)`). `expect.poll(fn).toBe(x)` is `Expect.poll!(fn, &assert(&1 == x))`, and a call started
   now and awaited later (`const p = locator.evaluate(...)`) is `Playwright.Promise.async/1`, and
   `Promise.all([...])` is `Playwright.Promise.all/1` of those (see [Concurrency](concurrency.md)).
+- The `browserName` fixture is `browser_name` in `Playwright.Case`'s context (`setup_all`'s
+  and the test's): `test "...", %{page: page, browser_name: name}`, `:chromium`, `:firefox` or
+  `:webkit`.
 - The `baseURL` fixture is `Playwright.Test.info().use[:base_url]`. The `request`
   fixture is a request context of its own, `APIRequest.new_context!(Playwright.request(BrowserPool.playwright(browser)))`,
   which in a test gets the test's context options and is disposed of at its end; it is not

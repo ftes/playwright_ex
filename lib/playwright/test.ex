@@ -128,6 +128,8 @@ defmodule Playwright.Test do
   modes are worker-scoped options there), with the values the config takes; an unknown option or
   an invalid value raises at compile time. A module's `use`s merge per key, the later winning
   (see "Context defaults").
+  A template's own `use Playwright.Test, ...` lines go before the forwarded options, which win per
+  option, as a test file's `test.use` beats a project's device.
   ExUnit.Case's keys (`:async`, ...) are ignored, so a template forwards its options from `using
   opts` as is: `use Playwright.Test, unquote(opts)`, as `Playwright.Case` does. A template
   with options of its own pops them first (`{sandbox, opts} = Keyword.pop(opts, :sandbox)`),
@@ -192,8 +194,9 @@ defmodule Playwright.Test do
   are no option of their own (`record_har`, `strict_selectors`). It is one option, as upstream's
   one fixture: the highest level that sets it replaces the others' as a whole. And it is under
   every option of its own, whatever level sets either, as upstream's fixture of an option reads
-  `contextOptions` only when no level sets the option. `context_options: nil` raises, as
-  `Playwright.devices()["typo"]` gives (`Playwright.device/1` raises for an unknown name).
+  `contextOptions` only when no level sets the option. `context_options: nil` falls back as any
+  option's `nil` (below), so does a misspelled `Playwright.devices()["typo"]`, silently: use
+  `Playwright.device/1`, which raises for an unknown name.
 
   Below the module, `use/1` gives the options to ExUnit as a tag, for a describe block
   (`@describetag Test.use(locale: "de-DE")`, upstream's `test.use` in a `test.describe`) or a
@@ -202,13 +205,17 @@ defmodule Playwright.Test do
 
   The layers, each over the one before per option: Playwright Test's defaults, the config's,
   the project's, the module's (`use`, then `@moduletag`), the describe's, the test's, then the
-  call's own. An option the call gives as `nil` keeps the client's default. A layer's `nil`, as
-  upstream's `undefined` option override, falls back to the layer under it for a context option
-  (the config's to `context_options`, then Playwright Test's default; a module's or a tag's to
-  the project's or the config's, past the earlier ones of its layer), for `connect_options` and
-  for `default_browser_type`, which exist only at the project and module layers (`use/1` rejects
-  the worker keys, and ignores a describe's or a test's `default_browser_type`). For `browser_name`, `launch_options`, `context_options`, the
-  timeouts, `trace`, `screenshot` and `video`, `nil` raises. The config's, the project's and the
+  call's own. Any option a layer (the config, a project, the module's `use`, a tag) gives as
+  `nil` is unset there, as upstream's `undefined` option override, so the layer under it gives
+  it, in the end the default: the config's `nil` falls back to the default, the project's to
+  the config's, and a module's or a tag's to the project's or the config's, past the module's
+  own `use`s and tags, as upstream's `test.use` of `undefined` goes back to the config's.
+  `context_options: nil` is the bag of the layer under. A call's own options are no layer: a
+  context option's `nil` there is passed as given, over the layers, as upstream's
+  `newContext({ locale: undefined })` spreads it over the defaults, so
+  `Browser.new_context!(browser, locale: nil)` gets the client's default, not the layers'.
+  `BrowserPool.browser(connect_options: nil)` launches; its `browser_name` and
+  `launch_options` take no `nil`. The config's, the project's and the
   module's reach every context the module creates: a test's, those of its `Task`s, and those of
   `setup_all`, as upstream's `beforeAll` gets the `use` options. A describe's and a test's reach
   the test's contexts only: ExUnit runs `setup_all` without them. The project's options are read
@@ -1013,11 +1020,10 @@ defmodule Playwright.Test do
   `:"playwright.use.context.locale"`), so ExUnit, which merges a test's `@moduletag`,
   `@describetag` and `@tag` per key, layers them per option, the test's over the describe's
   over the module's: a describe's `timezone_id` and a test's `trace` both apply, as do several
-  calls on one test, and a context option given as `nil` resets it to the project's, the
-  config's or the default. A plain tag named like an option (`@tag trace: :on`) sets nothing.
+  calls on one test, and an option given as `nil` resets it to the project's, the config's or
+  the default. A plain tag named like an option (`@tag trace: :on`) sets nothing.
 
-  An unknown option, an invalid value or `context_options: nil` raises `ArgumentError`, when the
-  test module compiles. So
+  An unknown option or an invalid value raises `ArgumentError`, when the test module compiles. So
   do `browser_name`, `launch_options` and `connect_options`: they are the worker's, as upstream's,
   where a describe with another one starts a new worker. They are options of the module's `use`
   and of `parameters/1`. For a

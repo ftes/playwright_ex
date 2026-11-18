@@ -1,9 +1,13 @@
 defmodule Playwright.Case do
   @moduledoc """
   A case template with Playwright Test's default fixtures: the module holds a `browser`
-  (`Playwright.Test.BrowserPool.browser/1` in `setup_all`, upstream's worker for the file), and
-  each test gets a `context` of it and a `page`, recorded as the `:test` config and the test's
-  tags say (see `Playwright.Test`).
+  (`Playwright.Test.BrowserPool.browser/1` in `setup_all`, upstream's worker for the file) and
+  its `browser_name` (upstream's `browserName`, the name the browser was launched with:
+  `:chromium`, `:firefox` or `:webkit`; it replaces a parameter of that name), for the module's
+  `setup_all` and its tests, and each test gets a `context` of it and a `page`, recorded as the
+  `:test` config and the test's tags say (see `Playwright.Test`). A plain tag of that name
+  (`@tag browser_name: _`, `@moduletag`) would replace it in the test's context, as ExUnit
+  merges tags over it: don't name your own tags `browser_name`.
 
       defmodule MyApp.SignUpTest do
         use Playwright.Case, async: true
@@ -75,6 +79,7 @@ defmodule Playwright.Case do
   alias Playwright.Browser
   alias Playwright.BrowserContext
   alias Playwright.Test.BrowserPool
+  alias Playwright.Test.Recorder
 
   using opts do
     quote do
@@ -86,7 +91,8 @@ defmodule Playwright.Case do
   end
 
   setup_all do
-    %{browser: BrowserPool.browser()}
+    # The module's resolved `browser_name`, which `browser/0` launches.
+    %{browser: BrowserPool.browser(), browser_name: Recorder.worker_options()[:browser_name]}
   end
 
   setup %{browser: browser} do

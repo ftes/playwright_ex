@@ -32,6 +32,14 @@ defmodule Playwright.Test.ContextOptionsTest do
     assert dark?(page)
   end
 
+  # A call is no layer: its `nil` is passed as given, as upstream's `newContext({ colorScheme:
+  # undefined })` spreads it over the defaults, so the client's default applies.
+  test "a call's nil option is passed as given, over the module's", %{browser: browser} do
+    page = BrowserContext.new_page!(Browser.new_context!(browser, color_scheme: nil))
+    refute dark?(page)
+    assert language(page) == "de-DE"
+  end
+
   test "a context a Task of the test creates gets them", %{browser: browser} do
     page = BrowserContext.new_page!(Task.await(Task.async(fn -> Browser.new_context!(browser) end)))
     assert language(page) == "de-DE"
@@ -72,13 +80,6 @@ defmodule Playwright.Test.ContextOptionsTest do
       compile("Invalid", "use Playwright.Test, context_options: :dark")
     end
 
-    # A misspelled device.
-    assert_raise ArgumentError,
-                 ~r/invalid context_options: nil, .*Playwright.devices\(\)\[name\] of a name it doesn't have/,
-                 fn ->
-                   compile("Nil", "use Playwright.Case, context_options: Playwright.devices()[\"iPhone13\"]")
-                 end
-
     assert_raise ArgumentError, ~r/invalid context_options: \{Mod, :fun\}, expected a keyword list/, fn ->
       compile("Tuple", "use Playwright.Test, context_options: {Mod, :fun}")
     end
@@ -103,8 +104,6 @@ defmodule Playwright.Test.ContextOptionsTest do
 
     for {message, options} <- [
           {~r/Playwright.Test.(use|parameters): .*lokale/, ~s(context_options: [lokale: "de-DE"])},
-          {~r/invalid context_options: nil, .*Playwright.devices\(\)\[name\] of a name it doesn't have/,
-           ~s|context_options: Playwright.devices()["iPhone13"]|},
           {~r/unknown options \[:lokale\] for Playwright.Test.(use|parameters)/, ~s(lokale: "de-DE")},
           {~r/invalid trace: :sometimes/, "trace: :sometimes"},
           {~r/duplicated option :trace/, "trace: :on, trace: :off"}
@@ -139,7 +138,6 @@ defmodule Playwright.Test.ContextOptionsTest do
       {"viewport: %{wide: 1}", "wide"},
       {"video: :sometimes", "invalid video: :sometimes"},
       {"action_timeout: -1", "invalid action_timeout: -1"},
-      {"context_options: nil", "invalid context_options: nil"},
       {"lokale: 1", "unknown options [:lokale] for"}
     ]
 
@@ -236,16 +234,16 @@ defmodule Playwright.Test.ContextOptionsTest do
     # is the option's, and reads `contextOptions` only when no level sets it.
     parameters = Playwright.Test.parameters(locale: "de-DE", context_options: [locale: "fr-FR", offline: true])
     module = Options.use_options(context_options: [locale: "es-ES", has_touch: true])
-    layers = %{project: Options.used(parameters), module: module}
+    layers = Options.layers(parameters, module, %{})
     options = Options.context_options(config, layers)
     assert %{locale: "de-DE", hasTouch: true, timezoneId: "Europe/Rome"} = options
     # `context_options` is one option: the highest level's replaces the others as a whole.
     assert %{offline: false, colorScheme: "light"} = options
 
     # A `nil` option falls back to the level under it, then to `context_options`.
-    layers = %{layers | module: Options.use_options(locale: nil, context_options: [locale: "es-ES"])}
+    layers = Options.layers(parameters, Options.use_options(locale: nil, context_options: [locale: "es-ES"]), %{})
     assert %{locale: "de-DE"} = Options.context_options(config, layers)
-    layers = %{project: %{}, module: Options.use_options(locale: nil, context_options: [locale: "es-ES"])}
+    layers = Options.layers(%{}, Options.use_options(locale: nil, context_options: [locale: "es-ES"]), %{})
     assert %{locale: "es-ES"} = Options.context_options(config, layers)
   end
 
@@ -286,10 +284,12 @@ defmodule Playwright.Test.ContextOptionsTest do
     assert %{locale: "en-US"} = Options.context_options(%{context_options: []}, layers)
     # A later option over the reset.
     assert %{colorScheme: "dark", locale: "it-IT"} = resolve(__MODULE__.NilThenOption)
-    # The config's nil falls back to Playwright Test's default, the project's to the config's.
-    assert %{locale: "en-US"} = Options.context_options(%{locale: nil})
-    project = %{context: %{locale: nil, colorScheme: "dark"}}
-    assert %{locale: "de-DE", colorScheme: "dark"} = Options.context_options(config, %{project: project, module: %{}})
+    # The project's nil falls back to the config's.
+    project = Options.layers(Playwright.Test.parameters(locale: nil, color_scheme: :dark), %{}, %{})
+    assert %{locale: "de-DE", colorScheme: "dark"} = Options.context_options(config, project)
+    # A tag's to the config's, past the module's.
+    tag = Options.layers(%{}, Options.use_options(locale: "fr-FR"), Map.new(Playwright.Test.use(locale: nil)))
+    assert %{locale: "de-DE"} = Options.context_options(config, tag)
   end
 
   test "the layers: the parameters' options are the project, the tags' over the module's use" do

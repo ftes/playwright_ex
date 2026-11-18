@@ -15,8 +15,44 @@ defmodule Playwright.CaseTest.Extended do
   end
 end
 
+defmodule Playwright.CaseTest.NoConfiguredBrowser do
+  # A template without the config's `browser_name` for its module's run, so the module's `use`
+  # or device picks the browser. Its own `setup_all` runs before `Playwright.Case`'s registers
+  # the module. For sync modules: it changes the config.
+  use ExUnit.CaseTemplate
+
+  setup_all do
+    env = Application.fetch_env(:playwright, :test)
+
+    on_exit(fn ->
+      case env do
+        {:ok, env} -> Application.put_env(:playwright, :test, env)
+        :error -> Application.delete_env(:playwright, :test)
+      end
+    end)
+
+    Application.put_env(:playwright, :test, Keyword.delete(Application.get_env(:playwright, :test, []), :browser_name))
+  end
+
+  using opts do
+    quote do
+      use Playwright.Case, unquote(opts)
+    end
+  end
+end
+
 defmodule Playwright.CaseTest do
   use Playwright.Case, async: true
+
+  setup_all %{browser_name: browser_name} do
+    %{setup_all_browser_name: browser_name}
+  end
+
+  test "the module's browser_name, in setup_all and the test", ctx do
+    assert ctx.browser_name == String.to_existing_atom(Playwright.TestBrowser.name())
+    assert Atom.to_string(ctx.browser_name) == ctx.browser |> Browser.browser_type() |> Playwright.BrowserType.name()
+    assert ctx.setup_all_browser_name == ctx.browser_name
+  end
 
   test "a test gets a context of the module's browser and a page of it, recorded", ctx do
     %{browser: browser, context: context, page: page} = ctx
@@ -40,5 +76,61 @@ defmodule Playwright.CaseTest.ExtendedTest do
 
   test "a template's setup after the page's", %{page: page} do
     Page.get_by_role(page, :heading) |> Expect.to_have_text!("Extended")
+  end
+end
+
+defmodule Playwright.CaseTest.BrowserNameParameterTest do
+  # A parameter of the same name is replaced by the module's browser_name.
+  use Playwright.Case,
+    async: true,
+    parameterize: [Map.put(Playwright.Test.parameters([]), :browser_name, "the parameter's")]
+
+  test "the module's browser_name over a parameter's", %{browser_name: browser_name} do
+    assert browser_name == String.to_existing_atom(Playwright.TestBrowser.name())
+  end
+end
+
+defmodule Playwright.CaseTest.BrowserNameUseTest do
+  # Without the config's `browser_name`, so the `use` option picks WebKit. Launches WebKit: run
+  # when it is the browser under test (CI installs one browser).
+  use Playwright.CaseTest.NoConfiguredBrowser, async: false, browser_name: :webkit
+
+  @moduletag skip: if(Playwright.TestBrowser.name() != "webkit", do: "needs WebKit")
+
+  setup_all %{browser_name: browser_name} do
+    %{setup_all_browser_name: browser_name}
+  end
+
+  test "the module's use option", ctx do
+    refute Keyword.has_key?(Application.get_env(:playwright, :test), :browser_name)
+    assert ctx.browser_name == :webkit
+    assert ctx.setup_all_browser_name == :webkit
+  end
+end
+
+defmodule Playwright.CaseTest.BrowserNameDefaultTest do
+  # Without a browser_name or device anywhere: Chromium. Run when it is the browser under test.
+  use Playwright.CaseTest.NoConfiguredBrowser, async: false
+
+  @moduletag skip: if(Playwright.TestBrowser.name() != "chromium", do: "needs Chromium")
+
+  test "chromium by default", %{browser_name: browser_name} do
+    refute Keyword.has_key?(Application.get_env(:playwright, :test), :browser_name)
+    assert browser_name == :chromium
+  end
+end
+
+defmodule Playwright.CaseTest.BrowserNameDeviceTest do
+  # A device project without a browser_name (in the config either) picks the browser. Launches
+  # Firefox: run when it is the browser under test.
+  use Playwright.CaseTest.NoConfiguredBrowser,
+    async: false,
+    parameterize: [Playwright.Test.parameters(Playwright.device("Desktop Firefox"))]
+
+  @moduletag skip: if(Playwright.TestBrowser.name() != "firefox", do: "needs Firefox")
+
+  test "the device's default_browser_type", %{browser_name: browser_name} do
+    refute Keyword.has_key?(Application.get_env(:playwright, :test), :browser_name)
+    assert browser_name == :firefox
   end
 end
