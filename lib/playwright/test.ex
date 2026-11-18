@@ -199,10 +199,12 @@ defmodule Playwright.Test do
 
   The layers, each over the one before per option: Playwright Test's defaults, the config's,
   the project's, the module's (`use`, then `@moduletag`), the describe's, the test's, then the
-  call's own. An option the call gives as `nil` keeps the client's default; one a layer gives as
-  `nil` falls back to the layer under it (the config's to `context_options`, then Playwright
-  Test's default; a module's or a tag's to the project's or the config's, past the earlier ones
-  of its layer), as upstream's `undefined` option override. The config's, the project's and the
+  call's own. An option the call gives as `nil` keeps the client's default; a context option a
+  layer gives as `nil` falls back to the layer under it (the config's to `context_options`, then
+  Playwright Test's default; a module's or a tag's to the project's or the config's, past the
+  earlier ones of its layer), as upstream's `undefined` option override, and so does
+  `connect_options` of a project or a module. The other options take a value: `nil` raises for
+  them (`launch_options`, the timeouts, `trace`, `screenshot`, `video`). The config's, the project's and the
   module's reach every context the module creates: a test's, those of its `Task`s, and those of
   `setup_all`, as upstream's `beforeAll` gets the `use` options. A describe's and a test's reach
   the test's contexts only: ExUnit runs `setup_all` without them. The project's options are read
@@ -680,21 +682,23 @@ defmodule Playwright.Test do
   end
 
   # Raises `message.(what, consequence)` if `pid` created a context (`context`, the context's
-  # consequence) or called `BrowserPool.browser/1` before its registration
+  # consequence) or called `BrowserPool.browser/1`, or both, before its registration
   # (`Playwright.Test.Results.note_unregistered/2`).
   defp check_registered!(pid, message, context) do
+    browser = "the browser got none of the module's worker options (browser_name, launch_options, connect_options)"
+
     case :ets.take(Results.table(), {:unregistered, pid}) do
-      [{_key, :context}] ->
+      [{_key, true, true}] ->
+        raise ArgumentError,
+              message.("called BrowserPool.browser/1 and created a context", "#{browser}, and #{context}")
+
+      [{_key, true, false}] ->
         raise ArgumentError, message.("created a context", context)
 
-      [{_key, :browser}] ->
-        raise ArgumentError,
-              message.(
-                "called BrowserPool.browser/1",
-                "the browser got none of the module's worker options (browser_name, launch_options, connect_options)"
-              )
+      [{_key, false, true}] ->
+        raise ArgumentError, message.("called BrowserPool.browser/1", browser)
 
-      [] ->
+      _none ->
         :ok
     end
   end

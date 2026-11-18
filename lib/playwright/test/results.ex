@@ -108,10 +108,13 @@ defmodule Playwright.Test.Results do
 
   @doc """
   Notes `pid` as a process that, before it was registered, created a context (`what`
-  `:context`) or called `BrowserPool.browser/1` (`:browser`), the first of them, until it exits.
+  `:context`) or called `BrowserPool.browser/1` (`:browser`), until it exits: a row
+  `{{:unregistered, pid}, context?, browser?}`, each kind set on its own, so both are kept.
   """
   def note_unregistered(pid, what) do
-    if :ets.insert_new(table(), {{:unregistered, pid}, what}), do: GenServer.cast(Pool, {:monitor, pid})
+    key = {:unregistered, pid}
+    if :ets.insert_new(table(), {key, false, false}), do: GenServer.cast(Pool, {:monitor, pid})
+    :ets.update_element(table(), key, {if(what == :context, do: 2, else: 3), true})
     :ok
   end
 

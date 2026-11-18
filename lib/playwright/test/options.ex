@@ -404,9 +404,10 @@ defmodule Playwright.Test.Options do
   @doc """
   The worker options of a module's run, over the config's, for its `BrowserPool.browser/1`
   calls: `browser_name/3`, and the `launch_options` (the module's, else the project's, as a whole)
-  and `connect_options` of the module's `use_options` or its `project`. A `nil` one falls back to
-  the level under it, as upstream's `undefined` one (`mergeObjects` skips it in a project's `use`,
-  and a `test.use` of it restores the config's).
+  and `connect_options` of the module's `use_options` or its `project`. A `nil` `connect_options`
+  falls back to the level under it, as upstream's `undefined` one (`mergeObjects` skips it in a
+  project's `use`, and a `test.use` of it restores the config's); `launch_options` takes a value,
+  `nil` raises (`use_options/1`).
   """
   def worker(config \\ config(), project \\ %{}, use_options \\ %{}) do
     keys = @worker_keys -- [:browser_name]

@@ -373,6 +373,15 @@ defmodule Playwright.Test.RegistrationTest.LateTest do
     assert Playwright.Test.Results.scope(self()) == nil
   end
 
+  test "a browser and a context before the registration: the error names both" do
+    Playwright.Browser.new_context!(Playwright.Test.BrowserPool.browser())
+
+    message = assert_raise(ArgumentError, fn -> Playwright.Test.__setup__(%{test_pid: self()}) end).message
+    assert message =~ "this test called BrowserPool.browser/1 and created a context before `use Playwright.Test`"
+    assert message =~ "none of the module's worker options"
+    assert message =~ "and the context has no defaults and no recording"
+  end
+
   # A process that never registers: its browser has the config's options, and nothing raises.
   test "a browser of a test without `use Playwright.Test` is the config's" do
     browser = Playwright.Test.BrowserPool.browser()
