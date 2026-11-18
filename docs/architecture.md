@@ -326,7 +326,7 @@ module, not put in the context) and ExUnit tags; the rest are arguments.
 | `test.use({ trace, screenshot, video })` (worker-scoped, file level) | `use Playwright.Test, trace: _` over the project's over config, `Playwright.Test.use/1` in `@moduletag`/`@describetag`/`@tag` over it (tags named `trace`, ... are not read) |
 | `testIdAttribute` (per test) | config `test_id_attribute`, set on each pooled driver: the client's value is global to the VM, not to a worker |
 | `--trace <mode>` | `TRACE` read in `config/test.exs` |
-| `test.info()` | `info/0` (`test_pid`, `file`, `test_name`, `output_dir`, `retry`, `timeout`), raises outside a test |
+| `test.info()` | `info/0` (`test_pid`, `file`, `test_name`, `output_dir`, `retry`, `timeout`), raises outside a test or its module's `setup_all` |
 | `test.info()` in `beforeAll` (the first test's `testInfo`) | `info/0` in `setup_all`: the module's `file`, `timeout` and `use` (config, project, module), no test fields (ExUnit runs `setup_all` before any test); `in_registered_scope?/0` |
 | `testInfo.status`, `errors`, `expectedStatus`, `duration` in teardown | `info(test_pid)` in `on_exit` (another process), kept until ExUnit's `on_exit` process exits |
 | `testInfo.outputDir` removed before the test, `-retryN`, `preserveOutput` | removed in the test's setup; a test under `mix test --failed` is a retry (the one after its `-retryN` dirs); a run without it removes the test's `-retryN` dirs, not all of `output_dir` (`createRemoveOutputDirsTask`), which `--failed` needs; config `preserve_output` |

@@ -882,13 +882,19 @@ resolved from the config, the project and the module, as its `setup_all` context
 describe's or a test's never reach `setup_all`). The test's fields (`test_pid`, `test_name`,
 `output_dir`, `retry`, `deadline`, `close_deadline`) are absent there, and `output_path/1`,
 `snapshot_path/2`, `attach/2` and `step/2,3` raise. Playwright Test runs `beforeAll` with the
-first test's `testInfo`; ExUnit runs `setup_all` before any test.
+first test's `testInfo`; ExUnit runs `setup_all` before any test. A `setup_all` that runs before
+`use Playwright.Test` (a case template's own, or one above the module's `use`) isn't registered
+yet, and a process or handler that `setup_all` started gets the module's fields also during a
+test.
 
-Elsewhere `info/0` raises. `Playwright.Test.in_registered_test?/0` tells whether a test is
-running, `Playwright.Test.in_registered_scope?/0` whether `info/0` works (a test or a
-`setup_all`). A library that also runs outside them reads the config there: `if
+Elsewhere `info/0` raises, also in `on_exit` callbacks. `Playwright.Test.in_registered_test?/0`
+tells whether a test is running, `Playwright.Test.in_registered_scope?/0` whether `info/0` works
+(a test or a `setup_all`). A library that also runs outside them reads the config there: `if
 Playwright.Test.in_registered_scope?(), do: Playwright.Test.info().use, else:
-Playwright.Test.config()`.
+Playwright.Test.config()`. The config is another shape: only the context options it sets as keys
+of their own (no Playwright Test defaults, not those only in its `context_options` bag), plus
+config-only keys (`workers`, `output_dir`, ...). So read the keys both have by name (`base_url`,
+`action_timeout`, `trace`, ...), with `nil` for unset.
 
 ## Polling and waiting
 

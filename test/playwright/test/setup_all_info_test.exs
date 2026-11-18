@@ -89,7 +89,7 @@ defmodule Playwright.Test.SetupAllInfoTest do
     # Playwright Test's defaults, a mode and the worker's.
     assert info.use.viewport == %{width: 1280, height: 720}
     assert info.use.trace == Test.config().trace
-    assert info.use.browser_name == Test.info().use.browser_name
+    assert info.use.browser_name == String.to_existing_atom(Playwright.TestBrowser.name())
   end
 
   test "info: in a Task of setup_all, the same", %{setup_all: setup_all} do
@@ -113,10 +113,35 @@ defmodule Playwright.Test.SetupAllInfoTest do
   end
 
   test "the test's own functions raise in setup_all", %{setup_all: setup_all} do
-    assert setup_all.output_path == "Playwright.Test.output_path/1 can only be called while a test is running"
-    assert setup_all.snapshot_path == "Playwright.Test.snapshot_path/2 can only be called while a test is running"
+    assert "Playwright.Test.output_path/1 can only be called while a test is running: in a test of a module" <> _ =
+             setup_all.output_path
+
+    assert "Playwright.Test.snapshot_path/2 can only be called while a test is running: in a test of a module" <> _ =
+             setup_all.snapshot_path
+
     assert setup_all.attach == "Playwright.Test.attach/2 can only be called while a test is running"
     assert setup_all.step == "test.step() can only be called from a test"
+  end
+
+  # A module's scope ends with its `setup_all` process (its `on_exit` callbacks run after), not
+  # when the pool's `DOWN` deletes its row.
+  test "in_registered_scope?: not for a setup_all process that exited, its row still there" do
+    pid = spawn(fn -> :ok end)
+    ref = Process.monitor(pid)
+    assert_receive {:DOWN, ^ref, :process, ^pid, _reason}
+    :ets.insert(Playwright.Test.Results.table(), {{:module, pid}, %{}})
+
+    try do
+      task =
+        Task.async(fn ->
+          Process.put(:"$callers", [pid])
+          Test.in_registered_scope?()
+        end)
+
+      refute Task.await(task)
+    after
+      :ets.delete(Playwright.Test.Results.table(), {:module, pid})
+    end
   end
 
   test "in_registered_scope?: in the test and its Tasks, not in other processes" do

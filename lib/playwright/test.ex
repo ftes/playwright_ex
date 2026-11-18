@@ -255,11 +255,15 @@ defmodule Playwright.Test do
   `timeout:` the `action_timeout` (`0`, no limit, for `:infinity`) and no navigation timeout. Not
   the video, as upstream's comes with the `context` fixture.
 
-  `info/0` there returns the module's `file`, `timeout` and `use`: the options its contexts get,
-  as resolved for a test of the module without tags (`Playwright.Case` reads the `browser_name`
-  from it). A library that also runs outside these scopes reads the config there:
-  `if Playwright.Test.in_registered_scope?(), do: Playwright.Test.info().use, else:
-  Playwright.Test.config()`.
+  `info/0` there returns the module's `file`, `timeout` and `use`: the module's options as
+  resolved for a test of it without tags, so its contexts' context options and timeouts, and
+  the worker options (`Playwright.Case` reads the `browser_name` from it); the recording modes
+  too, which no `setup_all` context records. A library that also runs outside these scopes reads
+  the config there: `if Playwright.Test.in_registered_scope?(), do: Playwright.Test.info().use,
+  else: Playwright.Test.config()`. The two differ in shape: `config/0` is the config alone, with
+  the context options set as keys of their own (none of Playwright Test's defaults, nor those only
+  in its `context_options` bag) and its config-only keys (`workers`, `output_dir`, ...). Read the
+  keys both have by name (`base_url`, `action_timeout`, `trace`, ...), with `nil` for unset.
 
   Only processes with `$callers` count: a `Task`, the client's callback processes (route
   handlers, listeners, exposed bindings registered in `setup_all` carry its `$callers`, see
@@ -806,9 +810,12 @@ defmodule Playwright.Test do
     }
   end
 
-  # The module's source file, absolute, as a test's `file` (`nil` for a `setup_all` run by hand).
-  defp module_file(nil), do: nil
-  defp module_file(module), do: List.to_string(module.__info__(:compile)[:source])
+  # The module's file, absolute, as a test's `file` (the `__ENV__.file` ExUnit gives both; the
+  # compile info's `:source` is absent under `ERL_COMPILER_OPTIONS=deterministic`), or `nil` for a
+  # `setup_all` run by hand.
+  defp module_file(module) do
+    if module && function_exported?(module, :__ex_unit__, 0), do: module.__ex_unit__().file
+  end
 
   # The merged options of a module's `use Playwright.Test` (`__before_compile__/1`).
   defp use_options(module) do
@@ -912,15 +919,20 @@ defmodule Playwright.Test do
 
   In the module's `setup_all` (and processes with it in `$callers`), it returns the fields that
   apply to the module, with the same meaning: `file`, `timeout` (ExUnit's timeout of the module,
-  which bounds its `setup_all` callbacks, see "Timeouts" in the moduledoc) and `use`, the
-  module's options as resolved from the config, its project and the module itself (its `use` and
-  `@moduletag`), which its `setup_all` contexts get: a describe's and a test's options never
-  reach `setup_all`. The test's fields (`test_pid`, `test_name`, `output_dir`, `retry`,
+  `@moduletag timeout:` or ExUnit's, the one "Timeouts" in the moduledoc applies to its
+  `setup_all` callbacks) and `use`, the module's options as resolved from the config, its
+  project and the module itself (its `use` and `@moduletag`): a describe's and a test's options
+  never reach `setup_all`. The test's fields (`test_pid`, `test_name`, `output_dir`, `retry`,
   `deadline`, `close_deadline`) are absent. A deviation: upstream runs `beforeAll` hooks with the
-  first test's `testInfo`, which ExUnit's `setup_all`, run before any test, has none of.
+  first test's `testInfo`, which ExUnit's `setup_all`, run before any test, has none of. A
+  `setup_all` that runs before `use Playwright.Test` registers the module (a case template's
+  own, or one above the module's `use`) gets none: there it raises. Deviation: a long-lived
+  process or handler of `setup_all`'s (with it in `$callers`) gets the module's fields during a
+  test too, as its contexts get the module's defaults (see "Contexts of `setup_all`"), where
+  upstream's `test.info()` is the current test's.
 
   Raises elsewhere (see `in_registered_scope?/0`), and in `on_exit` callbacks (ExUnit runs them
-  in a process of their own): there, use `info/1` for a test.
+  in a process of their own, `setup_all`'s too): there, use `info/1` for a test.
 
       Playwright.Test.info().test_pid
   """
@@ -947,7 +959,9 @@ defmodule Playwright.Test do
 
       nil ->
         raise "Playwright.Test.info() can only be called while a test or its module's setup_all is running: in a " <>
-                "module with `use Playwright.Test` (the test's or setup_all's process, or one with it in $callers)"
+                "module with `use Playwright.Test` (the test's or setup_all's process, or one with it in $callers), " <>
+                "after `use Playwright.Test` registered it (a case template's own setup_all, or one above the " <>
+                "module's `use Playwright.Test`, runs before)"
     end
   end
 
@@ -989,6 +1003,10 @@ defmodule Playwright.Test do
 
       alias Playwright.Test
       use = if Test.in_registered_scope?(), do: Test.info().use, else: Test.config()
+
+  `config/0` has another shape (see "Contexts of `setup_all`" in the moduledoc): read the keys
+  both have by name. `false` in a `setup_all` before `use Playwright.Test` registered the module
+  (a case template's own, or one above the module's `use`).
   """
   @spec in_registered_scope?() :: boolean()
   def in_registered_scope?, do: Recorder.scope() != nil
@@ -1186,7 +1204,9 @@ defmodule Playwright.Test do
   # The running test's registration (as `info/0` finds it), for a function of the test only: it
   # raises in `setup_all`, which has no output dir or snapshot names.
   defp running_test!(function) do
-    Recorder.registration() || raise "Playwright.Test.#{function} can only be called while a test is running"
+    Recorder.registration() ||
+      raise "Playwright.Test.#{function} can only be called while a test is running: in a test of a module with " <>
+              "`use Playwright.Test` (its process, or one with it in $callers)"
   end
 
   @doc """
