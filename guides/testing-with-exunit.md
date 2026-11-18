@@ -102,6 +102,14 @@ option of `new_context` (`record_har`, `strict_selectors`): one option, so the h
 that sets it replaces the others' as a whole, and it is under every option of its own
 (`locale: "de-DE"` wins over `context_options: [locale: "fr-FR"]`, whichever level sets each).
 
+Any option a layer (the config, a project, the module's `use`, a tag) gives as `nil` is unset
+there, as Playwright Test's `undefined`: the layer under gives it, in the end the default. A
+`nil` in the module's `use` or in a tag goes to the project's or the config's, past the
+module's own options (`context_options: nil` to their bag). A call's own options are no layer:
+`Browser.new_context!(browser, locale: nil)` passes the `nil` as given, so the client's default
+applies, as `newContext({ locale: undefined })` does, and `BrowserPool.browser(connect_options:
+nil)` launches.
+
 A library that passes options in a call merges into the test's resolved ones,
 `Playwright.Test.info().use`, as the call's replace them as a whole (`extra_http_headers` too):
 `Browser.new_context!(browser, extra_http_headers: Map.merge(Test.info().use[:extra_http_headers]
@@ -171,6 +179,20 @@ defmodule MyApp.BrowserCase do
         :ok
       end
     end
+  end
+end
+```
+
+If the template sets options itself (it has several `use`s), the later `use` wins per option, so
+its own `use Playwright.Test, ...` lines come before the forwarded options, which go last. Else the
+template's options (a device's viewport, say) override the test module's, the reverse of Playwright
+Test, where the file's `test.use` beats the project's device:
+
+```elixir
+using opts do
+  quote do
+    use Playwright.Test, Playwright.device("iPhone 13")
+    use Playwright.Case, unquote(opts)
   end
 end
 ```
@@ -453,15 +475,17 @@ browser is the worker's, as in Playwright Test, where a describe with another on
 worker. So `browser_name` is an option of the module's `use` and of a project, and
 `Test.use(browser_name: _)` raises; nor does a tag's device switch the browser.
 
-For the whole suite, the device's options go in the config. `config/config.exs` and
+For the whole suite (one project), the device goes in the config, the bottom layer, as Playwright
+Test's config-level project. `config/config.exs` and
 `config/test.exs` are evaluated before the dependencies are compiled, so `Playwright.device/1`
 can't be called there: write the options out, or set them in `config/runtime.exs`, which runs
-after the compilation (the runner reads the config at run time):
+after the compilation (the runner reads the config at run time). Guard it with `config_env()`: the
+dependency is `only: [:dev, :test]`, so `Playwright.device/1` fails in every other env:
 
 ```elixir
 # config/runtime.exs
 if config_env() == :test do
-  config :playwright, :test, Enum.to_list(Playwright.device("iPhone 13"))
+  config :playwright, :test, Enum.to_list(Playwright.device("Desktop Chrome"))
 end
 ```
 

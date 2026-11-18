@@ -41,7 +41,7 @@ upstream minor, so `~> 1.65.0` is safe.
 
 ## [Unreleased]
 
-## [1.65.0-rc.2] 2026-11-17
+## [1.65.0-rc.2] 2026-11-18
 
 Drives [Playwright 1.65.1](https://github.com/microsoft/playwright/releases/tag/v1.65.1), on
 Node 26.13.1. No upstream API changes.
@@ -56,11 +56,16 @@ Node 26.13.1. No upstream API changes.
 - `use Playwright.Test` (and `use Playwright.Case`) takes the context options as
   options of their own, Playwright Test's `test.use({ locale: 'de-DE' })`: `use Playwright.Case,
   locale: "de-DE"`, over the config's per option, under the call's, for every context of the
-  module, its `setup_all`'s included (#257). A context option, `connect_options` or
-  `default_browser_type` given as `nil` resets it to the project's, the config's or the default,
-  as upstream's `undefined`; `nil` raises for the other options. `context_options:` is
-  upstream's `contextOptions`, for the other options of `new_context`, under an option of its
-  own. The config takes both too (`config :playwright, :test, base_url: "..."`).
+  module, its `setup_all`'s included (#257). Any option a layer (config, project, module
+  `use`, tags) gives as `nil` resets it to the layer under (the project's, the config's or the
+  default), as upstream's `undefined`; a call's own `nil` of a context option or
+  `connect_options` is passed as given.
+  `context_options:` is upstream's `contextOptions`, for the other options of `new_context`,
+  under an option of its own, so flat keys are the upstream-shaped form (`config :playwright,
+  :test, locale: "de-DE"`). The config takes both too (`config :playwright, :test, base_url:
+  "..."`). `Playwright.Test.config().context_options` holds only the bag, not the options of
+  their own: a library that read options from it should read the test's resolved options with
+  `Playwright.Test.info().use`.
 - `Playwright.Test.use/1` gives a describe block or a test its options, as
   Playwright Test's `test.use` in a `test.describe`: `@describetag Test.use(timezone_id:
   "Europe/Berlin")`, `@tag Test.use(trace: :on)`. They layer per option, over the module's.
@@ -87,7 +92,10 @@ Node 26.13.1. No upstream API changes.
 - **RC only:** **Breaking:** the tags `trace`, `screenshot` and `video` no longer set the
   recording modes, and `use Playwright.Test, tags: false` is gone (an unknown option now):
   write `@tag Test.use(trace: :on)` for `@tag trace: :on`, likewise for `@describetag` and
-  `@moduletag`. Only `Test.use/1`'s keys are read, so tags named as options are yours.
+  `@moduletag`. Only `Test.use/1`'s keys are read, so tags named as options are yours. A
+  leftover plain tag is ignored silently, with no error, no warning and no recording: search for
+  them (`rg "@(module|describe)?tag[ (\[][^(]*\b(trace|screenshot|video):"`) and write `@tag
+  Playwright.Test.use(trace: :on)`.
 - **RC only:** **Breaking:** `mix playwright.install` forwards its args to `playwright install`
   as they are, without `--`: `mix playwright.install chromium --with-deps`. A `--` now raises,
   naming that fix.
