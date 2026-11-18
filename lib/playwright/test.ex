@@ -189,7 +189,9 @@ defmodule Playwright.Test do
   are no option of their own (`record_har`, `strict_selectors`). It is one option, as upstream's
   one fixture: the highest level that sets it replaces the others' as a whole. And it is under
   every option of its own, whatever level sets either, as upstream's fixture of an option reads
-  `contextOptions` only when no level sets the option.
+  `contextOptions` only when no level sets the option. `context_options: nil` falls back as any
+  option's `nil` (below), so does a misspelled `Playwright.devices()["typo"]`, silently: use
+  `Playwright.device/1`, which raises for an unknown name.
 
   Below the module, `use/1` gives the options to ExUnit as a tag, for a describe block
   (`@describetag Test.use(locale: "de-DE")`, upstream's `test.use` in a `test.describe`) or a
@@ -198,12 +200,16 @@ defmodule Playwright.Test do
 
   The layers, each over the one before per option: Playwright Test's defaults, the config's,
   the project's, the module's (`use`, then `@moduletag`), the describe's, the test's, then the
-  call's own. An option the call gives as `nil` keeps the client's default. Any option a layer
-  gives as `nil` is unset there, as upstream's `undefined` option override, so the layer under
-  it gives it, in the end the default: the config's `nil` falls back to the default, the
-  project's to the config's, and a module's or a tag's to the project's or the config's, past
-  the module's own `use`s and tags, as upstream's `test.use` of `undefined` goes back to the
-  config's. `context_options: nil` is the bag of the layer under. The config's, the project's and the
+  call's own. Any option a layer (the config, a project, the module's `use`, a tag) gives as
+  `nil` is unset there, as upstream's `undefined` option override, so the layer under it gives
+  it, in the end the default: the config's `nil` falls back to the default, the project's to
+  the config's, and a module's or a tag's to the project's or the config's, past the module's
+  own `use`s and tags, as upstream's `test.use` of `undefined` goes back to the config's.
+  `context_options: nil` is the bag of the layer under. A call's own options are no layer: a
+  `nil` there is passed as given, over the layers, as upstream's `newContext({ locale:
+  undefined })` spreads it over the defaults. So `Browser.new_context!(browser, locale: nil)`
+  gets the client's default, not the layers', and `BrowserPool.browser(connect_options: nil)`
+  launches. The config's, the project's and the
   module's reach every context the module creates: a test's, those of its `Task`s, and those of
   `setup_all`, as upstream's `beforeAll` gets the `use` options. A describe's and a test's reach
   the test's contexts only: ExUnit runs `setup_all` without them. The project's options are read

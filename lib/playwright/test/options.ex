@@ -294,8 +294,9 @@ defmodule Playwright.Test.Options do
     end)
   end
 
-  # Options (a keyword list or a map) as the client takes them, a `nil` one kept as `nil` (a
-  # reset, `context_options/2`); an invalid one raises with `prefix`. A function is not
+  # Options (a keyword list or a map) as the client takes them, a `nil` one kept as `nil` (unset:
+  # `unset_nil/1` drops a context option's in `layers/3` and `config/0`, `context_options/2` a
+  # bag's key); an invalid one raises with `prefix`. A function is not
   # options: upstream's option fixtures (`test.use({ locale: async ({}, use) => ... })`) aren't
   # ported.
   defp context_options!(options, prefix) do
@@ -407,11 +408,11 @@ defmodule Playwright.Test.Options do
   @doc """
   The worker options of a module's run, over the config's, for its `BrowserPool.browser/1`
   calls: `browser_name/3`, and the `launch_options` (the module's, else the project's, as a whole)
-  and `connect_options` of the module's `use_options` or its `project`. A `nil` one is dropped
-  (`unset_nil/1`), as `layers/3` drops it.
+  and `connect_options` of the module's `use_options` (a `nil` one dropped, `unset_nil/1`) or its
+  `project` (`layers/3`'s, `nil`s dropped there).
   """
   def worker(config \\ config(), project \\ %{}, use_options \\ %{}) do
-    {project, use_options} = {unset_nil(project), unset_nil(use_options)}
+    use_options = unset_nil(use_options)
     keys = @worker_keys -- [:browser_name]
     options = merge(Map.take(project, keys), Map.take(use_options, keys))
     options |> Map.put(:browser_name, browser_name(config, project, use_options)) |> Enum.to_list()
@@ -561,7 +562,7 @@ defmodule Playwright.Test.Options do
   defp validate!(key, true) when is_map_key(@modes, key), do: artifact!(key, mode: :on)
   defp validate!(key, false) when is_map_key(@modes, key), do: artifact!(key, mode: :off)
 
-  defp validate!(key, mode) when is_map_key(@modes, key) and is_atom(mode) and mode != nil,
+  defp validate!(key, mode) when is_map_key(@modes, key) and is_atom(mode),
     do: artifact!(key, mode: mode)
 
   defp validate!(key, options) when is_map_key(@modes, key) and (is_list(options) or is_map(options)),

@@ -280,7 +280,7 @@ defmodule Playwright.Test.ConfigTest do
     project = Options.parameters(connect_options: [ws_endpoint: "ws://project"])
 
     pool = fn project, use ->
-      Options.pool([], Options.worker(config, Options.used(project), Options.use_options(use)))
+      Options.pool([], Options.worker(config, Options.layers(project, %{}, %{}).project, Options.use_options(use)))
     end
 
     assert %{connect_options: [ws_endpoint: "ws://config"]} = pool.(Options.parameters(connect_options: nil), [])
@@ -289,6 +289,40 @@ defmodule Playwright.Test.ConfigTest do
 
     assert %{connect_options: [ws_endpoint: "ws://module"]} =
              pool.(project, connect_options: [ws_endpoint: "ws://module"])
+  end
+
+  test "nil of a context option, connect_options or default_browser_type falls back too", %{config: config} do
+    # The config's: the default, or the config's `context_options`.
+    Application.put_env(:playwright, :test, Keyword.merge(config, locale: nil, connect_options: nil))
+    assert %{locale: "en-US"} = Options.context_options()
+    assert %{connect_options: nil} = Options.pool([])
+    refute Map.has_key?(Playwright.Test.config(), :locale)
+    Application.put_env(:playwright, :test, Keyword.merge(config, locale: nil, context_options: [locale: "fr-FR"]))
+    assert %{locale: "fr-FR"} = Options.context_options()
+
+    # `default_browser_type` (a device's): the module's nil to the project's, the project's to
+    # the config's, the config's to the default.
+    browser = fn project, use ->
+      config = Options.config()
+      Options.worker(config, Options.layers(project, %{}, %{}).project, Options.use_options(use))[:browser_name]
+    end
+
+    Application.put_env(
+      :playwright,
+      :test,
+      config |> Keyword.delete(:browser_name) |> Keyword.put(:default_browser_type, :firefox)
+    )
+
+    assert browser.(Playwright.Test.parameters(default_browser_type: :webkit), default_browser_type: nil) == :webkit
+    assert browser.(Playwright.Test.parameters(default_browser_type: nil), []) == :firefox
+
+    Application.put_env(
+      :playwright,
+      :test,
+      config |> Keyword.delete(:browser_name) |> Keyword.put(:default_browser_type, nil)
+    )
+
+    assert browser.(%{}, default_browser_type: nil) == :chromium
   end
 
   # Upstream's `undefined` option override: unset at its layer, so the layer under gives it. A

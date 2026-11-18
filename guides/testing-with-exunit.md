@@ -101,9 +101,13 @@ option of `new_context` (`record_har`, `strict_selectors`): one option, so the h
 that sets it replaces the others' as a whole, and it is under every option of its own
 (`locale: "de-DE"` wins over `context_options: [locale: "fr-FR"]`, whichever level sets each).
 
-Any option given as `nil` is unset at its level, as Playwright Test's `undefined`: the level
-under gives it, in the end the default. A `nil` in the module's `use` or in a tag goes to the
-project's or the config's, past the module's own options (`context_options: nil` to their bag).
+Any option a layer (the config, a project, the module's `use`, a tag) gives as `nil` is unset
+there, as Playwright Test's `undefined`: the layer under gives it, in the end the default. A
+`nil` in the module's `use` or in a tag goes to the project's or the config's, past the
+module's own options (`context_options: nil` to their bag). A call's own options are no layer:
+`Browser.new_context!(browser, locale: nil)` passes the `nil` as given, so the client's default
+applies, as `newContext({ locale: undefined })` does, and `BrowserPool.browser(connect_options:
+nil)` launches.
 
 A library that passes options in a call merges into the test's resolved ones,
 `Playwright.Test.info().use`, as the call's replace them as a whole (`extra_http_headers` too):

@@ -32,6 +32,14 @@ defmodule Playwright.Test.ContextOptionsTest do
     assert dark?(page)
   end
 
+  # A call is no layer: its `nil` is passed as given, as upstream's `newContext({ colorScheme:
+  # undefined })` spreads it over the defaults, so the client's default applies.
+  test "a call's nil option is passed as given, over the module's", %{browser: browser} do
+    page = BrowserContext.new_page!(Browser.new_context!(browser, color_scheme: nil))
+    refute dark?(page)
+    assert language(page) == "de-DE"
+  end
+
   test "a context a Task of the test creates gets them", %{browser: browser} do
     page = BrowserContext.new_page!(Task.await(Task.async(fn -> Browser.new_context!(browser) end)))
     assert language(page) == "de-DE"
@@ -279,6 +287,9 @@ defmodule Playwright.Test.ContextOptionsTest do
     # The project's nil falls back to the config's.
     project = Options.layers(Playwright.Test.parameters(locale: nil, color_scheme: :dark), %{}, %{})
     assert %{locale: "de-DE", colorScheme: "dark"} = Options.context_options(config, project)
+    # A tag's to the config's, past the module's.
+    tag = Options.layers(%{}, Options.use_options(locale: "fr-FR"), Map.new(Playwright.Test.use(locale: nil)))
+    assert %{locale: "de-DE"} = Options.context_options(config, tag)
   end
 
   test "the layers: the parameters' options are the project, the tags' over the module's use" do

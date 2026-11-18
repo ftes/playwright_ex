@@ -41,7 +41,7 @@ upstream minor, so `~> 1.65.0` is safe.
 
 ## [Unreleased]
 
-## [1.65.0-rc.2] 2026-11-17
+## [1.65.0-rc.2] 2026-11-18
 
 Drives [Playwright 1.65.1](https://github.com/microsoft/playwright/releases/tag/v1.65.1), on
 Node 26.13.1. No upstream API changes.
@@ -56,11 +56,11 @@ Node 26.13.1. No upstream API changes.
 - `use Playwright.Test` (and `use Playwright.Case`) takes the context options as
   options of their own, Playwright Test's `test.use({ locale: 'de-DE' })`: `use Playwright.Case,
   locale: "de-DE"`, over the config's per option, under the call's, for every context of the
-  module, its `setup_all`'s included (#257). Any option given as `nil`, at any level, resets it
-  to the level under (the project's, the config's or the default), as upstream's `undefined`.
-  `context_options:` is
-  upstream's `contextOptions`, for the other options of `new_context`, under an option of its
-  own. The config takes both too (`config :playwright, :test, base_url: "..."`).
+  module, its `setup_all`'s included (#257). Any option a layer (config, project, module
+  `use`, tags) gives as `nil` resets it to the layer under (the project's, the config's or the
+  default), as upstream's `undefined`; a call's own `nil` is passed as given.
+  `context_options:` is upstream's `contextOptions`, for the other options of `new_context`,
+  under an option of its own. The config takes both too (`config :playwright, :test, base_url: "..."`).
 - `Playwright.Test.use/1` gives a describe block or a test its options, as
   Playwright Test's `test.use` in a `test.describe`: `@describetag Test.use(timezone_id:
   "Europe/Berlin")`, `@tag Test.use(trace: :on)`. They layer per option, over the module's.
