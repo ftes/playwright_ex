@@ -128,6 +128,8 @@ defmodule Playwright.Test do
   modes are worker-scoped options there), with the values the config takes; an unknown option or
   an invalid value raises at compile time. A module's `use`s merge per key, the later winning
   (see "Context defaults").
+  A template's own `use Playwright.Test, ...` lines go before the forwarded options, which win per
+  option, as a test file's `test.use` beats a project's device.
   ExUnit.Case's keys (`:async`, ...) are ignored, so a template forwards its options from `using
   opts` as is: `use Playwright.Test, unquote(opts)`, as `Playwright.Case` does. A template
   with options of its own pops them first (`{sandbox, opts} = Keyword.pop(opts, :sandbox)`),
