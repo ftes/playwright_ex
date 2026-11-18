@@ -373,14 +373,15 @@ Playwright Test's `devices['iPhone 13']` is `Playwright.device("iPhone 13")`: th
 context options as a keyword list, static data of the pinned Playwright version, so it needs no driver
 and works at compile time. An unknown name raises, naming the closest;
 `Playwright.devices/0` is the map of all of them, and its docs list the names.
-`Browser.new_context!/2` takes a device as it is or with more (`Keyword.merge/2` replaces one of
-the device's):
+`Browser.new_context!/2` takes a device as it is or with more. Playwright Test's
+`{ ...devices['iPhone 13'], locale: 'de-DE' }` is `Keyword.merge/2`, whose later options
+override the device's:
 
 ```elixir
 test "on a phone" do
   browser = BrowserPool.browser(browser_name: :webkit)
   iphone = Playwright.device("iPhone 13")
-  page = BrowserContext.new_page!(Browser.new_context!(browser, iphone ++ [locale: "de-DE"]))
+  page = BrowserContext.new_page!(Browser.new_context!(browser, Keyword.merge(iphone, locale: "de-DE")))
   # ...
 end
 ```
@@ -392,7 +393,8 @@ over the 1280x720 one), and its `default_browser_type` (`"webkit"`) names its br
 A device is a keyword list of options, so it is spread into the others, as Playwright Test's
 `...devices['iPhone 13']`. For a module, its `test.use({ ...devices['iPhone 13'] })` at a file's
 top, give the device to a `use Playwright.Test` (a module's `use`s add up; in one `use`, it is
-`use Playwright.Case, [async: true] ++ Playwright.device("iPhone 13")`):
+`use Playwright.Case, [async: true] ++ Playwright.device("iPhone 13")`; `++` is only for keys
+the device doesn't have, as a duplicated option raises):
 
 ```elixir
 defmodule MyApp.PhoneTest do

@@ -627,6 +627,19 @@ defmodule Playwright.Test.ContextOptionsTest.DeviceBrowserTest do
     assert Options.browser_name(Options.config()) == :firefox
     assert Options.context_options().userAgent == Playwright.device("Desktop Firefox")[:user_agent]
   end
+
+  test "the config takes a device as it is" do
+    device = Playwright.device("iPhone 13")
+    Application.put_env(:playwright, :test, device)
+
+    config = Playwright.Test.config()
+    assert config.default_browser_type == :webkit
+
+    assert Map.take(config, Keyword.keys(device) -- [:default_browser_type]) ==
+             Map.new(Keyword.delete(device, :default_browser_type))
+
+    assert Options.browser_name(Options.config()) == :webkit
+  end
 end
 
 defmodule Playwright.Test.ContextOptionsTest.BrowserNameTest do

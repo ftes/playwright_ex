@@ -5,25 +5,27 @@ defmodule Playwright.Root do
   # generates with `use Playwright.Root`. Its moduledoc's introduction is in
   # `Mix.Playwright.ApiRules`.
 
+  @devices_key {__MODULE__, :devices, :keyword}
+
   # A descriptor's JS keys as the option keys of `Playwright.Browser.new_context/2`, as the
   # generated `Playwright.devices/1` converts the driver's, and as a keyword list, the Elixir
   # options' shape (`config :playwright, :test, Playwright.device("Desktop Chrome")`). Its nested
   # values (`viewport`) stay maps.
   @doc false
-  # Converted once per VM.
+  # Converted once per VM. The key names the shape, so a VM that cached another one (maps, before
+  # a recompile) doesn't serve it.
   def devices do
-    case :persistent_term.get(__MODULE__, nil) do
+    case :persistent_term.get(@devices_key, nil) do
       nil ->
         {:object, schema} = Playwright.Browser.__options_type__(:new_context)
         keys = Map.new(schema, fn {key, {js_key, _type}} -> {js_key, key} end)
-        descriptors = Playwright.Isomorphic.DeviceDescriptors.device_descriptors()
 
         devices =
-          descriptors
-          |> Playwright.Runtime.Facade.options_dictionary(keys)
-          |> Map.new(fn {name, device} -> {name, Enum.to_list(device)} end)
+          Map.new(Playwright.Isomorphic.DeviceDescriptors.device_descriptors(), fn {name, descriptor} ->
+            {name, Enum.map(descriptor, fn {key, value} -> {Map.get(keys, key, key), value} end)}
+          end)
 
-        :persistent_term.put(__MODULE__, devices)
+        :persistent_term.put(@devices_key, devices)
         devices
 
       devices ->
@@ -96,8 +98,10 @@ defmodule Playwright.Root do
           iphone = Playwright.devices()["iPhone 13"]
           context = Browser.new_context!(browser, iphone)
 
-      More options go after it, upstream's `{ ...devices['iPhone 13'], locale: 'de-DE' }`:
-      `iphone ++ [locale: "de-DE"]`, or `Keyword.merge/2` to replace one of the device's.
+      Upstream's `{ ...devices['iPhone 13'], viewport: { width: 800, height: 600 } }` is
+      `Keyword.merge(iphone, viewport: %{width: 800, height: 600})`: the later options override
+      the device's. `++` is only for keys the device doesn't have: `use Playwright.Test`,
+      `Playwright.Test.use/1` and `Playwright.Test.parameters/1` raise for a duplicated key.
 
       It needs no driver, so it works at compile time. A name that isn't a device's gives
       `nil`, which `context_options:` rejects: `device/1` raises instead, naming the closest.

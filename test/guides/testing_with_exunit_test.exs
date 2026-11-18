@@ -142,7 +142,7 @@ defmodule Playwright.Guides.TestingWithExUnit.SignUpTest do
   test "on a phone" do
     browser = BrowserPool.browser()
     iphone = Playwright.device("iPhone 13")
-    page = BrowserContext.new_page!(Browser.new_context!(browser, iphone ++ [locale: "de-DE"]))
+    page = BrowserContext.new_page!(Browser.new_context!(browser, Keyword.merge(iphone, locale: "de-DE")))
     assert iphone[:default_browser_type] == "webkit"
     assert Playwright.devices()["iPhone 13"] == iphone
     assert_raise ArgumentError, ~r/"iPhone 13"/, fn -> Playwright.device("iPhone13") end
@@ -781,6 +781,16 @@ defmodule Playwright.Guides.TestingWithExUnit.PhoneTest do
       assert Page.viewport_size(page) == %{width: 390, height: 664}
       assert Page.evaluate!(page, "[navigator.language, navigator.userAgent]") == ["de-DE", @iphone[:user_agent]]
     end
+  end
+end
+
+defmodule Playwright.Guides.TestingWithExUnit.PhoneOneUseTest do
+  # "Devices": the device in one `use`.
+  use Playwright.Case, [async: true] ++ Playwright.device("iPhone 13")
+
+  test "on a phone", %{page: page} do
+    assert Page.viewport_size(page) == %{width: 390, height: 664}
+    assert Page.evaluate!(page, "navigator.userAgent") == Playwright.device("iPhone 13")[:user_agent]
   end
 end
 

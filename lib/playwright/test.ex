@@ -183,8 +183,10 @@ defmodule Playwright.Test do
   A device is a keyword list of these options and its `default_browser_type` (see "Browser"),
   spread into the others as upstream's `...devices['iPhone 13']`: `use Playwright.Test,
   Playwright.device("iPhone 13")` after `use Playwright.Case, async: true`, or in one `use`,
-  `use Playwright.Case, [async: true] ++ Playwright.device("iPhone 13")`. The options may be a
-  map too.
+  `use Playwright.Case, [async: true] ++ Playwright.device("iPhone 13")`. A duplicated option
+  raises, so to override one of the device's, upstream's `{ ...devices['iPhone 13'], viewport }`,
+  merge it in: `Keyword.merge(Playwright.device("iPhone 13"), viewport: %{width: 800, height: 600})`.
+  The options may be a map too.
 
   `context_options` is upstream's `contextOptions`: `new_context/2`'s options, for those that
   are no option of their own (`record_har`, `strict_selectors`). It is one option, as upstream's

@@ -79,7 +79,8 @@ Node 26.13.1. No upstream API changes.
   time, spread as upstream's `...devices['iPhone 13']`: `use Playwright.Test,
   Playwright.device("iPhone 13")`, `@tag Test.use(Playwright.device("Pixel 7"))`. A device is a
   keyword list of options, so the config takes it as it is: `config :playwright, :test,
-  Playwright.device("Desktop Chrome")`. The driver's `Playwright.devices/1` remains, with maps.
+  Playwright.device("Desktop Chrome")`, and `Keyword.merge/2` overrides its options, as
+  upstream's `{ ...devices['iPhone 13'], viewport }`. The driver's `Playwright.devices/1` remains, with maps.
 
 ### Changed
 
