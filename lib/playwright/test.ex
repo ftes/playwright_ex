@@ -182,10 +182,13 @@ defmodule Playwright.Test do
   function raises there: upstream's function-valued options, its option fixtures' functions,
   aren't ported. A module's `use`s apply in order, each over those before it per option.
 
-  A device is a map of these options and its `default_browser_type` (see "Browser"), spread
-  into the others as upstream's `...devices['iPhone 13']`: `use Playwright.Test,
-  Playwright.device("iPhone 13")`, which takes a map too, after `use Playwright.Case, async:
-  true`.
+  A device is a keyword list of these options and its `default_browser_type` (see "Browser"),
+  spread into the others as upstream's `...devices['iPhone 13']`: `use Playwright.Test,
+  Playwright.device("iPhone 13")` after `use Playwright.Case, async: true`, or in one `use`,
+  `use Playwright.Case, [async: true] ++ Playwright.device("iPhone 13")`. A duplicated option
+  raises, so to override one of the device's, upstream's `{ ...devices['iPhone 13'], viewport }`,
+  merge it in: `Keyword.merge(Playwright.device("iPhone 13"), viewport: %{width: 800, height: 600})`.
+  The options may be a map too.
 
   `context_options` is upstream's `contextOptions`: `new_context/2`'s options, for those that
   are no option of their own (`record_har`, `strict_selectors`). It is one option, as upstream's
@@ -995,7 +998,7 @@ defmodule Playwright.Test do
   Options for a `describe` block, a test or a project: upstream's `test.use` below the file
   level. It takes the test-scoped options of `use Playwright.Test` (the context options,
   `context_options`, `action_timeout`, `navigation_timeout`, `trace`, `screenshot`, `video`), as
-  a keyword list or a map (a device), validates them as it does, and returns a keyword list for
+  a keyword list (a device too) or a map, validates them as it does, and returns a keyword list for
   an ExUnit tag.
 
       # test.describe(() => { test.use({ timezoneId: 'Europe/Berlin' }) ... })

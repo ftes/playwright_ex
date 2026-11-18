@@ -142,12 +142,12 @@ defmodule Playwright.Guides.TestingWithExUnit.SignUpTest do
   test "on a phone" do
     browser = BrowserPool.browser()
     iphone = Playwright.device("iPhone 13")
-    page = BrowserContext.new_page!(Browser.new_context!(browser, Map.put(iphone, :locale, "de-DE")))
-    assert iphone.default_browser_type == "webkit"
+    page = BrowserContext.new_page!(Browser.new_context!(browser, Keyword.merge(iphone, locale: "de-DE")))
+    assert iphone[:default_browser_type] == "webkit"
     assert Playwright.devices()["iPhone 13"] == iphone
     assert_raise ArgumentError, ~r/"iPhone 13"/, fn -> Playwright.device("iPhone13") end
     assert Page.viewport_size(page) == %{width: 390, height: 664}
-    assert Page.evaluate!(page, "[navigator.language, navigator.userAgent]") == ["de-DE", iphone.user_agent]
+    assert Page.evaluate!(page, "[navigator.language, navigator.userAgent]") == ["de-DE", iphone[:user_agent]]
   end
 
   test "assert_expect raises a failed matcher as an ExUnit.AssertionError", %{page: page} do
@@ -530,7 +530,7 @@ defmodule Playwright.Guides.TestingWithExUnit.ProjectsTest do
     assert Playwright.BrowserType.name(Browser.browser_type(browser)) == Playwright.TestBrowser.name()
 
     for page <- [page, ctx.setup_all_page, BrowserContext.new_page!(Browser.new_context!(browser))] do
-      assert Page.evaluate!(page, "navigator.userAgent") == @chrome.user_agent
+      assert Page.evaluate!(page, "navigator.userAgent") == @chrome[:user_agent]
       assert Page.viewport_size(page) == %{width: 1280, height: 720}
     end
   end
@@ -546,7 +546,7 @@ defmodule Playwright.Guides.TestingWithExUnit.ProjectsOptionsTest do
 
   test "the module's options over the device", %{page: page, role: :admin} do
     assert Page.evaluate!(page, "navigator.language") == "de-DE"
-    assert Page.evaluate!(page, "navigator.userAgent") == Playwright.device("Desktop Chrome").user_agent
+    assert Page.evaluate!(page, "navigator.userAgent") == Playwright.device("Desktop Chrome")[:user_agent]
   end
 end
 
@@ -575,8 +575,8 @@ defmodule Playwright.Guides.TestingWithExUnit.DeviceLevelsTest do
     @tag Test.use(Playwright.device(name))
     test "the menu collapses on #{name}", %{page: page, browser: browser} do
       device = Playwright.device(unquote(name))
-      assert Page.evaluate!(page, "navigator.userAgent") == device.user_agent
-      assert Page.viewport_size(page) == device.viewport
+      assert Page.evaluate!(page, "navigator.userAgent") == device[:user_agent]
+      assert Page.viewport_size(page) == device[:viewport]
       # A tag's device doesn't switch the browser: its `default_browser_type` is ignored.
       assert Playwright.BrowserType.name(Browser.browser_type(browser)) == Playwright.TestBrowser.name()
     end
@@ -767,11 +767,11 @@ defmodule Playwright.Guides.TestingWithExUnit.PhoneTest do
 
   test "on a phone", %{page: page, browser: browser} do
     assert Page.viewport_size(page) == %{width: 390, height: 664}
-    assert Page.evaluate!(page, "navigator.userAgent") == @iphone.user_agent
+    assert Page.evaluate!(page, "navigator.userAgent") == @iphone[:user_agent]
 
     page = BrowserContext.new_page!(Browser.new_context!(browser, viewport: %{width: 800, height: 600}))
     assert Page.viewport_size(page) == %{width: 800, height: 600}
-    assert Page.evaluate!(page, "navigator.userAgent") == @iphone.user_agent
+    assert Page.evaluate!(page, "navigator.userAgent") == @iphone[:user_agent]
   end
 
   describe "in German" do
@@ -779,8 +779,18 @@ defmodule Playwright.Guides.TestingWithExUnit.PhoneTest do
 
     test "the module's device with the describe's locale: the levels merge per option", %{page: page} do
       assert Page.viewport_size(page) == %{width: 390, height: 664}
-      assert Page.evaluate!(page, "[navigator.language, navigator.userAgent]") == ["de-DE", @iphone.user_agent]
+      assert Page.evaluate!(page, "[navigator.language, navigator.userAgent]") == ["de-DE", @iphone[:user_agent]]
     end
+  end
+end
+
+defmodule Playwright.Guides.TestingWithExUnit.PhoneOneUseTest do
+  # "Devices": the device in one `use`.
+  use Playwright.Case, [async: true] ++ Playwright.device("iPhone 13")
+
+  test "on a phone", %{page: page} do
+    assert Page.viewport_size(page) == %{width: 390, height: 664}
+    assert Page.evaluate!(page, "navigator.userAgent") == Playwright.device("iPhone 13")[:user_agent]
   end
 end
 

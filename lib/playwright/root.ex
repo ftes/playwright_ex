@@ -5,18 +5,27 @@ defmodule Playwright.Root do
   # generates with `use Playwright.Root`. Its moduledoc's introduction is in
   # `Mix.Playwright.ApiRules`.
 
+  @devices_key {__MODULE__, :devices, :keyword}
+
   # A descriptor's JS keys as the option keys of `Playwright.Browser.new_context/2`, as the
-  # generated `Playwright.devices/1` converts the driver's.
+  # generated `Playwright.devices/1` converts the driver's, and as a keyword list, the Elixir
+  # options' shape (`config :playwright, :test, Playwright.device("Desktop Chrome")`). Its nested
+  # values (`viewport`) stay maps.
   @doc false
-  # Converted once per VM.
+  # Converted once per VM. The key names the shape, so a VM that cached another one (maps, before
+  # a recompile) doesn't serve it.
   def devices do
-    case :persistent_term.get(__MODULE__, nil) do
+    case :persistent_term.get(@devices_key, nil) do
       nil ->
         {:object, schema} = Playwright.Browser.__options_type__(:new_context)
         keys = Map.new(schema, fn {key, {js_key, _type}} -> {js_key, key} end)
-        descriptors = Playwright.Isomorphic.DeviceDescriptors.device_descriptors()
-        devices = Playwright.Runtime.Facade.options_dictionary(descriptors, keys)
-        :persistent_term.put(__MODULE__, devices)
+
+        devices =
+          Map.new(Playwright.Isomorphic.DeviceDescriptors.device_descriptors(), fn {name, descriptor} ->
+            {name, Enum.map(descriptor, fn {key, value} -> {Map.get(keys, key, key), value} end)}
+          end)
+
+        :persistent_term.put(@devices_key, devices)
         devices
 
       devices ->
@@ -81,13 +90,18 @@ defmodule Playwright.Root do
 
       @doc """
       Playwright's device descriptors by name, as static data: upstream's
-      `import { devices } from '@playwright/test'`. A descriptor is the options of
-      `Playwright.Browser.new_context/2` for that device (`user_agent`, `viewport`,
+      `import { devices } from '@playwright/test'`. A descriptor is a keyword list of the options
+      of `Playwright.Browser.new_context/2` for that device (`user_agent`, `viewport`,
       `device_scale_factor`, `is_mobile`, `has_touch`, and its `default_browser_type`, which
-      `new_context` ignores), as `devices/1` returns it from a driver:
+      `new_context` ignores), the options `devices/1` returns from a driver as a map:
 
           iphone = Playwright.devices()["iPhone 13"]
           context = Browser.new_context!(browser, iphone)
+
+      Upstream's `{ ...devices['iPhone 13'], viewport: { width: 800, height: 600 } }` is
+      `Keyword.merge(iphone, viewport: %{width: 800, height: 600})`: the later options override
+      the device's. `++` is only for keys the device doesn't have: `use Playwright.Test`,
+      `Playwright.Test.use/1` and `Playwright.Test.parameters/1` raise for a duplicated key.
 
       It needs no driver, so it works at compile time. A name that isn't a device's gives
       `nil`, which `context_options:` rejects: `device/1` raises instead, naming the closest.
@@ -104,10 +118,13 @@ defmodule Playwright.Root do
       def devices, do: Playwright.Root.devices()
 
       @doc """
-      The device descriptor of `name` in `devices/0`, upstream's `devices['iPhone 13']`. An
-      unknown name raises `ArgumentError`, naming the closest ones.
+      The device descriptor of `name` in `devices/0`, upstream's `devices['iPhone 13']`: a keyword
+      list of options. An unknown name raises `ArgumentError`, naming the closest ones.
 
           use Playwright.Test, Playwright.device("iPhone 13")
+
+          # config/runtime.exs
+          if config_env() == :test, do: config(:playwright, :test, Playwright.device("iPhone 13"))
       """
       @spec device(String.t()) :: Playwright.Browser.new_context_options()
       def device(name), do: Playwright.Root.device(name)

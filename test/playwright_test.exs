@@ -19,9 +19,23 @@ defmodule PlaywrightTest do
     assert %{"iPhone 15" => %{user_agent: _, viewport: %{width: _}}} = Playwright.devices(playwright)
   end
 
-  test "the static devices are the driver's", %{playwright: playwright} do
-    assert Playwright.devices() == Playwright.devices(playwright)
-    assert %{user_agent: _, viewport: %{width: 390}, default_browser_type: "webkit"} = Playwright.devices()["iPhone 13"]
+  test "the static devices are the driver's, as keyword lists", %{playwright: playwright} do
+    assert Map.new(Playwright.devices(), fn {name, device} -> {name, Map.new(device)} end) ==
+             Playwright.devices(playwright)
+
+    assert Enum.all?(Playwright.devices(), fn {_name, device} -> Keyword.keyword?(device) end)
+    iphone = Playwright.device("iPhone 13")
+    assert Playwright.devices()["iPhone 13"] == iphone
+    assert %{user_agent: _, viewport: %{width: 390}, default_browser_type: "webkit"} = Map.new(iphone)
+  end
+
+  test "the config takes a device as it is" do
+    config =
+      ~s|import Config\nconfig :playwright, :test, browser_name: :firefox\n| <>
+        ~s|config :playwright, :test, Playwright.device("iPhone 13")|
+
+    assert [playwright: [test: test]] = Config.Reader.eval!("runtime.exs", config)
+    assert test == [browser_name: :firefox] ++ Playwright.device("iPhone 13")
   end
 
   test "launches and closes the browser", %{playwright: playwright} do

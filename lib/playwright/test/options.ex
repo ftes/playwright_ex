@@ -313,7 +313,7 @@ defmodule Playwright.Test.Options do
   `use Playwright.Test` as is.
   """
   def without_ex_unit_keys(opts) do
-    # A map too: a device (`use Playwright.Test, Playwright.device("iPhone 13")`).
+    # A map too.
     opts = to_keyword("use Playwright.Test", opts)
     opts -- ExUnit.Case.__keys__(opts)
   end
