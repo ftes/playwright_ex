@@ -78,7 +78,7 @@ defmodule Playwright.Test.Recorder do
   The worker options (`Playwright.Test.Options.worker/3`) of the scope of the calling process
   (a test's or a module's `setup_all`'s, as `registration/0` finds it), for
   `BrowserPool.browser/1`; `[]` outside one, the process noted
-  (`Playwright.Test.Results.note_unregistered/2`): a test or `setup_all` process that called it
+  (`Playwright.Test.Results.note_unregistered/1`): a test or `setup_all` process that called it
   before `use Playwright.Test` registered it fails its registration.
   """
   def worker_options do
@@ -87,7 +87,7 @@ defmodule Playwright.Test.Recorder do
         worker
 
       nil ->
-        note_unregistered(:browser)
+        note_unregistered()
         []
     end
   end
@@ -115,7 +115,7 @@ defmodule Playwright.Test.Recorder do
   driver: they look up the creator's test or module `setup_all`, nearest first in its `$callers`
   (`Playwright.Test.Results.scope/1`). A test's contexts get its defaults and are recorded; a
   module `setup_all`'s get the module's defaults, unrecorded. A process with neither that creates
-  one is noted (`Playwright.Test.Results.note_unregistered/2`): a test or `setup_all` process
+  one is noted (`Playwright.Test.Results.note_unregistered/1`): a test or `setup_all` process
   that created one before `use Playwright.Test` registered it fails its registration.
   """
   def listener do
@@ -503,7 +503,7 @@ defmodule Playwright.Test.Recorder do
   def before_create_browser_context(options) do
     case defaults() do
       nil ->
-        note_unregistered(:context)
+        note_unregistered()
         options
 
       # A module's `setup_all`: no video, as upstream's `_contextFactory` is the `context` fixture's.
@@ -544,7 +544,7 @@ defmodule Playwright.Test.Recorder do
   def before_create_request_context(options) do
     case defaults() do
       nil ->
-        note_unregistered(:context)
+        note_unregistered()
         options
 
       # A test's or a module's `setup_all`'s.
@@ -556,7 +556,7 @@ defmodule Playwright.Test.Recorder do
   end
 
   # The test process, the root of the `$callers`.
-  defp note_unregistered(what), do: Results.note_unregistered(List.last(Callers.capture()), what)
+  defp note_unregistered, do: Results.note_unregistered(List.last(Callers.capture()))
 
   @doc false
   # `runAfterCreateBrowserContext`: `didCreateBrowserContext`, on the test's recorder, started on

@@ -199,12 +199,12 @@ defmodule Playwright.Test do
 
   The layers, each over the one before per option: Playwright Test's defaults, the config's,
   the project's, the module's (`use`, then `@moduletag`), the describe's, the test's, then the
-  call's own. An option the call gives as `nil` keeps the client's default; a context option a
-  layer gives as `nil` falls back to the layer under it (the config's to `context_options`, then
-  Playwright Test's default; a module's or a tag's to the project's or the config's, past the
-  earlier ones of its layer), as upstream's `undefined` option override, and so does
-  `connect_options` of a project or a module. The other options take a value: `nil` raises for
-  them (`launch_options`, the timeouts, `trace`, `screenshot`, `video`). The config's, the project's and the
+  call's own. An option the call gives as `nil` keeps the client's default. A layer's `nil`, as
+  upstream's `undefined` option override, falls back to the layer under it for a context option
+  (the config's to `context_options`, then Playwright Test's default; a module's or a tag's to
+  the project's or the config's, past the earlier ones of its layer), for `connect_options` and
+  for `default_browser_type`. For `browser_name`, `launch_options`, `context_options`, the
+  timeouts, `trace`, `screenshot` and `video`, `nil` raises. The config's, the project's and the
   module's reach every context the module creates: a test's, those of its `Task`s, and those of
   `setup_all`, as upstream's `beforeAll` gets the `use` options. A describe's and a test's reach
   the test's contexts only: ExUnit runs `setup_all` without them. The project's options are read
@@ -665,11 +665,12 @@ defmodule Playwright.Test do
     if !match?({:module, _}, Results.scope(self())) do
       check_registered!(
         self(),
-        &("this module's setup_all #{&1} before `use Playwright.Test` registered it (a case template's own " <>
-            "`setup_all` runs before the `use` in its `using`, and a module's `setup_all` before its " <>
-            "`use Playwright.Test` runs first), so #{&2}: add `use Playwright.Test` as the first line of " <>
-            "the case template's body, or move the `setup_all` after the module's `use Playwright.Test`"),
-        "the context got no context defaults"
+        "this module's setup_all fetched a browser (`BrowserPool.browser/1`) or created a context before " <>
+          "`use Playwright.Test` registered it (a case template's own `setup_all` runs before the `use` in " <>
+          "its `using`, and a module's `setup_all` before its `use Playwright.Test` runs first): a browser " <>
+          "gets none of the module's worker options, a context none of its defaults. Add `use " <>
+          "Playwright.Test` as the first line of the case template's body, or move the `setup_all` after " <>
+          "the module's `use Playwright.Test`"
       )
 
       {parameters, tags} = TestInfo.module_sources(context)
@@ -681,25 +682,12 @@ defmodule Playwright.Test do
     :ok
   end
 
-  # Raises `message.(what, consequence)` if `pid` created a context (`context`, the context's
-  # consequence) or called `BrowserPool.browser/1`, or both, before its registration
-  # (`Playwright.Test.Results.note_unregistered/2`).
-  defp check_registered!(pid, message, context) do
-    browser = "the browser got none of the module's worker options (browser_name, launch_options, connect_options)"
-
+  # Raises `message` if `pid` created a context or called `BrowserPool.browser/1` before its
+  # registration (`Playwright.Test.Results.note_unregistered/1`).
+  defp check_registered!(pid, message) do
     case :ets.take(Results.table(), {:unregistered, pid}) do
-      [{_key, true, true}] ->
-        raise ArgumentError,
-              message.("called BrowserPool.browser/1 and created a context", "#{browser}, and #{context}")
-
-      [{_key, true, false}] ->
-        raise ArgumentError, message.("created a context", context)
-
-      [{_key, false, true}] ->
-        raise ArgumentError, message.("called BrowserPool.browser/1", browser)
-
-      _none ->
-        :ok
+      [{_key, true}] -> raise ArgumentError, message
+      [] -> :ok
     end
   end
 
@@ -712,10 +700,10 @@ defmodule Playwright.Test do
     if !Recorder.registration(test_pid) do
       check_registered!(
         test_pid,
-        &("this test #{&1} before `use Playwright.Test` registered it (a case template's `setup` runs " <>
-            "before the `use` in its `using`), so #{&2}: add `use Playwright.Test` as the first line of " <>
-            "the case template's body"),
-        "the context has no defaults and no recording"
+        "this test fetched a browser (`BrowserPool.browser/1`) or created a context before `use " <>
+          "Playwright.Test` registered it (a case template's `setup` runs before the `use` in its " <>
+          "`using`): a browser gets none of the module's worker options, a context none of its defaults " <>
+          "or recording. Add `use Playwright.Test` as the first line of the case template's body"
       )
 
       test = __register__(context)

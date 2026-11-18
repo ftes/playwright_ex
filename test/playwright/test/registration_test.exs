@@ -324,8 +324,11 @@ defmodule Playwright.Test.RegistrationTest.LateTest do
     end)
 
     assert_receive {:result, message}
-    assert message =~ "this test created a context before `use Playwright.Test` registered it"
-    assert message =~ "add `use Playwright.Test` as the first line of the case template's body"
+
+    assert message =~
+             "this test fetched a browser (`BrowserPool.browser/1`) or created a context before `use Playwright.Test` registered it"
+
+    assert message =~ "Add `use Playwright.Test` as the first line of the case template's body"
   end
 
   test "a context of setup_all before the module's registration makes it raise, with the fix" do
@@ -349,8 +352,11 @@ defmodule Playwright.Test.RegistrationTest.LateTest do
     end)
 
     assert_receive {:result, message, nil}
-    assert message =~ "this module's setup_all created a context before `use Playwright.Test` registered it"
-    assert message =~ "add `use Playwright.Test` as the first line of the case template's body, or move"
+
+    assert message =~
+             "this module's setup_all fetched a browser (`BrowserPool.browser/1`) or created a context before `use Playwright.Test` registered it"
+
+    assert message =~ "Add `use Playwright.Test` as the first line of the case template's body, or move"
   end
 
   # A template's `setup` that calls `BrowserPool.browser/1`, then the registration, in the test's
@@ -359,27 +365,35 @@ defmodule Playwright.Test.RegistrationTest.LateTest do
     Playwright.Test.BrowserPool.browser()
 
     message = assert_raise(ArgumentError, fn -> Playwright.Test.__setup__(%{test_pid: self()}) end).message
-    assert message =~ "this test called BrowserPool.browser/1 before `use Playwright.Test` registered it"
-    assert message =~ "none of the module's worker options"
-    assert message =~ "add `use Playwright.Test` as the first line of the case template's body"
+
+    assert message =~
+             "this test fetched a browser (`BrowserPool.browser/1`) or created a context before `use Playwright.Test` registered it"
+
+    assert message =~ "a browser gets none of the module's worker options, a context none of its defaults or recording"
+    assert message =~ "Add `use Playwright.Test` as the first line of the case template's body"
   end
 
   test "a browser of setup_all before the module's registration makes it raise, with the fix" do
     Playwright.Test.BrowserPool.browser()
 
     message = assert_raise(ArgumentError, fn -> Playwright.Test.__setup_all__(%{module: __MODULE__}) end).message
-    assert message =~ "this module's setup_all called BrowserPool.browser/1 before `use Playwright.Test` registered it"
+
+    assert message =~
+             "this module's setup_all fetched a browser (`BrowserPool.browser/1`) or created a context before `use Playwright.Test` registered it"
+
     assert message =~ "or move the `setup_all` after the module's `use Playwright.Test`"
     assert Playwright.Test.Results.scope(self()) == nil
   end
 
-  test "a browser and a context before the registration: the error names both" do
-    Playwright.Browser.new_context!(Playwright.Test.BrowserPool.browser())
-
+  test "a browser and a context before the registration: one error, naming both" do
+    context = Playwright.Browser.new_context!(Playwright.Test.BrowserPool.browser())
     message = assert_raise(ArgumentError, fn -> Playwright.Test.__setup__(%{test_pid: self()}) end).message
-    assert message =~ "this test called BrowserPool.browser/1 and created a context before `use Playwright.Test`"
-    assert message =~ "none of the module's worker options"
-    assert message =~ "and the context has no defaults and no recording"
+    Playwright.BrowserContext.close!(context)
+
+    assert message =~
+             "this test fetched a browser (`BrowserPool.browser/1`) or created a context before `use Playwright.Test` registered it"
+
+    assert message =~ "a browser gets none of the module's worker options, a context none of its defaults or recording"
   end
 
   # A process that never registers: its browser has the config's options, and nothing raises.

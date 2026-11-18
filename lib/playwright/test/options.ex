@@ -129,8 +129,11 @@ defmodule Playwright.Test.Options do
 
   @doc """
   The options of `use Playwright.Test`, validated, as a map: the recording modes, the timeouts
-  and the worker options as the config takes them, and `context_options`, converted, a `nil`
-  one kept (a reset, `context_options/2`).
+  and the worker options as the config takes them, the context options (`:context`) and
+  `context_options`, converted. A `nil` context option (also one in `context_options`),
+  `connect_options` or `default_browser_type` is kept, for the resolution to fall back on
+  (`context_options/2`, `worker/3`, `browser_name/3`); a `nil` of any other key raises, the
+  `context_options` bag's too.
   ExUnit.Case's keys are ignored (`without_ex_unit_keys/1`); any other key, a duplicated one or
   a bad value raises.
   """
@@ -270,8 +273,9 @@ defmodule Playwright.Test.Options do
   @doc """
   `options` over `past`, both `use_options/1`'s: the later wins per key, the context options of
   their own (`:context`) per option, as upstream's `test.use` calls (each option its own
-  fixture), and the `context_options` bag as a whole, as upstream's one `contextOptions` fixture;
-  a `nil` one stays, as the reset it is.
+  fixture), and the `context_options` bag as a whole, as upstream's one `contextOptions` fixture.
+  A `nil` (`use_options/1` keeps one only for a context option, `connect_options` and
+  `default_browser_type`) wins as any value does: the resolution falls back past it.
   """
   def merge(past, options) do
     Map.merge(past, options, fn
@@ -406,8 +410,9 @@ defmodule Playwright.Test.Options do
   calls: `browser_name/3`, and the `launch_options` (the module's, else the project's, as a whole)
   and `connect_options` of the module's `use_options` or its `project`. A `nil` `connect_options`
   falls back to the level under it, as upstream's `undefined` one (`mergeObjects` skips it in a
-  project's `use`, and a `test.use` of it restores the config's); `launch_options` takes a value,
-  `nil` raises (`use_options/1`).
+  project's `use`, and a `test.use` of it restores the config's), as a `nil`
+  `default_browser_type` does in `browser_name/3`; a `nil` `browser_name` or `launch_options`
+  never gets here, `use_options/1` raises for it.
   """
   def worker(config \\ config(), project \\ %{}, use_options \\ %{}) do
     keys = @worker_keys -- [:browser_name]
