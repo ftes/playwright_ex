@@ -874,8 +874,21 @@ so the server tunnels `localhost` to your machine.
 (when the runner closes the test's contexts, just before), in the test's process and in
 processes with it in `$callers` (a `Task`, a route handler). A library that owns resources per
 test (an Ecto sandbox owner, a session) finds the test from a `Task` with it:
-`Playwright.Test.info().test_pid`. Outside a registered test `info/0` raises;
-`Playwright.Test.in_registered_test?/0` tells first.
+`Playwright.Test.info().test_pid`.
+
+In the module's `setup_all`, and processes with it in `$callers`, `info/0` returns the module's
+fields: `file`, `timeout` (the module's, which bounds `setup_all`) and `use`, the options
+resolved from the config, the project and the module, as its `setup_all` contexts get them (a
+describe's or a test's never reach `setup_all`). The test's fields (`test_pid`, `test_name`,
+`output_dir`, `retry`, `deadline`, `close_deadline`) are absent there, and `output_path/1`,
+`snapshot_path/2`, `attach/2` and `step/2,3` raise. Playwright Test runs `beforeAll` with the
+first test's `testInfo`; ExUnit runs `setup_all` before any test.
+
+Elsewhere `info/0` raises. `Playwright.Test.in_registered_test?/0` tells whether a test is
+running, `Playwright.Test.in_registered_scope?/0` whether `info/0` works (a test or a
+`setup_all`). A library that also runs outside them reads the config there: `if
+Playwright.Test.in_registered_scope?(), do: Playwright.Test.info().use, else:
+Playwright.Test.config()`.
 
 ## Polling and waiting
 

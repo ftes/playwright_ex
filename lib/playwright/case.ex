@@ -78,8 +78,8 @@ defmodule Playwright.Case do
 
   alias Playwright.Browser
   alias Playwright.BrowserContext
+  alias Playwright.Test
   alias Playwright.Test.BrowserPool
-  alias Playwright.Test.Recorder
 
   using opts do
     quote do
@@ -92,7 +92,7 @@ defmodule Playwright.Case do
 
   setup_all do
     # The module's resolved `browser_name`, which `browser/0` launches.
-    %{browser: BrowserPool.browser(), browser_name: Recorder.worker_options()[:browser_name]}
+    %{browser: BrowserPool.browser(), browser_name: Test.info().use.browser_name}
   end
 
   setup %{browser: browser} do

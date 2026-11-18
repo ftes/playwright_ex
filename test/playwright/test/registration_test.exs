@@ -132,7 +132,7 @@ defmodule Playwright.Test.RegistrationTest do
     spawn(fn -> send(test_pid, {:raised, catch_error(Playwright.Test.info())}) end)
 
     assert_receive {:raised,
-                    %RuntimeError{message: "Playwright.Test.info() can only be called while a test is running" <> _}}
+                    %RuntimeError{message: "Playwright.Test.info() can only be called while a test or its module" <> _}}
   end
 
   # Upstream's `testInfo.timeout`: ExUnit's timeout of the test, none (`:infinity`) under `--trace`.
