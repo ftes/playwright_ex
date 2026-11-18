@@ -370,16 +370,17 @@ All three contexts are recorded into the test's one trace, and each gets its own
 ## Devices
 
 Playwright Test's `devices['iPhone 13']` is `Playwright.device("iPhone 13")`: the device's
-context options as a map, static data of the pinned Playwright version, so it needs no driver
+context options as a keyword list, static data of the pinned Playwright version, so it needs no driver
 and works at compile time. An unknown name raises, naming the closest;
 `Playwright.devices/0` is the map of all of them, and its docs list the names.
-`Browser.new_context!/2` takes a device as it is or with more:
+`Browser.new_context!/2` takes a device as it is or with more (`Keyword.merge/2` replaces one of
+the device's):
 
 ```elixir
 test "on a phone" do
   browser = BrowserPool.browser(browser_name: :webkit)
   iphone = Playwright.device("iPhone 13")
-  page = BrowserContext.new_page!(Browser.new_context!(browser, Map.put(iphone, :locale, "de-DE")))
+  page = BrowserContext.new_page!(Browser.new_context!(browser, iphone ++ [locale: "de-DE"]))
   # ...
 end
 ```
@@ -388,10 +389,10 @@ The device's options are the call's, so they win over Playwright Test's defaults
 over the 1280x720 one), and its `default_browser_type` (`"webkit"`) names its browser, which
 `new_context` ignores.
 
-A device is a map of options, so it is spread into the others, as Playwright Test's
+A device is a keyword list of options, so it is spread into the others, as Playwright Test's
 `...devices['iPhone 13']`. For a module, its `test.use({ ...devices['iPhone 13'] })` at a file's
 top, give the device to a `use Playwright.Test` (a module's `use`s add up; in one `use`, it is
-`use Playwright.Case, [async: true] ++ Enum.to_list(Playwright.device("iPhone 13"))`):
+`use Playwright.Case, [async: true] ++ Playwright.device("iPhone 13")`):
 
 ```elixir
 defmodule MyApp.PhoneTest do
@@ -459,7 +460,7 @@ after the compilation (the runner reads the config at run time):
 ```elixir
 # config/runtime.exs
 if config_env() == :test do
-  config :playwright, :test, Enum.to_list(Playwright.device("iPhone 13"))
+  config :playwright, :test, Playwright.device("iPhone 13")
 end
 ```
 

@@ -226,7 +226,7 @@ defmodule Playwright.Test.ContextOptionsTest do
     device = Playwright.device("iPhone 13")
     refute Enum.any?(Playwright.Test.use(device), fn {key, _value} -> to_string(key) =~ "rowser" end)
     assert Playwright.Test.parameters(device)[:"playwright.use.default_browser_type"] == :webkit
-    assert Playwright.Test.parameters(device)[:"playwright.use.context.userAgent"] == device.user_agent
+    assert Playwright.Test.parameters(device)[:"playwright.use.context.userAgent"] == device[:user_agent]
     assert %{default_browser_type: :webkit, context: %{isMobile: true}} = Options.use_options(device)
 
     config = %{context_options: [locale: "it-IT", color_scheme: :dark], timezone_id: "Europe/Rome"}
@@ -621,11 +621,11 @@ defmodule Playwright.Test.ContextOptionsTest.DeviceBrowserTest do
     Application.put_env(
       :playwright,
       :test,
-      env |> Keyword.delete(:browser_name) |> Keyword.merge(Enum.to_list(Playwright.device("Desktop Firefox")))
+      env |> Keyword.delete(:browser_name) |> Keyword.merge(Playwright.device("Desktop Firefox"))
     )
 
     assert Options.browser_name(Options.config()) == :firefox
-    assert Options.context_options().userAgent == Playwright.device("Desktop Firefox").user_agent
+    assert Options.context_options().userAgent == Playwright.device("Desktop Firefox")[:user_agent]
   end
 end
 
