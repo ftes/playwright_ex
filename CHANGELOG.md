@@ -60,7 +60,11 @@ Node 26.13.1. No upstream API changes.
   `default_browser_type` given as `nil` resets it to the project's, the config's or the default,
   as upstream's `undefined`; `nil` raises for the other options. `context_options:` is
   upstream's `contextOptions`, for the other options of `new_context`, under an option of its
-  own. The config takes both too (`config :playwright, :test, base_url: "..."`).
+  own, so flat keys are the upstream-shaped form (`config :playwright, :test, locale:
+  "de-DE"`). The config takes both too (`config :playwright, :test, base_url: "..."`).
+  `Playwright.Test.config().context_options` holds only the bag, not the options of their own: a
+  library that read options from it should read the test's resolved options with
+  `Playwright.Test.info().use`.
 - `Playwright.Test.use/1` gives a describe block or a test its options, as
   Playwright Test's `test.use` in a `test.describe`: `@describetag Test.use(timezone_id:
   "Europe/Berlin")`, `@tag Test.use(trace: :on)`. They layer per option, over the module's.
@@ -87,15 +91,8 @@ Node 26.13.1. No upstream API changes.
   write `@tag Test.use(trace: :on)` for `@tag trace: :on`, likewise for `@describetag` and
   `@moduletag`. Only `Test.use/1`'s keys are read, so tags named as options are yours. A
   leftover plain tag is ignored silently, with no error, no warning and no recording: search for
-  them (`rg "@(module|describe)?tag (trace|screenshot|video):"`) and write `@tag
+  them (`rg "@(module|describe)?tag[ (\[][^(]*\b(trace|screenshot|video):"`) and write `@tag
   Playwright.Test.use(trace: :on)`.
-- **RC only:** **Breaking:** `Playwright.Test.config().context_options` holds only the bag. A
-  context option set as a config key of its own (`config :playwright, :test, base_url: "...",
-  extra_http_headers: ...`) isn't in it: a library that read options from it should read the
-  test's resolved options with `Playwright.Test.info().use`.
-- **RC only:** **Breaking:** a config or `use` `context_options:` keyword still works, but it is
-  upstream's `contextOptions` bag, under every context option given as a key of its own. The
-  upstream-shaped form is flat keys (`config :playwright, :test, locale: "de-DE"`).
 - **RC only:** **Breaking:** `mix playwright.install` forwards its args to `playwright install`
   as they are, without `--`: `mix playwright.install chromium --with-deps`. A `--` now raises,
   naming that fix.
