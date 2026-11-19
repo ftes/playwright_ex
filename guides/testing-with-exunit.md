@@ -1043,6 +1043,15 @@ Most of a spec ports call for call. What differs (and see [Not supported](#not-s
   `Page.request/1` (upstream's `page.request`, which shares the page's cookies).
 - `addInitScript(fn)` calls the function, but a string is sent as is, so `"() => ..."` only
   defines one: pass `"(#{fun})()"`, or the function's body.
+- `expect(locator, 'should be logged in')` is `locator |> Expect.message("should be logged in")
+  |> Expect.to_be_visible!()`.
+- `reporter: 'github'` is the `Playwright.Test.GitHubFormatter` formatter (see
+  [CI](debugging-and-ci.md#annotations)).
+- `test('...', { tag: '@slow' })` and `--grep @slow` are an ExUnit tag (`@tag :slow`, or
+  `@moduletag :slow` for the file) and `mix test --only slow`.
+- Playwright Test runs the files in a fixed order; ExUnit runs the modules in a random
+  order, so a spec that relies on an earlier file's state (a user it created) fails now and then:
+  create that state in the module's own `setup_all` or `setup`.
 - A selector with parentheses can't go in `~s(...)`: use `~s[...]` or a string.
 - `test.use({ locale: 'de-DE' })` at a file's top is `use Playwright.Case, locale: "de-DE"`, in a
   `test.describe` it is `@describetag Test.use(locale: "de-DE")` (`@tag` for one test);

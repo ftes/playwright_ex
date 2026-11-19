@@ -135,9 +135,12 @@ network is slow or you run offline: the driver goes to `~/.cache/playwright`
 ### In Playwright's image
 
 Or run the job in Playwright's image, which has every browser (at `PLAYWRIGHT_BROWSERS_PATH`)
-and its system packages, so only the driver is installed. The image's version must match the
-driver's (`Playwright.Driver.version/0`). `erlef/setup-beam` needs `unzip`, `ImageOS` and
-`HOME` there. It pays off with WebKit or many browser jobs. The image is about 2 GB, pulled per
+and its system packages, so only the driver is installed. The image's tag must be the driver's
+version, not this package's: `mix playwright.cli --version` prints it (`Version 1.65.1`), and
+the README names it. Install with `--no-browsers` there: with an image of another version, the
+launch then fails with Playwright's "Please update docker image as well" and both versions,
+where `mix playwright.install` would download the browsers again on every run, silently.
+`erlef/setup-beam` needs `unzip`, `ImageOS` and `HOME` there. It pays off with WebKit or many browser jobs. The image is about 2 GB, pulled per
 job on hosted runners, and it is Ubuntu 24.04: a `_build` (with NIFs) or a cached OTP from a job
 on `ubuntu-latest` may not run in it, so build in the image too. Services are reached by name,
 not `localhost`.
@@ -182,6 +185,16 @@ them off:
 - run: |
     mix test --formatter ExUnit.CLIFormatter --formatter Playwright.Test.GitHubFormatter ||
       { [ $? -eq 2 ] && mix test --failed; }
+```
+
+With `--partitions`, rerun without it. The failures manifest holds only this partition's
+failures, and `mix test` deals the files to the partitions round-robin, so `--partitions` would
+split them again: a partition can then run none of them and exit 0, green.
+
+```yaml
+- env:
+    MIX_TEST_PARTITION: ${{ matrix.partition }}
+  run: mix test --partitions 4 || { [ $? -eq 2 ] && mix test --failed; }
 ```
 
 ## Docker
