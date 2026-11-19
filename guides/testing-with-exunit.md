@@ -612,13 +612,15 @@ config :playwright, :test, trace: :on_first_retry
 ```
 
 and rerun the failures in CI, only on exit status 2 (tests failed; a crash or a missed
-`--cover` threshold isn't retried, and an empty `--failed` run would pass), failing a rerun that
-runs no test (a failed `setup_all` `on_exit` exits 2 but leaves none to rerun):
+`--cover` threshold isn't retried, and an empty `--failed` run would pass):
 
 ```sh
-set -o pipefail
-mix test || { [ $? -eq 2 ] && mix test --failed | tee retry.log && ! grep -q "There are no tests to run" retry.log; }
+mix test || { [ $? -eq 2 ] && mix test --failed; }
 ```
+
+On Elixir 1.20 and earlier, `--failed` doesn't rerun a module whose `setup_all` cleanup
+(`on_exit`) failed after its tests passed, so such a failure can be retried green; Elixir 1.21
+fixes this ([elixir-lang/elixir@0f654791](https://github.com/elixir-lang/elixir/commit/0f654791)).
 
 With `--partitions`, rerun without it (see [CI](debugging-and-ci.md#annotations)).
 

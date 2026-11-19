@@ -151,14 +151,9 @@ defmodule Playwright.Test do
   in it. ExUnit has no retries in a run: a test under `mix test --failed` is upstream's retry
   (`info/0`'s `retry`, 1 after the first run), and writes to `<dir>-retry1` (`-retry2` on the
   next `--failed`, ...), next to the dirs of its earlier runs. So with `trace: :on_first_retry`,
-  a CI rerun of the failures traces them and keeps the first run's files:
-
-      set -o pipefail
-      mix test || { [ $? -eq 2 ] && mix test --failed | tee retry.log && ! grep -q "There are no tests to run" retry.log; }
-
-  Exit status 2 means tests failed (anything else isn't retried), and the `grep` fails a rerun
-  that runs no test, as after a failed `setup_all` `on_exit`; with `--partitions`, rerun without
-  it (see the Debugging and CI guide). A run
+  `mix test || { [ $? -eq 2 ] && mix test --failed; }` traces the failures' rerun and keeps the
+  first run's files (exit status 2 means tests failed; anything else isn't retried; with
+  `--partitions`, rerun without it, see the Debugging and CI guide). A run
   without `--failed` deletes the test's `-retryN` dirs too, where
   upstream deletes all of `output_dir` at the start of a run: here the dirs of tests that didn't
   run stay. Config `preserve_output` is upstream's `preserveOutput`: `:always` (default) keeps
