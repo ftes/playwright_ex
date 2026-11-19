@@ -219,5 +219,5 @@ Page.locator(page, "button") |> Locator.evaluate!("el => el.textContent")
 ```
 
 Values cross as Elixir terms: JS objects come back as maps with string keys, `Date` is
-`DateTime`, `RegExp` is `Playwright.RegExp`, `NaN` and `Infinity` are `:nan` and `:infinity`,
+`DateTime`, `RegExp` is `Playwright.RegExp`, `NaN`, `Infinity` and `-Infinity` are `:nan`, `:infinity` and `:neg_infinity`, `-0` is `-0.0`,
 `undefined` is `nil` and `null` is `:null`.

@@ -85,7 +85,7 @@ defmodule Playwright.ApiDocsTest do
     assert offending(docs, ~r/\b[Tt]hr(?:ow|ows|own|owing)\b/) == []
   end
 
-  # "*Since Playwright 1.8.*" in the text: our versions don't name Playwright's releases before 1.65.
+  # "*Since Playwright 1.8.*" in the text: our versions match Playwright's only from 1.65.
   test "no `since:` metadata (it would read as a Playwright version)" do
     with_since =
       for module <- @modules,
