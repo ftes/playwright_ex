@@ -839,7 +839,7 @@ defmodule Playwright.Guides.TestingWithExUnit.AccessibilityTest do
   test "an image without alt is a violation", %{page: page, axe_path: axe_path} do
     Page.set_content!(page, ~s(<main><img src="logo.png"></main>))
 
-    Page.add_script_tag!(page, path: axe_path)
+    Page.evaluate!(page, File.read!(axe_path))
     result = Page.evaluate!(page, "() => axe.run()")
     assert [%{"id" => "image-alt"}] = result["violations"]
   end
@@ -847,7 +847,7 @@ defmodule Playwright.Guides.TestingWithExUnit.AccessibilityTest do
   test "no violations", %{page: page, axe_path: axe_path} do
     Page.set_content!(page, ~s(<main><img src="logo.png" alt="Logo"></main>))
 
-    Page.add_script_tag!(page, path: axe_path)
+    Page.evaluate!(page, File.read!(axe_path))
     result = Page.evaluate!(page, "() => axe.run()")
     assert result["violations"] == []
   end

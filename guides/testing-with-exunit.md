@@ -1013,13 +1013,13 @@ LiveViews log ownership errors.
 
 ## Accessibility testing
 
-`@axe-core/playwright` isn't ported: install axe-core with your package manager, add its script
-to the page (again after each navigation) and run it:
+`@axe-core/playwright` isn't ported: install axe-core with your package manager, evaluate its
+script in the page (again after each navigation), as `AxeBuilder` does, and run it:
 
 ```elixir
 axe_path = "assets/node_modules/axe-core/axe.min.js"
 
-Page.add_script_tag!(page, path: axe_path)
+Page.evaluate!(page, File.read!(axe_path))
 result = Page.evaluate!(page, "() => axe.run()")
 assert result["violations"] == []
 ```
@@ -1027,8 +1027,7 @@ assert result["violations"] == []
 `axe.run(context, options)` takes what `AxeBuilder`'s `include`, `exclude` and `withTags` set:
 `Page.evaluate!(page, "([c, o]) => axe.run(c, o)", [%{include: ["main"]}, %{runOnly: ["wcag2a"]}])`.
 Take the axe-core your JS suite's `@axe-core/playwright` resolves, for the same rules. It checks
-the main frame only: `AxeBuilder` also runs axe in each iframe and merges the results. A page
-whose CSP forbids inline scripts needs the context option `bypass_csp: true`.
+the main frame only: `AxeBuilder` also runs axe in each iframe and merges the results.
 
 ## Porting Playwright Test specs
 
