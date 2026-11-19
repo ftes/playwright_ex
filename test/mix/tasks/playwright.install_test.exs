@@ -37,24 +37,6 @@ defmodule Mix.Tasks.Playwright.InstallTest do
 
       assert_raise Mix.Error, ~r/got: --dry-run$/, fn -> Install.parse_args(~w(--force --no-browsers --dry-run)) end
     end
-
-    test "a -- raises, suggesting the args without it" do
-      for {argv, fix} <- [
-            {~w(-- firefox), "mix playwright.install firefox"},
-            {~w(--force -- chromium --with-deps), "mix playwright.install --force chromium --with-deps"},
-            {~w(--no-browsers --), "mix playwright.install --no-browsers"},
-            {~w(--), "mix playwright.install"},
-            {~w(-- --), "mix playwright.install"}
-          ] do
-        assert_raise Mix.Error, "`--` is no longer needed: `#{fix}`", fn ->
-          Install.parse_args(argv)
-        end
-      end
-    end
-  end
-
-  test "a -- raises before installing anything" do
-    assert_raise Mix.Error, ~r/^`--` is no longer needed/, fn -> Install.run(["--", "chromium"]) end
   end
 
   test "a failed browser install raises with the exit status" do

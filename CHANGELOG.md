@@ -2,7 +2,7 @@
 
 1.x is a statement-by-statement port of Playwright's JavaScript client. It needs Elixir 1.18 or
 later (CI tests down to OTP 27). Its major.minor is Playwright's and the patch is ours: depend on
-`~> 1.65.0`. Upgrading from 0.16: read the [upgrading guide](guides/upgrading.md).
+`~> 1.65.0`.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
@@ -36,8 +36,8 @@ upstream minor, so `~> 1.65.0` is safe.
 ## Backwards-incompatible changes
 
 1.x is a clean cut from 0.16: the guid-based modules, `Selector`, `EventWaiter` and the other
-0.16 APIs are gone. The [upgrading guide](guides/upgrading.md) covers every change. From before
-0.16, also read the sections up to 0.16.
+0.16 APIs are gone. From before 0.16,
+also read the sections up to 0.16.
 
 ## [Unreleased]
 
@@ -164,8 +164,11 @@ Node 26.13.1. No upstream API changes.
 
 ## [1.65.0-rc.1] 2026-11-16
 
-Drives [Playwright 1.65.0](https://github.com/microsoft/playwright/releases/tag/v1.65.0). The
-[upgrading guide](guides/upgrading.md) has the recipe for each breaking change.
+Drives [Playwright 1.65.0](https://github.com/microsoft/playwright/releases/tag/v1.65.0).
+
+Upgrading from 0.16: the modules are renamed `PlaywrightEx` to `Playwright`, the config key
+`:playwright_ex` to `:playwright` (the dependency needs `hex: :playwright_ex`), and guids are
+replaced by handles (structs) that calls take instead.
 
 ### Changed
 - **Breaking:** rewritten as a port of Playwright's JS client, its API generated from Playwright's
@@ -180,7 +183,7 @@ Drives [Playwright 1.65.0](https://github.com/microsoft/playwright/releases/tag/
 - **Breaking:** behaviour follows upstream: unknown options raise, nested maps use the JS keys
   (`sameSite`), JS `null` is `:null`, tuple forms return `{:error, e}` only for Playwright's
   errors, failed bang matchers raise `Playwright.ExpectError`, dialogs without a listener are
-  dismissed. See [Behaviour changes](guides/upgrading.md#behaviour-changes).
+  dismissed.
 - **Breaking:** Playwright 1.65's own: actions wait for the element to be not inert, cookie
   matching follows RFC 6265, proxy credentials only answer proxy challenges, and text the browser
   doesn't render leaves accessible names and aria snapshots.
@@ -211,7 +214,7 @@ Drives [Playwright 1.65.0](https://github.com/microsoft/playwright/releases/tag/
 - `__options__/1` on the facade modules, for wrappers (its shape is unstable).
 - `usage-rules.md` ships in the package: `usage_rules: [:playwright]`.
 - Guides: getting started, from playwright.dev to Elixir, cheatsheet, testing with ExUnit,
-  events and waiting, network, debugging and CI, concurrency, upgrading from 0.16.
+  events and waiting, network, debugging and CI, concurrency.
 
 ## 0.16 and earlier
 

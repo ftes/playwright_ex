@@ -82,9 +82,15 @@ names match Python's: snake_case, keyword options, `expect_popup`, `eval_on_sele
 - [Events and waiting](guides/events-and-waiting.md), [Network](guides/network.md),
   [Debugging and CI](guides/debugging-and-ci.md).
 - [Concurrency](guides/concurrency.md): listeners, promises and processes.
-- [Upgrading from 0.16](guides/upgrading.md).
 
 Feedback of any shape and size is welcome: [get in touch](https://ftes.de).
+
+## Known gaps
+
+- Not ported: `BrowserType.launchServer` and `connectOverCDP` with a transport.
+- `to_have_url` with a string doesn't percent-encode it as JS's `new URL` does (relative or
+  absolute, with or without a base URL): pass non-ASCII characters and spaces encoded
+  (`"/cr%C3%A9atures"`, `"?q=Felix%20Felicis"`).
 
 ## Contributing
 
