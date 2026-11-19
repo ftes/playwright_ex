@@ -62,11 +62,7 @@ defmodule Playwright.Test.Recorder do
   def timed_out?(nil), do: false
   def timed_out?(recorder), do: match?(%{timed_out: true}, call(recorder, {:fields, [:timed_out]}, @answer_timeout))
 
-  @doc """
-  The registration of the running test (`Playwright.Test`'s per-test setup) of the calling
-  process or a process in its `$callers`, or `nil`. It stops at the nearest registered scope: the
-  test, or `nil` when a module's `setup_all` comes first.
-  """
+  @doc "The test of `scope/0`, or `nil` (also when a module's `setup_all` is the nearer scope)."
   def registration do
     case scope() do
       {:test, test} -> test

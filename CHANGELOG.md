@@ -43,22 +43,20 @@ upstream minor, so `~> 1.65.0` is safe.
 ### Added
 
 - `Playwright.Test.info/0` in `setup_all`: the module's `file`, `timeout` and resolved `use`
-  options (config, project, module), and `Playwright.Test.in_registered_scope?/0`.
+  options (config, project, module).
 - `Playwright.Test.step/2,3` and `step_skip/2,3` in `setup_all`, as `test.step` in
   `beforeAll`: a step returns its body's value and raises its error (a boxed step's where its
   helper is called), unrecorded.
+- **RC only:** `Playwright.Test.in_registered_test?/0` is replaced by `in_registered_scope?/0`,
+  true in a test or `setup_all`; `info/0` has `test_pid` only in a test.
 
 ### Fixed
 
 - `add_cookies`, `storage_state:` and `set_storage_state` check their keys against the
   protocol's: a snake_case `http_only:` raises instead of being dropped. Errors name the
   argument and list index (`cookies[0].http_only`).
-
-### Docs
-
-- CI retries with `--partitions` rerun `mix test --failed` without it; Playwright's Docker image
-  tag is the driver's version; porting notes for `expect` messages, the `github` reporter, tags
-  and ExUnit's random module order; accessibility testing with axe-core.
+- **RC only:** `mix playwright.install` forwards a `--` to `playwright install` (rc.2 raised on
+  it).
 
 ## [1.65.0-rc.2] 2026-11-18
 
@@ -166,8 +164,6 @@ Node 26.13.1. No upstream API changes.
 
 ### Fixed
 
-- **RC only:** `mix playwright.install` forwards a `--` to `playwright install` again (rc.2
-  raised on it).
 - **RC only:** `mix playwright.install` and `mix playwright.cli` failed with "module :public_key
   is not available" when run before the project was compiled (e.g. right after `mix deps.get` in
   CI).
@@ -175,9 +171,6 @@ Node 26.13.1. No upstream API changes.
 ## [1.65.0-rc.1] 2026-11-16
 
 Drives [Playwright 1.65.0](https://github.com/microsoft/playwright/releases/tag/v1.65.0).
-
-Upgrading from 0.16: see the renames under Changed below (`PlaywrightEx` to `Playwright`,
-`:playwright_ex` to `:playwright`, guids to structs).
 
 ### Changed
 - **Breaking:** rewritten as a port of Playwright's JS client, its API generated from Playwright's

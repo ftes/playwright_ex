@@ -3828,7 +3828,7 @@ defmodule Playwright.Frame do
   end
 
   @doc ~S"""
-  Waits for the given `timeout` in milliseconds. It rejects `:infinity`: to check without waiting, read once (`Locator.is_visible/2`, `Locator.count/1`) or pass a short timeout.
+  Waits for the given `timeout` in milliseconds. It rejects `:infinity`.
 
   Note that `Playwright.Frame.wait_for_timeout/2` should only be used for debugging. Tests using the timer in production are going to
   be flaky. Use signals such as network events, selectors becoming visible and others instead.
