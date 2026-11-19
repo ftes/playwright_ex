@@ -375,9 +375,11 @@ defmodule Playwright.Test do
 
   A step also works in the module's `setup_all` (and processes with it in `$callers`), as
   upstream's in a `beforeAll` hook: it returns its body's value, nests, and raises its error on,
-  a boxed one's at its call site. Deviation: it is recorded nowhere, where upstream's
-  `beforeAll` runs with the first test's `testInfo` and records its steps in that test (its
-  trace's "Before Hooks"): ExUnit runs `setup_all` before any test, and hooks aren't steps here.
+  a boxed one's at its call site. Deviation: it is recorded nowhere (no trace, no video
+  overlay), where upstream's `beforeAll` runs with the first test's `testInfo` and records its
+  steps in that test (its trace's "Before Hooks"): ExUnit runs `setup_all` before any test, and
+  hooks aren't steps here. So is a step of a long-lived process or handler of `setup_all`'s
+  during a test, where upstream's `test.step` is the current test's (as for `info/0`).
 
   ## Config
 

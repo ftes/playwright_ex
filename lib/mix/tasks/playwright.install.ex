@@ -14,7 +14,8 @@ defmodule Mix.Tasks.Playwright.Install do
       need no new driver), and is forwarded, so it reinstalls the browsers too. To reinstall
       only a browser, run `mix playwright.cli install --force <browser>`.
 
-  Every other arg is forwarded in order. A `--` raises: the args need none.
+  Every other arg is forwarded in order. A `--` is forwarded too, and the task's own flags are
+  not looked for after it: everything after `--` is an operand of `playwright install`.
 
   The task doesn't see the options of `Playwright.Supervisor`; it reads their defaults,
   `config :playwright, :driver` (see `Playwright.Driver`). It doesn't compile the project, so it
@@ -60,11 +61,13 @@ defmodule Mix.Tasks.Playwright.Install do
   # Splits argv into the task's flags and the args for `playwright install`:
   # `{browsers?, force?, args}`.
   def parse_args(argv) do
-    {own, others} = Enum.split_with(argv, &(&1 in @own_flags))
+    {options, operands} = Enum.split_while(argv, &(&1 != "--"))
+    {own, others} = Enum.split_with(options, &(&1 in @own_flags))
+    others = others ++ operands
 
     cond do
       "--no-browsers" not in own ->
-        {true, "--force" in own and not Enum.any?(others, &(&1 in @no_driver_reinstall)), argv}
+        {true, "--force" in own and not Enum.any?(options, &(&1 in @no_driver_reinstall)), argv}
 
       others == [] ->
         {false, "--force" in own, []}

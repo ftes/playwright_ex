@@ -136,8 +136,8 @@ network is slow or you run offline: the driver goes to `~/.cache/playwright`
 
 Or run the job in Playwright's image, which has every browser (at `PLAYWRIGHT_BROWSERS_PATH`)
 and its system packages, so only the driver is installed. Its tag is the pinned driver's
-version, not this package's: `mix playwright.cli --version` prints it (`Version 1.65.1`; not
-your CLI's with `executable:`), and the README names it. Install with `--no-browsers` there: an
+version, not this package's: `mix playwright.cli --version` prints it (`Version 1.65.1`, or
+with `executable:` that CLI's version, the tag then), and the README names it. Install with `--no-browsers` there: an
 image that lacks the driver's browsers then fails at launch with Playwright's "Please update
 docker image as well", instead of `mix playwright.install` downloading them on every run.
 `erlef/setup-beam` needs `unzip`, `ImageOS` and `HOME` there. It pays off with WebKit or many

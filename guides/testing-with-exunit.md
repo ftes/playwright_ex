@@ -706,7 +706,8 @@ without running it. `Test` is `Playwright.Test`, which `Playwright.Case` aliases
 A step works in `setup_all` too, as Playwright Test's in `beforeAll`: it returns its body's value
 and raises its error, a boxed step's where its helper is called, so the same helpers serve both.
 It isn't recorded, as no test runs yet: Playwright Test shows a `beforeAll` hook's steps in the
-first test's trace, ExUnit runs `setup_all` before any test.
+first test's trace, ExUnit runs `setup_all` before any test. A process or handler that
+`setup_all` started (with it in `$callers`) records none either, also during a test.
 
 ## Route handlers and listeners
 
@@ -890,11 +891,12 @@ fields: `file`, `timeout` (the module's, which bounds `setup_all`) and `use`, th
 resolved from the config, the project and the module, as its `setup_all` contexts get them (a
 describe's or a test's never reach `setup_all`). The test's fields (`test_pid`, `test_name`,
 `output_dir`, `retry`, `deadline`, `close_deadline`) are absent there, and `output_path/1`,
-`snapshot_path/2` and `attach/2` raise; `step/2,3` works, unrecorded (see "Steps"). Playwright
-Test runs `beforeAll` with the first test's `testInfo`; ExUnit runs `setup_all` before any test. A `setup_all` that runs before
-`use Playwright.Test` (a case template's own, or one above the module's `use`) isn't registered
-yet, and a process or handler that `setup_all` started, with it in `$callers`, gets the
-module's fields also during a test.
+`snapshot_path/2` and `attach/2` raise; `step/2,3` and `step_skip/2,3` work, unrecorded (see
+"Steps"). Playwright Test runs `beforeAll` with the first test's `testInfo`; ExUnit runs
+`setup_all` before any test. A `setup_all` that runs before `use Playwright.Test` (a case
+template's own, or one above the module's `use`) isn't registered yet, and a process or handler
+that `setup_all` started, with it in `$callers`, gets the module's fields also during a test,
+and its steps stay unrecorded.
 
 Elsewhere `info/0` raises, also in `on_exit` callbacks. `Playwright.Test.in_registered_test?/0`
 tells whether a test is running, `Playwright.Test.in_registered_scope?/0` whether `info/0` works
@@ -1011,13 +1013,13 @@ LiveViews log ownership errors.
 
 ## Accessibility testing
 
-`@axe-core/playwright` isn't ported: install axe-core with your package manager, add its script
-to the page (again after each navigation) and run it:
+`@axe-core/playwright` isn't ported: install axe-core with your package manager, evaluate its
+script in the page (again after each navigation), as `AxeBuilder` does, and run it:
 
 ```elixir
 axe_path = "assets/node_modules/axe-core/axe.min.js"
 
-Page.add_script_tag!(page, path: axe_path)
+Page.evaluate!(page, File.read!(axe_path))
 result = Page.evaluate!(page, "() => axe.run()")
 assert result["violations"] == []
 ```
@@ -1025,8 +1027,7 @@ assert result["violations"] == []
 `axe.run(context, options)` takes what `AxeBuilder`'s `include`, `exclude` and `withTags` set:
 `Page.evaluate!(page, "([c, o]) => axe.run(c, o)", [%{include: ["main"]}, %{runOnly: ["wcag2a"]}])`.
 Take the axe-core your JS suite's `@axe-core/playwright` resolves, for the same rules. It checks
-the main frame only: `AxeBuilder` also runs axe in each iframe and merges the results. A page
-whose CSP forbids inline scripts needs the context option `bypass_csp: true`.
+the main frame only: `AxeBuilder` also runs axe in each iframe and merges the results.
 
 ## Porting Playwright Test specs
 

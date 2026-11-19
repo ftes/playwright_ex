@@ -83,8 +83,8 @@ a running supervisor's root object, and the `error` type), `@intros` in `ApiRule
   `expect_*`, and get the callback form too (`expect_popup(page, action)`, C#'s order). Bang
   waits exist but await at once.
 - Docs render from the `spec` AST, not `comment` (admonitions, nested option bullets,
-  `*Since Playwright 1.x.*` as text, not `since:` metadata, as our versions don't name
-  Playwright's releases before 1.65, so a `since` would read as one of ours; events as moduledoc headings). Non-JS doc variants replace JS-only text where
+  `*Since Playwright 1.x.*` as text, not `since:` metadata, as our versions match upstream's
+  only from 1.65 and an older `since` names no release of ours; events as moduledoc headings). Non-JS doc variants replace JS-only text where
   the type matches. A JS example with an Elixir translation in `test/examples` (tests, so each
   compiles and runs; `Playwright.ExampleCase`) is rendered in Elixir, keyed by the JS text; the
   rest stay JS until translated. Rejected: `iex>` doctests (scripts with no printable results or

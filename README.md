@@ -37,8 +37,7 @@ This installs driver 1.65.1 (`mix playwright.cli --version`). If you run in Play
 image, its tag must be that version, `v1.65.1-noble` (see
 [Docker](guides/debugging-and-ci.md#in-playwright-s-image)).
 
-Arguments are `playwright install`'s, with no `--`:
-`mix playwright.install chromium --with-deps`.
+Arguments are `playwright install`'s: `mix playwright.install chromium --with-deps`.
 
 ## Versioning
 
@@ -87,10 +86,11 @@ Feedback of any shape and size is welcome: [get in touch](https://ftes.de).
 
 ## Known gaps
 
-- Not ported: `BrowserType.launchServer` and `connectOverCDP` with a transport.
-- `to_have_url` with a string doesn't percent-encode it as JS's `new URL` does (relative or
-  absolute, with or without a base URL): pass non-ASCII characters and spaces encoded
-  (`"/cr%C3%A9atures"`, `"?q=Felix%20Felicis"`).
+- Not ported: `BrowserType.launchServer`, `connectOverCDP` with a transport, and Playwright
+  Test's jest layer (generic matchers such as `toBe`, `expect.extend`, `toMatchSnapshot`,
+  `resolves`/`rejects`): use ExUnit assertions.
+- URL globs and `base_url` are resolved by `URI` (RFC 3986), not WHATWG's `new URL`: without a
+  base URL, dot segments (`/a/../b`) aren't removed.
 
 ## Contributing
 

@@ -36,8 +36,7 @@ upstream minor, so `~> 1.65.0` is safe.
 ## Backwards-incompatible changes
 
 1.x is a clean cut from 0.16: the guid-based modules, `Selector`, `EventWaiter` and the other
-0.16 APIs are gone. From before 0.16,
-also read the sections up to 0.16.
+0.16 APIs are gone.
 
 ## [Unreleased]
 
@@ -45,8 +44,9 @@ also read the sections up to 0.16.
 
 - `Playwright.Test.info/0` in `setup_all`: the module's `file`, `timeout` and resolved `use`
   options (config, project, module), and `Playwright.Test.in_registered_scope?/0`.
-- `Playwright.Test.step/2,3` in `setup_all`, as `test.step` in `beforeAll`: it returns its
-  body's value and raises its error (boxed at its call site), unrecorded.
+- `Playwright.Test.step/2,3` and `step_skip/2,3` in `setup_all`, as `test.step` in
+  `beforeAll`: a step returns its body's value and raises its error (boxed at its call site),
+  unrecorded.
 
 ### Fixed
 
@@ -169,6 +169,8 @@ Node 26.13.1. No upstream API changes.
 
 ### Fixed
 
+- **RC only:** `mix playwright.install` forwards a `--` to `playwright install` again (rc.2
+  raised on it).
 - **RC only:** `mix playwright.install` and `mix playwright.cli` failed with "module :public_key
   is not available" when run before the project was compiled (e.g. right after `mix deps.get` in
   CI).
@@ -177,9 +179,8 @@ Node 26.13.1. No upstream API changes.
 
 Drives [Playwright 1.65.0](https://github.com/microsoft/playwright/releases/tag/v1.65.0).
 
-Upgrading from 0.16: the modules are renamed `PlaywrightEx` to `Playwright`, the config key
-`:playwright_ex` to `:playwright` (the dependency needs `hex: :playwright_ex`), and guids are
-replaced by handles (structs) that calls take instead.
+Upgrading from 0.16: see the renames under Changed below (`PlaywrightEx` to `Playwright`,
+`:playwright_ex` to `:playwright`, guids to structs).
 
 ### Changed
 - **Breaking:** rewritten as a port of Playwright's JS client, its API generated from Playwright's

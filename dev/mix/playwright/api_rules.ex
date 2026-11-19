@@ -167,6 +167,15 @@ defmodule Mix.Playwright.ApiRules do
       {"`page.pdf({width: '100px'})`", "`Page.pdf(page, width: \"100px\")`"},
       {"`page.pdf({width: '10cm'})`", "`Page.pdf(page, width: \"10cm\")`"}
     ],
+    # A duration, not a timeout: `:infinity` would never return.
+    "Page.waitForTimeout" => [
+      {"Waits for the given `timeout` in milliseconds.",
+       "Waits for the given `timeout` in milliseconds. It rejects `:infinity`: to check without waiting, read once (`Locator.is_visible/2`, `Locator.count/1`) or pass a short timeout."}
+    ],
+    "Frame.waitForTimeout" => [
+      {"Waits for the given `timeout` in milliseconds.",
+       "Waits for the given `timeout` in milliseconds. It rejects `:infinity`: to check without waiting, read once (`Locator.is_visible/2`, `Locator.count/1`) or pass a short timeout."}
+    ],
     "Locator.within" => [
       {"`page.getByRole('cell').nth(2)`", "`Page.get_by_role(page, :cell) |> Locator.nth(2)`"}
     ],
