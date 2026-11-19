@@ -922,8 +922,8 @@ defmodule Playwright.Test do
   stop 250 ms before it, as upstream's stop 250 ms before its test deadline.
 
   In the module's `setup_all` (and processes with it in `$callers`), it returns the fields that
-  apply to the module, with the same meaning: `file` (`nil` only if ExUnit's internal
-  `__ex_unit__/0` changed), `timeout` (ExUnit's timeout of the module,
+  apply to the module, with the same meaning: `file` (`nil` for a module without ExUnit's
+  internal `__ex_unit__/0`, or a `setup_all` run by hand), `timeout` (ExUnit's timeout of the module,
   `@moduletag timeout:` or ExUnit's, the one "Timeouts" in the moduledoc applies to its
   `setup_all` callbacks) and `use`, the module's options as resolved from the config, its
   project and the module itself (its `use` and `@moduletag`): a describe's and a test's options
