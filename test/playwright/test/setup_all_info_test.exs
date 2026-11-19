@@ -119,29 +119,10 @@ defmodule Playwright.Test.SetupAllInfoTest do
     assert "Playwright.Test.snapshot_path/2 can only be called while a test is running: in a test of a module" <> _ =
              setup_all.snapshot_path
 
-    assert setup_all.attach == "Playwright.Test.attach/2 can only be called while a test is running"
+    assert "Playwright.Test.attach/2 can only be called while a test is running: in a test of a module" <> _ =
+             setup_all.attach
+
     assert setup_all.step == "test.step() can only be called from a test"
-  end
-
-  # A module's scope ends with its `setup_all` process (its `on_exit` callbacks run after), not
-  # when the pool's `DOWN` deletes its row.
-  test "in_registered_scope?: not for a setup_all process that exited, its row still there" do
-    pid = spawn(fn -> :ok end)
-    ref = Process.monitor(pid)
-    assert_receive {:DOWN, ^ref, :process, ^pid, _reason}
-    :ets.insert(Playwright.Test.Results.table(), {{:module, pid}, %{}})
-
-    try do
-      task =
-        Task.async(fn ->
-          Process.put(:"$callers", [pid])
-          Test.in_registered_scope?()
-        end)
-
-      refute Task.await(task)
-    after
-      :ets.delete(Playwright.Test.Results.table(), {:module, pid})
-    end
   end
 
   test "in_registered_scope?: in the test and its Tasks, not in other processes" do

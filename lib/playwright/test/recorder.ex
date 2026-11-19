@@ -96,18 +96,9 @@ defmodule Playwright.Test.Recorder do
   The registration of the nearest of the calling process and its `$callers` that is a running
   test (`{:test, test}`) or a module's `setup_all` (`{:module, module}`,
   `Playwright.Test.Results.scope/1`), or `nil`: whose context defaults a context gets, and whose
-  `Playwright.Test.info/0` it reads. A module's only while its `setup_all` process lives, which
-  ExUnit keeps until the module's tests ended: its `on_exit` callbacks (with it in `$callers`)
-  get none, not one until the pool's `DOWN` deletes the row.
+  `Playwright.Test.info/0` it reads.
   """
-  def scope, do: Enum.find_value(Callers.capture(), &live_scope/1)
-
-  defp live_scope(pid) do
-    case Results.scope(pid) do
-      {:module, _module} = scope -> if Process.alive?(pid), do: scope
-      scope -> scope
-    end
-  end
+  def scope, do: Enum.find_value(Callers.capture(), &Results.scope/1)
 
   @doc "The registration of the test `test_pid`, or `nil`."
   def registration(test_pid) do

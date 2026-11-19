@@ -256,14 +256,16 @@ defmodule Playwright.Test do
   the video, as upstream's comes with the `context` fixture.
 
   `info/0` there returns the module's `file`, `timeout` and `use`: the module's options as
-  resolved for a test of it without tags, so its contexts' context options and timeouts, and
+  resolved for a test of it without describe or test tags, so its contexts' context options and
+  timeouts, and
   the worker options (`Playwright.Case` reads the `browser_name` from it); the recording modes
   too, which no `setup_all` context records. A library that also runs outside these scopes reads
   the config there: `if Playwright.Test.in_registered_scope?(), do: Playwright.Test.info().use,
   else: Playwright.Test.config()`. The two differ in shape: `config/0` is the config alone, with
   the context options set as keys of their own (none of Playwright Test's defaults, nor those only
   in its `context_options` bag) and its config-only keys (`workers`, `output_dir`, ...). Read the
-  keys both have by name (`base_url`, `action_timeout`, `trace`, ...), with `nil` for unset.
+  keys both have with Access, `use[:base_url]` (`nil` when unset), not `use.base_url`, which
+  raises for an unset key.
 
   Only processes with `$callers` count: a `Task`, the client's callback processes (route
   handlers, listeners, exposed bindings registered in `setup_all` carry its `$callers`, see
@@ -810,9 +812,11 @@ defmodule Playwright.Test do
     }
   end
 
-  # The module's file, absolute, as a test's `file` (the `__ENV__.file` ExUnit gives both; the
-  # compile info's `:source` is absent under `ERL_COMPILER_OPTIONS=deterministic`), or `nil` for a
-  # `setup_all` run by hand.
+  # The module's file, absolute, as a test's `file`: the `file` of ExUnit's `%ExUnit.TestModule{}`
+  # (`__ex_unit__/0`, its internal API, the `__ENV__.file` of the module's `use ExUnit.Case`), as
+  # the compile info's `:source` is absent under `ERL_COMPILER_OPTIONS=deterministic`. `nil` for a
+  # `setup_all` run by hand, or if ExUnit's internals changed (no `__ex_unit__/0`): not checked at
+  # compile time, as a case template, which also runs `__before_compile__/1`, has none.
   defp module_file(module) do
     if module && function_exported?(module, :__ex_unit__, 0), do: module.__ex_unit__().file
   end
@@ -918,7 +922,8 @@ defmodule Playwright.Test do
   stop 250 ms before it, as upstream's stop 250 ms before its test deadline.
 
   In the module's `setup_all` (and processes with it in `$callers`), it returns the fields that
-  apply to the module, with the same meaning: `file`, `timeout` (ExUnit's timeout of the module,
+  apply to the module, with the same meaning: `file` (`nil` only if ExUnit's internal
+  `__ex_unit__/0` changed), `timeout` (ExUnit's timeout of the module,
   `@moduletag timeout:` or ExUnit's, the one "Timeouts" in the moduledoc applies to its
   `setup_all` callbacks) and `use`, the module's options as resolved from the config, its
   project and the module itself (its `use` and `@moduletag`): a describe's and a test's options
@@ -929,10 +934,12 @@ defmodule Playwright.Test do
   own, or one above the module's `use`) gets none: there it raises. Deviation: a long-lived
   process or handler of `setup_all`'s (with it in `$callers`) gets the module's fields during a
   test too, as its contexts get the module's defaults (see "Contexts of `setup_all`"), where
-  upstream's `test.info()` is the current test's.
+  upstream's `test.info()` is the current test's. Such a process that outlives its test or
+  `setup_all` may still get its fields until the runner cleans up after it.
 
   Raises elsewhere (see `in_registered_scope?/0`), and in `on_exit` callbacks (ExUnit runs them
-  in a process of their own, `setup_all`'s too): there, use `info/1` for a test.
+  in a process of their own, without `$callers`, `setup_all`'s too): there, use `info/1` for a
+  test.
 
       Playwright.Test.info().test_pid
   """
@@ -1005,7 +1012,7 @@ defmodule Playwright.Test do
       use = if Test.in_registered_scope?(), do: Test.info().use, else: Test.config()
 
   `config/0` has another shape (see "Contexts of `setup_all`" in the moduledoc): read the keys
-  both have by name. `false` in a `setup_all` before `use Playwright.Test` registered the module
+  both have with Access (`use[:base_url]`, `nil` when unset). `false` in a `setup_all` before `use Playwright.Test` registered the module
   (a case template's own, or one above the module's `use`).
   """
   @spec in_registered_scope?() :: boolean()
@@ -1182,7 +1189,12 @@ defmodule Playwright.Test do
   @spec attach(String.t(), keyword()) :: :ok
   def attach(name, options \\ []) when is_binary(name) do
     options = Keyword.validate!(options, [:path, :body, :content_type])
-    test_info = TestInfo.current() || raise "Playwright.Test.attach/2 can only be called while a test is running"
+
+    test_info =
+      TestInfo.current() ||
+        raise "Playwright.Test.attach/2 can only be called while a test is running: in a test of a module with " <>
+                "`use Playwright.Test` (its process, or one with it in $callers)"
+
     TestInfo.attach(test_info, name, %{path: options[:path], body: options[:body], contentType: options[:content_type]})
   end
 
