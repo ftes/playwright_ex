@@ -154,6 +154,11 @@ defmodule Mix.Playwright.ApiRules do
   @timeout_doc_from "The default value can be changed by using the [`method: BrowserContext.setDefaultTimeout`]."
   @page_timeout_doc "[`method: Page.setDefaultTimeout`] or [`method: BrowserContext.setDefaultTimeout`]."
   @set_input_files [{"`filePaths`", "`files`"}]
+  # A duration, not a timeout: `:infinity` would never return.
+  @wait_for_timeout [
+    {"Waits for the given `timeout` in milliseconds.",
+     "Waits for the given `timeout` in milliseconds. It rejects `:infinity`."}
+  ]
   @prose_overrides %{
     # JS calls with arguments: the generic rule links only `receiver.member()`.
     "APIRequestContext" => [
@@ -165,15 +170,8 @@ defmodule Mix.Playwright.ApiRules do
       {"`page.pdf({width: '100px'})`", "`Page.pdf(page, width: \"100px\")`"},
       {"`page.pdf({width: '10cm'})`", "`Page.pdf(page, width: \"10cm\")`"}
     ],
-    # A duration, not a timeout: `:infinity` would never return.
-    "Page.waitForTimeout" => [
-      {"Waits for the given `timeout` in milliseconds.",
-       "Waits for the given `timeout` in milliseconds. It rejects `:infinity`: to check without waiting, read once (`Locator.is_visible/2`, `Locator.count/1`) or pass a short timeout."}
-    ],
-    "Frame.waitForTimeout" => [
-      {"Waits for the given `timeout` in milliseconds.",
-       "Waits for the given `timeout` in milliseconds. It rejects `:infinity`: to check without waiting, read once (`Locator.is_visible/2`, `Locator.count/1`) or pass a short timeout."}
-    ],
+    "Page.waitForTimeout" => @wait_for_timeout,
+    "Frame.waitForTimeout" => @wait_for_timeout,
     "Locator.within" => [
       {"`page.getByRole('cell').nth(2)`", "`Page.get_by_role(page, :cell) |> Locator.nth(2)`"}
     ],
