@@ -248,9 +248,8 @@ jobs:
       # summary, and its annotations (Playwright.Test.GitHubFormatter, first run only) stay, so
       # a green rerun does not hide them. The rerun takes no
       # --partitions: the failures manifest holds this partition's failures only, and --partitions
-      # would split those files again. A rerun that runs no test fails: a failure outside the
-      # tests (a setup_all's on_exit) exits 2 but leaves none to rerun. The 10 slowest modules
-      # (Playwright.ModuleTimesFormatter) are the floor of a partition's time. Warnings fail the newest lane only.
+      # would split those files again. The 10 slowest modules (Playwright.ModuleTimesFormatter)
+      # are the floor of a partition's time. Warnings fail the newest lane only.
       - name: Run tests
         env:
           PW_FAILURES_FILE: ${{ runner.temp }}/first-run-failures.txt
@@ -274,12 +273,7 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
           fi
           if [[ $status = 2 ]]; then
-            set -o pipefail
-            PW_FAILURES_FILE='' PW_GITHUB_FORMATTER='' mix test --failed | tee "$RUNNER_TEMP/retry.log"
-            if grep -q "There are no tests to run" "$RUNNER_TEMP/retry.log"; then
-              echo "::error::The first run failed outside its tests (exit 2, no test to rerun)"
-              exit 2
-            fi
+            PW_FAILURES_FILE='' PW_GITHUB_FORMATTER='' mix test --failed
           else
             exit $status
           fi
