@@ -68,13 +68,13 @@ defmodule Playwright.Worker do
   """
   @spec evaluate(t(), String.t(), term() | nil) :: {:ok, term()} | {:error, Playwright.error()}
   def evaluate(%Playwright.Worker{} = worker, expression, arg \\ nil) do
-    Facade.async("worker.evaluate", worker, fn -> Playwright.Client.Worker.evaluate(worker, expression, arg) end)
+    Facade.async("worker.evaluate", fn -> Playwright.Client.Worker.evaluate(worker, expression, arg) end)
   end
 
   @doc "Like `evaluate/3`, but returns the value and raises on error."
   @spec evaluate!(t(), String.t(), term() | nil) :: term()
   def evaluate!(%Playwright.Worker{} = worker, expression, arg \\ nil) do
-    Facade.async!("worker.evaluate", worker, fn -> Playwright.Client.Worker.evaluate(worker, expression, arg) end)
+    Facade.async!("worker.evaluate", fn -> Playwright.Client.Worker.evaluate(worker, expression, arg) end)
   end
 
   @doc ~S"""
@@ -96,17 +96,13 @@ defmodule Playwright.Worker do
   """
   @spec evaluate_handle(t(), String.t(), term() | nil) :: {:ok, Playwright.JSHandle.t()} | {:error, Playwright.error()}
   def evaluate_handle(%Playwright.Worker{} = worker, expression, arg \\ nil) do
-    Facade.async("worker.evaluateHandle", worker, fn ->
-      Playwright.Client.Worker.evaluate_handle(worker, expression, arg)
-    end)
+    Facade.async("worker.evaluateHandle", fn -> Playwright.Client.Worker.evaluate_handle(worker, expression, arg) end)
   end
 
   @doc "Like `evaluate_handle/3`, but returns the value and raises on error."
   @spec evaluate_handle!(t(), String.t(), term() | nil) :: Playwright.JSHandle.t()
   def evaluate_handle!(%Playwright.Worker{} = worker, expression, arg \\ nil) do
-    Facade.async!("worker.evaluateHandle", worker, fn ->
-      Playwright.Client.Worker.evaluate_handle(worker, expression, arg)
-    end)
+    Facade.async!("worker.evaluateHandle", fn -> Playwright.Client.Worker.evaluate_handle(worker, expression, arg) end)
   end
 
   @doc ~S"""
@@ -275,7 +271,6 @@ defmodule Playwright.Worker do
 
     Facade.expect(
       "worker.waitForEvent",
-      worker,
       fn -> Playwright.Client.Worker.wait_for_event(worker, event, options) end,
       action
     )
@@ -294,7 +289,6 @@ defmodule Playwright.Worker do
 
     Facade.expect!(
       "worker.waitForEvent",
-      worker,
       fn -> Playwright.Client.Worker.wait_for_event(worker, event, options) end,
       action
     )

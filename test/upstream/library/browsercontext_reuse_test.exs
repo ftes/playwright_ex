@@ -18,7 +18,7 @@ defmodule Playwright.Library.BrowsercontextReuseTest do
   alias Playwright.Page
   alias Playwright.Promise
   alias Playwright.RemoteServer.LaunchServer
-  alias Playwright.Runtime.Api
+  alias Playwright.Runtime.Facade
   alias Playwright.TestServer
   alias Playwright.Tracing
   alias Playwright.WebSocketRoute
@@ -52,9 +52,9 @@ defmodule Playwright.Library.BrowsercontextReuseTest do
     browser = browser(state)
 
     if Agent.get(state, & &1.context),
-      do: Api.call(nil, browser, fn -> Client.Browser._disconnect_from_reused_context(browser, "reusedContext") end)
+      do: Facade.call(nil, fn -> Client.Browser._disconnect_from_reused_context(browser, "reusedContext") end)
 
-    context = Api.call(nil, browser, fn -> Client.Browser._new_context_for_reuse(browser, options || %{}) end)
+    context = Facade.call(nil, fn -> Client.Browser._new_context_for_reuse(browser, options || %{}) end)
     Agent.update(state, &%{&1 | context: context})
     context
   end
@@ -88,7 +88,7 @@ defmodule Playwright.Library.BrowsercontextReuseTest do
     if browser = Agent.get(state, & &1.browser), do: Browser.close!(browser)
     browser = BrowserType.connect!(Agent.get(state, & &1.browser_type), LaunchServer.ws_endpoint(server))
     Agent.update(state, &%{&1 | browser: browser})
-    Api.call(nil, browser, fn -> Client.Browser._new_context_for_reuse(browser, options || %{}) end)
+    Facade.call(nil, fn -> Client.Browser._new_context_for_reuse(browser, options || %{}) end)
   end
 
   # `window.log`

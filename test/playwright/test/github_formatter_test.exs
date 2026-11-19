@@ -12,11 +12,20 @@ defmodule Playwright.Test.GitHubFormatterTest do
   setup do
     workspace = System.get_env("GITHUB_WORKSPACE")
     System.delete_env("GITHUB_WORKSPACE")
+    config = Application.get_env(:playwright, :test, [])
 
     on_exit(fn ->
       if workspace, do: System.put_env("GITHUB_WORKSPACE", workspace), else: System.delete_env("GITHUB_WORKSPACE")
-      Application.delete_env(:playwright, GitHubFormatter)
+      Application.put_env(:playwright, :test, config)
     end)
+
+    %{config: config}
+  end
+
+  # `config :playwright, :test`'s `report_slow_tests`, as the formatter reads it.
+  defp report_slow_tests(config, value) do
+    Application.put_env(:playwright, :test, Keyword.put(config, :report_slow_tests, value))
+    Playwright.Test.Options.config().report_slow_tests
   end
 
   test "a failed test: an error per failure, at its line in the test's file, escaped" do
@@ -140,6 +149,9 @@ defmodule Playwright.Test.GitHubFormatterTest do
     assert run([{:test_finished, test}]) =~ "::  1) [firefox] › #{@file_path}:10 › fails ─"
     test = %{test | parameters: Playwright.Test.parameters(locale: "de-DE")}
     assert run([{:test_finished, test}]) =~ "::  1) #{@file_path}:10 › fails ─"
+    project = Playwright.Test.parameters([name: "Mobile Safari"] ++ Playwright.device("iPhone 13"))
+    test = %{test | parameters: Map.put(project, :role, :admin)}
+    assert run([{:test_finished, test}]) =~ "::  1) [Mobile Safari, admin] › #{@file_path}:10 › fails ─"
     test = %{test | parameters: %{browser_name: :chromium, device: nil}}
     assert run([{:test_finished, test}]) =~ "::  1) [chromium, nil] › #{@file_path}:10 › fails ─"
   end
@@ -187,38 +199,35 @@ defmodule Playwright.Test.GitHubFormatterTest do
                )
   end
 
-  test "its config: report_slow_tests' max and threshold, non-negative numbers, or nil" do
-    assert GitHubFormatter.config([]) == %{report_slow_tests: [max: 5, threshold: 300_000]}
-    assert GitHubFormatter.config(report_slow_tests: nil) == %{report_slow_tests: nil}
+  test "config :playwright, :test's report_slow_tests: max and threshold, non-negative numbers, or false",
+       %{config: config} do
+    Application.put_env(:playwright, :test, Keyword.delete(config, :report_slow_tests))
+    assert Playwright.Test.Options.config().report_slow_tests == [max: 5, threshold: 300_000]
+    assert report_slow_tests(config, nil) == [max: 5, threshold: 300_000]
+    assert report_slow_tests(config, false) == false
+    assert report_slow_tests(config, %{threshold: 1, max: 0}) == [max: 0, threshold: 1]
 
-    assert GitHubFormatter.config(report_slow_tests: %{threshold: 1, max: 0}) == %{
-             report_slow_tests: [max: 0, threshold: 1]
-           }
+    assert_raise ArgumentError,
+                 "config :playwright, :test: invalid report_slow_tests max, expected a non-negative number, got: -1",
+                 fn -> report_slow_tests(config, max: -1, threshold: 1) end
 
-    assert_raise ArgumentError, ~r/unknown keys \[:slow\] .*, expected one of \[:report_slow_tests\]/, fn ->
-      GitHubFormatter.config(slow: true)
+    assert_raise ArgumentError, ~r/report_slow_tests threshold, expected a non-negative number, got: nil$/, fn ->
+      report_slow_tests(config, max: 1)
     end
 
-    assert_raise ArgumentError, ~r/must be a keyword list, got: :on/, fn -> GitHubFormatter.config(:on) end
-    assert_raise ArgumentError, ~r/must be a keyword list, got: \[1\]/, fn -> GitHubFormatter.config([1]) end
+    assert_raise ArgumentError,
+                 ~r/unknown report_slow_tests keys, expected one of \[:max, :threshold\], got: \[:top\]$/,
+                 fn ->
+                   report_slow_tests(config, top: 1)
+                 end
 
-    assert_raise ArgumentError, ~r/max must be a non-negative number, got: -1/, fn ->
-      GitHubFormatter.config(report_slow_tests: [max: -1, threshold: 1])
+    assert_raise ArgumentError, ~r/invalid report_slow_tests, expected a keyword list or a map, got: true$/, fn ->
+      report_slow_tests(config, true)
     end
-
-    assert_raise ArgumentError, ~r/threshold must be a non-negative number, got: nil/, fn ->
-      GitHubFormatter.config(report_slow_tests: [max: 1])
-    end
-
-    assert_raise ArgumentError, ~r/takes \[:max, :threshold\]/, fn ->
-      GitHubFormatter.config(report_slow_tests: [top: 1])
-    end
-
-    assert_raise ArgumentError, ~r/keyword list or nil/, fn -> GitHubFormatter.config(report_slow_tests: true) end
   end
 
-  test "slow files: the slowest over the threshold, of one module each" do
-    Application.put_env(:playwright, GitHubFormatter, report_slow_tests: [max: 2, threshold: 1000])
+  test "slow files: the slowest over the threshold, of one module each", %{config: config} do
+    report_slow_tests(config, max: 2, threshold: 1000)
     project_file = Path.join(File.cwd!(), "test/project_test.exs")
 
     events = [
@@ -235,7 +244,7 @@ defmodule Playwright.Test.GitHubFormatterTest do
     assert project_warning == "::warning title=Slow Test,file=test/project_test.exs::test/project_test.exs took 3.0s"
     assert warning == "::warning title=Slow Test,file=#{@file_path}::#{@file_path} took 2.5s"
 
-    Application.put_env(:playwright, GitHubFormatter, report_slow_tests: nil)
+    report_slow_tests(config, false)
     refute run(events) =~ "::warning"
   end
 

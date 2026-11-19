@@ -30,7 +30,8 @@ defmodule Playwright.Test.TestInfo do
 
   @doc """
   The test's fields: `test_pid`, `file`, `test_name` (`titlePath.slice(1).join(' ')`), `retry`
-  (`retry/2`) and `output_dir` (under `root`, config `output_dir`, with the retry's suffix).
+  (`retry/2`), `output_dir` (under `root`, config `output_dir`, with the retry's suffix) and
+  `project_name` (`project.name`: its `parameters`' `Playwright.Test.parameters/1` name, else `""`).
   """
   def new(context, root, parameters \\ nil) do
     %{module: module, file: file} = context
@@ -45,9 +46,16 @@ defmodule Playwright.Test.TestInfo do
       retry: retry,
       # `if (this.retry) testOutputDir += '-retry' + this.retry`.
       output_dir: if(retry > 0, do: "#{dir}-retry#{retry}", else: dir),
+      project_name: project_name(parameters),
       # `nextStepId = createCallIdGenerator()`: its prefix.
       step_id_prefix: for(_ <- 1..4, into: "", do: <<Enum.random(?a..?z)>>)
     }
+  end
+
+  @doc "Upstream's `project.name` of `parameters`: its project's (`Playwright.Test.parameters/1`), else `\"\"`."
+  def project_name(parameters) do
+    project = Playwright.Test.Options.project(parameters)
+    (project && project.name) || ""
   end
 
   # `_tracing`: the test's recorder, if it records artifacts.
@@ -947,14 +955,14 @@ defmodule Playwright.Test.TestInfo do
     end
   end
 
-  @doc "`_applyPathTemplate`. There are no projects: `{projectName}` is empty, as upstream's default project's."
+  @doc "`_applyPathTemplate`."
   def _apply_path_template(this, template, name_argument, ext) do
     # `path.relative(testDir, file)`: `../integration/...` for a file of another `test_paths` dir.
     relative_test_file_path = Path.relative_to(this.file, test_dir(), force: true)
     parsed_dir = if Path.dirname(relative_test_file_path) == ".", do: "", else: Path.dirname(relative_test_file_path)
     parsed_base = Path.basename(relative_test_file_path)
     parsed_name = Path.rootname(parsed_base)
-    project_name_path_segment = sanitize_for_file_path("")
+    project_name_path_segment = sanitize_for_file_path(this.project_name)
     snapshot_suffix = snapshot_suffix()
     snapshot_dir = Path.expand(Playwright.Test.Options.snapshot_dir() || test_dir())
 

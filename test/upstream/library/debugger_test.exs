@@ -12,7 +12,7 @@ defmodule Playwright.Library.DebuggerTest do
   alias Playwright.Debugger
   alias Playwright.Page
   alias Playwright.Runtime
-  alias Playwright.Runtime.Api
+  alias Playwright.Runtime.Facade
   alias Playwright.Utils
 
   @moduletag :page
@@ -44,7 +44,7 @@ defmodule Playwright.Library.DebuggerTest do
   end
 
   # `dbg._enable()` and the `apicallsupdated` event are internal (not in the facade).
-  defp enable(dbg), do: Api.call("debugger._enable", dbg, fn -> Playwright.Client.Debugger._enable(dbg) end)
+  defp enable(dbg), do: Facade.call("debugger._enable", fn -> Playwright.Client.Debugger._enable(dbg) end)
 
   defp on_api_calls_updated(dbg) do
     test_pid = self()
@@ -53,7 +53,7 @@ defmodule Playwright.Library.DebuggerTest do
 
   # `page._wrapApiCall(fn, { internal: true })`, internal too.
   defp internal_call(page, fun) do
-    Api.call(nil, page, fn -> Playwright.Client.Page._wrap_api_call(page, fn _ -> fun.() end, %{internal: true}) end)
+    Facade.call(nil, fn -> Playwright.Client.Page._wrap_api_call(page, fn _ -> fun.() end, %{internal: true}) end)
   end
 
   # `dbg.on('apicallsupdated', apiCalls => all.push(...apiCalls))`: an Agent of all updates (cast:

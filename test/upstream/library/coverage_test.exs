@@ -10,7 +10,7 @@ defmodule Playwright.Library.CoverageTest do
   alias Playwright.BrowserContext
   alias Playwright.Page
   alias Playwright.Promise
-  alias Playwright.Runtime.Api
+  alias Playwright.Runtime.Facade
   alias Playwright.Tracing
   alias Playwright.Utils
 
@@ -39,7 +39,7 @@ defmodule Playwright.Library.CoverageTest do
   # context.tracing.start({ _coverage: true } as any): the facade rejects `_coverage`, call the client.
   defp start_coverage(context) do
     tracing = BrowserContext.tracing(context)
-    Api.call("tracing.start", tracing, fn -> Playwright.Client.Tracing.start(tracing, %{_coverage: true}) end)
+    Facade.call("tracing.start", fn -> Playwright.Client.Tracing.start(tracing, %{_coverage: true}) end)
   end
 
   defp tracing(context), do: BrowserContext.tracing(context)

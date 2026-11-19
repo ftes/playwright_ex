@@ -47,6 +47,35 @@ upstream minor, so `~> 1.65.0` is safe.
 - `Playwright.Test.step/2,3` and `step_skip/2,3` in `setup_all`, as `test.step` in
   `beforeAll`: a step returns its body's value and raises its error (a boxed step's where its
   helper is called), unrecorded.
+- `Playwright.Test.parameters/1` takes `name:`, upstream's `project.name`: a failed test prints
+  the project as `#Playwright.Test.Project<"Mobile Safari">`, not the whole device, and the
+  name is the snapshot templates' `{projectName}`.
+
+### Changed
+
+- **RC only:** **Breaking:** `config :playwright, Playwright.Test.GitHubFormatter,
+  report_slow_tests: ...` is `config :playwright, :test, report_slow_tests: ...`, as upstream's
+  top-level `reportSlowTests`, with `false` for none (`nil` is the default there, as for every
+  `:test` key); other module keys of `config :playwright` raise.
+- **RC only:** **Breaking:** the `:test` config's and `BrowserPool.browser/1`'s `driver:` take
+  only `env:`; `executable:`, `node:` and `cache_dir:` are `config :playwright, :driver`'s.
+- **RC only:** **Breaking:** `config :playwright, :expect`'s `:to_have_screenshot`,
+  `:to_match_aria_snapshot` and `:to_pass` take the matchers' snake_case keys
+  (`max_diff_pixels:`, `path_template:`, `children: :equal`), not JS keys.
+- **RC only:** **Breaking:** `Playwright.Test.parameters/1` returns one private key,
+  `:"playwright.project"`, holding a `Playwright.Test.Project`, not a key per option.
+- **RC only:** **Breaking:** `Playwright.Driver.install_browsers/2` raises on a failed install,
+  as `install/1` does, instead of returning `{:error, {:exit_status, n}}`.
+- **RC only:** **Breaking:** `mix playwright.install --force` reinstalls the driver with every
+  flag, `--dry-run`, `--list` and `--help` too.
+- **RC only:** **Breaking:** errors of the runner, the pool, the driver and the config read
+  `<Module.function/arity or config path>: <problem>, expected ..., got: ...`; a call outside
+  its scope (`BrowserPool.browser/1` past its test, a context before the registration) raises
+  `RuntimeError`, bad input `ArgumentError`.
+- **RC only:** `Playwright.Runtime.Api.call/3` is `Playwright.Runtime.Facade.call/2`, without
+  the unused receiver, as are the facade's `async`, `expect` and `matcher` runners.
+- **RC only:** `priv/driver_checksums.exs` no longer repeats the driver and Node versions:
+  `DRIVER_VERSION` and `NODE_VERSION` alone hold them.
 
 ### Fixed
 

@@ -37,7 +37,7 @@ defmodule Playwright.Client.RouteHandler do
     put(this, :_times, if(times == nil, do: @max_safe_integer, else: times))
     put(this, :url, url)
     put(this, :handler, handler)
-    # The public API name is a zone here too (`Runtime.Api`): the handler's calls have their own.
+    # The public API name is a zone here too (`Runtime.Facade.call/2`): the handler's calls have their own.
     put(this, :_savedZone, Map.delete(Zones.without(:apiZone), :apiName))
     # deviation: the registrant's `$callers` too, for the processes the handler runs in (`Runtime.Callers`).
     put(this, :_callers, Callers.capture())

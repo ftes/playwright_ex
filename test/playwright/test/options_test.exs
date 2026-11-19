@@ -9,44 +9,55 @@ defmodule Playwright.Test.OptionsTest do
     do: Options.artifacts(Options.config(), Options.layers(%{}, Options.use_options(Map.to_list(options)), %{}))
 
   describe "validation" do
-    test "config :playwright takes :test, :expect, :driver and existing modules' keys" do
-      formatter = Playwright.Test.GitHubFormatter
-      assert Playwright.Application.validate_env!([{:test, []}, {:expect, []}, {:driver, []}, {formatter, []}]) == :ok
+    test "config :playwright takes :test, :expect and :driver" do
+      assert Playwright.Application.validate_env!([{:test, []}, {:expect, []}, {:driver, []}]) == :ok
 
-      for key <- [:tests, Not.A.Module] do
+      for key <- [:tests, Playwright.Test.GitHubFormatter] do
         assert_raise ArgumentError,
-                     "unknown keys [#{inspect(key)}] in config :playwright, expected one of [:test, :expect, :driver] " <>
-                       "or a module's (Playwright.Test.GitHubFormatter)",
+                     "config :playwright: unknown keys, expected one of [:test, :expect, :driver], got: [#{inspect(key)}]",
                      fn -> Playwright.Application.validate_env!([{key, []}]) end
       end
     end
 
+    test "a driver option of the pool other than :env raises: the driver is config :playwright, :driver's" do
+      for key <- [:executable, :node, :cache_dir] do
+        assert_raise ArgumentError,
+                     "Playwright.Test.BrowserPool.browser/1: unknown driver keys, expected one of [:env], got: [#{inspect(key)}]",
+                     fn -> Options.pool(driver: [{key, "x"}]) end
+      end
+    end
+
     test "unknown options raise before anything starts" do
-      assert_raise ArgumentError, ~r/unknown options \[:headless\]/, fn -> BrowserPool.browser(headless: true) end
-      assert_raise ArgumentError, ~r/unknown driver options \[:name\]/, fn -> Options.pool(driver: [name: Foo]) end
+      assert_raise ArgumentError, ~r/unknown options, .*got: \[:headless\]/, fn ->
+        BrowserPool.browser(headless: true)
+      end
+
+      assert_raise ArgumentError, ~r/unknown driver keys, .*got: \[:name\]/, fn -> Options.pool(driver: [name: Foo]) end
     end
 
     test "bad values raise" do
-      assert_raise ArgumentError, ~r/invalid browser_name: :chrome/, fn -> Options.pool(browser_name: :chrome) end
+      assert_raise ArgumentError, ~r/invalid browser_name, .*got: :chrome/, fn ->
+        Options.pool(browser_name: :chrome)
+      end
 
-      assert_raise ArgumentError, ~r/invalid trace: :retry_with_trace, expected one of/, fn ->
+      assert_raise ArgumentError, ~r/invalid trace, expected one of .*got: :retry_with_trace/, fn ->
         artifacts(%{trace: :retry_with_trace})
       end
 
-      assert_raise ArgumentError, ~r/invalid screenshot: :on_first_retry/, fn ->
+      assert_raise ArgumentError, ~r/invalid screenshot, .*got: :on_first_retry/, fn ->
         artifacts(%{screenshot: :on_first_retry})
       end
 
-      assert_raise ArgumentError, ~r/invalid screenshot: :retain_on_failure/, fn ->
+      assert_raise ArgumentError, ~r/invalid screenshot, .*got: :retain_on_failure/, fn ->
         artifacts(%{screenshot: :retain_on_failure})
       end
 
-      assert_raise ArgumentError, ~r/invalid video: :only_on_failure/, fn ->
+      assert_raise ArgumentError, ~r/invalid video, .*got: :only_on_failure/, fn ->
         artifacts(%{video: :only_on_failure})
       end
 
       assert_raise ArgumentError, ~r/invalid on_start/, fn -> Options.pool(on_start: fn -> :ok end) end
-      assert_raise ArgumentError, ~r/invalid launch_options: "x"/, fn -> Options.pool(launch_options: "x") end
+      assert_raise ArgumentError, ~r/invalid launch_options, .*got: "x"/, fn -> Options.pool(launch_options: "x") end
       assert_raise ArgumentError, ~r/expected a keyword list/, fn -> Options.pool([:driver]) end
     end
 
@@ -56,11 +67,11 @@ defmodule Playwright.Test.OptionsTest do
 
       assert %{connect_options: nil} = Options.pool(connect_options: nil)
 
-      assert_raise ArgumentError, ~r/unknown connect options \[:launch_options\]/, fn ->
+      assert_raise ArgumentError, ~r/unknown connect_options keys, .*got: \[:launch_options\]/, fn ->
         Options.pool(connect_options: [ws_endpoint: "ws://x", launch_options: []])
       end
 
-      assert_raise ArgumentError, ~r/connect options need :ws_endpoint/, fn ->
+      assert_raise ArgumentError, ~r/expected a :ws_endpoint/, fn ->
         Options.pool(connect_options: [timeout: 1])
       end
     end
@@ -111,23 +122,23 @@ defmodule Playwright.Test.OptionsTest do
 
     test "unknown keys and bad values of the object forms raise" do
       for {option, message} <- [
-            {%{trace: [mode: :on, live: true]}, ~r/unknown trace options \[:live\], expected one of/},
-            {%{trace: [mode: :on, attachments: 1]}, ~r/invalid trace attachments: 1/},
-            {%{video: [mode: :on, audio: true]}, ~r/unknown video options \[:audio\]/},
-            {%{video: [mode: :on, fps: 0]}, ~r/invalid video fps: 0/},
-            {%{video: [mode: :on, show: %{test: %{level: "line"}}]}, ~r/invalid video show: /},
-            {%{video: [mode: :on, show: %{actions: %{color: "red"}}]}, ~r/invalid video show: /},
-            {%{screenshot: [mode: :on, path: "x.png"]}, ~r/unknown screenshot options \[:path\]/},
-            {%{trace: [sources: false]}, ~r/trace options need :mode/},
-            {%{video: %{size: %{width: 320, height: 240}}}, ~r/video options need :mode/},
-            {%{trace: [mode: :retry_with_trace]}, ~r/invalid trace: :retry_with_trace, expected one of/},
-            {%{trace: [mode: :on, snapshots: 1]}, ~r/invalid trace snapshots: 1/},
-            {%{trace: [mode: :on, snapshots: %{dom: true, network: true}]}, ~r/invalid trace snapshots: %{/},
-            {%{trace: [mode: :on, sources: nil]}, ~r/invalid trace sources: nil/},
-            {%{screenshot: [mode: :on, full_page: "yes"]}, ~r/invalid screenshot full_page: "yes"/},
-            {%{video: [mode: :on, size: [width: 320, height: 240]]}, ~r/invalid video size: \[/},
-            {%{video: [mode: :on, size: %{width: 320}]}, ~r/invalid video size: %{width: 320}/},
-            {%{trace: "on"}, ~r/invalid trace: "on"/}
+            {%{trace: [mode: :on, live: true]}, ~r/unknown trace keys, expected one of .*got: \[:live\]/},
+            {%{trace: [mode: :on, attachments: 1]}, ~r/invalid trace attachments, .*got: 1/},
+            {%{video: [mode: :on, audio: true]}, ~r/unknown video keys, .*got: \[:audio\]/},
+            {%{video: [mode: :on, fps: 0]}, ~r/invalid video fps, .*got: 0/},
+            {%{video: [mode: :on, show: %{test: %{level: "line"}}]}, ~r/invalid video show, .*got: /},
+            {%{video: [mode: :on, show: %{actions: %{color: "red"}}]}, ~r/invalid video show, .*got: /},
+            {%{screenshot: [mode: :on, path: "x.png"]}, ~r/unknown screenshot keys, .*got: \[:path\]/},
+            {%{trace: [sources: false]}, ~r/invalid trace, expected a :mode/},
+            {%{video: %{size: %{width: 320, height: 240}}}, ~r/invalid video, expected a :mode/},
+            {%{trace: [mode: :retry_with_trace]}, ~r/invalid trace, expected one of .*got: :retry_with_trace/},
+            {%{trace: [mode: :on, snapshots: 1]}, ~r/invalid trace snapshots, .*got: 1/},
+            {%{trace: [mode: :on, snapshots: %{dom: true, network: true}]}, ~r/invalid trace snapshots, .*got: %{/},
+            {%{trace: [mode: :on, sources: nil]}, ~r/invalid trace sources, .*got: nil/},
+            {%{screenshot: [mode: :on, full_page: "yes"]}, ~r/invalid screenshot full_page, .*got: "yes"/},
+            {%{video: [mode: :on, size: [width: 320, height: 240]]}, ~r/invalid video size, .*got: \[/},
+            {%{video: [mode: :on, size: %{width: 320}]}, ~r/invalid video size, .*got: %{width: 320}/},
+            {%{trace: "on"}, ~r/invalid trace, .*got: "on"/}
           ],
           do: assert_raise(ArgumentError, message, fn -> artifacts(option) end)
     end
@@ -488,6 +499,7 @@ defmodule Playwright.Test.ConfigTest do
              snapshot_dir: nil,
              snapshot_path_template: nil,
              test_id_attribute: "data-testid",
+             report_slow_tests: [max: 5, threshold: 300_000],
              expect: %{timeout: 5000}
            }
 
@@ -500,33 +512,36 @@ defmodule Playwright.Test.ConfigTest do
     Application.put_env(:playwright, :test, config ++ [context_options: [lokale: "x"]])
     assert_raise ArgumentError, fn -> Playwright.Test.config() end
     Application.put_env(:playwright, :test, Keyword.put(config, :workers, 0))
-    assert_raise ArgumentError, ~r/invalid workers: 0/, fn -> Playwright.Test.config() end
+    assert_raise ArgumentError, ~r/invalid workers, .*got: 0/, fn -> Playwright.Test.config() end
   end
 
   test "a bad config raises", %{config: config} do
     Application.put_env(:playwright, :test, config ++ [tracing: :on])
 
     assert_raise ArgumentError,
-                 ~r/unknown keys \[:tracing\] in config :playwright, :test, expected one of \[:browser_name, .*:test_id_attribute\]/,
+                 ~r/config :playwright, :test: unknown keys, expected one of \[:browser_name, .*\], got: \[:tracing\]/,
                  fn -> artifacts(%{}) end
 
     # At the application's start, before anything reads it.
-    assert_raise ArgumentError, ~r/unknown keys \[:tracing\]/, fn -> Playwright.Application.start(:normal, []) end
+    assert_raise ArgumentError, ~r/unknown keys, .*got: \[:tracing\]/, fn ->
+      Playwright.Application.start(:normal, [])
+    end
+
     Application.put_env(:playwright, :test, config ++ [context_options: [lokale: "x"]])
     assert_raise ArgumentError, fn -> Playwright.Application.start(:normal, []) end
 
     # error-context.md has no switch, as upstream.
     Application.put_env(:playwright, :test, config ++ [error_context: true])
-    assert_raise ArgumentError, ~r/unknown keys \[:error_context\]/, fn -> Options.pool([]) end
+    assert_raise ArgumentError, ~r/unknown keys, .*got: \[:error_context\]/, fn -> Options.pool([]) end
 
     Application.put_env(:playwright, :test, config ++ [test_id_attribute: ""])
-    assert_raise ArgumentError, ~r/invalid test_id_attribute: ""/, fn -> Options.test_id_attribute() end
+    assert_raise ArgumentError, ~r/invalid test_id_attribute, .*got: ""/, fn -> Options.test_id_attribute() end
 
     Application.put_env(:playwright, :test, config ++ [preserve_output: :on_failure])
-    assert_raise ArgumentError, ~r/invalid preserve_output: :on_failure/, fn -> Options.preserve_output() end
+    assert_raise ArgumentError, ~r/invalid preserve_output, .*got: :on_failure/, fn -> Options.preserve_output() end
 
     Application.put_env(:playwright, :test, config ++ [trace: :sometimes])
-    assert_raise ArgumentError, ~r/invalid trace: :sometimes/, fn -> artifacts(%{}) end
+    assert_raise ArgumentError, ~r/invalid trace, .*got: :sometimes/, fn -> artifacts(%{}) end
 
     Application.put_env(:playwright, :test, config ++ [context_options: [lokale: "x"]])
     assert_raise ArgumentError, fn -> Options.context_options() end
@@ -534,13 +549,13 @@ defmodule Playwright.Test.ConfigTest do
     for value <- [-1, 1.5, "1000"] do
       Application.put_env(:playwright, :test, config ++ [action_timeout: value])
 
-      assert_raise ArgumentError, ~r/invalid action_timeout: #{Regex.escape(inspect(value))}/, fn ->
+      assert_raise ArgumentError, ~r/invalid action_timeout, .*got: #{Regex.escape(inspect(value))}/, fn ->
         Options.timeouts()
       end
     end
 
     Application.put_env(:playwright, :test, config ++ [navigation_timeout: :none])
-    assert_raise ArgumentError, ~r/invalid navigation_timeout: :none/, fn -> Options.timeouts() end
+    assert_raise ArgumentError, ~r/invalid navigation_timeout, .*got: :none/, fn -> Options.timeouts() end
     Application.put_env(:playwright, :test, config ++ [action_timeout: 0, navigation_timeout: 5000])
     assert Options.timeouts() == %{action_timeout: 0, navigation_timeout: 5000}
   end

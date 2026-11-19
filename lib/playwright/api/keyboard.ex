@@ -94,13 +94,13 @@ defmodule Playwright.Keyboard do
   """
   @spec down(t(), String.t()) :: :ok | {:error, Playwright.error()}
   def down(%Playwright.Keyboard{} = keyboard, key) do
-    Facade.async_void("keyboard.down", keyboard, fn -> Playwright.Client.Keyboard.down(keyboard, key) end)
+    Facade.async_void("keyboard.down", fn -> Playwright.Client.Keyboard.down(keyboard, key) end)
   end
 
   @doc "Like `down/2`, but returns the value and raises on error."
   @spec down!(t(), String.t()) :: :ok
   def down!(%Playwright.Keyboard{} = keyboard, key) do
-    Facade.async_void!("keyboard.down", keyboard, fn -> Playwright.Client.Keyboard.down(keyboard, key) end)
+    Facade.async_void!("keyboard.down", fn -> Playwright.Client.Keyboard.down(keyboard, key) end)
   end
 
   @doc ~S"""
@@ -124,13 +124,13 @@ defmodule Playwright.Keyboard do
   """
   @spec insert_text(t(), String.t()) :: :ok | {:error, Playwright.error()}
   def insert_text(%Playwright.Keyboard{} = keyboard, text) do
-    Facade.async_void("keyboard.insertText", keyboard, fn -> Playwright.Client.Keyboard.insert_text(keyboard, text) end)
+    Facade.async_void("keyboard.insertText", fn -> Playwright.Client.Keyboard.insert_text(keyboard, text) end)
   end
 
   @doc "Like `insert_text/2`, but returns the value and raises on error."
   @spec insert_text!(t(), String.t()) :: :ok
   def insert_text!(%Playwright.Keyboard{} = keyboard, text) do
-    Facade.async_void!("keyboard.insertText", keyboard, fn -> Playwright.Client.Keyboard.insert_text(keyboard, text) end)
+    Facade.async_void!("keyboard.insertText", fn -> Playwright.Client.Keyboard.insert_text(keyboard, text) end)
   end
 
   @press_options {:object, %{delay: {:delay, nil}}}
@@ -191,14 +191,14 @@ defmodule Playwright.Keyboard do
   @spec press(t(), String.t(), press_options()) :: :ok | {:error, Playwright.error()}
   def press(%Playwright.Keyboard{} = keyboard, key, options \\ []) do
     options = Facade.options!(options, @press_options, "keyboard.press")
-    Facade.async_void("keyboard.press", keyboard, fn -> Playwright.Client.Keyboard.press(keyboard, key, options) end)
+    Facade.async_void("keyboard.press", fn -> Playwright.Client.Keyboard.press(keyboard, key, options) end)
   end
 
   @doc "Like `press/3`, but returns the value and raises on error."
   @spec press!(t(), String.t(), press_options()) :: :ok
   def press!(%Playwright.Keyboard{} = keyboard, key, options \\ []) do
     options = Facade.options!(options, @press_options, "keyboard.press")
-    Facade.async_void!("keyboard.press", keyboard, fn -> Playwright.Client.Keyboard.press(keyboard, key, options) end)
+    Facade.async_void!("keyboard.press", fn -> Playwright.Client.Keyboard.press(keyboard, key, options) end)
   end
 
   @type_options {:object, %{delay: {:delay, nil}}}
@@ -245,14 +245,14 @@ defmodule Playwright.Keyboard do
   @spec type(t(), String.t(), type_options()) :: :ok | {:error, Playwright.error()}
   def type(%Playwright.Keyboard{} = keyboard, text, options \\ []) do
     options = Facade.options!(options, @type_options, "keyboard.type")
-    Facade.async_void("keyboard.type", keyboard, fn -> Playwright.Client.Keyboard.type(keyboard, text, options) end)
+    Facade.async_void("keyboard.type", fn -> Playwright.Client.Keyboard.type(keyboard, text, options) end)
   end
 
   @doc "Like `type/3`, but returns the value and raises on error."
   @spec type!(t(), String.t(), type_options()) :: :ok
   def type!(%Playwright.Keyboard{} = keyboard, text, options \\ []) do
     options = Facade.options!(options, @type_options, "keyboard.type")
-    Facade.async_void!("keyboard.type", keyboard, fn -> Playwright.Client.Keyboard.type(keyboard, text, options) end)
+    Facade.async_void!("keyboard.type", fn -> Playwright.Client.Keyboard.type(keyboard, text, options) end)
   end
 
   @doc ~S"""
@@ -266,13 +266,13 @@ defmodule Playwright.Keyboard do
   """
   @spec up(t(), String.t()) :: :ok | {:error, Playwright.error()}
   def up(%Playwright.Keyboard{} = keyboard, key) do
-    Facade.async_void("keyboard.up", keyboard, fn -> Playwright.Client.Keyboard.up(keyboard, key) end)
+    Facade.async_void("keyboard.up", fn -> Playwright.Client.Keyboard.up(keyboard, key) end)
   end
 
   @doc "Like `up/2`, but returns the value and raises on error."
   @spec up!(t(), String.t()) :: :ok
   def up!(%Playwright.Keyboard{} = keyboard, key) do
-    Facade.async_void!("keyboard.up", keyboard, fn -> Playwright.Client.Keyboard.up(keyboard, key) end)
+    Facade.async_void!("keyboard.up", fn -> Playwright.Client.Keyboard.up(keyboard, key) end)
   end
 
   @doc """

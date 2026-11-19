@@ -37,18 +37,18 @@ defmodule Playwright.Client.Stream.ReadableStreamImpl do
 
   defimpl Enumerable do
     alias Playwright.Client.Stream.ReadableStreamImpl
-    alias Playwright.Runtime.Api
+    alias Playwright.Runtime.Facade
 
     def reduce(this, acc, fun) do
       Elixir.Stream.resource(
         fn -> this end,
         fn this ->
-          case Api.call(nil, this._channel, fn -> ReadableStreamImpl._read(this) end) do
+          case Facade.call(nil, fn -> ReadableStreamImpl._read(this) end) do
             nil -> {:halt, this}
             chunk -> {[chunk], this}
           end
         end,
-        fn this -> Api.call(nil, this._channel, fn -> ReadableStreamImpl._destroy(this, nil) end) end
+        fn this -> Facade.call(nil, fn -> ReadableStreamImpl._destroy(this, nil) end) end
       )
       |> Enumerable.reduce(acc, fun)
     end

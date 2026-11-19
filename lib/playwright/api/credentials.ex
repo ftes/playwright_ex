@@ -106,13 +106,13 @@ defmodule Playwright.Credentials do
   """
   @spec install(t()) :: :ok | {:error, Playwright.error()}
   def install(%Playwright.Credentials{} = credentials) do
-    Facade.async_void("credentials.install", credentials, fn -> Playwright.Client.Credentials.install(credentials) end)
+    Facade.async_void("credentials.install", fn -> Playwright.Client.Credentials.install(credentials) end)
   end
 
   @doc "Like `install/1`, but returns the value and raises on error."
   @spec install!(t()) :: :ok
   def install!(%Playwright.Credentials{} = credentials) do
-    Facade.async_void!("credentials.install", credentials, fn -> Playwright.Client.Credentials.install(credentials) end)
+    Facade.async_void!("credentials.install", fn -> Playwright.Client.Credentials.install(credentials) end)
   end
 
   @create_options {:object,
@@ -192,10 +192,7 @@ defmodule Playwright.Credentials do
           | {:error, Playwright.error()}
   def create(%Playwright.Credentials{} = credentials, rp_id, options \\ []) do
     options = Facade.result_options!(options, @create_options, [:rpId], "credentials.create")
-
-    Facade.async("credentials.create", credentials, fn ->
-      Playwright.Client.Credentials.create(credentials, rp_id, options)
-    end)
+    Facade.async("credentials.create", fn -> Playwright.Client.Credentials.create(credentials, rp_id, options) end)
   end
 
   @doc "Like `create/3`, but returns the value and raises on error."
@@ -209,10 +206,7 @@ defmodule Playwright.Credentials do
         }
   def create!(%Playwright.Credentials{} = credentials, rp_id, options \\ []) do
     options = Facade.result_options!(options, @create_options, [:rpId], "credentials.create")
-
-    Facade.async!("credentials.create", credentials, fn ->
-      Playwright.Client.Credentials.create(credentials, rp_id, options)
-    end)
+    Facade.async!("credentials.create", fn -> Playwright.Client.Credentials.create(credentials, rp_id, options) end)
   end
 
   @doc ~S"""
@@ -228,15 +222,13 @@ defmodule Playwright.Credentials do
   """
   @spec delete(t(), String.t()) :: :ok | {:error, Playwright.error()}
   def delete(%Playwright.Credentials{} = credentials, id) do
-    Facade.async_void("credentials.delete", credentials, fn -> Playwright.Client.Credentials.delete(credentials, id) end)
+    Facade.async_void("credentials.delete", fn -> Playwright.Client.Credentials.delete(credentials, id) end)
   end
 
   @doc "Like `delete/2`, but returns the value and raises on error."
   @spec delete!(t(), String.t()) :: :ok
   def delete!(%Playwright.Credentials{} = credentials, id) do
-    Facade.async_void!("credentials.delete", credentials, fn ->
-      Playwright.Client.Credentials.delete(credentials, id)
-    end)
+    Facade.async_void!("credentials.delete", fn -> Playwright.Client.Credentials.delete(credentials, id) end)
   end
 
   @get_options {:object, %{id: {:id, nil}, rp_id: {:rpId, nil}}}
@@ -275,7 +267,7 @@ defmodule Playwright.Credentials do
           | {:error, Playwright.error()}
   def get(%Playwright.Credentials{} = credentials, options \\ []) do
     options = Facade.options!(options, @get_options, "credentials.get")
-    Facade.async("credentials.get", credentials, fn -> Playwright.Client.Credentials.get(credentials, options) end)
+    Facade.async("credentials.get", fn -> Playwright.Client.Credentials.get(credentials, options) end)
   end
 
   @doc "Like `get/2`, but returns the value and raises on error."
@@ -291,7 +283,7 @@ defmodule Playwright.Credentials do
         ]
   def get!(%Playwright.Credentials{} = credentials, options \\ []) do
     options = Facade.options!(options, @get_options, "credentials.get")
-    Facade.async!("credentials.get", credentials, fn -> Playwright.Client.Credentials.get(credentials, options) end)
+    Facade.async!("credentials.get", fn -> Playwright.Client.Credentials.get(credentials, options) end)
   end
 
   @doc """

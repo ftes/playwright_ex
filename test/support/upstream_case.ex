@@ -54,7 +54,7 @@ defmodule Playwright.UpstreamCase do
   alias Playwright.BrowserType
   alias Playwright.Client.ClientInstrumentation
   alias Playwright.Client.Locator
-  alias Playwright.Runtime.Api
+  alias Playwright.Runtime.Facade
   alias Playwright.Runtime.Heap
   alias Playwright.Selectors
   alias Playwright.Test.BrowserPool
@@ -184,7 +184,7 @@ defmodule Playwright.UpstreamCase do
   def setup_playwright(playwright, artifacts_dir) do
     defaults = Playwright.Test.Options.context_defaults()
 
-    Api.call(nil, playwright, fn ->
+    Facade.call(nil, fn ->
       Heap.put(playwright, :_defaultContextTimeout, 0)
       Heap.put(playwright, :_defaultContextNavigationTimeout, 0)
 
@@ -354,7 +354,7 @@ defmodule Playwright.UpstreamCase do
   # when it differs: it updates every context of the driver.
   setup %{playwright: playwright} do
     selectors = Playwright.selectors(playwright)
-    current = Api.call(nil, playwright, fn -> Heap.get(selectors, :_testIdAttributeName) end)
+    current = Facade.call(nil, fn -> Heap.get(selectors, :_testIdAttributeName) end)
 
     if current != "data-testid" or Locator.test_id_attribute_name() != "data-testid",
       do: Selectors.set_test_id_attribute(selectors, "data-testid")

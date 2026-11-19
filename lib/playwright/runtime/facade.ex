@@ -4,7 +4,7 @@ defmodule Playwright.Runtime.Facade do
   generates from `api.json` (`Playwright.Browser`, ...).
 
   The facade converts Elixir arguments to the shapes the ported client expects, then runs the
-  call in `Playwright.Runtime.Api.call/3`:
+  call in `call/2`:
 
     * Options: a keyword list or map with snake_case keys (`executable_path:`) becomes a map
       with the JS names (`executablePath`). Unknown keys raise `ArgumentError`, as there are
@@ -27,8 +27,9 @@ defmodule Playwright.Runtime.Facade do
   `{:array, type}`, `{:values, type}` (a dictionary's values), `{:enum, %{atom => string}}` or
   `{:union, [type]}`.
   """
-  alias Playwright.Runtime.Api
   alias Playwright.Runtime.Promise
+  alias Playwright.Runtime.Zones
+  alias Playwright.TargetClosedError
 
   # The errors a call fails with (`t:Playwright.error/0`), as upstream rejects with them.
   @errors [
@@ -53,26 +54,49 @@ defmodule Playwright.Runtime.Facade do
   def error?(_e), do: false
 
   @doc """
+  Runs `fun` as the public API call `api_name` (e.g. `\"browserType.launch\"`), the entry point
+  of every facade call. Upstream derives `apiName` from the JS stack in
+  `captureLibraryStackTrace`; BEAM stack traces drop tail-call frames, so the entry point records
+  its name instead (`Playwright.Client.ClientStackTrace` reads it). `nil` records none.
+  """
+  def call(api_name, fun) do
+    if !api_name or Zones.data(:apiName) do
+      fun.()
+    else
+      try do
+        Zones.with(:apiName, api_name, fun)
+      rescue
+        # A field read of a disposed object raises before `_wrapApiCall` (JS reads the stale value
+        # and the server rejects the call): the error gets the API name all the same.
+        e in TargetClosedError ->
+          prefix = api_name <> ": "
+          e = if String.starts_with?(e.message, prefix), do: e, else: %{e | message: prefix <> e.message}
+          reraise e, __STACKTRACE__
+      end
+    end
+  end
+
+  @doc """
   Runs an async call: `{:ok, value}`, or `{:error, exception}` for an error it fails with
   (`error?/1`); anything else is raised.
   """
-  def async(api_name, receiver, fun) do
-    {:ok, Api.call(api_name, receiver, fun)}
+  def async(api_name, fun) do
+    {:ok, call(api_name, fun)}
   rescue
     e -> if error?(e), do: {:error, e}, else: reraise(e, __STACKTRACE__)
   end
 
   @doc "Runs an async call and returns its value, raising on error."
-  def async!(api_name, receiver, fun), do: Api.call(api_name, receiver, fun)
+  def async!(api_name, fun), do: call(api_name, fun)
 
   @doc "Runs an async call that returns `void` in JS: `:ok`, or `{:error, exception}`."
-  def async_void(api_name, receiver, fun) do
-    with {:ok, _} <- async(api_name, receiver, fun), do: :ok
+  def async_void(api_name, fun) do
+    with {:ok, _} <- async(api_name, fun), do: :ok
   end
 
   @doc "Runs an async call that returns `void` in JS: `:ok`, raising on error."
-  def async_void!(api_name, receiver, fun) do
-    async!(api_name, receiver, fun)
+  def async_void!(api_name, fun) do
+    async!(api_name, fun)
     :ok
   end
 
@@ -90,7 +114,7 @@ defmodule Playwright.Runtime.Facade do
         do: [owner: receiver],
         else: [shared: true]
 
-    Api.call(api_name, receiver, fn -> Promise.async(fun, owner) end)
+    call(api_name, fn -> Promise.async(fun, owner) end)
   end
 
   @doc """
@@ -117,17 +141,17 @@ defmodule Playwright.Runtime.Facade do
   The callback form of a wait (`expect_popup`): starts the wait (`promise/3`), runs `action`, then
   awaits the wait: `{:ok, value}` or `{:error, exception}`. Exceptions raised by `action` propagate.
   """
-  def expect(api_name, receiver, fun, action) do
+  def expect(api_name, fun, action) do
     # The handle never leaves this function: a local promise.
-    promise = Api.call(api_name, receiver, fn -> Promise.async(fun) end)
+    promise = call(api_name, fn -> Promise.async(fun) end)
     run_action(action, promise)
     Playwright.Promise.await(promise)
   end
 
-  @doc "Like `expect/4`, but returns the value and raises on error."
-  def expect!(api_name, receiver, fun, action) do
+  @doc "Like `expect/3`, but returns the value and raises on error."
+  def expect!(api_name, fun, action) do
     # The handle never leaves this function: a local promise.
-    promise = Api.call(api_name, receiver, fn -> Promise.async(fun) end)
+    promise = call(api_name, fn -> Promise.async(fun) end)
     run_action(action, promise)
     Playwright.Promise.await!(promise)
   end
@@ -143,11 +167,11 @@ defmodule Playwright.Runtime.Facade do
   end
 
   @doc """
-  Runs a matcher (`Playwright.Expect`): `:ok`, or `{:error, exception}` as `async/3` returns it
+  Runs a matcher (`Playwright.Expect`): `:ok`, or `{:error, exception}` as `async/2` returns it
   (`Playwright.ExpectError` when the expectation is not met). The API name
   comes from the matcher's title (`Expect "toHaveText"`), as upstream's does.
   """
-  def matcher(receiver, fun), do: async_void(nil, receiver, fun)
+  def matcher(fun), do: async_void(nil, fun)
 
   @doc """
   A matcher's receiver and info (`isNot`, `isSoft`, `message`): a negated receiver
@@ -165,20 +189,20 @@ defmodule Playwright.Runtime.Facade do
 
   def matcher_info(actual, is_not, _api_name), do: {actual, %{isNot: is_not, isSoft: false}}
 
-  @doc "Like `matcher/2`, but raises (`Playwright.ExpectError` when the expectation is not met)."
-  def matcher!(receiver, fun), do: async_void!(nil, receiver, fun)
+  @doc "Like `matcher/1`, but raises (`Playwright.ExpectError` when the expectation is not met)."
+  def matcher!(fun), do: async_void!(nil, fun)
 
   @doc """
-  Like `matcher/2`, for a matcher with a value (`Playwright.Expect.to_pass/2`, the passing
+  Like `matcher/1`, for a matcher with a value (`Playwright.Expect.to_pass/2`, the passing
   attempt's): `{:ok, value}`, or `{:error, exception}`. A negated one (`info` of
-  `matcher_info/3`) has none: `matcher/2`.
+  `matcher_info/3`) has none: `matcher/1`.
   """
-  def matcher_value(receiver, %{isNot: true}, fun), do: matcher(receiver, fun)
-  def matcher_value(receiver, _info, fun), do: async(nil, receiver, fun)
+  def matcher_value(%{isNot: true}, fun), do: matcher(fun)
+  def matcher_value(_info, fun), do: async(nil, fun)
 
-  @doc "Like `matcher_value/3`, but returns the value and raises on error."
-  def matcher_value!(receiver, %{isNot: true}, fun), do: matcher!(receiver, fun)
-  def matcher_value!(receiver, _info, fun), do: async!(nil, receiver, fun)
+  @doc "Like `matcher_value/2`, but returns the value and raises on error."
+  def matcher_value!(%{isNot: true}, fun), do: matcher!(fun)
+  def matcher_value!(_info, fun), do: async!(nil, fun)
 
   @doc """
   Converts `options` (keyword list or map) of type `{:object, schema}` for the call `api_name`.

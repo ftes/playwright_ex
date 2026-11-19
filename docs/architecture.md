@@ -320,7 +320,7 @@ module, not put in the context) and ExUnit tags; the rest are arguments.
 | `devices` (`packages/isomorphic/deviceDescriptors.ts`) | `Playwright.devices/0`, `Playwright.device/1` over the generated `Playwright.Isomorphic.DeviceDescriptors`: static, so usable in `use` options at compile time, and keyword lists (the driver's `Playwright.devices/1` gives maps), so the config takes one as it is |
 | `actionTimeout`, `navigationTimeout` (default 0) | `action_timeout`, `navigation_timeout` (default `:infinity`) of the config and every level over it, set on each context |
 | test timeout, `closeReason` "Test timeout of Nms exceeded." | ExUnit's timeout; the recorder closes the test's contexts with that reason just before it |
-| `beforeAll` hook's timeout (the test timeout, a slot per hook), `"beforeAll" hook timeout of Nms exceeded.` | ExUnit's timeout of the module, for all its `setup_all` callbacks: past it a watchdog exits the `setup_all` process (ExUnit has none) with upstream's message, `beforeAll` renamed: `"setup_all" hook timeout of Nms exceeded.`; `browser/1` (seat wait, driver start, launch) not counted, nor bounded; a failed `setup_all` resets its seats (upstream's `worker.stop(true /* didFail */)`) |
+| `beforeAll` hook's timeout (the test timeout, a slot per hook), `"beforeAll" hook timeout of Nms exceeded.` | ExUnit's timeout of the module, for all its `setup_all` callbacks: past it a watchdog exits the `setup_all` process (ExUnit has none) with upstream's message, `beforeAll` renamed: `"setup_all" hook timeout of Nms exceeded.`; `browser/1` (worker wait, driver start, launch) not counted, nor bounded; a failed `setup_all` resets its workers (upstream's `worker.stop(true /* didFail */)`) |
 | `test.use({ trace, screenshot, video })` (worker-scoped, file level) | `use Playwright.Test, trace: _` over the project's over config, `Playwright.Test.use/1` in `@moduletag`/`@describetag`/`@tag` over it (tags named `trace`, ... are not read) |
 | `testIdAttribute` (per test) | config `test_id_attribute`, set on each pooled driver: the client's value is global to the VM, not to a worker |
 | `--trace <mode>` | `TRACE` read in `config/test.exs` |
@@ -378,22 +378,22 @@ and sources.
 The pool is upstream's worker model. `browser/1` is held by the scope that calls it: `setup_all`'s
 module (upstream runs a file in one worker), or the test (a `Task` resolves to it through
 `$callers`); a test of a module that holds one calls on its module's, as upstream's tests share
-their worker's `browser`. Its seats are upstream's worker slots: each runs one driver and one
+their worker's `browser`. Its workers are upstream's `_workerSlots`: each runs one driver and one
 browser of one key (all of the options, as upstream's worker hash covers the project's), reused warm
 by the next scope of its key unless the scope failed, else stopped (upstream replaces a worker after
 a failure). A scope with no known result (no registered test, a doctest) counts as passed: upstream
 always knows, and discarding the unknown would start a driver per module of a plain `ExUnit.Case`
-suite. At most `workers` seats are held (upstream's, default half the cores,
+suite. At most `workers` workers are held (upstream's, default half the cores,
 `packages/playwright/src/common/config.ts:111`); waiters are served first come first served, as
 `_findFirstJobToRun` takes the queue's first job that can run (its locks and per-project limits are
-not ported): a waiter whose scope got a seat while it waited (its scope's earlier caller) goes past
-those that hold none, which wait on in order. A seat of another key restarts in place, its stop awaited by the new holder's `browser/1`,
+not ported): a waiter whose scope got a worker while it waited (its scope's earlier caller) goes past
+those that hold none, which wait on in order. A worker of another key restarts in place, its stop awaited by the new holder's `browser/1`,
 as `_runJobInWorker` awaits `worker.stop()` before it starts a worker of another hash
 (`packages/playwright/src/runner/dispatcher.ts:153`). A stop is fast (a median 28 ms, at most 120
-ms, over 97 in the test suite), so where it is awaited barely matters; the seats keep upstream's
+ms, over 97 in the test suite), so where it is awaited barely matters; the workers keep upstream's
 accounting. A module that waits for one costs nothing, so ExUnit's `max_cases` above `workers` is
 fine. A scope that holds one takes its further keys over the cap, so none waits while holding one;
-seats over `workers` stop when they go idle. The release is the last step of the test's `on_exit`
+workers over the `workers` cap stop when they go idle. The release is the last step of the test's `on_exit`
 (after its artifacts) or an `on_exit` of `setup_all`'s, never a `DOWN`: `on_exit` runs after the
 test process exits. A module's outcome is its tests', which ExUnit's runner spawns from the process
 that ran `setup_all` (`Process.info(pid, :parent)`). The drivers stop in `ExUnit.after_suite/1`, as
@@ -402,15 +402,15 @@ application: a release has no ExUnit.
 
 Compared with upstream's dispatcher (`packages/playwright/src/runner/dispatcher.ts`,
 `testGroups.ts`), a worker is the same (one Playwright and one browser of one hash, replaced after a
-failure), and so is matching a job to a slot (`_scheduleJob`: a free worker of the hash, else a free
-slot, restarting a worker of another hash), except that of the free seats an empty one goes first,
+failure), and so is matching a job to a worker (`_scheduleJob`: a free worker of the hash, else a free
+`_workerSlots` entry, restarting a worker of another hash), except that of the free workers an empty one goes first,
 then the longest idle, where upstream takes the first. The differences:
 
 | | Playwright Test | here |
 |---|---|---|
 | unit of work | a test group: a file's tests of one project | the scope that calls `browser/1`: a module (`setup_all`) or a test, as ExUnit schedules modules |
 | ordering | the queue grouped by hash, so a worker rarely switches | ExUnit's random module order (not portable: ExUnit owns it), so a run that mixes configurations restarts workers often: one configuration per invocation |
-| idle workers | `_isWorkerRedundant` stops a worker no queued job needs | restarted lazily, when a scope of another key takes the seat: there is no queue to look ahead |
+| idle workers | `_isWorkerRedundant` stops a worker no queued job needs | restarted lazily, when a scope of another key takes the worker: there is no queue to look ahead |
 | where waiting happens | the dispatcher's queue, before a worker runs the group | inside `browser/1`: not counted in `setup_all`'s timeout, counted in the test timeout in `setup` or a test |
 | a scope needing a second configuration | another project, another worker | a further key over `workers`, so a scope that holds one never waits for itself |
 | concurrency | `workers`, half the cores | ExUnit's `max_cases` (twice the schedulers, about four times as many) with `workers` drivers: modules past `workers` wait at no cost, those that never call `browser/1` are unaffected |
@@ -478,9 +478,9 @@ than a worker per module and failed under load, for about half the memory
 ([#213](https://github.com/ftes/playwright_ex/issues/213)); on an app's full e2e suite (18 cores,
 `max_cases` 18) it took 106.8 s at 4.5 GB, against 93.8 s at 6.5 GB for 16 workers. Also
 rejected: ambient fixtures (context keys the
-runner fills in: the user owns the map), a lazy module lease (a module's first test taking the
+runner fills in: the user owns the map), a lazy module hold (a module's first test taking the
 browser for the module; a scope holds what it calls), serving waiters LIFO (first come first
-served bounds every wait), an `:open` lease that outlives its scope, `fresh: true` for a cold
+served bounds every wait), an `:open` hold that outlives its scope, `fresh: true` for a cold
 driver (`on_start` sets up each new one), and tags for options other than the recording modes (a
 template maps its own tags). The features ExUnit can't host, with their replacements: the guide's
 [Not supported](../guides/testing-with-exunit.md#not-supported).

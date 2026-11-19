@@ -272,7 +272,7 @@ defmodule Playwright.Library.Defaultbrowsercontext2Test do
   # `(browser as any)._channel.defaultUserAgentForTest()`: the client's channel call.
   test "DC-038 user agent is up to date", %{launch_persistent: launch_persistent, browser: browser} do
     %{userAgent: user_agent} =
-      Playwright.Runtime.Api.call(nil, browser, fn ->
+      Playwright.Runtime.Facade.call(nil, fn ->
         ChannelOwner.channel_call(browser, :defaultUserAgentForTest, %{})
       end)
 

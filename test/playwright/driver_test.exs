@@ -51,7 +51,7 @@ defmodule Playwright.DriverTest do
     assert String.ends_with?(cli, "/package/cli.js")
     assert {:ok, _} = Driver.platform()
 
-    assert_raise RuntimeError, ~r/Supported: darwin-arm64/, fn ->
+    assert_raise RuntimeError, ~r/expected one of darwin-arm64/, fn ->
       Driver.install(platform: "freebsd-x64", checksums: %{Driver.checksums() | node: %{}}, cache_dir: cache)
     end
   end
@@ -87,8 +87,10 @@ defmodule Playwright.DriverConfigTest do
 
     Application.put_env(:playwright, :driver, cachedir: "/c")
 
-    assert_raise ArgumentError, ~r/^unknown keys \[:cachedir\] in config :playwright, :driver/, fn ->
-      Driver.cache_dir()
-    end
+    assert_raise ArgumentError,
+                 "config :playwright, :driver: unknown keys, expected one of [:executable, :node, :cache_dir], got: [:cachedir]",
+                 fn ->
+                   Driver.cache_dir()
+                 end
   end
 end

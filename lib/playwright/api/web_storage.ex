@@ -42,13 +42,13 @@ defmodule Playwright.WebStorage do
   """
   @spec items(t()) :: {:ok, [%{name: String.t(), value: String.t()}]} | {:error, Playwright.error()}
   def items(%Playwright.WebStorage{} = web_storage) do
-    Facade.async("webStorage.items", web_storage, fn -> Playwright.Client.WebStorage.items(web_storage) end)
+    Facade.async("webStorage.items", fn -> Playwright.Client.WebStorage.items(web_storage) end)
   end
 
   @doc "Like `items/1`, but returns the value and raises on error."
   @spec items!(t()) :: [%{name: String.t(), value: String.t()}]
   def items!(%Playwright.WebStorage{} = web_storage) do
-    Facade.async!("webStorage.items", web_storage, fn -> Playwright.Client.WebStorage.items(web_storage) end)
+    Facade.async!("webStorage.items", fn -> Playwright.Client.WebStorage.items(web_storage) end)
   end
 
   @doc ~S"""
@@ -62,13 +62,13 @@ defmodule Playwright.WebStorage do
   """
   @spec get_item(t(), String.t()) :: {:ok, nil | String.t()} | {:error, Playwright.error()}
   def get_item(%Playwright.WebStorage{} = web_storage, name) do
-    Facade.async("webStorage.getItem", web_storage, fn -> Playwright.Client.WebStorage.get_item(web_storage, name) end)
+    Facade.async("webStorage.getItem", fn -> Playwright.Client.WebStorage.get_item(web_storage, name) end)
   end
 
   @doc "Like `get_item/2`, but returns the value and raises on error."
   @spec get_item!(t(), String.t()) :: nil | String.t()
   def get_item!(%Playwright.WebStorage{} = web_storage, name) do
-    Facade.async!("webStorage.getItem", web_storage, fn -> Playwright.Client.WebStorage.get_item(web_storage, name) end)
+    Facade.async!("webStorage.getItem", fn -> Playwright.Client.WebStorage.get_item(web_storage, name) end)
   end
 
   @doc ~S"""
@@ -83,17 +83,13 @@ defmodule Playwright.WebStorage do
   """
   @spec set_item(t(), String.t(), String.t()) :: :ok | {:error, Playwright.error()}
   def set_item(%Playwright.WebStorage{} = web_storage, name, value) do
-    Facade.async_void("webStorage.setItem", web_storage, fn ->
-      Playwright.Client.WebStorage.set_item(web_storage, name, value)
-    end)
+    Facade.async_void("webStorage.setItem", fn -> Playwright.Client.WebStorage.set_item(web_storage, name, value) end)
   end
 
   @doc "Like `set_item/3`, but returns the value and raises on error."
   @spec set_item!(t(), String.t(), String.t()) :: :ok
   def set_item!(%Playwright.WebStorage{} = web_storage, name, value) do
-    Facade.async_void!("webStorage.setItem", web_storage, fn ->
-      Playwright.Client.WebStorage.set_item(web_storage, name, value)
-    end)
+    Facade.async_void!("webStorage.setItem", fn -> Playwright.Client.WebStorage.set_item(web_storage, name, value) end)
   end
 
   @doc ~S"""
@@ -107,17 +103,13 @@ defmodule Playwright.WebStorage do
   """
   @spec remove_item(t(), String.t()) :: :ok | {:error, Playwright.error()}
   def remove_item(%Playwright.WebStorage{} = web_storage, name) do
-    Facade.async_void("webStorage.removeItem", web_storage, fn ->
-      Playwright.Client.WebStorage.remove_item(web_storage, name)
-    end)
+    Facade.async_void("webStorage.removeItem", fn -> Playwright.Client.WebStorage.remove_item(web_storage, name) end)
   end
 
   @doc "Like `remove_item/2`, but returns the value and raises on error."
   @spec remove_item!(t(), String.t()) :: :ok
   def remove_item!(%Playwright.WebStorage{} = web_storage, name) do
-    Facade.async_void!("webStorage.removeItem", web_storage, fn ->
-      Playwright.Client.WebStorage.remove_item(web_storage, name)
-    end)
+    Facade.async_void!("webStorage.removeItem", fn -> Playwright.Client.WebStorage.remove_item(web_storage, name) end)
   end
 
   @doc ~S"""
@@ -127,12 +119,12 @@ defmodule Playwright.WebStorage do
   """
   @spec clear(t()) :: :ok | {:error, Playwright.error()}
   def clear(%Playwright.WebStorage{} = web_storage) do
-    Facade.async_void("webStorage.clear", web_storage, fn -> Playwright.Client.WebStorage.clear(web_storage) end)
+    Facade.async_void("webStorage.clear", fn -> Playwright.Client.WebStorage.clear(web_storage) end)
   end
 
   @doc "Like `clear/1`, but returns the value and raises on error."
   @spec clear!(t()) :: :ok
   def clear!(%Playwright.WebStorage{} = web_storage) do
-    Facade.async_void!("webStorage.clear", web_storage, fn -> Playwright.Client.WebStorage.clear(web_storage) end)
+    Facade.async_void!("webStorage.clear", fn -> Playwright.Client.WebStorage.clear(web_storage) end)
   end
 end

@@ -1,25 +1,25 @@
 defmodule Playwright.Test.Pool do
   @moduledoc false
   # The dispatcher of `Playwright.Test.BrowserPool` (whose moduledoc is the contract), after
-  # upstream's `Dispatcher` (`packages/playwright/src/runner/dispatcher.ts`): its seats are the
-  # `_workerSlots`, each a `Playwright.Test.Pool.Slot`, and a scope is a job. It runs the test
-  # registry (`Playwright.Test.Results`) in the same process, so a test's end reaches it before
-  # its scope's release (one mailbox).
+  # upstream's `Dispatcher` (`packages/playwright/src/runner/dispatcher.ts`): its workers are
+  # upstream's `_workerSlots`, each a `Playwright.Test.Pool.Worker`, and a scope is a job. It
+  # runs the test registry (`Playwright.Test.Results`) in the same process, so a test's end
+  # reaches it before its scope's release (one mailbox).
   #
   # The state:
   #
-  #   * `seats`: `%{pid => %{key, scope, used}}`, linked. `scope` `nil` is idle; `key` is the
-  #     options of its last lease (`Slot.key/1`), `nil` after a failed scope's (its driver
+  #   * `workers`: `%{pid => %{key, scope, used}}`, linked. `scope` `nil` is idle; `key` is the
+  #     options of its last hold (`Worker.key/1`), `nil` after a failed scope's (its driver
   #     reset); `used` orders the idle ones, the longest idle first.
-  #   * At most `workers` seats, but for those a scope that holds one takes over it (so no scope
-  #     waits while it holds a seat others wait for); a release trims idle seats back to
-  #     `workers`. A trimmed seat stays linked until it exited, so `after_suite/1`, which stops the
-  #     linked ones, waits for it.
-  #   * `scopes`: `%{scope => %{runner, failed?, down}}` of the scopes that hold seats: `runner` is
+  #   * At most `cap` workers (the config's `workers`), but for those a scope that holds one takes
+  #     over it (so no scope waits while it holds a worker others wait for); a release trims idle
+  #     workers back to `cap`. A trimmed worker stays linked until it exited, so `after_suite/1`,
+  #     which stops the linked ones, waits for it.
+  #   * `scopes`: `%{scope => %{runner, failed?, down}}` of the scopes that hold workers: `runner` is
   #     a `setup_all` scope's ExUnit runner (whose tests' results are the scope's), else `nil`;
   #     `down` the monitor of a registered `setup_all`'s process until its `DOWN` (`module_down/3`).
-  #   * `workers`: `{env, workers}`, config `workers` and the config it was read from.
-  #   * `waiting`: callers whose scope held no seat while `workers` were held, monitored, first come
+  #   * `cap`: `{env, cap}`, the config's `workers` and the config it was read from.
+  #   * `waiting`: callers whose scope held no worker while `cap` were held, monitored, first come
   #     first served (`serve_waiting/1`). A waiter that exits, or whose scope was released, is
   #     dropped.
   #   * `held`: the lines `print_after_suite/1` holds for `after_suite/1`, newest first, printed by
@@ -32,7 +32,7 @@ defmodule Playwright.Test.Pool do
 
   alias Playwright.Client.ClientStackTrace
   alias Playwright.Test.Options
-  alias Playwright.Test.Pool.Slot
+  alias Playwright.Test.Pool.Worker
   alias Playwright.Test.Results
   alias Playwright.Test.SetupAllTimeout
 
@@ -50,35 +50,35 @@ defmodule Playwright.Test.Pool do
   end
 
   @doc """
-  `%{playwright: _, browser: _}` of the seat of `opts` leased by `scope`: a registered test
-  (`{:test, pid}`, its result is the lease's, unless its module holds a lease), or another
-  process (`{:process, pid}`, a `setup_all`'s: the results of its runner's tests are). A seat
+  `%{playwright: _, browser: _}` of the worker of `opts` held by `scope`: a registered test
+  (`{:test, pid}`, its result is the hold's, unless its module holds one), or another
+  process (`{:process, pid}`, a `setup_all`'s: the results of its runner's tests are). A worker
   of another key restarts its driver here, in the caller.
   """
   def browser(opts, {kind, pid}) do
     ensure_started()
 
-    # Not in a `setup_all`'s time: the wait for a seat is the dispatcher's queue, which has no
+    # Not in a `setup_all`'s time: the wait for a worker is the dispatcher's queue, which has no
     # timeout upstream, and the driver's start and launch are worker fixtures', with a timeout of
     # their own upstream, none here (a test's count, as ExUnit's timeout does).
     SetupAllTimeout.paused(fn ->
-      case GenServer.call(__MODULE__, {:lease, Slot.key(opts), {kind, pid}, parent(pid)}, :infinity) do
-        {seat, key} -> Slot.browser(seat, key, opts)
-        :stopped -> raise "Playwright.Test's drivers were stopped (after the suite)"
-        :released -> raise ArgumentError, "BrowserPool.browser/1 waited past the end of its test or module"
+      case GenServer.call(__MODULE__, {:browser, Worker.key(opts), {kind, pid}, parent(pid)}, :infinity) do
+        {worker, key} -> Worker.browser(worker, key, opts)
+        :stopped -> raise "Playwright.Test.BrowserPool.browser/1: the drivers were stopped (after the suite)"
+        :released -> raise "Playwright.Test.BrowserPool.browser/1: waited past the end of its test or module"
       end
     end)
   end
 
-  @doc "Ends the leases of `scope`: its seats idle and warm unless it failed, else reset."
+  @doc "Ends the holds of `scope`: its workers idle and warm unless it failed, else reset."
   def release(scope) do
     if Process.whereis(__MODULE__), do: GenServer.call(__MODULE__, {:release, scope}, :infinity)
     :ok
   end
 
   @doc """
-  Fails the leases of the ended test `test_pid`, as its failure does: its own and its module's
-  (its runner's), whose seats reset at their release.
+  Fails the holds of the ended test `test_pid`, as its failure does: its own and its module's
+  (its runner's), whose workers reset at their release.
   """
   def fail(test_pid) do
     if Process.whereis(__MODULE__), do: GenServer.call(__MODULE__, {:fail, test_pid}, :infinity)
@@ -86,8 +86,8 @@ defmodule Playwright.Test.Pool do
   end
 
   @doc """
-  Fails the leases of the calling `setup_all`, whose callbacks raised (ExUnit catches it, so its
-  process exits normally): its seats reset at its release, as upstream stops a worker whose job
+  Fails the holds of the calling `setup_all`, whose callbacks raised (ExUnit catches it, so its
+  process exits normally): its workers reset at its release, as upstream stops a worker whose job
   failed. Before its `DOWN`; never fails (a pool that is gone or stuck leaves the error as it is).
   """
   def setup_all_failed do
@@ -117,7 +117,7 @@ defmodule Playwright.Test.Pool do
 
       __MODULE__
       |> GenServer.call(:take_all, :infinity)
-      |> Task.async_stream(&Slot.stop/1, timeout: :infinity, max_concurrency: 64)
+      |> Task.async_stream(&Worker.stop/1, timeout: :infinity, max_concurrency: 64)
       |> Stream.run()
     end
 
@@ -168,21 +168,21 @@ defmodule Playwright.Test.Pool do
         []
       end
 
-    {:ok, %{seats: %{}, scopes: %{}, waiting: [], results: results, workers: nil, held: held}}
+    {:ok, %{workers: %{}, scopes: %{}, waiting: [], results: results, cap: nil, held: held}}
   end
 
   @impl true
-  def handle_call({:lease, key, {kind, pid}, parent}, {caller, _} = from, state) do
-    state = workers(state)
+  def handle_call({:browser, key, {kind, pid}, parent}, {caller, _} = from, state) do
+    state = refresh_cap(state)
     scope = scope(state, pid, parent)
     runner = if scope == pid and kind == :process, do: parent
-    # A module's registered `setup_all` (`use Playwright.Test`): its failure is the lease's.
+    # A module's registered `setup_all` (`use Playwright.Test`): its failure is the hold's.
     module? = scope == pid and kind == :process and match?({:module, _}, Results.scope(pid))
     request = %{key: key, scope: scope, runner: runner, module?: module?, from: from}
 
-    case lease(state, request) do
-      {:ok, seat, state} ->
-        {:reply, {seat, key}, state}
+    case hold(state, request) do
+      {:ok, worker, state} ->
+        {:reply, {worker, key}, state}
 
       :full ->
         waiter = Map.put(request, :ref, Process.monitor(caller))
@@ -190,7 +190,7 @@ defmodule Playwright.Test.Pool do
     end
   end
 
-  def handle_call({:release, scope}, _from, state), do: {:reply, :ok, release(workers(state), scope)}
+  def handle_call({:release, scope}, _from, state), do: {:reply, :ok, release(refresh_cap(state), scope)}
 
   def handle_call({:fail, test_pid}, _from, state),
     do: {:reply, :ok, fail_scopes(state, test_pid, Results.runner(state.results, test_pid))}
@@ -208,9 +208,9 @@ defmodule Playwright.Test.Pool do
   def handle_call(:take_all, _from, state) do
     for waiter <- state.waiting, do: GenServer.reply(waiter.from, :stopped)
     {:links, links} = Process.info(self(), :links)
-    slots = Enum.filter(links, &is_pid/1)
-    Enum.each(slots, &Process.unlink/1)
-    {:reply, slots, %{state | seats: %{}, scopes: %{}, waiting: []}}
+    workers = Enum.filter(links, &is_pid/1)
+    Enum.each(workers, &Process.unlink/1)
+    {:reply, workers, %{state | workers: %{}, scopes: %{}, waiting: []}}
   end
 
   def handle_call(request, from, state) do
@@ -229,15 +229,15 @@ defmodule Playwright.Test.Pool do
 
     case state.scopes[pid] do
       %{down: ^ref} -> {:noreply, module_down(state, pid, reason)}
-      _lease -> results_down(state, pid, reason)
+      _hold -> results_down(state, pid, reason)
     end
   end
 
-  # A seat that crashed (its holder's next call gets another). A trimmed seat left `seats` already.
+  # A worker that crashed (its holder's next call gets another). A trimmed worker left `workers` already.
   def handle_info({:EXIT, pid, _reason}, state) do
-    case Map.pop(state.seats, pid) do
-      {nil, _seats} -> {:noreply, state}
-      {_seat, seats} -> {:noreply, serve_waiting(workers(%{state | seats: seats}))}
+    case Map.pop(state.workers, pid) do
+      {nil, _workers} -> {:noreply, state}
+      {_worker, workers} -> {:noreply, serve_waiting(refresh_cap(%{state | workers: workers}))}
     end
   end
 
@@ -249,7 +249,7 @@ defmodule Playwright.Test.Pool do
       {{runner, :failed}, results} ->
         {:noreply, fail_scopes(%{state | results: results}, pid, runner)}
 
-      # The test's finish was killed before its release: its seats reset, as a failed test's
+      # The test's finish was killed before its release: its workers reset, as a failed test's
       # (its contexts may be left open). After a release, nothing to do.
       {{:finished, tests}, results} ->
         state =
@@ -257,15 +257,16 @@ defmodule Playwright.Test.Pool do
             fail_scopes(state, test_pid, runner)
           end)
 
-        {:noreply, Enum.reduce(tests, workers(state), fn {test_pid, _runner}, state -> release(state, test_pid) end)}
+        {:noreply,
+         Enum.reduce(tests, refresh_cap(state), fn {test_pid, _runner}, state -> release(state, test_pid) end)}
 
       {_ended, results} ->
         {:noreply, %{state | results: results}}
     end
   end
 
-  # A module's `setup_all` scope (monitored at its first lease) exited: past its timeout, killed,
-  # taken down by a linked process (`{:shutdown, _}` too), fails its leases, as upstream stops a
+  # A module's `setup_all` scope (monitored at its first hold) exited: past its timeout, killed,
+  # taken down by a linked process (`{:shutdown, _}` too), fails its holds, as upstream stops a
   # worker whose job failed. Only `:normal` is a clean end (ExUnit's `exit_setup_all`). Its
   # callbacks raising (ExUnit catches it, the process then exits `:normal`) came first
   # (`setup_all_failed/0`).
@@ -292,7 +293,7 @@ defmodule Playwright.Test.Pool do
           end
         end
 
-      _lease ->
+      _hold ->
         state
     end
   end
@@ -301,7 +302,7 @@ defmodule Playwright.Test.Pool do
   @impl true
   def terminate(_reason, state), do: print_held(state.held || [])
 
-  # Ends the leases of `scope`: its waiters get `:released`, its seats go back idle (reset when it
+  # Ends the holds of `scope`: its waiters get `:released`, its workers go back idle (reset when it
   # failed).
   defp release(state, scope) do
     state = await_down(state, scope)
@@ -316,73 +317,73 @@ defmodule Playwright.Test.Pool do
       {nil, _scopes} ->
         %{state | waiting: waiting}
 
-      {lease, scopes} ->
-        seats = Map.new(state.seats, &release_seat(&1, scope, lease.failed?))
-        %{state | waiting: waiting, scopes: scopes, seats: seats} |> trim() |> serve_waiting()
+      {hold, scopes} ->
+        workers = Map.new(state.workers, &release_worker(&1, scope, hold.failed?))
+        %{state | waiting: waiting, scopes: scopes, workers: workers} |> trim() |> serve_waiting()
     end
   end
 
-  defp release_seat({pid, %{scope: scope} = seat}, scope, failed?) do
-    # Upstream's `void worker.stop(true)`: the next holder's `Slot.browser/3` awaits it.
-    if failed?, do: Slot.reset(pid)
-    {pid, %{seat | key: if(!failed?, do: seat.key), scope: nil, used: used()}}
+  defp release_worker({pid, %{scope: scope} = worker}, scope, failed?) do
+    # Upstream's `void worker.stop(true)`: the next holder's `Worker.browser/3` awaits it.
+    if failed?, do: Worker.reset(pid)
+    {pid, %{worker | key: if(!failed?, do: worker.key), scope: nil, used: used()}}
   end
 
-  defp release_seat(other, _scope, _failed?), do: other
+  defp release_worker(other, _scope, _failed?), do: other
 
   defp fail_scopes(state, pid, runner), do: %{state | scopes: Map.new(state.scopes, &fail_scope(&1, pid, runner))}
 
-  defp fail_scope({scope, lease}, pid, runner) do
-    if scope == pid or (lease.runner != nil and lease.runner == runner),
-      do: {scope, %{lease | failed?: true}},
-      else: {scope, lease}
+  defp fail_scope({scope, hold}, pid, runner) do
+    if scope == pid or (hold.runner != nil and hold.runner == runner),
+      do: {scope, %{hold | failed?: true}},
+      else: {scope, hold}
   end
 
-  # A test's calls (registered or not) go to its module's lease, if the module holds one: the
+  # A test's calls (registered or not) go to its module's hold, if the module holds one: the
   # `setup_all` scope its runner spawned.
   defp scope(_state, pid, nil), do: pid
 
   defp scope(state, pid, parent) do
-    Enum.find_value(state.scopes, pid, fn {scope, lease} -> if lease.runner == parent, do: scope end)
+    Enum.find_value(state.scopes, pid, fn {scope, hold} -> if hold.runner == parent, do: scope end)
   end
 
-  # The scope's seat of the key (a repeated call), else `_scheduleJob`'s match: an idle seat of
-  # the key, else a new seat under `workers`, else an idle seat of another key (the longest
-  # idle), whose driver restarts for the key. A scope that holds a seat takes one over `workers`
+  # The scope's worker of the key (a repeated call), else `_scheduleJob`'s match: an idle worker
+  # of the key, else a new one under `cap`, else an idle worker of another key (the longest
+  # idle), whose driver restarts for the key. A scope that holds a worker takes one over `cap`
   # rather than wait.
-  defp lease(state, request) do
-    held = for {pid, %{scope: scope} = seat} <- state.seats, scope == request.scope, do: {pid, seat}
+  defp hold(state, request) do
+    held = for {pid, %{scope: scope} = worker} <- state.workers, scope == request.scope, do: {pid, worker}
 
     case Enum.find(held, &match?({_pid, %{key: key}} when key == request.key, &1)) do
-      {pid, _seat} -> {:ok, pid, state}
+      {pid, _worker} -> {:ok, pid, state}
       nil -> claim(state, request, held != [])
     end
   end
 
   defp claim(state, request, over?) do
-    {_env, workers} = state.workers
-    idle = for {_pid, %{scope: nil}} = seat <- state.seats, do: seat
+    {_env, cap} = state.cap
+    idle = for {_pid, %{scope: nil}} = worker <- state.workers, do: worker
 
     cond do
-      not over? and map_size(state.seats) - length(idle) >= workers ->
+      not over? and map_size(state.workers) - length(idle) >= cap ->
         :full
 
-      seat = Enum.find(idle, &(elem(&1, 1).key == request.key)) ->
-        {:ok, elem(seat, 0), take(state, seat, request)}
+      worker = Enum.find(idle, &(elem(&1, 1).key == request.key)) ->
+        {:ok, elem(worker, 0), take(state, worker, request)}
 
-      # Under `workers`, or over it for a scope that holds one, when no seat is idle.
-      idle == [] or map_size(state.seats) < workers ->
-        {:ok, pid} = Slot.start_link()
+      # Under `cap`, or over it for a scope that holds one, when no worker is idle.
+      idle == [] or map_size(state.workers) < cap ->
+        {:ok, pid} = Worker.start_link()
         {:ok, pid, take(state, {pid, %{key: nil, scope: nil, used: nil}}, request)}
 
       true ->
-        seat = Enum.min_by(idle, &restart_order/1)
-        {:ok, elem(seat, 0), take(state, seat, request)}
+        worker = Enum.min_by(idle, &restart_order/1)
+        {:ok, elem(worker, 0), take(state, worker, request)}
     end
   end
 
-  defp take(state, {pid, seat}, request) do
-    seats = Map.put(state.seats, pid, %{seat | key: request.key, scope: request.scope})
+  defp take(state, {pid, worker}, request) do
+    workers = Map.put(state.workers, pid, %{worker | key: request.key, scope: request.scope})
 
     scopes =
       Map.put_new_lazy(state.scopes, request.scope, fn ->
@@ -391,52 +392,52 @@ defmodule Playwright.Test.Pool do
         %{runner: request.runner, failed?: false, down: down}
       end)
 
-    %{state | seats: seats, scopes: scopes}
+    %{state | workers: workers, scopes: scopes}
   end
 
-  # `workers` of the config, validated when the config changed (a test may put it): `{env, workers}`.
-  defp workers(state) do
+  # The config's `workers`, validated when the config changed (a test may put it): `{env, cap}`.
+  defp refresh_cap(state) do
     env = Application.get_env(:playwright, :test)
 
-    case state.workers do
-      {^env, _workers} -> state
-      _ -> %{state | workers: {env, Options.workers()}}
+    case state.cap do
+      {^env, _cap} -> state
+      _ -> %{state | cap: {env, Options.workers()}}
     end
   end
 
-  # Reset seats first (their drivers stopped already), then the longest idle.
-  defp restart_order({_pid, seat}), do: {seat.key != nil, seat.used}
+  # Reset workers first (their drivers stopped already), then the longest idle.
+  defp restart_order({_pid, worker}), do: {worker.key != nil, worker.used}
 
   defp used, do: System.unique_integer([:monotonic])
 
-  # Idle seats over `workers` (taken over it by a scope, or `workers` lowered) are stopped.
+  # Idle workers over `cap` (taken over it by a scope, or `workers` lowered) are stopped.
   defp trim(state) do
-    idle = for {_pid, %{scope: nil}} = seat <- state.seats, do: seat
-    {_env, workers} = state.workers
-    excess = min(map_size(state.seats) - workers, length(idle))
+    idle = for {_pid, %{scope: nil}} = worker <- state.workers, do: worker
+    {_env, cap} = state.cap
+    excess = min(map_size(state.workers) - cap, length(idle))
 
     if excess > 0 do
       trimmed = idle |> Enum.sort_by(&restart_order/1) |> Enum.take(excess) |> Enum.map(&elem(&1, 0))
       # A driver's stop waits for it to exit: not in the pool's process.
-      Enum.each(trimmed, &Task.start(Slot, :stop, [&1]))
-      %{state | seats: Map.drop(state.seats, trimmed)}
+      Enum.each(trimmed, &Task.start(Worker, :stop, [&1]))
+      %{state | workers: Map.drop(state.workers, trimmed)}
     else
       state
     end
   end
 
   # The waiting callers, first come first served, as `_findFirstJobToRun` picks the first job that
-  # can run: every one `lease/2` serves, the others wait on in order. One whose scope got a seat
-  # here (its scope's earlier caller) is served, past those that wait. A scope with no seat is
-  # `:full` while `workers` are held, of any key, and serving only takes seats: once one waits,
+  # can run: every one `hold/2` serves, the others wait on in order. One whose scope got a worker
+  # here (its scope's earlier caller) is served, past those that wait. A scope with no worker is
+  # `:full` while `cap` are held, of any key, and serving only takes workers: once one waits,
   # the later ones do, so their order holds.
   defp serve_waiting(state) do
     {waiting, state} =
       Enum.flat_map_reduce(state.waiting, state, fn waiter, state ->
-        case lease(state, waiter) do
-          {:ok, seat, state} ->
+        case hold(state, waiter) do
+          {:ok, worker, state} ->
             Process.demonitor(waiter.ref, [:flush])
-            GenServer.reply(waiter.from, {seat, waiter.key})
+            GenServer.reply(waiter.from, {worker, waiter.key})
             {[], state}
 
           :full ->

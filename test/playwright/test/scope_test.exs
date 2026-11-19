@@ -21,7 +21,7 @@ defmodule Playwright.Test.ScopeTest do
     assert ctx.again == ctx.browser
   end
 
-  test "a test's calls, and its Task's, go to its module's lease; other options get another driver", ctx do
+  test "a test's calls, and its Task's, go to its module's hold; other options get another driver", ctx do
     assert BrowserPool.browser(@opts) == ctx.browser
     assert Task.await(Task.async(fn -> BrowserPool.browser(@opts) end)) == ctx.browser
     other = BrowserPool.browser(Keyword.put(@opts, :launch_options, slow_mo: 1))
@@ -59,6 +59,10 @@ defmodule Playwright.Test.ScopeTest.OutsideTest do
   test "outside ExUnit's processes it raises" do
     test_pid = self()
     spawn(fn -> send(test_pid, {:raised, catch_error(BrowserPool.browser())}) end)
-    assert_receive {:raised, %ArgumentError{message: "BrowserPool.browser/1 is held by a test" <> _}}
+
+    assert_receive {:raised,
+                    %RuntimeError{
+                      message: "Playwright.Test.BrowserPool.browser/1: no test or setup_all to hold the browser" <> _
+                    }}
   end
 end

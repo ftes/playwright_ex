@@ -45,13 +45,13 @@ defmodule Playwright.Clock do
   """
   @spec fast_forward(t(), integer() | String.t()) :: :ok | {:error, Playwright.error()}
   def fast_forward(%Playwright.Clock{} = clock, ticks) do
-    Facade.async_void("clock.fastForward", clock, fn -> Playwright.Client.Clock.fast_forward(clock, ticks) end)
+    Facade.async_void("clock.fastForward", fn -> Playwright.Client.Clock.fast_forward(clock, ticks) end)
   end
 
   @doc "Like `fast_forward/2`, but returns the value and raises on error."
   @spec fast_forward!(t(), integer() | String.t()) :: :ok
   def fast_forward!(%Playwright.Clock{} = clock, ticks) do
-    Facade.async_void!("clock.fastForward", clock, fn -> Playwright.Client.Clock.fast_forward(clock, ticks) end)
+    Facade.async_void!("clock.fastForward", fn -> Playwright.Client.Clock.fast_forward(clock, ticks) end)
   end
 
   @install_options {:object, %{time: {:time, nil}}}
@@ -86,14 +86,14 @@ defmodule Playwright.Clock do
   @spec install(t(), install_options()) :: :ok | {:error, Playwright.error()}
   def install(%Playwright.Clock{} = clock, options \\ []) do
     options = Facade.options!(options, @install_options, "clock.install")
-    Facade.async_void("clock.install", clock, fn -> Playwright.Client.Clock.install(clock, options) end)
+    Facade.async_void("clock.install", fn -> Playwright.Client.Clock.install(clock, options) end)
   end
 
   @doc "Like `install/2`, but returns the value and raises on error."
   @spec install!(t(), install_options()) :: :ok
   def install!(%Playwright.Clock{} = clock, options \\ []) do
     options = Facade.options!(options, @install_options, "clock.install")
-    Facade.async_void!("clock.install", clock, fn -> Playwright.Client.Clock.install(clock, options) end)
+    Facade.async_void!("clock.install", fn -> Playwright.Client.Clock.install(clock, options) end)
   end
 
   @doc ~S"""
@@ -114,13 +114,13 @@ defmodule Playwright.Clock do
   """
   @spec run_for(t(), integer() | String.t()) :: :ok | {:error, Playwright.error()}
   def run_for(%Playwright.Clock{} = clock, ticks) do
-    Facade.async_void("clock.runFor", clock, fn -> Playwright.Client.Clock.run_for(clock, ticks) end)
+    Facade.async_void("clock.runFor", fn -> Playwright.Client.Clock.run_for(clock, ticks) end)
   end
 
   @doc "Like `run_for/2`, but returns the value and raises on error."
   @spec run_for!(t(), integer() | String.t()) :: :ok
   def run_for!(%Playwright.Clock{} = clock, ticks) do
-    Facade.async_void!("clock.runFor", clock, fn -> Playwright.Client.Clock.run_for(clock, ticks) end)
+    Facade.async_void!("clock.runFor", fn -> Playwright.Client.Clock.run_for(clock, ticks) end)
   end
 
   @doc ~S"""
@@ -156,13 +156,13 @@ defmodule Playwright.Clock do
   """
   @spec pause_at(t(), integer() | String.t() | DateTime.t()) :: :ok | {:error, Playwright.error()}
   def pause_at(%Playwright.Clock{} = clock, time) do
-    Facade.async_void("clock.pauseAt", clock, fn -> Playwright.Client.Clock.pause_at(clock, time) end)
+    Facade.async_void("clock.pauseAt", fn -> Playwright.Client.Clock.pause_at(clock, time) end)
   end
 
   @doc "Like `pause_at/2`, but returns the value and raises on error."
   @spec pause_at!(t(), integer() | String.t() | DateTime.t()) :: :ok
   def pause_at!(%Playwright.Clock{} = clock, time) do
-    Facade.async_void!("clock.pauseAt", clock, fn -> Playwright.Client.Clock.pause_at(clock, time) end)
+    Facade.async_void!("clock.pauseAt", fn -> Playwright.Client.Clock.pause_at(clock, time) end)
   end
 
   @doc ~S"""
@@ -172,13 +172,13 @@ defmodule Playwright.Clock do
   """
   @spec resume(t()) :: :ok | {:error, Playwright.error()}
   def resume(%Playwright.Clock{} = clock) do
-    Facade.async_void("clock.resume", clock, fn -> Playwright.Client.Clock.resume(clock) end)
+    Facade.async_void("clock.resume", fn -> Playwright.Client.Clock.resume(clock) end)
   end
 
   @doc "Like `resume/1`, but returns the value and raises on error."
   @spec resume!(t()) :: :ok
   def resume!(%Playwright.Clock{} = clock) do
-    Facade.async_void!("clock.resume", clock, fn -> Playwright.Client.Clock.resume(clock) end)
+    Facade.async_void!("clock.resume", fn -> Playwright.Client.Clock.resume(clock) end)
   end
 
   @doc ~S"""
@@ -203,13 +203,13 @@ defmodule Playwright.Clock do
   """
   @spec set_fixed_time(t(), integer() | String.t() | DateTime.t()) :: :ok | {:error, Playwright.error()}
   def set_fixed_time(%Playwright.Clock{} = clock, time) do
-    Facade.async_void("clock.setFixedTime", clock, fn -> Playwright.Client.Clock.set_fixed_time(clock, time) end)
+    Facade.async_void("clock.setFixedTime", fn -> Playwright.Client.Clock.set_fixed_time(clock, time) end)
   end
 
   @doc "Like `set_fixed_time/2`, but returns the value and raises on error."
   @spec set_fixed_time!(t(), integer() | String.t() | DateTime.t()) :: :ok
   def set_fixed_time!(%Playwright.Clock{} = clock, time) do
-    Facade.async_void!("clock.setFixedTime", clock, fn -> Playwright.Client.Clock.set_fixed_time(clock, time) end)
+    Facade.async_void!("clock.setFixedTime", fn -> Playwright.Client.Clock.set_fixed_time(clock, time) end)
   end
 
   @doc ~S"""
@@ -231,13 +231,13 @@ defmodule Playwright.Clock do
   """
   @spec set_system_time(t(), integer() | String.t() | DateTime.t()) :: :ok | {:error, Playwright.error()}
   def set_system_time(%Playwright.Clock{} = clock, time) do
-    Facade.async_void("clock.setSystemTime", clock, fn -> Playwright.Client.Clock.set_system_time(clock, time) end)
+    Facade.async_void("clock.setSystemTime", fn -> Playwright.Client.Clock.set_system_time(clock, time) end)
   end
 
   @doc "Like `set_system_time/2`, but returns the value and raises on error."
   @spec set_system_time!(t(), integer() | String.t() | DateTime.t()) :: :ok
   def set_system_time!(%Playwright.Clock{} = clock, time) do
-    Facade.async_void!("clock.setSystemTime", clock, fn -> Playwright.Client.Clock.set_system_time(clock, time) end)
+    Facade.async_void!("clock.setSystemTime", fn -> Playwright.Client.Clock.set_system_time(clock, time) end)
   end
 
   @doc """

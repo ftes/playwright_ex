@@ -8,7 +8,7 @@ defmodule Playwright.Library.Chromium.ConnectToWorkerTest do
 
   alias Playwright.ConsoleMessage
   alias Playwright.RemoteServer.ChildProcess
-  alias Playwright.Runtime.Api
+  alias Playwright.Runtime.Facade
   alias Playwright.Worker
 
   if System.get_env("BROWSER", "chromium") != "chromium", do: @moduletag(skip: "upstream skip: chromium only")
@@ -60,7 +60,7 @@ defmodule Playwright.Library.Chromium.ConnectToWorkerTest do
   # connection keeps dispatching in between (OTP runtime), so an event of the new worker can precede
   # it (see the test below). Returns `{worker, then_result}`.
   defp connect_to_worker(browser_type, endpoint, then \\ fn _worker -> nil end) do
-    Api.call("browserType._connectToWorker", browser_type, fn ->
+    Facade.call("browserType._connectToWorker", fn ->
       worker = Playwright.Client.BrowserType._connect_to_worker(browser_type, endpoint)
       {worker, then.(worker)}
     end)
@@ -92,7 +92,7 @@ defmodule Playwright.Library.Chromium.ConnectToWorkerTest do
     assert ConsoleMessage.type(message) == "log"
     # Disconnect and receive close event.
     close_promise = Worker.wait_for_event(worker, :close)
-    Api.call("worker._disconnect", worker, fn -> Playwright.Client.Worker._disconnect(worker) end)
+    Facade.call("worker._disconnect", fn -> Playwright.Client.Worker._disconnect(worker) end)
     Playwright.Promise.await!(close_promise)
   end
 
