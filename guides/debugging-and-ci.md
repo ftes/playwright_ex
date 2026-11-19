@@ -172,7 +172,10 @@ failed tests (at their line), failed `setup_all`s and slow files, and a summary.
 only those, so name `ExUnit.CLIFormatter` next to it (`--formatter` replaces the configured
 formatters). When failures are rerun, pass it to the first run only, or a test failing twice is
 annotated twice. Rerun only on exit status 2 (tests failed): any other failure, such as a crash
-or a missed coverage threshold, would otherwise go green on an empty `--failed` run.
+or a missed coverage threshold, would otherwise go green on an empty `--failed` run. A failure
+outside the tests, such as an assertion in a `setup_all`'s `on_exit`, exits 2 but leaves no test
+to rerun: `--failed` then prints "There are no tests to run" and exits 0, so the `grep` fails it
+(`pipefail` keeps a failed rerun's status through `tee`).
 `erlef/setup-beam`'s problem matchers annotate each failure again, at the test's line, so turn
 them off:
 
@@ -183,8 +186,9 @@ them off:
     otp-version: "29"
     disable_problem_matchers: true
 - run: |
+    set -o pipefail
     mix test --formatter ExUnit.CLIFormatter --formatter Playwright.Test.GitHubFormatter ||
-      { [ $? -eq 2 ] && mix test --failed; }
+      { [ $? -eq 2 ] && mix test --failed | tee retry.log && ! grep -q "There are no tests to run" retry.log; }
 ```
 
 With `--partitions`, rerun without it. The failures manifest holds only this partition's
@@ -194,7 +198,10 @@ deal them again: a partition reruns only some of its failures, possibly none, an
 ```yaml
 - env:
     MIX_TEST_PARTITION: ${{ matrix.partition }}
-  run: mix test --partitions 4 || { [ $? -eq 2 ] && mix test --failed; }
+  run: |
+    set -o pipefail
+    mix test --partitions 4 ||
+      { [ $? -eq 2 ] && mix test --failed | tee retry.log && ! grep -q "There are no tests to run" retry.log; }
 ```
 
 ## Docker
