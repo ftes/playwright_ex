@@ -1,7 +1,7 @@
 defmodule Playwright.Test.SetupAllStepTest do
   # `Playwright.Test.step/2,3` in a module's `setup_all`, upstream's `test.step` in `beforeAll`:
-  # the step's own semantics (its value, nesting, box, skip, its error raised on), recorded
-  # nowhere, as `setup_all` runs before any test.
+  # the step's own semantics (its value, nesting, box, skip, its error raised on), and no rows,
+  # as `setup_all` runs before any test.
   use ExUnit.Case, async: true
   use Playwright.Test
 
@@ -69,7 +69,7 @@ defmodule Playwright.Test.SetupAllStepTest do
       late: late,
       page: page,
       setup_all_pid: setup_all_pid,
-      rows: module_rows(setup_all_pid)
+      rows: rows(setup_all_pid)
     }
   end
 
@@ -81,7 +81,7 @@ defmodule Playwright.Test.SetupAllStepTest do
 
   defp source(line), do: __ENV__.file |> File.read!() |> String.split("\n") |> Enum.at(line - 1)
 
-  defp module_rows(pid), do: :ets.match_object(Results.table(), {{:test_info, pid, :_}, :_})
+  defp rows(pid), do: :ets.match_object(Results.table(), {{:test_info, pid, :_}, :_})
 
   test "a step returns its body's value, nested ones too", ctx do
     assert ctx.nested == {:inner, Path.expand(__ENV__.file)}
@@ -106,11 +106,18 @@ defmodule Playwright.Test.SetupAllStepTest do
   end
 
   test "a long-lived process or route handler of setup_all's steps during a test, without rows", ctx do
+    Test.step("in the test", fn -> :ok end)
+    test_rows = rows(self())
+
     send(ctx.late, {:step, self()})
     assert_receive {:stepped, :late}
     Page.goto!(ctx.page, "http://setup-all.test/")
     assert Page.content!(ctx.page) =~ "stepped"
-    assert module_rows(ctx.setup_all_pid) == []
+
+    # The running test's rows are unchanged (the test doesn't trace, so its driver calls aren't
+    # steps), and the module has none.
+    assert rows(self()) == test_rows
+    assert rows(ctx.setup_all_pid) == []
   end
 end
 
