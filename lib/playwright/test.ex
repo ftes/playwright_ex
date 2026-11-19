@@ -371,12 +371,10 @@ defmodule Playwright.Test do
   A step also works in the module's `setup_all` (and processes with it in `$callers`), as
   upstream's in a `beforeAll` hook: it returns its body's value, nests, and raises its error on,
   a boxed step's where its helper is called. Deviation: it is recorded nowhere (no trace, no
-  video overlay), where upstream's `beforeAll` runs with the first test's `testInfo` and records
-  its steps in that test (its trace's "Before Hooks"): ExUnit runs `setup_all` before any test,
-  and hooks aren't steps here. So is a step of a long-lived process or handler of `setup_all`'s
-  during a test, where upstream's `test.step` is the current test's (as for `info/0`). Such a
-  process that outlives the module's `setup_all` may still step until the runner cleans up
-  after it; then `step/2,3` raises.
+  video overlay), also in a long-lived process or handler of `setup_all`'s during a test, where
+  upstream records a `beforeAll` step in the first test (its trace's "Before Hooks") and a
+  handler's in the current test: ExUnit runs `setup_all` before any test, and hooks aren't
+  steps here.
 
   ## Config
 
@@ -719,8 +717,8 @@ defmodule Playwright.Test do
         config
         |> context_defaults(layers, use_options)
         |> Map.merge(%{file: module_file(context[:module]), timeout: Options.ex_unit_timeout(context)})
-        # Its steps' `testInfo` (`TestInfo.setup_all/1`).
-        |> Map.put(:setup_all_pid, self())
+        # Also its steps' `testInfo` (`step_test_info!/0`): never started, so not running.
+        |> Map.merge(%{test_pid: self(), step_id_prefix: "setup_all"})
         |> Map.put(:use_modes, Options.artifacts(config, layers))
 
       Results.register_module(self(), module)
@@ -1359,18 +1357,19 @@ defmodule Playwright.Test do
     end)
   end
 
-  # `currentTestInfo()`, of the scope `info/0` and the context defaults resolve: the running
-  # test's, or in a module's `setup_all` (deviation) a stub of its process,
-  # `TestInfo.setup_all/1`: upstream's `beforeAll` runs with the first test's, ExUnit's
-  # `setup_all` before any test.
+  # `currentTestInfo()`. deviation: in a module's `setup_all` (or a process with it in
+  # `$callers`), its registration (`__setup_all__/1`), as upstream's `beforeAll` runs with the
+  # first test's and ExUnit's `setup_all` before any test. It isn't a running test's
+  # (`TestInfo.start/1`), so its steps nest and box, but `TestInfo.put_row/3` drops their rows,
+  # and it has no recorder (no trace) nor a test's registration (`Recorder.on_user_step/2`).
   defp step_test_info! do
-    test_info =
-      case Recorder.scope() do
-        {:test, test} -> TestInfo.running(test.test_pid)
-        {:module, module} -> TestInfo.setup_all(module.setup_all_pid)
-        nil -> nil
-      end
+    TestInfo.current() || setup_all_scope() || raise("test.step() can only be called from a test")
+  end
 
-    test_info || raise("test.step() can only be called from a test")
+  defp setup_all_scope do
+    case Recorder.scope() do
+      {:module, module} -> module
+      _test_or_nil -> nil
+    end
   end
 end
