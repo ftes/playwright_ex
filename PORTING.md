@@ -45,8 +45,8 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. The why
   keep that, even when it looks wrong, and don't add a special case for it: every deviation is
   carried through each version bump. If it matters, report it upstream and list it under "Upstream
   issues to re-check". Removing a deviation nothing requires is an improvement.
-- Every upstream client file needs a module (`mix playwright.parity` fails otherwise). A
-  file left out on purpose (type-only, not in api.json) goes in `@unported_client_files` in
+- Every upstream client and matcher file needs a module (`mix playwright.parity` fails
+  otherwise). A file left out on purpose (type-only, not in api.json) goes in `@unported_files` in
   `Mix.Tasks.Playwright.Parity`, with a reason.
 - Upstream-shaped code has a few credo checks relaxed (`.credo.exs`), so statements stay in
   upstream order. Don't restructure ported code to please a linter.
@@ -241,16 +241,17 @@ to that PR, the workflow also pushes fixes for its CI failures. The mix tasks be
 2. `mix playwright.gen.protocol` and `mix playwright.gen.api`, commit the generated diff.
 3. `git diff vA vB -- packages/playwright-core/src/client packages/playwright/src/matchers tests/page tests/library`
    in upstream; port the hunks.
-   - Read the runner's diff as well:
-     `git diff vA vB -- packages/playwright/src/index.ts packages/playwright/src/common/config.ts packages/playwright/src/common/testType.ts packages/playwright/src/worker/testInfo.ts packages/playwright/src/worker/testTracing.ts packages/playwright/types/test.d.ts`.
-     `Playwright.Test` is watched, not parity-tracked.
+   - Read the runner's diff as well: `git diff vA vB -- $(mix playwright.runner_sources)` (the
+     files `Playwright.Test` derives from or follows, `@derived` and `@watched` in
+     `Mix.Playwright.Notices`). `Playwright.Test` is watched, not parity-tracked.
    - Port the hunks that touch what it ports: testInfo's snapshot paths, errors and steps,
-     `test.trace`, `test.step`, error-context and the artifact recording.
+     `test.trace`, `test.step`, error-context, the GitHub reporter and the artifact recording.
    - List new options, fixtures and defaults as features to adopt or skip.
-4. `mix playwright.parity` until clean, then `mix test`. New upstream client or spec files
+4. `mix playwright.parity` until clean, then `mix test`. New upstream client, matcher or spec files
    show up as missing, removed or since-ported ones as stale exclusions: port or mirror them, or
-   update `@unported_client_files` / `test/upstream_not_ported.txt`. A new function-typed
-   parameter shows up too: classify it in `@function_params` (`$callers` under Shims).
+   update `@unported_files` / `test/upstream_not_ported.txt`. A new function-typed
+   parameter shows up too: classify it in `@function_params` (`$callers` under Shims). So does a
+   runner file `Playwright.Test` newly cites, or one gone upstream: update `@watched`.
    `mix playwright.notices` gives new files their copyright headers (parity fails on a missing
    or stale one); an MIT source's copyright goes in `NOTICE` too. Copy upstream's
    `tests/registry.md` to `test/upstream_registry.md`. Parity sees new, renamed and removed
@@ -263,8 +264,6 @@ to that PR, the workflow also pushes fixes for its CI failures. The mix tasks be
      `usage-rules.md` ("Locators and assertions"): `locators.md` "Quick Guide" and "Locating
      elements", and `best-practices-js.md` "Prefer user-facing attributes to XPath or CSS
      selectors".
-   - Check that `@no_driver_reinstall` in `lib/mix/tasks/playwright.install.ex` still lists the
-     `mix playwright.cli install --help` flags that install no browsers.
 6. Re-check skips that may be gone: run the spec files with `env:` or `flaky:` skips
    (`grep -rlE '"(env|flaky):' test/upstream`) with `PW_UNSKIP=env,flaky mix test <files>` on the
    browser they name (ExUnit runs no skipped test, `--include skip` neither), drop each skip that
