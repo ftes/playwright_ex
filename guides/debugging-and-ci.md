@@ -137,9 +137,10 @@ network is slow or you run offline: the driver goes to `~/.cache/playwright`
 Or run the job in Playwright's image, which has every browser (at `PLAYWRIGHT_BROWSERS_PATH`)
 and its system packages, so only the driver is installed. Its tag is the pinned driver's
 version, not this package's: `mix playwright.cli --version` prints it (`Version 1.65.1`, or
-with `executable:` that CLI's version, the tag then), and the README names it. Install with `--no-browsers` there: an
-image that lacks the driver's browsers then fails at launch with Playwright's "Please update
-docker image as well", instead of `mix playwright.install` downloading them on every run.
+with `executable:` that CLI's version, the tag then), and the README names it. Install with
+`--no-browsers` there: an image that lacks the driver's browsers then fails at launch with
+Playwright's "Please update docker image as well", instead of `mix playwright.install`
+downloading them on every run.
 `erlef/setup-beam` needs `unzip`, `ImageOS` and `HOME` there. It pays off with WebKit or many
 browser jobs. The image is about 2 GB, pulled per job on hosted runners, and it is Ubuntu 24.04:
 a `_build` (with NIFs) or a cached OTP from a job on `ubuntu-latest` may not run in it, so build
@@ -172,10 +173,10 @@ failed tests (at their line), failed `setup_all`s and slow files, and a summary.
 only those, so name `ExUnit.CLIFormatter` next to it (`--formatter` replaces the configured
 formatters). When failures are rerun, pass it to the first run only, or a test failing twice is
 annotated twice. Rerun only on exit status 2 (tests failed): any other failure, such as a crash
-or a missed coverage threshold, would otherwise go green on an empty `--failed` run. A failure
-outside the tests, such as an assertion in a `setup_all`'s `on_exit`, exits 2 but leaves no test
-to rerun: `--failed` then prints "There are no tests to run" and exits 0, so the `grep` fails it
-(`pipefail` keeps a failed rerun's status through `tee`).
+or a missed coverage threshold, would otherwise go green on an empty `--failed` run.
+On Elixir 1.20 and earlier, `--failed` doesn't rerun a module whose `setup_all` cleanup
+(`on_exit`) failed after its tests passed, so such a failure can be retried green; Elixir 1.21
+fixes this ([elixir-lang/elixir@0f654791](https://github.com/elixir-lang/elixir/commit/0f654791)).
 `erlef/setup-beam`'s problem matchers annotate each failure again, at the test's line, so turn
 them off:
 
@@ -186,9 +187,8 @@ them off:
     otp-version: "29"
     disable_problem_matchers: true
 - run: |
-    set -o pipefail
     mix test --formatter ExUnit.CLIFormatter --formatter Playwright.Test.GitHubFormatter ||
-      { [ $? -eq 2 ] && mix test --failed | tee retry.log && ! grep -q "There are no tests to run" retry.log; }
+      { [ $? -eq 2 ] && mix test --failed; }
 ```
 
 With `--partitions`, rerun without it. The failures manifest holds only this partition's
@@ -198,10 +198,7 @@ deal them again: a partition reruns only some of its failures, possibly none, an
 ```yaml
 - env:
     MIX_TEST_PARTITION: ${{ matrix.partition }}
-  run: |
-    set -o pipefail
-    mix test --partitions 4 ||
-      { [ $? -eq 2 ] && mix test --failed | tee retry.log && ! grep -q "There are no tests to run" retry.log; }
+  run: mix test --partitions 4 || { [ $? -eq 2 ] && mix test --failed; }
 ```
 
 ## Docker
