@@ -703,6 +703,11 @@ A step runs in the calling process, so `assert_receive` works in it. It takes no
 running body can't be interrupted: the test's timeout bounds it. `step_skip` declares a step
 without running it. `Test` is `Playwright.Test`, which `Playwright.Case` aliases.
 
+A step works in `setup_all` too, as Playwright Test's in `beforeAll`: it returns its body's value
+and raises its error, a boxed step's where its helper is called, so the same helpers serve both.
+It isn't recorded, as no test runs yet: Playwright Test shows a `beforeAll` hook's steps in the
+first test's trace, ExUnit runs `setup_all` before any test.
+
 ## Route handlers and listeners
 
 Route handlers (`Page.route/3`, `route_web_socket/3` and their WebSocket `on_message` and
@@ -885,8 +890,8 @@ fields: `file`, `timeout` (the module's, which bounds `setup_all`) and `use`, th
 resolved from the config, the project and the module, as its `setup_all` contexts get them (a
 describe's or a test's never reach `setup_all`). The test's fields (`test_pid`, `test_name`,
 `output_dir`, `retry`, `deadline`, `close_deadline`) are absent there, and `output_path/1`,
-`snapshot_path/2`, `attach/2` and `step/2,3` raise. Playwright Test runs `beforeAll` with the
-first test's `testInfo`; ExUnit runs `setup_all` before any test. A `setup_all` that runs before
+`snapshot_path/2` and `attach/2` raise; `step/2,3` works, unrecorded (see "Steps"). Playwright
+Test runs `beforeAll` with the first test's `testInfo`; ExUnit runs `setup_all` before any test. A `setup_all` that runs before
 `use Playwright.Test` (a case template's own, or one above the module's `use`) isn't registered
 yet, and a process or handler that `setup_all` started, with it in `$callers`, gets the
 module's fields also during a test.

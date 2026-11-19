@@ -67,8 +67,9 @@ defmodule Playwright.Test do
   (`info/1` in `on_exit`, with the test's result), `output_path/1`, `attach/2`, `snapshot_path/2`, `step/2,3` and `step_skip/2,3`. They work in the test's
   process and in processes with it in `$callers` (a `Task`, and the client's callback
   processes, see "Route handlers and listeners" in the Testing with ExUnit guide); outside a
-  test they raise. `info/0` also works in the module's `setup_all`, with the module's fields (see
-  "Contexts of `setup_all`").
+  test they raise. `info/0`, `step/2,3` and `step_skip/2,3` also work in the module's
+  `setup_all`: `info/0` with the module's fields (see "Contexts of `setup_all`"), the steps
+  unrecorded (see "Steps").
 
   An error a listener or route handler of the test raises fails the test and stops it at once,
   as upstream's worker does (`unhandledError`): the test's process exits with the error, and
@@ -371,6 +372,12 @@ defmodule Playwright.Test do
   leaves the attachments out). Not ported: the test's stdout and stderr in the trace, hooks and
   fixtures as steps, the step's `TestStepInfo` (the body takes no argument, so no
   `step.attach`) and its `timeout` (the test's timeout bounds a step).
+
+  A step also works in the module's `setup_all` (and processes with it in `$callers`), as
+  upstream's in a `beforeAll` hook: it returns its body's value, nests, and raises its error on,
+  a boxed one's at its call site. Deviation: it is recorded nowhere, where upstream's
+  `beforeAll` runs with the first test's `testInfo` and records its steps in that test (its
+  trace's "Before Hooks"): ExUnit runs `setup_all` before any test, and hooks aren't steps here.
 
   ## Config
 
@@ -1230,7 +1237,9 @@ defmodule Playwright.Test do
   @doc """
   Upstream's `test.step(title, body, options)`: runs the body as a step of the running test
   and returns its value, also from a process with the test in its `$callers` (a `Task`); steps
-  nest. A step's error is raised on after the step records it. Outside a test it raises.
+  nest. A step's error is raised on after the step records it. In the module's `setup_all`
+  (and processes with it in `$callers`) it runs too, recorded nowhere (see "Steps" in the
+  moduledoc); elsewhere it raises.
 
       step "log in" do
         ...
@@ -1310,9 +1319,8 @@ defmodule Playwright.Test do
 
     options = Map.new(Keyword.validate!(options, [:box, :location, :params, :subtitle]))
     call_site = call_site || (options[:location] && Map.take(options.location, [:file, :line]))
-    test_info = TestInfo.current()
-    if !test_info, do: raise("test.step() can only be called from a test")
-    Recorder.on_user_step(test_info.test_pid, {:begin, title})
+    test_info = step_test_info!()
+    on_user_step(test_info, {:begin, title})
 
     step =
       TestInfo._add_step(test_info, %{
@@ -1345,8 +1353,24 @@ defmodule Playwright.Test do
           :erlang.raise(kind, reason, step.boxedStack || __STACKTRACE__)
       after
         # finally { await testInfo._onUserStepEnd?.(); }
-        Recorder.on_user_step(test_info.test_pid, :end)
+        on_user_step(test_info, :end)
       end
     end)
   end
+
+  # `currentTestInfo()`, which a step needs. deviation: `nil` in a module's `setup_all` (or a
+  # process with it in `$callers`), where the step runs without one (see `TestInfo._add_step/3`):
+  # upstream's `beforeAll` runs with the first test's, ExUnit's `setup_all` before any test.
+  defp step_test_info! do
+    test_info = TestInfo.current()
+
+    if !test_info and !match?({:module, _}, Recorder.scope()),
+      do: raise("test.step() can only be called from a test")
+
+    test_info
+  end
+
+  # `testInfo._onUserStepBegin/End`: none without a `testInfo` (`step_test_info!/0`).
+  defp on_user_step(nil, _message), do: :ok
+  defp on_user_step(test_info, message), do: Recorder.on_user_step(test_info.test_pid, message)
 end

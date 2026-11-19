@@ -330,6 +330,7 @@ module, not put in the context) and ExUnit tags; the rest are arguments.
 | `testInfo.outputDir` removed before the test, `-retryN`, `preserveOutput` | removed in the test's setup; a test under `mix test --failed` is a retry (the one after its `-retryN` dirs); a run without it removes the test's `-retryN` dirs, not all of `output_dir` (`createRemoveOutputDirsTask`), which `--failed` needs; config `preserve_output` |
 | `testInfo.outputPath`/`snapshotPath` | `output_path(name)` (one string, no segments), `snapshot_path(name, opts)` (a string or a list of segments) |
 | `test.step` | `step/2,3` (no timeout) |
+| `test.step` in `beforeAll` (a step of the first test's "Before Hooks") | `step/2,3` in `setup_all`: its value, nesting, box and error, recorded nowhere (no test yet; hooks aren't steps) |
 | `testInfo.attach` | `attach/2` (`test.attach` step, `trace.attachments`) |
 | list reporter's `npx playwright show-trace <path>` | a failure's `Trace of "<test>": mix playwright.cli show-trace <path>`, held by the pool and printed after ExUnit's summary (ExUnit prints a failure only after its `on_exit`) |
 | `testInfo.retry`, retry modes (`on-first-retry`, ...) | ExUnit has no retries in a run: `mix test --failed` is the retry (`info/0`'s `retry`), and the modes (`:on_first_retry`, ...) go by it, as upstream's `_shouldCaptureTrace`, `shouldCaptureVideo` and `SnapshotRecorder` |
