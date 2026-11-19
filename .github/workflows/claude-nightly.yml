@@ -10,18 +10,12 @@ concurrency:
   group: claude-nightly
   cancel-in-progress: false
 
-permissions:
-  contents: read
+# Each job asks for what it needs.
+permissions: {}
 
 env:
   # As in elixir.yml.
   MIX_ENV: test
-  # Runs subagents in the foreground. A headless run ends with Claude's turn, which drops any
-  # still running in the background: the survey agents never reported back.
-  CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1"
-  # Steers Claude off the Bash habits (cd, pipes, heredocs) that miss the allowlist. Plain text
-  # only (no quotes, $ or backslashes): claude.yml passes it in a quoted claude_args argument.
-  TOOL_HINT: "Prefer your file tools over Bash to read, search and edit files, and keep any scratch files under tmp/; run each allowed Bash command on its own, without cd, git -C, semicolons, &&, pipes or heredocs (you are already in the repository). Give any subagent you start these same rules."
 
 jobs:
   # Frees slots before the cap is counted. A job, not an earlier cron: GitHub delays scheduled
@@ -52,42 +46,19 @@ jobs:
         if: steps.list.outputs.numbers != ''
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-depth: 0
-      - name: Run Claude
-        id: claude
-        if: steps.list.outputs.numbers != ''
-        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+      - if: steps.list.outputs.numbers != ''
+        uses: ./.github/actions/claude
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt: |
+          token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          setup: "false"
+          prompt: nightly-triage
+          context: |
             REPO: ${{ github.repository }}
             OPEN NIGHTLY PRS: ${{ steps.list.outputs.numbers }}
-
-            An earlier nightly run opened these simplification PRs. Close each one that main has
-            made obsolete, so its slot can go to new work. main is checked out.
-
-            For each PR, read `gh pr view N`, `gh pr diff N` and the code it touches on main. It is
-            obsolete only if the code it simplifies is gone or rewritten, or main already made the
-            same change or solved the problem another way. A merge conflict, the PR's age or a
-            preference for other work is not a reason. When in doubt, keep it.
-
-            ${{ env.TOOL_HINT }}
-
-            To close one, run exactly:
-              gh pr close N --delete-branch --comment "<one sentence naming what on main made it obsolete>"
-          claude_args: |
-            --model claude-opus-5-5
-            --max-turns 60
-            --allowedTools "Skill,Read,Grep,Glob,Agent,Task,Bash(git log:*),Bash(git show:*),Bash(git diff:*),Bash(gh pr view:*),Bash(gh pr diff:*),${{ steps.list.outputs.allowed }}"
-      - name: Summarize Claude's result
-        if: ${{ !cancelled() && steps.claude.outputs.execution_file != '' }}
-        env:
-          EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
-        # .github/claude-summary.jq: only the final message and the denied calls (public repo). From
-        # the run's commit, as Claude may have edited the checkout; a failed `git show` stops the step.
-        run: |
-          filter=$(git show "$GITHUB_SHA:.github/claude-summary.jq")
-          jq -r "$filter" "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
+          max-turns: "60"
+          allowed-tools: "Skill,Read,Grep,Glob,Agent,Task,Bash(git log:*),Bash(git show:*),Bash(git diff:*),Bash(gh pr view:*),Bash(gh pr diff:*),${{ steps.list.outputs.allowed }}"
 
   # After triage, so only PRs worth keeping get fixed.
   classify:
@@ -141,12 +112,12 @@ jobs:
           done
 
   # Pushes a fix to each PR whose CI failed, which is where a change gets tested: improve publishes
-  # without running the suite. Only new commits, nothing merged from main, so no workflow files.
+  # without running the suite.
   fix:
     needs: classify
     if: ${{ !cancelled() && needs.classify.result == 'success' && needs.classify.outputs.failing != '[]' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     permissions:
       contents: read
       actions: read # gh run view, for the failed log.
@@ -156,84 +127,19 @@ jobs:
       matrix:
         pr: ${{ fromJSON(needs.classify.outputs.failing) }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Else checkout's read-only token can override the app token Claude pushes with: from v6
           # it sits in an includeIf file claude-code-action doesn't clear, so the push gets a 403.
           persist-credentials: false
           ref: ${{ matrix.pr.branch }}
           fetch-depth: 0
-      - name: Setup languages
-        uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
-      - name: Install dependencies
-        run: mix "do" deps.get, deps.compile
-      # May fail on a branch that doesn't compile; Claude then runs without them.
-      - name: Download upstream sources
-        continue-on-error: true
-        run: mkdir -p ~/.cache/playwright && mix playwright.upstream
-      - name: Save the failed CI log
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          BRANCH: ${{ matrix.pr.branch }}
-        run: |
-          run=$(gh run list --branch "$BRANCH" --workflow elixir.yml --event pull_request --limit 1 --json databaseId --jq '.[0].databaseId')
-          mkdir -p tmp
-          gh run view "$run" --log-failed | tail -n 5000 > tmp/ci-failed.log
-      - name: Run Claude
-        id: claude
-        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+      - uses: ./.github/actions/fix-ci
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt: |
-            REPO: ${{ github.repository }}
-            PR: ${{ matrix.pr.number }}
-            BRANCH: ${{ matrix.pr.branch }} (already checked out)
-
-            CI failed on this simplification PR. The end of the failed steps' log is in
-            tmp/ci-failed.log (tmp/ is gitignored).
-
-            Read it along with `gh pr view ${{ matrix.pr.number }}` and
-            `gh pr diff ${{ matrix.pr.number }}` and find the cause. For a failing port or ported
-            test, compare with upstream: its sources and specs at the pin are under
-            ~/.cache/playwright/<version>/upstream. Tests can't run here: CI runs them on your
-            push. Don't merge or rebase on main. End with exactly one of these:
-
-            - The PR caused it: fix it, keeping what the PR set out to do and the public behaviour,
-              and matching the surrounding code. Follow PORTING.md for ported code. Files marked
-              "do not edit manually" are regenerated with `mix playwright.gen.api` or
-              `mix playwright.gen.protocol`. Don't weaken or skip a test to get it green. Run
-              `mix format`, `mix compile --warnings-as-errors` and `mix credo`, `git add` the files,
-              commit with one imperative sentence as the subject (match `git log`), then run exactly:
-                git push origin ${{ matrix.pr.branch }}
-            - It is unrelated to this PR, like a flaky browser test: run exactly
-              `git commit --allow-empty -m "Re-run CI"`, then the push above.
-            - It can't be fixed without redesigning the change: run exactly
-              gh pr close ${{ matrix.pr.number }} --delete-branch --comment "<one sentence on why>"
-
-            ${{ env.TOOL_HINT }}
-
-            No attribution anywhere: no Co-Authored-By trailers or "Generated with" lines.
-          # The owner forbids attribution; the prompt says so too.
-          settings: |
-            {"includeCoAuthoredBy": false, "attribution": {"commit": "", "pr": ""}}
-          # --add-dir: the driver cache holding the upstream sources (Playwright.Upstream).
-          claude_args: |
-            --model claude-opus-5-5
-            --max-turns 60
-            --add-dir /home/runner/.cache/playwright
-            --allowedTools "Skill,Read,Grep,Glob,Edit,Write,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix credo:*),Bash(mix playwright.parity:*),Bash(mix playwright.gen.api:*),Bash(mix playwright.gen.protocol:*),Bash(gh pr view ${{ matrix.pr.number }}:*),Bash(gh pr diff ${{ matrix.pr.number }}:*),Bash(git push origin ${{ matrix.pr.branch }}),Bash(gh pr close ${{ matrix.pr.number }} *)"
-      - name: Summarize Claude's result
-        if: ${{ !cancelled() && steps.claude.outputs.execution_file != '' }}
-        env:
-          EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
-        # .github/claude-summary.jq: only the final message and the denied calls (public repo). From
-        # the run's commit, as Claude may have edited the checkout; a failed `git show` stops the step.
-        run: |
-          filter=$(git show "$GITHUB_SHA:.github/claude-summary.jq")
-          jq -r "$filter" "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
+          token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          kind: nightly
+          pr: ${{ matrix.pr.number }}
+          branch: ${{ matrix.pr.branch }}
 
   # Replaces each conflicted PR with one on a new branch from main. The Claude app can't push
   # workflow file changes, which a merge or rebase of the old branch would carry from main.
@@ -259,61 +165,17 @@ jobs:
           # it sits in an includeIf file claude-code-action doesn't clear, so the push gets a 403.
           persist-credentials: false
           fetch-depth: 0
-      - name: Setup languages
-        uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
-      - name: Install dependencies and upstream sources
-        run: mix "do" deps.get, deps.compile, playwright.upstream
       - run: git switch -c "$NIGHTLY_BRANCH"
-      - name: Run Claude
-        id: claude
-        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+      - uses: ./.github/actions/claude
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt: |
+          token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: nightly-recreate
+          context: |
             REPO: ${{ github.repository }}
-            OLD PR: ${{ matrix.pr }}
+            OLD_PR: ${{ matrix.pr }}
             BRANCH: ${{ env.NIGHTLY_BRANCH }} (already checked out, from current main)
-
-            The old PR is a simplification that now conflicts with main. Redo it on this branch.
-
-            Read `gh pr view ${{ matrix.pr }}` and `gh pr diff ${{ matrix.pr }}` for what it set out
-            to do, then make the same change against the code as it is now, keeping what main has
-            changed since. Files marked "do not edit manually" are regenerated with
-            `mix playwright.gen.api` or `mix playwright.gen.protocol`, never merged by hand.
-            Ported code follows upstream's sources at the pin, under
-            ~/.cache/playwright/<version>/upstream. Run `mix format`,
-            `mix compile --warnings-as-errors` and `mix credo`; they must pass. CI on the new PR
-            runs the test suite.
-
-            If the change can't be redone without redesigning it, stop without pushing and say why.
-
-            To publish, commit with the old PR's title as the subject, write tmp/nightly-pr.md (the
-            old description, updated if the change differs; tmp/ is gitignored), then run exactly,
-            in this order:
-              git push -u origin ${{ env.NIGHTLY_BRANCH }}
-              gh pr create --base main --head ${{ env.NIGHTLY_BRANCH }} --title "<subject>" --body-file tmp/nightly-pr.md
-              gh pr close ${{ matrix.pr }} --delete-branch --comment "Conflicted with main; replaced by <new PR URL>."
-
-            ${{ env.TOOL_HINT }}
-
-            No attribution anywhere: no Co-Authored-By trailers or "Generated with" lines.
-          # The owner forbids attribution; the prompt says so too.
-          settings: |
-            {"includeCoAuthoredBy": false, "attribution": {"commit": "", "pr": ""}}
-          claude_args: |
-            --model claude-opus-5-5
-            --max-turns 60
-            --add-dir /home/runner/.cache/playwright
-            --allowedTools "Skill,Read,Grep,Glob,Edit,Write,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix credo:*),Bash(mix playwright.gen.api:*),Bash(mix playwright.gen.protocol:*),Bash(gh pr view ${{ matrix.pr }}:*),Bash(gh pr diff ${{ matrix.pr }}:*),Bash(git push -u origin ${{ env.NIGHTLY_BRANCH }}),Bash(gh pr create --base main --head ${{ env.NIGHTLY_BRANCH }} *),Bash(gh pr close ${{ matrix.pr }} *)"
-      - name: Summarize Claude's result
-        if: ${{ !cancelled() && steps.claude.outputs.execution_file != '' }}
-        env:
-          EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
-        # .github/claude-summary.jq: only the final message and the denied calls (public repo). From
-        # the run's commit, as Claude may have edited the checkout; a failed `git show` stops the step.
-        run: |
-          filter=$(git show "$GITHUB_SHA:.github/claude-summary.jq")
-          jq -r "$filter" "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
+          max-turns: "60"
+          allowed-tools: "Skill,Read,Grep,Glob,Edit,Write,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix credo:*),Bash(mix playwright.parity:*),Bash(mix playwright.gen.api:*),Bash(mix playwright.gen.protocol:*),Bash(gh pr view ${{ matrix.pr }}:*),Bash(gh pr diff ${{ matrix.pr }}:*),Bash(git push -u origin ${{ env.NIGHTLY_BRANCH }}),Bash(gh pr create --base main --head ${{ env.NIGHTLY_BRANCH }} *),Bash(gh pr close ${{ matrix.pr }} *)"
 
   # Enforces the cap before any toolchain is set up. Runs even if an earlier job failed: the
   # count is still right, it just finds fewer slots.
@@ -344,6 +206,7 @@ jobs:
           # Why each closed PR was declined: its maintainers' comments and reviews, and the bots'
           # closing comment. No one else's, as anyone can comment on a PR and this reaches the prompt.
           recent=$(jq -c '.[:30]' <<< "$prs")
+          # shellcheck disable=SC2016 # jq's $closed
           for number in $(jq -r '.[] | select(.state == "CLOSED") | .number' <<< "$recent"); do
             why=$(gh pr view "$number" --json closedAt,comments,reviews --jq '(.closedAt | fromdate) as $closed
               | [.comments[], .reviews[] | select(.authorAssociation | IN("OWNER", "MEMBER", "COLLABORATOR"))]
@@ -377,10 +240,6 @@ jobs:
           # it sits in an includeIf file claude-code-action doesn't clear, so the push gets a 403.
           persist-credentials: false
           fetch-depth: 0
-      - name: Setup languages
-        uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
-      - name: Install dependencies and upstream sources
-        run: mix "do" deps.get, deps.compile, playwright.upstream
       - run: git switch -c "$NIGHTLY_BRANCH"
       - name: Pick tonight's focus area
         id: focus
@@ -398,80 +257,14 @@ jobs:
           echo "::notice::Focus: $area"
           echo "area=$area" >> "$GITHUB_OUTPUT"
 
-      - name: Run Claude
-        id: claude
-        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+      - uses: ./.github/actions/claude
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt: |
+          token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: nightly-improve
+          context: |
             REPO: ${{ github.repository }}
             BRANCH: ${{ env.NIGHTLY_BRANCH }} (already checked out)
             PREVIOUS NIGHTLY PRS, newest first: ${{ needs.capacity.outputs.prs }}
             FOCUS: ${{ steps.focus.outputs.area }}
-
-            Find the single most valuable improvement to this codebase's simplicity or consistency
-            and open one pull request for it, the kind a senior maintainer would be glad to merge.
-            Pick it in or touching FOCUS: each night looks at a different part of the codebase.
-
-            This repo is a statement-by-statement port of the Playwright JS client, and staying
-            1:1 is what keeps version bumps cheap, so shorter ported code is not simpler:
-            - Ours, where to look: lib/ modules without `@upstream` (runtime, driver, supervisor),
-              lib/mix/, dev/ (generators, parity), test/support/, tests outside test/upstream/.
-            - Ported (`@upstream`, test/upstream/): keep upstream's structure, order and names.
-              Change only what brings it closer to upstream or PORTING.md's idioms. Prioritize
-              removing a deviation nothing requires (PORTING.md, "Rules"): one no longer needed, or
-              a synthetic special case for an edge case upstream doesn't handle. Upstream's sources
-              at the pin are under ~/.cache/playwright/<version>/upstream.
-            - Generated ("do not edit manually"): change the generator in dev/ and regenerate.
-
-            1. Read PORTING.md, docs/architecture.md and enough of the code above to know the
-               prevailing patterns. Use subagents to survey separate areas in parallel.
-            2. Look for duplicated logic that belongs in one place, dead code, needless indirection
-               or options, and one concept handled or named differently across modules.
-            3. Rank the candidates by how much simpler or more uniform the code becomes for how
-               little it changes, with unneeded deviations in ported code first. Read the callers
-               and tests of the best one before committing to it. Skip anything overlapping an OPEN
-               PR above or repeating a CLOSED one: those were declined, and `why` holds the
-               reasons people gave.
-            4. Implement that one idea, matching the surrounding code. Prefer a diff that removes
-               more than it adds.
-
-            Limits: observable public behaviour stays the same, except where removing an unneeded
-            deviation restores upstream's. No new features, bug fixes, dependency, CI or changelog
-            changes, and no changes that are only formatting, comments or renames to taste.
-
-            Run `mix format`, `mix compile --warnings-as-errors` and `mix credo`; they must pass.
-            Tests can't run here, in place of AGENTS.md's `mix check`: CI runs them on the PR, and
-            a later nightly run fixes any failure.
-
-            If nothing is clearly worth a maintainer's time, stop without pushing and say why. No
-            PR is a good result; a marginal PR is not.
-
-            To publish, commit with one imperative sentence as the subject (match `git log`), then
-            run exactly:
-              git push -u origin ${{ env.NIGHTLY_BRANCH }}
-              gh pr create --base main --head ${{ env.NIGHTLY_BRANCH }} --title "<subject>" --body-file tmp/nightly-pr.md
-            Write tmp/nightly-pr.md first (tmp/ is gitignored): a few sentences on what was
-            inconsistent or complex and why this is simpler.
-
-            ${{ env.TOOL_HINT }}
-
-            No attribution anywhere: no Co-Authored-By trailers or "Generated with" lines.
-          # The owner forbids attribution; the prompt says so too.
-          settings: |
-            {"includeCoAuthoredBy": false, "attribution": {"commit": "", "pr": ""}}
-          # --add-dir: the driver cache holding the upstream sources (Playwright.Upstream).
-          claude_args: |
-            --model claude-opus-5-5
-            --max-turns 150
-            --add-dir /home/runner/.cache/playwright
-            --allowedTools "Skill,Read,Grep,Glob,Edit,Write,Agent,Task,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix credo:*),Bash(mix playwright.parity:*),Bash(mix playwright.gen.api:*),Bash(mix playwright.gen.protocol:*),Bash(git push -u origin ${{ env.NIGHTLY_BRANCH }}),Bash(gh pr create --base main --head ${{ env.NIGHTLY_BRANCH }} *)"
-      - name: Summarize Claude's result
-        if: ${{ !cancelled() && steps.claude.outputs.execution_file != '' }}
-        env:
-          EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
-        # .github/claude-summary.jq: only the final message and the denied calls (public repo). From
-        # the run's commit, as Claude may have edited the checkout; a failed `git show` stops the step.
-        run: |
-          filter=$(git show "$GITHUB_SHA:.github/claude-summary.jq")
-          jq -r "$filter" "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
+          max-turns: "150"
+          allowed-tools: "Skill,Read,Grep,Glob,Edit,Write,Agent,Task,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix credo:*),Bash(mix playwright.parity:*),Bash(mix playwright.gen.api:*),Bash(mix playwright.gen.protocol:*),Bash(git push -u origin ${{ env.NIGHTLY_BRANCH }}),Bash(gh pr create --base main --head ${{ env.NIGHTLY_BRANCH }} *)"

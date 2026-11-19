@@ -1,0 +1,52 @@
+# Pushes a fix for a PR whose CI failed, for claude-nightly.yml (simplification PRs) and
+# upstream-update.yml (ports). The caller checks out the PR's branch with `persist-credentials:
+# false` and gives the job `contents: read`, `actions: read` (the failed log) and `id-token: write`.
+# Only new commits, nothing merged from main, so no workflow files (the app can't push those).
+name: Fix CI
+description: Has Claude fix, re-run or give up on a PR whose CI failed.
+
+inputs:
+  token:
+    description: The CLAUDE_CODE_OAUTH_TOKEN secret.
+    required: true
+  kind:
+    description: "`nightly` (gives up by closing the PR) or `upstream` (by asking for a human)."
+    required: true
+  pr:
+    description: The PR's number.
+    required: true
+  branch:
+    description: The PR's branch, checked out.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # The number and branch go into the prompt and the allowlist.
+    - name: Save the failed CI log
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+        KIND: ${{ inputs.kind }}
+        PR: ${{ inputs.pr }}
+        BRANCH: ${{ inputs.branch }}
+      run: |
+        if [[ ! $KIND =~ ^(nightly|upstream)$ || ! $PR =~ ^[0-9]+$ || ! $BRANCH =~ ^[A-Za-z0-9._/-]+$ ]]; then
+          echo "::error::bad input: $KIND $PR $BRANCH"
+          exit 1
+        fi
+        run=$(gh run list --branch "$BRANCH" --workflow elixir.yml --event pull_request --limit 1 --json databaseId --jq '.[0].databaseId')
+        mkdir -p tmp
+        gh run view "$run" --log-failed | tail -n 5000 > tmp/ci-failed.log
+    - uses: ./.github/actions/claude
+      with:
+        token: ${{ inputs.token }}
+        prompt: fix-ci
+        context: |
+          REPO: ${{ github.repository }}
+          PR: ${{ inputs.pr }} (${{ inputs.kind == 'nightly' && 'a simplification by the nightly workflow' || 'a draft porting a Playwright release' }})
+          BRANCH: ${{ inputs.branch }} (already checked out)
+          GIVE UP: ${{ inputs.kind == 'nightly' && format('gh pr close {0} --delete-branch --comment "<one sentence on why>"', inputs.pr) || format('gh pr comment {0} --body "Needs a human: <one sentence on why>"', inputs.pr) }}
+        max-turns: "150"
+        allowed-tools: "Skill,Read,Grep,Glob,Edit,Write,Agent,Task,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix credo:*),Bash(mix playwright.parity:*),Bash(mix playwright.gen.api:*),Bash(mix playwright.gen.protocol:*),Bash(gh pr view ${{ inputs.pr }}:*),Bash(gh pr diff ${{ inputs.pr }}:*),Bash(git push origin ${{ inputs.branch }}),${{ inputs.kind == 'nightly' && format('Bash(gh pr close {0} *)', inputs.pr) || format('Bash(gh pr comment {0} *)', inputs.pr) }}"

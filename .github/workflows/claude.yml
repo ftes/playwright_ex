@@ -10,12 +10,12 @@ on:
   pull_request_review:
     types: [submitted]
 
+# Each job asks for what it needs.
+permissions: {}
+
 env:
   # As in elixir.yml.
   MIX_ENV: test
-  # Steers Claude off the Bash habits (cd, pipes, heredocs) that miss the allowlist. Plain text
-  # only (no quotes, $ or backslashes): claude.yml passes it in a quoted claude_args argument.
-  TOOL_HINT: "Prefer your file tools over Bash to read, search and edit files, and keep any scratch files under tmp/; run each allowed Bash command on its own, without cd, git -C, semicolons, &&, pipes or heredocs (you are already in the repository). Give any subagent you start these same rules."
 
 jobs:
   claude:
@@ -43,13 +43,6 @@ jobs:
           # it sits in an includeIf file claude-code-action doesn't clear, so the push gets a 403.
           persist-credentials: false
           fetch-depth: 0
-      - name: Setup languages
-        uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
-      # On main for a comment, the PR's merge ref for a review; the action then switches to the PR's
-      # branch. May fail on a branch that doesn't compile; Claude then runs without them.
-      - name: Install dependencies and upstream sources
-        continue-on-error: true
-        run: mkdir -p ~/.cache/playwright && mix "do" deps.get, deps.compile, playwright.upstream
       # On a fork's PR Claude works in its head, where mix would run the fork's mix.exs with the
       # tokens in reach. Empty, so no mix tools, there and when the lookup fails.
       - name: Allow mix tools unless on a fork's PR
@@ -62,33 +55,14 @@ jobs:
             echo "mix=,Bash(mix format:*),Bash(mix compile:*),Bash(mix credo:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix playwright.parity:*),Bash(mix playwright.gen.api:*),Bash(mix playwright.gen.protocol:*)" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Run Claude Code
-        id: claude
-        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
+      # No prompt: Claude follows the comment that tagged it. On main for a comment, the PR's merge
+      # ref for a review; the action then switches to the PR's branch.
+      - uses: ./.github/actions/claude
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-
-          # This is an optional setting that allows Claude to read CI results on PRs
-          additional_permissions: |
+          token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Lets Claude read CI results on PRs.
+          additional-permissions: |
             actions: read
-
-          # The owner forbids attribution; AGENTS.md says so too.
-          settings: |
-            {"includeCoAuthoredBy": false, "attribution": {"commit": "", "pr": ""}}
-          # No prompt: Claude follows the comment that tagged it, with the action's tools and these.
-          claude_args: |
-            --model claude-opus-5-5
-            --max-turns 100
-            --add-dir /home/runner/.cache/playwright
-            --append-system-prompt "Upstream's sources at the pin are under ~/.cache/playwright/<version>/upstream. Tests can't run here; if your change needs them, say they haven't run. No Claude attribution: leave the Generated with Claude Code signature out of commits, PRs and PR links. ${{ env.TOOL_HINT }}"
-            --allowedTools "Skill,Agent,Task,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh issue view:*)${{ steps.tools.outputs.mix }}"
-      - name: Summarize Claude's result
-        if: ${{ !cancelled() && steps.claude.outputs.execution_file != '' }}
-        env:
-          EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
-        # .github/claude-summary.jq: only the final message and the denied calls (public repo). From
-        # the run's commit, as Claude may have edited the checkout; a failed `git show` stops the step.
-        run: |
-          filter=$(git show "$GITHUB_SHA:.github/claude-summary.jq")
-          jq -r "$filter" "$EXECUTION_FILE" >> "$GITHUB_STEP_SUMMARY"
-
+          system-prompt: "Tests can't run here; if your change needs them, say they haven't run. No Claude attribution: leave the Generated with Claude Code signature out of commits, PRs and PR links."
+          max-turns: "100"
+          allowed-tools: "Skill,Agent,Task,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh issue view:*)${{ steps.tools.outputs.mix }}"

@@ -1,8 +1,3 @@
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
 name: Elixir CI
 
 on:
@@ -46,8 +41,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
+# Each job asks for what it needs.
+permissions: {}
 
 env:
   MIX_ENV: test
@@ -59,9 +54,13 @@ jobs:
     # this job): it holds every change below it. `stack` is absent outside a stack and on other events.
     if: ${{ !inputs.skip_lint && !github.event.pull_request.draft && (github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size) }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Setup languages
         uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
       # Caches built on another runner image (e.g. ubuntu24 vs ubuntu26) don't fit: PLTs are
@@ -72,8 +71,9 @@ jobs:
       # deps and the whole _build (our app too: Mix compares content digests, so a fresh checkout
       # recompiles only what changed, and --warnings-as-errors re-emits the manifest's warnings).
       # Every job restores; this job saves it, on main only (a PR never writes the shared cache).
-      # The test jobs build the same MIX_ENV=test tree, without docs' _build/dev.
-      - name: Restore deps and _build
+      # The test jobs build the same MIX_ENV=test tree.
+      - &mix-restore
+        name: Restore deps and _build
         id: mix_cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
@@ -86,24 +86,7 @@ jobs:
             _build
       - name: Install dependencies
         run: mix "do" deps.get, deps.compile
-      - name: Check Formatting
-        run: mix format --check-formatted
-      - name: Check Credo
-        run: mix credo
-      - name: Compiles without warnings
-        run: mix compile --warnings-as-errors
-      - name: Check generated usage rules
-        run: mix usage_rules.sync --check
-      # As a Hex install does: from the package's files only (DRIVER_VERSION etc. are read when
-      # compiling). In the checkout, so mise's .tool-versions applies.
-      - name: Hex package compiles
-        run: |
-          mix hex.build --unpack --output tmp/hex-package
-          cd tmp/hex-package && MIX_ENV=prod mix compile --warnings-as-errors
-      - name: Docs build without warnings
-        run: mix docs --warnings-as-errors
-        env:
-          MIX_ENV: dev
+      # A PR never writes the shared cache; `mix dialyzer` builds what a restore lacks.
       - name: Restore Dialyzer PLT cache
         id: plt_cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -111,27 +94,51 @@ jobs:
           key: plt-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ hashFiles('**/mix.lock') }}
           restore-keys: plt-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}
           path: priv/plts
-      - name: Create PLTs
-        if: steps.plt_cache.outputs.cache-hit != 'true'
-        run: mix dialyzer --plt
+      # mix.exs's `lint`, which `mix check` runs too: format, credo, compile, the usage rules, the
+      # Hex package, the docs and Dialyzer.
+      - name: Lint
+        run: mix lint
       - name: Save PLT cache
-        id: plt_cache_save
+        if: success() && github.ref == 'refs/heads/main' && steps.plt_cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        if: steps.plt_cache.outputs.cache-hit != 'true'
         with:
-          key: plt-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ hashFiles('**/mix.lock') }}
+          key: ${{ steps.plt_cache.outputs.cache-primary-key }}
           path: priv/plts
-      - name: Run Dialyzer
-        run: mix dialyzer --format github --format dialyxir
       # Last, so only a green job saves; under the key computed before deps.get.
       - name: Save deps and _build
         if: success() && github.ref == 'refs/heads/main' && steps.mix_cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        with:
+        with: &mix-save
           key: ${{ steps.mix_cache.outputs.cache-primary-key }}
           path: |
             deps
             _build
+
+  # The test jobs, one per lane, browser and partition: the browsers (default all) in `partitions`
+  # jobs each (default firefox 6, whose slowest sets the run's time, the others 3), on the newest
+  # lane, and chromium's on the oldest too. Unconditional: the tests need the build anyway.
+  matrix:
+    name: Test matrix
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      include: ${{ steps.matrix.outputs.include }}
+    steps:
+      - id: matrix
+        env:
+          BROWSERS: ${{ inputs.browsers }}
+          PARTITIONS: ${{ inputs.partitions }}
+        run: |
+          if [[ -n $PARTITIONS && ! $PARTITIONS =~ ^[1-8]$ ]]; then echo "::error::partitions: 1-8, got: $PARTITIONS"; exit 1; fi
+          if [[ -z $BROWSERS ]]; then BROWSERS='["chromium","firefox","webkit"]'; elif [[ $BROWSERS != '['* ]]; then BROWSERS=$(jq -cn --arg b "$BROWSERS" '[$b]'); fi
+          include=$(jq -c --arg partitions "$PARTITIONS" '
+            if all(.[]; IN("chromium", "firefox", "webkit")) then . else error("browsers: chromium, firefox or webkit, got: \(.)") end
+            | [.[] as $browser
+              | (if $partitions != "" then $partitions | tonumber elif $browser == "firefox" then 6 else 3 end) as $n
+              | (["newest"] + if $browser == "chromium" then ["oldest"] else [] end)[] as $lane
+              | range(1; $n + 1) as $partition
+              | {lane: $lane, browser: $browser, partition: $partition, partitions: $n}]' <<< "$BROWSERS")
+          echo "include=$include" >> "$GITHUB_OUTPUT"
 
   # Each browser's suite in `partitions` jobs (`mix test --partitions`: test files round-robin by
   # path). Parity, Selenium and headful run once per browser, in partition 1, on the newest lane.
@@ -141,22 +148,18 @@ jobs:
   test:
     name: Test (${{ matrix.lane }}, ${{ matrix.browser }}, ${{ matrix.partition }})
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, matrix]
     # After a green build, or none when skip_lint skipped it.
-    if: ${{ !cancelled() && (needs.build.result == 'success' || (inputs.skip_lint && needs.build.result == 'skipped')) }}
+    if: ${{ !cancelled() && needs.matrix.result == 'success' && (needs.build.result == 'success' || (inputs.skip_lint && needs.build.result == 'skipped')) }}
     # The slowest partition took ~12 min at 4 per browser (firefox, with BrowsertypeConnectTest); a
     # hang fails here instead of at GitHub's 6 h.
     timeout-minutes: 30
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
-        # Without inputs (any event but a dispatch that sets them): all browsers, 6 partitions for
-        # firefox, whose slowest sets the run's time, and 3 for the others (exclude below). PARTITIONS
-        # has the same counts. The oldest lane: chromium only.
-        lane: [newest, oldest]
-        browser: ${{ fromJSON(!inputs.browsers && '["chromium","firefox","webkit"]' || startsWith(inputs.browsers, '[') && inputs.browsers || format('["{0}"]', inputs.browsers)) }}
-        partition: ${{ fromJSON('{"1":[1],"2":[1,2],"3":[1,2,3],"4":[1,2,3,4],"5":[1,2,3,4,5],"6":[1,2,3,4,5,6],"7":[1,2,3,4,5,6,7],"8":[1,2,3,4,5,6,7,8]}')[inputs.partitions || '6'] }}
-        exclude: ${{ fromJSON(inputs.partitions && '[{"lane":"oldest","browser":"firefox"},{"lane":"oldest","browser":"webkit"}]' || '[{"lane":"oldest","browser":"firefox"},{"lane":"oldest","browser":"webkit"},{"browser":"chromium","partition":4},{"browser":"chromium","partition":5},{"browser":"chromium","partition":6},{"browser":"webkit","partition":4},{"browser":"webkit","partition":5},{"browser":"webkit","partition":6}]') }}
+        include: ${{ fromJSON(needs.matrix.outputs.include) }}
     env:
       BROWSER: ${{ matrix.browser }}
       # The Xvfb of "Start Xvfb".
@@ -166,6 +169,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Select oldest toolchain
         if: matrix.lane == 'oldest'
         run: cp .tool-versions.oldest .tool-versions
@@ -178,17 +183,7 @@ jobs:
           echo "day=$(date -u +%F)" >> "$GITHUB_OUTPUT"
       # Saved on main by the build job (newest) or below (oldest). The key hashes the lane's
       # .tool-versions.
-      - name: Restore deps and _build
-        id: mix_cache
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        with:
-          key: mix-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ env.MIX_ENV }}-${{ hashFiles('**/mix.lock') }}-${{ github.sha }}
-          restore-keys: |
-            mix-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ env.MIX_ENV }}-${{ hashFiles('**/mix.lock') }}-
-            mix-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ env.MIX_ENV }}-
-          path: |
-            deps
-            _build
+      - *mix-restore
       - name: Install dependencies
         run: mix "do" deps.get, deps.compile
       # --with-deps runs apt-get against the runner's Azure mirror, which has stalled or trickled for
@@ -202,8 +197,8 @@ jobs:
         id: apt_cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
-          key: apt-${{ matrix.browser }}-${{ hashFiles('DRIVER_VERSION', 'NODE_VERSION') }}-ubuntu-26.04-${{ steps.runner_image.outputs.day }}
-          restore-keys: apt-${{ matrix.browser }}-${{ hashFiles('DRIVER_VERSION', 'NODE_VERSION') }}-ubuntu-26.04
+          key: apt-${{ matrix.browser }}-${{ hashFiles('DRIVER_VERSION', 'NODE_VERSION') }}-${{ steps.runner_image.outputs.os }}-${{ steps.runner_image.outputs.day }}
+          restore-keys: apt-${{ matrix.browser }}-${{ hashFiles('DRIVER_VERSION', 'NODE_VERSION') }}-${{ steps.runner_image.outputs.os }}-
           path: ~/apt-cache
       - name: Install driver and browsers
         run: |
@@ -211,7 +206,7 @@ jobs:
           if [[ -f /etc/apt/apt-mirrors.txt ]]; then echo "http://archive.ubuntu.com/ubuntu/" | sudo tee -a /etc/apt/apt-mirrors.txt; fi
           if compgen -G ~/apt-cache/'*.deb' > /dev/null; then sudo cp ~/apt-cache/*.deb /var/cache/apt/archives/; fi
           for attempt in 1 2 3; do
-            if timeout 300 mix playwright.install ${{ matrix.browser }} --with-deps; then
+            if timeout 300 mix playwright.install "$BROWSER" --with-deps; then
               sudo apt-get autoclean -qq
               rm -rf ~/apt-cache && mkdir -p ~/apt-cache && cp /var/cache/apt/archives/*.deb ~/apt-cache/ 2>/dev/null || true
               exit 0
@@ -243,39 +238,42 @@ jobs:
           done
           cat "$RUNNER_TEMP/xvfb.log"
           exit 1
-      # Test failures (exit 2) are retried once, as upstream retries on CI (`retries: 3`); compile
-      # errors are not. The first run's failures (Playwright.FailuresFormatter) go to the job
-      # summary, and its annotations (Playwright.Test.GitHubFormatter, first run only) stay, so
-      # a green rerun does not hide them. The rerun takes no
-      # --partitions: the failures manifest holds this partition's failures only, and --partitions
-      # would split those files again. The 10 slowest modules (Playwright.ModuleTimesFormatter)
-      # are the floor of a partition's time. Warnings fail the newest lane only.
+      # Test failures (exit 2) are retried once (`mix test --failed`, as the testing guide does), as
+      # upstream retries on CI (`retries: 3`); compile errors are not. The first run's failures
+      # (Playwright.FailuresFormatter) and annotations (Playwright.Test.GitHubFormatter) are its
+      # alone, so a green rerun does not hide them. The rerun takes no --partitions: the failures
+      # manifest holds this partition's failures only, and --partitions would split those files
+      # again. Warnings fail the newest lane only.
       - name: Run tests
         env:
           PW_FAILURES_FILE: ${{ runner.temp }}/first-run-failures.txt
           PW_MODULE_TIMES_FILE: ${{ runner.temp }}/module-times.txt
           PW_GITHUB_FORMATTER: "1"
           MIX_TEST_PARTITION: ${{ matrix.partition }}
-          PARTITIONS: ${{ inputs.partitions || (matrix.browser == 'firefox' && 6 || 3) }}
+          PARTITIONS: ${{ matrix.partitions }}
+          WARNINGS_AS_ERRORS: ${{ matrix.lane == 'newest' && '1' || '' }}
         run: |
-          label="${{ matrix.lane }}, $BROWSER, $MIX_TEST_PARTITION/$PARTITIONS"
-          status=0
-          mix test ${{ matrix.lane == 'newest' && '--warnings-as-errors' || '' }} --partitions "$PARTITIONS" || status=$?
+          mix test ${WARNINGS_AS_ERRORS:+--warnings-as-errors} --partitions "$PARTITIONS" ||
+            { [ $? -eq 2 ] && PW_FAILURES_FILE='' PW_MODULE_TIMES_FILE='' PW_GITHUB_FORMATTER='' mix test --failed; }
+      # The first run's failures to the job summary, and its 10 slowest modules
+      # (Playwright.ModuleTimesFormatter): the floor of a partition's time.
+      - name: Summarize the first run
+        if: ${{ !cancelled() }}
+        env:
+          PW_FAILURES_FILE: ${{ runner.temp }}/first-run-failures.txt
+          PW_MODULE_TIMES_FILE: ${{ runner.temp }}/module-times.txt
+          LABEL: ${{ matrix.lane }}, ${{ matrix.browser }}, ${{ matrix.partition }}/${{ matrix.partitions }}
+        run: |
           if [[ -s "$PW_MODULE_TIMES_FILE" ]]; then
-            echo "Slowest modules ($label), wall ms, setup_all included:"
+            echo "Slowest modules ($LABEL), wall ms, setup_all included:"
             sort -rn "$PW_MODULE_TIMES_FILE" | head -n 10
           fi
           if [[ -s "$PW_FAILURES_FILE" ]]; then
             {
-              echo "### First-run failures ($label, retried once)"
+              echo "### First-run failures ($LABEL, retried once)"
               echo
               while IFS=$'\t' read -r location name; do echo "- \`$location\` $name"; done < "$PW_FAILURES_FILE"
             } >> "$GITHUB_STEP_SUMMARY"
-          fi
-          if [[ $status = 2 ]]; then
-            PW_FAILURES_FILE='' PW_GITHUB_FORMATTER='' mix test --failed
-          else
-            exit $status
           fi
       # tests/library/browsertype-launch-selenium.spec.ts, set up as upstream's installation test
       # (connect-to-selenium.spec.ts) does: the two Selenium Server jars (cached; downloaded on
@@ -286,7 +284,7 @@ jobs:
       - name: Restore Selenium Server jars
         if: matrix.lane == 'newest' && matrix.browser == 'chromium' && matrix.partition == 1
         id: selenium_cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           key: selenium-server-3.141.59-4.8.3
           path: ~/selenium
@@ -296,32 +294,46 @@ jobs:
           mkdir -p ~/selenium
           curl -fsSL --retry 3 -o ~/selenium/selenium-server-4.8.3.jar https://github.com/SeleniumHQ/selenium/releases/download/selenium-4.8.0/selenium-server-4.8.3.jar
           curl -fsSL --retry 3 -o ~/selenium/selenium-server-standalone-3.141.59.jar https://github.com/SeleniumHQ/selenium/releases/download/selenium-3.141.59/selenium-server-standalone-3.141.59.jar
+      - name: Save Selenium Server jars
+        if: github.ref == 'refs/heads/main' && steps.selenium_cache.outcome == 'success' && steps.selenium_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          key: ${{ steps.selenium_cache.outputs.cache-primary-key }}
+          path: ~/selenium
       - name: Run Selenium tests
         if: matrix.lane == 'newest' && matrix.partition == 1
         run: |
           export PATH=$JAVA_HOME_17_X64/bin:$PATH PWTEST_SELENIUM=$HOME/selenium PWTEST_CHROMEDRIVER=$CHROMEWEBDRIVER/chromedriver
-          mix test test/upstream/library/browsertype_launch_selenium_test.exs || if [[ $? = 2 ]]; then mix test --failed; else false; fi
+          mix test test/upstream/library/browsertype_launch_selenium_test.exs || { [ $? -eq 2 ] && mix test --failed; }
       # Upstream runs headed-only tests (headful.spec.ts, `test.skip(headless)`) in its headed runs
       # (`--headed`); HEADED=1 is that `headless: false` (Playwright.TestBrowser). Only the tests
       # tagged :headed, under the same xvfb and in this job (no extra setup): ~10-20 s of tests.
       # Blocking as the job is: green on all three browsers.
       - name: Run headful tests
         if: matrix.lane == 'newest' && matrix.partition == 1
-        run: HEADED=1 mix test --only headed || if [[ $? = 2 ]]; then HEADED=1 mix test --failed; else false; fi
+        env:
+          HEADED: "1"
+        run: mix test --only headed || { [ $? -eq 2 ] && mix test --failed; }
       # The oldest lane has no build job: one green partition saves its deps and _build, on main
       # only, under the key computed before deps.get.
       - name: Save deps and _build
         if: success() && matrix.lane == 'oldest' && matrix.partition == 1 && github.ref == 'refs/heads/main' && steps.mix_cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        with:
-          key: ${{ steps.mix_cache.outputs.cache-primary-key }}
-          path: |
-            deps
-            _build
+        with: *mix-save
       # The display is shared by the steps above: its log, in case it went down.
       - name: Show Xvfb log
         if: failure()
         run: cat "$RUNNER_TEMP/xvfb.log" || true
+      # Each failed test's error-context.md and artifacts (test_helper.exs's `output_dir`), as the
+      # testing guide uploads `test-results`.
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: test-results-${{ matrix.lane }}-${{ matrix.browser }}-${{ matrix.partition }}
+          path: /tmp/playwright-test-results
+          if-no-files-found: ignore
+          retention-days: 7
 
   # The one check to require: green when every lane's and browser's partitions are, which need a
   # green build.
@@ -330,8 +342,11 @@ jobs:
     if: always()
     needs: test
     runs-on: ubuntu-latest
+    permissions: {}
     steps:
       # Green without checking on a draft or a PR below the top of its stack, whose jobs above are
       # skipped.
       - if: ${{ !github.event.pull_request.draft && (github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size) }}
-        run: test "${{ needs.test.result }}" = success
+        env:
+          RESULT: ${{ needs.test.result }}
+        run: test "$RESULT" = success
