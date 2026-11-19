@@ -218,7 +218,8 @@ defmodule Playwright.Browser do
                             {:reducedMotion, {:enum, %{reduce: "reduce", no_preference: "no-preference"}}},
                           screen: {:screen, {:fields, %{width: nil, height: nil}}},
                           service_workers: {:serviceWorkers, {:enum, %{allow: "allow", block: "block"}}},
-                          storage_state: {:storageState, {:protocol, "BrowserNewContextParams", :storageState}},
+                          storage_state:
+                            {:storageState, Facade.protocol_type("BrowserNewContextParams", :storageState)},
                           strict_selectors: {:strictSelectors, nil},
                           timezone_id: {:timezoneId, nil},
                           user_agent: {:userAgent, nil},
@@ -656,7 +657,7 @@ defmodule Playwright.Browser do
                        reduced_motion: {:reducedMotion, {:enum, %{reduce: "reduce", no_preference: "no-preference"}}},
                        screen: {:screen, {:fields, %{width: nil, height: nil}}},
                        service_workers: {:serviceWorkers, {:enum, %{allow: "allow", block: "block"}}},
-                       storage_state: {:storageState, {:protocol, "BrowserNewContextParams", :storageState}},
+                       storage_state: {:storageState, Facade.protocol_type("BrowserNewContextParams", :storageState)},
                        strict_selectors: {:strictSelectors, nil},
                        timezone_id: {:timezoneId, nil},
                        user_agent: {:userAgent, nil},

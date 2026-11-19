@@ -40,7 +40,7 @@ defmodule Playwright.APIRequestContext do
   @doc false
   def __client__(_this), do: Playwright.Client.APIRequestContext
 
-  @add_cookies_cookies {:protocol, "APIRequestContextAddCookiesParams", :cookies}
+  @add_cookies_cookies Facade.protocol_type("APIRequestContextAddCookiesParams", :cookies)
 
   @doc ~S"""
   Adds cookies into this request context. They will be sent with matching subsequent requests. For `Playwright.BrowserContext.request/1`

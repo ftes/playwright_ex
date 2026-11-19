@@ -254,7 +254,7 @@ defmodule Playwright.BrowserContext do
     Playwright.Client.BrowserContext.debugger(browser_context)
   end
 
-  @add_cookies_cookies {:protocol, "BrowserContextAddCookiesParams", :cookies}
+  @add_cookies_cookies Facade.protocol_type("BrowserContextAddCookiesParams", :cookies)
 
   @doc ~S"""
   Adds cookies into this browser context. All pages within this context will have these cookies installed. Cookies can be
@@ -1388,7 +1388,7 @@ defmodule Playwright.BrowserContext do
     end)
   end
 
-  @set_storage_state_storage_state {:protocol, "BrowserContextSetStorageStateParams", :storageState}
+  @set_storage_state_storage_state Facade.protocol_type("BrowserContextSetStorageStateParams", :storageState)
 
   @doc ~S"""
   Clears the existing cookies, local storage, IndexedDB entries, origin private file system entries and virtual WebAuthn credentials, and sets the new storage
