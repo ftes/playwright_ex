@@ -268,18 +268,6 @@ defmodule Playwright.Test.TestInfo do
     if Results.started?(), do: Enum.find_value(Callers.capture(), &lookup/1)
   end
 
-  @doc "The running test `test_pid` (`start/1`), else `nil`: before its setup, after its body."
-  def running(test_pid), do: if(Results.started?(), do: lookup(test_pid))
-
-  @doc """
-  deviation: the `testInfo` of a step in a module's `setup_all` (`Playwright.Test._step/5`),
-  where upstream's `beforeAll` runs with the first test's: ExUnit runs `setup_all` before any
-  test. A stub of the `setup_all` process `pid`, never started (`start/1`), so not running: its
-  steps nest and box, but `put_row/3` drops their rows, and it has no recorder (`_tracing`) nor
-  a test's registration (`Recorder.on_user_step/2`). Its steps parent only its own.
-  """
-  def setup_all(pid), do: %{test_pid: pid, step_id_prefix: "setup_all"}
-
   defp lookup(pid) do
     case :ets.lookup(Results.table(), {:test_info, pid, :info}) do
       [{_key, this}] -> this
@@ -370,9 +358,6 @@ defmodule Playwright.Test.TestInfo do
 
     boxed_stack = parent_step && parent_step.boxedStack
     stack = data[:stack]
-    # Elixir only: the frames of a step nothing records (`setup_all/1`'s) are skipped, as only
-    # its row and trace read them. A box's stack is still taken: the step raises with it.
-    stack = stack || if(!running?(this), do: [])
 
     {boxed_stack, stack} =
       if !boxed_stack and data[:box] do
