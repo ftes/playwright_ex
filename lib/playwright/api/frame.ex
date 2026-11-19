@@ -1573,7 +1573,7 @@ defmodule Playwright.Frame do
           get_by_role_options()
         ) :: Playwright.Locator.t()
   def get_by_role(%Playwright.Frame{} = frame, role, options \\ []) do
-    role = Facade.arg!(role, @get_by_role_role, "frame.getByRole")
+    role = Facade.arg!(role, @get_by_role_role, "frame.getByRole", "role")
     options = Facade.options!(options, @get_by_role_options, "frame.getByRole")
     Playwright.Client.Frame.get_by_role(frame, role, options)
   end
@@ -2738,7 +2738,7 @@ defmodule Playwright.Frame do
           select_option_options()
         ) :: {:ok, [String.t()]} | {:error, Playwright.error()}
   def select_option(%Playwright.Frame{} = frame, selector, values, options \\ []) do
-    values = Facade.arg!(values, @select_option_values, "frame.selectOption")
+    values = Facade.arg!(values, @select_option_values, "frame.selectOption", "values")
     options = Facade.options!(options, @select_option_options, "frame.selectOption")
 
     Facade.async("frame.selectOption", frame, fn ->
@@ -2772,7 +2772,7 @@ defmodule Playwright.Frame do
           select_option_options()
         ) :: [String.t()]
   def select_option!(%Playwright.Frame{} = frame, selector, values, options \\ []) do
-    values = Facade.arg!(values, @select_option_values, "frame.selectOption")
+    values = Facade.arg!(values, @select_option_values, "frame.selectOption", "values")
     options = Facade.options!(options, @select_option_options, "frame.selectOption")
 
     Facade.async!("frame.selectOption", frame, fn ->
@@ -3031,7 +3031,7 @@ defmodule Playwright.Frame do
           set_input_files_options()
         ) :: :ok | {:error, Playwright.error()}
   def set_input_files(%Playwright.Frame{} = frame, selector, files, options \\ []) do
-    files = Facade.arg!(files, @set_input_files_files, "frame.setInputFiles")
+    files = Facade.arg!(files, @set_input_files_files, "frame.setInputFiles", "files")
     options = Facade.options!(options, @set_input_files_options, "frame.setInputFiles")
 
     Facade.async_void("frame.setInputFiles", frame, fn ->
@@ -3050,7 +3050,7 @@ defmodule Playwright.Frame do
           set_input_files_options()
         ) :: :ok
   def set_input_files!(%Playwright.Frame{} = frame, selector, files, options \\ []) do
-    files = Facade.arg!(files, @set_input_files_files, "frame.setInputFiles")
+    files = Facade.arg!(files, @set_input_files_files, "frame.setInputFiles", "files")
     options = Facade.options!(options, @set_input_files_options, "frame.setInputFiles")
 
     Facade.async_void!("frame.setInputFiles", frame, fn ->
@@ -3565,7 +3565,7 @@ defmodule Playwright.Frame do
       do: wait_for_load_state(frame, nil, options)
 
   def wait_for_load_state(%Playwright.Frame{} = frame, state, options) do
-    state = Facade.arg!(state, @wait_for_load_state_state, "frame.waitForLoadState")
+    state = Facade.arg!(state, @wait_for_load_state_state, "frame.waitForLoadState", "state")
     options = Facade.options!(options, @wait_for_load_state_options, "frame.waitForLoadState")
 
     Facade.async_void("frame.waitForLoadState", frame, fn ->
@@ -3583,7 +3583,7 @@ defmodule Playwright.Frame do
       do: wait_for_load_state!(frame, nil, options)
 
   def wait_for_load_state!(%Playwright.Frame{} = frame, state, options) do
-    state = Facade.arg!(state, @wait_for_load_state_state, "frame.waitForLoadState")
+    state = Facade.arg!(state, @wait_for_load_state_state, "frame.waitForLoadState", "state")
     options = Facade.options!(options, @wait_for_load_state_options, "frame.waitForLoadState")
 
     Facade.async_void!("frame.waitForLoadState", frame, fn ->

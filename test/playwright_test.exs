@@ -2,6 +2,7 @@ defmodule PlaywrightTest do
   use ExUnit.Case, async: true
 
   alias Playwright.Browser
+  alias Playwright.BrowserContext
   alias Playwright.BrowserType
   alias Playwright.PlaywrightError
   alias Playwright.Runtime.Conn
@@ -100,5 +101,56 @@ defmodule PlaywrightTest do
     assert_raise ArgumentError, ~r/browserType\.launch: unknown option :chromiumSandbox/, fn ->
       BrowserType.launch(browser_type, chromiumSandbox: false)
     end
+  end
+
+  test "cookies and storage states: JS keys, checked against the protocol's, results round-trip",
+       %{playwright: playwright} do
+    browser = BrowserType.launch!(TestBrowser.browser_type(playwright))
+    on_exit(fn -> Browser.close(browser) end)
+    context = Browser.new_context!(browser)
+    url = "https://example.com"
+
+    # The protocol validator would drop `http_only` silently, leaving the cookie readable.
+    assert_raise ArgumentError,
+                 ~r/^browserContext\.addCookies: unknown field cookies\[1\]\.http_only, expected one of :_crHasCrossSiteAncestor, :domain, :expires, :httpOnly, /,
+                 fn ->
+                   BrowserContext.add_cookies(context, [
+                     %{name: "a", value: "b", url: url},
+                     %{name: "c", value: "d", url: url, http_only: true}
+                   ])
+                 end
+
+    assert BrowserContext.cookies!(context) == []
+    BrowserContext.add_cookies!(context, [%{name: "a", value: "b", url: url, httpOnly: true}])
+    assert [%{name: "a", httpOnly: true} = cookie] = BrowserContext.cookies!(context)
+
+    # Results pass back, protocol-only fields too (Chromium's partitioned cookies have
+    # `_crHasCrossSiteAncestor`).
+    BrowserContext.add_cookies!(context, BrowserContext.cookies!(context))
+    assert BrowserContext.cookies!(context) == [cookie]
+    BrowserContext.add_cookies!(context, [Map.put(cookie, :_crHasCrossSiteAncestor, false)])
+    state = BrowserContext.storage_state!(context)
+    assert %{cookies: [_], origins: []} = state
+    assert BrowserContext.cookies!(Browser.new_context!(browser, storage_state: state)) == [cookie]
+    BrowserContext.set_storage_state!(context, state)
+
+    # A storage state from JSON has string keys, as the protocol validator reads them.
+    decoded = state |> JSON.encode!() |> JSON.decode!()
+    assert %{"cookies" => [%{"httpOnly" => true}]} = decoded
+    assert BrowserContext.cookies!(Browser.new_context!(browser, storage_state: decoded)) == [cookie]
+
+    assert_raise ArgumentError, ~r/^browser\.newContext: unknown field :storage_state\."cookie", /, fn ->
+      Browser.new_context(browser, storage_state: %{"cookie" => []})
+    end
+
+    assert_raise ArgumentError,
+                 ~r/^browser\.newContext: unknown field :storage_state\.cookies\[0\]\.http_only, /,
+                 fn ->
+                   Browser.new_context(browser, storage_state: %{cookies: [%{name: "a", value: "b", http_only: true}]})
+                 end
+
+    assert_raise ArgumentError,
+                 ~r/^browserContext\.setStorageState: unknown field storage_state\.origins\[0\]\.local_storage, /,
+                 fn -> BrowserContext.set_storage_state(context, %{origins: [%{origin: url, local_storage: []}]}) end
   end
 end

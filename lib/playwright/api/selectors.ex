@@ -38,7 +38,7 @@ defmodule Playwright.Selectors do
           register_options()
         ) :: :ok | {:error, Playwright.error()}
   def register(%Playwright.Selectors{} = selectors, name, script, options \\ []) do
-    script = Facade.arg!(script, @register_script, "selectors.register")
+    script = Facade.arg!(script, @register_script, "selectors.register", "script")
     options = Facade.options!(options, @register_options, "selectors.register")
 
     Facade.async_void("selectors.register", selectors, fn ->
@@ -54,7 +54,7 @@ defmodule Playwright.Selectors do
           register_options()
         ) :: :ok
   def register!(%Playwright.Selectors{} = selectors, name, script, options \\ []) do
-    script = Facade.arg!(script, @register_script, "selectors.register")
+    script = Facade.arg!(script, @register_script, "selectors.register", "script")
     options = Facade.options!(options, @register_options, "selectors.register")
 
     Facade.async_void!("selectors.register", selectors, fn ->

@@ -20,8 +20,10 @@ defmodule Mix.Playwright.ApiRules do
     * `removeAllListeners(type)` takes an `event`, as `on/3` does (atoms accepted).
     * A storage state (`storageState/1` results, `storageState` options and arguments) is an open
       object (`"open"`): it has more fields than the docs list (`credentials`, IndexedDB), so the
-      facade passes it back unchecked. So are `addCookies(cookies)`: `cookies()` results carry
-      protocol-only fields (`_crHasCrossSiteAncestor`) and must round-trip.
+      facade passes it back as it is. So are `addCookies(cookies)`: `cookies()` results carry
+      protocol-only fields (`_crHasCrossSiteAncestor`) and must round-trip. Their keys are
+      checked against the protocol's (`"protocol"`: `SetNetworkCookie`, the widest storage
+      state), which its validator would drop silently.
     * A positional `timeout` is a duration (`"duration"`: `waitForTimeout(timeout)`, no `:infinity`)
       unless its member sets a default timeout (`@timeout_args`: `setDefaultTimeout(timeout)`).
     * Documents the Elixir forms of `timeout` and `signal` (a `Playwright.AbortSignal`), and
@@ -1217,8 +1219,16 @@ defmodule Mix.Playwright.ApiRules do
   defp property(%{"name" => name, "type" => %{"name" => "function"}} = property) when name in @exception_classes,
     do: %{property | "type" => %{"name" => "typeof", "templates" => [%{"name" => name}]}}
 
-  defp property(%{"name" => "storageState", "type" => type} = property), do: type(%{property | "type" => open(type)})
-  defp property(%{"name" => "cookies", "type" => type} = property), do: type(%{property | "type" => open(type)})
+  # Their keys are checked against the protocol's: the widest storage state (`setStorageState`, also
+  # with `credentials`), so a state of any member round-trips to any other.
+  defp property(%{"name" => "storageState", "type" => type} = property) do
+    {:object, params} = Playwright.Protocol.Validator.scheme("BrowserContextSetStorageStateParams")
+    type(%{property | "type" => Map.put(open(type), "protocol", Keyword.fetch!(params, :storageState))})
+  end
+
+  defp property(%{"name" => "cookies", "type" => type} = property),
+    do: type(%{property | "type" => Map.put(open(type), "protocol", {:array, {:type, "SetNetworkCookie"}})})
+
   defp property(property), do: type(property)
 
   defp type(%{"type" => type} = property) when is_map(type), do: %{property | "type" => type_of(type)}

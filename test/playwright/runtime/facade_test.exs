@@ -55,8 +55,25 @@ defmodule Playwright.Runtime.FacadeTest do
       Facade.options!([viewport: %{depth: 1}], @schema, "x.y")
     end
 
-    assert_raise ArgumentError, ~r/^x\.y: unknown field :cookies\.same_site/, fn ->
-      Facade.options!([cookies: [%{same_site: "Lax"}]], @schema, "x.y")
+    assert_raise ArgumentError, "x.y: unknown field :cookies[1].same_site, expected one of :sameSite", fn ->
+      Facade.options!([cookies: [%{sameSite: "Lax"}, %{same_site: "Lax"}]], @schema, "x.y")
+    end
+  end
+
+  test "positional arguments: errors name the argument, with the index in an array" do
+    fields = {:fields, %{name: nil, origin: {:fields, %{url: nil}}}}
+    assert Facade.arg!([%{name: "a"}, "b"], {:union, [{:array, fields}]}, "x.y", "items") == [%{name: "a"}, "b"]
+
+    assert_raise ArgumentError, "x.y: unknown field cookies[0].http_only, expected one of :name, :origin", fn ->
+      Facade.arg!([%{http_only: true}], {:array, fields}, "x.y", "cookies")
+    end
+
+    assert_raise ArgumentError, "x.y: unknown field item.origin.uri, expected one of :url", fn ->
+      Facade.arg!(%{origin: %{uri: "u"}}, fields, "x.y", "item")
+    end
+
+    assert_raise ArgumentError, "x.y: invalid value :dark for scheme, expected one of :light", fn ->
+      Facade.arg!(:dark, {:enum, %{light: "light"}}, "x.y", "scheme")
     end
   end
 
@@ -81,6 +98,93 @@ defmodule Playwright.Runtime.FacadeTest do
     # The generated facade checks before calling the client.
     assert_raise ArgumentError, ~r/^credentials\.create: unknown option :bogus, /, fn ->
       Playwright.Credentials.create!(%Playwright.Credentials{}, "example.com", %{id: "a", bogus: 1})
+    end
+  end
+
+  test "objects passed on to the protocol take its keys as atoms or strings" do
+    type = {:array, {:protocol, %{name: nil, httpOnly: nil}}}
+    cookies = [%{"name" => "a", "httpOnly" => true}, %{name: "b"}]
+    assert Facade.arg!(cookies, type, "x.y", "cookies") == cookies
+
+    assert_raise ArgumentError, ~s(x.y: unknown field cookies[0]."http_only", expected one of :httpOnly, :name), fn ->
+      Facade.arg!([%{"name" => "a", "http_only" => true}], type, "x.y", "cookies")
+    end
+
+    # Other nested objects: atom keys, as the client reads them.
+    assert_raise ArgumentError, ~s(x.y: unknown field cookies[0]."name", expected one of :httpOnly, :name), fn ->
+      Facade.arg!([%{"name" => "a"}], {:array, {:fields, %{name: nil, httpOnly: nil}}}, "x.y", "cookies")
+    end
+  end
+
+  test "dictionaries: keys are data, object values are checked" do
+    type = {:values, {:fields, %{name: nil, mimeType: nil, buffer: nil}}}
+    file = %{name: "a.txt", mimeType: "text/plain", buffer: "a"}
+
+    assert Facade.options!([multipart: %{"file" => file, "n" => 1}], {:object, %{multipart: {:multipart, type}}}, "x.y") ==
+             %{multipart: %{"file" => file, "n" => 1}}
+
+    assert_raise ArgumentError,
+                 ~s(x.y: unknown field :multipart.file.mime_type, expected one of :buffer, :mimeType, :name),
+                 fn ->
+                   Facade.options!(
+                     [multipart: [file: %{name: "a", mime_type: "t", buffer: "a"}]],
+                     {:object, %{multipart: {:multipart, type}}},
+                     "x.y"
+                   )
+                 end
+  end
+
+  # The generated facade checks every object argument before calling the client.
+  test "generated: object arguments in lists, unions, dictionaries and storage states" do
+    context = %Playwright.BrowserContext{}
+    locator = %Playwright.Locator{}
+
+    assert_raise ArgumentError, ~r/^browserContext\.addCookies: unknown field cookies\[0\]\.http_only, /, fn ->
+      Playwright.BrowserContext.add_cookies(context, [%{name: "a", value: "b", url: "u", http_only: true}])
+    end
+
+    assert_raise ArgumentError, ~r/^apiRequestContext\.addCookies: unknown field cookies\[0\]\.same_site, /, fn ->
+      Playwright.APIRequestContext.add_cookies(%Playwright.APIRequestContext{}, [
+        %{name: "a", value: "b", same_site: "Lax"}
+      ])
+    end
+
+    assert_raise ArgumentError,
+                 ~r/^browserContext\.setStorageState: unknown field storage_state\.origins\[0\]\.local_storage, /,
+                 fn ->
+                   Playwright.BrowserContext.set_storage_state(context, %{origins: [%{origin: "o", local_storage: []}]})
+                 end
+
+    assert_raise ArgumentError, ~r/^browser\.newContext: unknown field :storage_state\.cookies\[0\]\.http_only, /, fn ->
+      Playwright.Browser.new_context(%Playwright.Browser{}, storage_state: %{cookies: [%{http_only: true}]})
+    end
+
+    assert_raise ArgumentError,
+                 ~r/^apiRequest\.newContext: unknown field :storage_state\.credentials\[0\]\.rp_id, /,
+                 fn ->
+                   Playwright.APIRequest.new_context(%Playwright.APIRequest{},
+                     storage_state: %{credentials: [%{rp_id: "x"}]}
+                   )
+                 end
+
+    # Object | Array<Object> unions: one object, or one in a list.
+    assert_raise ArgumentError, ~r/^locator\.selectOption: unknown field values\[1\]\.val, /, fn ->
+      Playwright.Locator.select_option(locator, ["a", %{val: "b"}])
+    end
+
+    assert_raise ArgumentError, ~r/^locator\.setInputFiles: unknown field files\.mime_type, /, fn ->
+      Playwright.Locator.set_input_files(locator, %{name: "a", mime_type: "t", buffer: "b"})
+    end
+
+    # Nested in an option object.
+    assert_raise ArgumentError, ~r/^locator\.drop: unknown field payload\.files\[0\]\.mime_type, /, fn ->
+      Playwright.Locator.drop(locator, %{files: [%{name: "a", mime_type: "t", buffer: "b"}]})
+    end
+
+    assert_raise ArgumentError, ~r/^apiRequestContext\.post: unknown field :multipart\."file"\.mime_type, /, fn ->
+      Playwright.APIRequestContext.post(%Playwright.APIRequestContext{}, "/",
+        multipart: %{"file" => %{name: "a", mime_type: "t", buffer: "b"}}
+      )
     end
   end
 

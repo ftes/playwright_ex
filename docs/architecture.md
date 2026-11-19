@@ -50,7 +50,7 @@ names the API call for errors, validates option keys and enums, carries docs and
 calls the client. A missing client function is then a compile warning, so completeness is
 checked, not hoped for. Elixir-only adjustments live in `Mix.Playwright.ApiRules` (dropped
 members and options, merged overloads, callback objects such as `Logger`, open maps such as
-storage state and cookies, `@result_options` for `Credentials.create`).
+storage state and cookies, with the protocol's keys, `@result_options` for `Credentials.create`).
 
 Upstream's `Playwright` class is the root module `Playwright`, as `require('playwright')` is the
 Playwright object; `use Playwright.Root` adds its hand-written part (`instance/1`, which returns

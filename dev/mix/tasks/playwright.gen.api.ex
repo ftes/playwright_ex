@@ -701,7 +701,7 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
     do: "#{var} = Facade.event!(#{var}, @events, #{inspect(api_name)})"
 
   defp conversion(name, api_name, {_, var, _}),
-    do: "#{var} = Facade.arg!(#{var}, @#{name}_#{var}, #{inspect(api_name)})"
+    do: "#{var} = Facade.arg!(#{var}, @#{name}_#{var}, #{inspect(api_name)}, #{inspect(var)})"
 
   defp client_call(class, %{"callback" => %{"call" => call, "event" => event}}, receiver, vars) do
     call_args = [receiver | List.wrap(event && inspect(event))] ++ (vars -- ["action"])
@@ -1157,6 +1157,11 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
 
   defp schema(_ctx, nil, _mode), do: nil
 
+  # An open object (a storage state, cookies, see `Mix.Playwright.ApiRules`): passed as it is, its
+  # keys checked against the protocol's (`"protocol"`), which its validator would drop silently.
+  defp schema(_ctx, %{"protocol" => scheme}, _mode), do: protocol_schema(scheme, [])
+  defp schema(_ctx, %{"open" => true}, _mode), do: nil
+
   defp schema(ctx, %{"union" => union}, mode) when is_list(union) do
     {literals, others} = Enum.split_with(union, &literal?(&1["name"]))
     literals = for %{"name" => n} <- literals, n not in ["null", "undefined"], uniq: true, do: literal(n)
@@ -1170,12 +1175,12 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
     end
   end
 
-  # A dictionary (`Object<string, ...>`): its keys are data, not checked. api.json can attach the
-  # properties of an object value to it (`multipart`).
-  defp schema(_ctx, %{"name" => "Object", "templates" => [_, _]}, _mode), do: nil
-
-  # An open object (a storage state, see `Mix.Playwright.ApiRules`): passed as it is.
-  defp schema(_ctx, %{"open" => true}, _mode), do: nil
+  # A dictionary (`Object<string, ...>`): its keys are data, not checked, its values are
+  # (`{:values, _}`: `multipart`'s file payloads). api.json can attach the properties of an
+  # object value to it (`multipart`).
+  defp schema(ctx, %{"name" => "Object", "templates" => [_, value]}, _mode) do
+    if s = schema(ctx, value, :nested), do: {:values, s}
+  end
 
   defp schema(ctx, %{"properties" => props}, _mode) when is_list(props) and props != [] do
     pairs =
@@ -1194,6 +1199,24 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
   end
 
   defp schema(_ctx, _type, :nested), do: nil
+
+  # A protocol scheme (`Playwright.Protocol.Validator.scheme/1`) as a nested object's schema
+  # (`{:protocol, _}`: string keys too, as the validator reads them): JS keys, enums as strings.
+  # A type within itself is not expanded again.
+  defp protocol_schema({:object, props}, seen),
+    do: {:protocol, {:map, for({k, s} <- props, do: {k, protocol_schema(s, seen)})}}
+
+  defp protocol_schema({:optional, scheme}, seen), do: protocol_schema(scheme, seen)
+
+  defp protocol_schema({:array, scheme}, seen) do
+    if s = protocol_schema(scheme, seen), do: {:array, s}
+  end
+
+  defp protocol_schema({:type, name}, seen) do
+    if name not in seen, do: protocol_schema(Playwright.Protocol.Validator.scheme(name), [name | seen])
+  end
+
+  defp protocol_schema(_scheme, _seen), do: nil
 
   defp literal?(name), do: String.starts_with?(name, "\"") or name in ["null", "undefined"]
 

@@ -9,17 +9,23 @@ defmodule Playwright.Runtime.Facade do
     * Options: a keyword list or map with snake_case keys (`executable_path:`) becomes a map
       with the JS names (`executablePath`). Unknown keys raise `ArgumentError`, as there are
       no options beyond the official ones.
-    * Nested objects (option values, positional arguments) are JS values, as in the Python
-      client: maps with the JS keys (`%{sameSite: "Lax"}`), passed as they are, so values
-      returned by the client round-trip. Only their keys are checked.
+    * Nested objects (option values, positional arguments, in lists too) are JS values, as in
+      the Python client: maps with the JS keys (`%{sameSite: "Lax"}`), passed as they are, so
+      values returned by the client round-trip. Only their keys are checked: an unknown one
+      raises `ArgumentError` naming where it is (`cookies[0].http_only`). Cookies and storage
+      states have the protocol's keys, also those the docs leave out, which results carry.
+      Only these, passed on to the protocol as they are, take string keys too (a storage state
+      from `JSON.decode!/1`); other nested objects take atoms, as the client reads them.
     * Enums of options and positional arguments: atoms (`:no_preference`) become the wire
       strings (`"no-preference"`); strings pass through.
     * `timeout: :infinity` is `timeout: 0` (no timeout, as in JS), likewise a positional
       `timeout` (`set_default_timeout(context, :infinity)`).
 
   A type is `nil` (passed through), `:timeout` (a positional timeout), `{:object, %{key => {js_key, type}}}`
-  (options), `{:fields, %{js_key => type}}` (a nested object), `{:array, type}`, `{:enum, %{atom => string}}`
-  or `{:union, [type]}`.
+  (options), `{:fields, %{js_key => type}}` (a nested object), `{:protocol, %{js_key => type}}` (one
+  the client passes on as it is: string keys too, as the protocol validator reads them),
+  `{:array, type}`, `{:values, type}` (a dictionary's values), `{:enum, %{atom => string}}` or
+  `{:union, [type]}`.
   """
   alias Playwright.Runtime.Api
   alias Playwright.Runtime.Promise
@@ -213,8 +219,8 @@ defmodule Playwright.Runtime.Facade do
     end)
   end
 
-  @doc "Converts a positional argument of `type`."
-  def arg!(value, type, api_name), do: convert!(value, type, api_name, [])
+  @doc "Converts the positional argument `name` (its Elixir name, for errors) of `type`."
+  def arg!(value, type, api_name, name), do: convert!(value, type, api_name, [{:argument, name}])
 
   @doc """
   The JS event name for `event` (atom, or the JS name as a string) in `events`; `nil` (an optional
@@ -235,12 +241,29 @@ defmodule Playwright.Runtime.Facade do
   defp convert!(value, :timeout, _api_name, _path), do: timeout(:timeout, value)
 
   defp convert!(value, {:fields, fields}, api_name, path) do
-    if object?(value), do: fields!(value, fields, api_name, path)
+    if object?(value), do: fields!(value, fields, api_name, path, false)
+    value
+  end
+
+  # Passed on to the protocol as it is, whose validator reads string keys too (a storage state
+  # from `JSON.decode!/1`).
+  defp convert!(value, {:protocol, fields}, api_name, path) do
+    if object?(value), do: fields!(value, fields, api_name, path, true)
     value
   end
 
   defp convert!(value, {:array, type}, api_name, path) when is_list(value),
-    do: Enum.map(value, &convert!(&1, type, api_name, path))
+    do:
+      value
+      |> Enum.with_index()
+      |> Enum.map(fn {item, index} -> convert!(item, type, api_name, [{:index, index} | path]) end)
+
+  # A dictionary: a map, or a keyword list (`FormData`).
+  defp convert!(value, {:values, type}, api_name, path)
+       when is_list(value) or (is_map(value) and not is_struct(value)) do
+    for {key, item} <- value, do: convert!(item, type, api_name, [key | path])
+    value
+  end
 
   defp convert!(value, {:enum, literals}, api_name, path) when is_atom(value) and value not in [:null, true, false] do
     case literals do
@@ -256,7 +279,7 @@ defmodule Playwright.Runtime.Facade do
   defp convert!(value, {:union, types}, api_name, path) do
     type =
       cond do
-        object?(value) -> Enum.find(types, &match?({:fields, _}, &1))
+        object?(value) -> Enum.find(types, &match?({tag, _} when tag in [:fields, :protocol], &1))
         is_list(value) -> Enum.find(types, &match?({:array, _}, &1))
         is_atom(value) -> Enum.find(types, &match?({:enum, _}, &1))
         true -> nil
@@ -290,23 +313,41 @@ defmodule Playwright.Runtime.Facade do
 
   defp hint(_function, _path), do: ""
 
-  defp fields!(value, fields, api_name, path) do
+  defp fields!(value, fields, api_name, path, string_keys?) do
     for {key, value} <- value do
-      case fields do
-        %{^key => type} -> convert!(value, type, api_name, [key | path])
-        _ -> raise ArgumentError, "#{api_name}: unknown field #{name([key | path])}, expected one of #{keys(fields)}"
+      case field(fields, key, string_keys?) do
+        {:ok, type} ->
+          convert!(value, type, api_name, [key | path])
+
+        :error ->
+          raise ArgumentError, "#{api_name}: unknown field #{name([key | path])}, expected one of #{keys(fields)}"
       end
     end
   end
+
+  defp field(fields, key, true) when is_binary(key),
+    do: Enum.find_value(fields, :error, fn {field, type} -> if Atom.to_string(field) == key, do: {:ok, type} end)
+
+  defp field(fields, key, _string_keys?), do: Map.fetch(fields, key)
 
   defp timeout(:timeout, :infinity), do: 0
   defp timeout(_key, value), do: value
 
   defp object?(value), do: is_map(value) and not is_struct(value)
 
-  # [:server, :proxy] is ":proxy.server"; [] is a positional argument.
-  defp name([]), do: "argument"
-  defp name(path), do: path |> Enum.reverse() |> then(fn [key | rest] -> Enum.join([inspect(key) | rest], ".") end)
+  # [:server, :proxy] is ":proxy.server" (an option), [:httpOnly, {:index, 0}, {:argument, "cookies"}]
+  # is "cookies[0].httpOnly" (a positional argument, by its name).
+  defp name(path) do
+    path
+    |> Enum.reverse()
+    |> Enum.reduce("", fn
+      {:argument, name}, "" -> name
+      {:index, index}, name -> "#{name}[#{index}]"
+      option, "" -> inspect(option)
+      key, name when is_atom(key) -> "#{name}.#{key}"
+      key, name -> "#{name}.#{inspect(key)}"
+    end)
+  end
 
   defp keys(map), do: map |> Map.keys() |> Enum.sort() |> Enum.map_join(", ", &inspect/1)
 end

@@ -48,6 +48,14 @@ also read the sections up to 0.16.
 - `Playwright.Test.step/2,3` in `setup_all`, as `test.step` in `beforeAll`: it returns its
   body's value and raises its error (boxed at its call site), unrecorded.
 
+### Fixed
+
+- Cookies (`add_cookies`) and storage states (`storage_state:`, `set_storage_state`) check
+  their keys, as other nested objects do, against the protocol's (results round-trip, string
+  keys from `JSON.decode!/1` too): a snake_case `http_only:` raises instead of being dropped.
+  So do `multipart` file payloads. Errors name the positional argument and the index in a
+  list (`unknown field cookies[0].http_only`).
+
 ### Docs
 
 - CI retries fail a `mix test --failed` that runs no test (a failed `setup_all` `on_exit`) and

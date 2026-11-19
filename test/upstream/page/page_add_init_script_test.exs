@@ -38,7 +38,7 @@ defmodule Playwright.Page.PageAddInitScriptTest do
   test "IS-004 should throw without path and content", %{page: page} do
     # @ts-expect-error foo is not a real option of addInitScript: the facade rejects it, so the
     # client's check runs on an empty script object.
-    assert_raise ArgumentError, ~r/unknown field :foo/, fn -> Page.add_init_script(page, %{foo: "bar"}) end
+    assert_raise ArgumentError, ~r/unknown field script\.foo/, fn -> Page.add_init_script(page, %{foo: "bar"}) end
     {:error, error} = Page.add_init_script(page, %{})
     assert error.message =~ "Either path or content property must be present"
   end

@@ -218,7 +218,76 @@ defmodule Playwright.Browser do
                             {:reducedMotion, {:enum, %{reduce: "reduce", no_preference: "no-preference"}}},
                           screen: {:screen, {:fields, %{width: nil, height: nil}}},
                           service_workers: {:serviceWorkers, {:enum, %{allow: "allow", block: "block"}}},
-                          storage_state: {:storageState, nil},
+                          storage_state:
+                            {:storageState,
+                             {:protocol,
+                              %{
+                                cookies:
+                                  {:array,
+                                   {:protocol,
+                                    %{
+                                      name: nil,
+                                      value: nil,
+                                      url: nil,
+                                      domain: nil,
+                                      path: nil,
+                                      expires: nil,
+                                      httpOnly: nil,
+                                      secure: nil,
+                                      sameSite: nil,
+                                      partitionKey: nil,
+                                      _crHasCrossSiteAncestor: nil
+                                    }}},
+                                origins:
+                                  {:array,
+                                   {:protocol,
+                                    %{
+                                      origin: nil,
+                                      localStorage: {:array, {:protocol, %{name: nil, value: nil}}},
+                                      indexedDB:
+                                        {:array,
+                                         {:protocol,
+                                          %{
+                                            name: nil,
+                                            version: nil,
+                                            stores:
+                                              {:array,
+                                               {:protocol,
+                                                %{
+                                                  name: nil,
+                                                  autoIncrement: nil,
+                                                  keyPath: nil,
+                                                  keyPathArray: nil,
+                                                  records:
+                                                    {:array,
+                                                     {:protocol,
+                                                      %{key: nil, keyEncoded: nil, value: nil, valueEncoded: nil}}},
+                                                  indexes:
+                                                    {:array,
+                                                     {:protocol,
+                                                      %{
+                                                        name: nil,
+                                                        keyPath: nil,
+                                                        keyPathArray: nil,
+                                                        multiEntry: nil,
+                                                        unique: nil
+                                                      }}}
+                                                }}}
+                                          }}},
+                                      opfs: {:array, {:protocol, %{path: nil, type: nil, base64: nil}}}
+                                    }}},
+                                credentials:
+                                  {:array,
+                                   {:protocol,
+                                    %{
+                                      id: nil,
+                                      rpId: nil,
+                                      userHandle: nil,
+                                      privateKey: nil,
+                                      publicKey: nil,
+                                      signCount: nil
+                                    }}}
+                              }}},
                           strict_selectors: {:strictSelectors, nil},
                           timezone_id: {:timezoneId, nil},
                           user_agent: {:userAgent, nil},
@@ -708,7 +777,69 @@ defmodule Playwright.Browser do
                        reduced_motion: {:reducedMotion, {:enum, %{reduce: "reduce", no_preference: "no-preference"}}},
                        screen: {:screen, {:fields, %{width: nil, height: nil}}},
                        service_workers: {:serviceWorkers, {:enum, %{allow: "allow", block: "block"}}},
-                       storage_state: {:storageState, nil},
+                       storage_state:
+                         {:storageState,
+                          {:protocol,
+                           %{
+                             cookies:
+                               {:array,
+                                {:protocol,
+                                 %{
+                                   name: nil,
+                                   value: nil,
+                                   url: nil,
+                                   domain: nil,
+                                   path: nil,
+                                   expires: nil,
+                                   httpOnly: nil,
+                                   secure: nil,
+                                   sameSite: nil,
+                                   partitionKey: nil,
+                                   _crHasCrossSiteAncestor: nil
+                                 }}},
+                             origins:
+                               {:array,
+                                {:protocol,
+                                 %{
+                                   origin: nil,
+                                   localStorage: {:array, {:protocol, %{name: nil, value: nil}}},
+                                   indexedDB:
+                                     {:array,
+                                      {:protocol,
+                                       %{
+                                         name: nil,
+                                         version: nil,
+                                         stores:
+                                           {:array,
+                                            {:protocol,
+                                             %{
+                                               name: nil,
+                                               autoIncrement: nil,
+                                               keyPath: nil,
+                                               keyPathArray: nil,
+                                               records:
+                                                 {:array,
+                                                  {:protocol,
+                                                   %{key: nil, keyEncoded: nil, value: nil, valueEncoded: nil}}},
+                                               indexes:
+                                                 {:array,
+                                                  {:protocol,
+                                                   %{
+                                                     name: nil,
+                                                     keyPath: nil,
+                                                     keyPathArray: nil,
+                                                     multiEntry: nil,
+                                                     unique: nil
+                                                   }}}
+                                             }}}
+                                       }}},
+                                   opfs: {:array, {:protocol, %{path: nil, type: nil, base64: nil}}}
+                                 }}},
+                             credentials:
+                               {:array,
+                                {:protocol,
+                                 %{id: nil, rpId: nil, userHandle: nil, privateKey: nil, publicKey: nil, signCount: nil}}}
+                           }}},
                        strict_selectors: {:strictSelectors, nil},
                        timezone_id: {:timezoneId, nil},
                        user_agent: {:userAgent, nil},
