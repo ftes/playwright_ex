@@ -50,7 +50,7 @@ defmodule Playwright.Test.SetupAllStepTest do
       ran?: ran?,
       in_task: in_task,
       late: late,
-      rows: :ets.match_object(Results.table(), {{:test_info, nil, :_}, :_})
+      rows: :ets.match_object(Results.table(), {{:test_info, self(), :_}, :_})
     }
   end
 
@@ -80,7 +80,7 @@ defmodule Playwright.Test.SetupAllStepTest do
     refute ctx.ran?
   end
 
-  test "nothing is recorded", ctx do
+  test "nothing is recorded under setup_all's process", ctx do
     assert ctx.rows == []
   end
 
