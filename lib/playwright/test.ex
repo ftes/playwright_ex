@@ -370,11 +370,13 @@ defmodule Playwright.Test do
 
   A step also works in the module's `setup_all` (and processes with it in `$callers`), as
   upstream's in a `beforeAll` hook: it returns its body's value, nests, and raises its error on,
-  a boxed one's at its call site. Deviation: it is recorded nowhere (no trace, no video
-  overlay), where upstream's `beforeAll` runs with the first test's `testInfo` and records its
-  steps in that test (its trace's "Before Hooks"): ExUnit runs `setup_all` before any test, and
-  hooks aren't steps here. So is a step of a long-lived process or handler of `setup_all`'s
-  during a test, where upstream's `test.step` is the current test's (as for `info/0`).
+  a boxed step's where its helper is called. Deviation: it is recorded nowhere (no trace, no
+  video overlay), where upstream's `beforeAll` runs with the first test's `testInfo` and records
+  its steps in that test (its trace's "Before Hooks"): ExUnit runs `setup_all` before any test,
+  and hooks aren't steps here. So is a step of a long-lived process or handler of `setup_all`'s
+  during a test, where upstream's `test.step` is the current test's (as for `info/0`). Such a
+  process that outlives the module's `setup_all` may still step until the runner cleans up
+  after it; then `step/2,3` raises.
 
   ## Config
 
@@ -717,6 +719,8 @@ defmodule Playwright.Test do
         config
         |> context_defaults(layers, use_options)
         |> Map.merge(%{file: module_file(context[:module]), timeout: Options.ex_unit_timeout(context)})
+        # Its steps' `testInfo` (`TestInfo.setup_all/1`).
+        |> Map.put(:setup_all_pid, self())
         |> Map.put(:use_modes, Options.artifacts(config, layers))
 
       Results.register_module(self(), module)
@@ -1317,7 +1321,7 @@ defmodule Playwright.Test do
     options = Map.new(Keyword.validate!(options, [:box, :location, :params, :subtitle]))
     call_site = call_site || (options[:location] && Map.take(options.location, [:file, :line]))
     test_info = step_test_info!()
-    on_user_step(test_info, {:begin, title})
+    Recorder.on_user_step(test_info.test_pid, {:begin, title})
 
     step =
       TestInfo._add_step(test_info, %{
@@ -1350,24 +1354,23 @@ defmodule Playwright.Test do
           :erlang.raise(kind, reason, step.boxedStack || __STACKTRACE__)
       after
         # finally { await testInfo._onUserStepEnd?.(); }
-        on_user_step(test_info, :end)
+        Recorder.on_user_step(test_info.test_pid, :end)
       end
     end)
   end
 
-  # `currentTestInfo()`, which a step needs. deviation: `nil` in a module's `setup_all` (or a
-  # process with it in `$callers`), where the step runs without one (see `TestInfo._add_step/3`):
-  # upstream's `beforeAll` runs with the first test's, ExUnit's `setup_all` before any test.
+  # `currentTestInfo()`, of the scope `info/0` and the context defaults resolve: the running
+  # test's, or in a module's `setup_all` (deviation) a stub of its process,
+  # `TestInfo.setup_all/1`: upstream's `beforeAll` runs with the first test's, ExUnit's
+  # `setup_all` before any test.
   defp step_test_info! do
-    test_info = TestInfo.current()
+    test_info =
+      case Recorder.scope() do
+        {:test, test} -> TestInfo.running(test.test_pid)
+        {:module, module} -> TestInfo.setup_all(module.setup_all_pid)
+        nil -> nil
+      end
 
-    if !test_info and !match?({:module, _}, Recorder.scope()),
-      do: raise("test.step() can only be called from a test")
-
-    test_info
+    test_info || raise("test.step() can only be called from a test")
   end
-
-  # `testInfo._onUserStepBegin/End`: none without a `testInfo` (`step_test_info!/0`).
-  defp on_user_step(nil, _message), do: :ok
-  defp on_user_step(test_info, message), do: Recorder.on_user_step(test_info.test_pid, message)
 end

@@ -268,6 +268,18 @@ defmodule Playwright.Test.TestInfo do
     if Results.started?(), do: Enum.find_value(Callers.capture(), &lookup/1)
   end
 
+  @doc "The running test `test_pid` (`start/1`), else `nil`: before its setup, after its body."
+  def running(test_pid), do: if(Results.started?(), do: lookup(test_pid))
+
+  @doc """
+  deviation: the `testInfo` of a step in a module's `setup_all` (`Playwright.Test._step/5`),
+  where upstream's `beforeAll` runs with the first test's: ExUnit runs `setup_all` before any
+  test. A stub of the `setup_all` process `pid`, never started (`start/1`), so not running: its
+  steps nest and box, but `put_row/3` drops their rows, and it has no recorder (`_tracing`) nor
+  a test's registration (`Recorder.on_user_step/2`). Its steps parent only its own.
+  """
+  def setup_all(pid), do: %{test_pid: pid, step_id_prefix: "setup_all"}
+
   defp lookup(pid) do
     case :ets.lookup(Results.table(), {:test_info, pid, :info}) do
       [{_key, this}] -> this
@@ -335,11 +347,10 @@ defmodule Playwright.Test.TestInfo do
 
   # _findLastPredefinedStep  -- not ported: hooks and fixtures are ExUnit's (no steps)
 
-  # `_parentStep`: the step of the zone (of a `setup_all` step, one of `setup_all`'s).
+  # `_parentStep`: the step of the zone.
   defp _parent_step(this) do
     case Zones.data(:stepZone) do
       %{testInfo: %{test_pid: test_pid}} = step when test_pid == this.test_pid -> step
-      %{testInfo: nil} = step when this == nil -> step
       _ -> nil
     end
   end
@@ -349,21 +360,19 @@ defmodule Playwright.Test.TestInfo do
   `group`; Elixir only: `callSite`, `%{file: _, line: _}` of the step's call), as a map with
   `stepId`, `boxedStack` (an Elixir stacktrace, or `nil`), `stack` (frames) and `testInfo`. Its
   mutable fields are a row of the pool's table.
-
-  deviation: `this` is `nil` for a step of a module's `setup_all` (`Playwright.Test._step/5`),
-  where upstream's `beforeAll` has the first test's `testInfo`: ExUnit runs `setup_all` before
-  any test. Such a step has its stack and box, and nests, but is recorded nowhere: no row, no
-  trace (`step_complete/2` and `_run_step_body/4` find no row).
   """
   def _add_step(this, data, parent_step \\ nil) do
     seq = System.unique_integer([:positive, :monotonic])
-    step_id = "#{this[:step_id_prefix]}@#{seq}"
+    step_id = "#{this.step_id_prefix}@#{seq}"
 
     # if (data.category === 'hook' || data.category === 'fixture')  -- not ported: hooks and fixtures
     parent_step = parent_step || _parent_step(this)
 
     boxed_stack = parent_step && parent_step.boxedStack
     stack = data[:stack]
+    # Elixir only: the frames of a step nothing records (`setup_all/1`'s) are skipped, as only
+    # its row and trace read them. A box's stack is still taken: the step raises with it.
+    stack = stack || if(!running?(this), do: [])
 
     {boxed_stack, stack} =
       if !boxed_stack and data[:box] do
@@ -386,23 +395,21 @@ defmodule Playwright.Test.TestInfo do
         # Elixir only: the recorder its `before` went to, which its `after` goes to. The test's
         # first context may start its recorder inside the step, and an `after` without its
         # `before` breaks the trace viewer.
-        _tracing: if(group != "internal" and this, do: _tracing(this))
+        _tracing: if(group != "internal", do: _tracing(this))
       })
 
     # `info: new TestStepInfoImpl(...)`, `steps: []`; `parentStepList.push(step)`,
     # `this._stepMap.set(stepId, step)`: the row, its parent's `steps` by `parentStepId`.
-    if this do
-      put_row(this, step_key(step), %{
-        parentStepId: parent_step && parent_step.stepId,
-        seq: seq,
-        endWallTime: nil,
-        error: nil,
-        infectParentStepsWithError: false,
-        annotations: [],
-        # `attachmentIndices`: the attachments themselves (there is no `testInfo.attachments`).
-        attachments: []
-      })
-    end
+    put_row(this, step_key(step), %{
+      parentStepId: parent_step && parent_step.stepId,
+      seq: seq,
+      endWallTime: nil,
+      error: nil,
+      infectParentStepsWithError: false,
+      annotations: [],
+      # `attachmentIndices`: the attachments themselves (there is no `testInfo.attachments`).
+      attachments: []
+    })
 
     # if (!step.group) this._callbacks.onStepBegin(...)  -- not ported: reporters
 
@@ -433,9 +440,6 @@ defmodule Playwright.Test.TestInfo do
   defp slice_call_site(frames, _call_site), do: frames
 
   defp step_key(step), do: {:test_info, step.testInfo.test_pid, {:step, step.stepId}}
-
-  # A `setup_all` step (`_add_step/3`) has none.
-  defp step_row(%{testInfo: nil}), do: nil
 
   defp step_row(step) do
     case :ets.lookup(Results.table(), step_key(step)) do

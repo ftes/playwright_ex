@@ -709,7 +709,8 @@ A step works in `setup_all` too, as Playwright Test's in `beforeAll`: it returns
 and raises its error, a boxed step's where its helper is called, so the same helpers serve both.
 It isn't recorded, as no test runs yet: Playwright Test shows a `beforeAll` hook's steps in the
 first test's trace, ExUnit runs `setup_all` before any test. A process or handler that
-`setup_all` started (with it in `$callers`) records none either, also during a test.
+`setup_all` started (with it in `$callers`) records none either, also during a test; once the
+module's `setup_all` process is gone and the runner cleaned up, its steps raise.
 
 ## Route handlers and listeners
 
