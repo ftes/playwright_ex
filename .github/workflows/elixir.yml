@@ -249,8 +249,8 @@ jobs:
       # a green rerun does not hide them. The rerun takes no
       # --partitions: the failures manifest holds this partition's failures only, and --partitions
       # would split those files again. A rerun that runs no test fails: a failure outside the
-      # tests (a setup_all's on_exit) exits 2 but leaves none to rerun. The 10 slowest modules (Playwright.ModuleTimesFormatter)
-      # are the floor of a partition's time. Warnings fail the newest lane only.
+      # tests (a setup_all's on_exit) exits 2 but leaves none to rerun. The 10 slowest modules
+      # (Playwright.ModuleTimesFormatter) are the floor of a partition's time. Warnings fail the newest lane only.
       - name: Run tests
         env:
           PW_FAILURES_FILE: ${{ runner.temp }}/first-run-failures.txt
