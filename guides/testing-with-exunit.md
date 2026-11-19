@@ -618,12 +618,6 @@ and rerun the failures in CI, only on exit status 2 (tests failed; a crash or a 
 mix test || { [ $? -eq 2 ] && mix test --failed; }
 ```
 
-On Elixir 1.20 and earlier, `--failed` doesn't rerun a module whose `setup_all` cleanup
-(`on_exit`) failed after its tests passed, so such a failure can be retried green; Elixir 1.21
-fixes this ([elixir-lang/elixir@0f654791](https://github.com/elixir-lang/elixir/commit/0f654791)).
-
-With `--partitions`, rerun without it (see [CI](debugging-and-ci.md#annotations)).
-
 The other retry modes are Playwright Test's too: `:on_all_retries` traces every rerun,
 `:retain_on_first_failure` the first run's failures, `:retain_on_failure_and_retries` both;
 `video` takes them as well, and `screenshot` has `:on_first_failure`.
