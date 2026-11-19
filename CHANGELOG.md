@@ -52,9 +52,9 @@ upstream minor, so `~> 1.65.0` is safe.
 
 ### Fixed
 
-- `add_cookies`, `storage_state:` and `set_storage_state` check their keys against the
-  protocol's: a snake_case `http_only:` raises instead of being dropped. Errors name the
-  argument and list index (`cookies[0].http_only`).
+- **RC only:** `add_cookies`, `storage_state:` and `set_storage_state` check their keys
+  against the protocol's: a snake_case `http_only:` raises instead of being dropped. Errors
+  name the argument and list index (`cookies[0].http_only`).
 - **RC only:** `mix playwright.install` forwards a `--` to `playwright install` (rc.2 raised on
   it).
 
