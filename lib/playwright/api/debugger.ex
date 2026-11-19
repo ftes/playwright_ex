@@ -61,13 +61,13 @@ defmodule Playwright.Debugger do
   """
   @spec request_pause(t()) :: :ok | {:error, Playwright.error()}
   def request_pause(%Playwright.Debugger{} = debugger) do
-    Facade.async_void("debugger.requestPause", debugger, fn -> Playwright.Client.Debugger.request_pause(debugger) end)
+    Facade.async_void("debugger.requestPause", fn -> Playwright.Client.Debugger.request_pause(debugger) end)
   end
 
   @doc "Like `request_pause/1`, but returns the value and raises on error."
   @spec request_pause!(t()) :: :ok
   def request_pause!(%Playwright.Debugger{} = debugger) do
-    Facade.async_void!("debugger.requestPause", debugger, fn -> Playwright.Client.Debugger.request_pause(debugger) end)
+    Facade.async_void!("debugger.requestPause", fn -> Playwright.Client.Debugger.request_pause(debugger) end)
   end
 
   @doc ~S"""
@@ -77,13 +77,13 @@ defmodule Playwright.Debugger do
   """
   @spec resume(t()) :: :ok | {:error, Playwright.error()}
   def resume(%Playwright.Debugger{} = debugger) do
-    Facade.async_void("debugger.resume", debugger, fn -> Playwright.Client.Debugger.resume(debugger) end)
+    Facade.async_void("debugger.resume", fn -> Playwright.Client.Debugger.resume(debugger) end)
   end
 
   @doc "Like `resume/1`, but returns the value and raises on error."
   @spec resume!(t()) :: :ok
   def resume!(%Playwright.Debugger{} = debugger) do
-    Facade.async_void!("debugger.resume", debugger, fn -> Playwright.Client.Debugger.resume(debugger) end)
+    Facade.async_void!("debugger.resume", fn -> Playwright.Client.Debugger.resume(debugger) end)
   end
 
   @doc ~S"""
@@ -93,13 +93,13 @@ defmodule Playwright.Debugger do
   """
   @spec next(t()) :: :ok | {:error, Playwright.error()}
   def next(%Playwright.Debugger{} = debugger) do
-    Facade.async_void("debugger.next", debugger, fn -> Playwright.Client.Debugger.next(debugger) end)
+    Facade.async_void("debugger.next", fn -> Playwright.Client.Debugger.next(debugger) end)
   end
 
   @doc "Like `next/1`, but returns the value and raises on error."
   @spec next!(t()) :: :ok
   def next!(%Playwright.Debugger{} = debugger) do
-    Facade.async_void!("debugger.next", debugger, fn -> Playwright.Client.Debugger.next(debugger) end)
+    Facade.async_void!("debugger.next", fn -> Playwright.Client.Debugger.next(debugger) end)
   end
 
   @run_to_location {:fields, %{file: nil, line: nil, column: nil}}
@@ -120,7 +120,7 @@ defmodule Playwright.Debugger do
           :ok | {:error, Playwright.error()}
   def run_to(%Playwright.Debugger{} = debugger, location) do
     location = Facade.arg!(location, @run_to_location, "debugger.runTo", "location")
-    Facade.async_void("debugger.runTo", debugger, fn -> Playwright.Client.Debugger.run_to(debugger, location) end)
+    Facade.async_void("debugger.runTo", fn -> Playwright.Client.Debugger.run_to(debugger, location) end)
   end
 
   @doc "Like `run_to/2`, but returns the value and raises on error."
@@ -128,7 +128,7 @@ defmodule Playwright.Debugger do
           :ok
   def run_to!(%Playwright.Debugger{} = debugger, location) do
     location = Facade.arg!(location, @run_to_location, "debugger.runTo", "location")
-    Facade.async_void!("debugger.runTo", debugger, fn -> Playwright.Client.Debugger.run_to(debugger, location) end)
+    Facade.async_void!("debugger.runTo", fn -> Playwright.Client.Debugger.run_to(debugger, location) end)
   end
 
   @doc "Adds an event listener for `event`, see the module docs for the events."

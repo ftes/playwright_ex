@@ -61,11 +61,14 @@ defmodule Playwright.Test.Options do
     :workers,
     :snapshot_dir,
     :snapshot_path_template,
-    :test_id_attribute
+    :test_id_attribute,
+    :report_slow_tests
   ]
   @config_keys @pool_keys ++ @artifact_keys ++ @config_only_keys
 
-  @driver_keys [:executable, :node, :cache_dir, :env]
+  # `Playwright.Supervisor`'s `env` of each pooled driver: the driver itself is `config
+  # :playwright, :driver`'s (`Playwright.Driver`), as `mix playwright.install` installs it.
+  @driver_keys [:env]
   # Playwright Test's `connectOptions`: `wsEndpoint` and `BrowserType.connect`'s options.
   @connect_keys [:ws_endpoint, :headers, :expose_network, :slow_mo, :timeout]
 
@@ -104,16 +107,52 @@ defmodule Playwright.Test.Options do
     video: [:mode, :size, :fps, :show]
   }
 
+  @pool_label "Playwright.Test.BrowserPool.browser/1"
+
+  # What `validate!/2` takes, for its error.
+  @expected %{
+    default_browser_type: "nil or one of [:chromium, :firefox, :webkit]",
+    browser_name: "one of [:chromium, :firefox, :webkit]",
+    on_start: "nil, a 1-arity function or an {m, f, a} tuple",
+    output_dir: "a string",
+    preserve_output: "one of [:always, :never, :failures_only]",
+    snapshot_dir: "nil or a string",
+    snapshot_path_template: "nil or a string",
+    test_id_attribute: "a non-empty string",
+    workers: "a positive integer",
+    action_timeout: "a non-negative integer or :infinity",
+    navigation_timeout: "a non-negative integer or :infinity"
+  }
+
+  # What `artifact_option!/3` takes, by option, for its error.
+  @artifact_expected %{
+    snapshots: "a boolean or a map",
+    screenshots: "a boolean",
+    sources: "a boolean",
+    attachments: "a boolean",
+    full_page: "a boolean",
+    omit_background: "a boolean",
+    size: "%{width: integer, height: integer}",
+    fps: "a positive integer",
+    show: "a map"
+  }
+
+  @config_label "config :playwright, :test"
   @doc """
   The pool options (`BrowserPool.browser/1`): the config, then `worker`, the calling scope's
   (`worker/3`), then `opts` (`launch_options` and `driver` one level deep).
   """
   def pool(opts, worker \\ []) do
-    if !Keyword.keyword?(opts), do: raise(ArgumentError, "expected a keyword list of options, got: #{inspect(opts)}")
+    if !(is_list(opts) and Keyword.keyword?(opts)),
+      do: raise(ArgumentError, "#{@pool_label}: expected a keyword list, got: #{inspect(opts)}")
 
     case Keyword.keys(opts) -- @pool_keys do
-      [] -> :ok
-      unknown -> raise ArgumentError, "unknown options #{inspect(unknown)}, expected one of #{inspect(@pool_keys)}"
+      [] ->
+        :ok
+
+      unknown ->
+        raise ArgumentError,
+              "#{@pool_label}: unknown options, expected one of #{inspect(@pool_keys)}, got: #{inspect(unknown)}"
     end
 
     config = config()
@@ -124,7 +163,7 @@ defmodule Playwright.Test.Options do
     # call's `launch_options` merge over them per key.
     |> Map.merge(Map.new(worker))
     |> Map.merge(Map.new(opts), &merge_value/3)
-    |> validate!()
+    |> validate_all!(@pool_label)
   end
 
   @doc """
@@ -167,11 +206,11 @@ defmodule Playwright.Test.Options do
 
     case keys -- Enum.uniq(keys) do
       [] -> :ok
-      [key | _] -> raise ArgumentError, "duplicated option #{inspect(key)} for #{label}"
+      [key | _] -> raise ArgumentError, "#{label}: duplicated option, expected each option once, got: #{inspect(key)}"
     end
 
     # A device's, with its other keys: upstream's worker-scoped `defaultBrowserType`, which a
-    # describe's or a test's `use/1` drops (`private/3`).
+    # describe's or a test's `use/1` drops (`use/1`).
     known = @use_keys ++ [:default_browser_type] ++ worker_keys
 
     case Keyword.keys(opts) -- known do
@@ -180,8 +219,8 @@ defmodule Playwright.Test.Options do
 
       unknown ->
         raise ArgumentError,
-              "unknown options #{inspect(unknown)} for #{label}, expected one of #{inspect(known)} or a " <>
-                "context option as #{inspect(Enum.sort(context_keys()))} (#{unknown_hint(unknown)})"
+              "#{label}: unknown options, expected one of #{inspect(known)} or a context option as " <>
+                "#{inspect(Enum.sort(context_keys()))}, got: #{inspect(unknown)}. #{unknown_hint(unknown)}"
     end
 
     options =
@@ -199,37 +238,31 @@ defmodule Playwright.Test.Options do
     cond do
       :test_id_attribute in unknown ->
         "test_id_attribute is config only: the client's value is global to the VM, which the tests " <>
-          "running at once share, where upstream's is global to a worker, which runs one test at a time"
+          "running at once share, where upstream's is global to a worker, which runs one test at a time."
 
       unknown -- @worker_keys == [] ->
         "#{Enum.map_join(unknown, ", ", &to_string/1)} is worker-scoped, as upstream's, where it forces a " <>
           "new worker in a describe: set it for the module (`use Playwright.Case, #{hd(unknown)}: _`) or " <>
-          "its project (`Playwright.Test.parameters/1`)"
+          "its project (`Playwright.Test.parameters/1`)."
 
       true ->
-        "the browser's other options are BrowserPool.browser/1's, the rest config's"
+        "The browser's other options are BrowserPool.browser/1's, the rest config's."
     end
   end
 
   @doc """
-  `Playwright.Test.use/1`: `opts` validated as `use_options/1`'s, as a keyword list for a tag
-  or a `parameterize:` map, with a private key per option: `:"playwright.use.trace"` for a
+  `Playwright.Test.use/1`: `opts` validated as `use_options/1`'s, as a keyword list for a tag,
+  with a private key per option: `:"playwright.use.trace"` for a
   mode, `:"playwright.use.context.locale"` for a context option (its client key), next to
   `:"playwright.use.context_options"` for `context_options` as a whole, so
   ExUnit's merge of tags per key layers them per option, as upstream's, where each option is a
   fixture of its own. The keys are of the known options only.
   """
-  def use(opts), do: private(opts, "Playwright.Test.use", [])
-
-  @doc "`Playwright.Test.parameters/1`: as `use/1`, with the worker options too, as a map for `parameterize:`."
-  def parameters(opts), do: Map.new(private(opts, "Playwright.Test.parameters", @worker_keys))
-
-  defp private(opts, label, worker_keys) do
-    opts = to_keyword(label, opts)
-    options = use_options!(opts, label, worker_keys)
+  def use(opts) do
+    label = "Playwright.Test.use/1"
+    options = use_options!(keyword!(label, opts), label, [])
     # In a describe's or a test's, a device's browser is ignored: the browser is the worker's.
-    options = if worker_keys == [], do: Map.delete(options, :default_browser_type), else: options
-    {context, options} = Map.pop(options, :context, %{})
+    {context, options} = options |> Map.delete(:default_browser_type) |> Map.pop(:context, %{})
 
     private = fn options, prefix ->
       for {key, value} <- options, do: {String.to_atom(prefix <> Atom.to_string(key)), value}
@@ -238,12 +271,37 @@ defmodule Playwright.Test.Options do
     Enum.sort(private.(options, @use_prefix) ++ private.(context, @context_prefix))
   end
 
+  # The one parameter of `parameters/1`: the project.
+  @project_key :"playwright.project"
+
+  @doc """
+  `Playwright.Test.parameters/1`: a `Playwright.Test.Project` of `opts`, its `name` and the
+  options of `use/1` and the worker's, under one private key, as a map for `parameterize:`.
+  """
+  def parameters(opts) do
+    label = "Playwright.Test.parameters/1"
+    {name, use} = Keyword.pop(keyword!(label, opts), :name)
+
+    if !(name == nil or is_binary(name)),
+      do: raise(ArgumentError, "#{label}: invalid name, expected a string, got: #{inspect(name)}")
+
+    %{@project_key => %Playwright.Test.Project{name: name, use: use, options: use_options!(use, label, @worker_keys)}}
+  end
+
+  @doc "The project of `parameters` (`parameters/1`'s, a module's `parameterize:` map), else `nil`."
+  def project(parameters) do
+    case parameters do
+      %{@project_key => %Playwright.Test.Project{} = project} -> project
+      _ -> nil
+    end
+  end
+
   @doc "Whether `key` is a private key of `use/1`."
   def use_key?(key), do: is_atom(key) and String.starts_with?(Atom.to_string(key), @use_prefix)
 
   @doc """
-  The options of `use/1` in `map` (a test's or a module's parameters or tags), as
-  `use_options/1`'s. No other key is read.
+  The options of `use/1` in `map` (a test's or a module's tags), as `use_options/1`'s. No other
+  key is read.
   """
   def used(map) do
     Enum.reduce(map, %{}, fn {key, value}, acc ->
@@ -261,14 +319,16 @@ defmodule Playwright.Test.Options do
   end
 
   @doc """
-  The options of a test, or of a module's `setup_all`, by their layers: `project`, the `use/1`
-  options in its `parameters` (the module's `parameterize:` map, upstream's `project.use`), and
-  `module`, the module's `use_options` with the `use/1` options in its `tags` over them (`merge/2`;
-  ExUnit merged a test's `@moduletag`, `@describetag` and `@tag` per option). A `nil` option is
-  dropped from its layer (`unset_nil/1`).
+  The options of a test, or of a module's `setup_all`, by their layers: `project`, the options
+  of the project in its `parameters` (`project/1`, upstream's `project.use`), and `module`, the
+  module's `use_options` with the `use/1` options in its `tags` over them (`merge/2`; ExUnit
+  merged a test's `@moduletag`, `@describetag` and `@tag` per option). A `nil` option is dropped
+  from its layer (`unset_nil/1`).
   """
-  def layers(parameters, use_options, tags),
-    do: %{project: unset_nil(used(parameters)), module: unset_nil(merge(use_options, used(tags)))}
+  def layers(parameters, use_options, tags) do
+    project = project(parameters)
+    %{project: unset_nil((project && project.options) || %{}), module: unset_nil(merge(use_options, used(tags)))}
+  end
 
   # Upstream's `undefined` option: no value at its layer, so the layer under gives the option, in
   # the end its default. A `test.use` of it goes back to the config's and the project's
@@ -314,7 +374,7 @@ defmodule Playwright.Test.Options do
   """
   def without_ex_unit_keys(opts) do
     # A map too.
-    opts = to_keyword("use Playwright.Test", opts)
+    opts = keyword!("use Playwright.Test", opts)
     opts -- ExUnit.Case.__keys__(opts)
   end
 
@@ -458,25 +518,12 @@ defmodule Playwright.Test.Options do
 
   @doc "`config :playwright, :test`, validated, with each key's default (`Playwright.Test.config/0`)."
   def config do
-    config = Application.get_env(:playwright, :test, [])
-
-    if !Keyword.keyword?(config),
-      do: raise(ArgumentError, "config :playwright, :test must be a keyword list, got: #{inspect(config)}")
-
-    case Keyword.keys(config) -- (@config_keys ++ context_keys()) do
-      [] ->
-        :ok
-
-      unknown ->
-        raise ArgumentError,
-              "unknown keys #{inspect(unknown)} in config :playwright, :test, expected one of " <>
-                "#{inspect(@config_keys)} or a context option (locale, viewport, ...)"
-    end
+    config = Playwright.Application.config!(:test, @config_keys ++ context_keys())
 
     # A `nil` key is unset: its default.
     defaults()
     |> Map.merge(unset_nil(Map.new(config)))
-    |> validate!()
+    |> validate_all!(@config_label)
   end
 
   defp defaults do
@@ -498,7 +545,8 @@ defmodule Playwright.Test.Options do
       workers: max(div(System.schedulers_online(), 2), 1),
       snapshot_dir: nil,
       snapshot_path_template: nil,
-      test_id_attribute: "data-testid"
+      test_id_attribute: "data-testid",
+      report_slow_tests: [max: 5, threshold: 300_000]
     }
   end
 
@@ -510,9 +558,9 @@ defmodule Playwright.Test.Options do
   end
 
   # A context option of the config is validated with the others (`context_options/2`).
-  defp validate!(opts) do
+  defp validate_all!(opts, label) do
     context_keys = context_keys()
-    Map.new(opts, fn {key, value} -> {key, if(key in context_keys, do: value, else: validate!(key, value))} end)
+    Map.new(opts, fn {key, value} -> {key, if(key in context_keys, do: value, else: validate!(key, value, label))} end)
   end
 
   defp validate!(:default_browser_type, nil), do: nil
@@ -526,31 +574,18 @@ defmodule Playwright.Test.Options do
 
   defp validate!(:driver, driver) do
     driver = to_keyword(:driver, driver)
-
-    case Keyword.keys(driver) -- @driver_keys do
-      [] ->
-        driver
-
-      unknown ->
-        raise ArgumentError, "unknown driver options #{inspect(unknown)}, expected one of #{inspect(@driver_keys)}"
-    end
+    keys!(:driver, driver, @driver_keys)
+    driver
   end
 
   defp validate!(:connect_options, nil), do: nil
 
   defp validate!(:connect_options, options) do
     options = to_keyword(:connect_options, options)
-
-    case Keyword.keys(options) -- @connect_keys do
-      [] ->
-        :ok
-
-      unknown ->
-        raise ArgumentError, "unknown connect options #{inspect(unknown)}, expected one of #{inspect(@connect_keys)}"
-    end
+    keys!(:connect_options, options, @connect_keys)
 
     if !is_binary(options[:ws_endpoint]),
-      do: raise(ArgumentError, "connect options need :ws_endpoint, got: #{inspect(options)}")
+      do: raise(ArgumentError, "invalid connect_options, expected a :ws_endpoint string, got: #{inspect(options)}")
 
     Enum.sort(options)
   end
@@ -577,6 +612,27 @@ defmodule Playwright.Test.Options do
 
   defp validate!(:test_id_attribute, name) when is_binary(name) and name != "", do: name
   defp validate!(:workers, workers) when is_integer(workers) and workers > 0, do: workers
+  # Upstream's `reportSlowTests: null`: none (a `nil` key is unset, its default).
+  defp validate!(:report_slow_tests, false), do: false
+
+  # Upstream's `reportSlowTests` (`{ max, threshold }`), as its configLoader validates it.
+  defp validate!(:report_slow_tests, options) do
+    options = to_keyword(:report_slow_tests, options)
+    keys!(:report_slow_tests, options, [:max, :threshold])
+
+    for key <- [:max, :threshold] do
+      value = options[key]
+
+      if !(is_number(value) and value >= 0),
+        do:
+          raise(
+            ArgumentError,
+            "invalid report_slow_tests #{key}, expected a non-negative number, got: #{inspect(value)}"
+          )
+
+      {key, value}
+    end
+  end
 
   # Milliseconds, `0` or `:infinity` for none (`BrowserContext.set_default_timeout/2`'s).
   defp validate!(key, timeout)
@@ -584,10 +640,21 @@ defmodule Playwright.Test.Options do
               (timeout == :infinity or (is_integer(timeout) and timeout >= 0)),
        do: timeout
 
-  defp validate!(key, value) when is_map_key(@modes, key),
-    do: raise(ArgumentError, "invalid #{key}: #{inspect(value)}, expected one of #{inspect(accepted(key))}")
+  defp validate!(key, value) when is_map_key(@modes, key), do: mode!(key, value)
 
-  defp validate!(key, value), do: raise(ArgumentError, "invalid #{key}: #{inspect(value)}")
+  defp validate!(key, value),
+    do: raise(ArgumentError, "invalid #{key}, expected #{Map.fetch!(@expected, key)}, got: #{inspect(value)}")
+
+  # Raises for the keys of `options` (the option `key`'s) that are not `allowed`.
+  defp keys!(key, options, allowed) do
+    case Keyword.keys(options) -- allowed do
+      [] ->
+        :ok
+
+      unknown ->
+        raise ArgumentError, "unknown #{key} keys, expected one of #{inspect(allowed)}, got: #{inspect(unknown)}"
+    end
+  end
 
   # What a mode option accepts, for the error.
   defp accepted(key), do: @modes[key] ++ [true, false, "[mode: _, ...]"]
@@ -599,16 +666,9 @@ defmodule Playwright.Test.Options do
   # it would record nothing.
   defp artifact!(key, options) do
     if !Keyword.has_key?(options, :mode),
-      do: raise(ArgumentError, "#{key} options need :mode, got: #{inspect(options)}")
+      do: raise(ArgumentError, "invalid #{key}, expected a :mode, got: #{inspect(options)}")
 
-    case Keyword.keys(options) -- @artifact_options[key] do
-      [] ->
-        :ok
-
-      unknown ->
-        raise ArgumentError,
-              "unknown #{key} options #{inspect(unknown)}, expected one of #{inspect(@artifact_options[key])}"
-    end
+    keys!(key, options, @artifact_options[key])
 
     defaults = if key == :trace, do: [snapshots: true, screenshots: true, sources: true, attachments: true], else: []
     options = Keyword.merge(defaults, options)
@@ -629,7 +689,11 @@ defmodule Playwright.Test.Options do
   defp artifact_option!(:trace, :snapshots, %{} = snapshots) when not is_struct(snapshots) do
     if Enum.all?(snapshots, fn {name, value} -> name in [:dom, :aria, :screen] and is_boolean(value) end),
       do: snapshots,
-      else: raise(ArgumentError, "invalid trace snapshots: #{inspect(snapshots)}")
+      else:
+        raise(
+          ArgumentError,
+          "invalid trace snapshots, expected a map of :dom, :aria and :screen booleans, got: #{inspect(snapshots)}"
+        )
   end
 
   # A `ViewportSize`.
@@ -654,22 +718,37 @@ defmodule Playwright.Test.Options do
           false
       end)
 
-    if valid?, do: show, else: raise(ArgumentError, "invalid video show: #{inspect(show)}")
+    if valid?,
+      do: show,
+      else:
+        raise(
+          ArgumentError,
+          "invalid video show, expected a map of :actions and :test as upstream's, got: #{inspect(show)}"
+        )
   end
 
-  defp artifact_option!(key, name, value), do: raise(ArgumentError, "invalid #{key} #{name}: #{inspect(value)}")
+  defp artifact_option!(key, name, value),
+    do: raise(ArgumentError, "invalid #{key} #{name}, expected #{@artifact_expected[name]}, got: #{inspect(value)}")
 
   defp mode!(key, mode) do
     if mode in @modes[key],
       do: mode,
-      else: raise(ArgumentError, "invalid #{key}: #{inspect(mode)}, expected one of #{inspect(accepted(key))}")
+      else: raise(ArgumentError, "invalid #{key}, expected one of #{inspect(accepted(key))}, got: #{inspect(mode)}")
   end
 
   defp to_keyword(key, value) do
     cond do
       is_list(value) and Keyword.keyword?(value) -> value
       is_map(value) and not is_struct(value) -> Enum.to_list(value)
-      true -> raise ArgumentError, "invalid #{key}: #{inspect(value)}, expected a keyword list or a map"
+      true -> raise ArgumentError, "invalid #{key}, expected a keyword list or a map, got: #{inspect(value)}"
     end
+  end
+
+  # `opts` of the entry point `label` as a keyword list.
+  defp keyword!(label, opts) do
+    to_keyword(:options, opts)
+  rescue
+    _ in ArgumentError ->
+      reraise ArgumentError, "#{label}: expected a keyword list or a map, got: #{inspect(opts)}", __STACKTRACE__
   end
 end

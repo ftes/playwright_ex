@@ -34,13 +34,13 @@ defmodule Playwright.Video do
   """
   @spec delete(t()) :: :ok | {:error, Playwright.error()}
   def delete(%Playwright.Video{} = video) do
-    Facade.async_void("video.delete", video, fn -> Playwright.Client.Video.delete(video) end)
+    Facade.async_void("video.delete", fn -> Playwright.Client.Video.delete(video) end)
   end
 
   @doc "Like `delete/1`, but returns the value and raises on error."
   @spec delete!(t()) :: :ok
   def delete!(%Playwright.Video{} = video) do
-    Facade.async_void!("video.delete", video, fn -> Playwright.Client.Video.delete(video) end)
+    Facade.async_void!("video.delete", fn -> Playwright.Client.Video.delete(video) end)
   end
 
   @doc ~S"""
@@ -51,13 +51,13 @@ defmodule Playwright.Video do
   """
   @spec path(t()) :: {:ok, String.t()} | {:error, Playwright.error()}
   def path(%Playwright.Video{} = video) do
-    Facade.async("video.path", video, fn -> Playwright.Client.Video.path(video) end)
+    Facade.async("video.path", fn -> Playwright.Client.Video.path(video) end)
   end
 
   @doc "Like `path/1`, but returns the value and raises on error."
   @spec path!(t()) :: String.t()
   def path!(%Playwright.Video{} = video) do
-    Facade.async!("video.path", video, fn -> Playwright.Client.Video.path(video) end)
+    Facade.async!("video.path", fn -> Playwright.Client.Video.path(video) end)
   end
 
   @doc ~S"""
@@ -72,12 +72,12 @@ defmodule Playwright.Video do
   """
   @spec save_as(t(), String.t()) :: :ok | {:error, Playwright.error()}
   def save_as(%Playwright.Video{} = video, path) do
-    Facade.async_void("video.saveAs", video, fn -> Playwright.Client.Video.save_as(video, path) end)
+    Facade.async_void("video.saveAs", fn -> Playwright.Client.Video.save_as(video, path) end)
   end
 
   @doc "Like `save_as/2`, but returns the value and raises on error."
   @spec save_as!(t(), String.t()) :: :ok
   def save_as!(%Playwright.Video{} = video, path) do
-    Facade.async_void!("video.saveAs", video, fn -> Playwright.Client.Video.save_as(video, path) end)
+    Facade.async_void!("video.saveAs", fn -> Playwright.Client.Video.save_as(video, path) end)
   end
 end

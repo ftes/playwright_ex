@@ -253,7 +253,7 @@ defmodule Playwright.Utils do
     import Playwright.Runtime.Heap
     local_utils = Playwright.Client.Connection.local_utils(get(handle, :_connection))
 
-    Playwright.Runtime.Api.call(nil, local_utils, fn ->
+    Playwright.Runtime.Facade.call(nil, fn ->
       Playwright.Client.ChannelOwner.channel_call(local_utils, :asLocatorDescription, %{
         selector: selector,
         sdkLanguage: "javascript"

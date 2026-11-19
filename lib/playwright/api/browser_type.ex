@@ -96,9 +96,7 @@ defmodule Playwright.BrowserType do
   def connect(%Playwright.BrowserType{} = browser_type, endpoint, options \\ []) do
     options = Facade.options!(options, @connect_options, "browserType.connect")
 
-    Facade.async("browserType.connect", browser_type, fn ->
-      Playwright.Client.BrowserType.connect(browser_type, endpoint, options)
-    end)
+    Facade.async("browserType.connect", fn -> Playwright.Client.BrowserType.connect(browser_type, endpoint, options) end)
   end
 
   @doc "Like `connect/3`, but returns the value and raises on error."
@@ -106,7 +104,7 @@ defmodule Playwright.BrowserType do
   def connect!(%Playwright.BrowserType{} = browser_type, endpoint, options \\ []) do
     options = Facade.options!(options, @connect_options, "browserType.connect")
 
-    Facade.async!("browserType.connect", browser_type, fn ->
+    Facade.async!("browserType.connect", fn ->
       Playwright.Client.BrowserType.connect(browser_type, endpoint, options)
     end)
   end
@@ -202,7 +200,7 @@ defmodule Playwright.BrowserType do
   def connect_over_cdp(%Playwright.BrowserType{} = browser_type, endpoint_url, options \\ []) do
     options = Facade.options!(options, @connect_over_cdp_options, "browserType.connectOverCDP")
 
-    Facade.async("browserType.connectOverCDP", browser_type, fn ->
+    Facade.async("browserType.connectOverCDP", fn ->
       Playwright.Client.BrowserType.connect_over_cdp(browser_type, endpoint_url, options)
     end)
   end
@@ -212,7 +210,7 @@ defmodule Playwright.BrowserType do
   def connect_over_cdp!(%Playwright.BrowserType{} = browser_type, endpoint_url, options \\ []) do
     options = Facade.options!(options, @connect_over_cdp_options, "browserType.connectOverCDP")
 
-    Facade.async!("browserType.connectOverCDP", browser_type, fn ->
+    Facade.async!("browserType.connectOverCDP", fn ->
       Playwright.Client.BrowserType.connect_over_cdp(browser_type, endpoint_url, options)
     end)
   end
@@ -393,20 +391,14 @@ defmodule Playwright.BrowserType do
   @spec launch(t(), launch_options()) :: {:ok, Playwright.Browser.t()} | {:error, Playwright.error()}
   def launch(%Playwright.BrowserType{} = browser_type, options \\ []) do
     options = Facade.options!(options, @launch_options, "browserType.launch")
-
-    Facade.async("browserType.launch", browser_type, fn ->
-      Playwright.Client.BrowserType.launch(browser_type, options)
-    end)
+    Facade.async("browserType.launch", fn -> Playwright.Client.BrowserType.launch(browser_type, options) end)
   end
 
   @doc "Like `launch/2`, but returns the value and raises on error."
   @spec launch!(t(), launch_options()) :: Playwright.Browser.t()
   def launch!(%Playwright.BrowserType{} = browser_type, options \\ []) do
     options = Facade.options!(options, @launch_options, "browserType.launch")
-
-    Facade.async!("browserType.launch", browser_type, fn ->
-      Playwright.Client.BrowserType.launch(browser_type, options)
-    end)
+    Facade.async!("browserType.launch", fn -> Playwright.Client.BrowserType.launch(browser_type, options) end)
   end
 
   @launch_persistent_context_options {:object,
@@ -906,7 +898,7 @@ defmodule Playwright.BrowserType do
   def launch_persistent_context(%Playwright.BrowserType{} = browser_type, user_data_dir, options \\ []) do
     options = Facade.options!(options, @launch_persistent_context_options, "browserType.launchPersistentContext")
 
-    Facade.async("browserType.launchPersistentContext", browser_type, fn ->
+    Facade.async("browserType.launchPersistentContext", fn ->
       Playwright.Client.BrowserType.launch_persistent_context(browser_type, user_data_dir, options)
     end)
   end
@@ -917,7 +909,7 @@ defmodule Playwright.BrowserType do
   def launch_persistent_context!(%Playwright.BrowserType{} = browser_type, user_data_dir, options \\ []) do
     options = Facade.options!(options, @launch_persistent_context_options, "browserType.launchPersistentContext")
 
-    Facade.async!("browserType.launchPersistentContext", browser_type, fn ->
+    Facade.async!("browserType.launchPersistentContext", fn ->
       Playwright.Client.BrowserType.launch_persistent_context(browser_type, user_data_dir, options)
     end)
   end

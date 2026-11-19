@@ -528,7 +528,7 @@ defmodule Playwright.Library.BrowsercontextBasicTest do
   @tag :page
   test "BC-030 default user agent", %{browser: browser, page: page} do
     %{userAgent: user_agent} =
-      Playwright.Runtime.Api.call(nil, browser, fn ->
+      Playwright.Runtime.Facade.call(nil, fn ->
         ChannelOwner.channel_call(browser, :defaultUserAgentForTest, %{})
       end)
 

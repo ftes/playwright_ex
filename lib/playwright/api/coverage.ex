@@ -62,7 +62,7 @@ defmodule Playwright.Coverage do
   def start_css_coverage(%Playwright.Coverage{} = coverage, options \\ []) do
     options = Facade.options!(options, @start_css_coverage_options, "coverage.startCSSCoverage")
 
-    Facade.async_void("coverage.startCSSCoverage", coverage, fn ->
+    Facade.async_void("coverage.startCSSCoverage", fn ->
       Playwright.Client.Coverage.start_css_coverage(coverage, options)
     end)
   end
@@ -72,7 +72,7 @@ defmodule Playwright.Coverage do
   def start_css_coverage!(%Playwright.Coverage{} = coverage, options \\ []) do
     options = Facade.options!(options, @start_css_coverage_options, "coverage.startCSSCoverage")
 
-    Facade.async_void!("coverage.startCSSCoverage", coverage, fn ->
+    Facade.async_void!("coverage.startCSSCoverage", fn ->
       Playwright.Client.Coverage.start_css_coverage(coverage, options)
     end)
   end
@@ -108,7 +108,7 @@ defmodule Playwright.Coverage do
   def start_js_coverage(%Playwright.Coverage{} = coverage, options \\ []) do
     options = Facade.options!(options, @start_js_coverage_options, "coverage.startJSCoverage")
 
-    Facade.async_void("coverage.startJSCoverage", coverage, fn ->
+    Facade.async_void("coverage.startJSCoverage", fn ->
       Playwright.Client.Coverage.start_js_coverage(coverage, options)
     end)
   end
@@ -118,7 +118,7 @@ defmodule Playwright.Coverage do
   def start_js_coverage!(%Playwright.Coverage{} = coverage, options \\ []) do
     options = Facade.options!(options, @start_js_coverage_options, "coverage.startJSCoverage")
 
-    Facade.async_void!("coverage.startJSCoverage", coverage, fn ->
+    Facade.async_void!("coverage.startJSCoverage", fn ->
       Playwright.Client.Coverage.start_js_coverage(coverage, options)
     end)
   end
@@ -143,7 +143,7 @@ defmodule Playwright.Coverage do
            ]}
           | {:error, Playwright.error()}
   def stop_css_coverage(%Playwright.Coverage{} = coverage) do
-    Facade.async("coverage.stopCSSCoverage", coverage, fn -> Playwright.Client.Coverage.stop_css_coverage(coverage) end)
+    Facade.async("coverage.stopCSSCoverage", fn -> Playwright.Client.Coverage.stop_css_coverage(coverage) end)
   end
 
   @doc "Like `stop_css_coverage/1`, but returns the value and raises on error."
@@ -155,7 +155,7 @@ defmodule Playwright.Coverage do
           }
         ]
   def stop_css_coverage!(%Playwright.Coverage{} = coverage) do
-    Facade.async!("coverage.stopCSSCoverage", coverage, fn -> Playwright.Client.Coverage.stop_css_coverage(coverage) end)
+    Facade.async!("coverage.stopCSSCoverage", fn -> Playwright.Client.Coverage.stop_css_coverage(coverage) end)
   end
 
   @doc ~S"""
@@ -186,7 +186,7 @@ defmodule Playwright.Coverage do
            ]}
           | {:error, Playwright.error()}
   def stop_js_coverage(%Playwright.Coverage{} = coverage) do
-    Facade.async("coverage.stopJSCoverage", coverage, fn -> Playwright.Client.Coverage.stop_js_coverage(coverage) end)
+    Facade.async("coverage.stopJSCoverage", fn -> Playwright.Client.Coverage.stop_js_coverage(coverage) end)
   end
 
   @doc "Like `stop_js_coverage/1`, but returns the value and raises on error."
@@ -205,7 +205,7 @@ defmodule Playwright.Coverage do
           }
         ]
   def stop_js_coverage!(%Playwright.Coverage{} = coverage) do
-    Facade.async!("coverage.stopJSCoverage", coverage, fn -> Playwright.Client.Coverage.stop_js_coverage(coverage) end)
+    Facade.async!("coverage.stopJSCoverage", fn -> Playwright.Client.Coverage.stop_js_coverage(coverage) end)
   end
 
   @doc """

@@ -33,7 +33,7 @@ defmodule Playwright.Test.ResultTest do
 
     assert_receive {:registered, _test}
 
-    # Its leases released, also when the test fails before the fake test's end.
+    # Its holds released, also when the test fails before the fake test's end.
     on_exit(fn ->
       Process.exit(pid, :kill)
       Pool.release(pid)
@@ -94,7 +94,9 @@ defmodule Playwright.Test.ResultTest do
     assert duration >= 20
     assert last == first
     # Gone with the on_exit process, once the pool saw its exit.
-    assert_raise ArgumentError, ~r/no test/, fn -> until_raises(fn -> Playwright.Test.info(pid) end) end
+    assert_raise RuntimeError, ~r/^Playwright.Test.info\/1: no test running or in its on_exit, got: /, fn ->
+      until_raises(fn -> Playwright.Test.info(pid) end)
+    end
   end
 
   # An unhandled error of a process of the fake test (`Playwright.Runtime.Callers.unhandled/4`).
@@ -173,7 +175,7 @@ defmodule Playwright.Test.ResultTest do
     assert Results.take(pid) == {nil, nil}
 
     assert ExUnit.CaptureLog.capture_log(fn -> on_exit_callbacks(pid, fn -> nil end, fn -> nil end) end) =~
-             "could not finish the test: its registration is gone (the pool restarted since)"
+             "could not finish the test: Playwright.Test: the test's registration is gone (the pool restarted since)"
 
     assert Process.whereis(Pool) == pool
   end

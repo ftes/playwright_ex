@@ -65,7 +65,7 @@ defmodule Playwright.Test.Results do
   @doc """
   Notes the calling process, ExUnit's `on_exit` runner, as the one that finishes the test
   `test_pid` (`Playwright.Test.__finish__/2`): when it exits, the pool drops the test's
-  `keep_info/2` row and result, and releases the test's leases if the finish did not (ExUnit
+  `keep_info/2` row and result, and releases the test's holds if the finish did not (ExUnit
   killed it past the timeout), as a failed scope's.
   """
   def finishing(test_pid) do

@@ -55,13 +55,13 @@ defmodule Playwright.Dialog do
   """
   @spec accept(t(), String.t() | nil) :: :ok | {:error, Playwright.error()}
   def accept(%Playwright.Dialog{} = dialog, prompt_text \\ nil) do
-    Facade.async_void("dialog.accept", dialog, fn -> Playwright.Client.Dialog.accept(dialog, prompt_text) end)
+    Facade.async_void("dialog.accept", fn -> Playwright.Client.Dialog.accept(dialog, prompt_text) end)
   end
 
   @doc "Like `accept/2`, but returns the value and raises on error."
   @spec accept!(t(), String.t() | nil) :: :ok
   def accept!(%Playwright.Dialog{} = dialog, prompt_text \\ nil) do
-    Facade.async_void!("dialog.accept", dialog, fn -> Playwright.Client.Dialog.accept(dialog, prompt_text) end)
+    Facade.async_void!("dialog.accept", fn -> Playwright.Client.Dialog.accept(dialog, prompt_text) end)
   end
 
   @doc ~S"""
@@ -81,13 +81,13 @@ defmodule Playwright.Dialog do
   """
   @spec dismiss(t()) :: :ok | {:error, Playwright.error()}
   def dismiss(%Playwright.Dialog{} = dialog) do
-    Facade.async_void("dialog.dismiss", dialog, fn -> Playwright.Client.Dialog.dismiss(dialog) end)
+    Facade.async_void("dialog.dismiss", fn -> Playwright.Client.Dialog.dismiss(dialog) end)
   end
 
   @doc "Like `dismiss/1`, but returns the value and raises on error."
   @spec dismiss!(t()) :: :ok
   def dismiss!(%Playwright.Dialog{} = dialog) do
-    Facade.async_void!("dialog.dismiss", dialog, fn -> Playwright.Client.Dialog.dismiss(dialog) end)
+    Facade.async_void!("dialog.dismiss", fn -> Playwright.Client.Dialog.dismiss(dialog) end)
   end
 
   @doc ~S"""

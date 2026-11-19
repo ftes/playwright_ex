@@ -202,14 +202,14 @@ defmodule Playwright.Runtime.FacadeTest do
           %RuntimeError{message: "Route is already handled!"},
           %File.Error{reason: :enoent, path: "x", action: "read file"}
         ] do
-      assert Facade.async(nil, nil, fn -> raise error end) == {:error, error}
-      assert Facade.async_void(nil, nil, fn -> raise error end) == {:error, error}
+      assert Facade.async(nil, fn -> raise error end) == {:error, error}
+      assert Facade.async_void(nil, fn -> raise error end) == {:error, error}
     end
 
     # Bugs: values the type checker doesn't see at compile time.
     {map, number} = Process.get(:not_set, {%{}, 1})
-    assert_raise KeyError, fn -> Facade.async(nil, nil, fn -> Map.fetch!(map, :x) end) end
-    assert_raise FunctionClauseError, fn -> Facade.async_void(nil, nil, fn -> String.trim(number) end) end
+    assert_raise KeyError, fn -> Facade.async(nil, fn -> Map.fetch!(map, :x) end) end
+    assert_raise FunctionClauseError, fn -> Facade.async_void(nil, fn -> String.trim(number) end) end
   end
 
   test "a matcher's message: option points to Expect.message/2, for the matcher as called" do
@@ -233,8 +233,8 @@ defmodule Playwright.Runtime.FacadeTest do
 
   test "a failed bang matcher raises the ExpectError" do
     error = %Playwright.ExpectError{message: "Expect failed"}
-    assert Facade.matcher(nil, fn -> raise error end) == {:error, error}
-    assert_raise Playwright.ExpectError, "Expect failed", fn -> Facade.matcher!(nil, fn -> raise error end) end
+    assert Facade.matcher(fn -> raise error end) == {:error, error}
+    assert_raise Playwright.ExpectError, "Expect failed", fn -> Facade.matcher!(fn -> raise error end) end
   end
 
   test "expect: when the action raises, the wait's later result leaves no message" do
@@ -249,8 +249,8 @@ defmodule Playwright.Runtime.FacadeTest do
       end
     end
 
-    for expect <- [&Facade.expect/4, &Facade.expect!/4] do
-      assert_raise RuntimeError, "boom", fn -> expect.(nil, nil, wait, fn -> raise "boom" end) end
+    for expect <- [&Facade.expect/3, &Facade.expect!/3] do
+      assert_raise RuntimeError, "boom", fn -> expect.(nil, wait, fn -> raise "boom" end) end
       assert_receive {:waiting, pid}
       ref = Process.monitor(pid)
       send(pid, :go)

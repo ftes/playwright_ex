@@ -115,7 +115,7 @@ defmodule Playwright.FileChooser do
     files = Facade.arg!(files, @set_files_files, "fileChooser.setFiles", "files")
     options = Facade.options!(options, @set_files_options, "fileChooser.setFiles")
 
-    Facade.async_void("fileChooser.setFiles", file_chooser, fn ->
+    Facade.async_void("fileChooser.setFiles", fn ->
       Playwright.Client.FileChooser.set_files(file_chooser, files, options)
     end)
   end
@@ -133,7 +133,7 @@ defmodule Playwright.FileChooser do
     files = Facade.arg!(files, @set_files_files, "fileChooser.setFiles", "files")
     options = Facade.options!(options, @set_files_options, "fileChooser.setFiles")
 
-    Facade.async_void!("fileChooser.setFiles", file_chooser, fn ->
+    Facade.async_void!("fileChooser.setFiles", fn ->
       Playwright.Client.FileChooser.set_files(file_chooser, files, options)
     end)
   end

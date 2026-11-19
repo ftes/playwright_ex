@@ -45,13 +45,13 @@ defmodule Playwright.Request do
   """
   @spec all_headers(t()) :: {:ok, %{optional(String.t()) => String.t()}} | {:error, Playwright.error()}
   def all_headers(%Playwright.Request{} = request) do
-    Facade.async("request.allHeaders", request, fn -> Playwright.Client.Request.all_headers(request) end)
+    Facade.async("request.allHeaders", fn -> Playwright.Client.Request.all_headers(request) end)
   end
 
   @doc "Like `all_headers/1`, but returns the value and raises on error."
   @spec all_headers!(t()) :: %{optional(String.t()) => String.t()}
   def all_headers!(%Playwright.Request{} = request) do
-    Facade.async!("request.allHeaders", request, fn -> Playwright.Client.Request.all_headers(request) end)
+    Facade.async!("request.allHeaders", fn -> Playwright.Client.Request.all_headers(request) end)
   end
 
   @doc ~S"""
@@ -132,13 +132,13 @@ defmodule Playwright.Request do
   """
   @spec headers_array(t()) :: {:ok, [%{name: String.t(), value: String.t()}]} | {:error, Playwright.error()}
   def headers_array(%Playwright.Request{} = request) do
-    Facade.async("request.headersArray", request, fn -> Playwright.Client.Request.headers_array(request) end)
+    Facade.async("request.headersArray", fn -> Playwright.Client.Request.headers_array(request) end)
   end
 
   @doc "Like `headers_array/1`, but returns the value and raises on error."
   @spec headers_array!(t()) :: [%{name: String.t(), value: String.t()}]
   def headers_array!(%Playwright.Request{} = request) do
-    Facade.async!("request.headersArray", request, fn -> Playwright.Client.Request.headers_array(request) end)
+    Facade.async!("request.headersArray", fn -> Playwright.Client.Request.headers_array(request) end)
   end
 
   @doc ~S"""
@@ -152,13 +152,13 @@ defmodule Playwright.Request do
   """
   @spec header_value(t(), String.t()) :: {:ok, nil | String.t()} | {:error, Playwright.error()}
   def header_value(%Playwright.Request{} = request, name) do
-    Facade.async("request.headerValue", request, fn -> Playwright.Client.Request.header_value(request, name) end)
+    Facade.async("request.headerValue", fn -> Playwright.Client.Request.header_value(request, name) end)
   end
 
   @doc "Like `header_value/2`, but returns the value and raises on error."
   @spec header_value!(t(), String.t()) :: nil | String.t()
   def header_value!(%Playwright.Request{} = request, name) do
-    Facade.async!("request.headerValue", request, fn -> Playwright.Client.Request.header_value(request, name) end)
+    Facade.async!("request.headerValue", fn -> Playwright.Client.Request.header_value(request, name) end)
   end
 
   @doc ~S"""
@@ -287,13 +287,13 @@ defmodule Playwright.Request do
   """
   @spec response(t()) :: {:ok, nil | Playwright.Response.t()} | {:error, Playwright.error()}
   def response(%Playwright.Request{} = request) do
-    Facade.async("request.response", request, fn -> Playwright.Client.Request.response(request) end)
+    Facade.async("request.response", fn -> Playwright.Client.Request.response(request) end)
   end
 
   @doc "Like `response/1`, but returns the value and raises on error."
   @spec response!(t()) :: nil | Playwright.Response.t()
   def response!(%Playwright.Request{} = request) do
-    Facade.async!("request.response", request, fn -> Playwright.Client.Request.response(request) end)
+    Facade.async!("request.response", fn -> Playwright.Client.Request.response(request) end)
   end
 
   @doc ~S"""
@@ -341,7 +341,7 @@ defmodule Playwright.Request do
            }}
           | {:error, Playwright.error()}
   def sizes(%Playwright.Request{} = request) do
-    Facade.async("request.sizes", request, fn -> Playwright.Client.Request.sizes(request) end)
+    Facade.async("request.sizes", fn -> Playwright.Client.Request.sizes(request) end)
   end
 
   @doc "Like `sizes/1`, but returns the value and raises on error."
@@ -352,7 +352,7 @@ defmodule Playwright.Request do
           responseHeadersSize: integer()
         }
   def sizes!(%Playwright.Request{} = request) do
-    Facade.async!("request.sizes", request, fn -> Playwright.Client.Request.sizes(request) end)
+    Facade.async!("request.sizes", fn -> Playwright.Client.Request.sizes(request) end)
   end
 
   @doc ~S"""

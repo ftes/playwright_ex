@@ -49,7 +49,7 @@ defmodule Playwright.Test.BrowserPoolTest do
   defp run_test(messages, reason, marked \\ Results.outside()), do: end_test(fake_test(marked), messages, reason)
 
   # A browser of the fake test `pid`, and its end and release.
-  defp lease(pid, opts), do: Pool.browser(Options.pool(opts), {:test, pid})
+  defp hold(pid, opts), do: Pool.browser(Options.pool(opts), {:test, pid})
 
   defp finish(pid, messages, reason) do
     end_test(pid, messages, reason)
@@ -58,19 +58,19 @@ defmodule Playwright.Test.BrowserPoolTest do
 
   defp passed, do: &{:passed, &1}
 
-  # A fake test that leases a browser of `opts` and passes.
+  # A fake test that holds a browser of `opts` and passes.
   defp finish_leased(opts) do
     t = fake_test()
-    lease(t, opts)
+    hold(t, opts)
     finish(t, [passed()], :shutdown)
   end
 
   # The same, its browser.
   defp finish_leased_browser(opts) do
     t = fake_test()
-    leased = lease(t, opts)
+    held = hold(t, opts)
     finish(t, [passed()], :shutdown)
-    leased
+    held
   end
 
   def on_start(playwright, test_pid) do
@@ -78,7 +78,7 @@ defmodule Playwright.Test.BrowserPoolTest do
     :ok
   end
 
-  # Runs in the slot: its links are the pool and the driver's supervisor.
+  # Runs in the worker: its links are the pool and the driver's supervisor.
   def raise_on_start(playwright, test_pid) do
     {:links, links} = Process.info(self(), :links)
     send(test_pid, {:drivers, links -- [Process.whereis(Pool)], playwright})
@@ -112,7 +112,7 @@ defmodule Playwright.Test.BrowserPoolTest do
     test "a scope's concurrent callers get one browser, launched once, after on_start" do
       opts = opts(on_start: {__MODULE__, :on_start, [self()]})
       t = fake_test()
-      results = 1..5 |> Enum.map(fn _ -> Task.async(fn -> lease(t, opts) end) end) |> Task.await_many(30_000)
+      results = 1..5 |> Enum.map(fn _ -> Task.async(fn -> hold(t, opts) end) end) |> Task.await_many(30_000)
 
       assert [%{browser: browser, playwright: playwright}] = Enum.uniq(results)
       assert Browser.is_connected(browser)
@@ -125,7 +125,7 @@ defmodule Playwright.Test.BrowserPoolTest do
     test "an on_start that raises leaves no driver running, nor its row" do
       opts = opts(on_start: {__MODULE__, :raise_on_start, [self()]})
       t = fake_test()
-      assert_raise RuntimeError, "on_start failed", fn -> lease(t, opts) end
+      assert_raise RuntimeError, "on_start failed", fn -> hold(t, opts) end
       assert_received {:drivers, [sup], playwright}
       refute Process.alive?(sup)
       assert :ets.lookup(Results.table(), {:driver, playwright.conn}) == []
@@ -135,9 +135,9 @@ defmodule Playwright.Test.BrowserPoolTest do
     test "a lost browser is launched again" do
       opts = opts()
       t = fake_test()
-      %{browser: browser} = lease(t, opts)
+      %{browser: browser} = hold(t, opts)
       Browser.close!(browser)
-      %{browser: again} = lease(t, opts)
+      %{browser: again} = hold(t, opts)
       assert again != browser
       assert Browser.is_connected(again)
       finish(t, [], :boom)
@@ -146,7 +146,7 @@ defmodule Playwright.Test.BrowserPoolTest do
     test "on_start runs again on a driver its supervisor restarted" do
       opts = opts(on_start: {__MODULE__, :on_start, [self()]})
       t = fake_test()
-      %{browser: browser, playwright: playwright} = lease(t, opts)
+      %{browser: browser, playwright: playwright} = hold(t, opts)
       assert_received {:on_start, ^playwright}
 
       # kill -9 of the driver: its connection goes, the supervisor starts a new one.
@@ -156,7 +156,7 @@ defmodule Playwright.Test.BrowserPoolTest do
       {_, 0} = System.cmd("kill", ["-9", to_string(os_pid)])
       assert_receive {:DOWN, ^ref, :process, _, _}, 10_000
 
-      %{browser: relaunched, playwright: again} = lease(t, opts)
+      %{browser: relaunched, playwright: again} = hold(t, opts)
       assert again != playwright
       assert_received {:on_start, ^again}
       assert relaunched != browser
@@ -169,15 +169,17 @@ defmodule Playwright.Test.BrowserPoolTest do
       start_supervised!({Playwright.Supervisor, name: name})
       browser = Playwright.BrowserType.launch!(Playwright.TestBrowser.browser_type(Playwright.instance(name)))
 
-      assert_raise ArgumentError, ~r/not a browser of Playwright.Test.BrowserPool/, fn ->
+      assert_raise ArgumentError, ~r/^Playwright.Test.BrowserPool.playwright\/1: not a pooled browser, got: /, fn ->
         BrowserPool.playwright(browser)
       end
     end
 
     test "unknown options and bad values raise" do
-      assert_raise ArgumentError, ~r/unknown options \[:headless\]/, fn -> BrowserPool.browser(headless: true) end
+      assert_raise ArgumentError, ~r/unknown options, .*got: \[:headless\]/, fn ->
+        BrowserPool.browser(headless: true)
+      end
 
-      assert_raise ArgumentError, ~r/invalid browser_name: :chrome/, fn ->
+      assert_raise ArgumentError, ~r/invalid browser_name, .*got: :chrome/, fn ->
         BrowserPool.browser(browser_name: :chrome)
       end
     end
@@ -224,10 +226,10 @@ defmodule Playwright.Test.BrowserPoolTest do
       assert Results.result(spawn(fn -> :ok end), 100) == {nil, []}
     end
 
-    test "a finish killed past ExUnit's timeout releases the test's seat as it exits, reset" do
+    test "a finish killed past ExUnit's timeout releases the test's worker as it exits, reset" do
       t = fake_test()
-      %{playwright: playwright} = lease(t, opts())
-      [seat] = for {pid, %{scope: ^t}} <- :sys.get_state(Pool).seats, do: pid
+      %{playwright: playwright} = hold(t, opts())
+      [worker] = for {pid, %{scope: ^t}} <- :sys.get_state(Pool).workers, do: pid
 
       # It waits for the result of `t`, which runs on, until ExUnit kills it.
       finisher = spawn(fn -> Playwright.Test.__finish__(t, :infinity) end)
@@ -235,15 +237,15 @@ defmodule Playwright.Test.BrowserPoolTest do
       Process.exit(finisher, :kill)
 
       wait_until(fn -> not Map.has_key?(:sys.get_state(Pool).scopes, t) end)
-      assert %{scope: nil, key: nil} = :sys.get_state(Pool).seats[seat]
+      assert %{scope: nil, key: nil} = :sys.get_state(Pool).workers[worker]
       wait_until(fn -> :ets.lookup(Results.table(), {:driver, playwright.conn}) == [] end)
       finish(t, [], :boom)
     end
 
-    test "a finish past its budget resets the test's seat, and kills a recorder that doesn't answer" do
+    test "a finish past its budget resets the test's worker, and kills a recorder that doesn't answer" do
       t = fake_test()
-      lease(t, opts())
-      [seat] = for {pid, %{scope: ^t}} <- :sys.get_state(Pool).seats, do: pid
+      hold(t, opts())
+      [worker] = for {pid, %{scope: ^t}} <- :sys.get_state(Pool).workers, do: pid
 
       Playwright.Test.__register__(
         Map.merge(Map.new(Playwright.Test.use(trace: :on)), %{
@@ -263,8 +265,8 @@ defmodule Playwright.Test.BrowserPoolTest do
       assert end_test(t, [passed()], :shutdown) == {:passed, []}
       Playwright.Test.__finish__(t, 100)
 
-      # Its contexts may be left open: the seat resets, though the test passed.
-      assert %{scope: nil, key: nil} = :sys.get_state(Pool).seats[seat]
+      # Its contexts may be left open: the worker resets, though the test passed.
+      assert %{scope: nil, key: nil} = :sys.get_state(Pool).workers[worker]
       assert_receive {:DOWN, ^ref, :process, _, :killed}, 10_000
     end
 
@@ -278,7 +280,7 @@ defmodule Playwright.Test.BrowserPoolTest do
 
   describe "setup_all" do
     # A registered `setup_all` scope's process (`use Playwright.Test`'s), as ExUnit's: its
-    # callbacks, `failed` after a lease of `opts` and a context on it, their error caught, then the
+    # callbacks, `failed` after a hold of `opts` and a context on it, their error caught, then the
     # wait for the module's end. Its `on_exit` release, after it exited (the real one: the
     # `modules` mode of `Playwright.Test.EndToEndTest`).
     defp failed_setup_all(opts, failed) do
@@ -290,9 +292,9 @@ defmodule Playwright.Test.BrowserPoolTest do
 
           try do
             SetupAllTimeout.run(%{module: __MODULE__, timeout: 3000}, fn ->
-              %{browser: browser} = leased = Pool.browser(Options.pool(opts), {:process, self()})
+              %{browser: browser} = held = Pool.browser(Options.pool(opts), {:process, self()})
               Browser.new_context!(browser)
-              send(test, {:leased, leased})
+              send(test, {:held, held})
               fail(failed)
             end)
           catch
@@ -302,11 +304,11 @@ defmodule Playwright.Test.BrowserPoolTest do
           receive do: (:module_end -> :ok)
         end)
 
-      assert_receive {:leased, leased}, 30_000
+      assert_receive {:held, held}, 30_000
       send(pid, :module_end)
       assert_receive {:DOWN, ^ref, :process, ^pid, _reason}, 10_000
       Pool.release(pid)
-      leased
+      held
     end
 
     # Raised: ExUnit catches it, the process exits normally.
@@ -331,14 +333,14 @@ defmodule Playwright.Test.BrowserPoolTest do
           :linked_shutdown | if(ExUnit.configuration()[:trace], do: [], else: [:timed_out])
         ] do
       @tag :capture_log
-      test "a #{failed} setup_all resets its seat: the next scope of its options gets a fresh browser, without its contexts" do
+      test "a #{failed} setup_all resets its worker: the next scope of its options gets a fresh browser, without its contexts" do
         opts = opts()
         warm = finish_leased_browser(opts)
-        leased = failed_setup_all(opts, unquote(failed))
-        assert leased.playwright == warm.playwright
+        held = failed_setup_all(opts, unquote(failed))
+        assert held.playwright == warm.playwright
 
         t = fake_test()
-        fresh = lease(t, opts)
+        fresh = hold(t, opts)
         assert fresh.playwright != warm.playwright
         assert Browser.contexts(fresh.browser) == []
         assert gone?(warm.browser)
@@ -347,26 +349,26 @@ defmodule Playwright.Test.BrowserPoolTest do
     end
 
     @tag :capture_log
-    test "an unregistered setup_all's (a plain ExUnit module's) failure is not its seat's" do
+    test "an unregistered setup_all's (a plain ExUnit module's) failure is not its worker's" do
       opts = opts()
       test = self()
 
       {pid, ref} =
         spawn_monitor(fn ->
-          send(test, {:leased, Pool.browser(Options.pool(opts), {:process, self()})})
+          send(test, {:held, Pool.browser(Options.pool(opts), {:process, self()})})
           exit(:boom)
         end)
 
-      assert_receive {:leased, leased}, 30_000
+      assert_receive {:held, held}, 30_000
       assert_receive {:DOWN, ^ref, :process, ^pid, :boom}, 10_000
       Pool.release(pid)
 
       t = fake_test()
-      assert lease(t, opts).playwright == leased.playwright
+      assert hold(t, opts).playwright == held.playwright
       finish(t, [passed()], :shutdown)
     end
 
-    test "a passed setup_all's seat goes back warm" do
+    test "a passed setup_all's worker goes back warm" do
       opts = opts()
       test = self()
 
@@ -375,24 +377,24 @@ defmodule Playwright.Test.BrowserPoolTest do
           Playwright.Test.__setup_all__(%{})
 
           SetupAllTimeout.run(%{module: __MODULE__, timeout: :infinity}, fn ->
-            send(test, {:leased, Pool.browser(Options.pool(opts), {:process, self()})})
+            send(test, {:held, Pool.browser(Options.pool(opts), {:process, self()})})
           end)
 
           receive do: (:module_end -> :ok)
         end)
 
-      assert_receive {:leased, leased}, 30_000
+      assert_receive {:held, held}, 30_000
       send(pid, :module_end)
       assert_receive {:DOWN, ^ref, :process, ^pid, :normal}, 10_000
       Pool.release(pid)
 
       t = fake_test()
-      assert lease(t, opts).playwright == leased.playwright
+      assert hold(t, opts).playwright == held.playwright
       finish(t, [passed()], :shutdown)
     end
   end
 
-  # `workers` for the test (the idle seats of the modules before it restart, or are trimmed at a
+  # `workers` for the test (the idle workers of the modules before it restart, or are trimmed at a
   # release).
   defp put_workers(workers) do
     config = Application.get_env(:playwright, :test)
@@ -407,7 +409,7 @@ defmodule Playwright.Test.BrowserPoolTest do
       on_exit(fn -> Application.put_env(:playwright, :test, config) end)
     end
 
-    test "read once per config, not on each lease and release" do
+    test "read once per config, not on each hold and release" do
       opts = opts()
       # `call_count` counts the calls of the processes with the `call` flag: the pool's.
       :erlang.trace(Process.whereis(Pool), true, [:call, tracer: self()])
@@ -428,11 +430,11 @@ defmodule Playwright.Test.BrowserPoolTest do
     test "at most workers drivers at once, waiters first come first served; a passing scope's goes back warm, a failed one's stops" do
       opts = opts()
       [ta, tb, tc, td] = for _ <- 1..4, do: fake_test()
-      a = lease(ta, opts)
-      b = lease(tb, opts)
+      a = hold(ta, opts)
+      b = hold(tb, opts)
       assert a.playwright != b.playwright
 
-      c = Task.async(fn -> lease(tc, opts) end)
+      c = Task.async(fn -> hold(tc, opts) end)
       assert Task.yield(c, 1_000) == nil
 
       # Passed: the next waiter gets the same driver and browser.
@@ -441,7 +443,7 @@ defmodule Playwright.Test.BrowserPoolTest do
 
       # Failed: its driver stops, the next scope gets a new one.
       finish(tb, [], :boom)
-      d = lease(td, opts)
+      d = hold(td, opts)
       assert d.playwright not in [a.playwright, b.playwright]
       assert gone?(b.browser)
 
@@ -452,31 +454,31 @@ defmodule Playwright.Test.BrowserPoolTest do
       put_workers(1)
       opts = opts()
       [t, next] = [fake_test(), fake_test()]
-      a = lease(t, opts)
-      assert lease(t, opts) == a
+      a = hold(t, opts)
+      assert hold(t, opts) == a
       # Other launch options: the browser under test, so CI's one installed browser runs it. Over
       # `workers`: `t` holds a driver already.
-      b = lease(t, Keyword.put(opts, :launch_options, opts()[:launch_options]))
+      b = hold(t, Keyword.put(opts, :launch_options, opts()[:launch_options]))
       assert a.playwright != b.playwright
       finish(t, [passed()], :shutdown)
 
-      # The seat over `workers` stops at the release, the other restarts for the next options.
-      c = lease(next, Keyword.put(opts, :launch_options, opts()[:launch_options]))
+      # The worker over `workers` stops at the release, the other restarts for the next options.
+      c = hold(next, Keyword.put(opts, :launch_options, opts()[:launch_options]))
       assert c.playwright not in [a.playwright, b.playwright]
       assert gone?(a.browser) and gone?(b.browser)
       finish(next, [], :boom)
     end
 
-    test "at the cap, a new key restarts the longest idle seat of another key" do
+    test "at the cap, a new key restarts the longest idle worker of another key" do
       put_workers(2)
       [t1, t2] = for _ <- 1..2, do: fake_test()
-      one = lease(t1, key("one"))
-      two = lease(t2, key("two"))
+      one = hold(t1, key("one"))
+      two = hold(t2, key("two"))
       finish(t1, [passed()], :shutdown)
       finish(t2, [passed()], :shutdown)
 
       t3 = fake_test()
-      three = lease(t3, key("three"))
+      three = hold(t3, key("three"))
       # `one` was idle longest.
       assert gone?(one.browser)
       assert connected?(two.browser)
@@ -484,19 +486,19 @@ defmodule Playwright.Test.BrowserPoolTest do
       assert gone?(three.browser)
     end
 
-    test "idle seats of another key make no room while held seats fill workers" do
+    test "idle workers of another key make no room while held workers fill the cap" do
       put_workers(4)
       other = opts(on_start: {__MODULE__, :on_start, [self()]})
       ts = for _ <- 1..3, do: fake_test()
-      for t <- ts, do: lease(t, other)
+      for t <- ts, do: hold(t, other)
       for t <- ts, do: finish(t, [passed()], :shutdown)
       put_workers(2)
 
       opts = opts()
       [tn, to, tp] = for _ <- 1..3, do: fake_test()
-      a = lease(tn, opts)
-      _b = lease(to, opts)
-      c = Task.async(fn -> lease(tp, opts) end)
+      a = hold(tn, opts)
+      _b = hold(to, opts)
+      c = Task.async(fn -> hold(tp, opts) end)
       assert Task.yield(c, 1_000) == nil
 
       finish(tn, [passed()], :shutdown)
@@ -504,15 +506,15 @@ defmodule Playwright.Test.BrowserPoolTest do
       for t <- [to, tp], do: finish(t, [], :boom)
     end
 
-    test "a seat of another key restarts in place, inside the lease: its old driver exited first" do
+    test "a worker of another key restarts in place, inside the hold: its old driver exited first" do
       put_workers(1)
       [ta, tb] = [fake_test(), fake_test()]
-      a = lease(ta, opts())
+      a = hold(ta, opts())
       %{port: port} = :sys.get_state(Playwright.Runtime.Heap.get(a.playwright, :driverProcess))
       {:os_pid, os_pid} = Port.info(port, :os_pid)
       finish(ta, [passed()], :shutdown)
 
-      b = lease(tb, key("other key"))
+      b = hold(tb, key("other key"))
       assert b.playwright != a.playwright
       assert {_, 1} = System.cmd("kill", ["-0", to_string(os_pid)], stderr_to_stdout: true)
       finish(tb, [], :boom)
@@ -522,13 +524,13 @@ defmodule Playwright.Test.BrowserPoolTest do
       put_workers(1)
       opts = opts()
       [holder, first, second] = for _ <- 1..3, do: fake_test()
-      a = lease(holder, opts)
-      first_waiter = Task.async(fn -> lease(first, key("first")) end)
+      a = hold(holder, opts)
+      first_waiter = Task.async(fn -> hold(first, key("first")) end)
       wait_until(fn -> length(:sys.get_state(Pool).waiting) == 1 end)
-      second_waiter = Task.async(fn -> lease(second, opts) end)
+      second_waiter = Task.async(fn -> hold(second, opts) end)
       wait_until(fn -> length(:sys.get_state(Pool).waiting) == 2 end)
 
-      # The first waiter takes the seat, restarted for its key; the second waits on.
+      # The first waiter takes the worker, restarted for its key; the second waits on.
       finish(holder, [passed()], :shutdown)
       assert Task.await(first_waiter, 30_000).playwright != a.playwright
       assert Task.yield(second_waiter, 200) == nil
@@ -538,20 +540,20 @@ defmodule Playwright.Test.BrowserPoolTest do
       finish(second, [], :boom)
     end
 
-    test "a waiter whose scope got a seat while it waited is served, also behind a scope that waits on" do
+    test "a waiter whose scope got a worker while it waited is served, also behind a scope that waits on" do
       put_workers(1)
       opts = opts()
       [holder, t, u] = for _ <- 1..3, do: fake_test()
-      a = lease(holder, opts)
+      a = hold(holder, opts)
       waiting = fn n -> wait_until(fn -> length(:sys.get_state(Pool).waiting) == n end) end
-      t_first = Task.async(fn -> lease(t, opts) end)
+      t_first = Task.async(fn -> hold(t, opts) end)
       waiting.(1)
-      u_waiter = Task.async(fn -> lease(u, opts) end)
+      u_waiter = Task.async(fn -> hold(u, opts) end)
       waiting.(2)
-      t_second = Task.async(fn -> lease(t, opts) end)
+      t_second = Task.async(fn -> hold(t, opts) end)
       waiting.(3)
 
-      # `t`'s first call takes the seat, so its second is a repeated call: not left behind `u`,
+      # `t`'s first call takes the worker, so its second is a repeated call: not left behind `u`,
       # which waits for `t`.
       finish(holder, [passed()], :shutdown)
       assert Task.await(t_first, 30_000) == a
@@ -566,15 +568,15 @@ defmodule Playwright.Test.BrowserPoolTest do
     test "a scope with no known result (a doctest's, an unregistered test's) goes back warm; a crash stops it" do
       opts = opts()
       [unknown, unwatched, crashed] = [fake_test(false), spawn(fn -> :ok end), fake_test(false)]
-      a = lease(unknown, opts)
-      b = lease(unwatched, opts)
+      a = hold(unknown, opts)
+      b = hold(unwatched, opts)
       finish(unknown, [], :shutdown)
       Pool.release(unwatched)
 
       # Both back, warm: the next scopes get them.
       next = fake_test()
-      c = lease(crashed, opts)
-      assert MapSet.new([lease(next, opts), c]) == MapSet.new([a, b])
+      c = hold(crashed, opts)
+      assert MapSet.new([hold(next, opts), c]) == MapSet.new([a, b])
       finish(crashed, [], :boom)
       assert gone?(c.browser)
       finish(next, [], :boom)
@@ -584,22 +586,22 @@ defmodule Playwright.Test.BrowserPoolTest do
       put_workers(1)
       opts = opts()
       [holder, killed, released, next] = for _ <- 1..4, do: fake_test()
-      a = lease(holder, opts)
+      a = hold(holder, opts)
 
       # Killed while waiting, as by its test's timeout.
-      waiter = spawn(fn -> lease(killed, opts) end)
+      waiter = spawn(fn -> hold(killed, opts) end)
       wait_until(fn -> length(:sys.get_state(Pool).waiting) == 1 end)
       Process.exit(waiter, :kill)
-      released_waiter = Task.async(fn -> catch_error(lease(released, opts)) end)
+      released_waiter = Task.async(fn -> catch_error(hold(released, opts)) end)
       # The kill is async: wait until the killed waiter is gone and this one is queued.
       wait_until(fn -> Enum.map(:sys.get_state(Pool).waiting, & &1.scope) == [released] end)
       Pool.release(released)
 
-      assert %ArgumentError{message: "BrowserPool.browser/1 waited past the end of its test or module"} =
+      assert %RuntimeError{message: "Playwright.Test.BrowserPool.browser/1: waited past the end of its test or module"} =
                Task.await(released_waiter)
 
       finish(holder, [passed()], :shutdown)
-      assert lease(next, opts) == a
+      assert hold(next, opts) == a
       finish(next, [], :boom)
     end
 
@@ -630,7 +632,7 @@ defmodule Playwright.Test.BrowserPoolTest do
 
   test "after_suite waits for the drivers being stopped" do
     t = fake_test()
-    stopped = lease(t, opts())
+    stopped = hold(t, opts())
     finish(t, [], :boom)
     Pool.after_suite(%{})
     refute connected?(stopped.browser)
@@ -638,16 +640,16 @@ defmodule Playwright.Test.BrowserPoolTest do
 
   test "after_suite stops every driver" do
     [free, held] = [fake_test(), fake_test()]
-    one = lease(free, opts())
+    one = hold(free, opts())
     finish(free, [passed()], :shutdown)
-    two = lease(held, key("held"))
+    two = hold(held, key("held"))
 
     Pool.after_suite(%{})
     refute connected?(one.browser) or connected?(two.browser)
 
     # The next use starts anew.
     next = fake_test()
-    assert Browser.is_connected(lease(next, opts()).browser)
+    assert Browser.is_connected(hold(next, opts()).browser)
     finish(next, [], :boom)
   end
 end

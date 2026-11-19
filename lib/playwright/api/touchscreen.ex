@@ -42,12 +42,12 @@ defmodule Playwright.Touchscreen do
   """
   @spec tap(t(), number(), number()) :: :ok | {:error, Playwright.error()}
   def tap(%Playwright.Touchscreen{} = touchscreen, x, y) do
-    Facade.async_void("touchscreen.tap", touchscreen, fn -> Playwright.Client.Touchscreen.tap(touchscreen, x, y) end)
+    Facade.async_void("touchscreen.tap", fn -> Playwright.Client.Touchscreen.tap(touchscreen, x, y) end)
   end
 
   @doc "Like `tap/3`, but returns the value and raises on error."
   @spec tap!(t(), number(), number()) :: :ok
   def tap!(%Playwright.Touchscreen{} = touchscreen, x, y) do
-    Facade.async_void!("touchscreen.tap", touchscreen, fn -> Playwright.Client.Touchscreen.tap(touchscreen, x, y) end)
+    Facade.async_void!("touchscreen.tap", fn -> Playwright.Client.Touchscreen.tap(touchscreen, x, y) end)
   end
 end

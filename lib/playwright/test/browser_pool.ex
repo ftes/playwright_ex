@@ -30,8 +30,8 @@ defmodule Playwright.Test.BrowserPool do
       `:timeout`, `:slow_mo`). The browser is then connected to that Playwright server instead
       of launched, with `launch_options` sent in the `x-playwright-launch-options` header (the
       call's `headers` win). `nil` (default) launches.
-    * `:driver` - options of the driver's `Playwright.Supervisor`: `:env`, `:executable`,
-      `:node`, `:cache_dir`.
+    * `:driver` - `[env: _]`, the driver's environment (`Playwright.Supervisor`'s `:env`). The
+      driver itself is `config :playwright, :driver`'s, as `mix playwright.install` installs it.
     * `:on_start` - a function of the Playwright (`Playwright`) or `{m, f, args}`
       (called with the Playwright first), run once on each new driver before its browser
       launches: `&MyApp.Selectors.register/1`. Part of the worker's key, so pass a capture, not
@@ -44,14 +44,14 @@ defmodule Playwright.Test.BrowserPool do
 
   ## Workers
 
-  A worker is a seat, upstream's worker slot: it runs one driver and its browser at a time, of
-  one set of options, held by the scope that calls `browser/1`. Called in `setup_all`, the
+  A worker is a process that runs one driver and its browser at a time, of one set of options,
+  held by the scope that calls `browser/1`. Called in `setup_all`, the
   module holds it until it ends, as upstream runs a file in one worker; a test's own calls then
-  go to its module's lease. In `setup` or a test of a module that holds none (or a `Task` of the
+  go to its module's hold. In `setup` or a test of a module that holds none (or a `Task` of the
   test, through `$callers`), the test holds it until it ends. The scope's further calls with the
-  same options return the same browser; other options take another seat. At the end of the scope
+  same options return the same browser; other options take another worker. At the end of the scope
   (the last step of a registered test's `on_exit`; for another scope, an `on_exit` its first call
-  registers), its seats go back, their drivers warm for the next caller of the options, unless it
+  registers), its workers go back, their drivers warm for the next caller of the options, unless it
   failed: then the drivers stop, as upstream replaces a worker after a failure. A module fails
   when its `setup_all` failed (raised, past its timeout, killed or taken down by a linked process;
   only with `use Playwright.Test`, which registers and wraps it: a plain ExUnit module's
@@ -63,13 +63,13 @@ defmodule Playwright.Test.BrowserPool do
   test, a doctest) counts as passed. A lost browser is launched (or connected) again by the scope's
   next call.
 
-  At most `workers` seats are held at once (config, default half the schedulers, as Playwright
+  At most `workers` workers are held at once (config, default half the schedulers, as Playwright
   Test's `workers`); other scopes wait, first come first served, within ExUnit's test timeout
   (not counted in `setup_all`'s). A scope that waits costs nothing, so ExUnit's `max_cases` can stay
-  above `workers`. A scope that holds a seat takes its further options over `workers`, so it
-  never waits while others wait for it; those seats stop at its end. A scope gets an idle seat
-  of its options, else a new one, else the longest idle seat of other options, whose driver its
-  `browser/1` restarts, as upstream restarts a worker of another hash: in a run that mixes
+  above `workers`. A scope that holds a worker takes its further options over `workers`, so it
+  never waits while others wait for it; those workers stop at its end. A scope gets an idle
+  worker of its options, else a new one, else the longest idle worker of other options, whose
+  driver its `browser/1` restarts, as upstream restarts a worker of another hash: in a run that mixes
   options, each switch costs a driver start (about 110 ms) and a browser launch.
 
   The test id attribute of `get_by_test_id` is global to the VM (upstream's to the worker
@@ -116,10 +116,10 @@ defmodule Playwright.Test.BrowserPool do
           ExUnit.Callbacks.on_exit({__MODULE__, :release}, fn -> Pool.release(scope) end)
         rescue
           ArgumentError ->
-            reraise ArgumentError,
-                    "BrowserPool.browser/1 is held by a test (its process or a process with it in $callers, " <>
-                      "with `use Playwright.Test`) or by setup_all, and released at their end; got a call " <>
-                      "from #{inspect(scope)}",
+            reraise RuntimeError,
+                    "Playwright.Test.BrowserPool.browser/1: no test or setup_all to hold the browser, expected a " <>
+                      "call from a test (its process or a process with it in $callers, with `use Playwright.Test`) " <>
+                      "or a setup_all, which release it at their end, got: #{inspect(scope)}",
                     __STACKTRACE__
         end
 
@@ -133,10 +133,13 @@ defmodule Playwright.Test.BrowserPool do
   """
   @spec playwright(Browser.t()) :: Playwright.t()
   def playwright(%Browser{conn: conn} = browser) do
-    # The driver's row of the browser's connection (`Playwright.Test.Pool.Slot`).
+    # The driver's row of the browser's connection (`Playwright.Test.Pool.Worker`).
     case Results.started?() && :ets.lookup(Results.table(), {:driver, conn}) do
-      [{_key, playwright}] -> playwright
-      _ -> raise ArgumentError, "not a browser of Playwright.Test.BrowserPool: #{inspect(browser)}"
+      [{_key, playwright}] ->
+        playwright
+
+      _ ->
+        raise ArgumentError, "Playwright.Test.BrowserPool.playwright/1: not a pooled browser, got: #{inspect(browser)}"
     end
   end
 end
