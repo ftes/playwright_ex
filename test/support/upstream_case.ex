@@ -363,8 +363,8 @@ defmodule Playwright.UpstreamCase do
   end
 
   # Upstream restarts the worker after a failed test; here the driver lives on. Close the
-  # contexts and browsers the test left open, or one still tracing would add its stacks to the
-  # traces of the next tests. Only the test's: the module's stay.
+  # browsers the test left open (`Playwright.Test.Recorder` closes its contexts), or one still
+  # tracing would add its stacks to the traces of the next tests. Only the test's: the module's stay.
   setup %{playwright: playwright, browser: browser} do
     Playwright.DriverCleanup.track_test(playwright, keep: [browser])
   end
