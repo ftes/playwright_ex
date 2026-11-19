@@ -50,11 +50,9 @@ upstream minor, so `~> 1.65.0` is safe.
 
 ### Fixed
 
-- Cookies (`add_cookies`) and storage states (`storage_state:`, `set_storage_state`) check
-  their keys, as other nested objects do, against the protocol's (results round-trip, string
-  keys from `JSON.decode!/1` too): a snake_case `http_only:` raises instead of being dropped.
-  So do `multipart` file payloads. Errors name the positional argument and the index in a
-  list (`unknown field cookies[0].http_only`).
+- `add_cookies`, `storage_state:` and `set_storage_state` check their keys against the
+  protocol's: a snake_case `http_only:` raises instead of being dropped. Errors name the
+  argument and list index (`cookies[0].http_only`).
 
 ### Docs
 

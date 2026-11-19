@@ -254,21 +254,7 @@ defmodule Playwright.BrowserContext do
     Playwright.Client.BrowserContext.debugger(browser_context)
   end
 
-  @add_cookies_cookies {:array,
-                        {:protocol,
-                         %{
-                           name: nil,
-                           value: nil,
-                           url: nil,
-                           domain: nil,
-                           path: nil,
-                           expires: nil,
-                           httpOnly: nil,
-                           secure: nil,
-                           sameSite: nil,
-                           partitionKey: nil,
-                           _crHasCrossSiteAncestor: nil
-                         }}}
+  @add_cookies_cookies {:protocol, "BrowserContextAddCookiesParams", :cookies}
 
   @doc ~S"""
   Adds cookies into this browser context. All pages within this context will have these cookies installed. Cookies can be
@@ -296,23 +282,9 @@ defmodule Playwright.BrowserContext do
     * `:sameSite` - Optional.
     * `:partitionKey` - For partitioned third-party cookies (aka [CHIPS](https://developer.mozilla.org/en-US/docs/Web/Privacy/Guides/Privacy_sandbox/Partitioned_cookies)), the partition key. Optional.
   """
-  @spec add_cookies(t(), [
-          %{
-            required(:name) => String.t(),
-            required(:value) => String.t(),
-            optional(:url) => String.t(),
-            optional(:domain) => String.t(),
-            optional(:path) => String.t(),
-            optional(:expires) => number(),
-            optional(:httpOnly) => boolean(),
-            optional(:secure) => boolean(),
-            optional(:sameSite) => String.t(),
-            optional(:partitionKey) => String.t(),
-            optional(atom()) => term()
-          }
-        ]) :: :ok | {:error, Playwright.error()}
+  @spec add_cookies(t(), [map()]) :: :ok | {:error, Playwright.error()}
   def add_cookies(%Playwright.BrowserContext{} = browser_context, cookies) do
-    cookies = Facade.arg!(cookies, @add_cookies_cookies, "browserContext.addCookies", "cookies")
+    cookies = Facade.arg!(cookies, @add_cookies_cookies, "browserContext.addCookies", :cookies)
 
     Facade.async_void("browserContext.addCookies", browser_context, fn ->
       Playwright.Client.BrowserContext.add_cookies(browser_context, cookies)
@@ -320,23 +292,9 @@ defmodule Playwright.BrowserContext do
   end
 
   @doc "Like `add_cookies/2`, but returns the value and raises on error."
-  @spec add_cookies!(t(), [
-          %{
-            required(:name) => String.t(),
-            required(:value) => String.t(),
-            optional(:url) => String.t(),
-            optional(:domain) => String.t(),
-            optional(:path) => String.t(),
-            optional(:expires) => number(),
-            optional(:httpOnly) => boolean(),
-            optional(:secure) => boolean(),
-            optional(:sameSite) => String.t(),
-            optional(:partitionKey) => String.t(),
-            optional(atom()) => term()
-          }
-        ]) :: :ok
+  @spec add_cookies!(t(), [map()]) :: :ok
   def add_cookies!(%Playwright.BrowserContext{} = browser_context, cookies) do
-    cookies = Facade.arg!(cookies, @add_cookies_cookies, "browserContext.addCookies", "cookies")
+    cookies = Facade.arg!(cookies, @add_cookies_cookies, "browserContext.addCookies", :cookies)
 
     Facade.async_void!("browserContext.addCookies", browser_context, fn ->
       Playwright.Client.BrowserContext.add_cookies(browser_context, cookies)
@@ -399,7 +357,7 @@ defmodule Playwright.BrowserContext do
           add_init_script_options()
         ) :: {:ok, Playwright.Disposable.t()} | {:error, Playwright.error()}
   def add_init_script(%Playwright.BrowserContext{} = browser_context, script, arg \\ nil, options \\ []) do
-    script = Facade.arg!(script, @add_init_script_script, "browserContext.addInitScript", "script")
+    script = Facade.arg!(script, @add_init_script_script, "browserContext.addInitScript", :script)
     options = Facade.options!(options, @add_init_script_options, "browserContext.addInitScript")
 
     Facade.async("browserContext.addInitScript", browser_context, fn ->
@@ -415,7 +373,7 @@ defmodule Playwright.BrowserContext do
           add_init_script_options()
         ) :: Playwright.Disposable.t()
   def add_init_script!(%Playwright.BrowserContext{} = browser_context, script, arg \\ nil, options \\ []) do
-    script = Facade.arg!(script, @add_init_script_script, "browserContext.addInitScript", "script")
+    script = Facade.arg!(script, @add_init_script_script, "browserContext.addInitScript", :script)
     options = Facade.options!(options, @add_init_script_options, "browserContext.addInitScript")
 
     Facade.async!("browserContext.addInitScript", browser_context, fn ->
@@ -1118,7 +1076,7 @@ defmodule Playwright.BrowserContext do
         timeout,
         @set_default_navigation_timeout_timeout,
         "browserContext.setDefaultNavigationTimeout",
-        "timeout"
+        :timeout
       )
 
     Playwright.Client.BrowserContext.set_default_navigation_timeout(browser_context, timeout)
@@ -1145,7 +1103,7 @@ defmodule Playwright.BrowserContext do
   """
   @spec set_default_timeout(t(), number() | :infinity) :: :ok
   def set_default_timeout(%Playwright.BrowserContext{} = browser_context, timeout) do
-    timeout = Facade.arg!(timeout, @set_default_timeout_timeout, "browserContext.setDefaultTimeout", "timeout")
+    timeout = Facade.arg!(timeout, @set_default_timeout_timeout, "browserContext.setDefaultTimeout", :timeout)
     Playwright.Client.BrowserContext.set_default_timeout(browser_context, timeout)
     :ok
   end
@@ -1210,7 +1168,7 @@ defmodule Playwright.BrowserContext do
           :null | %{required(:latitude) => number(), required(:longitude) => number(), optional(:accuracy) => number()}
         ) :: :ok | {:error, Playwright.error()}
   def set_geolocation(%Playwright.BrowserContext{} = browser_context, geolocation) do
-    geolocation = Facade.arg!(geolocation, @set_geolocation_geolocation, "browserContext.setGeolocation", "geolocation")
+    geolocation = Facade.arg!(geolocation, @set_geolocation_geolocation, "browserContext.setGeolocation", :geolocation)
 
     Facade.async_void("browserContext.setGeolocation", browser_context, fn ->
       Playwright.Client.BrowserContext.set_geolocation(browser_context, geolocation)
@@ -1223,7 +1181,7 @@ defmodule Playwright.BrowserContext do
           :null | %{required(:latitude) => number(), required(:longitude) => number(), optional(:accuracy) => number()}
         ) :: :ok
   def set_geolocation!(%Playwright.BrowserContext{} = browser_context, geolocation) do
-    geolocation = Facade.arg!(geolocation, @set_geolocation_geolocation, "browserContext.setGeolocation", "geolocation")
+    geolocation = Facade.arg!(geolocation, @set_geolocation_geolocation, "browserContext.setGeolocation", :geolocation)
 
     Facade.async_void!("browserContext.setGeolocation", browser_context, fn ->
       Playwright.Client.BrowserContext.set_geolocation(browser_context, geolocation)
@@ -1264,7 +1222,7 @@ defmodule Playwright.BrowserContext do
         http_credentials,
         @set_http_credentials_http_credentials,
         "browserContext.setHTTPCredentials",
-        "http_credentials"
+        :http_credentials
       )
 
     Facade.async_void("browserContext.setHTTPCredentials", browser_context, fn ->
@@ -1285,7 +1243,7 @@ defmodule Playwright.BrowserContext do
         http_credentials,
         @set_http_credentials_http_credentials,
         "browserContext.setHTTPCredentials",
-        "http_credentials"
+        :http_credentials
       )
 
     Facade.async_void!("browserContext.setHTTPCredentials", browser_context, fn ->
@@ -1430,74 +1388,7 @@ defmodule Playwright.BrowserContext do
     end)
   end
 
-  @set_storage_state_storage_state {:protocol,
-                                    %{
-                                      cookies:
-                                        {:array,
-                                         {:protocol,
-                                          %{
-                                            name: nil,
-                                            value: nil,
-                                            url: nil,
-                                            domain: nil,
-                                            path: nil,
-                                            expires: nil,
-                                            httpOnly: nil,
-                                            secure: nil,
-                                            sameSite: nil,
-                                            partitionKey: nil,
-                                            _crHasCrossSiteAncestor: nil
-                                          }}},
-                                      origins:
-                                        {:array,
-                                         {:protocol,
-                                          %{
-                                            origin: nil,
-                                            localStorage: {:array, {:protocol, %{name: nil, value: nil}}},
-                                            indexedDB:
-                                              {:array,
-                                               {:protocol,
-                                                %{
-                                                  name: nil,
-                                                  version: nil,
-                                                  stores:
-                                                    {:array,
-                                                     {:protocol,
-                                                      %{
-                                                        name: nil,
-                                                        autoIncrement: nil,
-                                                        keyPath: nil,
-                                                        keyPathArray: nil,
-                                                        records:
-                                                          {:array,
-                                                           {:protocol,
-                                                            %{key: nil, keyEncoded: nil, value: nil, valueEncoded: nil}}},
-                                                        indexes:
-                                                          {:array,
-                                                           {:protocol,
-                                                            %{
-                                                              name: nil,
-                                                              keyPath: nil,
-                                                              keyPathArray: nil,
-                                                              multiEntry: nil,
-                                                              unique: nil
-                                                            }}}
-                                                      }}}
-                                                }}},
-                                            opfs: {:array, {:protocol, %{path: nil, type: nil, base64: nil}}}
-                                          }}},
-                                      credentials:
-                                        {:array,
-                                         {:protocol,
-                                          %{
-                                            id: nil,
-                                            rpId: nil,
-                                            userHandle: nil,
-                                            privateKey: nil,
-                                            publicKey: nil,
-                                            signCount: nil
-                                          }}}
-                                    }}
+  @set_storage_state_storage_state {:protocol, "BrowserContextSetStorageStateParams", :storageState}
 
   @doc ~S"""
   Clears the existing cookies, local storage, IndexedDB entries, origin private file system entries and virtual WebAuthn credentials, and sets the new storage
@@ -1534,38 +1425,10 @@ defmodule Playwright.BrowserContext do
         * `:name`
         * `:value`
   """
-  @spec set_storage_state(
-          t(),
-          String.t()
-          | %{
-              required(:cookies) => [
-                %{
-                  required(:name) => String.t(),
-                  required(:value) => String.t(),
-                  required(:domain) => String.t(),
-                  required(:path) => String.t(),
-                  required(:expires) => number(),
-                  required(:httpOnly) => boolean(),
-                  required(:secure) => boolean(),
-                  required(:sameSite) => String.t(),
-                  optional(atom()) => term()
-                }
-              ],
-              required(:origins) => [
-                %{
-                  required(:origin) => String.t(),
-                  required(:localStorage) => [
-                    %{required(:name) => String.t(), required(:value) => String.t(), optional(atom()) => term()}
-                  ],
-                  optional(atom()) => term()
-                }
-              ],
-              optional(atom()) => term()
-            }
-        ) :: :ok | {:error, Playwright.error()}
+  @spec set_storage_state(t(), String.t() | map()) :: :ok | {:error, Playwright.error()}
   def set_storage_state(%Playwright.BrowserContext{} = browser_context, storage_state) do
     storage_state =
-      Facade.arg!(storage_state, @set_storage_state_storage_state, "browserContext.setStorageState", "storage_state")
+      Facade.arg!(storage_state, @set_storage_state_storage_state, "browserContext.setStorageState", :storage_state)
 
     Facade.async_void("browserContext.setStorageState", browser_context, fn ->
       Playwright.Client.BrowserContext.set_storage_state(browser_context, storage_state)
@@ -1573,38 +1436,10 @@ defmodule Playwright.BrowserContext do
   end
 
   @doc "Like `set_storage_state/2`, but returns the value and raises on error."
-  @spec set_storage_state!(
-          t(),
-          String.t()
-          | %{
-              required(:cookies) => [
-                %{
-                  required(:name) => String.t(),
-                  required(:value) => String.t(),
-                  required(:domain) => String.t(),
-                  required(:path) => String.t(),
-                  required(:expires) => number(),
-                  required(:httpOnly) => boolean(),
-                  required(:secure) => boolean(),
-                  required(:sameSite) => String.t(),
-                  optional(atom()) => term()
-                }
-              ],
-              required(:origins) => [
-                %{
-                  required(:origin) => String.t(),
-                  required(:localStorage) => [
-                    %{required(:name) => String.t(), required(:value) => String.t(), optional(atom()) => term()}
-                  ],
-                  optional(atom()) => term()
-                }
-              ],
-              optional(atom()) => term()
-            }
-        ) :: :ok
+  @spec set_storage_state!(t(), String.t() | map()) :: :ok
   def set_storage_state!(%Playwright.BrowserContext{} = browser_context, storage_state) do
     storage_state =
-      Facade.arg!(storage_state, @set_storage_state_storage_state, "browserContext.setStorageState", "storage_state")
+      Facade.arg!(storage_state, @set_storage_state_storage_state, "browserContext.setStorageState", :storage_state)
 
     Facade.async_void!("browserContext.setStorageState", browser_context, fn ->
       Playwright.Client.BrowserContext.set_storage_state(browser_context, storage_state)

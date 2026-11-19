@@ -29,7 +29,7 @@ defmodule Playwright.Library.BrowsertypeLaunchTest do
   # `{ userDataDir } as any`: the facade rejects options that are not in the API.
   test "BT-005 should throw if userDataDir option is passed", %{browser_type: browser_type} do
     wait_error = catch_error(BrowserType.launch(browser_type, user_data_dir: "random-path"))
-    assert Exception.message(wait_error) =~ "browserType.launch: unknown option :user_data_dir"
+    assert Exception.message(wait_error) =~ "browserType.launch: unknown option user_data_dir"
   end
 
   test "BT-006 should throw if userDataDir is passed as an argument", %{browser_type: browser_type} do
@@ -42,13 +42,13 @@ defmodule Playwright.Library.BrowsertypeLaunchTest do
   # `{ port: 1234 } as any`: the facade rejects options that are not in the API.
   test "BT-007 should throw if port option is passed", %{browser_type: browser_type} do
     error = catch_error(BrowserType.launch(browser_type, port: 1234))
-    assert Exception.message(error) =~ "browserType.launch: unknown option :port"
+    assert Exception.message(error) =~ "browserType.launch: unknown option port"
   end
 
   # `{ port: 1234 } as any`: the facade rejects options that are not in the API.
   test "BT-008 should throw if port option is passed for persistent context", %{browser_type: browser_type} do
     error = catch_error(BrowserType.launch_persistent_context(browser_type, "foo", port: 1234))
-    assert Exception.message(error) =~ "browserType.launchPersistentContext: unknown option :port"
+    assert Exception.message(error) =~ "browserType.launchPersistentContext: unknown option port"
   end
 
   @tag skip: if(@browser_name == "firefox", do: "upstream skip: firefox (non-BiDi)")
