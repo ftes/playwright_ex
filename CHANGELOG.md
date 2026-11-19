@@ -43,13 +43,9 @@ upstream minor, so `~> 1.65.0` is safe.
 ### Added
 
 - `Playwright.Test.info/0` in `setup_all`: the module's `file`, `timeout` and resolved `use`
-  options (config, project, module), and `Playwright.Test.in_registered_scope?/0`.
-
-### Docs
-
-- CI retries with `--partitions` rerun `mix test --failed` without it; Playwright's Docker image
-  tag is the driver's version; porting notes for `expect` messages, the `github` reporter, tags
-  and ExUnit's random module order; accessibility testing with axe-core.
+  options (config, project, module).
+- **RC only:** `Playwright.Test.in_registered_test?/0` is replaced by `in_registered_scope?/0`,
+  true in a test or `setup_all`; `info/0` has `test_pid` only in a test.
 
 ## [1.65.0-rc.2] 2026-11-18
 

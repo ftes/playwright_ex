@@ -48,7 +48,7 @@ defmodule Playwright.Test.SetupAllInfoTest do
     in_task =
       Task.await(
         Task.async(fn ->
-          %{info: Test.info(), scope?: Test.in_registered_scope?(), test?: Test.in_registered_test?()}
+          %{info: Test.info(), scope?: Test.in_registered_scope?()}
         end)
       )
 
@@ -56,7 +56,6 @@ defmodule Playwright.Test.SetupAllInfoTest do
       setup_all: %{
         info: Test.info(),
         scope?: Test.in_registered_scope?(),
-        test?: Test.in_registered_test?(),
         task: in_task,
         output_path: raised.(fn -> Test.output_path("x.txt") end),
         snapshot_path: raised.(fn -> Test.snapshot_path("x.png") end),
@@ -72,7 +71,6 @@ defmodule Playwright.Test.SetupAllInfoTest do
     assert info.timeout == if(ExUnit.configuration()[:trace], do: :infinity, else: 23_456)
     for key <- @test_keys, do: refute(Map.has_key?(info, key))
     assert setup_all.scope?
-    refute setup_all.test?
   end
 
   test "info: the layers, config < project < module use < @moduletag", %{setup_all: %{info: info}} do
@@ -95,7 +93,6 @@ defmodule Playwright.Test.SetupAllInfoTest do
   test "info: in a Task of setup_all, the same", %{setup_all: setup_all} do
     assert setup_all.task.info == setup_all.info
     assert setup_all.task.scope?
-    refute setup_all.task.test?
   end
 
   test "info: a test outside a describe resolves the same use", %{setup_all: setup_all} do

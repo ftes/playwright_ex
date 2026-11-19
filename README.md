@@ -10,7 +10,8 @@ end-to-end tests, web scraping, agentic AI.
 
 It is a 1:1 port of the official JavaScript client. Its API is generated from
 Playwright's docs, so the docs at playwright.dev apply. The driver (Node.js and `playwright-core`)
-is pinned and installed by Mix, no npm needed. This release drives Playwright 1.65.1.
+is pinned and installed by Mix, no npm needed. This release drives Playwright 1.65.1, the
+version Playwright's Docker image tag must have (`v1.65.1-noble`).
 
 For Phoenix feature tests with the Ecto sandbox, use [Fluffy](https://hex.pm/packages/fluffy),
 which is built on this library.
@@ -33,17 +34,13 @@ mix deps.get
 mix playwright.install
 ```
 
-This installs driver 1.65.1 (`mix playwright.cli --version`). If you run in Playwright's Docker
-image, its tag must be that version, `v1.65.1-noble` (see
-[Docker](guides/debugging-and-ci.md#in-playwright-s-image)).
-
 Arguments are `playwright install`'s: `mix playwright.install chromium --with-deps`.
 
 ## Versioning
 
 The major.minor is Playwright's and the patch is ours, as in playwright-python: `1.65.x` drives
-Playwright 1.65, and this release pins driver 1.65.1. Our own breaking changes ship only with a
-Playwright minor, so depend on `~> 1.65.0`.
+Playwright 1.65. Our own breaking changes ship only with a Playwright minor, so depend on
+`~> 1.65.0`.
 
 ## Example
 
