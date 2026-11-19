@@ -519,8 +519,8 @@ Stress and perf runs are manual, not CI.
 
 One matrix runs chromium, firefox and webkit on one Xvfb per job, split by `mix test --partitions`
 (test files round-robin) into 6 jobs for firefox and 3 each for the others; the aggregate `quality`
-job is the check to require, and every job blocks it. Test failures (exit 2) are rerun once with `--failed`; compile
-errors (exit 1) are not. One rerun rather than upstream's `retries: 3`, so flakes stay visible.
+job is the check to require, and every job blocks it. Test failures (exit 2) are rerun once with `--failed`, failing
+when it runs no test (a failure outside the tests); compile errors (exit 1) are not. One rerun rather than upstream's `retries: 3`, so flakes stay visible.
 `max_cases` is half the schedulers on CI, like Playwright's default workers (`PW_MAX_CASES`, or the
 workflow_dispatch input `max_cases`, overrides it). Headed tests run under xvfb with
 `HEADED=1 --only headed`, in each browser's first partition. deps and `_build` are cached, written

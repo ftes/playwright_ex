@@ -612,10 +612,12 @@ config :playwright, :test, trace: :on_first_retry
 ```
 
 and rerun the failures in CI, only on exit status 2 (tests failed; a crash or a missed
-`--cover` threshold isn't retried, and an empty `--failed` run would pass):
+`--cover` threshold isn't retried, and an empty `--failed` run would pass), failing a rerun that
+runs no test (a failed `setup_all` `on_exit` exits 2 but leaves none to rerun):
 
 ```sh
-mix test || { [ $? -eq 2 ] && mix test --failed; }
+set -o pipefail
+mix test || { [ $? -eq 2 ] && mix test --failed | tee retry.log && ! grep -q "There are no tests to run" retry.log; }
 ```
 
 With `--partitions`, rerun without it (see [CI](debugging-and-ci.md#annotations)).
