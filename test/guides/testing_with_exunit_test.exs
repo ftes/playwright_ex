@@ -814,3 +814,41 @@ defmodule Playwright.Guides.TestingWithExUnit.SharedPageTest do
     assert Page.evaluate!(page, "navigator.language") == "en-US"
   end
 end
+
+defmodule Playwright.Guides.TestingWithExUnit.AccessibilityTest do
+  # A stub of axe-core's `axe.run`, which flags images without `alt` ("image-alt"): the guide
+  # takes axe-core from the app's package manager, which this repo hasn't.
+  use Playwright.Case, async: true
+
+  alias Playwright.Page
+
+  @moduletag :tmp_dir
+
+  setup %{tmp_dir: tmp_dir} do
+    axe_path = Path.join(tmp_dir, "axe.min.js")
+
+    File.write!(axe_path, """
+    window.axe = { run: async () => ({
+      violations: [...document.querySelectorAll("img:not([alt])")].map(() => ({ id: "image-alt" }))
+    }) };
+    """)
+
+    %{axe_path: axe_path}
+  end
+
+  test "an image without alt is a violation", %{page: page, axe_path: axe_path} do
+    Page.set_content!(page, ~s(<main><img src="logo.png"></main>))
+
+    Page.add_script_tag!(page, path: axe_path)
+    result = Page.evaluate!(page, "() => axe.run()")
+    assert [%{"id" => "image-alt"}] = result["violations"]
+  end
+
+  test "no violations", %{page: page, axe_path: axe_path} do
+    Page.set_content!(page, ~s(<main><img src="logo.png" alt="Logo"></main>))
+
+    Page.add_script_tag!(page, path: axe_path)
+    result = Page.evaluate!(page, "() => axe.run()")
+    assert result["violations"] == []
+  end
+end

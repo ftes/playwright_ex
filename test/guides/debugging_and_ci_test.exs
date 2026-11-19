@@ -132,8 +132,9 @@ defmodule Playwright.Guides.DebuggingAndCiTest do
     guide = File.read!(Path.expand("../../guides/debugging-and-ci.md", __DIR__))
     assert guide =~ "mcr.microsoft.com/playwright:v#{Playwright.Driver.version()}-noble"
     assert guide =~ "playwright@#{Playwright.Driver.version()} run-server"
-    assert guide =~ "(`Version #{Playwright.Driver.version()}`)"
+    assert guide =~ "(`Version #{Playwright.Driver.version()}`;"
     readme = File.read!(Path.expand("../../README.md", __DIR__))
     assert readme =~ "This installs driver #{Playwright.Driver.version()} (`mix playwright.cli --version`)"
+    assert readme =~ "its tag must be that version, `v#{Playwright.Driver.version()}-noble`"
   end
 end

@@ -152,7 +152,8 @@ defmodule Playwright.Test do
   (`info/0`'s `retry`, 1 after the first run), and writes to `<dir>-retry1` (`-retry2` on the
   next `--failed`, ...), next to the dirs of its earlier runs. So with `trace: :on_first_retry`,
   `mix test || { [ $? -eq 2 ] && mix test --failed; }` traces the failures' rerun and keeps the
-  first run's files (exit status 2 means tests failed; anything else isn't retried). A run
+  first run's files (exit status 2 means tests failed; anything else isn't retried; with
+  `--partitions`, rerun without it, see the Debugging and CI guide). A run
   without `--failed` deletes the test's `-retryN` dirs too, where
   upstream deletes all of `output_dir` at the start of a run: here the dirs of tests that didn't
   run stay. Config `preserve_output` is upstream's `preserveOutput`: `:always` (default) keeps

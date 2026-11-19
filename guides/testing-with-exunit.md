@@ -618,6 +618,8 @@ and rerun the failures in CI, only on exit status 2 (tests failed; a crash or a 
 mix test || { [ $? -eq 2 ] && mix test --failed; }
 ```
 
+With `--partitions`, rerun without it (see [CI](debugging-and-ci.md#annotations)).
+
 The other retry modes are Playwright Test's too: `:on_all_retries` traces every rerun,
 `:retain_on_first_failure` the first run's failures, `:retain_on_failure_and_retries` both;
 `video` takes them as well, and `screenshot` has `:on_first_failure`.
@@ -1000,21 +1002,24 @@ Shared mode (`{:shared, self()}`) would need `async: false`. The `on_exit` close
 the test's contexts close after your `on_exit` callbacks, by when the owner is gone and the app's
 LiveViews log ownership errors.
 
-## Accessibility checks
+## Accessibility testing
 
-`@axe-core/playwright` isn't ported: evaluate axe-core's own script in the page (again after each
-navigation) and run it:
+`@axe-core/playwright` isn't ported: install axe-core with your package manager, add its script
+to the page (again after each navigation) and run it:
 
 ```elixir
-Page.evaluate!(page, File.read!("assets/node_modules/axe-core/axe.min.js"))
-%{"violations" => violations} = Page.evaluate!(page, "() => axe.run()")
-assert violations == []
+axe_path = "assets/node_modules/axe-core/axe.min.js"
+
+Page.add_script_tag!(page, path: axe_path)
+result = Page.evaluate!(page, "() => axe.run()")
+assert result["violations"] == []
 ```
 
 `axe.run(context, options)` takes what `AxeBuilder`'s `include`, `exclude` and `withTags` set:
 `Page.evaluate!(page, "([c, o]) => axe.run(c, o)", [%{include: ["main"]}, %{runOnly: ["wcag2a"]}])`.
 Take the axe-core your JS suite's `@axe-core/playwright` resolves, for the same rules. It checks
-the main frame only: `AxeBuilder` also runs axe in each iframe and merges the results.
+the main frame only: `AxeBuilder` also runs axe in each iframe and merges the results. A page
+whose CSP forbids inline scripts needs the context option `bypass_csp: true`.
 
 ## Porting Playwright Test specs
 
@@ -1045,13 +1050,12 @@ Most of a spec ports call for call. What differs (and see [Not supported](#not-s
   defines one: pass `"(#{fun})()"`, or the function's body.
 - `expect(locator, 'should be logged in')` is `locator |> Expect.message("should be logged in")
   |> Expect.to_be_visible!()`.
-- `reporter: 'github'` is the `Playwright.Test.GitHubFormatter` formatter (see
-  [CI](debugging-and-ci.md#annotations)).
+- `reporter: 'github'` is the `Playwright.Test.GitHubFormatter` formatter, which prints only
+  annotations: list it next to `ExUnit.CLIFormatter` (see [CI](debugging-and-ci.md#annotations)).
 - `test('...', { tag: '@slow' })` and `--grep @slow` are an ExUnit tag (`@tag :slow`, or
   `@moduletag :slow` for the file) and `mix test --only slow`.
-- Playwright Test runs the files in a fixed order; ExUnit runs the modules in a random
-  order, so a spec that relies on an earlier file's state (a user it created) fails now and then:
-  create that state in the module's own `setup_all` or `setup`.
+- ExUnit runs the modules in a random (seeded) order, so a spec that relies on state another
+  file left behind (a user it created) fails now and then: set up the state per test, in `setup`.
 - A selector with parentheses can't go in `~s(...)`: use `~s[...]` or a string.
 - `test.use({ locale: 'de-DE' })` at a file's top is `use Playwright.Case, locale: "de-DE"`, in a
   `test.describe` it is `@describetag Test.use(locale: "de-DE")` (`@tag` for one test);

@@ -33,8 +33,9 @@ mix deps.get
 mix playwright.install
 ```
 
-This installs driver 1.65.1 (`mix playwright.cli --version`), the version Playwright's Docker
-image tag must have.
+This installs driver 1.65.1 (`mix playwright.cli --version`). If you run in Playwright's Docker
+image, its tag must be that version, `v1.65.1-noble` (see
+[Docker](guides/debugging-and-ci.md#in-playwright-s-image)).
 
 Arguments are `playwright install`'s, with no `--`:
 `mix playwright.install chromium --with-deps`.

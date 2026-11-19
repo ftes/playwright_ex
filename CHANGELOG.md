@@ -49,8 +49,8 @@ upstream minor, so `~> 1.65.0` is safe.
 ### Docs
 
 - CI retries with `--partitions` rerun `mix test --failed` without it; Playwright's Docker image
-  tag is the driver's version; porting rows for `expect` messages, the `github` reporter, tags and
-  file order.
+  tag is the driver's version; porting notes for `expect` messages, the `github` reporter, tags
+  and ExUnit's random module order; accessibility testing with axe-core.
 
 ## [1.65.0-rc.2] 2026-11-18
 
