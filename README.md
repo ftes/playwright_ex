@@ -83,11 +83,8 @@ Feedback of any shape and size is welcome: [get in touch](https://ftes.de).
 
 ## Known gaps
 
-- Not ported: `BrowserType.launchServer`, `connectOverCDP` with a transport, and Playwright
-  Test's jest layer (generic matchers such as `toBe`, `expect.extend`, `toMatchSnapshot`,
-  `resolves`/`rejects`): use ExUnit assertions.
-- URL globs and `base_url` are resolved by `URI` (RFC 3986), not WHATWG's `new URL`: without a
-  base URL, dot segments (`/a/../b`) aren't removed.
+See [Not supported](guides/testing-with-exunit.md#not-supported) in the Testing with ExUnit
+guide.
 
 ## Contributing
 

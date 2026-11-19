@@ -47,6 +47,11 @@ upstream minor, so `~> 1.65.0` is safe.
 - **RC only:** `Playwright.Test.in_registered_test?/0` is replaced by `in_registered_scope?/0`,
   true in a test or `setup_all`; `info/0` has `test_pid` only in a test.
 
+### Fixed
+
+- **RC only:** `mix playwright.install` forwards a `--` to `playwright install` (rc.2 raised on
+  it).
+
 ## [1.65.0-rc.2] 2026-11-18
 
 Drives [Playwright 1.65.1](https://github.com/microsoft/playwright/releases/tag/v1.65.1), on
@@ -153,8 +158,6 @@ Node 26.13.1. No upstream API changes.
 
 ### Fixed
 
-- **RC only:** `mix playwright.install` forwards a `--` to `playwright install` again (rc.2
-  raised on it).
 - **RC only:** `mix playwright.install` and `mix playwright.cli` failed with "module :public_key
   is not available" when run before the project was compiled (e.g. right after `mix deps.get` in
   CI).
@@ -162,9 +165,6 @@ Node 26.13.1. No upstream API changes.
 ## [1.65.0-rc.1] 2026-11-16
 
 Drives [Playwright 1.65.0](https://github.com/microsoft/playwright/releases/tag/v1.65.0).
-
-Upgrading from 0.16: see the renames under Changed below (`PlaywrightEx` to `Playwright`,
-`:playwright_ex` to `:playwright`, guids to structs).
 
 ### Changed
 - **Breaking:** rewritten as a port of Playwright's JS client, its API generated from Playwright's
