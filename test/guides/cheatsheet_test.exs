@@ -205,22 +205,22 @@ defmodule Playwright.Guides.CheatsheetTest do
 
   test "listeners", %{page: page} do
     Page.on(page, :console, &Logger.info(ConsoleMessage.text(&1)))
-    Page.on(page, :dialog, &Dialog.accept/1)
+    Page.on(page, :dialog, &Dialog.accept!/1)
 
     assert capture_log(fn -> Page.evaluate!(page, "() => console.log('hi')") end) =~ "hi"
     assert Page.evaluate!(page, "() => confirm('Sure?')") == true
   end
 
   test "network", %{page: page, server: server} do
-    Page.route!(page, "**/api/user", &Route.fulfill(&1, json: %{name: "Ada"}))
-    Page.route!(page, "**/*.png", &Route.abort/1)
+    Page.route!(page, "**/api/user", &Route.fulfill!(&1, json: %{name: "Ada"}))
+    Page.route!(page, "**/*.png", &Route.abort!/1)
     assert Page.evaluate!(page, "() => fetch('/api/user').then(r => r.json())") == %{"name" => "Ada"}
     assert Page.evaluate!(page, "() => fetch('/a.png').then(() => 'ok', () => 'blocked')") == "blocked"
     Page.unroute_all!(page)
 
     Page.route!(page, "**/api/**", fn route, request ->
       headers = Map.put(Request.headers(request), "x-test", "1")
-      Route.continue(route, headers: headers)
+      Route.continue!(route, headers: headers)
     end)
 
     received = TestServer.wait_for_request(server, "/api/user")

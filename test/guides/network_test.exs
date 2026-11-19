@@ -63,8 +63,8 @@ defmodule Playwright.Guides.NetworkTest do
   end
 
   test "fulfill and abort", %{page: page} do
-    Page.route!(page, "**/api/users", &Route.fulfill(&1, json: [%{name: "Grace"}]))
-    Page.route!(page, "**/*.{png,jpg}", &Route.abort/1)
+    Page.route!(page, "**/api/users", &Route.fulfill!(&1, json: [%{name: "Grace"}]))
+    Page.route!(page, "**/*.{png,jpg}", &Route.abort!/1)
 
     assert fetch_json(page, "/api/users") == [%{"name" => "Grace"}]
     assert {:error, _} = Page.evaluate(page, "() => fetch('/logo.png')")
@@ -75,8 +75,8 @@ defmodule Playwright.Guides.NetworkTest do
 
     Page.route!(page, "**/api/**", fn route, request ->
       case Request.method(request) do
-        "DELETE" -> Route.fulfill(route, status: 403, json: %{error: "forbidden"})
-        _ -> Route.continue(route, headers: Map.put(Request.headers(request), "x-test", "1"))
+        "DELETE" -> Route.fulfill!(route, status: 403, json: %{error: "forbidden"})
+        _ -> Route.continue!(route, headers: Map.put(Request.headers(request), "x-test", "1"))
       end
     end)
 
@@ -88,18 +88,18 @@ defmodule Playwright.Guides.NetworkTest do
     Page.route!(page, "**/api/users", fn route ->
       response = Route.fetch!(route)
       users = APIResponse.json!(response)
-      Route.fulfill(route, response: response, json: users ++ [%{name: "Grace"}])
+      Route.fulfill!(route, response: response, json: users ++ [%{name: "Grace"}])
     end)
 
     assert fetch_json(page, "/api/users") == [%{"name" => "Ada"}, %{"name" => "Grace"}]
   end
 
   test "patterns, fallback, times, unroute", %{page: page} do
-    Page.route!(page, "/api/users", &Route.fulfill(&1, json: "first"))
-    Page.route!(page, "/api/users", &Route.fallback/1)
+    Page.route!(page, "/api/users", &Route.fulfill!(&1, json: "first"))
+    Page.route!(page, "/api/users", &Route.fallback!/1)
     assert fetch_json(page, "/api/users") == "first"
 
-    Page.route!(page, ~r"/api/users$", &Route.fulfill(&1, json: "once"), times: 1)
+    Page.route!(page, ~r"/api/users$", &Route.fulfill!(&1, json: "once"), times: 1)
     assert fetch_json(page, "/api/users") == "once"
     assert fetch_json(page, "/api/users") == "first"
 
@@ -108,7 +108,7 @@ defmodule Playwright.Guides.NetworkTest do
   end
 
   test "context routes", %{context: context} do
-    BrowserContext.route!(context, &(&1.path == "/api/users"), &Route.fulfill(&1, json: "context"))
+    BrowserContext.route!(context, &(&1.path == "/api/users"), &Route.fulfill!(&1, json: "context"))
     page = BrowserContext.new_page!(context)
     Page.goto!(page, "/")
     assert fetch_json(page, "/api/users") == "context"

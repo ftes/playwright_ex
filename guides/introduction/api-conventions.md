@@ -156,7 +156,7 @@ ready = Page.wait_for_event(page, :console, &(ConsoleMessage.text(&1) == "ready"
 
 `on/3`, `once/3` and `off/3` take a listener function, as in JS. A listener runs in a process of its
 own and may call Playwright, as a `:dialog` listener calls
-[`Dialog.accept/2`](`Playwright.Dialog.accept/2`). The [Concurrency](../concurrency.md) guide
+[`Dialog.accept!/2`](`Playwright.Dialog.accept!/2`). The [Concurrency](../concurrency.md) guide
 covers ordering, blocking listeners and promise lifetimes.
 
 ## Assertions

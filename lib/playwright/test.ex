@@ -239,11 +239,16 @@ defmodule Playwright.Test do
   own. These three are the worker's, as upstream's, where a describe with another one starts a
   new worker: `use/1` takes none of them, and a tag's device doesn't change the browser.
 
-  `action_timeout` and `navigation_timeout` (see "Timeouts") are options of every level, as
-  the context options. `test_id_attribute` is config only, a deviation: upstream's is an
-  option of every level, as its value is global to a worker, which runs one test at a time;
-  here it is global to the VM, which the tests running at once share. `trace`, `screenshot`
-  and `video` are options of every level, an addition: upstream's are the worker's.
+  Where each option can be set:
+
+  | Option | Config | Project (`parameters/1`) | Module (`use`) | Describe, test (`use/1`) |
+  |---|---|---|---|---|
+  | the context options, `context_options`, `action_timeout`, `navigation_timeout` | yes | yes | yes | yes |
+  | `trace`, `screenshot`, `video` | yes | yes | yes | yes (an addition: upstream's are the worker's) |
+  | `browser_name`, `launch_options`, `connect_options` | yes | yes | yes | no: the worker's |
+  | `default_browser_type` (a device's) | picks the browser | picks the browser | picks the browser | ignored (a deviation, above) |
+  | `test_id_attribute` | yes | no | no | no (a deviation: upstream's is an option of every level, global to a worker, which runs one test at a time; here it is global to the VM, which the tests running at once share) |
+  | `output_dir`, `preserve_output`, `workers`, `snapshot_dir`, `snapshot_path_template`, `driver`, `on_start` | yes | no | no | no |
 
   ## Contexts of `setup_all`
 

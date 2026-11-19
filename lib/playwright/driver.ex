@@ -434,7 +434,7 @@ defmodule Playwright.Driver do
     end
   end
 
-  # An empty value (e.g. from an empty environment variable) counts as unset, as the env vars did.
+  # An empty value (e.g. from an empty environment variable) counts as unset.
   defp option(opts, key), do: present(opts[key]) || present(config()[key])
 
   defp present(""), do: nil
