@@ -128,12 +128,32 @@ defmodule Playwright.Matchers.Expect do
   end
 
   @config_keys [:timeout, :update_snapshots, :ignore_snapshots, :to_have_screenshot, :to_match_aria_snapshot, :to_pass]
+  @update_snapshots [:all, :changed, :missing, :none, :default]
+  @update_snapshot_names Enum.map(@update_snapshots, &Atom.to_string/1)
 
   # Elixir only: `config :playwright, :expect, ...` as an `ExpectConfig`, its keys and those of
   # its matchers' options snake_case, as the matchers take them.
   @doc false
   def app_env_expect_config(env) do
     env = Playwright.Application.config!(:expect, @config_keys, env)
+
+    label = "config :playwright, :expect"
+
+    # Upstream's `validateConfig` (`updateSnapshots`) and `validateProject` (`ignoreSnapshots`).
+    if !(env[:update_snapshots] in [nil | @update_snapshots] or env[:update_snapshots] in @update_snapshot_names),
+      do:
+        raise(
+          ArgumentError,
+          "#{label}: invalid value #{inspect(env[:update_snapshots])} for update_snapshots, expected one of " <>
+            Enum.map_join(@update_snapshots, ", ", &inspect/1)
+        )
+
+    if !(env[:ignore_snapshots] in [nil, true, false]),
+      do:
+        raise(
+          ArgumentError,
+          "#{label}: invalid value #{inspect(env[:ignore_snapshots])} for ignore_snapshots, expected a boolean"
+        )
 
     config = %{
       timeout: if(env[:timeout] == :infinity, do: 0, else: env[:timeout]),

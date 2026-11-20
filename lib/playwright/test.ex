@@ -202,7 +202,8 @@ defmodule Playwright.Test do
 
   Below the module, `use/1` gives the options to ExUnit as a tag, for a describe block
   (`@describetag Test.use(locale: "de-DE")`, upstream's `test.use` in a `test.describe`) or a
-  test (`@tag`); `@moduletag` works too, the `use` option being the module's form. A project's
+  test (`@tag`); `@moduletag` works too, the worker options included, as upstream's top-level
+  `test.use`. A project's
   are `parameters/1` in the module's `parameterize:` (upstream's `project.use`).
 
   The layers, each over the one before per option: Playwright Test's defaults, the config's,
@@ -234,10 +235,11 @@ defmodule Playwright.Test do
   `launch_options` (its `use`'s, else its project's, else the config's, each as a whole) and
   `connect_options` are that call's defaults too, upstream's `launchOptions` and
   `connectOptions`: a project with `launch_options: [channel: "chrome"]` gets a worker of its
-  own. These four are the worker's, as upstream's: `use/1` (a describe's or a test's) raises for
-  them, as upstream's `test.use` in a describe, a device's `default_browser_type` too. For a
-  browser or a device per run, make each a project (`parameters/1`) in the module's
-  `parameterize:`.
+  own. These four are the worker's, as upstream's: the module's (its `use`, then its
+  `@moduletag Test.use(...)`, upstream's top-level `test.use`) or its project's. In a
+  `@describetag` or a `@tag` they raise when the test registers, as upstream's `test.use` in a
+  describe, a device's `default_browser_type` too. For a browser or a device per run, make each
+  a project (`parameters/1`) in the module's `parameterize:`.
 
   `action_timeout` and `navigation_timeout` (see "Timeouts") are options of every level, as
   the context options. `test_id_attribute` is config only, a deviation: upstream's is an
@@ -578,6 +580,7 @@ defmodule Playwright.Test do
         else: [do: block, catch: failed]
 
     quote do
+      Playwright.Test.__worker_tags__!(__MODULE__)
       @tag "playwright.test": :marked
       ExUnit.Case.test(unquote(message), unquote(var), unquote(contents))
     end
@@ -586,9 +589,18 @@ defmodule Playwright.Test do
   @doc "`ExUnit.Case.test/1`: a test that fails as not implemented."
   defmacro test(message) do
     quote do
+      Playwright.Test.__worker_tags__!(__MODULE__)
       @tag "playwright.test": :marked
       ExUnit.Case.test(unquote(message))
     end
+  end
+
+  @doc false
+  # When a test registers, its describe's and its own tags have no worker option of `use/1`, as
+  # upstream's `test.use` in a describe raises when it loads; the module's `@moduletag` may.
+  def __worker_tags__!(module) do
+    Options.worker_tags!(Module.get_attribute(module, :describetag) || [], "a describe group")
+    Options.worker_tags!(Module.get_attribute(module, :tag) || [], "a test")
   end
 
   # The end of the body: the test fails with the errors its matchers recorded (upstream's
@@ -707,7 +719,7 @@ defmodule Playwright.Test do
       # `info/0`'s fields that apply to the module (`setup_all_info/1`).
       module =
         config
-        |> context_defaults(layers, use_options)
+        |> context_defaults(layers)
         |> Map.merge(%{file: compiled(context[:module], :file, nil), timeout: Options.ex_unit_timeout(context)})
         # Also its steps' `testInfo` (`step_test_info!/0`): never started, so not running.
         |> Map.merge(%{test_pid: self(), step_id_prefix: "setup_all", project_name: TestInfo.project_name(parameters)})
@@ -790,7 +802,7 @@ defmodule Playwright.Test do
         preserve_output: Options.preserve_output(config),
         tmp: Path.join(System.tmp_dir!(), "playwright-test-#{System.unique_integer([:positive])}")
       })
-      |> Map.merge(context_defaults(config, layers, use_options))
+      |> Map.merge(context_defaults(config, layers))
       |> Map.put(:use_modes, use_modes)
 
     TestInfo.remove_output_dirs(test)
@@ -806,13 +818,13 @@ defmodule Playwright.Test do
 
   # What a test's or a module's `setup_all`'s contexts get: the `context_options` and timeouts
   # of `config` and of its `layers` (`Playwright.Test.Options.layers/3`). And the worker options
-  # of its `BrowserPool.browser/1` calls: the module's `use_options` and its project's, not the
-  # tags'.
-  defp context_defaults(config, layers, use_options) do
+  # of its `BrowserPool.browser/1` calls: the module's (its `use`, then its `@moduletag`; a
+  # describe's or a test's tag has none, `__worker_tags__!/1`) and its project's.
+  defp context_defaults(config, layers) do
     %{
       context_options: Options.context_options(config, layers),
       timeouts: Options.timeouts(config, layers),
-      worker: Options.worker(config, layers.project, use_options)
+      worker: Options.worker(config, layers.project, layers.module)
     }
   end
 
@@ -1055,11 +1067,12 @@ defmodule Playwright.Test do
   end
 
   @doc """
-  Options for a `describe` block, a test or a project: upstream's `test.use` below the file
-  level. It takes the test-scoped options of `use Playwright.Test` (the context options,
-  `context_options`, `action_timeout`, `navigation_timeout`, `trace`, `screenshot`, `video`), as
-  a keyword list (a device too) or a map, validates them as it does, and returns a keyword list for
-  an ExUnit tag.
+  Options for a module's `@moduletag`, a `describe` block or a test: upstream's `test.use`. It
+  takes the options of `use Playwright.Test` (the context options, `context_options`,
+  `action_timeout`, `navigation_timeout`, `trace`, `screenshot`, `video`, and in `@moduletag`
+  the worker's), as a keyword list or a map, validates them as it does, and returns a keyword
+  list for an ExUnit tag. A device in `@moduletag` too; in a describe's or a test's tag only
+  without its `default_browser_type`.
 
       # test.describe(() => { test.use({ timezoneId: 'Europe/Berlin' }) ... })
       describe "in Berlin" do
@@ -1073,8 +1086,8 @@ defmodule Playwright.Test do
         ...
       end
 
-      # A device's emulation without its browser (`Test.use(Playwright.device(...))` raises, as
-      # its `default_browser_type` is the worker's: make each device a project instead).
+      # A device's emulation without its browser (a device in a test's or a describe's tag
+      # raises, as its `default_browser_type` is the worker's: make each device a project).
       @tag Test.use(Keyword.delete(Playwright.device("iPhone 13"), :default_browser_type))
 
   Each option gets a private key of its own (`:"playwright.use.trace"`,
@@ -1085,9 +1098,11 @@ defmodule Playwright.Test do
   the default. A plain tag named like an option (`@tag trace: :on`) sets nothing.
 
   An unknown option raises `ArgumentError`, when the test module compiles. So do
-  `browser_name`, `default_browser_type` (a device's), `launch_options` and `connect_options`,
-  with upstream's message: they are the worker's, and upstream rejects them in a describe. They
-  are options of the module's `use` and of `parameters/1`. For a
+  `browser_name`, `default_browser_type` (a device's), `launch_options` and `connect_options` in
+  a `@describetag` or a `@tag`, when its test registers, with upstream's message ("Cannot use({
+  browser_name }) in a describe group, because it forces a new worker.\nMake it top-level in the
+  test file or put in the configuration file.", "in a test" for a `@tag`): they are the
+  worker's. They are options of the module's `use`, its `@moduletag` and `parameters/1`. For a
   project in `parameterize:`, which takes maps, see `parameters/1`. See "Context defaults",
   "Browser" and "Artifacts" in the moduledoc for the layers.
   """

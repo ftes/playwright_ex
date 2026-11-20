@@ -178,21 +178,28 @@ defmodule Playwright.Test.ContextOptionsTest do
           # A device has the worker's `default_browser_type`.
           default_browser_type: ~s|Playwright.device("iPhone 13")|
         ],
-        tag <- ["@tag", "@describetag"] do
+        {tag, scope} <- [{"@tag", "a test"}, {"@describetag", "a describe group"}] do
+      # Upstream's `_useFixtures` text, "in a test" for a test's.
       message =
-        "Playwright.Test.use/1: Cannot use({ #{key} }) in a describe group or a test, because it forces a new worker.\n"
+        "Playwright.Test.use/1: Cannot use({ #{key} }) in #{scope}, because it forces a new worker.\n" <>
+          "Make it top-level in the test file or put in the configuration file."
 
-      error =
-        assert_raise ArgumentError, fn ->
-          compile("WorkerTag", "use Playwright.Case\ndescribe \"d\" do\n#{tag} Playwright.Test.use(#{option})\nend")
-        end
-
-      assert String.starts_with?(error.message, message)
-      assert error.message =~ "Make it top-level in the test module"
+      assert_raise ArgumentError, message, fn ->
+        compile(
+          "WorkerTag",
+          "use Playwright.Case\ndescribe \"d\" do\n#{tag} Playwright.Test.use(#{option})\ntest \"t\", do: :ok\nend"
+        )
+      end
     end
 
-    # Its emulation without the browser is fine.
+    # Its emulation without the browser is fine, and a module's `@moduletag` takes them, as
+    # upstream's top-level `test.use`.
     assert Playwright.Test.use(Keyword.delete(Playwright.device("iPhone 13"), :default_browser_type)) != []
+    tags = Map.new(Playwright.Test.use(Playwright.device("iPhone 13") ++ [launch_options: [slow_mo: 1]]))
+    layers = Options.layers(%{}, Options.use_options(browser_name: :chromium), tags)
+    # The `@moduletag` over the module's `use`; a configured browser_name (`BROWSER`) wins over a device's.
+    assert %{default_browser_type: :webkit, launch_options: [slow_mo: 1]} = layers.module
+    assert Options.worker(Options.config(), layers.project, layers.module)[:launch_options] == [slow_mo: 1]
 
     for call <- [&Playwright.Test.use/1, &Playwright.Test.parameters/1, &Options.use_options/1] do
       assert_raise ArgumentError, ~r/test_id_attribute is config only: .*global to the VM/, fn ->

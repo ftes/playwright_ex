@@ -191,6 +191,8 @@ defmodule Playwright.Test.RegistrationTest do
 
     assert Playwright.Test.output_path(["sub", "export.csv"]) == Path.join([dir, "sub", "export.csv"])
     assert Playwright.Test.output_path("") == dir
+    # `path.join()` of none.
+    assert Playwright.Test.output_path([]) == dir
 
     # Upstream's message.
     assert_raise RuntimeError, ~r/^The outputPath is not allowed outside of the parent directory/, fn ->

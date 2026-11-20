@@ -175,7 +175,7 @@ defmodule Playwright.Test.Options do
     # raises for it).
     known = @use_keys ++ [:default_browser_type] ++ worker_keys
 
-    with [_ | _] = unknown <- Keyword.keys(opts) -- known do
+    with [_ | _] = unknown <- Enum.uniq(Keyword.keys(opts)) -- known do
       hint =
         " or a context option (#{Playwright.Application.key_names(Enum.sort(context_keys()))}). #{unknown_hint(unknown)}"
 
@@ -211,18 +211,9 @@ defmodule Playwright.Test.Options do
   """
   def use(opts) do
     label = "Playwright.Test.use/1"
-    opts = keyword!(label, opts)
-
-    # Upstream's `_useFixtures` (`fixtures.ts`): a worker fixture in a describe, a device's
-    # `defaultBrowserType` too.
-    with {key, _value} <- Enum.find(opts, fn {key, _value} -> key in [:default_browser_type | @worker_keys] end) do
-      raise ArgumentError,
-            "#{label}: Cannot use({ #{key} }) in a describe group or a test, because it forces a new worker.\n" <>
-              "Make it top-level in the test module (`use Playwright.Test, #{key}: ...`) or put it in the " <>
-              "configuration (`config :playwright, :test`) or a project (`Playwright.Test.parameters/1`)."
-    end
-
-    {context, options} = opts |> use_options!(label, []) |> Map.pop(:context, %{})
+    # The worker's options too, for `@moduletag`: `Playwright.Test.test/3` raises for them in a
+    # describe's or a test's tag (`worker_tags!/2`).
+    {context, options} = label |> keyword!(opts) |> use_options!(label, @worker_keys) |> Map.pop(:context, %{})
 
     private = fn options, prefix ->
       for {key, value} <- options, do: {String.to_atom(prefix <> Atom.to_string(key)), value}
@@ -240,9 +231,7 @@ defmodule Playwright.Test.Options do
   """
   def parameters(opts) do
     label = "Playwright.Test.parameters/1"
-    opts = keyword!(label, opts)
-    # Of a duplicated key the later wins, as in JS's spread.
-    {name, use} = {opts |> Keyword.get_values(:name) |> List.last(), Keyword.delete(opts, :name)}
+    {name, use} = Keyword.pop(keyword!(label, opts), :name)
 
     if !(name == nil or is_binary(name)),
       do: raise(ArgumentError, "#{label}: invalid value #{inspect(name)} for name, expected a string")
@@ -259,6 +248,27 @@ defmodule Playwright.Test.Options do
       %{@project_key => %Playwright.Test.Project{} = project} -> project
       _ -> nil
     end
+  end
+
+  @doc """
+  Raises for a worker option (upstream's worker fixture, a device's `defaultBrowserType` too) in
+  `tags`, those of `scope`: upstream's `_useFixtures` (`fixtures.ts`) for a `test.use` in a
+  describe, a test's adapted ("in a test"). A module's `@moduletag` may have them, as upstream's
+  top-level `test.use`.
+  """
+  def worker_tags!(tags, scope) do
+    worker_keys =
+      for key <- [:default_browser_type | @worker_keys], do: String.to_atom(@use_prefix <> Atom.to_string(key))
+
+    for tag <- tags, {key, _value} <- List.wrap(tag), key in worker_keys do
+      name = String.replace_prefix(Atom.to_string(key), @use_prefix, "")
+
+      raise ArgumentError,
+            "Playwright.Test.use/1: Cannot use({ #{name} }) in #{scope}, because it forces a new worker.\n" <>
+              "Make it top-level in the test file or put in the configuration file."
+    end
+
+    :ok
   end
 
   @doc "Whether `key` is a private key of `use/1`."
@@ -561,9 +571,9 @@ defmodule Playwright.Test.Options do
   defp validate!(:output_dir, dir) when is_binary(dir), do: dir
   defp validate!(:preserve_output, value) when value in [:always, :never, :failures_only], do: value
 
-  # Upstream's `if (testIdAttribute)` (`_setupContextOptions`): an empty one sets none, so the
-  # selectors keep their default.
-  defp validate!(:test_id_attribute, ""), do: "data-testid"
+  # Upstream's `if (testIdAttribute)` (`_setupContextOptions`): an empty one sets none (`nil`),
+  # so the selectors keep theirs.
+  defp validate!(:test_id_attribute, ""), do: nil
   defp validate!(:workers, workers) when is_integer(workers) and workers > 0, do: workers
   # Upstream's `reportSlowTests: null`: none (a `nil` key is unset, its default).
   defp validate!(:report_slow_tests, false), do: false
@@ -594,7 +604,7 @@ defmodule Playwright.Test.Options do
 
   # Raises for the keys of `options` (the option `key`'s) that are not `allowed`.
   defp keys!(key, options, allowed) do
-    case Keyword.keys(options) -- allowed do
+    case Enum.uniq(Keyword.keys(options)) -- allowed do
       [] ->
         :ok
 
@@ -623,11 +633,17 @@ defmodule Playwright.Test.Options do
   defp mode(:video, :retry_with_video), do: :on_first_retry
   defp mode(_key, mode), do: mode
 
+  # Of a duplicated key the later wins, as in JS's spread (`{ ...a, ...b }`), before any lookup.
   defp to_keyword(key, value) do
     cond do
-      is_list(value) and Keyword.keyword?(value) -> value
-      is_map(value) and not is_struct(value) -> Enum.to_list(value)
-      true -> raise ArgumentError, "invalid value #{inspect(value)} for #{key}, expected a keyword list or a map"
+      is_list(value) and Keyword.keyword?(value) ->
+        value |> Enum.reverse() |> Enum.uniq_by(&elem(&1, 0)) |> Enum.reverse()
+
+      is_map(value) and not is_struct(value) ->
+        Enum.to_list(value)
+
+      true ->
+        raise ArgumentError, "invalid value #{inspect(value)} for #{key}, expected a keyword list or a map"
     end
   end
 
