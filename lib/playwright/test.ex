@@ -436,7 +436,7 @@ defmodule Playwright.Test do
       titled by it, as upstream's. An attempt without one of these `assert`s (`assert_receive`,
       a raise of its own) leaves no step when it passes, the matcher's when it fails.
     * A failed assertion's expression shows a capture's argument as ExUnit's error has it
-      (`_& == 2` for `&assert(&1 == 2)`); a passed one's is `&1 == 2`.
+      (`_& == 2` for `&assert(&1 == 2)`, `capture == 2` on Elixir 1.18); a passed one's is `&1 == 2`.
 
   ## Config
 
