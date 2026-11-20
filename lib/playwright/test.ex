@@ -385,7 +385,7 @@ defmodule Playwright.Test do
   `expression` param, located at the call. Its `expected` param, as upstream's
   `toEqual(expected)`'s, is the right side ExUnit's expansion binds (`left == right` and the other
   operators, `pattern = right`, `match?(pattern, right)`; a failed one's from its error), when it
-  is JS-truthy (`if (args[0])`: not `nil`, `false`, `0` or `""`), previewed as upstream's
+  is JS-truthy (`if (args[0])`: not `nil`, `:null`, `false`, `0`, `0.0` or `""`), previewed as upstream's
   `generatePreview` but cut to 100 list elements and 1000 characters (`…`), as upstream's isn't
   (Elixir only: bound trace size); a truthy `assert x` has none. A message (`assert x, "msg"`)
   is the title, as upstream's `expect(value, message)`.
@@ -663,7 +663,7 @@ defmodule Playwright.Test do
   subtitle and its `expression` param. It expands to ExUnit's `assert`, then records the step,
   so the assertion binds and fails as ExUnit's (see "Assertions" in the moduledoc).
   """
-  defmacro assert(assertion), do: assertion_ast(:assert, assertion, [], __CALLER__)
+  defmacro assert(assertion), do: plain_assertion_ast(:assert, assertion, __CALLER__)
 
   @doc """
   `ExUnit.Assertions.assert/2`, also a step of the running test, titled by the `message`, as
@@ -672,7 +672,7 @@ defmodule Playwright.Test do
   defmacro assert(value, message), do: assertion_ast(:assert, value, message)
 
   @doc "`ExUnit.Assertions.refute/1`, also a step of the running test: `Expect \"refute\"`. See `assert/1`."
-  defmacro refute(assertion), do: assertion_ast(:refute, assertion, [], __CALLER__)
+  defmacro refute(assertion), do: plain_assertion_ast(:refute, assertion, __CALLER__)
 
   @doc "`ExUnit.Assertions.refute/2`, also a step of the running test, titled by the `message`. See `assert/1`."
   defmacro refute(value, message), do: assertion_ast(:refute, value, message)
@@ -684,7 +684,7 @@ defmodule Playwright.Test do
   # `pattern = right`, `match?(pattern, right)`): this expands ExUnit's macro once, here, and
   # reads that variable after it (`right_var/1`), so nothing is evaluated twice and ExUnit's
   # code is unchanged; an expansion that binds none (a truthy `assert x`) records none.
-  defp assertion_ast(kind, assertion, _empty, caller) do
+  defp plain_assertion_ast(kind, assertion, caller) do
     code = Macro.to_string(assertion)
     {:ok, env} = Macro.Env.define_require(caller, [], ExUnit.Assertions)
     expansion = Macro.expand_once(quote(do: ExUnit.Assertions.unquote(kind)(unquote(assertion))), env)
@@ -753,7 +753,7 @@ defmodule Playwright.Test do
 
   @doc false
   # The step of an `assert` or `refute` (`kind`) of `code` with `message`: passed, or failed
-  # with `error` (`{kind, reason, stacktrace}`), with its `expected` (`assertion_ast/4`). The shape of
+  # with `error` (`{kind, reason, stacktrace}`), with its `expected` (`plain_assertion_ast/3`). The shape of
   # `Playwright.Matchers.Expect.call_matcher_as_step/6`'s: none outside a test, and none in the
   # module's `setup_all`, where `step/3` records nowhere. Elixir only: none for `expect.poll`'s
   # assertion, whose attempt is the step (`Playwright.Matchers.Expect.poll/3`).
@@ -810,7 +810,9 @@ defmodule Playwright.Test do
     params = %{expression: code}
     # `if (args[0]) params.expected = args[0]`, its preview bounded (`TestTracing.bounded_preview/1`).
     params =
-      if js_truthy?(expected), do: Map.put(params, :expected, TestTracing.bounded_preview(expected)), else: params
+      if Playwright.Matchers.Expect.truthy?(expected),
+        do: Map.put(params, :expected, TestTracing.bounded_preview(expected)),
+        else: params
 
     step =
       TestInfo._add_step(test_info, %{
@@ -823,9 +825,6 @@ defmodule Playwright.Test do
 
     TestInfo.step_complete(step, if(error, do: %{error: error}, else: %{}))
   end
-
-  # JS truthiness (`Playwright.Matchers.Expect`'s).
-  defp js_truthy?(value), do: value not in [nil, false, :null, "", 0] and value != 0.0
 
   @doc false
   # When a test registers, its describe's and its own tags have no worker option of `use/1`, as

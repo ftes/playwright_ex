@@ -424,8 +424,9 @@ defmodule Playwright.Matchers.Expect do
     end
   end
 
-  # JS truthiness of an argument.
-  defp truthy?(value), do: value not in [nil, false, :null, "", 0] and value != 0.0
+  @doc false
+  # JS truthiness of an argument (also `Playwright.Test.assert/1`'s `expected`).
+  def truthy?(value), do: value not in [nil, false, :null, "", 0] and value != 0.0
 
   # Elixir only: the message of a `suggestedRebaseline` that is not written (see above). The
   # rebaseline is a JS template literal with `{indent}` placeholders; its body is printed.

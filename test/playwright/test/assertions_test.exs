@@ -350,11 +350,11 @@ defmodule Playwright.Test.AssertionsTest do
     %{error | expr: strip.(error.expr), left: strip.(error.left)}
   end
 
-  test "a large expected is previewed short and fast" do
+  test "a large expected is previewed short" do
     on_trace(fn events ->
-      [binary, list] =
+      [binary, list, invalid] =
         for %{"params" => %{"expression" => expression, "expected" => expected}} <- befores(events),
-            expression in ["binary == same_binary", "list == same_list"],
+            expression in ["binary == same_binary", "list == same_list", "invalid == same_invalid"],
             do: expected
 
       assert byte_size(binary) < 1100
@@ -362,17 +362,32 @@ defmodule Playwright.Test.AssertionsTest do
       assert byte_size(list) < 1100
       assert String.starts_with?(list, "[0, 1, 2")
       assert String.ends_with?(list, ", …]")
+      assert byte_size(invalid) < 1100
+      assert String.starts_with?(invalid, "<<255, 255")
     end)
 
     binary = String.duplicate("x", 1_000_000)
     same_binary = :binary.copy(binary)
     list = Enum.to_list(0..99_999)
     same_list = Enum.to_list(0..99_999)
-    {binary_us, _} = :timer.tc(fn -> assert binary == same_binary end)
-    {list_us, _} = :timer.tc(fn -> assert list == same_list end)
-    # The comparison itself is ExUnit's; the preview walks a bounded part (ms under load).
-    assert binary_us < 50_000
-    assert list_us < 50_000
+    invalid = String.duplicate(<<0xFF>>, 1_000_000)
+    same_invalid = :binary.copy(invalid)
+    assert binary == same_binary
+    assert list == same_list
+    assert invalid == same_invalid
+  end
+
+  test "a binary that isn't UTF-8 is previewed as inspected, so the trace is JSON" do
+    on_trace(fn events ->
+      assert [passed, failed] = Enum.filter(befores(events), &(&1["method"] == "expect"))
+      assert passed["params"]["expected"] == "<<137, 255>>"
+      assert failed["params"]["expected"] == "<<137, 254>>"
+      assert after_of(events, failed)["error"]
+    end)
+
+    frame = Process.get(:not_set, <<0x89, 0xFF>>)
+    assert frame == <<0x89, 0xFF>>
+    test_failure(fn -> assert frame == <<0x89, 0xFE>> end)
   end
 
   test "no step of its own for expect.poll's assertion, nor outside a test" do

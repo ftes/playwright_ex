@@ -296,9 +296,11 @@ defmodule Playwright.Test.TestTracing do
   Elixir only: bound trace size. `generate_preview/1` of `value` (an `assert`'s `expected`) at
   most #{@preview_items} list elements and #{@preview_length} characters long, a cut shown as
   `…`, walking no more of `value` than that: upstream's previews are whole, and each step of an
-  `assert` of a large value would carry all of it. Lists and maps are previewed each time they
-  occur (upstream's arrays and objects are distinct unless the same one), other values once, as
-  `generate_preview/1` does.
+  `assert` of a large value would carry all of it. A binary that isn't UTF-8, and any other term
+  (a tuple, a pid), is its `inspect`, cut as well, as the trace is JSON. A number, an atom or a
+  short binary seen before is empty, as in `generate_preview/1`; lists, maps, long binaries and
+  `inspect`ed terms are previewed each time (upstream's arrays and objects are distinct unless
+  the same one). An improper list's tail is one more element.
   """
   def bounded_preview(value) do
     {preview, _visited, _budget} = bounded(value, MapSet.new(), @preview_items)
@@ -312,17 +314,34 @@ defmodule Playwright.Test.TestTracing do
     {"[" <> Enum.join(previews, ", ") <> "]", visited, budget}
   end
 
-  defp bounded(value, visited, budget) when is_binary(value) and byte_size(value) > @preview_length,
-    do: {cut(value), visited, budget}
+  defp bounded(value, visited, budget) when is_binary(value) and byte_size(value) > @preview_length do
+    # Only the cut's prefix is checked: the rest isn't in the preview.
+    prefix = String.slice(value, 0, @preview_length)
 
-  defp bounded(value, visited, budget)
-       when is_binary(value) or is_number(value) or is_atom(value) do
+    cond do
+      not String.valid?(prefix) -> {bounded_inspect(value), visited, budget}
+      prefix == value -> {value, visited, budget}
+      true -> {prefix <> "…", visited, budget}
+    end
+  end
+
+  defp bounded(value, visited, budget) when is_binary(value) do
+    if String.valid?(value) do
+      {preview, visited} = generate_preview(value, visited)
+      {preview, visited, budget}
+    else
+      {bounded_inspect(value), visited, budget}
+    end
+  end
+
+  defp bounded(value, visited, budget) when is_number(value) or is_atom(value) do
     {preview, visited} = generate_preview(value, visited)
     {preview, visited, budget}
   end
 
-  defp bounded(value, visited, budget),
-    do: {cut(inspect(value, limit: @preview_items, printable_limit: @preview_length)), visited, budget}
+  defp bounded(value, visited, budget), do: {bounded_inspect(value), visited, budget}
+
+  defp bounded_inspect(value), do: cut(inspect(value, limit: @preview_items, printable_limit: @preview_length))
 
   defp bounded_list([], visited, budget, previews), do: {Enum.reverse(previews), visited, budget}
   defp bounded_list([_ | _], visited, 0, previews), do: {Enum.reverse(["…" | previews]), visited, 0}
