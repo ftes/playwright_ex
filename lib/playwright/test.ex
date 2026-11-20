@@ -466,7 +466,7 @@ defmodule Playwright.Test do
   `test_id_attribute` is upstream's `testIdAttribute`, set on each pooled driver: the client's
   value is global to the VM, so set it here, not per module. `config/0` returns the config
   resolved. An unknown key raises at application start (and when the runner reads a config
-  changed since), and so does a bad value of the keys upstream checks: `workers`, `preserve_output`, `output_dir`, `browser_name`, `on_start`, `report_slow_tests` and the context options, and `assert_steps` (a boolean) (as `Browser.new_context/2` checks them).
+  changed since), and so does a bad value of the keys upstream checks: `workers`, `preserve_output`, `output_dir`, `browser_name`, `on_start`, `report_slow_tests` and the context options (as `Browser.new_context/2` checks them), and of Elixir's `assert_steps` (a boolean).
   Other values pass as given, as upstream's: an unknown artifact mode records nothing.
   """
 
@@ -485,6 +485,8 @@ defmodule Playwright.Test do
   @reraised {__MODULE__, :reraised}
   # When the test's first `setup` callback ran (`__started__/1`), in its process.
   @started {__MODULE__, :started}
+  # The arity of the capture of the latest assertion in one (`code_string/1`).
+  @capture_arity {__MODULE__, :capture_arity}
   @assertion_titles Map.new(
                       [:assert, :refute],
                       &{&1, "Expect #{Playwright.Isomorphic.StringUtils.escape_with_quotes(to_string(&1), "\"")}"}
@@ -589,8 +591,8 @@ defmodule Playwright.Test do
   end
 
   # Elixir only: whether `assert` and `refute` are steps (see "Assertions"), at compile time, as
-  # it decides the import: the literal `assert_steps:` of `opts` (taken out of them), else
-  # `config :playwright, :test`'s, read with `Application.compile_env/4`, so Mix recompiles the
+  # it decides the import: the literal `assert_steps:` of `opts` (taken out of them), else an
+  # earlier `use`'s in the module, else `config :playwright, :test`'s, read with `Application.compile_env/4`, so Mix recompiles the
   # module when it changes.
   defp assert_steps!(opts, caller) do
     {given, opts} = if Keyword.keyword?(opts), do: Keyword.pop(opts, :assert_steps), else: {nil, opts}
@@ -603,8 +605,14 @@ defmodule Playwright.Test do
         raise ArgumentError,
               "use Playwright.Test: invalid value #{Macro.to_string(given)} for assert_steps, expected a literal boolean"
 
+      # An earlier `use`'s (a case template's `using`), as the other options merge: its import.
+      {:test, 3} in Keyword.get(caller.macros, __MODULE__, []) ->
+        {{:assert, 1} in Keyword.get(caller.macros, __MODULE__, []), opts}
+
       true ->
-        configured = Application.compile_env(caller, :playwright, [:test, :assert_steps], true)
+        # A `nil` key is unset: its default, as `config/0` reads it.
+        configured = Application.compile_env(caller, :playwright, [:test, :assert_steps], nil)
+        configured = if configured == nil, do: true, else: configured
         {Options.validate_key!(:assert_steps, configured, "config :playwright, :test"), opts}
     end
   end
@@ -737,7 +745,15 @@ defmodule Playwright.Test do
     {:ok, env} = Macro.Env.define_require(caller, [], ExUnit.Assertions)
     expansion = Macro.expand_once(quote(do: ExUnit.Assertions.unquote(kind)(unquote(assertion))), env)
 
+    # A capture's arity, for the source of its failed assertion's step (`code_string/1`).
+    arity =
+      case capture_arity(assertion) do
+        0 -> nil
+        arity -> quote(do: Process.put(unquote(@capture_arity), unquote(arity)))
+      end
+
     quote do
+      unquote(arity)
       value = unquote(expansion)
       Playwright.Test.__assertion__(unquote(kind), unquote(code), nil, nil, unquote(right_var(expansion)))
       value
@@ -746,20 +762,15 @@ defmodule Playwright.Test do
 
   # Elixir only: the assertion's source, a capture's argument as written (`&1`, not its variable,
   # `_&`), as in `Expect.poll!(fn, &assert(&1 == 2))`. A failed one's `expr` has no metadata (no
-  # `capture:` index): its one capture variable is `&1`, several stay ExUnit's `_&`.
+  # `capture:` index): its capture variables are `&1` if its capture has one argument (as the
+  # assertion noted before it ran, `plain_assertion_ast/3`), else stay ExUnit's `_&`.
   defp code_string(quoted) do
-    {_quoted, pruned} =
-      Macro.prewalk(quoted, 0, fn
-        {:"_&", meta, :elixir_fn} = var, count -> {var, if(meta[:capture], do: count, else: count + 1)}
-        node, count -> {node, count}
-      end)
-
     quoted
     |> Macro.prewalk(fn
       {:"_&", meta, :elixir_fn} = var ->
         cond do
           index = meta[:capture] -> {:&, [], [index]}
-          pruned == 1 -> {:&, [], [1]}
+          Process.get(@capture_arity) == 1 -> {:&, [], [1]}
           true -> var
         end
 
@@ -767,6 +778,17 @@ defmodule Playwright.Test do
         node
     end)
     |> Macro.to_string()
+  end
+
+  # The highest capture argument (`&2`) of `quoted`, 0 for none.
+  defp capture_arity(quoted) do
+    {_quoted, arity} =
+      Macro.prewalk(quoted, 0, fn
+        {:"_&", meta, :elixir_fn} = var, arity -> {var, max(arity, meta[:capture] || 0)}
+        node, arity -> {node, arity}
+      end)
+
+    arity
   end
 
   # The `right` ExUnit's expansion binds in the caller's scope: `right = ...` at the top of its
@@ -1126,7 +1148,7 @@ defmodule Playwright.Test do
       |> Map.merge(context_defaults(config, layers, module_worker(context[:module], use_options, %{})))
       |> Map.put(:use_modes, use_modes)
       # Elixir only: the module's `assert_steps` (`__assertion_error__/2`).
-      |> Map.put(:assert_steps, compiled(context[:module], :assert_steps, true))
+      |> Map.put(:assert_steps, compiled(context[:module], :assert_steps, config.assert_steps))
 
     TestInfo.remove_output_dirs(test)
     # The failure of a marked test that raised nothing in its body.

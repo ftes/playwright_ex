@@ -171,6 +171,15 @@ defmodule Playwright.Test.Options do
   end
 
   defp use_options!(opts, label, worker_keys) do
+    # Elixir only: read by the `use` macro itself (`Playwright.Test.__using__/1`), so from a
+    # literal keyword list only.
+    if Keyword.has_key?(opts, :assert_steps),
+      do:
+        raise(
+          ArgumentError,
+          "#{label}: assert_steps must be a literal boolean in a literal keyword list (it is read at compile time)"
+        )
+
     {context, opts} = Keyword.split(opts, context_keys())
 
     # A device's, with its other keys: upstream's worker-scoped `defaultBrowserType` (`use/1`
@@ -591,9 +600,10 @@ defmodule Playwright.Test.Options do
   defp validate!(:output_dir, dir) when is_binary(dir), do: dir
   defp validate!(:preserve_output, value) when value in [:always, :never, :failures_only], do: value
 
+  defp validate!(:assert_steps, value) when is_boolean(value), do: value
+
   # Upstream's `if (testIdAttribute)` (`_setupContextOptions`): an empty one sets none (`nil`),
   # so the selectors keep theirs.
-  defp validate!(:assert_steps, value) when is_boolean(value), do: value
   defp validate!(:test_id_attribute, ""), do: nil
   defp validate!(:workers, workers) when is_integer(workers) and workers > 0, do: workers
   # Upstream's `reportSlowTests: null`: none (a `nil` key is unset, its default).

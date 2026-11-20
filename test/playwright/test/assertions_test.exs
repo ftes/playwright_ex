@@ -429,6 +429,7 @@ defmodule Playwright.Test.AssertionsOptOutTest do
   # `use Playwright.Test, assert_steps: false`: ExUnit's own `assert` and `refute`, no steps.
   use ExUnit.Case, async: true
 
+  alias Playwright.Expect
   alias Playwright.Test.TestInfo
 
   @moduletag Playwright.Test.use(trace: :on)
@@ -442,11 +443,17 @@ defmodule Playwright.Test.AssertionsOptOutTest do
       {_, trace} = List.keyfind(files, ~c"test.trace", 0)
       events = for line <- String.split(trace, "\n"), do: JSON.decode!(line)
       File.rm_rf!(dir)
-      refute Enum.any?(events, &(&1["method"] == "expect"))
+      befores = for %{"type" => "before", "method" => "expect"} = event <- events, do: event
+      # No assertion's step (no `expression`); a poll's attempts are the matcher's.
+      refute Enum.any?(befores, &(&1["params"]["expression"] != nil))
+      expected = Process.get(:not_set, :persistent_term.get({__MODULE__, test_pid}, []))
+      assert Enum.map(befores, & &1["title"]) == expected
     end)
   end
 
   use Playwright.Test, assert_steps: false
+  # A later `use` without the option (a case template's `using` and the module's) keeps it.
+  use Playwright.Test
 
   test "assert and refute are ExUnit's, and record no step, passed or failed" do
     assert Macro.Env.lookup_import(__ENV__, {:assert, 1}) == [macro: ExUnit.Assertions]
@@ -469,6 +476,12 @@ defmodule Playwright.Test.AssertionsOptOutTest do
     Playwright.Test.__assertion_error__(TestInfo.current(), error)
   end
 
+  test "a poll's attempts are the matcher's steps" do
+    :persistent_term.put({__MODULE__, self()}, [~s(Expect "poll assert"), ~s(Expect "assert"), ~s(Expect "assert")])
+    {:ok, agent} = Agent.start_link(fn -> 0 end)
+    Expect.poll!(fn -> Agent.get_and_update(agent, &{&1 + 1, &1 + 1}) end, &assert(&1 == 2), intervals: [0])
+  end
+
   test "the option takes a literal boolean, the config a boolean" do
     assert_raise ArgumentError,
                  ~r"^config :playwright, :test: invalid value :yes for assert_steps, expected a boolean",
@@ -486,6 +499,11 @@ defmodule Playwright.Test.AssertionsOptOutTest do
 
     assert_raise ArgumentError, ~r"^use Playwright.Test: invalid value :yes for assert_steps", fn ->
       Code.eval_quoted(quoted)
+    end
+
+    # From a list that isn't literal, `use` sees no option at compile time.
+    assert_raise ArgumentError, ~r"^use Playwright.Test: assert_steps must be a literal boolean", fn ->
+      Playwright.Test.Options.use_options(assert_steps: false)
     end
   end
 end

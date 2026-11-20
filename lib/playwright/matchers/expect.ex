@@ -489,8 +489,9 @@ defmodule Playwright.Matchers.Expect do
             try do
               # Elixir only: the `assert` matcher's attempt is no matcher step around its
               # assertion, whose own step (`Playwright.Test.assert/1`, with its expression and
-              # `expected`) is the attempt's, as upstream's attempt is `toEqual(expected)`'s.
-              if matcher_name == "assert",
+              # `expected`) is the attempt's, as upstream's attempt is `toEqual(expected)`'s;
+              # with `assert_steps: false` (no such step) it is the matcher's.
+              if matcher_name == "assert" and assert_steps?(test_info),
                 do: invoke_matcher(matcher_name, %{info | poll: nil, isSoft: false}, matcher, value, args, nil, nil),
                 else: call_matcher_as_step(matcher_name, %{info | poll: nil, isSoft: false}, value, matcher, args)
 
@@ -525,6 +526,9 @@ defmodule Playwright.Matchers.Expect do
       %{pass: !info[:isNot], message: fn -> "" end}
     end
   end
+
+  # Whether the test records its assertions as steps (`Playwright.Test`'s `assert_steps`).
+  defp assert_steps?(test_info), do: Map.get(test_info || %{}, :assert_steps, true)
 
   # mergeExpects  -- not ported: expect.extend
 end
