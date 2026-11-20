@@ -86,7 +86,7 @@ jobs:
             _build
       - name: Install dependencies
         run: mix "do" deps.get, deps.compile
-      # A PR never writes the shared cache; `mix dialyzer --plt --no-compile` builds what a restore lacks.
+      # A PR never writes the shared cache; `mix dialyzer --plt` builds what a restore lacks.
       - name: Restore Dialyzer PLT cache
         id: plt_cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -95,10 +95,10 @@ jobs:
           restore-keys: plt-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}
           path: priv/plts
       # Saved right after it is built, so a lint failure doesn't waste the build; `mix lint`'s
-      # Dialyzer step then reuses it. --no-compile: the PLT holds the deps only, so an app compile
-      # error doesn't stop it.
+      # Dialyzer step then reuses it. Building it compiles the app (dialyxir's `cons_apps` loads
+      # it to list the PLT's apps), so an app compile error fails this step.
       - name: Build Dialyzer PLT
-        run: mix dialyzer --plt --no-compile
+        run: mix dialyzer --plt
       - name: Save PLT cache
         if: github.ref == 'refs/heads/main' && steps.plt_cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6

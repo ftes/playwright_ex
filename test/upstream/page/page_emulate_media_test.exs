@@ -8,6 +8,7 @@ defmodule Playwright.Page.PageEmulateMediaTest do
   use Playwright.UpstreamCase, async: true
 
   alias Playwright.Page
+  alias Playwright.Promise
   alias Playwright.Runtime
   alias Playwright.TestServer
 
@@ -88,11 +89,14 @@ defmodule Playwright.Page.PageEmulateMediaTest do
     navigated = Runtime.Promise.async(fn -> Page.goto!(page, server.empty_page) end)
 
     for i <- 0..8 do
-      emulated =
-        Task.async(fn -> Page.emulate_media!(page, color_scheme: Enum.at([:dark, :light], Bitwise.band(i, 1))) end)
-
-      Process.sleep(1)
-      Task.await(emulated, :infinity)
+      Promise.await!(
+        Promise.all([
+          Promise.async(fn ->
+            Page.emulate_media!(page, color_scheme: Enum.at([:dark, :light], Bitwise.band(i, 1)))
+          end),
+          Promise.async(fn -> Runtime.Promise.await(Runtime.Promise.timer(1)) end)
+        ])
+      )
     end
 
     Runtime.Promise.await(navigated)
