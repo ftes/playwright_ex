@@ -34,14 +34,13 @@ mix deps.get
 mix playwright.install
 ```
 
-Arguments are `playwright install`'s, with no `--`:
-`mix playwright.install chromium --with-deps`.
+Arguments are `playwright install`'s: `mix playwright.install chromium --with-deps`.
 
 ## Versioning
 
 The major.minor is Playwright's and the patch is ours, as in playwright-python: `1.65.x` drives
-Playwright 1.65. Our own breaking changes ship only with a
-Playwright minor, so depend on `~> 1.65.0`.
+Playwright 1.65. Our own breaking changes ship only with a Playwright minor, so depend on
+`~> 1.65.0`.
 
 ## Example
 
@@ -79,9 +78,13 @@ names match Python's: snake_case, keyword options, `expect_popup`, `eval_on_sele
 - [Events and waiting](guides/events-and-waiting.md), [Network](guides/network.md),
   [Debugging and CI](guides/debugging-and-ci.md).
 - [Concurrency](guides/concurrency.md): listeners, promises and processes.
-- [Upgrading from 0.16](guides/upgrading.md).
 
 Feedback of any shape and size is welcome: [get in touch](https://ftes.de).
+
+## Known gaps
+
+See [Not supported](guides/testing-with-exunit.md#not-supported) in the Testing with ExUnit
+guide.
 
 ## Contributing
 

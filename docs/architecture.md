@@ -33,9 +33,7 @@ Versions take upstream's major.minor with our own patch, as playwright-python do
 upstream minor gives X.Y.0. Upstream's patch can't be tracked exactly, as Hex takes strict
 SemVer: `1.65.1.1` doesn't parse, `+build` doesn't order versions and `1.65.1-1` sorts before
 `1.65.1`. So the README and each CHANGELOG entry name the exact driver. Our own breaking changes
-ship only with an upstream minor, so `~> 1.65.0` is safe to depend on. Going to 1.x after the
-0.17 release candidates also keeps them outside phoenix_test_playwright's published
-`playwright_ex ~> 0.15`, which a final 0.x would have matched and broken.
+ship only with an upstream minor, so `~> 1.65.0` is safe to depend on.
 
 The driver is pinned too: `Playwright.Driver` downloads `playwright-core@<pin>` from npm
 (sha512) and Node from nodejs.org (SHASUMS256, committed for six platforms; no musl, like

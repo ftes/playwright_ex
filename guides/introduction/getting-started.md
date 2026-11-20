@@ -22,7 +22,7 @@ no Node.js or npm is needed beforehand. It goes to the user cache directory
 from an environment variable, locally or in CI, read that in `config/config.exs`) and installs itself on first
 start if missing. Browsers
 go to Playwright's [browser cache](https://playwright.dev/docs/browsers#managing-browser-binaries).
-Arguments are `playwright install`'s, with no `--`:
+Arguments are `playwright install`'s:
 
 ```sh
 mix playwright.install chromium              # one browser
@@ -180,8 +180,7 @@ Logger.put_application_level(:playwright, :info)
 
 To upgrade, bump the dependency and run `mix playwright.install` again for the new driver and
 browsers. Read the [changelog](../../CHANGELOG.md) and Playwright's [release
-notes](https://playwright.dev/docs/release-notes). From 0.16, follow the
-[upgrading guide](../upgrading.md).
+notes](https://playwright.dev/docs/release-notes).
 
 ## Usage rules for coding agents
 

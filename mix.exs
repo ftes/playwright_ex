@@ -98,7 +98,6 @@ defmodule Playwright.MixProject do
         "guides/network.md": [title: "Network"],
         "guides/debugging-and-ci.md": [title: "Debugging and CI"],
         "guides/concurrency.md": [title: "Concurrency"],
-        "guides/upgrading.md": [title: "Upgrading from 0.16"],
         "CHANGELOG.md": [title: "Changelog"]
       ],
       groups_for_extras: [
@@ -110,7 +109,7 @@ defmodule Playwright.MixProject do
           "guides/debugging-and-ci.md",
           "guides/concurrency.md"
         ],
-        Upgrading: ["guides/upgrading.md", "CHANGELOG.md"]
+        Changelog: ["CHANGELOG.md"]
       ],
       nest_modules_by_prefix: [Playwright],
       # The changelog names functions of the API before the restructure.
