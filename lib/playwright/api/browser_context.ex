@@ -172,6 +172,7 @@ defmodule Playwright.BrowserContext do
   """
 
   alias Playwright.Runtime.Facade
+  alias Playwright.Runtime.ProtocolType
 
   @typedoc "A `BrowserContext` handle. Compare handles with `==`, their fields are internal."
   @type t :: %__MODULE__{}
@@ -254,7 +255,7 @@ defmodule Playwright.BrowserContext do
     Playwright.Client.BrowserContext.debugger(browser_context)
   end
 
-  @add_cookies_cookies Facade.protocol_type("BrowserContextAddCookiesParams", :cookies)
+  @add_cookies_cookies ProtocolType.of("BrowserContextAddCookiesParams", :cookies)
 
   @doc ~S"""
   Adds cookies into this browser context. All pages within this context will have these cookies installed. Cookies can be
@@ -1378,7 +1379,7 @@ defmodule Playwright.BrowserContext do
     end)
   end
 
-  @set_storage_state_storage_state Facade.protocol_type("BrowserContextSetStorageStateParams", :storageState)
+  @set_storage_state_storage_state ProtocolType.of("BrowserContextSetStorageStateParams", :storageState)
 
   @doc ~S"""
   Clears the existing cookies, local storage, IndexedDB entries, origin private file system entries and virtual WebAuthn credentials, and sets the new storage
@@ -2004,12 +2005,13 @@ defmodule Playwright.BrowserContext do
     Facade.listen(fn -> Playwright.Client.BrowserContext.prepend_listener(browser_context, event, listener) end)
   end
 
-  @doc """
-  The options of `function`, an atom such as `:add_init_script`, as
-  `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, for tools that build on the facade at
-  compile time; a function without options raises `FunctionClauseError`. Unstable: the shape
-  may change between releases.
-  """
+  # The options of `function`, an atom such as `:add_init_script`, in order, as its docs show them:
+  # `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, `doc` the first paragraph on one
+  # line, `since` the Playwright version that added the option if newer than the function,
+  # `type_doc` the type as rendered, `spec` the quoted typespec. For libraries that pass
+  # options on; a function without options raises `FunctionClauseError`.
+  @doc false
+  @doc library_api: true
   @spec __options__(atom()) :: [
           {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
         ]

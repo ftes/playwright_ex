@@ -16,6 +16,7 @@ defmodule Playwright.Library.MulticlientTest do
   alias Playwright.Expect
   alias Playwright.Locator
   alias Playwright.Page
+  alias Playwright.Promise
   alias Playwright.RemoteServer.LaunchServer
   alias Playwright.Route
   alias Playwright.Runtime
@@ -136,13 +137,11 @@ defmodule Playwright.Library.MulticlientTest do
     Page.set_default_timeout(page_b, 600)
 
     [{:error, error_a}, {:error, error_b}] =
-      Task.await_many(
-        [
-          Task.async(fn -> Page.click(page_a, "div") end),
-          Task.async(fn -> Page.click(page_b, "div") end)
-        ],
-        :infinity
-      )
+      Promise.all([
+        Promise.async(fn -> Page.click(page_a, "div") end),
+        Promise.async(fn -> Page.click(page_b, "div") end)
+      ])
+      |> Promise.await!()
 
     assert Exception.message(error_a) =~ "Timeout 500ms exceeded"
     assert Exception.message(error_b) =~ "Timeout 600ms exceeded"

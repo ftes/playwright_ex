@@ -48,7 +48,20 @@ jobs:
           path: tmp/default-branch
           sparse-checkout: .github
           persist-credentials: false
-      - uses: ./tmp/default-branch/.github/actions/claude
+      # A rebase of reviewed changes skips the review; a later push can be reviewed by its
+      # increment. Main's script, as for the prompts. Should it fail, Claude reviews it all.
+      - name: Compare with the last review
+        id: increment
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_REF: ${{ github.base_ref }}
+        run: bash tmp/default-branch/.github/scripts/claude-review-increment.sh
+      - if: steps.increment.outputs.mode != 'skip'
+        uses: ./tmp/default-branch/.github/actions/claude
         with:
           token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           setup: best-effort
@@ -58,5 +71,7 @@ jobs:
             REPO: ${{ github.repository }}
             PR: ${{ github.event.pull_request.number }}
             BASE: origin/${{ github.base_ref }}
+            LAST REVIEW: ${{ steps.increment.outputs.note }}
+            MARKER: <!-- claude-review: ${{ steps.increment.outputs.head }} ${{ steps.increment.outputs.fork }} -->
           max-turns: "80"
           allowed-tools: "Skill,Read,Grep,Glob,Agent,Task,Write,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments:*),mcp__github_inline_comment__create_inline_comment"

@@ -193,6 +193,81 @@ defmodule Playwright.Test.GitHubFormatterTest do
                )
   end
 
+  test "under mix test --failed (retry 1): a passing test is flaky, a failing one gets a retry separator" do
+    {failure, line} = {failure(fn -> raise "oops" end), __ENV__.line}
+    module = %ExUnit.TestModule{name: Some.Module, file: __ENV__.file, state: {:failed, [failure]}}
+
+    events = [
+      {:test_finished, test_struct("test passes now", line: 12)},
+      {:test_finished, test_struct("test fails again", line: 20, state: {:failed, [failure]})},
+      {:test_finished, test_struct("test skipped", line: 31, state: {:skipped, "x"})},
+      # Not run after a failed `setup_all`, again: did not run. A first run's such test is
+      # rerun too, and passing there it is flaky (a deviation: the manifest has no state).
+      {:test_finished, test_struct("test invalid", line: 33, state: {:invalid, module})},
+      {:suite_finished, %{run: 1_500_000, load: 200_000, async: 0}}
+    ]
+
+    only_test_ids = for {:test_finished, test} <- events, do: {__MODULE__, test.name}
+
+    header = fn line, name, indent ->
+      text = "#{indent}#{@file_path}:#{line} › #{name} "
+      text <> rule(100 - String.length(text))
+    end
+
+    summary_line = fn tokens -> "::notice title=🎭 Playwright Run Summary::" <> Enum.join(tokens, "%0A") end
+
+    # Only this run's failures: the flaky test's was the first run's, numbered there.
+    assert [error, summary] = run(events, only_test_ids: only_test_ids) |> String.split("\n", trim: true)
+
+    assert String.starts_with?(
+             error,
+             "::error file=#{@file_path},title=#{@file_path}%3A20 › fails again,line=#{line}::" <>
+               Enum.join(
+                 [
+                   header.(20, "fails again", "  1) "),
+                   "",
+                   "    Retry #1 " <> rule(100 - 13),
+                   "     ** (RuntimeError) oops"
+                 ],
+                 "%0A"
+               )
+           )
+
+    assert summary ==
+             summary_line.([
+               "  1 failed",
+               header.(20, "fails again", "    "),
+               "  1 flaky",
+               header.(12, "passes now", "    "),
+               "  1 skipped",
+               "  1 did not run"
+             ])
+
+    # A rerun where everything passes: all flaky, none passed.
+    passing = [
+      {:test_finished, test_struct("test passes now", line: 12)},
+      {:test_finished, test_struct("test passes too", line: 20)},
+      {:suite_finished, %{run: 1_500_000, load: 200_000, async: 0}}
+    ]
+
+    assert run(passing, only_test_ids: only_test_ids) |> String.split("\n", trim: true) == [
+             summary_line.(["  2 flaky", header.(12, "passes now", "    "), header.(20, "passes too", "    ")])
+           ]
+
+    # The first run (retry 0): passed, and no Retry line.
+    assert [error, summary] = run(events) |> String.split("\n", trim: true)
+    assert error =~ "::#{header.(20, "fails again", "  1) ")}%0A     ** (RuntimeError) oops"
+
+    assert summary ==
+             summary_line.([
+               "  1 failed",
+               header.(20, "fails again", "    "),
+               "  1 skipped",
+               "  1 did not run",
+               "  1 passed (1.7s)"
+             ])
+  end
+
   test "config :playwright, :test's report_slow_tests: max and threshold, non-negative numbers, or false",
        %{config: config} do
     Application.put_env(:playwright, :test, Keyword.delete(config, :report_slow_tests))

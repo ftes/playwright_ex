@@ -2185,12 +2185,13 @@ defmodule Playwright.ElementHandle do
     end)
   end
 
-  @doc """
-  The options of `function`, an atom such as `:check`, as
-  `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, for tools that build on the facade at
-  compile time; a function without options raises `FunctionClauseError`. Unstable: the shape
-  may change between releases.
-  """
+  # The options of `function`, an atom such as `:check`, in order, as its docs show them:
+  # `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, `doc` the first paragraph on one
+  # line, `since` the Playwright version that added the option if newer than the function,
+  # `type_doc` the type as rendered, `spec` the quoted typespec. For libraries that pass
+  # options on; a function without options raises `FunctionClauseError`.
+  @doc false
+  @doc library_api: true
   @spec __options__(atom()) :: [
           {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
         ]
@@ -2997,4 +2998,10 @@ defmodule Playwright.ElementHandle do
   def __options_type__(:uncheck), do: @uncheck_options
   def __options_type__(:wait_for_element_state), do: @wait_for_element_state_options
   def __options_type__(:wait_for_selector), do: @wait_for_selector_options
+
+  @doc false
+  # The enum of `function`'s positional argument `arg`, as `Facade.arg!/4` checks it.
+  def __arg_type__(function, arg)
+
+  def __arg_type__(:wait_for_element_state, :state), do: @wait_for_element_state_state
 end

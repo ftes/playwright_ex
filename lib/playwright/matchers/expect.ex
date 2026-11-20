@@ -28,9 +28,9 @@ defmodule Playwright.Matchers.Expect do
       bounds it), not `:timeout`; `:infinity` is `0`.
     * `:to_have_screenshot` - Defaults of `Playwright.Expect.to_have_screenshot/2`'s options, as
       it names them: `:animations`, `:caret`, `:max_diff_pixels`, `:max_diff_pixel_ratio`,
-      `:scale`, `:style_path`, `:threshold` (`[max_diff_pixels: 10]`), and the config's own
-      `:type` (`:png` or `:webp`, of an unnamed snapshot) and `:path_template`
-      (see "Snapshots" in `Playwright.Test`).
+      `:scale`, `:style_path`, `:threshold` and `:timeout` (over the expect `:timeout`, under a
+      call's), as in `[max_diff_pixels: 10]`, and the config's own `:type` (`:png` or `:webp`, of
+      an unnamed snapshot) and `:path_template` (see "Snapshots" in `Playwright.Test`).
     * `:to_match_aria_snapshot` - `:children` (`:contain`, `:equal` or `:deep_equal`: the
       `/children` mode of a snapshot that sets none) and `:path_template`.
 
@@ -171,7 +171,7 @@ defmodule Playwright.Matchers.Expect do
   # matcher, which `Playwright.Expect`'s schema converts, and keys of the config only.
   @matcher_config %{
     to_have_screenshot:
-      {[:animations, :caret, :max_diff_pixels, :max_diff_pixel_ratio, :scale, :style_path, :threshold],
+      {[:animations, :caret, :max_diff_pixels, :max_diff_pixel_ratio, :scale, :style_path, :threshold, :timeout],
        [:type, :path_template]},
     to_match_aria_snapshot: {[], [:path_template, :children]},
     to_pass: {[:timeout, :intervals], []}
@@ -320,9 +320,12 @@ defmodule Playwright.Matchers.Expect do
     # out all the frames that belong to the test runner from caught runtime errors.
     stack_frames = TestInfo.stack_frames(TestInfo.filtered_stack_trace(TestInfo.capture_raw_stack()))
     params = suffixes[:params] || %{}
-    # Elixir only: the facade passes the options it got, `%{}` for none (JS `undefined`).
+    # Elixir only: the facade passes the options it got, `%{}` for none (JS `undefined`), and a
+    # function (`toPass`'s callback, `poll`'s assertion) is no value to expect.
     params =
-      if truthy?(Enum.at(args, 0)) and Enum.at(args, 0) != %{}, do: Map.put(params, :expected, hd(args)), else: params
+      if truthy?(Enum.at(args, 0)) and Enum.at(args, 0) != %{} and not is_function(Enum.at(args, 0)),
+        do: Map.put(params, :expected, hd(args)),
+        else: params
 
     step_data = %{
       category: "expect",
@@ -423,8 +426,9 @@ defmodule Playwright.Matchers.Expect do
     end
   end
 
-  # JS truthiness of an argument.
-  defp truthy?(value), do: value not in [nil, false, :null, "", 0] and value != 0.0
+  @doc false
+  # JS truthiness of an argument (also `Playwright.Test.Assertions.assert/1`'s `expected`).
+  def truthy?(value), do: value not in [nil, false, :null, "", 0] and value != 0.0
 
   # Elixir only: the message of a `suggestedRebaseline` that is not written (see above). The
   # rebaseline is a JS template literal with `{indent}` placeholders; its body is printed.
@@ -481,12 +485,30 @@ defmodule Playwright.Matchers.Expect do
             %{continuePolling: false, result: nil}
           else
             value = actual.()
+            attempt_info = %{info | poll: nil, isSoft: false}
+
+            # Elixir only: the `assert` matcher's attempt is no matcher step around its
+            # assertion, whose own step (`Playwright.Test.Assertions.assert/1`, with its expression and
+            # `expected`) is the attempt's, as upstream's attempt is `toEqual(expected)`'s; with
+            # a message (the attempt's title) or `assert_steps: false` it is the matcher's.
+            own_step? = matcher_name == "assert" and assert_steps?(test_info) and !truthy?(info[:message])
 
             try do
-              call_matcher_as_step(matcher_name, %{info | poll: nil, isSoft: false}, value, matcher, args)
+              if own_step?,
+                do: invoke_matcher(matcher_name, attempt_info, matcher, value, args, nil, nil),
+                else: call_matcher_as_step(matcher_name, attempt_info, value, matcher, args)
+
               %{continuePolling: false, result: nil}
             catch
-              kind, reason -> %{continuePolling: true, result: {kind, reason, __STACKTRACE__}}
+              kind, reason ->
+                # Elixir only: a failed `assert/1`'s step, as for a `to_pass` attempt
+                # (`Playwright.Test.__assertion_error__/2`); another error's, the matcher's.
+                error = {kind, reason, __STACKTRACE__}
+
+                if own_step? and !Playwright.Test.__assertion_error__(test_info, error),
+                  do: failed_attempt_step(attempt_info, value, args, error)
+
+                %{continuePolling: true, result: error}
             end
           end
         end,
@@ -510,6 +532,22 @@ defmodule Playwright.Matchers.Expect do
       %{pass: !info[:isNot], message: fn -> "" end}
     end
   end
+
+  # The matcher's step of a failed `assert` attempt, with its error (raised again, not run again).
+  defp failed_attempt_step(info, value, args, {kind, reason, stacktrace}) do
+    call_matcher_as_step(
+      "assert",
+      info,
+      value,
+      fn _this, _actual, _assertion -> :erlang.raise(kind, reason, stacktrace) end,
+      args
+    )
+  catch
+    _kind, _reason -> :ok
+  end
+
+  # Whether the test records its assertions as steps (`Playwright.Test`'s `assert_steps`).
+  defp assert_steps?(test_info), do: Map.get(test_info || %{}, :assert_steps, true)
 
   # mergeExpects  -- not ported: expect.extend
 end

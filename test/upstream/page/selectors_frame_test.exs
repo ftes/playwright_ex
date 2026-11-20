@@ -11,6 +11,7 @@ defmodule Playwright.Page.SelectorsFrameTest do
   alias Playwright.Frame
   alias Playwright.Locator
   alias Playwright.Page
+  alias Playwright.Promise
   alias Playwright.Route
   alias Playwright.Runtime
 
@@ -267,14 +268,12 @@ defmodule Playwright.Page.SelectorsFrameTest do
     button = Page.locator(page, "iframe >> internal:control=enter-frame >> button")
 
     [_, text, _] =
-      Task.await_many(
-        [
-          Task.async(fn -> Locator.click!(button) end),
-          Task.async(fn -> Locator.inner_text!(button) end),
-          Task.async(fn -> Expect.to_have_text!(button, "Hello iframe") end)
-        ],
-        :infinity
-      )
+      Promise.all([
+        Promise.async(fn -> Locator.click!(button) end),
+        Promise.async(fn -> Locator.inner_text!(button) end),
+        Promise.async(fn -> Expect.to_have_text!(button, "Hello iframe") end)
+      ])
+      |> Promise.await!()
 
     assert text == "Hello iframe"
   end

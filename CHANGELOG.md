@@ -40,7 +40,7 @@ upstream minor, so `~> 1.65.0` is safe.
 
 ## [Unreleased]
 
-## [1.65.0-rc.3] 2026-11-20
+## [1.65.0-rc.3] 2026-11-21
 
 Drives [Playwright 1.65.1](https://github.com/microsoft/playwright/releases/tag/v1.65.1), on
 Node 26.13.1. No upstream API changes.
@@ -55,9 +55,24 @@ Node 26.13.1. No upstream API changes.
 - `Playwright.Test.parameters/1` takes `name:`, upstream's `project.name`: a failed test prints
   the project as `#Playwright.Test.Project<"Mobile Safari">`, not the whole device, and the
   name is the snapshot templates' `{projectName}`.
+- `use Playwright.Test` imports `Playwright.Test.Assertions`' `assert/1,2` and `refute/1,2`
+  (a helper module imports it itself): ExUnit's, each also an
+  `expect` step of the test's trace (`Expect "assert"`, the expression as its subtitle, the
+  right side of a comparison or match as its `expected`), as upstream's `expect` is; a failed one
+  with its error, at the test's level. A module that imports `ExUnit.Assertions` again after the
+  `use` no longer compiles (an ambiguous `assert`), and a function that ends in a failing
+  assertion keeps its frame in the stacktrace. Opt out with `use Playwright.Test, assert_steps: false` or
+  `config :playwright, :test, assert_steps: false` (compile time).
 
 ### Changed
 
+- **RC only:** **Breaking:** `use Playwright.Test` replaces ExUnit's `assert` and `refute` with
+  `Playwright.Test.Assertions`', so a later `import ExUnit.Assertions` or another library's
+  `assert/2` conflicts with them: opt out with `assert_steps: false`, or import
+  `Playwright.Test.Assertions, except: [...]` beside the library's.
+- **RC only:** `Playwright.Test.GitHubFormatter` annotates a `mix test --failed` rerun too, as upstream's
+  `github` reporter annotates every attempt: a test passing there counts as flaky in the rerun's
+  summary, and one failing again gets its error under `Retry #1`. Pass it to both runs.
 - **RC only:** **Breaking:** `config :playwright, Playwright.Test.GitHubFormatter,
   report_slow_tests: ...` is `config :playwright, :test, report_slow_tests: ...`, as upstream's
   top-level `reportSlowTests`, with `false` for none (`nil` is the default there, as for every
@@ -66,7 +81,7 @@ Node 26.13.1. No upstream API changes.
   only `env:`; `executable:`, `node:` and `cache_dir:` are `config :playwright, :driver`'s.
 - **RC only:** **Breaking:** `config :playwright, :expect`'s `:to_have_screenshot`,
   `:to_match_aria_snapshot` and `:to_pass` take the matchers' snake_case keys
-  (`max_diff_pixels:`, `path_template:`, `children: :equal`), not JS keys.
+  (`max_diff_pixels:`, `timeout:`, `path_template:`, `children: :equal`), not JS keys.
 - **RC only:** **Breaking:** `Playwright.Test.parameters/1` returns one private key,
   `:"playwright.project"`, holding a `Playwright.Test.Project` (`name`, `use`), not a key per
   option.
@@ -96,7 +111,8 @@ Node 26.13.1. No upstream API changes.
   spread, in `use Playwright.Test`, `Test.use/1`, `Test.parameters/1` and the keyword lists
   they take (`trace: [mode: :on, mode: :off]` is off, `connect_options`), in the config's
   (`driver`, `report_slow_tests`, `config :playwright, :expect` and its matchers'), and in the
-  options of `Playwright.Supervisor.start_link/1`, `step/3`, `attach/2` and `snapshot_path/2`.
+  options of `Playwright.Supervisor.start_link/1` and `child_spec/1`, `step/3`, `attach/2` and
+  `snapshot_path/2`.
 - **RC only:** **Breaking:** `@describetag`/`@tag Test.use(...)` with `browser_name`,
   `default_browser_type` (a device's), `launch_options` or `connect_options` raises when the
   module compiles a test of the `test` macro under it, with upstream's "Cannot use({ ... }) in
@@ -117,14 +133,25 @@ Node 26.13.1. No upstream API changes.
 - **RC only:** `Playwright.Test.GitHubFormatter` labels a test by its project's name only, not
   by every `parameterize:` value, and a slow file's annotation is `[project] › file`, as
   upstream's.
+- **RC only:** `__options__/1` is out of HexDocs, as are the selector builders of
+  `Isomorphic.LocatorUtils`: both are marked `library_api: true` in their docs metadata,
+  internal but stable for libraries that build on them, changed only with a CHANGELOG note.
 
 ### Fixed
 
 - **RC only:** `add_cookies`, `storage_state:` and `set_storage_state` check their keys
   against the protocol's: a snake_case `http_only:` raises instead of being dropped. Errors
   name the argument and list index (`cookies[0].http_only`).
+- **RC only:** a `multipart` file's keys are checked as other nested objects' are: `mime_type:`
+  raises, where the client failed treating the map as a stream.
 - **RC only:** `mix playwright.install` forwards a `--` to `playwright install` (rc.2 raised on
   it).
+- **RC only:** `get_by_role` and `to_have_role` specs and docs take roles as strings too, also
+  those Playwright's `AriaRole` lacks (`"mark"`), as JS does; locator descriptions print those
+  as strings, not atoms that raise.
+- **RC only:** `Route.fulfill`, `abort` and `continue` in a route handler have the handler's
+  call site in the trace, which a tail call such as `fn r -> Route.abort!(r) end` doesn't keep
+  (BEAM drops its frame).
 
 ## [1.65.0-rc.2] 2026-11-18
 

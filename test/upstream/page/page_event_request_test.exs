@@ -490,14 +490,14 @@ defmodule Playwright.Page.PageEventRequestTest do
     # All 199 requests are fully functional.
     received =
       all_requests
-      |> Task.async_stream(
-        fn request ->
+      |> Enum.map(fn request ->
+        Promise.async(fn ->
           response = Request.response!(request)
           %{text: Response.text!(response), url: Request.url(request)}
-        end,
-        timeout: 30_000
-      )
-      |> Enum.map(fn {:ok, result} -> result end)
+        end)
+      end)
+      |> Promise.all()
+      |> Promise.await!()
 
     expected =
       for i <- 0..198//1 do

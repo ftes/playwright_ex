@@ -360,16 +360,18 @@ defmodule Playwright.Library.HeadfulTest do
       """
 
       [
-        Task.async(fn -> Page.set_content!(page, content) end),
-        Task.async(fn -> Page.set_content!(headless_page, content) end)
+        Promise.async(fn -> Page.set_content!(page, content) end),
+        Promise.async(fn -> Page.set_content!(headless_page, content) end)
       ]
-      |> Task.await_many(:infinity)
+      |> Promise.all()
+      |> Promise.await!()
 
       [image1, image2] =
-        Task.await_many(
-          [Task.async(fn -> Page.screenshot!(page) end), Task.async(fn -> Page.screenshot!(headless_page) end)],
-          :infinity
-        )
+        Promise.all([
+          Promise.async(fn -> Page.screenshot!(page) end),
+          Promise.async(fn -> Page.screenshot!(headless_page) end)
+        ])
+        |> Promise.await!()
 
       count = UpstreamSnapshot.compare(image1, image2)
       assert count == 0
@@ -418,13 +420,11 @@ defmodule Playwright.Library.HeadfulTest do
     height = "() => document.querySelector('.hyphenated').getBoundingClientRect().height"
 
     [div_height1, div_height2] =
-      Task.await_many(
-        [
-          Task.async(fn -> Page.evaluate!(page, height) end),
-          Task.async(fn -> Page.evaluate!(opposite_page, height) end)
-        ],
-        :infinity
-      )
+      Promise.all([
+        Promise.async(fn -> Page.evaluate!(page, height) end),
+        Promise.async(fn -> Page.evaluate!(opposite_page, height) end)
+      ])
+      |> Promise.await!()
 
     assert div_height1 == div_height2
     Browser.close!(opposite_browser)

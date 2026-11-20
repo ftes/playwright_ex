@@ -112,7 +112,8 @@ defmodule Playwright.Test.SetupAllStepTest do
     send(ctx.late, {:step, self()})
     assert_receive {:stepped, :late}
     Page.goto!(ctx.page, "http://setup-all.test/")
-    assert Page.content!(ctx.page) =~ "stepped"
+    # ExUnit's: `Playwright.Test.Assertions.assert/1` would add the test's row of its step.
+    ExUnit.Assertions.assert(Page.content!(ctx.page) =~ "stepped")
 
     # The running test's rows are unchanged (the test doesn't trace, so its driver calls aren't
     # steps), and the module has none.

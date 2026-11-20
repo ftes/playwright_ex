@@ -16,7 +16,10 @@
 #     registered and its `init/1` still runs.
 #   * `soft_errors` - tests whose matchers write missing snapshots (`snapshot_dir` next to the
 #     output dir), one of them failing after that, one killed past its timeout.
-#   * `steps` - a test failing in a boxed step, with no browser.
+#   * `steps` - a test failing in a boxed step, and one in an `assert`, with no browser.
+#   * `assert_steps` - `config :playwright, :test, assert_steps: false`: a module with the
+#     config's (ExUnit's `assert`) and one with `use Playwright.Test, assert_steps: true`, each a
+#     test failing in an `assert`; prints each module's `assert` import.
 #   * `soft` - soft matchers (`Expect.soft/1`): failing ones, then the rest of the body, then a
 #     hard failure; and a passing one.
 #   * `timeouts` - tests past their timeout: one in a Playwright call, one in `Process.sleep`, one
@@ -50,7 +53,8 @@ Application.put_env(:playwright, :test,
   preserve_output: if(mode == "rerun", do: :failures_only, else: :always),
   # `modules` holds ten workers at once, four of them failed scopes': under fewer workers a release
   # trims a warm worker when it comes before the failed ones'.
-  workers: if(mode == "modules", do: 10, else: 8)
+  workers: if(mode == "modules", do: 10, else: 8),
+  assert_steps: mode != "assert_steps"
 )
 
 # The test build's .app lists the test-only deps: start the library's own tree.
@@ -367,6 +371,60 @@ case mode do
           raise "cannot log in"
         end
       end
+
+      test "fails in an assert" do
+        assert {:ok, value} = {:ok, 1}
+        # (the failing assert)
+        assert value + 1 == 3
+      end
+
+      test "fails in a nested step" do
+        Test.step "outer" do
+          Test.step "inner" do
+            # (the nested assert)
+            assert 1 + 1 == 3
+          end
+        end
+      end
+
+      test "fails raised again from a rescue" do
+        Test.step "outer" do
+          try do
+            Test.step("inner", fn -> assert 1 == 2 end)
+          rescue
+            error ->
+              Test.step("while raised on", fn -> :screenshot end)
+              # credo:disable-for-lines:2 Credo.Check.Warning.RaiseInsideRescue
+              # (raised again)
+              raise error
+          end
+        end
+      end
+
+      test "fails reraised from a rescue" do
+        Test.step "outer" do
+          try do
+            # (the reraised assert)
+            Test.step("inner", fn -> assert 1 == 2 end)
+          rescue
+            error ->
+              try do
+                assert 3 == 4
+              rescue
+                _rescued -> :ok
+              end
+
+              reraise error, __STACKTRACE__
+          end
+        end
+      end
+
+      test "fails with a message" do
+        Test.step "outer" do
+          # (the message assert)
+          assert 1 == 2, "never"
+        end
+      end
     end
 
   # Each fails at once, as the callback's error stops it; it would hang past its timeout.
@@ -588,6 +646,31 @@ case mode do
         wait.(wait)
         Playwright.Test.Pool.ensure_started()
         assert Playwright.Test.Results.started?()
+      end
+    end
+
+  "assert_steps" ->
+    defmodule ConfigOffTest do
+      use ExUnit.Case, async: true
+      use Playwright.Test
+
+      IO.puts("(config_off=>#{inspect(Macro.Env.lookup_import(__ENV__, {:assert, 1}))})")
+
+      test "fails with config off" do
+        assert 1 + 1 == 2
+        assert Process.get(:not_set, 1) == 2
+      end
+    end
+
+    defmodule UseOnTest do
+      use ExUnit.Case, async: true
+      use Playwright.Test, assert_steps: true
+
+      IO.puts("(use_on=>#{inspect(Macro.Env.lookup_import(__ENV__, {:assert, 1}))})")
+
+      test "fails with use on" do
+        assert 1 + 1 == 2
+        assert Process.get(:not_set, 1) == 2
       end
     end
 

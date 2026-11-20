@@ -25,6 +25,11 @@ Playwright.Supervisor           OTP form of outofprocess.start(): driver and con
 Playwright.Test, Playwright.Case  native ExUnit runner (see Test runner)
 ```
 
+HexDocs shows the facade, the errors and the runtime entry points (`filter_modules` in
+`mix.exs`). An internal function with `@doc library_api: true` (hidden by `@doc false` or its
+module, seen in `Code.fetch_docs/1`) is one libraries build on (`__options__/1`,
+`LocatorUtils.get_by_*_selector`): keep it stable, and change it only with a CHANGELOG note.
+
 ## Port and versions
 
 The client is a statement-by-statement port of the official JS client at a pinned version, so a
@@ -140,7 +145,11 @@ the connection process of what it awaits (a latch, a call, an event): if that ex
 rejects with `TargetClosedError` instead of hanging. `async/2` runs a
 function in a process of its own and settles a local promise, or a latch (`owner:` an object,
 `shared: true` the calling process). `void/1` fires and forgets. `then_`/`catch_` are lazy and
-run in the awaiter; `race`/`all` are selective receives.
+run in the awaiter; `race`/`all` are selective receives. The caller waits for an async
+function until its first yield (`Invocation`), as JS runs that part on the caller's stack, so a
+call there without frames of its own has the caller's (`ClientStackTrace`), followed through
+nested async functions. It stops at a process nothing is blocked on: a `Task`, or a listener,
+whose connection doesn't block on it and isn't read.
 
 A process the client starts on one caller's behalf carries that caller's `$callers`, as a `Task`
 does (`Playwright.Runtime.Callers`): an async function's (`Promise.start`), a user listener's
@@ -389,11 +398,26 @@ comments. They have no `@upstream`, as parity tracks the client API, not the run
 upstream's specs and suites ported onto `Playwright.Test` (LiveView's e2e) use them often
 and a helper per suite drifted from upstream's intervals, deadlines and steps. Being matchers,
 they get `expect.soft`, steps and the expect config for free; `poll`'s matcher is an ExUnit
-assertion (`Expect.poll(fn -> v end, &assert(&1 == 3))`), as the jest matchers are not ported. Their
+assertion (`Expect.poll(fn -> v end, &assert(&1 == 3))`), as the jest matchers are not ported, and
+an attempt's step is that `assert`'s own (its expression and `expected`, as upstream's attempt is
+`toEqual(x)`'s), not a matcher step around it. Their
 callbacks run in the calling process, not raced against the deadline (a running callback overruns
 it), for the reason a step has no timeout. `to_pass` returns the passing attempt's value (`{:ok,
 value}`, the bang form the value), where upstream resolves to `void`: a JS callback assigns what the
 test reads after it to an outer `let`, which an Elixir closure can't rebind.
+
+ExUnit's `assert` and `refute` are steps, as upstream's `expect` (#318): `use Playwright.Test`
+imports `Playwright.Test.Assertions` (a module of its own, so helpers and libraries import it alone), whose macros expand to ExUnit's macro and then record a passed step (its `expected`
+the `right` ExUnit's expansion binds, read after it). A failed one is recorded once, where its
+`ExUnit.AssertionError` ends: a `to_pass` attempt's or the test body's `catch`, so a step of the
+test's, not of the step it failed in (which fails with it); one the test rescues, or raised in a
+Task, listener or `setup`, is none. The message forms, functions in ExUnit, wrap only the call in
+a `try` and record their failure there. As it wraps ExUnit's macro, a module or the config can
+opt out (`assert_steps: false`, at compile time, as it decides the import). Rejected: recording a failure in each step's `catch` (a
+step can't tell whether its parent's records it again, after `raise e` or a rescue), a `try`
+around the assertion (it scopes the bindings of `assert {:ok, x} = f()` and `assert (y = f()) >
+0`), recording failures only (the passed ones are the trace's), and explicit calls
+(`Playwright.Test.Assertions.assert`, which ported suites wouldn't write).
 
 Rejected: porting the rest of Playwright Test, `createExpect` (`expect.configure`; `expect.soft`
 and `expect(x, message)` are fields of the receiver, `soft/1` and `message/2`, not a configured
@@ -451,5 +475,6 @@ errors (exit 1) are not. One rerun rather than upstream's `retries: 3`, so flake
 workflow_dispatch input `max_cases`, overrides it). Headed tests run under xvfb with
 `HEADED=1 --only headed`, in each browser's first partition. deps and `_build` are cached, written
 on main only. A new push to a PR cancels its running CI; other runs (main, nightly, dispatched
-experiments) are never cancelled or queued. A daily workflow checks npm for a new release and opens a
+experiments, and a PR's run that tests nothing: a draft, or below the top of its stack) get a group
+of their own, so they are never cancelled or queued, and can't cancel the tip's test run. A daily workflow checks npm for a new release and opens a
 draft PR that ports it per PORTING.

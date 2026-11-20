@@ -53,8 +53,11 @@ defmodule Playwright.Test.OptionsTest do
 
       assert_raise ArgumentError, ~r/invalid value .* for on_start, /, fn -> Options.pool(on_start: fn -> :ok end) end
 
-      assert_raise ArgumentError, ~r/invalid value "x" for launch_options, /, fn ->
-        Options.pool(launch_options: "x")
+      # Merged over the config's, they name the function too.
+      for key <- [:launch_options, :driver] do
+        assert_raise ArgumentError,
+                     ~s(Playwright.Test.BrowserPool.browser/1: invalid value "x" for #{key}, expected a keyword list or a map),
+                     fn -> Options.pool([{key, "x"}]) end
       end
 
       assert_raise ArgumentError, ~r/expected a keyword list/, fn -> Options.pool([:driver]) end
@@ -511,6 +514,7 @@ defmodule Playwright.Test.ConfigTest do
              snapshot_path_template: nil,
              test_id_attribute: "data-testid",
              report_slow_tests: [max: 5, threshold: 300_000],
+             assert_steps: true,
              expect: %{timeout: 5000}
            }
 
