@@ -64,10 +64,10 @@ defmodule Playwright.Page.PageClickTest do
     click_promises =
       for i <- 0..20 do
         target = if rem(i, 3) == 0, do: popup, else: page
-        Task.async(fn -> Locator.click!(Page.locator(target, "button")) end)
+        Promise.async(fn -> Locator.click!(Page.locator(target, "button")) end)
       end
 
-    Task.await_many(click_promises, :infinity)
+    click_promises |> Promise.all() |> Promise.await!()
     assert Page.evaluate!(page, "() => window['count']") == 14
     assert Page.evaluate!(popup, "() => window['count']") == 7
   end
