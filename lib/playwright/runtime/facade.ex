@@ -23,8 +23,9 @@ defmodule Playwright.Runtime.Facade do
 
   A type is `nil` (passed through), `:timeout` (a positional timeout), `{:object, %{key => {js_key, type}}}`
   (options), `{:fields, %{js_key => type}}` (a nested object), `{:protocol, %{js_key => type},
-  %{string => type}}` (one the client passes on, `Playwright.Runtime.ProtocolType.of/3`), `{:array, type}`, `{:enum, %{atom => string}}`
-  or `{:union, [type]}`.
+  %{string => type}}` (one the client passes on, `Playwright.Runtime.ProtocolType.of/3`),
+  `{:array, type}`, `{:dictionary, type}` (a map of any keys whose values are `type`),
+  `{:enum, %{atom => string}}` or `{:union, [type]}`.
   """
   alias Playwright.Runtime.Promise
   alias Playwright.Runtime.Zones
@@ -281,6 +282,12 @@ defmodule Playwright.Runtime.Facade do
       end
     end
 
+    value
+  end
+
+  # Its keys are data (a `multipart` field name), its values are checked.
+  defp convert!(value, {:dictionary, type}, api_name, path) do
+    if object?(value), do: for({key, item} <- value, do: convert!(item, type, api_name, [key | path]))
     value
   end
 

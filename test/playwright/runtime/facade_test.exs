@@ -199,6 +199,17 @@ defmodule Playwright.Runtime.FacadeTest do
     assert_raise ArgumentError, ~r/^locator\.drop: unknown field payload\.files\[0\]\.mime_type, /, fn ->
       Playwright.Locator.drop(locator, %{files: [%{name: "a", mime_type: "t", buffer: "b"}]})
     end
+
+    # A dictionary's keys are data, its values are checked: a multipart file.
+    request = %Playwright.APIRequestContext{}
+
+    assert_raise ArgumentError,
+                 ~s(apiRequestContext.post: unknown field multipart."file".mime_type, expected one of buffer, mimeType, name),
+                 fn ->
+                   Playwright.APIRequestContext.post(request, "/",
+                     multipart: %{"name" => "x", "file" => %{name: "a", mime_type: "t", buffer: "b"}}
+                   )
+                 end
   end
 
   test "events" do

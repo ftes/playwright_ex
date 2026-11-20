@@ -1179,9 +1179,11 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
     end
   end
 
-  # A dictionary (`Object<string, ...>`): its keys are data, not checked. api.json can attach the
-  # properties of an object value to it (`multipart`).
-  defp schema(_ctx, %{"name" => "Object", "templates" => [_, _]}, _mode), do: nil
+  # A dictionary (`Object<string, ...>`): its keys are data, not checked, its values are (a
+  # `multipart` file). api.json can attach the properties of an object value to it.
+  defp schema(ctx, %{"name" => "Object", "templates" => [_, value]}, _mode) do
+    if s = schema(ctx, value, :nested), do: {:dictionary, s}
+  end
 
   defp schema(ctx, %{"properties" => props}, _mode) when is_list(props) and props != [] do
     pairs =

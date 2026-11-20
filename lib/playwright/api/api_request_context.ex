@@ -207,7 +207,7 @@ defmodule Playwright.APIRequestContext do
                      ignore_https_errors: {:ignoreHTTPSErrors, nil},
                      max_redirects: {:maxRedirects, nil},
                      max_retries: {:maxRetries, nil},
-                     multipart: {:multipart, nil},
+                     multipart: {:multipart, {:dictionary, {:fields, %{name: nil, mimeType: nil, buffer: nil}}}},
                      params: {:params, nil},
                      signal: {:signal, nil},
                      timeout: {:timeout, nil}
@@ -364,7 +364,7 @@ defmodule Playwright.APIRequestContext do
                     max_redirects: {:maxRedirects, nil},
                     max_retries: {:maxRetries, nil},
                     method: {:method, nil},
-                    multipart: {:multipart, nil},
+                    multipart: {:multipart, {:dictionary, {:fields, %{name: nil, mimeType: nil, buffer: nil}}}},
                     params: {:params, nil},
                     signal: {:signal, nil},
                     timeout: {:timeout, nil}
@@ -516,7 +516,7 @@ defmodule Playwright.APIRequestContext do
                   ignore_https_errors: {:ignoreHTTPSErrors, nil},
                   max_redirects: {:maxRedirects, nil},
                   max_retries: {:maxRetries, nil},
-                  multipart: {:multipart, nil},
+                  multipart: {:multipart, {:dictionary, {:fields, %{name: nil, mimeType: nil, buffer: nil}}}},
                   params: {:params, nil},
                   signal: {:signal, nil},
                   timeout: {:timeout, nil}
@@ -656,7 +656,7 @@ defmodule Playwright.APIRequestContext do
                    ignore_https_errors: {:ignoreHTTPSErrors, nil},
                    max_redirects: {:maxRedirects, nil},
                    max_retries: {:maxRetries, nil},
-                   multipart: {:multipart, nil},
+                   multipart: {:multipart, {:dictionary, {:fields, %{name: nil, mimeType: nil, buffer: nil}}}},
                    params: {:params, nil},
                    signal: {:signal, nil},
                    timeout: {:timeout, nil}
@@ -779,7 +779,7 @@ defmodule Playwright.APIRequestContext do
                     ignore_https_errors: {:ignoreHTTPSErrors, nil},
                     max_redirects: {:maxRedirects, nil},
                     max_retries: {:maxRetries, nil},
-                    multipart: {:multipart, nil},
+                    multipart: {:multipart, {:dictionary, {:fields, %{name: nil, mimeType: nil, buffer: nil}}}},
                     params: {:params, nil},
                     signal: {:signal, nil},
                     timeout: {:timeout, nil}
@@ -902,7 +902,7 @@ defmodule Playwright.APIRequestContext do
                    ignore_https_errors: {:ignoreHTTPSErrors, nil},
                    max_redirects: {:maxRedirects, nil},
                    max_retries: {:maxRetries, nil},
-                   multipart: {:multipart, nil},
+                   multipart: {:multipart, {:dictionary, {:fields, %{name: nil, mimeType: nil, buffer: nil}}}},
                    params: {:params, nil},
                    signal: {:signal, nil},
                    timeout: {:timeout, nil}
@@ -1057,7 +1057,7 @@ defmodule Playwright.APIRequestContext do
                   ignore_https_errors: {:ignoreHTTPSErrors, nil},
                   max_redirects: {:maxRedirects, nil},
                   max_retries: {:maxRetries, nil},
-                  multipart: {:multipart, nil},
+                  multipart: {:multipart, {:dictionary, {:fields, %{name: nil, mimeType: nil, buffer: nil}}}},
                   params: {:params, nil},
                   signal: {:signal, nil},
                   timeout: {:timeout, nil}
