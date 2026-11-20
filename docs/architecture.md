@@ -25,6 +25,11 @@ Playwright.Supervisor           OTP form of outofprocess.start(): driver and con
 Playwright.Test, Playwright.Case  native ExUnit runner (see Test runner)
 ```
 
+HexDocs shows the facade, the errors and the runtime entry points (`filter_modules` in
+`mix.exs`). An internal function with `@doc library_api: true` (hidden by `@doc false` or its
+module, seen in `Code.fetch_docs/1`) is one libraries build on (`__options__/1`,
+`LocatorUtils.get_by_*_selector`): keep it stable, and change it only with a CHANGELOG note.
+
 ## Port and versions
 
 The client is a statement-by-statement port of the official JS client at a pinned version, so a
@@ -140,7 +145,11 @@ the connection process of what it awaits (a latch, a call, an event): if that ex
 rejects with `TargetClosedError` instead of hanging. `async/2` runs a
 function in a process of its own and settles a local promise, or a latch (`owner:` an object,
 `shared: true` the calling process). `void/1` fires and forgets. `then_`/`catch_` are lazy and
-run in the awaiter; `race`/`all` are selective receives.
+run in the awaiter; `race`/`all` are selective receives. The caller waits for an async
+function until its first yield (`Invocation`), as JS runs that part on the caller's stack, so a
+call there without frames of its own has the caller's (`ClientStackTrace`), followed through
+nested async functions. It stops at a process nothing is blocked on: a `Task`, or a listener,
+whose connection doesn't block on it and isn't read.
 
 A process the client starts on one caller's behalf carries that caller's `$callers`, as a `Task`
 does (`Playwright.Runtime.Callers`): an async function's (`Promise.start`), a user listener's

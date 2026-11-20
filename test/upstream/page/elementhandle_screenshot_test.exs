@@ -13,6 +13,7 @@ defmodule Playwright.Page.ElementhandleScreenshotTest do
   alias Playwright.ElementHandle
   alias Playwright.JSHandle
   alias Playwright.Page
+  alias Playwright.Promise
   alias Playwright.Runtime
 
   @moduletag :page
@@ -100,8 +101,8 @@ defmodule Playwright.Page.ElementhandleScreenshotTest do
       """)
 
       element_handles = Page.query_selector_all!(page, "div.to-screenshot")
-      promises = Enum.map(element_handles, fn handle -> Task.async(fn -> ElementHandle.screenshot!(handle) end) end)
-      screenshots = Task.await_many(promises, :infinity)
+      promises = Enum.map(element_handles, fn handle -> Promise.async(fn -> ElementHandle.screenshot!(handle) end) end)
+      screenshots = promises |> Promise.all() |> Promise.await!()
       to_match_snapshot(Enum.at(screenshots, 2), "screenshot-element-larger-than-viewport.png")
 
       verify_viewport(page, 500, 500)

@@ -2005,6 +2005,8 @@ defmodule Playwright.Page do
 
   * `role` - Required aria role.
 
+    In Elixir, a role is an atom of the typespec (`:button`) or a string, also one the typespec lacks (`"mark"`): the JS client takes any string.
+
   ## Options
 
   * `:checked` (`t:boolean/0`) - An attribute that is usually set by `aria-checked` or native `<input type=checkbox>` controls.
@@ -2122,7 +2124,8 @@ defmodule Playwright.Page do
           | :tooltip
           | :tree
           | :treegrid
-          | :treeitem,
+          | :treeitem
+          | String.t(),
           get_by_role_options()
         ) :: Playwright.Locator.t()
   def get_by_role(%Playwright.Page{} = page, role, options \\ []) do
@@ -7395,12 +7398,13 @@ defmodule Playwright.Page do
     Facade.listen(fn -> Playwright.Client.Page.prepend_listener(page, event, listener) end)
   end
 
-  @doc """
-  The options of `function`, an atom such as `:add_init_script`, as
-  `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, for tools that build on the facade at
-  compile time; a function without options raises `FunctionClauseError`. Unstable: the shape
-  may change between releases.
-  """
+  # The options of `function`, an atom such as `:add_init_script`, in order, as its docs show them:
+  # `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, `doc` the first paragraph on one
+  # line, `since` the Playwright version that added the option if newer than the function,
+  # `type_doc` the type as rendered, `spec` the quoted typespec. For libraries that pass
+  # options on; a function without options raises `FunctionClauseError`.
+  @doc false
+  @doc library_api: true
   @spec __options__(atom()) :: [
           {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
         ]
@@ -9881,4 +9885,11 @@ defmodule Playwright.Page do
   def __options_type__(:expect_response), do: @expect_response_options
   def __options_type__(:expect_websocket), do: @expect_websocket_options
   def __options_type__(:expect_worker), do: @expect_worker_options
+
+  @doc false
+  # The enum of `function`'s positional argument `arg`, as `Facade.arg!/4` checks it.
+  def __arg_type__(function, arg)
+
+  def __arg_type__(:get_by_role, :role), do: @get_by_role_role
+  def __arg_type__(:wait_for_load_state, :state), do: @wait_for_load_state_state
 end

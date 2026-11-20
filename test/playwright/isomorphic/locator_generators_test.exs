@@ -82,8 +82,11 @@ defmodule Playwright.Isomorphic.LocatorGeneratorsTest do
       ~S'Page.get_by_role(page, :alert, name: "Upload", description: ~r/doc\.pdf/)'
     )
 
+    # A role `AriaRole` lacks is a string, as the facade takes it.
+    assert_elixir(page, Page.get_by_role(page, "mark"), ~S'Page.get_by_role(page, "mark")')
+
     assert LocatorGenerators.as_locator("elixir", ~S'internal:role=fancy-role[disabled]') ==
-             ~S'Page.get_by_role(page, :"fancy-role", disabled: nil)'
+             ~S'Page.get_by_role(page, "fancy-role", disabled: nil)'
   end
 
   test "reverse engineer chains", %{page: page} do

@@ -17,6 +17,7 @@ defmodule Playwright.Library.BrowsercontextFetchTest do
   alias Playwright.BrowserType
   alias Playwright.Expect
   alias Playwright.Page
+  alias Playwright.Promise
   alias Playwright.TestProxy
   alias Playwright.TestServer
 
@@ -1373,11 +1374,11 @@ defmodule Playwright.Library.BrowsercontextFetchTest do
 
     context = context_factory.([])
     request_received = TestServer.wait_for_request(server, "/empty.html")
-    get = Task.async(fn -> APIRequestContext.get(BrowserContext.request(context), server.empty_page) end)
-    post = Task.async(fn -> APIRequestContext.post(BrowserContext.request(context), server.empty_page) end)
+    get = Promise.async(fn -> APIRequestContext.get(BrowserContext.request(context), server.empty_page) end)
+    post = Promise.async(fn -> APIRequestContext.post(BrowserContext.request(context), server.empty_page) end)
     Task.await(request_received, :infinity)
     BrowserContext.close!(context)
-    [{:error, error}, {:error, _}] = Task.await_many([get, post], :infinity)
+    [{:error, error}, {:error, _}] = Promise.all([get, post]) |> Promise.await!()
     assert is_exception(error)
     assert Exception.message(error) =~ ~r/Request context disposed|Target page, context or browser has been closed/
     assert_receive :connection_closed, 5000

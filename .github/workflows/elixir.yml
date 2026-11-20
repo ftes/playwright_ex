@@ -86,7 +86,7 @@ jobs:
             _build
       - name: Install dependencies
         run: mix "do" deps.get, deps.compile
-      # A PR never writes the shared cache; `mix dialyzer` builds what a restore lacks.
+      # A PR never writes the shared cache; `mix dialyzer --plt` builds what a restore lacks.
       - name: Restore Dialyzer PLT cache
         id: plt_cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -94,16 +94,21 @@ jobs:
           key: plt-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ hashFiles('**/mix.lock') }}
           restore-keys: plt-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}
           path: priv/plts
-      # mix.exs's `lint`, which `mix check` runs too: format, credo, compile, the usage rules, the
-      # Hex package, the docs and Dialyzer.
-      - name: Lint
-        run: mix lint
+      # Saved right after it is built, so a lint failure doesn't waste the build; `mix lint`'s
+      # Dialyzer step then reuses it. Building it compiles the app (dialyxir's `cons_apps` loads
+      # it to list the PLT's apps), so an app compile error fails this step.
+      - name: Build Dialyzer PLT
+        run: mix dialyzer --plt
       - name: Save PLT cache
-        if: success() && github.ref == 'refs/heads/main' && steps.plt_cache.outputs.cache-hit != 'true'
+        if: github.ref == 'refs/heads/main' && steps.plt_cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           key: ${{ steps.plt_cache.outputs.cache-primary-key }}
           path: priv/plts
+      # mix.exs's `lint`, which `mix check` runs too: format, credo, compile, the usage rules, the
+      # Hex package, the docs and Dialyzer.
+      - name: Lint
+        run: mix lint
       # Last, so only a green job saves; under the key computed before deps.get.
       - name: Save deps and _build
         if: success() && github.ref == 'refs/heads/main' && steps.mix_cache.outputs.cache-hit != 'true'
@@ -240,11 +245,12 @@ jobs:
           exit 1
       # Test failures (exit 2) are retried once (`mix test --failed`, as the testing guide does), as
       # upstream retries on CI (`retries: 3`); compile errors are not. The first run's failures
-      # (Playwright.FailuresFormatter) and annotations (Playwright.Test.GitHubFormatter) are its
-      # alone, so a green rerun does not hide them. The rerun takes no --partitions: the failures
-      # manifest holds this partition's failures only, and --partitions would split those files
-      # again. Warnings fail the newest lane only.
+      # (Playwright.FailuresFormatter) are its alone, so a green rerun does not hide them. Both runs
+      # annotate (Playwright.Test.GitHubFormatter), as upstream annotates every attempt. The rerun
+      # takes no --partitions: the failures manifest holds this partition's failures only, and
+      # --partitions would split those files again. Warnings fail the newest lane only.
       - name: Run tests
+        id: tests
         env:
           PW_FAILURES_FILE: ${{ runner.temp }}/first-run-failures.txt
           PW_MODULE_TIMES_FILE: ${{ runner.temp }}/module-times.txt
@@ -254,7 +260,8 @@ jobs:
           WARNINGS_AS_ERRORS: ${{ matrix.lane == 'newest' && '1' || '' }}
         run: |
           mix test ${WARNINGS_AS_ERRORS:+--warnings-as-errors} --partitions "$PARTITIONS" ||
-            { [ $? -eq 2 ] && PW_FAILURES_FILE='' PW_MODULE_TIMES_FILE='' PW_GITHUB_FORMATTER='' mix test --failed; }
+            { [ $? -eq 2 ] && echo "rerun=true" >> "$GITHUB_OUTPUT" &&
+              PW_FAILURES_FILE='' PW_MODULE_TIMES_FILE='' mix test --failed; }
       # The first run's failures to the job summary, and its 10 slowest modules
       # (Playwright.ModuleTimesFormatter): the floor of a partition's time.
       - name: Summarize the first run
@@ -325,15 +332,19 @@ jobs:
         if: failure()
         run: cat "$RUNNER_TEMP/xvfb.log" || true
       # Each failed test's error-context.md and artifacts (test_helper.exs's `output_dir`), as the
-      # testing guide uploads `test-results`.
+      # testing guide uploads `test-results`: on a failure or after a rerun, as a green rerun
+      # keeps the first run's files. Not on every green job: `preserve_output: :always` keeps the
+      # passing tests' output too.
       - name: Upload test results
-        if: failure()
+        if: ${{ failure() || steps.tests.outputs.rerun == 'true' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: test-results-${{ matrix.lane }}-${{ matrix.browser }}-${{ matrix.partition }}
           path: /tmp/playwright-test-results
           if-no-files-found: ignore
           retention-days: 7
+          # A re-run of the workflow keeps the first attempt's artifact of the same name.
+          overwrite: true
 
   # The one check to require: green when every lane's and browser's partitions are, which need a
   # green build.

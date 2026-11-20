@@ -13,9 +13,8 @@ defmodule Playwright.Test.GitHubFormatter do
 
   `--formatter` replaces the configured formatters, so name `ExUnit.CLIFormatter` (and any of
   your own) too. A CI that reruns failed tests (`mix test || { [ $? -eq 2 ] && mix test
-  --failed; }`) passes it to the first run only: on both, a test failing twice gets its
-  annotations twice. A CI without a rerun
-  may add it in `test/test_helper.exs` instead:
+  --failed; }`) passes it to both runs, as upstream annotates every attempt. Or add it in
+  `test/test_helper.exs`:
 
       github = if System.get_env("GITHUB_ACTIONS"), do: [Playwright.Test.GitHubFormatter], else: []
       ExUnit.start(formatters: [ExUnit.CLIFormatter | github])
@@ -25,23 +24,29 @@ defmodule Playwright.Test.GitHubFormatter do
     * an `::error` for each failure of a failed test, at the first frame of its stacktrace in
       your code (not Playwright's, ExUnit's, Elixir's, Erlang/OTP's or a dependency's under
       `deps/`; a path dependency is yours), else on the test's file, titled
-      `file:line › describe › test`, with ExUnit's failure text.
+      `file:line › describe › test`, with ExUnit's failure text, under `Retry #1` on the rerun.
     * an `::error` for each failed `setup_all`; its tests count as not run.
     * a `Slow Test` `::warning` for each of the 5 slowest files whose tests took more than
       5 minutes (upstream's `reportSlowTests`: `config :playwright, :test, report_slow_tests:
       [max: 5, threshold: 300_000]` in ms, `false` for none).
-    * a `🎭 Playwright Run Summary` `::notice`: the failed tests, the counts of skipped, not run
-      and passed tests, and the run's duration.
+    * a `🎭 Playwright Run Summary` `::notice`: the failed and flaky tests, the counts of
+      skipped, not run and passed tests, and the run's duration.
+
+  ExUnit has no retries in a run: a test under `mix test --failed` is upstream's retry 1 (as
+  `Playwright.Test.info/0`'s `retry`), so one that passes there is flaky. Each run prints its
+  own summary, and a flaky test keeps the first run's `::error`, as upstream's flaky test does.
+  Unlike upstream, a test not run after a failed `setup_all` that passes on the rerun counts as
+  flaky too: the failures manifest doesn't record why a test is in it.
 
   Paths are relative to `GITHUB_WORKSPACE`. It reads only ExUnit's events: any ExUnit suite
-  can use it, with or without `Playwright.Test`. ExUnit has no retries, so no test is flaky:
-  a test that fails and passes on a rerun keeps its first run's `::error`, as upstream's flaky
-  test does.
+  can use it, with or without `Playwright.Test`.
   """
 
   # Upstream's `GitHubReporter` (`packages/playwright/src/reporters/github.ts`), with what it uses
   # of its base class `TerminalReporter` (`reporters/base.ts`), on a screen without colors or tty
-  # width (100 columns). `this` is the GenServer's state.
+  # width (100 columns). `this` is the GenServer's state. A run's tests are all of one attempt:
+  # retry 0, or retry 1 under `mix test --failed`, where a passing test's earlier result (a
+  # failure) is the first run's.
 
   use GenServer
 
@@ -86,6 +91,9 @@ defmodule Playwright.Test.GitHubFormatter do
        report_slow_tests: report_slow_tests,
        failed_test_count: 0,
        duration: 0,
+       # Elixir only: the run's `result.retry` (ExUnit passes its configuration, `only_test_ids`
+       # included).
+       retry: TestInfo.retry(opts[:only_test_ids]),
        # Elixir only: where the deps live, for `belongsToNodeModules` (`location/2`). Tests pass
        # their own.
        deps: Keyword.get_lazy(opts, :github_formatter_deps, &deps/0)
@@ -111,10 +119,10 @@ defmodule Playwright.Test.GitHubFormatter do
   defp on_test_end(this, test) do
     this = terminal_reporter_on_test_end(this, test)
     # if (this.willRetry(test)) return;  -- not ported: ExUnit has no retries
-    if should_print_failure_annotations(test) do
+    if should_print_failure_annotations(this, test) do
       this = %{this | failed_test_count: this.failed_test_count + 1}
       # this.githubLogger.newLine();  -- in `log/3`
-      # for (const r of test.results): an ExUnit test has one result.
+      # for (const r of test.results): this run's result.
       print_failure_annotation(this, test, this.failed_test_count)
       this
     else
@@ -122,8 +130,25 @@ defmodule Playwright.Test.GitHubFormatter do
     end
   end
 
-  # outcome() 'flaky', 'skipped' with an interrupted result  -- never: no retries, no interruption
-  defp should_print_failure_annotations(%ExUnit.Test{state: state}), do: match?({:failed, _}, state)
+  # deviation: not 'flaky': its failed result is the first run's, which numbered and annotated it,
+  # so the rerun's numbers have no gaps.
+  # 'skipped' with an interrupted result  -- never: no interruption
+  defp should_print_failure_annotations(this, test), do: outcome(this, test) == :unexpected
+
+  # Elixir only: `test.outcome()` of the test's results, this run's and, on a retry, the first
+  # run's failure before it (`--failed` reruns only failures).
+  # deviation: a test not run after a failed `setup_all` is in the failures manifest too, without
+  # its state, so one passing on the rerun is flaky, where upstream's did-not-run-then-passed test
+  # is expected (`computeTestCaseOutcome`).
+  defp outcome(this, %ExUnit.Test{state: state}) do
+    case state do
+      nil when this.retry > 0 -> :flaky
+      nil -> :expected
+      {:failed, _} -> :unexpected
+      # A skipped test, or one not run after a failed `setup_all`.
+      _ -> :skipped
+    end
+  end
 
   defp on_end(this, times_us) do
     # `super.onEnd(result)`: `result.duration`, the run's, as ExUnit's "Finished in" (load included).
@@ -168,8 +193,7 @@ defmodule Playwright.Test.GitHubFormatter do
 
       # `options.col = error.location.column`  -- not ported: ExUnit's stacktraces have no column
       options = if error.location, do: options ++ [line: error.location.line], else: options
-      # ...formatRetry(this.screen, result)  -- not ported: no retries
-      message = Enum.join([header, error.message], "\n")
+      message = Enum.join([header | format_retry(this)] ++ [error.message], "\n")
       log(message, :error, options)
     end
   end
@@ -212,7 +236,10 @@ defmodule Playwright.Test.GitHubFormatter do
           | Enum.map(summary.unexpected, &format_test_header(&1, indent: "    "))
         ]
       ),
-      # interrupted, flaky  -- never: no interruption, no retries
+      # interrupted  -- never: no interruption
+      if(summary.flaky != [],
+        do: ["  #{length(summary.flaky)} flaky" | Enum.map(summary.flaky, &format_test_header(&1, indent: "    "))]
+      ),
       if(skipped > 0, do: "  #{skipped} skipped"),
       if(did_not_run > 0, do: "  #{did_not_run} did not run"),
       if(expected > 0, do: "  #{expected} passed (#{ms_to_string(this.duration)})")
@@ -227,20 +254,21 @@ defmodule Playwright.Test.GitHubFormatter do
     tests = this.tests |> Enum.reverse() |> Enum.sort_by(&{&1.tags.file, &1.tags.line})
 
     summary =
-      Enum.reduce(tests, %{did_not_run: 0, skipped: 0, expected: 0, unexpected: []}, fn test, summary ->
-        case test.state do
+      Enum.reduce(tests, %{did_not_run: 0, skipped: 0, expected: 0, unexpected: [], flaky: []}, fn test, summary ->
+        case {outcome(this, test), test.state} do
           # 'skipped' with expectedStatus 'skipped'
-          {:skipped, _} -> %{summary | skipped: summary.skipped + 1}
+          {:skipped, {:skipped, _}} -> %{summary | skipped: summary.skipped + 1}
           # 'skipped' with expectedStatus 'passed': not run after a failed `setup_all`, as upstream's
           # after a failed `beforeAll`.
-          {:invalid, _} -> %{summary | did_not_run: summary.did_not_run + 1}
-          nil -> %{summary | expected: summary.expected + 1}
-          {:failed, _} -> %{summary | unexpected: [test | summary.unexpected]}
+          {:skipped, {:invalid, _}} -> %{summary | did_not_run: summary.did_not_run + 1}
+          {:expected, _} -> %{summary | expected: summary.expected + 1}
+          {:unexpected, _} -> %{summary | unexpected: [test | summary.unexpected]}
+          {:flaky, _} -> %{summary | flaky: [test | summary.flaky]}
         end
       end)
 
     # failuresToPrint  -- not ported: only `epilogue` prints them
-    %{summary | unexpected: Enum.reverse(summary.unexpected)}
+    %{summary | unexpected: Enum.reverse(summary.unexpected), flaky: Enum.reverse(summary.flaky)}
   end
 
   # formatTestTitle: `test.titlePath()` is `Playwright.Test`'s (the file, the describe block,
@@ -267,6 +295,10 @@ defmodule Playwright.Test.GitHubFormatter do
     text = ExUnit.Formatter.format_test_all_failure(module, failures, 1, @width, &formatter/2)
     %{message: text |> String.replace_prefix("  1) ", "") |> String.trim_trailing()}
   end
+
+  # formatRetry: the run's `result.retry`.
+  defp format_retry(%{retry: 0}), do: []
+  defp format_retry(%{retry: retry}), do: ["", separator("    Retry ##{retry}")]
 
   # formatResultFailure: ExUnit's failure text (`ExUnit.Formatter.format_test_failure/5`, without
   # its header, which upstream's replaces) for formatError's message, already indented.

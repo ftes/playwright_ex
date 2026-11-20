@@ -118,8 +118,9 @@ defmodule Playwright.Library.BrowsercontextLocaleTest do
     context1 = Browser.new_context!(browser, locale: "en-US")
     # By default firefox limits number of child web processes to 8.
     1..8
-    |> Enum.map(fn _ -> Task.async(fn -> BrowserContext.new_page!(context1) end) end)
-    |> Task.await_many(60_000)
+    |> Enum.map(fn _ -> Promise.async(fn -> BrowserContext.new_page!(context1) end) end)
+    |> Promise.all()
+    |> Promise.await!()
 
     context2 = Browser.new_context!(browser, locale: "ru-RU")
     page2 = BrowserContext.new_page!(context2)
@@ -129,15 +130,17 @@ defmodule Playwright.Library.BrowsercontextLocaleTest do
     numbers =
       context1
       |> BrowserContext.pages()
-      |> Enum.map(fn page -> Task.async(fn -> Page.evaluate!(page, locale_number) end) end)
-      |> Task.await_many(60_000)
+      |> Enum.map(fn page -> Promise.async(fn -> Page.evaluate!(page, locale_number) end) end)
+      |> Promise.all()
+      |> Promise.await!()
 
     Enum.each(numbers, fn value -> assert value == "1,000,000.5" end)
     assert Page.evaluate!(page2, locale_number) == "1\u00A0000\u00A0000,5"
 
     [context1, context2]
-    |> Enum.map(&Task.async(fn -> BrowserContext.close!(&1) end))
-    |> Task.await_many(60_000)
+    |> Enum.map(&Promise.async(fn -> BrowserContext.close!(&1) end))
+    |> Promise.all()
+    |> Promise.await!()
   end
 
   test "LC-009 should not change default locale in another context", %{browser: browser} do

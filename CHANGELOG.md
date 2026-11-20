@@ -68,7 +68,7 @@ upstream minor, so `~> 1.65.0` is safe.
   only `env:`; `executable:`, `node:` and `cache_dir:` are `config :playwright, :driver`'s.
 - **RC only:** **Breaking:** `config :playwright, :expect`'s `:to_have_screenshot`,
   `:to_match_aria_snapshot` and `:to_pass` take the matchers' snake_case keys
-  (`max_diff_pixels:`, `path_template:`, `children: :equal`), not JS keys.
+  (`max_diff_pixels:`, `timeout:`, `path_template:`, `children: :equal`), not JS keys.
 - **RC only:** **Breaking:** `Playwright.Test.parameters/1` returns one private key,
   `:"playwright.project"`, holding a `Playwright.Test.Project` (`name`, `use`), not a key per
   option.
@@ -100,7 +100,8 @@ upstream minor, so `~> 1.65.0` is safe.
   spread, in `use Playwright.Test`, `Test.use/1`, `Test.parameters/1` and the keyword lists
   they take (`trace: [mode: :on, mode: :off]` is off, `connect_options`), in the config's
   (`driver`, `report_slow_tests`, `config :playwright, :expect` and its matchers'), and in the
-  options of `Playwright.Supervisor.start_link/1`, `step/3`, `attach/2` and `snapshot_path/2`.
+  options of `Playwright.Supervisor.start_link/1` and `child_spec/1`, `step/3`, `attach/2` and
+  `snapshot_path/2`.
 - **RC only:** **Breaking:** `@describetag`/`@tag Test.use(...)` with `browser_name`,
   `default_browser_type` (a device's), `launch_options` or `connect_options` raises when the
   module compiles a test of the `test` macro under it, with upstream's "Cannot use({ ... }) in
@@ -120,16 +121,27 @@ upstream minor, so `~> 1.65.0` is safe.
 - **RC only:** `Playwright.Test.GitHubFormatter` labels a test by its project's name only, not
   by every `parameterize:` value, and a slow file's annotation is `[project] › file`, as
   upstream's.
+- **RC only:** `__options__/1` is out of HexDocs, as are the selector builders of
+  `Isomorphic.LocatorUtils`: both are marked `library_api: true` in their docs metadata,
+  internal but stable for libraries that build on them, changed only with a CHANGELOG note.
 
 ### Fixed
 
 - **RC only:** `add_cookies`, `storage_state:` and `set_storage_state` check their keys
   against the protocol's: a snake_case `http_only:` raises instead of being dropped. Errors
   name the argument and list index (`cookies[0].http_only`).
+- **RC only:** a `multipart` file's keys are checked as other nested objects' are: `mime_type:`
+  raises, where the client failed treating the map as a stream.
 - **RC only:** option and field errors name keys bare: `unknown option x, expected one of
   y, z` (was `unknown option :x, expected one of :y, :z`), `for opt` (was `for :opt`).
 - **RC only:** `mix playwright.install` forwards a `--` to `playwright install` (rc.2 raised on
   it).
+- **RC only:** `get_by_role` and `to_have_role` specs and docs take roles as strings too, also
+  those Playwright's `AriaRole` lacks (`"mark"`), as JS does; locator descriptions print those
+  as strings, not atoms that raise.
+- **RC only:** `Route.fulfill`, `abort` and `continue` in a route handler have the handler's
+  call site in the trace, which a tail call such as `fn r -> Route.abort!(r) end` doesn't keep
+  (BEAM drops its frame).
 
 ## [1.65.0-rc.2] 2026-11-18
 
@@ -283,7 +295,8 @@ Drives [Playwright 1.65.0](https://github.com/microsoft/playwright/releases/tag/
 - `Playwright.Test`: Playwright Test's runner for ExUnit, with pooled worker browsers
   (`Playwright.Test.BrowserPool`), context defaults, traces, screenshots and videos, steps,
   snapshot paths, soft assertions, timeouts and `info/0`. `Playwright.Case` gives each test a
-  `page`; `Playwright.Test.GitHubFormatter` is the `github` reporter.
+  `page`; `Playwright.Test.GitHubFormatter` is the `github` reporter, on a `mix test --failed`
+  rerun too (flaky tests, `Retry #1`).
 - `Expect.to_pass/2`, `Expect.poll/3`, `Expect.soft/1` and `Expect.message/2`, beside upstream's
   matchers.
 - `mix playwright.install` (`--no-browsers` for the driver only) and `mix playwright.cli`.

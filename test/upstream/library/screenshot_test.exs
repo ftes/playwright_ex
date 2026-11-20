@@ -17,6 +17,7 @@ defmodule Playwright.Library.ScreenshotTest do
   alias Playwright.Expect
   alias Playwright.Locator
   alias Playwright.Page
+  alias Playwright.Promise
   alias Playwright.TestServer
   alias Playwright.Utils
 
@@ -102,31 +103,34 @@ defmodule Playwright.Library.ScreenshotTest do
       n = 5
 
       pages =
-        Task.await_many(
+        Promise.all(
           for _ <- 1..n do
-            Task.async(fn ->
+            Promise.async(fn ->
               page = BrowserContext.new_page!(context)
               Page.goto!(page, server.prefix <> "/grid.html")
               page
             end)
-          end,
-          :infinity
+          end
         )
+        |> Promise.await!()
 
       promises =
         for i <- 0..(n - 1) do
-          Task.async(fn ->
+          Promise.async(fn ->
             Page.screenshot!(Enum.at(pages, i), clip: %{x: 50 * rem(i, 2), y: 0, width: 50, height: 50})
           end)
         end
 
-      screenshots = Task.await_many(promises, :infinity)
+      screenshots = promises |> Promise.all() |> Promise.await!()
 
       for i <- 0..(n - 1) do
         to_match_snapshot(Enum.at(screenshots, i), "grid-cell-#{rem(i, 2)}.png")
       end
 
-      pages |> Enum.map(&Task.async(fn -> Page.close!(&1) end)) |> Task.await_many(:infinity)
+      pages
+      |> Enum.map(&Promise.async(fn -> Page.close!(&1) end))
+      |> Promise.all()
+      |> Promise.await!()
     end
 
     @tag skip: if(@browser_name == "firefox", do: "upstream skip: firefox")

@@ -55,6 +55,9 @@ defmodule Mix.Playwright.ApiRules do
       (`rpId`, which the positional argument overrides in the client too).
     * An option map of `selectOption` also takes `valueOrLabel`: the protocol and the JS client
       accept it and only JS's types leave it out, and a list can't mix strings with option maps.
+    * `getByRole(role)` and `toHaveRole(role)` also take any string: the JS client does (`role:
+      string`), only JS's `AriaRole` type lists the roles, and it lacks some the browser matches
+      (`mark`).
     * An Elixir introduction to a class's module docs (`@intros`: the root module `Playwright`).
     * Elixir notes appended to a member's docs (`@notes`: `getProperties` returns a map, which
       does not keep the property order).
@@ -145,6 +148,11 @@ defmodule Mix.Playwright.ApiRules do
   @timeout_doc "In Elixir, `:infinity` is the same as `0`: no timeout."
   @expect_timeout_doc "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `timeout` in " <>
                         "`config :playwright, :expect` (`5000` if not set, see the configuration in `Playwright.Expect`)."
+  # Upstream's `helper.options.timeout ?? this.timeout`: the matcher's own config key first.
+  @to_have_screenshot_timeout_doc "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to " <>
+                                    "`timeout` in `config :playwright, :expect, to_have_screenshot: [...]`, else to " <>
+                                    "`timeout` in `config :playwright, :expect` (`5000` if not set, see the " <>
+                                    "configuration in `Playwright.Expect`)."
   @signal_doc "In Elixir, a `Playwright.AbortSignal` (`Playwright.AbortController.signal/1`)."
 
   # Assertion classes and the class of their receiver (`expect(receiver)`).
@@ -299,6 +307,7 @@ defmodule Mix.Playwright.ApiRules do
               |> event_type()
               |> storage_state()
               |> select_option()
+              |> any_role()
               |> extra_options("#{class["name"]}.#{member["name"]}")
               |> descriptors("#{class["name"]}.#{member["name"]}")
               |> result_options("#{class["name"]}.#{member["name"]}" in @result_options)
@@ -467,7 +476,7 @@ defmodule Mix.Playwright.ApiRules do
   defp matcher(class, member) do
     args =
       for arg <- member["args"] do
-        arg = expect_options(arg)
+        arg = expect_options(arg, member["alias"])
 
         if "#{class["name"]}.#{member["alias"]}.#{arg["name"]}" in @optional_args,
           do: %{arg | "required" => false},
@@ -501,18 +510,20 @@ defmodule Mix.Playwright.ApiRules do
   end
 
   # Matcher options: the test runner's `TestConfig.expect` is `config :playwright, :expect`.
-  defp expect_options(%{"name" => "options", "type" => %{"properties" => props}} = options) do
+  defp expect_options(%{"name" => "options", "type" => %{"properties" => props}} = options, matcher) do
+    timeout_doc = if matcher == "toHaveScreenshot", do: @to_have_screenshot_timeout_doc, else: @expect_timeout_doc
+
     props =
       for prop <- props do
         if prop["name"] == "timeout",
-          do: %{prop | "spec" => [%{"type" => "text", "text" => @expect_timeout_doc}]},
+          do: %{prop | "spec" => [%{"type" => "text", "text" => timeout_doc}]},
           else: Map.update!(prop, "spec", &expect_config_doc/1)
       end
 
     put_in(options, ["type", "properties"], props)
   end
 
-  defp expect_options(arg), do: arg
+  defp expect_options(arg, _matcher), do: arg
 
   defp expect_config_doc(text) when is_binary(text),
     do:
@@ -1151,6 +1162,23 @@ defmodule Mix.Playwright.ApiRules do
 
   defp select_option_values(arg), do: arg
 
+  defp any_role(%{"name" => name, "args" => args} = member) when name in ~w(getByRole toHaveRole notToHaveRole),
+    do: %{member | "args" => Enum.map(args, &any_role_arg/1)}
+
+  defp any_role(member), do: member
+
+  defp any_role_arg(%{"name" => "role"} = arg) do
+    text =
+      "In Elixir, a role is an atom of the typespec (`:button`) or a string, also one the typespec " <>
+        "lacks (`\"mark\"`): the JS client takes any string."
+
+    arg
+    |> update_in(["type", "union"], &(&1 ++ [%{"expression" => "[string]", "name" => "string"}]))
+    |> Map.update("spec", [%{"type" => "text", "text" => text}], &(&1 ++ [%{"type" => "text", "text" => text}]))
+  end
+
+  defp any_role_arg(arg), do: arg
+
   defp value_or_label(%{"properties" => properties} = type),
     do: %{type | "properties" => properties ++ [value_or_label_property()]}
 
@@ -1201,12 +1229,22 @@ defmodule Mix.Playwright.ApiRules do
 
     case Playwright.Protocol.Validator.scheme(params) do
       {:object, fields} ->
-        if Keyword.has_key?(fields, field),
-          do: {params, field, unchecked},
-          else: Mix.raise("ApiRules: #{params} has no #{field} (@protocol_params, #{name})")
+        if !Keyword.has_key?(fields, field),
+          do: Mix.raise("ApiRules: #{params} has no #{field} (@protocol_params, #{name})")
 
       _ ->
         Mix.raise("ApiRules: no protocol params #{params} (@protocol_params, #{name})")
+    end
+
+    protocol_object!(name, params, field, unchecked)
+  end
+
+  # Anything else (a scheme that resolves to `nil`) would turn the key check off.
+  defp protocol_object!(name, params, field, unchecked) do
+    case Playwright.Runtime.ProtocolType.of(params, field, unchecked) do
+      {:protocol, _atoms, _strings} -> {params, field, unchecked}
+      {:array, {:protocol, _atoms, _strings}} -> {params, field, unchecked}
+      type -> Mix.raise("ApiRules: #{params}.#{field} is no object or list of objects: #{inspect(type)} (#{name})")
     end
   end
 

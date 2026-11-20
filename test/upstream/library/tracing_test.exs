@@ -657,10 +657,8 @@ defmodule Playwright.Library.TracingTest do
     Process.sleep(1000)
 
     # Close the browser and give it some time to fail.
-    Task.await_many(
-      [Task.async(fn -> Browser.close!(browser) end), Task.async(fn -> Process.sleep(500) end)],
-      :infinity
-    )
+    Promise.all([Promise.async(fn -> Browser.close!(browser) end), Promise.async(fn -> Process.sleep(500) end)])
+    |> Promise.await!()
 
     Task.shutdown(go, :brutal_kill)
   end
@@ -1038,34 +1036,28 @@ defmodule Playwright.Library.TracingTest do
   } do
     request2 = APIRequest.new_context!(Playwright.request(playwright))
 
-    Task.await_many(
-      [
-        Task.async(fn -> Tracing.start!(APIRequestContext.tracing(request), snapshots: true) end),
-        Task.async(fn -> Tracing.start!(APIRequestContext.tracing(request2), snapshots: true) end)
-      ],
-      :infinity
-    )
+    Promise.all([
+      Promise.async(fn -> Tracing.start!(APIRequestContext.tracing(request), snapshots: true) end),
+      Promise.async(fn -> Tracing.start!(APIRequestContext.tracing(request2), snapshots: true) end)
+    ])
+    |> Promise.await!()
 
     url = server.prefix <> "/simple.json"
 
-    Task.await_many(
-      [
-        Task.async(fn -> APIRequestContext.get!(request, url) end),
-        Task.async(fn -> APIRequestContext.post!(request2, url) end)
-      ],
-      :infinity
-    )
+    Promise.all([
+      Promise.async(fn -> APIRequestContext.get!(request, url) end),
+      Promise.async(fn -> APIRequestContext.post!(request2, url) end)
+    ])
+    |> Promise.await!()
 
     trace_path = Path.join(tmp_dir, "trace.zip")
     trace2_path = Path.join(tmp_dir, "trace2.zip")
 
-    Task.await_many(
-      [
-        Task.async(fn -> Tracing.stop!(APIRequestContext.tracing(request), path: trace_path) end),
-        Task.async(fn -> Tracing.stop!(APIRequestContext.tracing(request2), path: trace2_path) end)
-      ],
-      :infinity
-    )
+    Promise.all([
+      Promise.async(fn -> Tracing.stop!(APIRequestContext.tracing(request), path: trace_path) end),
+      Promise.async(fn -> Tracing.stop!(APIRequestContext.tracing(request2), path: trace2_path) end)
+    ])
+    |> Promise.await!()
 
     trace = parse_trace_raw(trace_path, playwright)
     actions = Enum.filter(trace.events, &(&1["type"] == "resource-snapshot"))

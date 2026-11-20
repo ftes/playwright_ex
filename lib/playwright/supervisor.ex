@@ -77,7 +77,11 @@ defmodule Playwright.Supervisor do
 
   @doc "A child spec whose id is the `:name` (`Playwright` by default)."
   @spec child_spec([option()]) :: Supervisor.child_spec()
-  def child_spec(opts), do: opts |> super() |> Map.put(:id, Keyword.get(opts, :name, Playwright))
+  def child_spec(opts) do
+    # The later of a duplicated key, as `start_link/1` takes it; it raises for other input.
+    opts = if Keyword.keyword?(opts), do: Playwright.Application.later_wins(opts), else: opts
+    opts |> super() |> Map.put(:id, Keyword.get(opts, :name, Playwright))
+  end
 
   @doc false
   def out_of_process(name), do: Module.concat(name, OutOfProcess)

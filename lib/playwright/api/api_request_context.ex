@@ -31,6 +31,7 @@ defmodule Playwright.APIRequestContext do
   """
 
   alias Playwright.Runtime.Facade
+  alias Playwright.Runtime.ProtocolType
 
   @typedoc "A `APIRequestContext` handle. Compare handles with `==`, their fields are internal."
   @type t :: %__MODULE__{}
@@ -40,7 +41,7 @@ defmodule Playwright.APIRequestContext do
   @doc false
   def __client__(_this), do: Playwright.Client.APIRequestContext
 
-  @add_cookies_cookies Facade.protocol_type("APIRequestContextAddCookiesParams", :cookies)
+  @add_cookies_cookies ProtocolType.of("APIRequestContextAddCookiesParams", :cookies)
 
   @doc ~S"""
   Adds cookies into this request context. They will be sent with matching subsequent requests. For `Playwright.BrowserContext.request/1`
@@ -206,7 +207,7 @@ defmodule Playwright.APIRequestContext do
                      ignore_https_errors: {:ignoreHTTPSErrors, nil},
                      max_redirects: {:maxRedirects, nil},
                      max_retries: {:maxRetries, nil},
-                     multipart: {:multipart, nil},
+                     multipart: {:multipart, {:dictionary, {:fields, %{name: nil, mimeType: nil, buffer: nil}}}},
                      params: {:params, nil},
                      signal: {:signal, nil},
                      timeout: {:timeout, nil}
@@ -363,7 +364,7 @@ defmodule Playwright.APIRequestContext do
                     max_redirects: {:maxRedirects, nil},
                     max_retries: {:maxRetries, nil},
                     method: {:method, nil},
-                    multipart: {:multipart, nil},
+                    multipart: {:multipart, {:dictionary, {:fields, %{name: nil, mimeType: nil, buffer: nil}}}},
                     params: {:params, nil},
                     signal: {:signal, nil},
                     timeout: {:timeout, nil}
@@ -515,7 +516,7 @@ defmodule Playwright.APIRequestContext do
                   ignore_https_errors: {:ignoreHTTPSErrors, nil},
                   max_redirects: {:maxRedirects, nil},
                   max_retries: {:maxRetries, nil},
-                  multipart: {:multipart, nil},
+                  multipart: {:multipart, {:dictionary, {:fields, %{name: nil, mimeType: nil, buffer: nil}}}},
                   params: {:params, nil},
                   signal: {:signal, nil},
                   timeout: {:timeout, nil}
@@ -655,7 +656,7 @@ defmodule Playwright.APIRequestContext do
                    ignore_https_errors: {:ignoreHTTPSErrors, nil},
                    max_redirects: {:maxRedirects, nil},
                    max_retries: {:maxRetries, nil},
-                   multipart: {:multipart, nil},
+                   multipart: {:multipart, {:dictionary, {:fields, %{name: nil, mimeType: nil, buffer: nil}}}},
                    params: {:params, nil},
                    signal: {:signal, nil},
                    timeout: {:timeout, nil}
@@ -778,7 +779,7 @@ defmodule Playwright.APIRequestContext do
                     ignore_https_errors: {:ignoreHTTPSErrors, nil},
                     max_redirects: {:maxRedirects, nil},
                     max_retries: {:maxRetries, nil},
-                    multipart: {:multipart, nil},
+                    multipart: {:multipart, {:dictionary, {:fields, %{name: nil, mimeType: nil, buffer: nil}}}},
                     params: {:params, nil},
                     signal: {:signal, nil},
                     timeout: {:timeout, nil}
@@ -901,7 +902,7 @@ defmodule Playwright.APIRequestContext do
                    ignore_https_errors: {:ignoreHTTPSErrors, nil},
                    max_redirects: {:maxRedirects, nil},
                    max_retries: {:maxRetries, nil},
-                   multipart: {:multipart, nil},
+                   multipart: {:multipart, {:dictionary, {:fields, %{name: nil, mimeType: nil, buffer: nil}}}},
                    params: {:params, nil},
                    signal: {:signal, nil},
                    timeout: {:timeout, nil}
@@ -1056,7 +1057,7 @@ defmodule Playwright.APIRequestContext do
                   ignore_https_errors: {:ignoreHTTPSErrors, nil},
                   max_redirects: {:maxRedirects, nil},
                   max_retries: {:maxRetries, nil},
-                  multipart: {:multipart, nil},
+                  multipart: {:multipart, {:dictionary, {:fields, %{name: nil, mimeType: nil, buffer: nil}}}},
                   params: {:params, nil},
                   signal: {:signal, nil},
                   timeout: {:timeout, nil}
@@ -1270,12 +1271,13 @@ defmodule Playwright.APIRequestContext do
     Playwright.Client.APIRequestContext.tracing(api_request_context)
   end
 
-  @doc """
-  The options of `function`, an atom such as `:clear_cookies`, as
-  `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, for tools that build on the facade at
-  compile time; a function without options raises `FunctionClauseError`. Unstable: the shape
-  may change between releases.
-  """
+  # The options of `function`, an atom such as `:clear_cookies`, in order, as its docs show them:
+  # `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, `doc` the first paragraph on one
+  # line, `since` the Playwright version that added the option if newer than the function,
+  # `type_doc` the type as rendered, `spec` the quoted typespec. For libraries that pass
+  # options on; a function without options raises `FunctionClauseError`.
+  @doc false
+  @doc library_api: true
   @spec __options__(atom()) :: [
           {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
         ]
