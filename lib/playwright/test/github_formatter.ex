@@ -353,8 +353,8 @@ defmodule Playwright.Test.GitHubFormatter do
   defp relative_test_path(test), do: Path.relative_to(Path.expand(test.tags.file), File.cwd!(), force: true)
 
   # A project's name: the `parameterize:` values, by key, as `[chromium]` for
-  # `%{browser_name: :chromium}`, the `Playwright.Test.parameters/1` project's as its title
-  # (`Playwright.Test.Project.title/1`: its name, else its browser).
+  # `%{browser_name: :chromium}`, the `Playwright.Test.parameters/1` project's as its name
+  # (`Playwright.Test.Project.title/1`), none for an unnamed one, as upstream's.
   defp project_name(%ExUnit.Test{parameters: parameters}) do
     parameters
     |> Enum.sort()

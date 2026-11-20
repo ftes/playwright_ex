@@ -53,7 +53,7 @@ defmodule Playwright.Matchers.ExpectTest do
     assert Expect.app_env_expect_config(to_pass: %{intervals: [50]}).toPass == %{intervals: [50]}
 
     assert_raise ArgumentError,
-                 "config :playwright, :expect, :to_pass: expected a keyword list or a map, got: 5000",
+                 "config :playwright, :expect, :to_pass: expected a keyword list or a map with atom keys, got: 5000",
                  fn -> Expect.app_env_expect_config(to_pass: 5000) end
 
     assert_raise ArgumentError, ~r/^config :playwright, :expect, :to_pass: unknown key timout, /, fn ->

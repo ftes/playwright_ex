@@ -163,9 +163,9 @@ and parameters of your own go next to them: `Map.put(Test.parameters(...), :role
 `name` is upstream's `project.name`: a failure prints it as ExUnit's parameters
 (`Parameters: %{"playwright.project": #Playwright.Test.Project<"de">}`), the GitHub annotations of
 `Playwright.Test.GitHubFormatter` start with it (`[de] › ...`), and it fills a snapshot template's
-`{projectName}`. Without one (`""` is none), as upstream, a failure prints the project's options,
-the annotations have no `[...] ›`, and `{projectName}` is empty: name every project of a module
-that has more than one, as
+`{projectName}`. Without one (`""` is none), as upstream, a failure prints the project's
+options, the annotations' `[...] ›` leaves it out, and `{projectName}` is empty: name every
+project of a module that has more than one, as
 `Test.parameters([name: "de", locale: "de-DE"] ++ Playwright.device("Desktop Chrome"))`. ExUnit's
 filters don't see `parameterize:` values, so to run one project, read an env var where the list is
 built, as above.

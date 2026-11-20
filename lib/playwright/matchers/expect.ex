@@ -190,7 +190,7 @@ defmodule Playwright.Matchers.Expect do
         |> Map.merge(Map.new(config_only, fn {name, value} -> config_value!(label, name, value) end))
 
       other ->
-        raise ArgumentError, "#{label}: expected a keyword list or a map, got: #{inspect(other)}"
+        raise ArgumentError, "#{label}: expected a keyword list or a map with atom keys, got: #{inspect(other)}"
     end
   end
 
