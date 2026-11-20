@@ -54,27 +54,19 @@ macOS 14+, Debian 12 and 13, Ubuntu 22.04, 24.04 and 26.04
 
 ```elixir
 children = [
-  {Playwright.Supervisor, name: MyApp.Playwright}
+  {Playwright.Supervisor, name: MyApp.PlaywrightDriver}
 ]
 ```
 
 and get the root `Playwright` object by that name:
 
 ```elixir
-playwright = Playwright.instance(MyApp.Playwright)
+playwright = Playwright.instance(MyApp.PlaywrightDriver)
 ```
 
 Without `:name`, the supervisor registers as `Playwright`, which `Playwright.instance/0`
-uses. If only your tests need a browser, start it in `test/test_helper.exs`:
-
-```elixir
-{:ok, _} = Playwright.Supervisor.start_link()
-ExUnit.after_suite(fn _ -> Supervisor.stop(Playwright) end)
-ExUnit.start()
-```
-
-`mix test` halts the VM without stopping the supervisor. Stopping it in `after_suite` waits for
-the driver to exit, which could otherwise reset the terminal after the run (↑ printing `OA`).
+uses. Tests don't need it: `Playwright.Case` gives each test a browser from drivers the runner
+starts and stops ([Testing with ExUnit](../testing-with-exunit.md)).
 
 To use an npm-managed Playwright instead of the pinned driver, pass
 `executable: "assets/node_modules/.bin/playwright"`; `Playwright.Driver` lists the other

@@ -41,8 +41,8 @@ defmodule Playwright.Guides.ApiConventionsTest do
 
     BrowserContext.route!(context, "http://app.test/**", fn route, request ->
       case URI.parse(Request.url(request)).path do
-        "/admin" -> Route.abort(route)
-        _ -> Route.fulfill(route, body: @html, content_type: "text/html")
+        "/admin" -> Route.abort!(route)
+        _ -> Route.fulfill!(route, body: @html, content_type: "text/html")
       end
     end)
 

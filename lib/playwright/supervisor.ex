@@ -2,8 +2,8 @@ defmodule Playwright.Supervisor do
   @moduledoc """
   Runs one Playwright driver and its connection.
 
-      children = [{Playwright.Supervisor, name: MyApp.Playwright}]
-      playwright = Playwright.instance(MyApp.Playwright)
+      children = [{Playwright.Supervisor, name: MyApp.PlaywrightDriver}]
+      playwright = Playwright.instance(MyApp.PlaywrightDriver)
 
   Options:
 

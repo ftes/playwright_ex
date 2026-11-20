@@ -16,6 +16,9 @@ version Playwright's Docker image tag must have (`v1.65.1-noble`).
 For Phoenix feature tests with the Ecto sandbox, use [Fluffy](https://hex.pm/packages/fluffy),
 which is built on this library.
 
+[What's ported](guides/introduction/whats-ported.md) shows which parts of the client and of
+Playwright Test are ported.
+
 ## Installation
 
 ```elixir
@@ -70,39 +73,23 @@ names match Python's: snake_case, keyword options, `expect_popup`, `eval_on_sele
 
 - [Getting started](guides/introduction/getting-started.md): install, the driver, a first script, usage rules
   for coding agents.
+- [What's ported](guides/introduction/whats-ported.md): the client and Playwright Test, at a glance.
 - [From playwright.dev to Elixir](guides/introduction/api-conventions.md): how a JS call reads in
   Elixir.
 - [Cheatsheet](guides/introduction/cheatsheet.cheatmd): frequent calls, JS next to Elixir.
-- [Testing with ExUnit](guides/testing-with-exunit.md): `Playwright.Test` and its browser pool,
-  assertions, traces of failures.
+- [Testing with ExUnit](guides/testing-with-exunit.md): `Playwright.Test` and `Playwright.Case`,
+  assertions, steps; then [options, devices and projects](guides/test-options.md),
+  [artifacts, retries and workers](guides/test-artifacts.md) and
+  [porting Playwright Test specs](guides/porting-playwright-test.md).
 - [Events and waiting](guides/events-and-waiting.md), [Network](guides/network.md),
   [Debugging and CI](guides/debugging-and-ci.md).
 - [Concurrency](guides/concurrency.md): listeners, promises and processes.
 
 Feedback of any shape and size is welcome: [get in touch](https://ftes.de).
 
-## Known gaps
-
-See [Not supported](guides/testing-with-exunit.md#not-supported) in the Testing with ExUnit
-guide.
-
 ## Contributing
 
-1. `mix setup` installs dependencies, the pinned Playwright driver and Chromium.
-2. `mix test`, or `mix check` for everything CI runs.
-3. Porting rules: [`PORTING.md`](https://github.com/ftes/playwright_ex/blob/main/PORTING.md); the why behind the design:
-   [`docs/architecture.md`](https://github.com/ftes/playwright_ex/blob/main/docs/architecture.md).
-
-### Reviewing
-
-Besides correctness, review a change for simplicity, consistency and scope. This applies to
-human and agent reviews alike.
-
-- Prefer the change that removes or shares code over one that adds a parallel path; logic several
-  modules repeat belongs in one place.
-- Follow how the codebase already does the same thing. A new pattern needs a reason.
-- A PR fixes its issue. Edge cases and gaps that predate it are follow-ups: note them
-  instead of adding code for them in the PR.
+See [`CONTRIBUTING.md`](https://github.com/ftes/playwright_ex/blob/main/CONTRIBUTING.md).
 
 ## License
 

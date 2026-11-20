@@ -123,7 +123,7 @@ defmodule Playwright.Examples.PageTest do
     js: ~S"""
     page.on('dialog', dialog => dialog.accept());
     """ do
-    Page.on(page, :dialog, &Dialog.accept/1)
+    Page.on(page, :dialog, &Dialog.accept!/1)
   end
 
   example "Page.fileChooser",
@@ -727,7 +727,7 @@ defmodule Playwright.Examples.PageTest do
     """,
     skip: @own_page do
     page = Browser.new_page!(browser)
-    Page.route!(page, "**/*.{png,jpg,jpeg}", &Route.abort/1)
+    Page.route!(page, "**/*.{png,jpg,jpeg}", &Route.abort!/1)
     Page.goto!(page, "https://example.com")
     Browser.close!(browser)
   end
@@ -741,7 +741,7 @@ defmodule Playwright.Examples.PageTest do
     """,
     skip: @own_page do
     page = Browser.new_page!(browser)
-    Page.route!(page, ~r/(\.png$)|(\.jpg$)/, &Route.abort/1)
+    Page.route!(page, ~r/(\.png$)|(\.jpg$)/, &Route.abort!/1)
     Page.goto!(page, "https://example.com")
     Browser.close!(browser)
   end

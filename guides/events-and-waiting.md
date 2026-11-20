@@ -58,14 +58,14 @@ Without a listener, `alert`, `confirm` and `prompt` are dismissed. With one, the
 accept or dismiss the dialog, or the page waits for it:
 
 ```elixir
-Page.on(page, :dialog, &Dialog.accept/1)
+Page.on(page, :dialog, &Dialog.accept!/1)
 Page.get_by_role(page, :button, name: "Delete") |> Locator.click!()
 ```
 
 For a single dialog, `once/3` with what to answer:
 
 ```elixir
-Page.once(page, :dialog, &Dialog.accept(&1, "42"))
+Page.once(page, :dialog, &Dialog.accept!(&1, "42"))
 Page.get_by_role(page, :button, name: "Pick a number") |> Locator.click!()
 ```
 

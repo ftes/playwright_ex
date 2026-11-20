@@ -58,7 +58,7 @@ defmodule Playwright.Examples.BrowserContextTest do
     });
     """ do
     BrowserContext.on(context, :dialog, fn dialog ->
-      Dialog.accept(dialog)
+      Dialog.accept!(dialog)
     end)
   end
 
@@ -233,7 +233,7 @@ defmodule Playwright.Examples.BrowserContextTest do
     """,
     given: [browser: own_browser(playwright)] do
     context = Browser.new_context!(browser)
-    BrowserContext.route!(context, "**/*.{png,jpg,jpeg}", &Route.abort/1)
+    BrowserContext.route!(context, "**/*.{png,jpg,jpeg}", &Route.abort!/1)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, "https://example.com")
     Browser.close!(browser)
@@ -249,7 +249,7 @@ defmodule Playwright.Examples.BrowserContextTest do
     """,
     given: [browser: own_browser(playwright)] do
     context = Browser.new_context!(browser)
-    BrowserContext.route!(context, ~r/(\.png$)|(\.jpg$)/, &Route.abort/1)
+    BrowserContext.route!(context, ~r/(\.png$)|(\.jpg$)/, &Route.abort!/1)
     page = BrowserContext.new_page!(context)
     Page.goto!(page, "https://example.com")
     Browser.close!(browser)

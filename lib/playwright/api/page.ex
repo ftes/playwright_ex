@@ -96,7 +96,7 @@ defmodule Playwright.Page do
   **Usage**
 
   ```elixir
-  Page.on(page, :dialog, &Dialog.accept/1)
+  Page.on(page, :dialog, &Dialog.accept!/1)
   ```
 
   > #### Note {: .info}
@@ -4073,7 +4073,7 @@ defmodule Playwright.Page do
 
   ```elixir
   page = Browser.new_page!(browser)
-  Page.route!(page, "**/*.{png,jpg,jpeg}", &Route.abort/1)
+  Page.route!(page, "**/*.{png,jpg,jpeg}", &Route.abort!/1)
   Page.goto!(page, "https://example.com")
   Browser.close!(browser)
   ```
@@ -4082,7 +4082,7 @@ defmodule Playwright.Page do
 
   ```elixir
   page = Browser.new_page!(browser)
-  Page.route!(page, ~r/(\.png$)|(\.jpg$)/, &Route.abort/1)
+  Page.route!(page, ~r/(\.png$)|(\.jpg$)/, &Route.abort!/1)
   Page.goto!(page, "https://example.com")
   Browser.close!(browser)
   ```

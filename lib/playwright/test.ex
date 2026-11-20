@@ -243,11 +243,16 @@ defmodule Playwright.Test do
   `ExUnit.Case.test`) get the module's worker regardless. For a browser or a device per run,
   make each a project (`parameters/1`) in the module's `parameterize:`.
 
-  `action_timeout` and `navigation_timeout` (see "Timeouts") are options of every level, as
-  the context options. `test_id_attribute` is config only, a deviation: upstream's is an
-  option of every level, as its value is global to a worker, which runs one test at a time;
-  here it is global to the VM, which the tests running at once share. `trace`, `screenshot`
-  and `video` are options of every level, an addition: upstream's are the worker's.
+  Where each option can be set:
+
+  | Option | Config | Project (`parameters/1`) | Module (`use`, then its `@moduletag use/1`s, merged) | Describe, test (`@describetag`, `@tag use/1`) |
+  |---|---|---|---|---|
+  | the context options, `context_options`, `action_timeout`, `navigation_timeout` | yes | yes | yes | yes |
+  | `trace`, `screenshot`, `video` | yes | yes | yes | yes (an addition: upstream's are the worker's; they work fully per test, as the recorder records per test and touches no browser) |
+  | `browser_name`, `launch_options`, `connect_options` | yes | yes | yes | raises when the module compiles a `test` under it, as Playwright Test's `test.use` in a describe |
+  | `default_browser_type` (a device's) | picks the browser | picks the browser | picks the browser | raises, as the browser keys |
+  | `test_id_attribute` | yes | no | no | no (a deviation: upstream's is an option of every level, global to a worker, which runs one test at a time; here it is global to the VM, which the tests running at once share) |
+  | `output_dir`, `preserve_output`, `workers`, `snapshot_dir`, `snapshot_path_template`, `driver`, `on_start` | yes | no | no | no |
 
   ## Contexts of `setup_all`
 
@@ -402,8 +407,9 @@ defmodule Playwright.Test do
   `workers` is half the schedulers, as upstream's default `workers` is half the cores (`'50%'`).
   `test_id_attribute` is upstream's `testIdAttribute`, set on each pooled driver: the client's
   value is global to the VM, so set it here, not per module. `config/0` returns the config
-  resolved. An unknown key or a bad value raises at application start (and when the runner
-  reads a config changed since).
+  resolved. An unknown key raises at application start (and when the runner reads a config
+  changed since), and so does a bad value of the keys upstream checks: `workers`, `preserve_output`, `output_dir`, `browser_name`, `on_start`, `report_slow_tests` and the context options (as `Browser.new_context/2` checks them).
+  Other values pass as given, as upstream's: an unknown artifact mode records nothing.
   """
 
   alias Playwright.Runtime.Zones

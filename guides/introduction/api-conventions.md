@@ -64,7 +64,7 @@ outside its scope (`Playwright.Test.info/0` outside a test) `RuntimeError`, with
 `<Module.function/arity or config path>: <problem>, expected ...`, `got: ...` when the problem
 doesn't name the value. Keys and values read as the facade's errors
 (`Playwright.Test.use/1: unknown option headless, expected one of trace, ...`,
-`invalid value :sometimes for trace, expected one of :off, :on, ...`).
+`invalid value 0 for workers, expected a positive integer`).
 
 ## Options
 
@@ -166,7 +166,7 @@ ready = Page.wait_for_event(page, :console, &(ConsoleMessage.text(&1) == "ready"
 
 `on/3`, `once/3` and `off/3` take a listener function, as in JS. A listener runs in a process of its
 own and may call Playwright, as a `:dialog` listener calls
-[`Dialog.accept/2`](`Playwright.Dialog.accept/2`). The [Concurrency](../concurrency.md) guide
+[`Dialog.accept!/2`](`Playwright.Dialog.accept!/2`). The [Concurrency](../concurrency.md) guide
 covers ordering, blocking listeners and promise lifetimes.
 
 ## Assertions

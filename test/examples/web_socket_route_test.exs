@@ -105,7 +105,7 @@ defmodule Playwright.Examples.WebSocketRouteTest do
       if "chat.v2" in WebSocketRoute.protocols(ws) do
         WebSocketRoute.on_message(ws, &WebSocketRoute.send(ws, JSON.encode!(%{version: 2, echo: &1})))
       else
-        WebSocketRoute.close(ws, code: 1002, reason: "Unsupported protocol")
+        WebSocketRoute.close!(ws, code: 1002, reason: "Unsupported protocol")
       end
     end)
   end

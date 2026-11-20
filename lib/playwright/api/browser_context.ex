@@ -67,7 +67,7 @@ defmodule Playwright.BrowserContext do
 
   ```elixir
   BrowserContext.on(context, :dialog, fn dialog ->
-    Dialog.accept(dialog)
+    Dialog.accept!(dialog)
   end)
   ```
 
@@ -824,7 +824,7 @@ defmodule Playwright.BrowserContext do
 
   ```elixir
   context = Browser.new_context!(browser)
-  BrowserContext.route!(context, "**/*.{png,jpg,jpeg}", &Route.abort/1)
+  BrowserContext.route!(context, "**/*.{png,jpg,jpeg}", &Route.abort!/1)
   page = BrowserContext.new_page!(context)
   Page.goto!(page, "https://example.com")
   Browser.close!(browser)
@@ -834,7 +834,7 @@ defmodule Playwright.BrowserContext do
 
   ```elixir
   context = Browser.new_context!(browser)
-  BrowserContext.route!(context, ~r/(\.png$)|(\.jpg$)/, &Route.abort/1)
+  BrowserContext.route!(context, ~r/(\.png$)|(\.jpg$)/, &Route.abort!/1)
   page = BrowserContext.new_page!(context)
   Page.goto!(page, "https://example.com")
   Browser.close!(browser)

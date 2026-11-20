@@ -1,4 +1,5 @@
-# The snippets of `guides/testing-with-exunit.md`, run against an app on `Playwright.TestServer`.
+# The snippets of `guides/testing-with-exunit.md`, `test-options.md`, `test-artifacts.md` and
+# `porting-playwright-test.md`, run against an app on `Playwright.TestServer`.
 # Deviations from the guide: each module starts its own app, and the browser is `BROWSER`'s.
 
 defmodule Playwright.Guides.TestingWithExUnit.App do
@@ -142,7 +143,7 @@ defmodule Playwright.Guides.TestingWithExUnit.SignUpTest do
   test "on a phone" do
     browser = BrowserPool.browser()
     iphone = Playwright.device("iPhone 13")
-    page = BrowserContext.new_page!(Browser.new_context!(browser, Keyword.merge(iphone, locale: "de-DE")))
+    page = BrowserContext.new_page!(Browser.new_context!(browser, iphone ++ [locale: "de-DE"]))
     assert iphone[:default_browser_type] == "webkit"
     assert Playwright.devices()["iPhone 13"] == iphone
     assert_raise ArgumentError, ~r/"iPhone 13"/, fn -> Playwright.device("iPhone13") end
@@ -511,7 +512,7 @@ defmodule Playwright.Guides.TestingWithExUnit.Projects do
   # (`BROWSER`), which wins over a device's browser.
   def all do
     names = String.split(System.get_env("PROJECTS", "Desktop Chrome"), ",")
-    for name <- names, do: Playwright.Test.parameters(Playwright.device(name))
+    for name <- names, do: Playwright.Test.parameters([name: name] ++ Playwright.device(name))
   end
 end
 
