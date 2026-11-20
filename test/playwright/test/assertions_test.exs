@@ -1,6 +1,6 @@
 defmodule Playwright.Test.AssertionsTest.Helper do
   # A helper module that opts in with the import alone (no `ExUnit.Assertions`).
-  import Playwright.Test, only: [assert: 1, assert: 2, refute: 1, refute: 2]
+  import Playwright.Test.Assertions
 
   def check(value) do
     assert value == :ok
@@ -12,13 +12,30 @@ end
 defmodule Playwright.Test.AssertionsTest.OwnOperator do
   # An `==` that isn't Kernel's, which ExUnit's `assert` doesn't translate (no `right`).
   import Kernel, except: [==: 2]
-  import Playwright.Test, only: [assert: 1]
+  import Playwright.Test.Assertions, only: [assert: 1]
 
   def left == right, do: Kernel.==(left, right)
 
   def check(value) do
     assert value == :ok
     true
+  end
+end
+
+defmodule Playwright.Test.AssertionsTest.OwnAssert do
+  # A library with its own `assert/2` imports the rest; `__ENV__.macros` (a macro's
+  # `__CALLER__.macros`) tells whether a module has them.
+  import Playwright.Test.Assertions, except: [assert: 2, refute: 2]
+
+  @steps Keyword.has_key?(__ENV__.macros, Playwright.Test.Assertions)
+
+  def steps?, do: @steps
+
+  def assert(value, message), do: {:own, value, message}
+
+  def check(value) do
+    assert value == :ok
+    assert(value, "mine")
   end
 end
 
@@ -253,6 +270,18 @@ defmodule Playwright.Test.AssertionsTest do
 
     test_failure(fn -> Expect.to_pass!(fn -> assert 1 == 2 end, intervals: [10], timeout: 50) end)
     test_failure(fn -> Expect.poll!(fn -> 1 end, &assert(&1 == 2), intervals: [10], timeout: 50) end)
+  end
+
+  test "a library with its own assert/2 imports the rest: its assert/1 is a step" do
+    on_trace(fn events ->
+      assert [%{"params" => %{"expression" => "value == :ok"}}, %{"params" => %{"expression" => "steps?"}}] =
+               befores(events)
+    end)
+
+    result = Playwright.Test.AssertionsTest.OwnAssert.check(:ok)
+    steps? = Playwright.Test.AssertionsTest.OwnAssert.steps?()
+    assert steps?
+    ExUnit.Assertions.assert(result == {:own, :ok, "mine"})
   end
 
   test "a helper module with the import alone records its passed assertions" do
@@ -559,6 +588,6 @@ defmodule Playwright.Test.AssertionsImportTest do
   use Playwright.Test
 
   test "assert and refute are this module's" do
-    assert Macro.Env.lookup_import(__ENV__, {:assert, 1}) == [macro: Playwright.Test]
+    assert Macro.Env.lookup_import(__ENV__, {:assert, 1}) == [macro: Playwright.Test.Assertions]
   end
 end

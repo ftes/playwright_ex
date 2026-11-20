@@ -427,7 +427,7 @@ defmodule Playwright.Matchers.Expect do
   end
 
   @doc false
-  # JS truthiness of an argument (also `Playwright.Test.assert/1`'s `expected`).
+  # JS truthiness of an argument (also `Playwright.Test.Assertions.assert/1`'s `expected`).
   def truthy?(value), do: value not in [nil, false, :null, "", 0] and value != 0.0
 
   # Elixir only: the message of a `suggestedRebaseline` that is not written (see above). The
@@ -488,7 +488,7 @@ defmodule Playwright.Matchers.Expect do
             attempt_info = %{info | poll: nil, isSoft: false}
 
             # Elixir only: the `assert` matcher's attempt is no matcher step around its
-            # assertion, whose own step (`Playwright.Test.assert/1`, with its expression and
+            # assertion, whose own step (`Playwright.Test.Assertions.assert/1`, with its expression and
             # `expected`) is the attempt's, as upstream's attempt is `toEqual(expected)`'s; with
             # a message (the attempt's title) or `assert_steps: false` it is the matcher's.
             own_step? = matcher_name == "assert" and assert_steps?(test_info) and !truthy?(info[:message])
