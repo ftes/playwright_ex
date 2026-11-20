@@ -17,6 +17,7 @@ defmodule Playwright.APIRequest do
   """
 
   alias Playwright.Runtime.Facade
+  alias Playwright.Runtime.ProtocolType
 
   @typedoc "A `APIRequest` handle. Compare handles with `==`, their fields are internal."
   @type t :: %__MODULE__{}
@@ -57,7 +58,7 @@ defmodule Playwright.APIRequest do
                           proxy: {:proxy, {:fields, %{server: nil, bypass: nil, username: nil, password: nil}}},
                           storage_state:
                             {:storageState,
-                             Facade.protocol_type("BrowserContextSetStorageStateParams", :storageState, [:credentials])},
+                             ProtocolType.of("BrowserContextSetStorageStateParams", :storageState, [:credentials])},
                           timeout: {:timeout, nil},
                           user_agent: {:userAgent, nil}
                         }}

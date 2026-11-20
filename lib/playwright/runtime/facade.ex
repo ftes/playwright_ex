@@ -23,10 +23,9 @@ defmodule Playwright.Runtime.Facade do
 
   A type is `nil` (passed through), `:timeout` (a positional timeout), `{:object, %{key => {js_key, type}}}`
   (options), `{:fields, %{js_key => type}}` (a nested object), `{:protocol, %{js_key => type},
-  %{string => type}}` (one the client passes on, `protocol_type/2`), `{:array, type}`, `{:enum, %{atom => string}}`
+  %{string => type}}` (one the client passes on, `Playwright.Runtime.ProtocolType.of/3`), `{:array, type}`, `{:enum, %{atom => string}}`
   or `{:union, [type]}`.
   """
-  alias Playwright.Protocol.Validator
   alias Playwright.Runtime.Promise
   alias Playwright.Runtime.Zones
   alias Playwright.TargetClosedError
@@ -242,34 +241,6 @@ defmodule Playwright.Runtime.Facade do
       {name, Map.new(object, fn {key, value} -> {Map.get(keys, key, key), value} end)}
     end)
   end
-
-  @doc """
-  The type of `field` of the protocol's `params` (`Playwright.Protocol.Validator`): a value the
-  client passes on (cookies, storage states), whose objects take the protocol's keys as atoms or
-  strings. The generated facade computes it when it compiles. The values of the `unchecked`
-  keys, at any depth, pass as they are: those the protocol's validator drops unread
-  (`APIRequest.newContext`'s storage state `credentials`).
-  """
-  def protocol_type(params, field, unchecked \\ []) do
-    {:object, fields} = Validator.scheme(params)
-    scheme_type(Keyword.fetch!(fields, field), unchecked)
-  end
-
-  defp scheme_type({:optional, scheme}, unchecked), do: scheme_type(scheme, unchecked)
-  defp scheme_type({:type, name}, unchecked), do: scheme_type(Validator.scheme(name), unchecked)
-
-  defp scheme_type({:array, scheme}, unchecked) do
-    if type = scheme_type(scheme, unchecked), do: {:array, type}
-  end
-
-  defp scheme_type({:object, fields}, unchecked) do
-    atoms =
-      Map.new(fields, fn {key, scheme} -> {key, if(key not in unchecked, do: scheme_type(scheme, unchecked))} end)
-
-    {:protocol, atoms, Map.new(atoms, fn {key, type} -> {Atom.to_string(key), type} end)}
-  end
-
-  defp scheme_type(_scheme, _unchecked), do: nil
 
   @doc "Converts the positional argument `name` (its Elixir name, for errors) of `type`."
   def arg!(value, type, api_name, name), do: convert!(value, type, api_name, [name])

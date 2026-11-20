@@ -334,6 +334,7 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
       #{if facade(name) == Playwright, do: "use Playwright.Root"}
 
       #{if String.contains?(body, "Facade."), do: "alias Playwright.Runtime.Facade"}
+      #{if String.contains?(body, "ProtocolType."), do: "alias Playwright.Runtime.ProtocolType"}
 
       #{body}
     end
@@ -1158,8 +1159,8 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
   defp schema(_ctx, nil, _mode), do: nil
 
   # An open object (a storage state, cookies, see `Mix.Playwright.ApiRules`): passed as it is, its
-  # keys checked against those of protocol params (`Facade.protocol_type/2` when the module
-  # compiles), which its validator would drop silently. Every one needs them.
+  # keys checked against those of protocol params (`Playwright.Runtime.ProtocolType.of/3` when the
+  # module compiles), which its validator would drop silently. Every one needs them.
   defp schema(_ctx, %{"protocol" => {params, field, unchecked}}, _mode), do: {:protocol, params, field, unchecked}
 
   defp schema(_ctx, %{"open" => true}, _mode),
@@ -1710,10 +1711,10 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
   # what the VM loaded before.
   defp render({:map, pairs}), do: "%{#{Enum.map_join(pairs, ", ", fn {k, v} -> "#{key(k)} #{render(v)}" end)}}"
 
-  defp render({:protocol, params, field, []}), do: "Facade.protocol_type(#{inspect(params)}, #{inspect(field)})"
+  defp render({:protocol, params, field, []}), do: "ProtocolType.of(#{inspect(params)}, #{inspect(field)})"
 
   defp render({:protocol, params, field, unchecked}),
-    do: "Facade.protocol_type(#{inspect(params)}, #{inspect(field)}, #{inspect(unchecked)})"
+    do: "ProtocolType.of(#{inspect(params)}, #{inspect(field)}, #{inspect(unchecked)})"
 
   defp render(tuple) when is_tuple(tuple), do: "{#{tuple |> Tuple.to_list() |> Enum.map_join(", ", &render/1)}}"
   defp render(list) when is_list(list), do: "[#{Enum.map_join(list, ", ", &render/1)}]"

@@ -2,6 +2,7 @@ defmodule Playwright.Runtime.FacadeTest do
   use ExUnit.Case, async: true
 
   alias Playwright.Runtime.Facade
+  alias Playwright.Runtime.ProtocolType
 
   @schema {:object,
            %{
@@ -113,7 +114,7 @@ defmodule Playwright.Runtime.FacadeTest do
   end
 
   test "objects passed on to the protocol have the keys of its params, as atoms or strings" do
-    type = Facade.protocol_type("BrowserContextAddCookiesParams", :cookies)
+    type = ProtocolType.of("BrowserContextAddCookiesParams", :cookies)
     cookies = [%{"name" => "a", "httpOnly" => true}, %{name: "b", _crHasCrossSiteAncestor: false}]
     assert Facade.arg!(cookies, type, "x.y", :cookies) == cookies
 
@@ -127,6 +128,13 @@ defmodule Playwright.Runtime.FacadeTest do
     assert_raise ArgumentError, ~s(x.y: unknown field cookies[0]."name", expected one of httpOnly, name), fn ->
       Facade.arg!([%{"name" => "a"}], {:array, {:fields, %{name: nil, httpOnly: nil}}}, "x.y", :cookies)
     end
+  end
+
+  test "a protocol type nested in itself passes unchecked where it recurs" do
+    # `SerializedValue` holds `SerializedValue`s (`a`, `o[].v`).
+    assert {:protocol, %{value: {:protocol, value, _}}, _} = ProtocolType.of("JSHandleEvaluateExpressionParams", :arg)
+    assert {:array, {:protocol, %{v: nil}, _}} = value.o
+    assert value.a == nil
   end
 
   test "keys that need quoting are quoted, so a key with a dot is no path" do

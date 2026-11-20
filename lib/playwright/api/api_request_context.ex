@@ -31,6 +31,7 @@ defmodule Playwright.APIRequestContext do
   """
 
   alias Playwright.Runtime.Facade
+  alias Playwright.Runtime.ProtocolType
 
   @typedoc "A `APIRequestContext` handle. Compare handles with `==`, their fields are internal."
   @type t :: %__MODULE__{}
@@ -40,7 +41,7 @@ defmodule Playwright.APIRequestContext do
   @doc false
   def __client__(_this), do: Playwright.Client.APIRequestContext
 
-  @add_cookies_cookies Facade.protocol_type("APIRequestContextAddCookiesParams", :cookies)
+  @add_cookies_cookies ProtocolType.of("APIRequestContextAddCookiesParams", :cookies)
 
   @doc ~S"""
   Adds cookies into this request context. They will be sent with matching subsequent requests. For `Playwright.BrowserContext.request/1`
