@@ -87,6 +87,8 @@ upstream minor, so `~> 1.65.0` is safe.
 - **RC only:** `add_cookies`, `storage_state:` and `set_storage_state` check their keys
   against the protocol's: a snake_case `http_only:` raises instead of being dropped. Errors
   name the argument and list index (`cookies[0].http_only`).
+- **RC only:** option and field errors name keys bare: `unknown option x, expected one of
+  y, z` (was `unknown option :x, expected one of :y, :z`), `for opt` (was `for :opt`).
 - **RC only:** `mix playwright.install` forwards a `--` to `playwright install` (rc.2 raised on
   it).
 

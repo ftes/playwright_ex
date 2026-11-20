@@ -1158,9 +1158,12 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
   defp schema(_ctx, nil, _mode), do: nil
 
   # An open object (a storage state, cookies, see `Mix.Playwright.ApiRules`): passed as it is, its
-  # keys checked against those of the protocol params it is sent in, which its validator would
-  # drop silently.
+  # keys checked against those of protocol params (`Facade.protocol_type/2` when the module
+  # compiles), which its validator would drop silently. Every one needs them.
   defp schema(_ctx, %{"protocol" => {params, field}}, _mode), do: {:protocol, params, field}
+
+  defp schema(_ctx, %{"open" => true}, _mode),
+    do: Mix.raise("gen.api: an open object without protocol params (ApiRules.protocol/2, @protocol_params)")
 
   defp schema(ctx, %{"union" => union}, mode) when is_list(union) do
     {literals, others} = Enum.split_with(union, &literal?(&1["name"]))
@@ -1707,6 +1710,7 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
   # what the VM loaded before.
   defp render({:map, pairs}), do: "%{#{Enum.map_join(pairs, ", ", fn {k, v} -> "#{key(k)} #{render(v)}" end)}}"
 
+  defp render({:protocol, params, field}), do: "Facade.protocol_type(#{inspect(params)}, #{inspect(field)})"
   defp render(tuple) when is_tuple(tuple), do: "{#{tuple |> Tuple.to_list() |> Enum.map_join(", ", &render/1)}}"
   defp render(list) when is_list(list), do: "[#{Enum.map_join(list, ", ", &render/1)}]"
   defp render(term), do: inspect(term)

@@ -55,7 +55,8 @@ defmodule Playwright.APIRequest do
                           ignore_https_errors: {:ignoreHTTPSErrors, nil},
                           max_redirects: {:maxRedirects, nil},
                           proxy: {:proxy, {:fields, %{server: nil, bypass: nil, username: nil, password: nil}}},
-                          storage_state: {:storageState, {:protocol, "PlaywrightNewRequestParams", :storageState}},
+                          storage_state:
+                            {:storageState, Facade.protocol_type("BrowserContextSetStorageStateParams", :storageState)},
                           timeout: {:timeout, nil},
                           user_agent: {:userAgent, nil}
                         }}
@@ -151,8 +152,6 @@ defmodule Playwright.APIRequest do
 
   @doc ~S"""
   Creates new instances of [`APIRequestContext`](`Playwright.APIRequestContext`).
-
-  In Elixir, a storage state with `credentials` (`BrowserContext.storage_state!(context, credentials: true)`) raises here: drop them first, `Map.delete(state, :credentials)`.
 
   *Since Playwright 1.16.*
 

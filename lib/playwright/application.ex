@@ -55,18 +55,9 @@ defmodule Playwright.Application do
   end
 
   @doc false
-  # Keys as an error names them, as the facade does: bare, quoted only where they must be, an
-  # atom as `:"proxy.server"`, a string key as `"http_only"`.
+  # Keys as an error names them, as the facade does (`Playwright.Runtime.Facade.key/1`).
   def key_names(keys), do: Enum.map_join(keys, ", ", &key_name/1)
 
   @doc false
-  def key_name(key) when is_atom(key) do
-    case inspect(key) do
-      ":\"" <> _ = quoted -> quoted
-      ":" <> bare -> bare
-      alias -> alias
-    end
-  end
-
-  def key_name(key), do: inspect(key)
+  defdelegate key_name(key), to: Playwright.Runtime.Facade, as: :key
 end
