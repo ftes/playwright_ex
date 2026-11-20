@@ -40,6 +40,11 @@ upstream minor, so `~> 1.65.0` is safe.
 
 ## [Unreleased]
 
+## [1.65.0-rc.3] 2026-11-20
+
+Drives [Playwright 1.65.1](https://github.com/microsoft/playwright/releases/tag/v1.65.1), on
+Node 26.13.1. No upstream API changes.
+
 ### Added
 
 - `Playwright.Test.info/0` in `setup_all`: the module's `file`, `timeout` and resolved `use`
@@ -69,18 +74,16 @@ upstream minor, so `~> 1.65.0` is safe.
   as `install/1` does, instead of returning `{:error, {:exit_status, n}}`.
 - **RC only:** **Breaking:** `mix playwright.install --force` reinstalls the driver with every
   flag, `--dry-run`, `--list` and `--help` too.
-- **RC only:** **Breaking:** errors of the runner, the pool, the driver and the config read
-  `<Module.function/arity or config path>: <problem>, expected ...`, keys and values as the
-  facade's errors name them (`config :playwright, :test: unknown key tracing, expected one of
-  browser_name, ...`, `invalid value 0 for workers, expected a positive integer`); a call outside its
-  scope (`BrowserPool.browser/1` past its test, a context before the registration) raises
-  `RuntimeError`, bad input `ArgumentError`.
-- **RC only:** the internal `Runtime.Api.call/3` is `Runtime.Facade.call/2`, without
-  the unused receiver, as are the facade's `async`, `expect` and `matcher` runners.
-- **RC only:** `priv/driver_checksums.exs` no longer repeats the driver and Node versions:
-  `DRIVER_VERSION` and `NODE_VERSION` alone hold them.
-- **RC only:** `Playwright.Test.in_registered_test?/0` is replaced by `in_registered_scope?/0`,
-  true in a test or `setup_all`; `info/0` has `test_pid` only in a test.
+- **RC only:** **Breaking:** option and field errors name keys bare: `unknown option x,
+  expected one of y, z` (was `unknown option :x, expected one of :y, :z`), `for opt` (was `for
+  :opt`). Errors of the runner, the pool, the driver and the config read `<Module.function/arity
+  or config path>: <problem>, expected ...`, naming keys and values the same way (`config
+  :playwright, :test: unknown key tracing, expected one of browser_name, ...`, `invalid value 0
+  for workers, expected a positive integer`); a call outside its scope (`BrowserPool.browser/1`
+  past its test, a context before the registration) raises `RuntimeError`, bad input
+  `ArgumentError`.
+- **RC only:** **Breaking:** `Playwright.Test.in_registered_test?/0` is replaced by
+  `in_registered_scope?/0`, true in a test or `setup_all`; `info/0` has `test_pid` only in a test.
 - **RC only:** **Breaking:** option values are checked only where upstream's config loader
   checks them (`preserve_output`, `workers`, `output_dir`, `report_slow_tests`, a project's
   `name`, `:expect`'s `update_snapshots`, `ignore_snapshots` and `:to_have_screenshot`'s
@@ -97,10 +100,11 @@ upstream minor, so `~> 1.65.0` is safe.
 - **RC only:** **Breaking:** `@describetag`/`@tag Test.use(...)` with `browser_name`,
   `default_browser_type` (a device's), `launch_options` or `connect_options` raises when the
   module compiles a test of the `test` macro under it, with upstream's "Cannot use({ ... }) in
-  a describe group, because it forces a new worker" message ("in a test" for a `@tag`), instead
-  of dropping a device's browser. `@moduletag Test.use(...)` takes them, as upstream's top-level
-  `test.use`. A test's worker is its module's (its `use`, then its `@moduletag`s, the later per option), so a
-  test the check doesn't see (a doctest, a bare `ExUnit.Case.test`) gets the module's too.
+  a describe group, because it forces a new worker" message ("in a test" for a `@tag`), where
+  rc.2's `Test.use/1` raised for the first three in any tag and dropped a device's browser.
+  `@moduletag Test.use(...)` now takes them, as upstream's top-level `test.use`. A test's worker
+  is its module's (its `use`, then its `@moduletag`s, the later per option), so a test the check
+  doesn't see (a doctest, a bare `ExUnit.Case.test`) gets the module's too.
 - **RC only:** **Breaking:** `info/0`, `output_path/1`, `attach/2` and `snapshot_path/2`
   outside their scope raise upstream's "... can only be called while test is running";
   `output_path/1` takes path segments too and raises upstream's message for a path outside the
@@ -119,8 +123,6 @@ upstream minor, so `~> 1.65.0` is safe.
 - **RC only:** `add_cookies`, `storage_state:` and `set_storage_state` check their keys
   against the protocol's: a snake_case `http_only:` raises instead of being dropped. Errors
   name the argument and list index (`cookies[0].http_only`).
-- **RC only:** option and field errors name keys bare: `unknown option x, expected one of
-  y, z` (was `unknown option :x, expected one of :y, :z`), `for opt` (was `for :opt`).
 - **RC only:** `mix playwright.install` forwards a `--` to `playwright install` (rc.2 raised on
   it).
 

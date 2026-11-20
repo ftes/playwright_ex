@@ -7,7 +7,7 @@ docs, so playwright.dev applies; the Python docs are the closest read.
 
 ## Setup
 
-- Depend on `{:playwright, "~> 1.65.0-rc.2", hex: :playwright_ex}` (the README has the current version). `hex: :playwright_ex` is required. Versions are Playwright's major.minor with our own patch, so `~> 1.65.0` takes our fixes for Playwright 1.65. If only tests use it, prefer `only: [:dev, :test]` to `only: :test`, so its mix tasks work in `:dev`.
+- Depend on `{:playwright, "~> 1.65.0-rc.3", hex: :playwright_ex}` (the README has the current version). `hex: :playwright_ex` is required. Versions are Playwright's major.minor with our own patch, so `~> 1.65.0` takes our fixes for Playwright 1.65. If only tests use it, prefer `only: [:dev, :test]` to `only: :test`, so its mix tasks work in `:dev`.
 - The app is `:playwright`, the modules `Playwright.*`. The Hex package `playwright` (hexdocs.pm/playwright) is another Elixir library, playwright-elixir, with another API: don't use its docs or examples (`Playwright.launch(:chromium)`, `Playwright.Page.click(page, selector)`). This library's docs are at hexdocs.pm/playwright_ex.
 - `mix playwright.install` installs the pinned driver (Node.js and `playwright-core`) and browsers. Do not add npm `playwright`.
 - `mix playwright.install chromium --with-deps` installs one browser and its system packages on Linux CI. `--no-browsers` installs only the driver, for a browser launched with `:executable_path` or `:channel`. Run the task again after upgrading the dependency. In CI, set `MIX_ENV: test` for the whole job, so `deps.get`, the install and `mix test` share one build.
