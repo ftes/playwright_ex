@@ -90,14 +90,17 @@ upstream minor, so `~> 1.65.0` is safe.
   and `:retry_with_trace`/`:retry_with_video` are `:on_first_retry`. `test_id_attribute: ""`
   sets none, as upstream's `if (testIdAttribute)`.
 - **RC only:** **Breaking:** a duplicated key no longer raises: the later wins, as in JS's
-  spread, in `use Playwright.Test`, `Test.use/1`, `Test.parameters/1` and in the keyword lists
-  they take (`trace: [mode: :on, mode: :off]` is off, `connect_options`, `driver`,
-  `report_slow_tests`).
+  spread, in `use Playwright.Test`, `Test.use/1`, `Test.parameters/1` and the keyword lists
+  they take (`trace: [mode: :on, mode: :off]` is off, `connect_options`), in the config's
+  (`driver`, `report_slow_tests`, `config :playwright, :expect` and its matchers'), and in the
+  options of `Playwright.Supervisor.start_link/1`, `step/3`, `attach/2` and `snapshot_path/2`.
 - **RC only:** **Breaking:** `@describetag`/`@tag Test.use(...)` with `browser_name`,
-  `default_browser_type` (a device's), `launch_options` or `connect_options` raises when the test
-  registers, with upstream's "Cannot use({ ... }) in a describe group, because it forces a new
-  worker" message ("in a test" for a `@tag`), instead of dropping a device's browser.
-  `@moduletag Test.use(...)` takes them, as upstream's top-level `test.use`.
+  `default_browser_type` (a device's), `launch_options` or `connect_options` raises when the
+  module compiles a test of the `test` macro under it, with upstream's "Cannot use({ ... }) in
+  a describe group, because it forces a new worker" message ("in a test" for a `@tag`), instead
+  of dropping a device's browser. `@moduletag Test.use(...)` takes them, as upstream's top-level
+  `test.use`. A test's worker is its module's (its `use`, then its `@moduletag`s, the later per option), so a
+  test the check doesn't see (a doctest, a bare `ExUnit.Case.test`) gets the module's too.
 - **RC only:** **Breaking:** `info/0`, `output_path/1`, `attach/2` and `snapshot_path/2`
   outside their scope raise upstream's "... can only be called while test is running";
   `output_path/1` takes path segments too and raises upstream's message for a path outside the

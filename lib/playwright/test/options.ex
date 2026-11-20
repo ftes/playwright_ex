@@ -417,19 +417,19 @@ defmodule Playwright.Test.Options do
 
   @doc """
   Upstream's `browserName` of a module's run, for its `BrowserPool.browser/1` calls without one:
-  the module's `use_options`' `browser_name`, else the `project`'s (`Playwright.Test.parameters/1`),
-  else the config's if it sets one. Else the `default_browser_type` of the module's
-  `use_options`, the project's or the config's (a spread device's; one in `context_options`
-  doesn't count, as upstream's `contextOptions`), as upstream's `browserName` defaults to its
-  `defaultBrowserType`, else the config's default, `:chromium`. Tags don't
-  count: the browser is the worker's. Whether the config sets one is the application env's:
-  `config` has the default filled in.
+  the `module`'s `browser_name` (`module_worker/2`'s: its `use`, then its `@moduletag`), else the
+  `project`'s (`Playwright.Test.parameters/1`), else the config's if it sets one. Else the
+  `default_browser_type` of the module, the project or the config (a spread device's; one in
+  `context_options` doesn't count, as upstream's `contextOptions`), as upstream's `browserName`
+  defaults to its `defaultBrowserType`, else the config's default, `:chromium`. A describe's or a
+  test's tags don't count: the browser is the worker's. Whether the config sets one is the
+  application env's: `config` has the default filled in.
   """
-  def browser_name(config \\ config(), project \\ %{}, use_options \\ %{}) do
+  def browser_name(config \\ config(), project \\ %{}, module \\ %{}) do
     env = Application.get_env(:playwright, :test, [])
     configured = if Keyword.keyword?(env) and env[:browser_name] != nil, do: config.browser_name
 
-    use_options[:browser_name] || project[:browser_name] || configured || use_options[:default_browser_type] ||
+    module[:browser_name] || project[:browser_name] || configured || module[:default_browser_type] ||
       project[:default_browser_type] || config[:default_browser_type] || config.browser_name
   end
 
@@ -442,15 +442,26 @@ defmodule Playwright.Test.Options do
 
   @doc """
   The worker options of a module's run, over the config's, for its `BrowserPool.browser/1`
-  calls: `browser_name/3`, and the `launch_options` (the module's, else the project's, as a whole)
-  and `connect_options` of the module's `use_options` (a `nil` one dropped, `unset_nil/1`) or its
-  `project` (`layers/3`'s, `nil`s dropped there).
+  calls, the same for its `setup_all` and each of its tests: `browser_name/3`, and the
+  `launch_options` (the module's, else the project's, as a whole) and `connect_options` of the
+  `module` (`module_worker/2`'s, or a module's `use_options`; a `nil` one dropped,
+  `unset_nil/1`) or its `project` (`layers/3`'s, `nil`s dropped there).
   """
-  def worker(config \\ config(), project \\ %{}, use_options \\ %{}) do
-    use_options = unset_nil(use_options)
+  def worker(config \\ config(), project \\ %{}, module \\ %{}) do
+    module = unset_nil(module)
     keys = @worker_keys -- [:browser_name]
-    options = merge(Map.take(project, keys), Map.take(use_options, keys))
-    options |> Map.put(:browser_name, browser_name(config, project, use_options)) |> Enum.to_list()
+    options = merge(Map.take(project, keys), Map.take(module, keys))
+    options |> Map.put(:browser_name, browser_name(config, project, module)) |> Enum.to_list()
+  end
+
+  @doc """
+  The module's worker options: those of its `use_options`, then of `use/1` in its `@moduletag`s
+  (`module_tags`, `ExUnit.TestModule`'s `tags`: all of them merged, the later per option), as
+  upstream's top-level `test.use` applies file-wide. A describe's or a test's tags never count (`worker_tags!/2`).
+  """
+  def module_worker(use_options, module_tags) do
+    worker_keys = [:default_browser_type | @worker_keys]
+    merge(Map.take(use_options, worker_keys), Map.take(used(module_tags), worker_keys))
   end
 
   @doc """
@@ -481,7 +492,10 @@ defmodule Playwright.Test.Options do
   @doc "The snapshots' path template (config `snapshot_path_template`, default `nil`)."
   def snapshot_path_template, do: config()[:snapshot_path_template]
 
-  @doc "Playwright Test's `testIdAttribute` (config `test_id_attribute`, default `data-testid`)."
+  @doc """
+  Playwright Test's `testIdAttribute` (config `test_id_attribute`, default `data-testid`), `nil`
+  for `""` (upstream's `if (testIdAttribute)` sets none: the selectors keep theirs).
+  """
   def test_id_attribute, do: config()[:test_id_attribute]
 
   # Option lists merge one level deep (`launch_options: [slow_mo: 50]` keeps the config's
@@ -637,7 +651,7 @@ defmodule Playwright.Test.Options do
   defp to_keyword(key, value) do
     cond do
       is_list(value) and Keyword.keyword?(value) ->
-        value |> Enum.reverse() |> Enum.uniq_by(&elem(&1, 0)) |> Enum.reverse()
+        Playwright.Application.later_wins(value)
 
       is_map(value) and not is_struct(value) ->
         Enum.to_list(value)
