@@ -23,30 +23,37 @@ defmodule Playwright.Isomorphic.LocatorUtils do
       else: test_id_attribute_name
   end
 
+  @doc library_api: true
   def get_by_test_id_selector(test_id_attribute_name, test_id) do
     "internal:testid=[#{encode_test_id_attribute_name(test_id_attribute_name)}=#{escape_for_attribute_selector(test_id, true)}]"
   end
 
+  @doc library_api: true
   def get_by_label_selector(text, options \\ nil) do
     "internal:label=" <> escape_for_text_selector(text, !!options[:exact])
   end
 
+  @doc library_api: true
   def get_by_alt_text_selector(text, options \\ nil) do
     get_by_attribute_text_selector("alt", text, options)
   end
 
+  @doc library_api: true
   def get_by_title_selector(text, options \\ nil) do
     get_by_attribute_text_selector("title", text, options)
   end
 
+  @doc library_api: true
   def get_by_placeholder_selector(text, options \\ nil) do
     get_by_attribute_text_selector("placeholder", text, options)
   end
 
+  @doc library_api: true
   def get_by_text_selector(text, options \\ nil) do
     "internal:text=" <> escape_for_text_selector(text, !!options[:exact])
   end
 
+  @doc library_api: true
   def get_by_role_selector(role, options \\ %{}) do
     props =
       [

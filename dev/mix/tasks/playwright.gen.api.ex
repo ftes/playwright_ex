@@ -43,9 +43,10 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
       string too for `"openEvents"` classes (`CDPSession`, see `Mix.Playwright.ApiRules`). The
       call runs in `Playwright.Runtime.Facade.listen/1`: the listener is a user listener.
     * Functions with options: `__options__(:click)` lists the options with their doc and type, for
-      wrappers that pass them on (documented as unstable). `__options_type__(:click)` (`@doc
-      false`) is their type, as `Playwright.Runtime.Facade.options!/3` converts them: the
-      config's `context_options` of `Playwright.Test`.
+      wrappers that pass them on (`@doc library_api: true`, see docs/architecture.md).
+      `__options_type__(:click)` (`@doc false`) is their type, as
+      `Playwright.Runtime.Facade.options!/3` converts them: the config's `context_options` of
+      `Playwright.Test`.
 
   Each file starts with the copyright header of upstream's docs (`Mix.Playwright.Notices`).
 
@@ -1083,12 +1084,13 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
         end
 
       """
-      @doc \"\"\"
-      The options of `function`, an atom such as `:#{name}`, as
-      `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, for tools that build on the facade at
-      compile time; a function without options raises `FunctionClauseError`. Unstable: the shape
-      may change between releases.
-      \"\"\"
+      # The options of `function`, an atom such as `:#{name}`, in order, as its docs show them:
+      # `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, `doc` the first paragraph on one
+      # line, `since` the Playwright version that added the option if newer than the function,
+      # `type_doc` the type as rendered, `spec` the quoted typespec. For libraries that pass
+      # options on; a function without options raises `FunctionClauseError`.
+      @doc false
+      @doc library_api: true
       @spec __options__(atom()) :: [
               {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
             ]

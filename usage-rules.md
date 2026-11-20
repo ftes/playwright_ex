@@ -133,4 +133,3 @@ Page.on(page, :console, fn msg -> send(owner, {:console, ConsoleMessage.text(msg
 
 - `Page.evaluate!/3` and `Locator.evaluate!/3` take JS source, an expression or a function receiving the optional argument. Use them for what the API does not expose, not to click or read what a locator can.
 - Debug with traces (`BrowserContext.tracing/1`, `Tracing.start!/2`, `Tracing.stop!/2`), viewed by `mix playwright.cli show-trace trace.zip`. In tests, use the `trace` mode instead.
-- A wrapper passing options on can document and check them with `__options__/1` on the facade modules.

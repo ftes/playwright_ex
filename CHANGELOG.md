@@ -115,6 +115,10 @@ upstream minor, so `~> 1.65.0` is safe.
   by every `parameterize:` value, and a slow file's annotation is `[project] › file`, as
   upstream's.
 
+- `__options__/1` is out of HexDocs, as are the selector builders of `Isomorphic.LocatorUtils`:
+  both are marked `library_api: true` in their docs metadata, internal but stable for libraries
+  that build on them, changed only with a CHANGELOG note.
+
 ### Fixed
 
 - **RC only:** `add_cookies`, `storage_state:` and `set_storage_state` check their keys
