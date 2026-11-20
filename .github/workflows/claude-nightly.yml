@@ -138,7 +138,7 @@ jobs:
       # (.github/actions/claude): into a gitignored path, after that checkout, which would clean it.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: main
+          ref: ci-test-rc3-ci-tooling
           path: tmp/default-branch
           sparse-checkout: .github
           persist-credentials: false

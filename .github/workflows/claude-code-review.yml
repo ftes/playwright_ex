@@ -40,7 +40,7 @@ jobs:
       # (.github/actions/claude): into a gitignored path, after that checkout, which would clean it.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: main
+          ref: ci-test-rc3-ci-tooling
           path: tmp/default-branch
           sparse-checkout: .github
           persist-credentials: false
@@ -56,3 +56,28 @@ jobs:
             BASE: origin/${{ github.base_ref }}
           max-turns: "80"
           allowed-tools: "Skill,Read,Grep,Glob,Agent,Task,Write,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments:*),mcp__github_inline_comment__create_inline_comment"
+
+  fix-ci-probe:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ci-test-rc3-ci-tooling
+          fetch-depth: 0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ci-test-rc3-ci-tooling
+          path: tmp/default-branch
+          sparse-checkout: .github
+          persist-credentials: false
+      - uses: ./tmp/default-branch/.github/actions/fix-ci
+        with:
+          token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          kind: nightly
+          pr: "311"
+          branch: ci-test-rc3-ci-tooling
