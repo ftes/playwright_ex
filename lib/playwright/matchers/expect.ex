@@ -533,7 +533,6 @@ defmodule Playwright.Matchers.Expect do
     end
   end
 
-  # Whether the test records its assertions as steps (`Playwright.Test`'s `assert_steps`).
   # The matcher's step of a failed `assert` attempt, with its error (raised again, not run again).
   defp failed_attempt_step(info, value, args, {kind, reason, stacktrace}) do
     call_matcher_as_step(
@@ -547,6 +546,7 @@ defmodule Playwright.Matchers.Expect do
     _kind, _reason -> :ok
   end
 
+  # Whether the test records its assertions as steps (`Playwright.Test`'s `assert_steps`).
   defp assert_steps?(test_info), do: Map.get(test_info || %{}, :assert_steps, true)
 
   # mergeExpects  -- not ported: expect.extend

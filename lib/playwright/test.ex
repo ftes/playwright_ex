@@ -418,8 +418,9 @@ defmodule Playwright.Test do
     * A passed assertion is recorded only where the import is: a helper module opts in with
       `import Playwright.Test.Assertions`, and, if it imports `ExUnit.Assertions` too,
       `import ExUnit.Assertions, except: [assert: 1, assert: 2, refute: 1, refute: 2]`. A library
-      with its own `assert/2` takes `import Playwright.Test.Assertions, except: [assert: 2,
-      refute: 2]`. A failed `assert/1` or `refute/1` is recorded wherever it was
+      with its own `assert/2` excludes the arities it defines (`except: [assert: 2]`); its own
+      `refute/2` also takes the `refute(value, expr: ...)` that ExUnit's `refute match?` calls
+      (see `Playwright.Test.Assertions`). A failed `assert/1` or `refute/1` is recorded wherever it was
       written.
     * A test module that imports `ExUnit.Assertions` again after `use Playwright.Test` fails to
       compile, with an ambiguous call of `assert`: drop that import, or add the same `except:`.
@@ -521,6 +522,8 @@ defmodule Playwright.Test do
             end
           else
             quote do
+              # Also after an earlier `use`'s import of them (a case template's `using`).
+              import Playwright.Test.Assertions, only: []
               import ExUnit.Assertions
               import Playwright.Test, only: [test: 1, test: 2, test: 3]
             end
@@ -619,7 +622,9 @@ defmodule Playwright.Test do
 
       true ->
         # A `nil` key is unset: its default, as `config/0` reads it.
-        configured = Application.compile_env(caller, :playwright, [:test, :assert_steps], nil)
+        # A duplicated key's later, as `config/0` reads it.
+        configured = Application.compile_env(caller, :playwright, :test, [])
+        configured = if Keyword.keyword?(configured), do: Playwright.Application.later_wins(configured)[:assert_steps]
         configured = if configured == nil, do: true, else: configured
         {Options.validate_key!(:assert_steps, configured, "config :playwright, :test"), opts}
     end
