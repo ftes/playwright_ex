@@ -82,8 +82,8 @@ defmodule Playwright.ClientStackTraceTest do
     end)
 
     Page.route!(page, "**/abort", fn route -> Route.abort!(route) end)
-    Page.goto!(page, "http://localhost:1/fulfill")
-    {:error, _} = Page.goto(page, "http://localhost:1/abort")
+    Page.goto!(page, "http://localhost/fulfill")
+    {:error, _} = Page.goto(page, "http://localhost/abort")
 
     assert [{"fulfill", %{file: @this_file, line: line}}, {"abort", nil}] = locations.()
     assert source(line) =~ ~s[Route.fulfill!(route, body: "fulfilled")]
