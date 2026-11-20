@@ -4018,7 +4018,7 @@ defmodule Playwright.Expect do
   * `:threshold` (`t:number/0`) - An acceptable perceived color difference in the [YIQ color space](https://en.wikipedia.org/wiki/YIQ)
     between the same pixel in compared images, between zero (strict) and one (lax), default is configurable with
     `config :playwright, :expect` (see the configuration in `Playwright.Expect`). Defaults to `0.2`.
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright, :expect` (`5000` if not set, see the configuration in `Playwright.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright, :expect, to_have_screenshot: [...]`, else to `:timeout` in `config :playwright, :expect` (`5000` if not set, see the configuration in `Playwright.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   * `:clip` (`t:map/0`) - An object which specifies clipping of the resulting image.
@@ -4164,7 +4164,7 @@ defmodule Playwright.Expect do
   * `:threshold` (`t:number/0`) - An acceptable perceived color difference in the [YIQ color space](https://en.wikipedia.org/wiki/YIQ)
     between the same pixel in compared images, between zero (strict) and one (lax), default is configurable with
     `config :playwright, :expect` (see the configuration in `Playwright.Expect`). Defaults to `0.2`.
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright, :expect` (`5000` if not set, see the configuration in `Playwright.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright, :expect, to_have_screenshot: [...]`, else to `:timeout` in `config :playwright, :expect` (`5000` if not set, see the configuration in `Playwright.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   * `:clip` (`t:map/0`) - An object which specifies clipping of the resulting image.
@@ -6565,7 +6565,7 @@ defmodule Playwright.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright, :expect` (`5000` if not set, see the configuration in `Playwright.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright, :expect, to_have_screenshot: [...]`, else to `:timeout` in `config :playwright, :expect` (`5000` if not set, see the configuration in `Playwright.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       },
@@ -6681,7 +6681,7 @@ defmodule Playwright.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright, :expect` (`5000` if not set, see the configuration in `Playwright.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright, :expect, to_have_screenshot: [...]`, else to `:timeout` in `config :playwright, :expect` (`5000` if not set, see the configuration in `Playwright.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       },

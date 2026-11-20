@@ -123,6 +123,8 @@ upstream minor, so `~> 1.65.0` is safe.
   y, z` (was `unknown option :x, expected one of :y, :z`), `for opt` (was `for :opt`).
 - **RC only:** `mix playwright.install` forwards a `--` to `playwright install` (rc.2 raised on
   it).
+- **RC only:** `config :playwright, :expect, to_have_screenshot: [timeout: ...]` is accepted
+  again, as upstream's `toHaveScreenshot.timeout`, over the expect `timeout` and under a call's.
 
 ## [1.65.0-rc.2] 2026-11-18
 
