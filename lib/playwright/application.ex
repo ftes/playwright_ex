@@ -33,12 +33,16 @@ defmodule Playwright.Application do
   def config!(key, allowed, env \\ nil),
     do: keys!("config :playwright, #{inspect(key)}", env || Application.get_env(:playwright, key, []), allowed)
 
-  defp keys!(label, env, allowed) do
-    if !(is_list(env) and Keyword.keyword?(env)),
-      do: raise(ArgumentError, "#{label}: expected a keyword list, got: #{inspect(env)}")
+  defp keys!(label, env, allowed), do: options!(label, env, allowed, "key")
 
-    unknown_key!(label, "key", Keyword.keys(env), allowed)
-    env
+  @doc false
+  # `opts` of `label`, checked: a keyword list of `allowed` keys (`noun`s), else `ArgumentError`.
+  def options!(label, opts, allowed, noun \\ "option") do
+    if !(is_list(opts) and Keyword.keyword?(opts)),
+      do: raise(ArgumentError, "#{label}: expected a keyword list, got: #{inspect(opts)}")
+
+    unknown_key!(label, noun, Keyword.keys(opts), allowed)
+    opts
   end
 
   @doc false

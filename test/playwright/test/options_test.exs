@@ -9,6 +9,17 @@ defmodule Playwright.Test.OptionsTest do
     do: Options.artifacts(Options.config(), Options.layers(%{}, Options.use_options(Map.to_list(options)), %{}))
 
   describe "validation" do
+    test "options that are not a keyword list raise, naming the function" do
+      for {label, fun} <- [
+            {"Playwright.Supervisor.start_link/1", fn -> apply(Playwright.Supervisor, :start_link, [[:x]]) end},
+            {"Playwright.Test.attach/2", fn -> Playwright.Test.attach("x", [:x]) end},
+            {"Playwright.Test.snapshot_path/2", fn -> Playwright.Test.snapshot_path("x.png", [:x]) end},
+            {"Playwright.Test.step/3", fn -> Playwright.Test._step(:pass, "x", fn -> :ok end, [:x]) end}
+          ] do
+        assert_raise ArgumentError, "#{label}: expected a keyword list, got: [:x]", fun
+      end
+    end
+
     test "config :playwright takes :test, :expect and :driver" do
       assert Playwright.Application.validate_env!([{:test, []}, {:expect, []}, {:driver, []}]) == :ok
 

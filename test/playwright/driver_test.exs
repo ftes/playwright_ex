@@ -19,7 +19,10 @@ defmodule Playwright.DriverTest do
     bad = put_in(Driver.checksums().playwright_core, "sha512-" <> Base.encode64(:binary.copy(<<0>>, 64)))
 
     error = assert_raise Driver.ChecksumError, fn -> Driver.install(cache_dir: cache, checksums: bad) end
-    assert error.message =~ "checksum mismatch for playwright-core.tgz"
+
+    assert error.message =~
+             ~r/^Playwright.Driver.verify!\/2: checksum mismatch for playwright-core.tgz \(sha512\), expected [0-9a-f]+, got: [0-9a-f]+\. /
+
     assert File.ls!(Path.join(cache, Driver.version())) == []
     refute Driver.installed?(cache_dir: cache)
   end

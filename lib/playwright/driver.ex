@@ -35,8 +35,9 @@ defmodule Playwright.Driver do
   (`mix playwright.install` doesn't compile the project, so it doesn't read it). Mix evaluates
   `config/config.exs` on every run, so an environment variable read there takes effect each time,
   locally and in CI. No option has an environment variable: the library reads only those
-  upstream's client and reporters read (`PWDEBUG`, `GITHUB_WORKSPACE`) and `HTTPS_PROXY` and
-  `HTTP_PROXY` for the driver download, and the Playwright CLI reads its own, such as
+  upstream's client and reporters read (such as `PWDEBUG`, `PWDEBUGIMPL`, `GITHUB_WORKSPACE`), `HTTPS_PROXY` and
+  `HTTP_PROXY` (or `https_proxy`, `http_proxy`) for the driver download and, on Windows,
+  `PROCESSOR_ARCHITECTURE` for its platform; the Playwright CLI reads its own, such as
   `PLAYWRIGHT_BROWSERS_PATH`. To take an option from one of your choice (an empty one counts as
   unset):
 
@@ -298,12 +299,10 @@ defmodule Playwright.Driver do
 
     if got != want do
       raise Playwright.Driver.ChecksumError,
-        message: """
-        checksum mismatch for #{Path.basename(path)} (#{algo})
-          expected: #{Base.encode16(want, case: :lower)}
-          got:      #{Base.encode16(got, case: :lower)}
-        The download may be corrupted or tampered with. Nothing was installed.\
-        """
+        message:
+          "Playwright.Driver.verify!/2: checksum mismatch for #{Path.basename(path)} (#{algo}), " <>
+            "expected #{Base.encode16(want, case: :lower)}, got: #{Base.encode16(got, case: :lower)}. " <>
+            "The download may be corrupted or tampered with. Nothing was installed."
     end
 
     :ok
@@ -341,7 +340,7 @@ defmodule Playwright.Driver do
 
   defp unsupported!(desc) do
     raise """
-    Playwright.Driver: no driver download for this platform, expected one of #{Enum.join(@platforms, ", ")}, got: #{desc}.
+    Playwright.Driver.platform!/0: no driver download for this platform, expected one of #{Enum.join(@platforms, ", ")}, got: #{desc}.
     Install Playwright yourself (`npm i playwright@#{@driver_version}`) and pass
     `executable: "node_modules/.bin/playwright"` (or `config :playwright, :driver, executable: ...`),
     or point `node:` at a Node.js binary.\
@@ -404,10 +403,10 @@ defmodule Playwright.Driver do
         :ok
 
       {:ok, {{_, status, _}, _, _}} ->
-        raise "Playwright.Driver.install/1: download of #{url} failed, expected HTTP 200, got: HTTP #{status}"
+        raise "Playwright.Driver.download!/2: download of #{url} failed, expected HTTP 200, got: HTTP #{status}"
 
       {:error, reason} ->
-        raise "Playwright.Driver.install/1: download of #{url} failed, got: #{inspect(reason)}"
+        raise "Playwright.Driver.download!/2: download of #{url} failed, got: #{inspect(reason)}"
     end
   end
 

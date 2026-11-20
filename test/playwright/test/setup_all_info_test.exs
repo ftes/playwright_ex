@@ -4,7 +4,7 @@ defmodule Playwright.Test.SetupAllInfoTest do
   # test's. Sync, so the config set here reaches no other module.
   use ExUnit.Case,
     async: false,
-    parameterize: [Playwright.Test.parameters(locale: "fr-FR", base_url: "http://project.test")]
+    parameterize: [Playwright.Test.parameters(name: "French", locale: "fr-FR", base_url: "http://project.test")]
 
   alias Playwright.Test
 
@@ -52,9 +52,12 @@ defmodule Playwright.Test.SetupAllInfoTest do
         end)
       )
 
+    {:module, module} = Playwright.Test.Recorder.scope()
+
     %{
       setup_all: %{
         info: Test.info(),
+        project_name: module.project_name,
         scope?: Test.in_registered_scope?(),
         task: in_task,
         output_path: raised.(fn -> Test.output_path("x.txt") end),
@@ -87,6 +90,10 @@ defmodule Playwright.Test.SetupAllInfoTest do
     assert info.use.viewport == %{width: 1280, height: 720}
     assert info.use.trace == Test.config().trace
     assert info.use.browser_name == String.to_existing_atom(Playwright.TestBrowser.name())
+  end
+
+  test "the project's name is setup_all's testInfo.project.name", %{setup_all: setup_all} do
+    assert setup_all.project_name == "French"
   end
 
   test "info: in a Task of setup_all, the same", %{setup_all: setup_all} do
