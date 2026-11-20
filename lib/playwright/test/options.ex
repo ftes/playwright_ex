@@ -275,6 +275,9 @@ defmodule Playwright.Test.Options do
     if !(name == nil or is_binary(name)),
       do: raise(ArgumentError, "#{label}: invalid value #{inspect(name)} for name, expected a string")
 
+    # Upstream's default project name is `""`, which its reporters leave out: no name.
+    name = if name != "", do: name
+
     %{@project_key => %Playwright.Test.Project{name: name, use: use_options!(use, label, @worker_keys)}}
   end
 

@@ -59,6 +59,10 @@ defmodule Playwright.Matchers.ExpectTest do
     assert_raise ArgumentError, ~r/^config :playwright, :expect, :to_pass: unknown key timout, /, fn ->
       Expect.app_env_expect_config(to_pass: [timout: 1_000])
     end
+
+    assert_raise ArgumentError,
+                 ~s(config :playwright, :expect, :to_pass: expected a keyword list or a map with atom keys, got: %{"timeout" => 1}),
+                 fn -> Expect.app_env_expect_config(to_pass: %{"timeout" => 1}) end
   end
 
   test "test_helper sets the timeout through the app env" do

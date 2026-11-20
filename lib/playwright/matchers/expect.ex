@@ -176,7 +176,8 @@ defmodule Playwright.Matchers.Expect do
         options = Enum.to_list(options)
 
         if !Keyword.keyword?(options),
-          do: raise(ArgumentError, "#{label}: expected a keyword list or a map, got: #{inspect(env[key])}")
+          do:
+            raise(ArgumentError, "#{label}: expected a keyword list or a map with atom keys, got: #{inspect(env[key])}")
 
         allowed = option_keys ++ config_keys
 

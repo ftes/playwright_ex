@@ -145,8 +145,10 @@ defmodule Playwright.Test.GitHubFormatterTest do
     }
 
     assert run([{:test_finished, test}]) =~ "::  1) [chromium] › #{@file_path}:10 › fails ─"
+    # A device's browser gives way to the configured browser_name (test_helper.exs sets one), as
+    # in BrowserPool.browser/1: the browser the tests run on.
     test = %{test | parameters: Playwright.Test.parameters(Playwright.device("Desktop Firefox"))}
-    assert run([{:test_finished, test}]) =~ "::  1) [firefox] › #{@file_path}:10 › fails ─"
+    assert run([{:test_finished, test}]) =~ "::  1) [#{Playwright.TestBrowser.name()}] › #{@file_path}:10 › fails ─"
     test = %{test | parameters: Playwright.Test.parameters(locale: "de-DE")}
     assert run([{:test_finished, test}]) =~ "::  1) #{@file_path}:10 › fails ─"
     project = Playwright.Test.parameters([name: "Mobile Safari"] ++ Playwright.device("iPhone 13"))

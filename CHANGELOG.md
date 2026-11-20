@@ -75,7 +75,7 @@ upstream minor, so `~> 1.65.0` is safe.
   browser_name, ...`, `invalid value :sometimes for trace, expected ...`); a call outside its
   scope (`BrowserPool.browser/1` past its test, a context before the registration) raises
   `RuntimeError`, bad input `ArgumentError`.
-- **RC only:** `Playwright.Runtime.Api.call/3` is `Playwright.Runtime.Facade.call/2`, without
+- **RC only:** the internal `Runtime.Api.call/3` is `Runtime.Facade.call/2`, without
   the unused receiver, as are the facade's `async`, `expect` and `matcher` runners.
 - **RC only:** `priv/driver_checksums.exs` no longer repeats the driver and Node versions:
   `DRIVER_VERSION` and `NODE_VERSION` alone hold them.

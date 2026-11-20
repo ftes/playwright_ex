@@ -62,7 +62,7 @@ defmodule Playwright.Supervisor do
   """
   @spec start_link([option()]) :: Supervisor.on_start()
   def start_link(opts \\ []) do
-    Playwright.Application.unknown_key!("Playwright.Supervisor.start_link/1", "option", Keyword.keys(opts), [
+    Playwright.Application.options!("Playwright.Supervisor.start_link/1", opts, [
       :executable,
       :node,
       :cache_dir,

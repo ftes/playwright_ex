@@ -1178,7 +1178,7 @@ defmodule Playwright.Test do
   """
   @spec attach(String.t(), keyword()) :: :ok
   def attach(name, options \\ []) when is_binary(name) do
-    Playwright.Application.unknown_key!("Playwright.Test.attach/2", "option", Keyword.keys(options), [
+    Playwright.Application.options!("Playwright.Test.attach/2", options, [
       :path,
       :body,
       :content_type
@@ -1198,9 +1198,8 @@ defmodule Playwright.Test do
   """
   @spec snapshot_path(String.t() | [String.t()], keyword()) :: Path.t()
   def snapshot_path(name, options \\ []) when is_binary(name) or is_list(name) do
-    {kind, options} = Keyword.pop(options, :kind, :snapshot)
-
-    Playwright.Application.unknown_key!("Playwright.Test.snapshot_path/2", "option", Keyword.keys(options), [:kind])
+    Playwright.Application.options!("Playwright.Test.snapshot_path/2", options, [:kind])
+    kind = Keyword.get(options, :kind, :snapshot)
 
     TestInfo.snapshot_path(running_test!("snapshot_path/2"), name, to_string(kind))
   end
@@ -1289,7 +1288,7 @@ defmodule Playwright.Test do
   # where the step is called, for the boxed stack to start after it.
   def _step(expectation, title, body, options \\ [], call_site \\ nil) when is_function(body, 0) do
     # deviation: no `timeout` (`raceAgainstDeadline` below).
-    if Keyword.has_key?(options, :timeout),
+    if Keyword.keyword?(options) and Keyword.has_key?(options, :timeout),
       do:
         raise(
           ArgumentError,
@@ -1297,7 +1296,7 @@ defmodule Playwright.Test do
             "in its own process; the test's timeout bounds it)"
         )
 
-    Playwright.Application.unknown_key!("Playwright.Test.step/3", "option", Keyword.keys(options), [
+    Playwright.Application.options!("Playwright.Test.step/3", options, [
       :box,
       :location,
       :params,

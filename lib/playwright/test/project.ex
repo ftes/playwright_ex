@@ -6,6 +6,8 @@ defmodule Playwright.Test.Project do
   the project's: `Parameters: %{"playwright.project": #Playwright.Test.Project<"Mobile Safari">}`.
   """
 
+  alias Playwright.Test.Options
+
   @enforce_keys [:name, :use]
   defstruct [:name, :use]
 
@@ -13,13 +15,18 @@ defmodule Playwright.Test.Project do
   @type t :: %__MODULE__{name: String.t() | nil, use: map()}
 
   @doc """
-  The project's title: its `name`, else its browser (its `browser_name`, else a device's
-  `default_browser_type`), as upstream names its default projects; `nil` without either.
+  The project's title: its `name`, else, for a project that picks a browser (its `browser_name`
+  or a device's `default_browser_type`), the browser it runs on, over the config as
+  `BrowserPool.browser/1` resolves it (a configured `browser_name` beats a device's
+  `default_browser_type`); `nil` for a project with neither.
   """
   @spec title(t()) :: String.t() | nil
   def title(%__MODULE__{name: name, use: use}) do
-    browser = use[:browser_name] || use[:default_browser_type]
-    name || (browser && to_string(browser))
+    cond do
+      name -> name
+      use[:browser_name] || use[:default_browser_type] -> to_string(Options.browser_name(Options.config(), use))
+      true -> nil
+    end
   end
 
   defimpl Inspect do

@@ -79,6 +79,14 @@ defmodule Playwright.Test.SnapshotsTest do
     assert Test.snapshot_path("body.aria.yml", kind: :aria) == Path.join(File.cwd!(), "body.aria.yml")
   end
 
+  test "{projectName} and {-projectName}: the project's name, sanitized", %{tmp_dir: tmp_dir} do
+    put_config(snapshot_path_template: "{snapshotDir}/{projectName}/{arg}{-projectName}{ext}")
+    this = %{TestInfo.current() | project_name: TestInfo.project_name(Test.parameters(name: "Mobile Safari"))}
+
+    assert TestInfo.snapshot_path(this, "home.png", "screenshot") ==
+             Path.join(tmp_dir, "Mobile-Safari/home-Mobile-Safari.png")
+  end
+
   test "a test file outside test/ resolves against it, as upstream's path.relative(testDir, file)",
        %{tmp_dir: tmp_dir, platform: platform} do
     this = %{TestInfo.current() | file: Path.join(File.cwd!(), "integration/checkout_test.exs")}
