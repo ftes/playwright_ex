@@ -36,9 +36,10 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: ./.github/actions/claude
+      - uses: ftes/playwright_ex/.github/actions/claude@main
         with:
           token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          setup: best-effort
           allowed-bots: claude[bot]
           prompt: code-review
           context: |

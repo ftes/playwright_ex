@@ -57,9 +57,10 @@ jobs:
 
       # No prompt: Claude follows the comment that tagged it. On main for a comment, the PR's merge
       # ref for a review; the action then switches to the PR's branch.
-      - uses: ./.github/actions/claude
+      - uses: ftes/playwright_ex/.github/actions/claude@main
         with:
           token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          setup: best-effort
           # Lets Claude read CI results on PRs.
           additional-permissions: |
             actions: read

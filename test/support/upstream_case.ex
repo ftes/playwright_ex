@@ -6,8 +6,10 @@ defmodule Playwright.UpstreamCase do
   Upstream's worker-scoped `playwright` and `browser` come from
   `Playwright.Test.BrowserPool.browser/1` in `setup_all`, upstream's worker: a driver under
   test (`PWTEST_UNDER_TEST`) and browser of the module's while it runs, reused by the next
-  module (a fresh one after a failure). `Playwright.DriverCleanup` closes what a test or
-  module created. `@moduletag :own_worker` starts a driver for the module alone:
+  module (a fresh one after a failure). `Playwright.DriverCleanup` closes the browsers a test or
+  module created and the module's contexts; `Playwright.Test` closes a test's leftover contexts.
+  `@moduletag :own_worker` starts a driver for the module alone, without `Playwright.Test`'s
+  recording, so a test's leftover contexts stay open until the module ends:
 
     * `playwright`, `browser_name` (`BROWSER` env, default `"chromium"`), `headless` (`HEADED`
       env, see `Playwright.TestBrowser.headless/0`), `browser_type`, `browser` (the worker's,

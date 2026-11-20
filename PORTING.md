@@ -151,8 +151,8 @@ single thread. Use each only where the JS code needs it, with its marker.
 - Drivers and browsers come from `Playwright.Test.BrowserPool.browser/1` in `setup_all`,
   upstream's worker: a driver and browser of the module's while it runs, reused by the next
   module after a pass. A spec that needs other launch options launches its own browser, as
-  upstream's do. `Playwright.DriverCleanup` closes the contexts and browsers a test or module
-  created.
+  upstream's do. `Playwright.DriverCleanup` closes the browsers a test or module created and
+  the module's contexts; `Playwright.Test` closes a test's leftover contexts.
 - Mirror upstream spec files: one module per file, `@upstream "tests/page/page-goto.spec.ts"`
   then `use Playwright.UpstreamCase` (which tags the module with it: `mix test --only
   upstream:tests/page/page-goto.spec.ts`), test names identical to upstream, which start with
@@ -241,8 +241,9 @@ to that PR, the workflow also pushes fixes for its CI failures. The mix tasks be
 2. `mix playwright.gen.protocol` and `mix playwright.gen.api`, commit the generated diff.
 3. `git diff vA vB -- packages/playwright-core/src/client packages/playwright/src/matchers tests/page tests/library`
    in upstream; port the hunks.
-   - Read the runner's diff as well: `git diff vA vB -- $(mix playwright.runner_sources)` (the
-     files `Playwright.Test` derives from or follows, `@derived` and `@watched` in
+   - Read the runner's diff as well, from this repo:
+     `git -C <upstream> diff vA vB -- $(mix playwright.runner_sources)` (the files
+     `Playwright.Test` derives from or follows, `@derived` and `@watched` in
      `Mix.Playwright.Notices`). `Playwright.Test` is watched, not parity-tracked.
    - Port the hunks that touch what it ports: testInfo's snapshot paths, errors and steps,
      `test.trace`, `test.step`, error-context, the GitHub reporter and the artifact recording.
