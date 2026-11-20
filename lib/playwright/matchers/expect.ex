@@ -28,10 +28,9 @@ defmodule Playwright.Matchers.Expect do
       bounds it), not `:timeout`; `:infinity` is `0`.
     * `:to_have_screenshot` - Defaults of `Playwright.Expect.to_have_screenshot/2`'s options, as
       it names them: `:animations`, `:caret`, `:max_diff_pixels`, `:max_diff_pixel_ratio`,
-      `:scale`, `:style_path`, `:threshold`, `:timeout` (over `:timeout`, under a call's)
-      (`[max_diff_pixels: 10]`), and the config's own
-      `:type` (`:png` or `:webp`, of an unnamed snapshot) and `:path_template`
-      (see "Snapshots" in `Playwright.Test`).
+      `:scale`, `:style_path`, `:threshold` and `:timeout` (over the expect `:timeout`, under a
+      call's), as in `[max_diff_pixels: 10]`, and the config's own `:type` (`:png` or `:webp`, of
+      an unnamed snapshot) and `:path_template` (see "Snapshots" in `Playwright.Test`).
     * `:to_match_aria_snapshot` - `:children` (`:contain`, `:equal` or `:deep_equal`: the
       `/children` mode of a snapshot that sets none) and `:path_template`.
 
