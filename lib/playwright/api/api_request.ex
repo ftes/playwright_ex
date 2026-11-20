@@ -55,7 +55,8 @@ defmodule Playwright.APIRequest do
                           ignore_https_errors: {:ignoreHTTPSErrors, nil},
                           max_redirects: {:maxRedirects, nil},
                           proxy: {:proxy, {:fields, %{server: nil, bypass: nil, username: nil, password: nil}}},
-                          storage_state: {:storageState, {:protocol, "PlaywrightNewRequestParams", :storageState}},
+                          storage_state:
+                            {:storageState, Facade.protocol_type("BrowserContextSetStorageStateParams", :storageState)},
                           timeout: {:timeout, nil},
                           user_agent: {:userAgent, nil}
                         }}
@@ -152,8 +153,6 @@ defmodule Playwright.APIRequest do
   @doc ~S"""
   Creates new instances of [`APIRequestContext`](`Playwright.APIRequestContext`).
 
-  In Elixir, a storage state with `credentials` (`BrowserContext.storage_state!(context, credentials: true)`) raises here: drop them first, `Map.delete(state, :credentials)`.
-
   *Since Playwright 1.16.*
 
   ## Options
@@ -234,20 +233,14 @@ defmodule Playwright.APIRequest do
           {:ok, Playwright.APIRequestContext.t()} | {:error, Playwright.error()}
   def new_context(%Playwright.APIRequest{} = api_request, options \\ []) do
     options = Facade.options!(options, @new_context_options, "apiRequest.newContext")
-
-    Facade.async("apiRequest.newContext", api_request, fn ->
-      Playwright.Client.APIRequest.new_context(api_request, options)
-    end)
+    Facade.async("apiRequest.newContext", fn -> Playwright.Client.APIRequest.new_context(api_request, options) end)
   end
 
   @doc "Like `new_context/2`, but returns the value and raises on error."
   @spec new_context!(t(), new_context_options()) :: Playwright.APIRequestContext.t()
   def new_context!(%Playwright.APIRequest{} = api_request, options \\ []) do
     options = Facade.options!(options, @new_context_options, "apiRequest.newContext")
-
-    Facade.async!("apiRequest.newContext", api_request, fn ->
-      Playwright.Client.APIRequest.new_context(api_request, options)
-    end)
+    Facade.async!("apiRequest.newContext", fn -> Playwright.Client.APIRequest.new_context(api_request, options) end)
   end
 
   @doc """

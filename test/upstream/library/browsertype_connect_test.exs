@@ -106,7 +106,7 @@ defmodule Playwright.Library.BrowsertypeConnectTest do
               into: hooks,
               do: {js, options[key]}
 
-        Facade.async("browserType.connect", browser_type, fn ->
+        Facade.async("browserType.connect", fn ->
           Playwright.Client.BrowserType.connect(browser_type, ws_endpoint, params)
         end)
       end
@@ -946,7 +946,7 @@ defmodule Playwright.Library.BrowsertypeConnectTest do
         ref = disconnected(browser)
         # This closes the websocket.
         connection = Playwright.Runtime.Heap.get(browser, :_connection)
-        Playwright.Runtime.Api.call(nil, browser, fn -> Playwright.Client.Connection.close(connection) end)
+        Playwright.Runtime.Facade.call(nil, fn -> Playwright.Client.Connection.close(connection) end)
         assert_receive {^ref, _}
         assert Browser.is_connected(browser) == false
 

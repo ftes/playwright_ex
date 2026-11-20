@@ -40,7 +40,7 @@ defmodule Playwright.APIRequestContext do
   @doc false
   def __client__(_this), do: Playwright.Client.APIRequestContext
 
-  @add_cookies_cookies {:protocol, "APIRequestContextAddCookiesParams", :cookies}
+  @add_cookies_cookies Facade.protocol_type("APIRequestContextAddCookiesParams", :cookies)
 
   @doc ~S"""
   Adds cookies into this request context. They will be sent with matching subsequent requests. For `Playwright.BrowserContext.request/1`
@@ -72,7 +72,7 @@ defmodule Playwright.APIRequestContext do
   def add_cookies(%Playwright.APIRequestContext{} = api_request_context, cookies) do
     cookies = Facade.arg!(cookies, @add_cookies_cookies, "apiRequestContext.addCookies", :cookies)
 
-    Facade.async_void("apiRequestContext.addCookies", api_request_context, fn ->
+    Facade.async_void("apiRequestContext.addCookies", fn ->
       Playwright.Client.APIRequestContext.add_cookies(api_request_context, cookies)
     end)
   end
@@ -82,7 +82,7 @@ defmodule Playwright.APIRequestContext do
   def add_cookies!(%Playwright.APIRequestContext{} = api_request_context, cookies) do
     cookies = Facade.arg!(cookies, @add_cookies_cookies, "apiRequestContext.addCookies", :cookies)
 
-    Facade.async_void!("apiRequestContext.addCookies", api_request_context, fn ->
+    Facade.async_void!("apiRequestContext.addCookies", fn ->
       Playwright.Client.APIRequestContext.add_cookies(api_request_context, cookies)
     end)
   end
@@ -129,7 +129,7 @@ defmodule Playwright.APIRequestContext do
   def clear_cookies(%Playwright.APIRequestContext{} = api_request_context, options \\ []) do
     options = Facade.options!(options, @clear_cookies_options, "apiRequestContext.clearCookies")
 
-    Facade.async_void("apiRequestContext.clearCookies", api_request_context, fn ->
+    Facade.async_void("apiRequestContext.clearCookies", fn ->
       Playwright.Client.APIRequestContext.clear_cookies(api_request_context, options)
     end)
   end
@@ -139,7 +139,7 @@ defmodule Playwright.APIRequestContext do
   def clear_cookies!(%Playwright.APIRequestContext{} = api_request_context, options \\ []) do
     options = Facade.options!(options, @clear_cookies_options, "apiRequestContext.clearCookies")
 
-    Facade.async_void!("apiRequestContext.clearCookies", api_request_context, fn ->
+    Facade.async_void!("apiRequestContext.clearCookies", fn ->
       Playwright.Client.APIRequestContext.clear_cookies(api_request_context, options)
     end)
   end
@@ -172,7 +172,7 @@ defmodule Playwright.APIRequestContext do
            ]}
           | {:error, Playwright.error()}
   def cookies(%Playwright.APIRequestContext{} = api_request_context, urls \\ nil) do
-    Facade.async("apiRequestContext.cookies", api_request_context, fn ->
+    Facade.async("apiRequestContext.cookies", fn ->
       Playwright.Client.APIRequestContext.cookies(api_request_context, urls)
     end)
   end
@@ -192,7 +192,7 @@ defmodule Playwright.APIRequestContext do
           }
         ]
   def cookies!(%Playwright.APIRequestContext{} = api_request_context, urls \\ nil) do
-    Facade.async!("apiRequestContext.cookies", api_request_context, fn ->
+    Facade.async!("apiRequestContext.cookies", fn ->
       Playwright.Client.APIRequestContext.cookies(api_request_context, urls)
     end)
   end
@@ -305,7 +305,7 @@ defmodule Playwright.APIRequestContext do
   def delete(%Playwright.APIRequestContext{} = api_request_context, url, options \\ []) do
     options = Facade.options!(options, @delete_options, "apiRequestContext.delete")
 
-    Facade.async("apiRequestContext.delete", api_request_context, fn ->
+    Facade.async("apiRequestContext.delete", fn ->
       Playwright.Client.APIRequestContext.delete(api_request_context, url, options)
     end)
   end
@@ -315,7 +315,7 @@ defmodule Playwright.APIRequestContext do
   def delete!(%Playwright.APIRequestContext{} = api_request_context, url, options \\ []) do
     options = Facade.options!(options, @delete_options, "apiRequestContext.delete")
 
-    Facade.async!("apiRequestContext.delete", api_request_context, fn ->
+    Facade.async!("apiRequestContext.delete", fn ->
       Playwright.Client.APIRequestContext.delete(api_request_context, url, options)
     end)
   end
@@ -338,7 +338,7 @@ defmodule Playwright.APIRequestContext do
   def dispose(%Playwright.APIRequestContext{} = api_request_context, options \\ []) do
     options = Facade.options!(options, @dispose_options, "apiRequestContext.dispose")
 
-    Facade.async_void("apiRequestContext.dispose", api_request_context, fn ->
+    Facade.async_void("apiRequestContext.dispose", fn ->
       Playwright.Client.APIRequestContext.dispose(api_request_context, options)
     end)
   end
@@ -348,7 +348,7 @@ defmodule Playwright.APIRequestContext do
   def dispose!(%Playwright.APIRequestContext{} = api_request_context, options \\ []) do
     options = Facade.options!(options, @dispose_options, "apiRequestContext.dispose")
 
-    Facade.async_void!("apiRequestContext.dispose", api_request_context, fn ->
+    Facade.async_void!("apiRequestContext.dispose", fn ->
       Playwright.Client.APIRequestContext.dispose(api_request_context, options)
     end)
   end
@@ -491,7 +491,7 @@ defmodule Playwright.APIRequestContext do
   def fetch(%Playwright.APIRequestContext{} = api_request_context, url_or_request, options \\ []) do
     options = Facade.options!(options, @fetch_options, "apiRequestContext.fetch")
 
-    Facade.async("apiRequestContext.fetch", api_request_context, fn ->
+    Facade.async("apiRequestContext.fetch", fn ->
       Playwright.Client.APIRequestContext.fetch(api_request_context, url_or_request, options)
     end)
   end
@@ -501,7 +501,7 @@ defmodule Playwright.APIRequestContext do
   def fetch!(%Playwright.APIRequestContext{} = api_request_context, url_or_request, options \\ []) do
     options = Facade.options!(options, @fetch_options, "apiRequestContext.fetch")
 
-    Facade.async!("apiRequestContext.fetch", api_request_context, fn ->
+    Facade.async!("apiRequestContext.fetch", fn ->
       Playwright.Client.APIRequestContext.fetch(api_request_context, url_or_request, options)
     end)
   end
@@ -631,7 +631,7 @@ defmodule Playwright.APIRequestContext do
   def get(%Playwright.APIRequestContext{} = api_request_context, url, options \\ []) do
     options = Facade.options!(options, @get_options, "apiRequestContext.get")
 
-    Facade.async("apiRequestContext.get", api_request_context, fn ->
+    Facade.async("apiRequestContext.get", fn ->
       Playwright.Client.APIRequestContext.get(api_request_context, url, options)
     end)
   end
@@ -641,7 +641,7 @@ defmodule Playwright.APIRequestContext do
   def get!(%Playwright.APIRequestContext{} = api_request_context, url, options \\ []) do
     options = Facade.options!(options, @get_options, "apiRequestContext.get")
 
-    Facade.async!("apiRequestContext.get", api_request_context, fn ->
+    Facade.async!("apiRequestContext.get", fn ->
       Playwright.Client.APIRequestContext.get(api_request_context, url, options)
     end)
   end
@@ -754,7 +754,7 @@ defmodule Playwright.APIRequestContext do
   def head(%Playwright.APIRequestContext{} = api_request_context, url, options \\ []) do
     options = Facade.options!(options, @head_options, "apiRequestContext.head")
 
-    Facade.async("apiRequestContext.head", api_request_context, fn ->
+    Facade.async("apiRequestContext.head", fn ->
       Playwright.Client.APIRequestContext.head(api_request_context, url, options)
     end)
   end
@@ -764,7 +764,7 @@ defmodule Playwright.APIRequestContext do
   def head!(%Playwright.APIRequestContext{} = api_request_context, url, options \\ []) do
     options = Facade.options!(options, @head_options, "apiRequestContext.head")
 
-    Facade.async!("apiRequestContext.head", api_request_context, fn ->
+    Facade.async!("apiRequestContext.head", fn ->
       Playwright.Client.APIRequestContext.head(api_request_context, url, options)
     end)
   end
@@ -877,7 +877,7 @@ defmodule Playwright.APIRequestContext do
   def patch(%Playwright.APIRequestContext{} = api_request_context, url, options \\ []) do
     options = Facade.options!(options, @patch_options, "apiRequestContext.patch")
 
-    Facade.async("apiRequestContext.patch", api_request_context, fn ->
+    Facade.async("apiRequestContext.patch", fn ->
       Playwright.Client.APIRequestContext.patch(api_request_context, url, options)
     end)
   end
@@ -887,7 +887,7 @@ defmodule Playwright.APIRequestContext do
   def patch!(%Playwright.APIRequestContext{} = api_request_context, url, options \\ []) do
     options = Facade.options!(options, @patch_options, "apiRequestContext.patch")
 
-    Facade.async!("apiRequestContext.patch", api_request_context, fn ->
+    Facade.async!("apiRequestContext.patch", fn ->
       Playwright.Client.APIRequestContext.patch(api_request_context, url, options)
     end)
   end
@@ -1032,7 +1032,7 @@ defmodule Playwright.APIRequestContext do
   def post(%Playwright.APIRequestContext{} = api_request_context, url, options \\ []) do
     options = Facade.options!(options, @post_options, "apiRequestContext.post")
 
-    Facade.async("apiRequestContext.post", api_request_context, fn ->
+    Facade.async("apiRequestContext.post", fn ->
       Playwright.Client.APIRequestContext.post(api_request_context, url, options)
     end)
   end
@@ -1042,7 +1042,7 @@ defmodule Playwright.APIRequestContext do
   def post!(%Playwright.APIRequestContext{} = api_request_context, url, options \\ []) do
     options = Facade.options!(options, @post_options, "apiRequestContext.post")
 
-    Facade.async!("apiRequestContext.post", api_request_context, fn ->
+    Facade.async!("apiRequestContext.post", fn ->
       Playwright.Client.APIRequestContext.post(api_request_context, url, options)
     end)
   end
@@ -1155,7 +1155,7 @@ defmodule Playwright.APIRequestContext do
   def put(%Playwright.APIRequestContext{} = api_request_context, url, options \\ []) do
     options = Facade.options!(options, @put_options, "apiRequestContext.put")
 
-    Facade.async("apiRequestContext.put", api_request_context, fn ->
+    Facade.async("apiRequestContext.put", fn ->
       Playwright.Client.APIRequestContext.put(api_request_context, url, options)
     end)
   end
@@ -1165,7 +1165,7 @@ defmodule Playwright.APIRequestContext do
   def put!(%Playwright.APIRequestContext{} = api_request_context, url, options \\ []) do
     options = Facade.options!(options, @put_options, "apiRequestContext.put")
 
-    Facade.async!("apiRequestContext.put", api_request_context, fn ->
+    Facade.async!("apiRequestContext.put", fn ->
       Playwright.Client.APIRequestContext.put(api_request_context, url, options)
     end)
   end
@@ -1221,7 +1221,7 @@ defmodule Playwright.APIRequestContext do
   def storage_state(%Playwright.APIRequestContext{} = api_request_context, options \\ []) do
     options = Facade.options!(options, @storage_state_options, "apiRequestContext.storageState")
 
-    Facade.async("apiRequestContext.storageState", api_request_context, fn ->
+    Facade.async("apiRequestContext.storageState", fn ->
       Playwright.Client.APIRequestContext.storage_state(api_request_context, options)
     end)
   end
@@ -1255,7 +1255,7 @@ defmodule Playwright.APIRequestContext do
   def storage_state!(%Playwright.APIRequestContext{} = api_request_context, options \\ []) do
     options = Facade.options!(options, @storage_state_options, "apiRequestContext.storageState")
 
-    Facade.async!("apiRequestContext.storageState", api_request_context, fn ->
+    Facade.async!("apiRequestContext.storageState", fn ->
       Playwright.Client.APIRequestContext.storage_state(api_request_context, options)
     end)
   end

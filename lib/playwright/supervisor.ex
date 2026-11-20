@@ -62,7 +62,15 @@ defmodule Playwright.Supervisor do
   """
   @spec start_link([option()]) :: Supervisor.on_start()
   def start_link(opts \\ []) do
-    opts = Keyword.validate!(opts, [:executable, :node, :cache_dir, name: Playwright, env: []])
+    Playwright.Application.unknown_key!("Playwright.Supervisor.start_link/1", "option", Keyword.keys(opts), [
+      :executable,
+      :node,
+      :cache_dir,
+      :name,
+      :env
+    ])
+
+    opts = Keyword.merge([name: Playwright, env: []], opts)
     Supervisor.start_link(__MODULE__, opts, name: opts[:name])
   end
 

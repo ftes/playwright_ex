@@ -13,7 +13,7 @@ defmodule Playwright.Library.LocatorGeneratorTest do
   alias Playwright.Isomorphic.LocatorGenerators
   alias Playwright.Locator
   alias Playwright.Page
-  alias Playwright.Runtime.Api
+  alias Playwright.Runtime.Facade
   alias Playwright.Runtime.Heap
 
   @moduletag :page
@@ -38,7 +38,7 @@ defmodule Playwright.Library.LocatorGeneratorTest do
 
   # `channel.method(params)` on a client handle.
   defp channel_call(owner, method, params) do
-    Api.call(nil, owner, fn -> ChannelOwner.channel_call(owner, method, params) end)
+    Facade.call(nil, fn -> ChannelOwner.channel_call(owner, method, params) end)
   end
 
   test "GN-001 reverse engineer locators", %{page: page} do
@@ -637,7 +637,7 @@ defmodule Playwright.Library.LocatorGeneratorTest do
 
   # it.describe(() => { it.beforeEach(...) }): the beforeEach runs at the top of its one test.
   test "GN-017 reverse engineer internal:has-text locators", %{context: context, page: page} do
-    Api.call(nil, context, fn -> BrowserContext._show_recorder(context, %{language: "javascript"}) end)
+    Facade.call(nil, fn -> BrowserContext._show_recorder(context, %{language: "javascript"}) end)
 
     Page.set_content!(page, """
       <div>Hello <span>world</span></div>

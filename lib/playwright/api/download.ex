@@ -46,13 +46,13 @@ defmodule Playwright.Download do
   """
   @spec cancel(t()) :: :ok | {:error, Playwright.error()}
   def cancel(%Playwright.Download{} = download) do
-    Facade.async_void("download.cancel", download, fn -> Playwright.Client.Download.cancel(download) end)
+    Facade.async_void("download.cancel", fn -> Playwright.Client.Download.cancel(download) end)
   end
 
   @doc "Like `cancel/1`, but returns the value and raises on error."
   @spec cancel!(t()) :: :ok
   def cancel!(%Playwright.Download{} = download) do
-    Facade.async_void!("download.cancel", download, fn -> Playwright.Client.Download.cancel(download) end)
+    Facade.async_void!("download.cancel", fn -> Playwright.Client.Download.cancel(download) end)
   end
 
   @doc ~S"""
@@ -66,17 +66,13 @@ defmodule Playwright.Download do
   """
   @spec create_read_stream(t()) :: {:ok, Enumerable.t(binary())} | {:error, Playwright.error()}
   def create_read_stream(%Playwright.Download{} = download) do
-    Facade.async("download.createReadStream", download, fn ->
-      Playwright.Client.Download.create_read_stream(download)
-    end)
+    Facade.async("download.createReadStream", fn -> Playwright.Client.Download.create_read_stream(download) end)
   end
 
   @doc "Like `create_read_stream/1`, but returns the value and raises on error."
   @spec create_read_stream!(t()) :: Enumerable.t(binary())
   def create_read_stream!(%Playwright.Download{} = download) do
-    Facade.async!("download.createReadStream", download, fn ->
-      Playwright.Client.Download.create_read_stream(download)
-    end)
+    Facade.async!("download.createReadStream", fn -> Playwright.Client.Download.create_read_stream(download) end)
   end
 
   @doc ~S"""
@@ -86,13 +82,13 @@ defmodule Playwright.Download do
   """
   @spec delete(t()) :: :ok | {:error, Playwright.error()}
   def delete(%Playwright.Download{} = download) do
-    Facade.async_void("download.delete", download, fn -> Playwright.Client.Download.delete(download) end)
+    Facade.async_void("download.delete", fn -> Playwright.Client.Download.delete(download) end)
   end
 
   @doc "Like `delete/1`, but returns the value and raises on error."
   @spec delete!(t()) :: :ok
   def delete!(%Playwright.Download{} = download) do
-    Facade.async_void!("download.delete", download, fn -> Playwright.Client.Download.delete(download) end)
+    Facade.async_void!("download.delete", fn -> Playwright.Client.Download.delete(download) end)
   end
 
   @doc ~S"""
@@ -102,13 +98,13 @@ defmodule Playwright.Download do
   """
   @spec failure(t()) :: {:ok, nil | String.t()} | {:error, Playwright.error()}
   def failure(%Playwright.Download{} = download) do
-    Facade.async("download.failure", download, fn -> Playwright.Client.Download.failure(download) end)
+    Facade.async("download.failure", fn -> Playwright.Client.Download.failure(download) end)
   end
 
   @doc "Like `failure/1`, but returns the value and raises on error."
   @spec failure!(t()) :: nil | String.t()
   def failure!(%Playwright.Download{} = download) do
-    Facade.async!("download.failure", download, fn -> Playwright.Client.Download.failure(download) end)
+    Facade.async!("download.failure", fn -> Playwright.Client.Download.failure(download) end)
   end
 
   @doc ~S"""
@@ -131,13 +127,13 @@ defmodule Playwright.Download do
   """
   @spec path(t()) :: {:ok, String.t()} | {:error, Playwright.error()}
   def path(%Playwright.Download{} = download) do
-    Facade.async("download.path", download, fn -> Playwright.Client.Download.path(download) end)
+    Facade.async("download.path", fn -> Playwright.Client.Download.path(download) end)
   end
 
   @doc "Like `path/1`, but returns the value and raises on error."
   @spec path!(t()) :: String.t()
   def path!(%Playwright.Download{} = download) do
-    Facade.async!("download.path", download, fn -> Playwright.Client.Download.path(download) end)
+    Facade.async!("download.path", fn -> Playwright.Client.Download.path(download) end)
   end
 
   @doc ~S"""
@@ -158,13 +154,13 @@ defmodule Playwright.Download do
   """
   @spec save_as(t(), String.t()) :: :ok | {:error, Playwright.error()}
   def save_as(%Playwright.Download{} = download, path) do
-    Facade.async_void("download.saveAs", download, fn -> Playwright.Client.Download.save_as(download, path) end)
+    Facade.async_void("download.saveAs", fn -> Playwright.Client.Download.save_as(download, path) end)
   end
 
   @doc "Like `save_as/2`, but returns the value and raises on error."
   @spec save_as!(t(), String.t()) :: :ok
   def save_as!(%Playwright.Download{} = download, path) do
-    Facade.async_void!("download.saveAs", download, fn -> Playwright.Client.Download.save_as(download, path) end)
+    Facade.async_void!("download.saveAs", fn -> Playwright.Client.Download.save_as(download, path) end)
   end
 
   @doc ~S"""

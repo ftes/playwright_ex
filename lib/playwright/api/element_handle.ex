@@ -87,17 +87,13 @@ defmodule Playwright.ElementHandle do
   @spec bounding_box(t()) ::
           {:ok, nil | %{x: number(), y: number(), width: number(), height: number()}} | {:error, Playwright.error()}
   def bounding_box(%Playwright.ElementHandle{} = element_handle) do
-    Facade.async("elementHandle.boundingBox", element_handle, fn ->
-      Playwright.Client.ElementHandle.bounding_box(element_handle)
-    end)
+    Facade.async("elementHandle.boundingBox", fn -> Playwright.Client.ElementHandle.bounding_box(element_handle) end)
   end
 
   @doc "Like `bounding_box/1`, but returns the value and raises on error."
   @spec bounding_box!(t()) :: nil | %{x: number(), y: number(), width: number(), height: number()}
   def bounding_box!(%Playwright.ElementHandle{} = element_handle) do
-    Facade.async!("elementHandle.boundingBox", element_handle, fn ->
-      Playwright.Client.ElementHandle.bounding_box(element_handle)
-    end)
+    Facade.async!("elementHandle.boundingBox", fn -> Playwright.Client.ElementHandle.bounding_box(element_handle) end)
   end
 
   @check_options {:object,
@@ -179,20 +175,14 @@ defmodule Playwright.ElementHandle do
   @spec check(t(), check_options()) :: :ok | {:error, Playwright.error()}
   def check(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @check_options, "elementHandle.check")
-
-    Facade.async_void("elementHandle.check", element_handle, fn ->
-      Playwright.Client.ElementHandle.check(element_handle, options)
-    end)
+    Facade.async_void("elementHandle.check", fn -> Playwright.Client.ElementHandle.check(element_handle, options) end)
   end
 
   @doc "Like `check/2`, but returns the value and raises on error."
   @spec check!(t(), check_options()) :: :ok
   def check!(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @check_options, "elementHandle.check")
-
-    Facade.async_void!("elementHandle.check", element_handle, fn ->
-      Playwright.Client.ElementHandle.check(element_handle, options)
-    end)
+    Facade.async_void!("elementHandle.check", fn -> Playwright.Client.ElementHandle.check(element_handle, options) end)
   end
 
   @click_options {:object,
@@ -306,20 +296,14 @@ defmodule Playwright.ElementHandle do
   @spec click(t(), click_options()) :: :ok | {:error, Playwright.error()}
   def click(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @click_options, "elementHandle.click")
-
-    Facade.async_void("elementHandle.click", element_handle, fn ->
-      Playwright.Client.ElementHandle.click(element_handle, options)
-    end)
+    Facade.async_void("elementHandle.click", fn -> Playwright.Client.ElementHandle.click(element_handle, options) end)
   end
 
   @doc "Like `click/2`, but returns the value and raises on error."
   @spec click!(t(), click_options()) :: :ok
   def click!(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @click_options, "elementHandle.click")
-
-    Facade.async_void!("elementHandle.click", element_handle, fn ->
-      Playwright.Client.ElementHandle.click(element_handle, options)
-    end)
+    Facade.async_void!("elementHandle.click", fn -> Playwright.Client.ElementHandle.click(element_handle, options) end)
   end
 
   @doc ~S"""
@@ -329,17 +313,13 @@ defmodule Playwright.ElementHandle do
   """
   @spec content_frame(t()) :: {:ok, nil | Playwright.Frame.t()} | {:error, Playwright.error()}
   def content_frame(%Playwright.ElementHandle{} = element_handle) do
-    Facade.async("elementHandle.contentFrame", element_handle, fn ->
-      Playwright.Client.ElementHandle.content_frame(element_handle)
-    end)
+    Facade.async("elementHandle.contentFrame", fn -> Playwright.Client.ElementHandle.content_frame(element_handle) end)
   end
 
   @doc "Like `content_frame/1`, but returns the value and raises on error."
   @spec content_frame!(t()) :: nil | Playwright.Frame.t()
   def content_frame!(%Playwright.ElementHandle{} = element_handle) do
-    Facade.async!("elementHandle.contentFrame", element_handle, fn ->
-      Playwright.Client.ElementHandle.content_frame(element_handle)
-    end)
+    Facade.async!("elementHandle.contentFrame", fn -> Playwright.Client.ElementHandle.content_frame(element_handle) end)
   end
 
   @dblclick_options {:object,
@@ -451,7 +431,7 @@ defmodule Playwright.ElementHandle do
   def dblclick(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @dblclick_options, "elementHandle.dblclick")
 
-    Facade.async_void("elementHandle.dblclick", element_handle, fn ->
+    Facade.async_void("elementHandle.dblclick", fn ->
       Playwright.Client.ElementHandle.dblclick(element_handle, options)
     end)
   end
@@ -461,7 +441,7 @@ defmodule Playwright.ElementHandle do
   def dblclick!(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @dblclick_options, "elementHandle.dblclick")
 
-    Facade.async_void!("elementHandle.dblclick", element_handle, fn ->
+    Facade.async_void!("elementHandle.dblclick", fn ->
       Playwright.Client.ElementHandle.dblclick(element_handle, options)
     end)
   end
@@ -516,7 +496,7 @@ defmodule Playwright.ElementHandle do
   """
   @spec dispatch_event(t(), String.t(), term() | nil) :: :ok | {:error, Playwright.error()}
   def dispatch_event(%Playwright.ElementHandle{} = element_handle, type, event_init \\ nil) do
-    Facade.async_void("elementHandle.dispatchEvent", element_handle, fn ->
+    Facade.async_void("elementHandle.dispatchEvent", fn ->
       Playwright.Client.ElementHandle.dispatch_event(element_handle, type, event_init)
     end)
   end
@@ -524,7 +504,7 @@ defmodule Playwright.ElementHandle do
   @doc "Like `dispatch_event/3`, but returns the value and raises on error."
   @spec dispatch_event!(t(), String.t(), term() | nil) :: :ok
   def dispatch_event!(%Playwright.ElementHandle{} = element_handle, type, event_init \\ nil) do
-    Facade.async_void!("elementHandle.dispatchEvent", element_handle, fn ->
+    Facade.async_void!("elementHandle.dispatchEvent", fn ->
       Playwright.Client.ElementHandle.dispatch_event(element_handle, type, event_init)
     end)
   end
@@ -562,7 +542,7 @@ defmodule Playwright.ElementHandle do
   """
   @spec eval_on_selector(t(), String.t(), String.t(), term() | nil) :: {:ok, term()} | {:error, Playwright.error()}
   def eval_on_selector(%Playwright.ElementHandle{} = element_handle, selector, expression, arg \\ nil) do
-    Facade.async("elementHandle.$eval", element_handle, fn ->
+    Facade.async("elementHandle.$eval", fn ->
       Playwright.Client.ElementHandle.eval_on_selector(element_handle, selector, expression, arg)
     end)
   end
@@ -570,7 +550,7 @@ defmodule Playwright.ElementHandle do
   @doc "Like `eval_on_selector/4`, but returns the value and raises on error."
   @spec eval_on_selector!(t(), String.t(), String.t(), term() | nil) :: term()
   def eval_on_selector!(%Playwright.ElementHandle{} = element_handle, selector, expression, arg \\ nil) do
-    Facade.async!("elementHandle.$eval", element_handle, fn ->
+    Facade.async!("elementHandle.$eval", fn ->
       Playwright.Client.ElementHandle.eval_on_selector(element_handle, selector, expression, arg)
     end)
   end
@@ -615,7 +595,7 @@ defmodule Playwright.ElementHandle do
   """
   @spec eval_on_selector_all(t(), String.t(), String.t(), term() | nil) :: {:ok, term()} | {:error, Playwright.error()}
   def eval_on_selector_all(%Playwright.ElementHandle{} = element_handle, selector, expression, arg \\ nil) do
-    Facade.async("elementHandle.$$eval", element_handle, fn ->
+    Facade.async("elementHandle.$$eval", fn ->
       Playwright.Client.ElementHandle.eval_on_selector_all(element_handle, selector, expression, arg)
     end)
   end
@@ -623,7 +603,7 @@ defmodule Playwright.ElementHandle do
   @doc "Like `eval_on_selector_all/4`, but returns the value and raises on error."
   @spec eval_on_selector_all!(t(), String.t(), String.t(), term() | nil) :: term()
   def eval_on_selector_all!(%Playwright.ElementHandle{} = element_handle, selector, expression, arg \\ nil) do
-    Facade.async!("elementHandle.$$eval", element_handle, fn ->
+    Facade.async!("elementHandle.$$eval", fn ->
       Playwright.Client.ElementHandle.eval_on_selector_all(element_handle, selector, expression, arg)
     end)
   end
@@ -686,7 +666,7 @@ defmodule Playwright.ElementHandle do
   def fill(%Playwright.ElementHandle{} = element_handle, value, options \\ []) do
     options = Facade.options!(options, @fill_options, "elementHandle.fill")
 
-    Facade.async_void("elementHandle.fill", element_handle, fn ->
+    Facade.async_void("elementHandle.fill", fn ->
       Playwright.Client.ElementHandle.fill(element_handle, value, options)
     end)
   end
@@ -696,7 +676,7 @@ defmodule Playwright.ElementHandle do
   def fill!(%Playwright.ElementHandle{} = element_handle, value, options \\ []) do
     options = Facade.options!(options, @fill_options, "elementHandle.fill")
 
-    Facade.async_void!("elementHandle.fill", element_handle, fn ->
+    Facade.async_void!("elementHandle.fill", fn ->
       Playwright.Client.ElementHandle.fill(element_handle, value, options)
     end)
   end
@@ -712,17 +692,13 @@ defmodule Playwright.ElementHandle do
   """
   @spec focus(t()) :: :ok | {:error, Playwright.error()}
   def focus(%Playwright.ElementHandle{} = element_handle) do
-    Facade.async_void("elementHandle.focus", element_handle, fn ->
-      Playwright.Client.ElementHandle.focus(element_handle)
-    end)
+    Facade.async_void("elementHandle.focus", fn -> Playwright.Client.ElementHandle.focus(element_handle) end)
   end
 
   @doc "Like `focus/1`, but returns the value and raises on error."
   @spec focus!(t()) :: :ok
   def focus!(%Playwright.ElementHandle{} = element_handle) do
-    Facade.async_void!("elementHandle.focus", element_handle, fn ->
-      Playwright.Client.ElementHandle.focus(element_handle)
-    end)
+    Facade.async_void!("elementHandle.focus", fn -> Playwright.Client.ElementHandle.focus(element_handle) end)
   end
 
   @doc ~S"""
@@ -740,7 +716,7 @@ defmodule Playwright.ElementHandle do
   """
   @spec get_attribute(t(), String.t()) :: {:ok, nil | String.t()} | {:error, Playwright.error()}
   def get_attribute(%Playwright.ElementHandle{} = element_handle, name) do
-    Facade.async("elementHandle.getAttribute", element_handle, fn ->
+    Facade.async("elementHandle.getAttribute", fn ->
       Playwright.Client.ElementHandle.get_attribute(element_handle, name)
     end)
   end
@@ -748,7 +724,7 @@ defmodule Playwright.ElementHandle do
   @doc "Like `get_attribute/2`, but returns the value and raises on error."
   @spec get_attribute!(t(), String.t()) :: nil | String.t()
   def get_attribute!(%Playwright.ElementHandle{} = element_handle, name) do
-    Facade.async!("elementHandle.getAttribute", element_handle, fn ->
+    Facade.async!("elementHandle.getAttribute", fn ->
       Playwright.Client.ElementHandle.get_attribute(element_handle, name)
     end)
   end
@@ -845,20 +821,14 @@ defmodule Playwright.ElementHandle do
   @spec hover(t(), hover_options()) :: :ok | {:error, Playwright.error()}
   def hover(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @hover_options, "elementHandle.hover")
-
-    Facade.async_void("elementHandle.hover", element_handle, fn ->
-      Playwright.Client.ElementHandle.hover(element_handle, options)
-    end)
+    Facade.async_void("elementHandle.hover", fn -> Playwright.Client.ElementHandle.hover(element_handle, options) end)
   end
 
   @doc "Like `hover/2`, but returns the value and raises on error."
   @spec hover!(t(), hover_options()) :: :ok
   def hover!(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @hover_options, "elementHandle.hover")
-
-    Facade.async_void!("elementHandle.hover", element_handle, fn ->
-      Playwright.Client.ElementHandle.hover(element_handle, options)
-    end)
+    Facade.async_void!("elementHandle.hover", fn -> Playwright.Client.ElementHandle.hover(element_handle, options) end)
   end
 
   @doc ~S"""
@@ -872,17 +842,13 @@ defmodule Playwright.ElementHandle do
   """
   @spec inner_html(t()) :: {:ok, String.t()} | {:error, Playwright.error()}
   def inner_html(%Playwright.ElementHandle{} = element_handle) do
-    Facade.async("elementHandle.innerHTML", element_handle, fn ->
-      Playwright.Client.ElementHandle.inner_html(element_handle)
-    end)
+    Facade.async("elementHandle.innerHTML", fn -> Playwright.Client.ElementHandle.inner_html(element_handle) end)
   end
 
   @doc "Like `inner_html/1`, but returns the value and raises on error."
   @spec inner_html!(t()) :: String.t()
   def inner_html!(%Playwright.ElementHandle{} = element_handle) do
-    Facade.async!("elementHandle.innerHTML", element_handle, fn ->
-      Playwright.Client.ElementHandle.inner_html(element_handle)
-    end)
+    Facade.async!("elementHandle.innerHTML", fn -> Playwright.Client.ElementHandle.inner_html(element_handle) end)
   end
 
   @doc ~S"""
@@ -896,17 +862,13 @@ defmodule Playwright.ElementHandle do
   """
   @spec inner_text(t()) :: {:ok, String.t()} | {:error, Playwright.error()}
   def inner_text(%Playwright.ElementHandle{} = element_handle) do
-    Facade.async("elementHandle.innerText", element_handle, fn ->
-      Playwright.Client.ElementHandle.inner_text(element_handle)
-    end)
+    Facade.async("elementHandle.innerText", fn -> Playwright.Client.ElementHandle.inner_text(element_handle) end)
   end
 
   @doc "Like `inner_text/1`, but returns the value and raises on error."
   @spec inner_text!(t()) :: String.t()
   def inner_text!(%Playwright.ElementHandle{} = element_handle) do
-    Facade.async!("elementHandle.innerText", element_handle, fn ->
-      Playwright.Client.ElementHandle.inner_text(element_handle)
-    end)
+    Facade.async!("elementHandle.innerText", fn -> Playwright.Client.ElementHandle.inner_text(element_handle) end)
   end
 
   @doc ~S"""
@@ -922,17 +884,13 @@ defmodule Playwright.ElementHandle do
   """
   @spec input_value(t()) :: {:ok, String.t()} | {:error, Playwright.error()}
   def input_value(%Playwright.ElementHandle{} = element_handle) do
-    Facade.async("elementHandle.inputValue", element_handle, fn ->
-      Playwright.Client.ElementHandle.input_value(element_handle)
-    end)
+    Facade.async("elementHandle.inputValue", fn -> Playwright.Client.ElementHandle.input_value(element_handle) end)
   end
 
   @doc "Like `input_value/1`, but returns the value and raises on error."
   @spec input_value!(t()) :: String.t()
   def input_value!(%Playwright.ElementHandle{} = element_handle) do
-    Facade.async!("elementHandle.inputValue", element_handle, fn ->
-      Playwright.Client.ElementHandle.input_value(element_handle)
-    end)
+    Facade.async!("elementHandle.inputValue", fn -> Playwright.Client.ElementHandle.input_value(element_handle) end)
   end
 
   @doc ~S"""
@@ -946,17 +904,13 @@ defmodule Playwright.ElementHandle do
   """
   @spec is_checked(t()) :: {:ok, boolean()} | {:error, Playwright.error()}
   def is_checked(%Playwright.ElementHandle{} = element_handle) do
-    Facade.async("elementHandle.isChecked", element_handle, fn ->
-      Playwright.Client.ElementHandle.is_checked(element_handle)
-    end)
+    Facade.async("elementHandle.isChecked", fn -> Playwright.Client.ElementHandle.is_checked(element_handle) end)
   end
 
   @doc "Like `is_checked/1`, but returns the value and raises on error."
   @spec is_checked!(t()) :: boolean()
   def is_checked!(%Playwright.ElementHandle{} = element_handle) do
-    Facade.async!("elementHandle.isChecked", element_handle, fn ->
-      Playwright.Client.ElementHandle.is_checked(element_handle)
-    end)
+    Facade.async!("elementHandle.isChecked", fn -> Playwright.Client.ElementHandle.is_checked(element_handle) end)
   end
 
   @doc ~S"""
@@ -970,17 +924,13 @@ defmodule Playwright.ElementHandle do
   """
   @spec is_disabled(t()) :: {:ok, boolean()} | {:error, Playwright.error()}
   def is_disabled(%Playwright.ElementHandle{} = element_handle) do
-    Facade.async("elementHandle.isDisabled", element_handle, fn ->
-      Playwright.Client.ElementHandle.is_disabled(element_handle)
-    end)
+    Facade.async("elementHandle.isDisabled", fn -> Playwright.Client.ElementHandle.is_disabled(element_handle) end)
   end
 
   @doc "Like `is_disabled/1`, but returns the value and raises on error."
   @spec is_disabled!(t()) :: boolean()
   def is_disabled!(%Playwright.ElementHandle{} = element_handle) do
-    Facade.async!("elementHandle.isDisabled", element_handle, fn ->
-      Playwright.Client.ElementHandle.is_disabled(element_handle)
-    end)
+    Facade.async!("elementHandle.isDisabled", fn -> Playwright.Client.ElementHandle.is_disabled(element_handle) end)
   end
 
   @doc ~S"""
@@ -994,17 +944,13 @@ defmodule Playwright.ElementHandle do
   """
   @spec is_editable(t()) :: {:ok, boolean()} | {:error, Playwright.error()}
   def is_editable(%Playwright.ElementHandle{} = element_handle) do
-    Facade.async("elementHandle.isEditable", element_handle, fn ->
-      Playwright.Client.ElementHandle.is_editable(element_handle)
-    end)
+    Facade.async("elementHandle.isEditable", fn -> Playwright.Client.ElementHandle.is_editable(element_handle) end)
   end
 
   @doc "Like `is_editable/1`, but returns the value and raises on error."
   @spec is_editable!(t()) :: boolean()
   def is_editable!(%Playwright.ElementHandle{} = element_handle) do
-    Facade.async!("elementHandle.isEditable", element_handle, fn ->
-      Playwright.Client.ElementHandle.is_editable(element_handle)
-    end)
+    Facade.async!("elementHandle.isEditable", fn -> Playwright.Client.ElementHandle.is_editable(element_handle) end)
   end
 
   @doc ~S"""
@@ -1018,17 +964,13 @@ defmodule Playwright.ElementHandle do
   """
   @spec is_enabled(t()) :: {:ok, boolean()} | {:error, Playwright.error()}
   def is_enabled(%Playwright.ElementHandle{} = element_handle) do
-    Facade.async("elementHandle.isEnabled", element_handle, fn ->
-      Playwright.Client.ElementHandle.is_enabled(element_handle)
-    end)
+    Facade.async("elementHandle.isEnabled", fn -> Playwright.Client.ElementHandle.is_enabled(element_handle) end)
   end
 
   @doc "Like `is_enabled/1`, but returns the value and raises on error."
   @spec is_enabled!(t()) :: boolean()
   def is_enabled!(%Playwright.ElementHandle{} = element_handle) do
-    Facade.async!("elementHandle.isEnabled", element_handle, fn ->
-      Playwright.Client.ElementHandle.is_enabled(element_handle)
-    end)
+    Facade.async!("elementHandle.isEnabled", fn -> Playwright.Client.ElementHandle.is_enabled(element_handle) end)
   end
 
   @doc ~S"""
@@ -1042,17 +984,13 @@ defmodule Playwright.ElementHandle do
   """
   @spec is_hidden(t()) :: {:ok, boolean()} | {:error, Playwright.error()}
   def is_hidden(%Playwright.ElementHandle{} = element_handle) do
-    Facade.async("elementHandle.isHidden", element_handle, fn ->
-      Playwright.Client.ElementHandle.is_hidden(element_handle)
-    end)
+    Facade.async("elementHandle.isHidden", fn -> Playwright.Client.ElementHandle.is_hidden(element_handle) end)
   end
 
   @doc "Like `is_hidden/1`, but returns the value and raises on error."
   @spec is_hidden!(t()) :: boolean()
   def is_hidden!(%Playwright.ElementHandle{} = element_handle) do
-    Facade.async!("elementHandle.isHidden", element_handle, fn ->
-      Playwright.Client.ElementHandle.is_hidden(element_handle)
-    end)
+    Facade.async!("elementHandle.isHidden", fn -> Playwright.Client.ElementHandle.is_hidden(element_handle) end)
   end
 
   @doc ~S"""
@@ -1066,17 +1004,13 @@ defmodule Playwright.ElementHandle do
   """
   @spec is_visible(t()) :: {:ok, boolean()} | {:error, Playwright.error()}
   def is_visible(%Playwright.ElementHandle{} = element_handle) do
-    Facade.async("elementHandle.isVisible", element_handle, fn ->
-      Playwright.Client.ElementHandle.is_visible(element_handle)
-    end)
+    Facade.async("elementHandle.isVisible", fn -> Playwright.Client.ElementHandle.is_visible(element_handle) end)
   end
 
   @doc "Like `is_visible/1`, but returns the value and raises on error."
   @spec is_visible!(t()) :: boolean()
   def is_visible!(%Playwright.ElementHandle{} = element_handle) do
-    Facade.async!("elementHandle.isVisible", element_handle, fn ->
-      Playwright.Client.ElementHandle.is_visible(element_handle)
-    end)
+    Facade.async!("elementHandle.isVisible", fn -> Playwright.Client.ElementHandle.is_visible(element_handle) end)
   end
 
   @doc ~S"""
@@ -1086,17 +1020,13 @@ defmodule Playwright.ElementHandle do
   """
   @spec owner_frame(t()) :: {:ok, nil | Playwright.Frame.t()} | {:error, Playwright.error()}
   def owner_frame(%Playwright.ElementHandle{} = element_handle) do
-    Facade.async("elementHandle.ownerFrame", element_handle, fn ->
-      Playwright.Client.ElementHandle.owner_frame(element_handle)
-    end)
+    Facade.async("elementHandle.ownerFrame", fn -> Playwright.Client.ElementHandle.owner_frame(element_handle) end)
   end
 
   @doc "Like `owner_frame/1`, but returns the value and raises on error."
   @spec owner_frame!(t()) :: nil | Playwright.Frame.t()
   def owner_frame!(%Playwright.ElementHandle{} = element_handle) do
-    Facade.async!("elementHandle.ownerFrame", element_handle, fn ->
-      Playwright.Client.ElementHandle.owner_frame(element_handle)
-    end)
+    Facade.async!("elementHandle.ownerFrame", fn -> Playwright.Client.ElementHandle.owner_frame(element_handle) end)
   end
 
   @press_options {:object,
@@ -1168,7 +1098,7 @@ defmodule Playwright.ElementHandle do
   def press(%Playwright.ElementHandle{} = element_handle, key, options \\ []) do
     options = Facade.options!(options, @press_options, "elementHandle.press")
 
-    Facade.async_void("elementHandle.press", element_handle, fn ->
+    Facade.async_void("elementHandle.press", fn ->
       Playwright.Client.ElementHandle.press(element_handle, key, options)
     end)
   end
@@ -1178,7 +1108,7 @@ defmodule Playwright.ElementHandle do
   def press!(%Playwright.ElementHandle{} = element_handle, key, options \\ []) do
     options = Facade.options!(options, @press_options, "elementHandle.press")
 
-    Facade.async_void!("elementHandle.press", element_handle, fn ->
+    Facade.async_void!("elementHandle.press", fn ->
       Playwright.Client.ElementHandle.press(element_handle, key, options)
     end)
   end
@@ -1199,17 +1129,13 @@ defmodule Playwright.ElementHandle do
   """
   @spec query_selector(t(), String.t()) :: {:ok, nil | Playwright.ElementHandle.t()} | {:error, Playwright.error()}
   def query_selector(%Playwright.ElementHandle{} = element_handle, selector) do
-    Facade.async("elementHandle.$", element_handle, fn ->
-      Playwright.Client.ElementHandle.query_selector(element_handle, selector)
-    end)
+    Facade.async("elementHandle.$", fn -> Playwright.Client.ElementHandle.query_selector(element_handle, selector) end)
   end
 
   @doc "Like `query_selector/2`, but returns the value and raises on error."
   @spec query_selector!(t(), String.t()) :: nil | Playwright.ElementHandle.t()
   def query_selector!(%Playwright.ElementHandle{} = element_handle, selector) do
-    Facade.async!("elementHandle.$", element_handle, fn ->
-      Playwright.Client.ElementHandle.query_selector(element_handle, selector)
-    end)
+    Facade.async!("elementHandle.$", fn -> Playwright.Client.ElementHandle.query_selector(element_handle, selector) end)
   end
 
   @doc ~S"""
@@ -1228,7 +1154,7 @@ defmodule Playwright.ElementHandle do
   """
   @spec query_selector_all(t(), String.t()) :: {:ok, [Playwright.ElementHandle.t()]} | {:error, Playwright.error()}
   def query_selector_all(%Playwright.ElementHandle{} = element_handle, selector) do
-    Facade.async("elementHandle.$$", element_handle, fn ->
+    Facade.async("elementHandle.$$", fn ->
       Playwright.Client.ElementHandle.query_selector_all(element_handle, selector)
     end)
   end
@@ -1236,7 +1162,7 @@ defmodule Playwright.ElementHandle do
   @doc "Like `query_selector_all/2`, but returns the value and raises on error."
   @spec query_selector_all!(t(), String.t()) :: [Playwright.ElementHandle.t()]
   def query_selector_all!(%Playwright.ElementHandle{} = element_handle, selector) do
-    Facade.async!("elementHandle.$$", element_handle, fn ->
+    Facade.async!("elementHandle.$$", fn ->
       Playwright.Client.ElementHandle.query_selector_all(element_handle, selector)
     end)
   end
@@ -1343,7 +1269,7 @@ defmodule Playwright.ElementHandle do
   def screenshot(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @screenshot_options, "elementHandle.screenshot")
 
-    Facade.async("elementHandle.screenshot", element_handle, fn ->
+    Facade.async("elementHandle.screenshot", fn ->
       Playwright.Client.ElementHandle.screenshot(element_handle, options)
     end)
   end
@@ -1353,7 +1279,7 @@ defmodule Playwright.ElementHandle do
   def screenshot!(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @screenshot_options, "elementHandle.screenshot")
 
-    Facade.async!("elementHandle.screenshot", element_handle, fn ->
+    Facade.async!("elementHandle.screenshot", fn ->
       Playwright.Client.ElementHandle.screenshot(element_handle, options)
     end)
   end
@@ -1397,7 +1323,7 @@ defmodule Playwright.ElementHandle do
   def scroll_into_view_if_needed(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @scroll_into_view_if_needed_options, "elementHandle.scrollIntoViewIfNeeded")
 
-    Facade.async_void("elementHandle.scrollIntoViewIfNeeded", element_handle, fn ->
+    Facade.async_void("elementHandle.scrollIntoViewIfNeeded", fn ->
       Playwright.Client.ElementHandle.scroll_into_view_if_needed(element_handle, options)
     end)
   end
@@ -1407,7 +1333,7 @@ defmodule Playwright.ElementHandle do
   def scroll_into_view_if_needed!(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @scroll_into_view_if_needed_options, "elementHandle.scrollIntoViewIfNeeded")
 
-    Facade.async_void!("elementHandle.scrollIntoViewIfNeeded", element_handle, fn ->
+    Facade.async_void!("elementHandle.scrollIntoViewIfNeeded", fn ->
       Playwright.Client.ElementHandle.scroll_into_view_if_needed(element_handle, options)
     end)
   end
@@ -1519,7 +1445,7 @@ defmodule Playwright.ElementHandle do
     values = Facade.arg!(values, @select_option_values, "elementHandle.selectOption", :values)
     options = Facade.options!(options, @select_option_options, "elementHandle.selectOption")
 
-    Facade.async("elementHandle.selectOption", element_handle, fn ->
+    Facade.async("elementHandle.selectOption", fn ->
       Playwright.Client.ElementHandle.select_option(element_handle, values, options)
     end)
   end
@@ -1552,7 +1478,7 @@ defmodule Playwright.ElementHandle do
     values = Facade.arg!(values, @select_option_values, "elementHandle.selectOption", :values)
     options = Facade.options!(options, @select_option_options, "elementHandle.selectOption")
 
-    Facade.async!("elementHandle.selectOption", element_handle, fn ->
+    Facade.async!("elementHandle.selectOption", fn ->
       Playwright.Client.ElementHandle.select_option(element_handle, values, options)
     end)
   end
@@ -1597,7 +1523,7 @@ defmodule Playwright.ElementHandle do
   def select_text(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @select_text_options, "elementHandle.selectText")
 
-    Facade.async_void("elementHandle.selectText", element_handle, fn ->
+    Facade.async_void("elementHandle.selectText", fn ->
       Playwright.Client.ElementHandle.select_text(element_handle, options)
     end)
   end
@@ -1607,7 +1533,7 @@ defmodule Playwright.ElementHandle do
   def select_text!(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @select_text_options, "elementHandle.selectText")
 
-    Facade.async_void!("elementHandle.selectText", element_handle, fn ->
+    Facade.async_void!("elementHandle.selectText", fn ->
       Playwright.Client.ElementHandle.select_text(element_handle, options)
     end)
   end
@@ -1695,7 +1621,7 @@ defmodule Playwright.ElementHandle do
   def set_checked(%Playwright.ElementHandle{} = element_handle, checked, options \\ []) do
     options = Facade.options!(options, @set_checked_options, "elementHandle.setChecked")
 
-    Facade.async_void("elementHandle.setChecked", element_handle, fn ->
+    Facade.async_void("elementHandle.setChecked", fn ->
       Playwright.Client.ElementHandle.set_checked(element_handle, checked, options)
     end)
   end
@@ -1705,7 +1631,7 @@ defmodule Playwright.ElementHandle do
   def set_checked!(%Playwright.ElementHandle{} = element_handle, checked, options \\ []) do
     options = Facade.options!(options, @set_checked_options, "elementHandle.setChecked")
 
-    Facade.async_void!("elementHandle.setChecked", element_handle, fn ->
+    Facade.async_void!("elementHandle.setChecked", fn ->
       Playwright.Client.ElementHandle.set_checked(element_handle, checked, options)
     end)
   end
@@ -1773,7 +1699,7 @@ defmodule Playwright.ElementHandle do
     files = Facade.arg!(files, @set_input_files_files, "elementHandle.setInputFiles", :files)
     options = Facade.options!(options, @set_input_files_options, "elementHandle.setInputFiles")
 
-    Facade.async_void("elementHandle.setInputFiles", element_handle, fn ->
+    Facade.async_void("elementHandle.setInputFiles", fn ->
       Playwright.Client.ElementHandle.set_input_files(element_handle, files, options)
     end)
   end
@@ -1791,7 +1717,7 @@ defmodule Playwright.ElementHandle do
     files = Facade.arg!(files, @set_input_files_files, "elementHandle.setInputFiles", :files)
     options = Facade.options!(options, @set_input_files_options, "elementHandle.setInputFiles")
 
-    Facade.async_void!("elementHandle.setInputFiles", element_handle, fn ->
+    Facade.async_void!("elementHandle.setInputFiles", fn ->
       Playwright.Client.ElementHandle.set_input_files(element_handle, files, options)
     end)
   end
@@ -1886,20 +1812,14 @@ defmodule Playwright.ElementHandle do
   @spec tap(t(), tap_options()) :: :ok | {:error, Playwright.error()}
   def tap(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @tap_options, "elementHandle.tap")
-
-    Facade.async_void("elementHandle.tap", element_handle, fn ->
-      Playwright.Client.ElementHandle.tap(element_handle, options)
-    end)
+    Facade.async_void("elementHandle.tap", fn -> Playwright.Client.ElementHandle.tap(element_handle, options) end)
   end
 
   @doc "Like `tap/2`, but returns the value and raises on error."
   @spec tap!(t(), tap_options()) :: :ok
   def tap!(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @tap_options, "elementHandle.tap")
-
-    Facade.async_void!("elementHandle.tap", element_handle, fn ->
-      Playwright.Client.ElementHandle.tap(element_handle, options)
-    end)
+    Facade.async_void!("elementHandle.tap", fn -> Playwright.Client.ElementHandle.tap(element_handle, options) end)
   end
 
   @doc ~S"""
@@ -1913,17 +1833,13 @@ defmodule Playwright.ElementHandle do
   """
   @spec text_content(t()) :: {:ok, nil | String.t()} | {:error, Playwright.error()}
   def text_content(%Playwright.ElementHandle{} = element_handle) do
-    Facade.async("elementHandle.textContent", element_handle, fn ->
-      Playwright.Client.ElementHandle.text_content(element_handle)
-    end)
+    Facade.async("elementHandle.textContent", fn -> Playwright.Client.ElementHandle.text_content(element_handle) end)
   end
 
   @doc "Like `text_content/1`, but returns the value and raises on error."
   @spec text_content!(t()) :: nil | String.t()
   def text_content!(%Playwright.ElementHandle{} = element_handle) do
-    Facade.async!("elementHandle.textContent", element_handle, fn ->
-      Playwright.Client.ElementHandle.text_content(element_handle)
-    end)
+    Facade.async!("elementHandle.textContent", fn -> Playwright.Client.ElementHandle.text_content(element_handle) end)
   end
 
   @type_options {:object,
@@ -1977,7 +1893,7 @@ defmodule Playwright.ElementHandle do
   def type(%Playwright.ElementHandle{} = element_handle, text, options \\ []) do
     options = Facade.options!(options, @type_options, "elementHandle.type")
 
-    Facade.async_void("elementHandle.type", element_handle, fn ->
+    Facade.async_void("elementHandle.type", fn ->
       Playwright.Client.ElementHandle.type(element_handle, text, options)
     end)
   end
@@ -1989,7 +1905,7 @@ defmodule Playwright.ElementHandle do
   def type!(%Playwright.ElementHandle{} = element_handle, text, options \\ []) do
     options = Facade.options!(options, @type_options, "elementHandle.type")
 
-    Facade.async_void!("elementHandle.type", element_handle, fn ->
+    Facade.async_void!("elementHandle.type", fn ->
       Playwright.Client.ElementHandle.type(element_handle, text, options)
     end)
   end
@@ -2074,7 +1990,7 @@ defmodule Playwright.ElementHandle do
   def uncheck(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @uncheck_options, "elementHandle.uncheck")
 
-    Facade.async_void("elementHandle.uncheck", element_handle, fn ->
+    Facade.async_void("elementHandle.uncheck", fn ->
       Playwright.Client.ElementHandle.uncheck(element_handle, options)
     end)
   end
@@ -2084,7 +2000,7 @@ defmodule Playwright.ElementHandle do
   def uncheck!(%Playwright.ElementHandle{} = element_handle, options \\ []) do
     options = Facade.options!(options, @uncheck_options, "elementHandle.uncheck")
 
-    Facade.async_void!("elementHandle.uncheck", element_handle, fn ->
+    Facade.async_void!("elementHandle.uncheck", fn ->
       Playwright.Client.ElementHandle.uncheck(element_handle, options)
     end)
   end
@@ -2149,7 +2065,7 @@ defmodule Playwright.ElementHandle do
     state = Facade.arg!(state, @wait_for_element_state_state, "elementHandle.waitForElementState", :state)
     options = Facade.options!(options, @wait_for_element_state_options, "elementHandle.waitForElementState")
 
-    Facade.async_void("elementHandle.waitForElementState", element_handle, fn ->
+    Facade.async_void("elementHandle.waitForElementState", fn ->
       Playwright.Client.ElementHandle.wait_for_element_state(element_handle, state, options)
     end)
   end
@@ -2164,7 +2080,7 @@ defmodule Playwright.ElementHandle do
     state = Facade.arg!(state, @wait_for_element_state_state, "elementHandle.waitForElementState", :state)
     options = Facade.options!(options, @wait_for_element_state_options, "elementHandle.waitForElementState")
 
-    Facade.async_void!("elementHandle.waitForElementState", element_handle, fn ->
+    Facade.async_void!("elementHandle.waitForElementState", fn ->
       Playwright.Client.ElementHandle.wait_for_element_state(element_handle, state, options)
     end)
   end
@@ -2254,7 +2170,7 @@ defmodule Playwright.ElementHandle do
   def wait_for_selector(%Playwright.ElementHandle{} = element_handle, selector, options \\ []) do
     options = Facade.options!(options, @wait_for_selector_options, "elementHandle.waitForSelector")
 
-    Facade.async("elementHandle.waitForSelector", element_handle, fn ->
+    Facade.async("elementHandle.waitForSelector", fn ->
       Playwright.Client.ElementHandle.wait_for_selector(element_handle, selector, options)
     end)
   end
@@ -2264,7 +2180,7 @@ defmodule Playwright.ElementHandle do
   def wait_for_selector!(%Playwright.ElementHandle{} = element_handle, selector, options \\ []) do
     options = Facade.options!(options, @wait_for_selector_options, "elementHandle.waitForSelector")
 
-    Facade.async!("elementHandle.waitForSelector", element_handle, fn ->
+    Facade.async!("elementHandle.waitForSelector", fn ->
       Playwright.Client.ElementHandle.wait_for_selector(element_handle, selector, options)
     end)
   end

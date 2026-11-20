@@ -33,7 +33,7 @@ defmodule Playwright.RemoteServer do
 
   def _start(browser_type, remote_server_options \\ %{}) do
     browser_options =
-      Playwright.Runtime.Api.call(nil, browser_type, fn ->
+      Playwright.Runtime.Facade.call(nil, fn ->
         Playwright.Runtime.Heap.get(Playwright.Runtime.Heap.get(browser_type, :_playwright), :_defaultLaunchOptions)
       end) || %{}
 

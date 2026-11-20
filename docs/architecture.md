@@ -405,9 +405,9 @@ than a worker per module and failed under load, for about half the memory
 ([#213](https://github.com/ftes/playwright_ex/issues/213)); on an app's full e2e suite (18 cores,
 `max_cases` 18) it took 106.8 s at 4.5 GB, against 93.8 s at 6.5 GB for 16 workers. Also
 rejected: ambient fixtures (context keys the
-runner fills in: the user owns the map), a lazy module lease (a module's first test taking the
+runner fills in: the user owns the map), a lazy module hold (a module's first test taking the
 browser for the module; a scope holds what it calls), serving waiters LIFO (first come first
-served bounds every wait), an `:open` lease that outlives its scope, `fresh: true` for a cold
+served bounds every wait), an `:open` hold that outlives its scope, `fresh: true` for a cold
 driver (`on_start` sets up each new one), and tags for options other than the recording modes (a
 template maps its own tags). The features ExUnit can't host, with their replacements: the guide's
 [Not supported](../guides/porting-playwright-test.md#not-supported).

@@ -67,22 +67,26 @@ defmodule Playwright.Test.ContextOptionsTest do
           {"Anonymous", "fn _context -> [] end"},
           {"Capture", "&Playwright.Test.ContextOptionsTest.language/1"}
         ] do
-      assert_raise ArgumentError, ~r/invalid context_options: (#Function<|&).*, expected a keyword list or a map/, fn ->
-        compile(name, "use Playwright.Case, context_options: #{function}")
-      end
+      assert_raise ArgumentError,
+                   ~r/invalid value (#Function<|&).* for context_options, expected a keyword list or a map/,
+                   fn ->
+                     compile(name, "use Playwright.Case, context_options: #{function}")
+                   end
     end
 
     assert_raise ArgumentError, ~r/lokale/, fn ->
       compile("Unknown", "use Playwright.Test, lokale: \"de-DE\"")
     end
 
-    assert_raise ArgumentError, ~r/invalid context_options: :dark, expected a keyword list/, fn ->
+    assert_raise ArgumentError, ~r/invalid value :dark for context_options, expected a keyword list or a map/, fn ->
       compile("Invalid", "use Playwright.Test, context_options: :dark")
     end
 
-    assert_raise ArgumentError, ~r/invalid context_options: \{Mod, :fun\}, expected a keyword list/, fn ->
-      compile("Tuple", "use Playwright.Test, context_options: {Mod, :fun}")
-    end
+    assert_raise ArgumentError,
+                 ~r/invalid value \{Mod, :fun\} for context_options, expected a keyword list or a map/,
+                 fn ->
+                   compile("Tuple", "use Playwright.Test, context_options: {Mod, :fun}")
+                 end
   end
 
   test "Test.use validates as the use option, when the module compiles" do
@@ -103,10 +107,10 @@ defmodule Playwright.Test.ContextOptionsTest do
            }
 
     for {message, options} <- [
-          {~r/Playwright.Test.(use|parameters): .*lokale/, ~s(context_options: [lokale: "de-DE"])},
-          {~r/unknown options \[:lokale\] for Playwright.Test.(use|parameters)/, ~s(lokale: "de-DE")},
-          {~r/invalid trace: :sometimes/, "trace: :sometimes"},
-          {~r/duplicated option :trace/, "trace: :on, trace: :off"}
+          {~r/Playwright.Test.(use|parameters)\/1: .*lokale/, ~s(context_options: [lokale: "de-DE"])},
+          {~r/Playwright.Test.(use|parameters).*: unknown option lokale, /, ~s(lokale: "de-DE")},
+          {~r/invalid value :sometimes for trace, /, "trace: :sometimes"},
+          {~r/duplicated option trace/, "trace: :on, trace: :off"}
         ] do
       assert_raise ArgumentError, message, fn ->
         compile("Tag", "use Playwright.Case\n@tag Playwright.Test.use(#{options})\ntest \"t\", do: :ok")
@@ -136,9 +140,9 @@ defmodule Playwright.Test.ContextOptionsTest do
        "invalid value :purple for color_scheme, expected one of :dark, :light, :no_preference"},
       {"color_scheme: :purple", "invalid value :purple for color_scheme, expected one of"},
       {"viewport: %{wide: 1}", "wide"},
-      {"video: :sometimes", "invalid video: :sometimes"},
-      {"action_timeout: -1", "invalid action_timeout: -1"},
-      {"lokale: 1", "unknown options [:lokale] for"}
+      {"video: :sometimes", "for video, expected one of"},
+      {"action_timeout: -1", "invalid value -1 for action_timeout, expected a non-negative integer or :infinity"},
+      {"lokale: 1", ": unknown option lokale, expected one of"}
     ]
 
     for {label, source} <- entries, {options, message} <- values do
@@ -149,16 +153,22 @@ defmodule Playwright.Test.ContextOptionsTest do
   end
 
   test "browser_name is the module's or the project's: a tag's raises" do
-    assert Playwright.Test.parameters(browser_name: :webkit, trace: :on) == %{
-             "playwright.use.browser_name": :webkit,
-             "playwright.use.trace": [mode: :on, snapshots: true, screenshots: true, sources: true, attachments: true]
+    assert %{"playwright.project": %Playwright.Test.Project{name: nil, use: options}} =
+             Playwright.Test.parameters(browser_name: :webkit, trace: :on)
+
+    assert options == %{
+             browser_name: :webkit,
+             trace: [mode: :on, snapshots: true, screenshots: true, sources: true, attachments: true]
            }
 
     assert %{browser_name: :firefox} = Options.use_options(browser_name: :firefox, async: true)
-    assert_raise ArgumentError, ~r/invalid browser_name: :chrome/, fn -> Options.use_options(browser_name: :chrome) end
+
+    assert_raise ArgumentError, ~r/invalid value :chrome for browser_name, /, fn ->
+      Options.use_options(browser_name: :chrome)
+    end
 
     assert_raise ArgumentError,
-                 ~r/unknown options \[:browser_name\] for Playwright.Test.use.*forces a new worker/,
+                 ~r/Playwright.Test.use.*: unknown option browser_name, .*forces a new worker/,
                  fn ->
                    compile("BrowserTag", "use Playwright.Case\n@tag Playwright.Test.use(browser_name: :webkit)")
                  end
@@ -179,7 +189,7 @@ defmodule Playwright.Test.ContextOptionsTest do
   end
 
   test "the worker options: the module's use over its project's over the config's, launch_options as a whole" do
-    project = Options.used(Playwright.Test.parameters(launch_options: [slow_mo: 1, timeout: 5000]))
+    project = Options.project(Playwright.Test.parameters(launch_options: [slow_mo: 1, timeout: 5000])).use
     use_options = Options.use_options(launch_options: %{slow_mo: 2}, connect_options: [ws_endpoint: "ws://localhost"])
     worker = Options.worker(Options.config(), project, use_options)
 
@@ -196,8 +206,8 @@ defmodule Playwright.Test.ContextOptionsTest do
 
   test "the browser: an explicit browser_name (use, project, config), else a device's, else the default" do
     iphone = Playwright.Test.Options.use_options(Playwright.device("iPhone 13"))
-    pixel = Options.used(Playwright.Test.parameters(Playwright.device("Pixel 7")))
-    firefox = Options.used(Playwright.Test.parameters(browser_name: :firefox))
+    pixel = Options.project(Playwright.Test.parameters(Playwright.device("Pixel 7"))).use
+    firefox = Options.project(Playwright.Test.parameters(browser_name: :firefox)).use
     config = Options.config()
     env = Application.get_env(:playwright, :test)
     # This suite's config sets one (`BROWSER`).
@@ -223,8 +233,9 @@ defmodule Playwright.Test.ContextOptionsTest do
 
     device = Playwright.device("iPhone 13")
     refute Enum.any?(Playwright.Test.use(device), fn {key, _value} -> to_string(key) =~ "rowser" end)
-    assert Playwright.Test.parameters(device)[:"playwright.use.default_browser_type"] == :webkit
-    assert Playwright.Test.parameters(device)[:"playwright.use.context.userAgent"] == device[:user_agent]
+    project = Options.project(Playwright.Test.parameters(device))
+    assert project.use.default_browser_type == :webkit
+    assert project.use.context.userAgent == device[:user_agent]
     assert %{default_browser_type: :webkit, context: %{isMobile: true}} = Options.use_options(device)
 
     config = %{context_options: [locale: "it-IT", color_scheme: :dark], timezone_id: "Europe/Rome"}
@@ -602,7 +613,7 @@ defmodule Playwright.Test.ContextOptionsTest.DeviceBrowserTest do
 
   test "the module's device, else the project's, else the config's, else chromium", %{env: env} do
     iphone = Options.use_options(Playwright.device("iPhone 13"))
-    firefox = Options.used(Playwright.Test.parameters(Playwright.device("Desktop Firefox")))
+    firefox = Options.project(Playwright.Test.parameters(Playwright.device("Desktop Firefox"))).use
     # A device in `context_options` is no worker option.
     assert Options.browser_name(
              Options.config(),
@@ -682,7 +693,7 @@ defmodule Playwright.Test.ContextOptionsTest.LaunchOptionsProjectTest do
 
   test "the case's browser is the project's worker's", %{browser: browser, slow_mo: slow_mo} do
     keys =
-      for {_pid, %{key: {_, _, _, launch_options, _}}} <- :sys.get_state(Playwright.Test.Pool).seats,
+      for {_pid, %{key: {_, _, _, launch_options, _}}} <- :sys.get_state(Playwright.Test.Pool).workers,
           do: launch_options
 
     assert Enum.any?(keys, &(&1[:slow_mo] == slow_mo))

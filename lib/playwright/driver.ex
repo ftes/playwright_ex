@@ -32,10 +32,13 @@ defmodule Playwright.Driver do
 
   Put it in `config/config.exs`, not in a file imported only for one environment (such as
   `config/test.exs`: `mix playwright.install` usually runs in `:dev`) or in `config/runtime.exs`
-  (`mix playwright.install` doesn't compile the project, so it doesn't read it). Mix evaluates `config/config.exs` on every run, so an environment variable
-  read there takes effect each time, locally and in CI. The library reads no environment variables
-  of its own (the Playwright CLI reads its own, such as `PLAYWRIGHT_BROWSERS_PATH`). To take an
-  option from one of your choice (an empty one counts as unset):
+  (`mix playwright.install` doesn't compile the project, so it doesn't read it). Mix evaluates
+  `config/config.exs` on every run, so an environment variable read there takes effect each time,
+  locally and in CI. No option has an environment variable: the library reads only those
+  upstream's client and reporters read (`PWDEBUG`, `GITHUB_WORKSPACE`) and `HTTPS_PROXY` and
+  `HTTP_PROXY` for the driver download, and the Playwright CLI reads its own, such as
+  `PLAYWRIGHT_BROWSERS_PATH`. To take an option from one of your choice (an empty one counts as
+  unset):
 
       if dir = System.get_env("PLAYWRIGHT_CACHE_DIR") do
         config :playwright, :driver, cache_dir: dir
@@ -57,10 +60,6 @@ defmodule Playwright.Driver do
   @external_resource @node_version_file
   @driver_version @driver_version_file |> File.read!() |> String.trim()
   @node_version @node_version_file |> File.read!() |> String.trim()
-
-  if @checksums.driver_version != @driver_version or @checksums.node_version != @node_version do
-    raise "priv/driver_checksums.exs is stale; regenerate it with `mix playwright.checksums` in the source repo"
-  end
 
   @platforms ~w(darwin-arm64 darwin-x64 linux-x64 linux-arm64 win-x64 win-arm64)
 
@@ -175,10 +174,15 @@ defmodule Playwright.Driver do
         if File.dir?(target) and (force or not complete?(target, platform)), do: File.rm_rf!(target)
 
         case File.rename(tmp, target) do
-          :ok -> :ok
+          :ok ->
+            :ok
+
           # Lost a race against a concurrent installer.
-          {:error, reason} when reason in [:eexist, :enotempty] -> :ok
-          {:error, reason} -> raise "could not move driver into #{target}: #{inspect(reason)}"
+          {:error, reason} when reason in [:eexist, :enotempty] ->
+            :ok
+
+          {:error, reason} ->
+            raise "Playwright.Driver.install/1: could not move the driver into #{target}, got: #{inspect(reason)}"
         end
       after
         File.rm_rf(tmp)
@@ -202,7 +206,7 @@ defmodule Playwright.Driver do
       :erl_tar.extract(String.to_charlist(tgz), [:compressed, {:cwd, String.to_charlist(tmp)}])
 
     File.regular?(Path.join([tmp, "package", "cli.js"])) ||
-      raise "package/cli.js missing in #{npm_url()}"
+      raise "Playwright.Driver.install/1: package/cli.js missing in #{npm_url()}"
 
     # Node.js: official archive, verified against SHASUMS256.txt. Only node + LICENSE are kept.
     expected = Map.fetch!(checksums.node, platform)
@@ -233,7 +237,7 @@ defmodule Playwright.Driver do
     {:ok, entries} =
       :erl_tar.extract(String.to_charlist(archive), [:compressed, :memory, {:files, files}])
 
-    length(entries) == 2 || raise "unexpected Node.js archive layout in #{archive}"
+    length(entries) == 2 || raise "Playwright.Driver.install/1: unexpected Node.js archive layout in #{archive}"
 
     for {name, data} <- entries do
       dest = Path.join(tmp, Path.basename(List.to_string(name)))
@@ -249,9 +253,9 @@ defmodule Playwright.Driver do
   (which forwards its argv to `node cli.js`). No args installs its default browsers, as
   `npx playwright install`. Browsers land in Playwright's usual
   location (`PLAYWRIGHT_BROWSERS_PATH`, default `~/Library/Caches/ms-playwright` etc). The
-  output goes to stdout; a failed install returns the CLI's exit status.
+  output goes to stdout. Raises if the CLI exits with a non-zero status, as `install/1` raises.
   """
-  @spec install_browsers([String.t()], [option()]) :: :ok | {:error, {:exit_status, non_neg_integer()}}
+  @spec install_browsers([String.t()], [option()]) :: :ok
   def install_browsers(args \\ [], opts \\ []) do
     {program, prefix} = ensure_installed(opts)
 
@@ -260,8 +264,11 @@ defmodule Playwright.Driver do
            into: IO.stream(),
            stderr_to_stdout: true
          ) do
-      {_, 0} -> :ok
-      {_, status} -> {:error, {:exit_status, status}}
+      {_, 0} ->
+        :ok
+
+      {_, status} ->
+        raise "Playwright.Driver.install_browsers/2: playwright install failed, expected exit status 0, got: #{status}"
     end
   end
 
@@ -334,8 +341,7 @@ defmodule Playwright.Driver do
 
   defp unsupported!(desc) do
     raise """
-    Playwright cannot download a driver for this platform (#{desc}).
-    Supported: #{Enum.join(@platforms, ", ")}.
+    Playwright.Driver: no driver download for this platform, expected one of #{Enum.join(@platforms, ", ")}, got: #{desc}.
     Install Playwright yourself (`npm i playwright@#{@driver_version}`) and pass
     `executable: "node_modules/.bin/playwright"` (or `config :playwright, :driver, executable: ...`),
     or point `node:` at a Node.js binary.\
@@ -394,9 +400,14 @@ defmodule Playwright.Driver do
     request = {String.to_charlist(url), [{~c"user-agent", ~c"playwright_ex/#{@driver_version}"}]}
 
     case :httpc.request(:get, request, http_opts, stream: String.to_charlist(dest)) do
-      {:ok, :saved_to_file} -> :ok
-      {:ok, {{_, status, _}, _, _}} -> raise "download of #{url} failed: HTTP #{status}"
-      {:error, reason} -> raise "download of #{url} failed: #{inspect(reason)}"
+      {:ok, :saved_to_file} ->
+        :ok
+
+      {:ok, {{_, status, _}, _, _}} ->
+        raise "Playwright.Driver.install/1: download of #{url} failed, expected HTTP 200, got: HTTP #{status}"
+
+      {:error, reason} ->
+        raise "Playwright.Driver.install/1: download of #{url} failed, got: #{inspect(reason)}"
     end
   end
 
@@ -418,21 +429,7 @@ defmodule Playwright.Driver do
 
   @doc false
   # `config :playwright, :driver`, validated: the defaults of the options.
-  def config do
-    config = Application.get_env(:playwright, :driver, [])
-
-    if !Keyword.keyword?(config),
-      do: raise(ArgumentError, "config :playwright, :driver must be a keyword list, got: #{inspect(config)}")
-
-    case Keyword.keys(config) -- @config_keys do
-      [] ->
-        config
-
-      unknown ->
-        raise ArgumentError,
-              "unknown keys #{inspect(unknown)} in config :playwright, :driver, expected one of #{inspect(@config_keys)}"
-    end
-  end
+  def config, do: Playwright.Application.config!(:driver, @config_keys)
 
   # An empty value (e.g. from an empty environment variable) counts as unset.
   defp option(opts, key), do: present(opts[key]) || present(config()[key])

@@ -1,8 +1,8 @@
-defmodule Playwright.Test.Pool.Slot do
+defmodule Playwright.Test.Pool.Worker do
   @moduledoc false
-  # A seat of `Playwright.Test.Pool` (upstream's worker slot): a process that runs one driver
+  # A worker of `Playwright.Test.Pool` (upstream's worker): a process that runs one driver
   # and its browser at a time, those of its holder's options. Starting, stopping and launching
-  # block this seat and its holder only, and the seat stays alive as the browser's creator, which
+  # block this worker and its holder only, and it stays alive as the browser's creator, which
   # anchors its rows. Lazy: the driver starts with the first `browser/3`, which adds the
   # recording listener (`Playwright.Test.Recorder.listener/0`), sets the test id attribute and
   # runs `on_start` on each new driver's Playwright before the launch. A `browser/3` of another
@@ -36,7 +36,7 @@ defmodule Playwright.Test.Pool.Slot do
     do: {Enum.sort(opts.driver), opts.on_start, opts.browser_name, Enum.sort(opts.launch_options), opts.connect_options}
 
   @doc """
-  `%{playwright: _, browser: _}` of the seat `pid` for `opts` (of `key`): a driver of another
+  `%{playwright: _, browser: _}` of the worker `pid` for `opts` (of `key`): a driver of another
   key stopped, the driver started and the browser launched if needed.
   """
   def browser(pid, key, opts) do
@@ -46,10 +46,10 @@ defmodule Playwright.Test.Pool.Slot do
     end
   end
 
-  @doc "Stops the seat's driver now, without waiting: the next `browser/3` starts another."
+  @doc "Stops the worker's driver now, without waiting: the next `browser/3` starts another."
   def reset(pid), do: GenServer.cast(pid, :reset)
 
-  @doc "Stops the driver (waiting for it to exit) and the seat."
+  @doc "Stops the driver (waiting for it to exit) and the worker."
   def stop(pid) do
     GenServer.stop(pid, :normal, :infinity)
   catch

@@ -18,7 +18,7 @@ defmodule Playwright.Page.InterceptionTest do
   alias Playwright.Request
   alias Playwright.Response
   alias Playwright.Route
-  alias Playwright.Runtime.Api
+  alias Playwright.Runtime.Facade
   alias Playwright.TestServer
   alias Playwright.Utils
 
@@ -120,12 +120,12 @@ defmodule Playwright.Page.InterceptionTest do
 
   defp glob_to_regex_pattern(playwright, glob) do
     local_utils = local_utils(playwright)
-    Api.call(nil, local_utils, fn -> LocalUtils.glob_to_regex(local_utils, %{glob: glob}) end)
+    Facade.call(nil, fn -> LocalUtils.glob_to_regex(local_utils, %{glob: glob}) end)
   end
 
   defp url_matches(playwright, base_url, url, match) do
     local_utils = local_utils(playwright)
-    Api.call(nil, local_utils, fn -> UrlMatch.url_matches(local_utils, base_url, url, match) end)
+    Facade.call(nil, fn -> UrlMatch.url_matches(local_utils, base_url, url, match) end)
   end
 
   test "RO-153 should work with glob", %{playwright: playwright} do

@@ -9,7 +9,7 @@ defmodule Playwright.Client.ClientStackTrace do
   (the facade's and the matchers' too), instead of files under the core dir; each is left out,
   so a caller's frames below a library frame (a step's body, a callback's) stay.
 
-  Deviations: the API name recorded by `Playwright.Runtime.Api.call/3` wins over the stack
+  Deviations: the API name recorded by `Playwright.Runtime.Facade.call/2` wins over the stack
   (BEAM drops tail-call frames); without one it comes from the `Playwright.Client.*` (and
   runtime) frames. Frames are told apart by module, not by file: Node's internals (`internal/`,
   `node:`) are the runtime's own library, OTP's `kernel` and `stdlib` and Elixir's `elixir` (by
@@ -45,7 +45,7 @@ defmodule Playwright.Client.ClientStackTrace do
       |> Enum.reject(&(!show_internal and !&1.isPlaywrightLibrary and internal_frame?(elem(&1.mfa, 0))))
 
     # Deepest transition between non-client code calling into client code is the api entry.
-    # (BEAM drops tail-call frames, so the entry point recorded by `Runtime.Api.call/3` wins.)
+    # (BEAM drops tail-call frames, so the entry point recorded by `Runtime.Facade.call/2` wins.)
     api_name =
       Playwright.Runtime.Zones.data(:apiName) ||
         parsed_frames

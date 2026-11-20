@@ -109,13 +109,13 @@ defmodule Playwright.Test.SetupAllInfoTest do
   end
 
   test "the test's own functions raise in setup_all", %{setup_all: setup_all} do
-    assert "Playwright.Test.output_path/1 can only be called while a test is running: in a test of a module" <> _ =
+    assert "Playwright.Test.output_path/1: no test running, expected a call from a test of a module" <> _ =
              setup_all.output_path
 
-    assert "Playwright.Test.snapshot_path/2 can only be called while a test is running: in a test of a module" <> _ =
+    assert "Playwright.Test.snapshot_path/2: no test running, expected a call from a test of a module" <> _ =
              setup_all.snapshot_path
 
-    assert "Playwright.Test.attach/2 can only be called while a test is running: in a test of a module" <> _ =
+    assert "Playwright.Test.attach/2: no test running, expected a call from a test of a module" <> _ =
              setup_all.attach
   end
 
@@ -139,7 +139,7 @@ defmodule Playwright.Test.SetupAllInfoTest.Unregistered do
   test "info raises in setup_all without use Playwright.Test", ctx do
     refute ctx.scope?
 
-    assert %RuntimeError{message: "Playwright.Test.info() can only be called while a test or its module" <> _} =
+    assert %RuntimeError{message: "Playwright.Test.info/0: no test or setup_all running" <> _} =
              ctx.raised
   end
 end

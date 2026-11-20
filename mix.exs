@@ -167,6 +167,7 @@ defmodule Playwright.MixProject do
           Playwright.Case,
           Playwright.Test,
           Playwright.Test.BrowserPool,
+          Playwright.Test.Project,
           Playwright.Test.GitHubFormatter
         ],
         Network: [

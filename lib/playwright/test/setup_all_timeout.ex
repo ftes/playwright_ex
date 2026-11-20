@@ -13,7 +13,7 @@ defmodule Playwright.Test.SetupAllTimeout do
   # upstream's message with `beforeAll` renamed to `setup_all`, and the stack the process was at.
   # Elixir only: one slot for all of the module's `setup_all` callbacks, where upstream gives
   # each hook its own. A process that traps exits is killed 1 s later (`:killed`, without the
-  # message). A pooled browser (`Pool.browser/2`: the wait for a seat, a driver start and
+  # message). A pooled browser (`Pool.browser/2`: the wait for a worker, a driver start and
   # launch) is not counted (`paused/1`), as upstream's dispatcher queue has no timeout and its
   # worker fixtures have a timeout of their own (none here). `paused/1` looks in the calling
   # process only: a `setup_all` scope's `BrowserPool.browser/1` runs in the `setup_all` process
@@ -21,7 +21,7 @@ defmodule Playwright.Test.SetupAllTimeout do
   #
   # A `setup_all` whose callbacks raise tells the pool (`Pool.setup_all_failed/0`): ExUnit catches
   # the error, so its process exits normally, where the pool sees any other failure (past its
-  # timeout too) in the process's `DOWN`. Its seats reset at its release, as upstream stops a
+  # timeout too) in the process's `DOWN`. Its workers reset at its release, as upstream stops a
   # worker whose job failed (`dispatcher.ts`, `worker.stop(true /* didFail */)`).
 
   alias Playwright.Test.Options

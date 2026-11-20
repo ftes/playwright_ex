@@ -108,7 +108,7 @@ defmodule Playwright.WebSocketRoute do
   def close(%Playwright.WebSocketRoute{} = web_socket_route, options \\ []) do
     options = Facade.options!(options, @close_options, "webSocketRoute.close")
 
-    Facade.async_void("webSocketRoute.close", web_socket_route, fn ->
+    Facade.async_void("webSocketRoute.close", fn ->
       Playwright.Client.WebSocketRoute.close(web_socket_route, options)
     end)
   end
@@ -118,7 +118,7 @@ defmodule Playwright.WebSocketRoute do
   def close!(%Playwright.WebSocketRoute{} = web_socket_route, options \\ []) do
     options = Facade.options!(options, @close_options, "webSocketRoute.close")
 
-    Facade.async_void!("webSocketRoute.close", web_socket_route, fn ->
+    Facade.async_void!("webSocketRoute.close", fn ->
       Playwright.Client.WebSocketRoute.close(web_socket_route, options)
     end)
   end

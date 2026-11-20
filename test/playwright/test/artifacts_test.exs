@@ -70,7 +70,7 @@ defmodule Playwright.Test.ArtifactsTest do
     assert_receive {:registered, test}
     on_exit(fn -> File.rm_rf!(test.output_dir) end)
 
-    # Its leases released, also when the test fails before the fake test's end.
+    # Its holds released, also when the test fails before the fake test's end.
     on_exit(fn ->
       Process.exit(pid, :kill)
       Pool.release(pid)
@@ -830,7 +830,7 @@ defmodule Playwright.Test.ArtifactsTest.TagsTest do
   test "an invalid value raises in Test.use, with the accepted values" do
     for {key, value} <- [trace: :retry_with_trace, screenshot: :retain_on_failure, video: "on"] do
       message = assert_raise(ArgumentError, fn -> Playwright.Test.use([{key, value}]) end).message
-      assert message =~ "invalid #{key}: #{inspect(value)}, expected one of"
+      assert message =~ "invalid value #{inspect(value)} for #{key}, expected one of"
       assert message =~ "true, false"
     end
   end
@@ -873,25 +873,25 @@ defmodule Playwright.Test.ArtifactsTest.UseOptionsTest do
   end
 
   test "an unknown option or an invalid value raises at compile time" do
-    assert_raise ArgumentError, ~r/unknown options \[:headless\] for use Playwright.Test, expected one of/, fn ->
+    assert_raise ArgumentError, ~r/use Playwright.Test: unknown option headless, /, fn ->
       compile("headless: false")
     end
 
-    assert_raise ArgumentError, ~r/invalid trace: :retry_with_trace, expected one of/, fn ->
+    assert_raise ArgumentError, ~r/invalid value :retry_with_trace for trace, /, fn ->
       compile("trace: :retry_with_trace")
     end
 
-    assert_raise ArgumentError, ~r/unknown video options \[:full_page\]/, fn ->
+    assert_raise ArgumentError, ~r/unknown option video.full_page, /, fn ->
       compile("video: [mode: :on, full_page: true]")
     end
 
-    assert_raise ArgumentError, ~r/duplicated option :trace for use Playwright.Test/, fn ->
+    assert_raise ArgumentError, ~r/use Playwright.Test: duplicated option trace/, fn ->
       compile("trace: :on, trace: :off")
     end
   end
 
   test "a typo through a case template raises at compile time" do
-    assert_raise ArgumentError, ~r/unknown options \[:screnshot\] for use Playwright.Test/, fn ->
+    assert_raise ArgumentError, ~r/use Playwright.Test.*: unknown option screnshot, /, fn ->
       Code.compile_string("""
       defmodule Playwright.Test.ArtifactsTest.UseOptionsTest.Typo do
         use Playwright.Test.ArtifactsTest.UseOptionsCase, async: true, screnshot: :on

@@ -204,7 +204,6 @@ defmodule Playwright.WebSocket do
 
     Facade.expect(
       "webSocket.waitForEvent",
-      web_socket,
       fn -> Playwright.Client.WebSocket.wait_for_event(web_socket, event, options) end,
       action
     )
@@ -223,7 +222,6 @@ defmodule Playwright.WebSocket do
 
     Facade.expect!(
       "webSocket.waitForEvent",
-      web_socket,
       fn -> Playwright.Client.WebSocket.wait_for_event(web_socket, event, options) end,
       action
     )

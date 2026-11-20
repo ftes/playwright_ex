@@ -10,9 +10,8 @@ defmodule Mix.Tasks.Playwright.Install do
 
     * `--no-browsers` - installs only the driver, for a browser launched with `:executable_path`
       or `:channel`. It takes no other args but `--force`.
-    * `--force` - reinstalls the driver (not with `--dry-run`, `--list` or `--help`, which
-      need no new driver), and is forwarded, so it reinstalls the browsers too. To reinstall
-      only a browser, run `mix playwright.cli install --force <browser>`.
+    * `--force` - reinstalls the driver, and is forwarded, so it reinstalls the browsers too. To
+      reinstall only a browser, run `mix playwright.cli install --force <browser>`.
 
   Every other arg is forwarded in order.
 
@@ -42,19 +41,15 @@ defmodule Mix.Tasks.Playwright.Install do
     Mix.shell().info("Driver installed in #{Playwright.Driver.install_dir()}")
 
     if browsers? do
-      case Playwright.Driver.install_browsers(browser_args) do
-        :ok -> :ok
-        {:error, {:exit_status, status}} -> Mix.raise("playwright install failed with exit status #{status}")
+      try do
+        Playwright.Driver.install_browsers(browser_args)
+      rescue
+        error in RuntimeError -> Mix.raise(Exception.message(error))
       end
     end
   end
 
   @own_flags ["--no-browsers", "--force"]
-  # The `playwright install` flags for which `--force` needn't reinstall the driver: they install
-  # no browsers (`--list --with-deps` still installs OS packages). Mirrors
-  # `playwright install --help` at the pinned driver: recheck on each bump (PORTING.md "Bumping
-  # the pinned version").
-  @no_driver_reinstall ["--dry-run", "--list", "--help", "-h"]
 
   @doc false
   # Splits argv into the task's flags and the args for `playwright install`:
@@ -64,13 +59,16 @@ defmodule Mix.Tasks.Playwright.Install do
 
     cond do
       "--no-browsers" not in own ->
-        {true, "--force" in own and not Enum.any?(others, &(&1 in @no_driver_reinstall)), argv}
+        {true, "--force" in own, argv}
 
       others == [] ->
         {false, "--force" in own, []}
 
       true ->
-        Mix.raise("--no-browsers installs only the driver, so it takes no other args, got: #{Enum.join(others, " ")}")
+        Mix.raise(
+          "mix playwright.install: --no-browsers installs only the driver, so it takes no other args, " <>
+            "got: #{Enum.join(others, " ")}"
+        )
     end
   end
 end
