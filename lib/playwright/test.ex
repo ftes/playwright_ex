@@ -432,8 +432,9 @@ defmodule Playwright.Test do
     * A failed `assert/1` or `refute/1` in a process of its own (a `Task`, a listener, a route
       handler) or in a `setup` callback leaves no step: the test body's catch doesn't see it.
     * Each attempt of `Playwright.Expect.poll/3` is its assertion's own steps, under the poll's
-      step (as upstream's attempts are its matcher's): an assertion that isn't one of these
-      `assert`s (ExUnit's, or a raise of its own) leaves no attempt step when it passes.
+      step (as upstream's attempts are its matcher's); a poll with a message has the matcher's,
+      titled by it, as upstream's. An attempt without one of these `assert`s (`assert_receive`,
+      a raise of its own) leaves no step when it passes, the matcher's when it fails.
     * A failed assertion's expression shows a capture's argument as ExUnit's error has it
       (`_& == 2` for `&assert(&1 == 2)`); a passed one's is `&1 == 2`.
 
@@ -855,7 +856,7 @@ defmodule Playwright.Test do
   # in the step it failed in, which fails with it). Its `ExUnit.AssertionError` has the expression,
   # its stacktrace the location, its `right` the `expected`; also when a helper module without
   # the import asserted. `assert/2`'s error has no expression: its own `try` recorded it.
-  # `assert_receive` and the others aren't steps.
+  # `assert_receive` and the others aren't steps. Returns whether it is such an error.
   def __assertion_error__(test_info, error)
 
   def __assertion_error__(
@@ -867,10 +868,10 @@ defmodule Playwright.Test do
     if Map.get(test_info, :assert_steps, true),
       do: add_assertion_step(test_info, kind, code_string(expr), nil, stacktrace, error, expected(expr, reason))
 
-    :ok
+    true
   end
 
-  def __assertion_error__(_test_info, _error), do: :ok
+  def __assertion_error__(_test_info, _error), do: false
 
   # ExUnit's operators that fail for both sides being exactly equal (its `translate_assertion/3`).
   @equality_operators [:<, :>, :!==, :!=, :<=, :>=, :===, :==, :=~]
