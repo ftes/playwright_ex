@@ -92,14 +92,6 @@ defmodule Playwright.Test.Options do
     serviceWorkers: "allow"
   }
 
-  # Upstream's `TraceMode`, `ScreenshotMode`, `VideoMode` (`overrides-test.d.ts`).
-  @retry_modes [:on_first_retry, :on_all_retries, :retain_on_first_failure, :retain_on_failure_and_retries]
-  @modes %{
-    trace: [:off, :on, :retain_on_failure | @retry_modes],
-    screenshot: [:off, :on, :only_on_failure, :on_first_failure],
-    video: [:off, :on, :retain_on_failure | @retry_modes]
-  }
-
   # The keys of the object forms, upstream's (`packages/playwright/types/test.d.ts`).
   @artifact_options %{
     trace: [:mode, :snapshots, :screenshots, :sources, :attachments],
@@ -109,32 +101,15 @@ defmodule Playwright.Test.Options do
 
   @pool_label "Playwright.Test.BrowserPool.browser/1"
 
-  # What `validate!/2` takes, for its error.
+  # What `validate!/2` checks, for its error: upstream's `configLoader` checks (`preserveOutput`,
+  # `workers`, `outputDir`), its browser fixture's (`browserName`), and `on_start`'s (Elixir only).
+  # Other values pass as given, as upstream's do.
   @expected %{
-    default_browser_type: "nil or one of :chromium, :firefox, :webkit",
     browser_name: "one of :chromium, :firefox, :webkit",
     on_start: "nil, a 1-arity function or an {m, f, a} tuple",
     output_dir: "a string",
     preserve_output: "one of :always, :never, :failures_only",
-    snapshot_dir: "nil or a string",
-    snapshot_path_template: "nil or a string",
-    test_id_attribute: "a non-empty string",
-    workers: "a positive integer",
-    action_timeout: "a non-negative integer or :infinity",
-    navigation_timeout: "a non-negative integer or :infinity"
-  }
-
-  # What `artifact_option!/3` takes, by option, for its error.
-  @artifact_expected %{
-    snapshots: "a boolean or a map",
-    screenshots: "a boolean",
-    sources: "a boolean",
-    attachments: "a boolean",
-    full_page: "a boolean",
-    omit_background: "a boolean",
-    size: "%{width: integer, height: integer}",
-    fps: "a positive integer",
-    show: "a map"
+    workers: "a positive integer"
   }
 
   @config_label "config :playwright, :test"
@@ -164,8 +139,8 @@ defmodule Playwright.Test.Options do
   and the worker options as the config takes them, the context options (`:context`) and
   `context_options`, converted. A `nil` option is kept: it wins over the earlier `use`s'
   (`merge/2`), then `layers/3` drops it, so the layer under gives the option.
-  ExUnit.Case's keys are ignored (`without_ex_unit_keys/1`); any other key, a duplicated one or
-  a bad value raises.
+  ExUnit.Case's keys are ignored (`without_ex_unit_keys/1`); of a duplicated key the later wins,
+  as in JS's spread; an unknown key raises.
   """
   def use_options(opts), do: opts |> without_ex_unit_keys() |> use_options!("use Playwright.Test", @worker_keys)
 
@@ -194,16 +169,10 @@ defmodule Playwright.Test.Options do
   end
 
   defp use_options!(opts, label, worker_keys) do
-    keys = Keyword.keys(opts)
     {context, opts} = Keyword.split(opts, context_keys())
 
-    case keys -- Enum.uniq(keys) do
-      [] -> :ok
-      [key | _] -> raise ArgumentError, "#{label}: duplicated option #{Playwright.Application.key_name(key)}"
-    end
-
-    # A device's, with its other keys: upstream's worker-scoped `defaultBrowserType`, which a
-    # describe's or a test's `use/1` drops (`use/1`).
+    # A device's, with its other keys: upstream's worker-scoped `defaultBrowserType` (`use/1`
+    # raises for it).
     known = @use_keys ++ [:default_browser_type] ++ worker_keys
 
     with [_ | _] = unknown <- Keyword.keys(opts) -- known do
@@ -225,19 +194,11 @@ defmodule Playwright.Test.Options do
 
   # Why `unknown` are no options of a `use`.
   defp unknown_hint(unknown) do
-    cond do
-      :test_id_attribute in unknown ->
+    if :test_id_attribute in unknown,
+      do:
         "test_id_attribute is config only: the client's value is global to the VM, which the tests " <>
-          "running at once share, where upstream's is global to a worker, which runs one test at a time."
-
-      unknown -- @worker_keys == [] ->
-        "#{Enum.map_join(unknown, ", ", &to_string/1)} is worker-scoped, as upstream's, where it forces a " <>
-          "new worker in a describe: set it for the module (`use Playwright.Case, #{hd(unknown)}: _`) or " <>
-          "its project (`Playwright.Test.parameters/1`)."
-
-      true ->
-        "The browser's other options are BrowserPool.browser/1's, the rest config's."
-    end
+          "running at once share, where upstream's is global to a worker, which runs one test at a time.",
+      else: "The browser's other options are BrowserPool.browser/1's, the rest config's."
   end
 
   @doc """
@@ -250,9 +211,18 @@ defmodule Playwright.Test.Options do
   """
   def use(opts) do
     label = "Playwright.Test.use/1"
-    options = use_options!(keyword!(label, opts), label, [])
-    # In a describe's or a test's, a device's browser is ignored: the browser is the worker's.
-    {context, options} = options |> Map.delete(:default_browser_type) |> Map.pop(:context, %{})
+    opts = keyword!(label, opts)
+
+    # Upstream's `_useFixtures` (`fixtures.ts`): a worker fixture in a describe, a device's
+    # `defaultBrowserType` too.
+    with {key, _value} <- Enum.find(opts, fn {key, _value} -> key in [:default_browser_type | @worker_keys] end) do
+      raise ArgumentError,
+            "#{label}: Cannot use({ #{key} }) in a describe group or a test, because it forces a new worker.\n" <>
+              "Make it top-level in the test module (`use Playwright.Test, #{key}: ...`) or put it in the " <>
+              "configuration (`config :playwright, :test`) or a project (`Playwright.Test.parameters/1`)."
+    end
+
+    {context, options} = opts |> use_options!(label, []) |> Map.pop(:context, %{})
 
     private = fn options, prefix ->
       for {key, value} <- options, do: {String.to_atom(prefix <> Atom.to_string(key)), value}
@@ -270,7 +240,9 @@ defmodule Playwright.Test.Options do
   """
   def parameters(opts) do
     label = "Playwright.Test.parameters/1"
-    {name, use} = Keyword.pop(keyword!(label, opts), :name)
+    opts = keyword!(label, opts)
+    # Of a duplicated key the later wins, as in JS's spread.
+    {name, use} = {opts |> Keyword.get_values(:name) |> List.last(), Keyword.delete(opts, :name)}
 
     if !(name == nil or is_binary(name)),
       do: raise(ArgumentError, "#{label}: invalid value #{inspect(name)} for name, expected a string")
@@ -373,7 +345,7 @@ defmodule Playwright.Test.Options do
 
   @doc """
   The recording modes of `layers` (`layers/3`): the module's and the tags' over the project's
-  over the config's. `true` is `:on`, `false` is `:off`.
+  over the config's.
   """
   def artifacts(config \\ config(), layers \\ %{project: %{}, module: %{}}), do: layered(@artifact_keys, config, layers)
 
@@ -556,9 +528,7 @@ defmodule Playwright.Test.Options do
     Map.new(opts, fn {key, value} -> {key, if(key in context_keys, do: value, else: validate!(key, value, label))} end)
   end
 
-  defp validate!(:default_browser_type, nil), do: nil
-  defp validate!(:default_browser_type, name) when name in [:chromium, :firefox, :webkit], do: name
-
+  # A device of `Playwright.devices/1` (the driver's) has it as a string.
   defp validate!(:default_browser_type, name) when name in ["chromium", "firefox", "webkit"],
     do: String.to_existing_atom(name)
 
@@ -576,10 +546,6 @@ defmodule Playwright.Test.Options do
   defp validate!(:connect_options, options) do
     options = to_keyword(:connect_options, options)
     keys!(:connect_options, options, @connect_keys)
-
-    if !is_binary(options[:ws_endpoint]),
-      do: raise(ArgumentError, "invalid value #{inspect(options)} for connect_options, expected a :ws_endpoint string")
-
     Enum.sort(options)
   end
 
@@ -587,23 +553,17 @@ defmodule Playwright.Test.Options do
   defp validate!(:on_start, fun) when is_function(fun, 1), do: fun
   defp validate!(:on_start, {m, f, a} = mfa) when is_atom(m) and is_atom(f) and is_list(a), do: mfa
 
-  defp validate!(key, true) when is_map_key(@modes, key), do: artifact!(key, mode: :on)
-  defp validate!(key, false) when is_map_key(@modes, key), do: artifact!(key, mode: :off)
-
-  defp validate!(key, mode) when is_map_key(@modes, key) and is_atom(mode),
-    do: artifact!(key, mode: mode)
-
-  defp validate!(key, options) when is_map_key(@modes, key) and (is_list(options) or is_map(options)),
+  defp validate!(key, options) when key in @artifact_keys and (is_list(options) or is_map(options)),
     do: artifact!(key, to_keyword(key, options))
+
+  defp validate!(key, mode) when key in @artifact_keys, do: artifact!(key, mode: mode)
 
   defp validate!(:output_dir, dir) when is_binary(dir), do: dir
   defp validate!(:preserve_output, value) when value in [:always, :never, :failures_only], do: value
 
-  defp validate!(key, value)
-       when key in [:snapshot_dir, :snapshot_path_template] and (value == nil or is_binary(value)),
-       do: value
-
-  defp validate!(:test_id_attribute, name) when is_binary(name) and name != "", do: name
+  # Upstream's `if (testIdAttribute)` (`_setupContextOptions`): an empty one sets none, so the
+  # selectors keep their default.
+  defp validate!(:test_id_attribute, ""), do: "data-testid"
   defp validate!(:workers, workers) when is_integer(workers) and workers > 0, do: workers
   # Upstream's `reportSlowTests: null`: none (a `nil` key is unset, its default).
   defp validate!(:report_slow_tests, false), do: false
@@ -627,16 +587,10 @@ defmodule Playwright.Test.Options do
     end
   end
 
-  # Milliseconds, `0` or `:infinity` for none (`BrowserContext.set_default_timeout/2`'s).
-  defp validate!(key, timeout)
-       when key in [:action_timeout, :navigation_timeout] and
-              (timeout == :infinity or (is_integer(timeout) and timeout >= 0)),
-       do: timeout
-
-  defp validate!(key, value) when is_map_key(@modes, key), do: mode!(key, value)
-
-  defp validate!(key, value),
+  defp validate!(key, value) when is_map_key(@expected, key),
     do: raise(ArgumentError, "invalid value #{inspect(value)} for #{key}, expected #{Map.fetch!(@expected, key)}")
+
+  defp validate!(_key, value), do: value
 
   # Raises for the keys of `options` (the option `key`'s) that are not `allowed`.
   defp keys!(key, options, allowed) do
@@ -650,89 +604,24 @@ defmodule Playwright.Test.Options do
     end
   end
 
-  # What a mode option accepts, for the error.
-  defp accepted(key), do: "one of #{Enum.map_join(@modes[key] ++ [true, false], ", ", &inspect/1)} or [mode: _, ...]"
-
   # An artifact option as a keyword list in `@artifact_options` order (an atom is its `mode`),
   # the trace's options defaulting to upstream's (`defaultTraceOptions` in
-  # `packages/playwright/src/worker/testTracing.ts`). `mode` is required, as upstream's type
-  # (`{ mode: TraceMode, ... }`) says: the option replaces the config's whole, so a list without
-  # it would record nothing.
+  # `packages/playwright/src/worker/testTracing.ts`); its values pass as given. No `mode` is
+  # `:off` (`value.mode || 'off'`), the deprecated `:retry_with_trace` and `:retry_with_video`
+  # `:on_first_retry`, as upstream's `startIfNeeded` and `normalizeVideoMode`.
   defp artifact!(key, options) do
-    if !Keyword.has_key?(options, :mode),
-      do:
-        raise(
-          ArgumentError,
-          "invalid value #{inspect(options)} for #{key}, expected a keyword list or a map with :mode"
-        )
-
     keys!(key, options, @artifact_options[key])
 
     defaults = if key == :trace, do: [snapshots: true, screenshots: true, sources: true, attachments: true], else: []
-    options = Keyword.merge(defaults, options)
+    options = defaults |> Keyword.merge(options) |> Keyword.put(:mode, mode(key, options[:mode]))
 
-    for name <- @artifact_options[key],
-        Keyword.has_key?(options, name),
-        do: {name, artifact_option!(key, name, options[name])}
+    for name <- @artifact_options[key], Keyword.has_key?(options, name), do: {name, options[name]}
   end
 
-  defp artifact_option!(key, :mode, mode), do: mode!(key, mode)
-
-  defp artifact_option!(_key, name, value)
-       when name in [:snapshots, :screenshots, :sources, :attachments, :full_page, :omit_background] and
-              is_boolean(value),
-       do: value
-
-  # `{ dom?, aria?, screen? }`, a map as the facade's nested objects.
-  defp artifact_option!(:trace, :snapshots, %{} = snapshots) when not is_struct(snapshots) do
-    if Enum.all?(snapshots, fn {name, value} -> name in [:dom, :aria, :screen] and is_boolean(value) end),
-      do: snapshots,
-      else:
-        raise(
-          ArgumentError,
-          "invalid value #{inspect(snapshots)} for trace.snapshots, expected a map of :dom, :aria and :screen booleans"
-        )
-  end
-
-  # A `ViewportSize`.
-  defp artifact_option!(:video, :size, %{width: width, height: height} = size)
-       when map_size(size) == 2 and is_integer(width) and is_integer(height),
-       do: size
-
-  defp artifact_option!(:video, :fps, fps) when is_integer(fps) and fps > 0, do: fps
-
-  # `{ actions?: recordVideo.showActions, test?: { level?, position?, fontSize? } }`, maps with
-  # upstream's keys and values; `actions` goes to the context's `recordVideo` as is.
-  defp artifact_option!(:video, :show, %{} = show) when not is_struct(show) do
-    valid? =
-      Enum.all?(show, fn
-        {:actions, %{} = actions} ->
-          Map.keys(actions) -- [:duration, :position, :fontSize, :cursor, :style] == []
-
-        {:test, %{} = test} ->
-          Map.keys(test) -- [:level, :position, :fontSize] == [] and test[:level] in [nil, "file", "title", "step"]
-
-        _ ->
-          false
-      end)
-
-    if valid?,
-      do: show,
-      else:
-        raise(
-          ArgumentError,
-          "invalid value #{inspect(show)} for video.show, expected a map of :actions and :test as upstream's"
-        )
-  end
-
-  defp artifact_option!(key, name, value),
-    do: raise(ArgumentError, "invalid value #{inspect(value)} for #{key}.#{name}, expected #{@artifact_expected[name]}")
-
-  defp mode!(key, mode) do
-    if mode in @modes[key],
-      do: mode,
-      else: raise(ArgumentError, "invalid value #{inspect(mode)} for #{key}, expected #{accepted(key)}")
-  end
+  defp mode(_key, nil), do: :off
+  defp mode(:trace, :retry_with_trace), do: :on_first_retry
+  defp mode(:video, :retry_with_video), do: :on_first_retry
+  defp mode(_key, mode), do: mode
 
   defp to_keyword(key, value) do
     cond do

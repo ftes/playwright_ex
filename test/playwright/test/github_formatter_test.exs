@@ -125,36 +125,29 @@ defmodule Playwright.Test.GitHubFormatterTest do
     refute output =~ "%0A     #{@file_path}:10%0A"
   end
 
-  test "a parameterized module's parameter values are the project, as upstream's [chromium]" do
+  test "the project is the Playwright.Test.parameters/1 project's name, as upstream's titlePath()[1]" do
     test = %{
       test_struct("test fails", state: {:failed, [failure(fn -> raise "oops" end)]})
-      | parameters: %{browser_name: :firefox}
+      | parameters: Playwright.Test.parameters([name: "Mobile Safari"] ++ Playwright.device("iPhone 13"))
     }
 
     output = run([{:test_finished, test}])
-    assert output =~ ",title=[firefox] › #{@file_path}%3A10 › fails,"
-    assert output =~ "::  1) [firefox] › #{@file_path}:10 › fails ─"
+    assert output =~ ",title=[Mobile Safari] › #{@file_path}%3A10 › fails,"
+    assert output =~ "::  1) [Mobile Safari] › #{@file_path}:10 › fails ─"
     assert output =~ "─%0A     ** (RuntimeError) oops%0A"
 
-    test = %{test | parameters: %{size: {1280, 720}, browser_name: "webkit"}}
-    assert run([{:test_finished, test}]) =~ "::  1) [webkit, {1280, 720}] › #{@file_path}:10 › fails ─"
+    # Parameters of one's own aren't the project.
+    test = %{test | parameters: Map.put(test.parameters, :role, :admin)}
+    assert run([{:test_finished, test}]) =~ "::  1) [Mobile Safari] › #{@file_path}:10 › fails ─"
 
-    test = %{
-      test
-      | parameters: Playwright.Test.parameters(context_options: [locale: "de-DE"], browser_name: :chromium)
-    }
-
-    # An unnamed project has no label, as upstream's, whatever its browser.
-    assert run([{:test_finished, test}]) =~ "::  1) #{@file_path}:10 › fails ─"
-    test = %{test | parameters: Playwright.Test.parameters(Playwright.device("Desktop Firefox"))}
-    assert run([{:test_finished, test}]) =~ "::  1) #{@file_path}:10 › fails ─"
-    test = %{test | parameters: Playwright.Test.parameters(locale: "de-DE")}
-    assert run([{:test_finished, test}]) =~ "::  1) #{@file_path}:10 › fails ─"
-    project = Playwright.Test.parameters([name: "Mobile Safari"] ++ Playwright.device("iPhone 13"))
-    test = %{test | parameters: Map.put(project, :role, :admin)}
-    assert run([{:test_finished, test}]) =~ "::  1) [Mobile Safari, admin] › #{@file_path}:10 › fails ─"
-    test = %{test | parameters: %{browser_name: :chromium, device: nil}}
-    assert run([{:test_finished, test}]) =~ "::  1) [chromium, nil] › #{@file_path}:10 › fails ─"
+    # No label for an unnamed project or plain parameters, as upstream's unnamed project.
+    for parameters <- [
+          Playwright.Test.parameters(Playwright.device("Desktop Firefox")),
+          Playwright.Test.parameters(name: "", locale: "de-DE"),
+          %{browser_name: :firefox}
+        ] do
+      assert run([{:test_finished, %{test | parameters: parameters}}]) =~ "::  1) #{@file_path}:10 › fails ─"
+    end
   end
 
   test "the summary lists the failed tests and counts the others; a failed setup_all is an error" do
@@ -239,12 +232,16 @@ defmodule Playwright.Test.GitHubFormatterTest do
       {:test_finished, test_struct("test c", file: "/tmp/other_test.exs", time: 1_200_000)},
       {:test_finished, test_struct("test d", file: "/tmp/two_modules_test.exs", time: 9_000_000)},
       {:test_finished, test_struct("test e", file: "/tmp/two_modules_test.exs", module: Other)},
-      {:test_finished, %{test_struct("test f", file: project_file, time: 3_000_000) | parameters: %{p: 1}}},
+      {:test_finished,
+       %{test_struct("test f", file: project_file, time: 3_000_000) | parameters: Playwright.Test.parameters(name: "p")}},
       {:suite_finished, %{run: 0, load: nil, async: nil}}
     ]
 
     assert [project_warning, warning, "::notice " <> _] = String.split(run(events), "\n", trim: true)
-    assert project_warning == "::warning title=Slow Test,file=test/project_test.exs::test/project_test.exs took 3.0s"
+    # The `[project] › file` key joined to the cwd, as upstream's.
+    assert project_warning ==
+             "::warning title=Slow Test,file=[p] › test/project_test.exs::[p] › test/project_test.exs took 3.0s"
+
     assert warning == "::warning title=Slow Test,file=#{@file_path}::#{@file_path} took 2.5s"
 
     report_slow_tests(config, false)

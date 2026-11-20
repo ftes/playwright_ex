@@ -246,26 +246,30 @@ defmodule Playwright.Runtime.Facade do
   @doc """
   The type of `field` of the protocol's `params` (`Playwright.Protocol.Validator`): a value the
   client passes on (cookies, storage states), whose objects take the protocol's keys as atoms or
-  strings. The generated facade computes it when it compiles.
+  strings. The generated facade computes it when it compiles. The values of the `unchecked`
+  keys, at any depth, pass as they are: those the protocol's validator drops unread
+  (`APIRequest.newContext`'s storage state `credentials`).
   """
-  def protocol_type(params, field) do
+  def protocol_type(params, field, unchecked \\ []) do
     {:object, fields} = Validator.scheme(params)
-    protocol_type(Keyword.fetch!(fields, field))
+    scheme_type(Keyword.fetch!(fields, field), unchecked)
   end
 
-  defp protocol_type({:optional, scheme}), do: protocol_type(scheme)
-  defp protocol_type({:type, name}), do: protocol_type(Validator.scheme(name))
+  defp scheme_type({:optional, scheme}, unchecked), do: scheme_type(scheme, unchecked)
+  defp scheme_type({:type, name}, unchecked), do: scheme_type(Validator.scheme(name), unchecked)
 
-  defp protocol_type({:array, scheme}) do
-    if type = protocol_type(scheme), do: {:array, type}
+  defp scheme_type({:array, scheme}, unchecked) do
+    if type = scheme_type(scheme, unchecked), do: {:array, type}
   end
 
-  defp protocol_type({:object, fields}) do
-    atoms = Map.new(fields, fn {key, scheme} -> {key, protocol_type(scheme)} end)
+  defp scheme_type({:object, fields}, unchecked) do
+    atoms =
+      Map.new(fields, fn {key, scheme} -> {key, if(key not in unchecked, do: scheme_type(scheme, unchecked))} end)
+
     {:protocol, atoms, Map.new(atoms, fn {key, type} -> {Atom.to_string(key), type} end)}
   end
 
-  defp protocol_type(_scheme), do: nil
+  defp scheme_type(_scheme, _unchecked), do: nil
 
   @doc "Converts the positional argument `name` (its Elixir name, for errors) of `type`."
   def arg!(value, type, api_name, name), do: convert!(value, type, api_name, [name])

@@ -72,7 +72,7 @@ upstream minor, so `~> 1.65.0` is safe.
 - **RC only:** **Breaking:** errors of the runner, the pool, the driver and the config read
   `<Module.function/arity or config path>: <problem>, expected ...`, keys and values as the
   facade's errors name them (`config :playwright, :test: unknown key tracing, expected one of
-  browser_name, ...`, `invalid value :sometimes for trace, expected ...`); a call outside its
+  browser_name, ...`, `invalid value 0 for workers, expected a positive integer`); a call outside its
   scope (`BrowserPool.browser/1` past its test, a context before the registration) raises
   `RuntimeError`, bad input `ArgumentError`.
 - **RC only:** the internal `Runtime.Api.call/3` is `Runtime.Facade.call/2`, without
@@ -81,6 +81,29 @@ upstream minor, so `~> 1.65.0` is safe.
   `DRIVER_VERSION` and `NODE_VERSION` alone hold them.
 - **RC only:** `Playwright.Test.in_registered_test?/0` is replaced by `in_registered_scope?/0`,
   true in a test or `setup_all`; `info/0` has `test_pid` only in a test.
+- **RC only:** **Breaking:** option values are checked only where upstream's config loader
+  checks them (`preserve_output`, `workers`, `output_dir`, `report_slow_tests`, a project's
+  `name`, `:to_have_screenshot`'s `type`) and `browser_name`; others pass as given, as
+  upstream's. `trace`, `screenshot` and `video` take no `true`/`false`, an unknown mode records
+  nothing, a keyword list without `:mode` is `:off`, and `:retry_with_trace`/`:retry_with_video`
+  are `:on_first_retry`. `test_id_attribute: ""` keeps the default, as upstream's.
+- **RC only:** **Breaking:** a duplicated option of `use Playwright.Test`, `Test.use/1` or
+  `Test.parameters/1` no longer raises: the later wins, as in JS's spread.
+- **RC only:** **Breaking:** `Test.use/1` (a describe's or a test's) raises for `browser_name`,
+  `default_browser_type` (a device's), `launch_options` and `connect_options`, with upstream's
+  "Cannot use({ ... }) in a describe group" message, instead of dropping a device's browser.
+- **RC only:** **Breaking:** `info/0`, `output_path/1`, `attach/2` and `snapshot_path/2`
+  outside their scope raise upstream's "... can only be called while test is running";
+  `output_path/1` takes path segments too and raises upstream's message for a path outside the
+  output dir (a `RuntimeError`).
+- **RC only:** **Breaking:** `Playwright.Test.info/0`'s `close_deadline` is `deadline`
+  (upstream's `testInfo._deadline()`, when the test's contexts close); ExUnit's raw kill time
+  is gone.
+- **RC only:** **Breaking:** `retry` is 1 under `mix test --failed`, else 0, its dir always
+  `-retry1`, no longer counted from earlier `-retryN` dirs.
+- **RC only:** `Playwright.Test.GitHubFormatter` labels a test by its project's name only, not
+  by every `parameterize:` value, and a slow file's annotation is `[project] › file`, as
+  upstream's.
 
 ### Fixed
 

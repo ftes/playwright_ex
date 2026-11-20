@@ -36,6 +36,17 @@ defmodule Playwright.Runtime.FacadeTest do
              %{timeout: 0, colorScheme: :null, viewport: nil}
   end
 
+  test "APIRequest.new_context's storage state credentials pass unchecked, as its validator drops them" do
+    state = %{cookies: [], origins: [], credentials: [%{anything: 1}]}
+    type = Playwright.APIRequest.__options_type__(:new_context)
+    assert %{storageState: ^state} = Facade.options!([storage_state: state], type, "apiRequest.newContext")
+
+    # A browser context's are the protocol's.
+    assert_raise ArgumentError, ~r/unknown field storage_state\.credentials\[0\]\.anything, /, fn ->
+      Facade.options!([storage_state: state], Playwright.Browser.__options_type__(:new_context), "browser.newContext")
+    end
+  end
+
   test "rejects unknown options, fields and enum values" do
     assert_raise ArgumentError, ~r/^x\.y: unknown option colour_scheme, expected one of color_scheme, /, fn ->
       Facade.options!([colour_scheme: :light], @schema, "x.y")
@@ -153,12 +164,12 @@ defmodule Playwright.Runtime.FacadeTest do
       Playwright.Browser.new_context(%Playwright.Browser{}, storage_state: %{cookies: [%{http_only: true}]})
     end
 
-    # Any storage state, as JS takes one (the validator drops credentials there).
+    # Any storage state, as JS takes one; its credentials unchecked, as the validator drops them.
     assert_raise ArgumentError,
-                 ~r/^apiRequest\.newContext: unknown field storage_state\.credentials\[0\]\.rp_id, expected one of id, privateKey, publicKey, rpId, /,
+                 ~r/^apiRequest\.newContext: unknown field storage_state\.cookies\[0\]\.http_only, /,
                  fn ->
                    Playwright.APIRequest.new_context(%Playwright.APIRequest{},
-                     storage_state: %{credentials: [%{rp_id: "x"}]}
+                     storage_state: %{cookies: [%{http_only: true}]}
                    )
                  end
 
