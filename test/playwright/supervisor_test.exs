@@ -19,6 +19,8 @@ defmodule Playwright.SupervisorTest do
   test "the child spec takes the later of a duplicated name, as start_link does" do
     name = __MODULE__.Later
     assert %{id: ^name, start: {_, _, [[name: ^name]]}} = Playwright.Supervisor.child_spec(name: Earlier, name: name)
+    # Other input is start_link's to reject, with its label.
+    assert %{start: {_, _, [[:bad]]}} = Playwright.Supervisor.child_spec([:bad])
   end
 
   test "after the driver exits, a new one starts and handles of the old one fail with TargetClosedError" do

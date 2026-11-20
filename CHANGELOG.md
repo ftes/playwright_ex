@@ -114,18 +114,17 @@ upstream minor, so `~> 1.65.0` is safe.
 - **RC only:** `Playwright.Test.GitHubFormatter` labels a test by its project's name only, not
   by every `parameterize:` value, and a slow file's annotation is `[project] › file`, as
   upstream's.
-
-- `__options__/1` is out of HexDocs, as are the selector builders of `Isomorphic.LocatorUtils`:
-  both are marked `library_api: true` in their docs metadata, internal but stable for libraries
-  that build on them, changed only with a CHANGELOG note.
+- **RC only:** `__options__/1` is out of HexDocs, as are the selector builders of
+  `Isomorphic.LocatorUtils`: both are marked `library_api: true` in their docs metadata,
+  internal but stable for libraries that build on them, changed only with a CHANGELOG note.
 
 ### Fixed
 
 - **RC only:** `add_cookies`, `storage_state:` and `set_storage_state` check their keys
   against the protocol's: a snake_case `http_only:` raises instead of being dropped. Errors
   name the argument and list index (`cookies[0].http_only`).
-- A `multipart` file's keys are checked as other nested objects' are: `mime_type:` raises,
-  where the client failed treating the map as a stream.
+- **RC only:** a `multipart` file's keys are checked as other nested objects' are: `mime_type:`
+  raises, where the client failed treating the map as a stream.
 - **RC only:** option and field errors name keys bare: `unknown option x, expected one of
   y, z` (was `unknown option :x, expected one of :y, :z`), `for opt` (was `for :opt`).
 - **RC only:** `mix playwright.install` forwards a `--` to `playwright install` (rc.2 raised on

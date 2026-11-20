@@ -9,6 +9,16 @@ defmodule Playwright.OptionsMetadataTest do
                [_, name] <- [Regex.run(~r/^defmodule (\S+) do/m, File.read!(path))],
                do: Module.concat([name])
 
+  test "__options__/1 and LocatorUtils' selector builders are hidden library APIs" do
+    for {module, name, arity} <- [
+          {Locator, :__options__, 1},
+          {Playwright.Isomorphic.LocatorUtils, :get_by_text_selector, 2}
+        ] do
+      {:docs_v1, _, _, _, _, _, docs} = Code.fetch_docs(module)
+      assert {_, _, _, _, %{library_api: true}} = List.keyfind(docs, {:function, name, arity}, 0)
+    end
+  end
+
   test "an option's doc, type and since" do
     assert [{:button, button} | _] = Locator.__options__(:click)
     assert %{type_doc: "`:left` | `:right` | `:middle`", doc: "Defaults to `:left`.", since: nil} = button

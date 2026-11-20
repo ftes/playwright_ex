@@ -856,7 +856,7 @@ defmodule Playwright.Test.ContextOptionsTest.ModuleWorkerTest do
     assert Recorder.worker_options() == setup_all_worker
     assert setup_all_worker[:launch_options] == [slow_mo: 2]
     assert setup_all_worker[:connect_options] == nil
-    # The `@moduletag`'s browser_name, over the config's (`BROWSER`) and its own device's.
+    # The `@moduletag`'s browser_name, over the config's (`BROWSER`) and over its `default_browser_type`.
     assert setup_all_worker[:browser_name] == :firefox
     assert Playwright.Test.Options.module_worker(%{}, __MODULE__.__ex_unit__().tags).default_browser_type == :webkit
   end

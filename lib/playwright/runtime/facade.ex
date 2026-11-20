@@ -285,9 +285,10 @@ defmodule Playwright.Runtime.Facade do
     value
   end
 
-  # Its keys are data (a `multipart` field name), its values are checked.
+  # Its keys are data (a `multipart` field name), its values are checked; a keyword list too (the
+  # FormData form, `Playwright.Client.Fetch`).
   defp convert!(value, {:dictionary, type}, api_name, path) do
-    if object?(value), do: for({key, item} <- value, do: convert!(item, type, api_name, [key | path]))
+    if object?(value) or is_list(value), do: for({key, item} <- value, do: convert!(item, type, api_name, [key | path]))
     value
   end
 
@@ -311,7 +312,7 @@ defmodule Playwright.Runtime.Facade do
   defp convert!(value, {:union, types}, api_name, path) do
     type =
       cond do
-        object?(value) -> Enum.find(types, &match?({:fields, _}, &1))
+        object?(value) -> Enum.find(types, &match?({tag, _} when tag in [:fields, :dictionary], &1))
         is_list(value) -> Enum.find(types, &match?({:array, _}, &1))
         is_atom(value) -> Enum.find(types, &match?({:enum, _}, &1))
         true -> nil

@@ -210,6 +210,27 @@ defmodule Playwright.Runtime.FacadeTest do
                      multipart: %{"name" => "x", "file" => %{name: "a", mime_type: "t", buffer: "b"}}
                    )
                  end
+
+    # The FormData form: a keyword list, names repeated.
+    assert_raise ArgumentError, ~r/^apiRequestContext\.post: unknown field multipart\.file\.mime_type, /, fn ->
+      Playwright.APIRequestContext.post(request, "/",
+        multipart: [
+          name: "x",
+          file: %{name: "a", mimeType: "t", buffer: "b"},
+          file: %{name: "b", mime_type: "t", buffer: "b"}
+        ]
+      )
+    end
+
+    # A dictionary in a union: a map is checked as one.
+    assert_raise ArgumentError, ~r/^x\.y: unknown field form\.f\.mime_type, /, fn ->
+      Facade.arg!(
+        %{f: %{mime_type: "t"}},
+        {:union, [{:enum, %{a: "a"}}, {:dictionary, {:fields, %{mimeType: nil}}}]},
+        "x.y",
+        :form
+      )
+    end
   end
 
   test "events" do
