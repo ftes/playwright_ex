@@ -176,9 +176,8 @@ only those, so name `ExUnit.CLIFormatter` next to it (`--formatter` replaces the
 formatters). When failures are rerun, pass it to the first run only, or a test failing twice is
 annotated twice. Rerun only on exit status 2 (tests failed): any other failure, such as a crash
 or a missed coverage threshold, would otherwise go green on an empty `--failed` run.
-On Elixir 1.20 and earlier, `--failed` doesn't rerun a module whose `setup_all` cleanup
-(`on_exit`) failed after its tests passed, so such a failure can be retried green; Elixir 1.21
-fixes this ([elixir-lang/elixir@0f654791](https://github.com/elixir-lang/elixir/commit/0f654791)).
+On Elixir 1.20 and earlier, `--failed` loses some failures: see
+[Retries](test-artifacts.md#retries).
 `erlef/setup-beam`'s problem matchers annotate each failure again, at the test's line, so turn
 them off:
 
