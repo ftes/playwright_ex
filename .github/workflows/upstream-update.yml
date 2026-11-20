@@ -6,6 +6,9 @@
 # Owner setup: the Claude GitHub App installed on the repo and the CLAUDE_CODE_OAUTH_TOKEN
 # secret (both already used by claude-code-review.yml). Recommended: a ruleset on main
 # requiring PRs, so no token can push to main whatever the prompt says.
+#
+# Accepted risk (.github/actions/claude): with an id-token, `fix` runs a port branch's setup code.
+# Only upstream/* branches.
 name: Upstream update
 
 on:
@@ -48,6 +51,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # As `update`, so both read main's tree on a workflow_dispatch from another branch.
+          ref: main
           persist-credentials: false
           sparse-checkout: |
             .github/scripts

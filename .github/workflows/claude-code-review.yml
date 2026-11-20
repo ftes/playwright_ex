@@ -1,3 +1,5 @@
+# Accepted risk (.github/actions/claude): with an id-token, the review runs the PR branch's setup
+# code. Never on Renovate's PRs.
 name: Claude Code Review
 
 on:
@@ -17,9 +19,11 @@ env:
 
 jobs:
   claude-review:
-    # Claude's own PRs are the only bot PRs reviewed, and fork PRs get no secrets.
+    # Claude's own PRs are the only bot PRs reviewed, and fork PRs get no secrets. Never Renovate's
+    # branches, whoever opened the PR (see the header).
     if: >-
       !github.event.pull_request.draft &&
+      !startsWith(github.head_ref, 'renovate/') &&
       (github.event.pull_request.user.type != 'Bot' || github.event.pull_request.user.login == 'claude[bot]') &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest

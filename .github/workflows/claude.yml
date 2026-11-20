@@ -1,3 +1,5 @@
+# Accepted risk (.github/actions/claude): with an id-token, Claude runs a PR branch's setup code.
+# Never on Renovate's PRs.
 name: Claude Code
 
 on:
@@ -27,7 +29,8 @@ jobs:
         (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && github.event.pull_request.head.repo.full_name == github.repository) ||
         (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && github.event.pull_request.head.repo.full_name == github.repository) ||
         (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
-      ) && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association || github.event.review.author_association || github.event.issue.author_association)
+      ) && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association || github.event.review.author_association || github.event.issue.author_association) &&
+      !startsWith(github.event.pull_request.head.ref, 'renovate/')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -44,20 +47,31 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
       # On a fork's PR Claude works in its head, where mix would run the fork's mix.exs with the
-      # tokens in reach. Empty, so no mix tools, there and when the lookup fails.
-      - name: Allow mix tools unless on a fork's PR
+      # tokens in reach. Empty, so no mix tools, there and when the lookup fails. A comment on
+      # Renovate's PR stops here (the job's `if` covers reviews): its deps would run with this
+      # job's id-token.
+      - name: Allow mix tools unless on a fork's PR, skip Renovate's PRs
         id: tools
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.issue.pull_request && github.event.issue.number || github.event.pull_request.number }}
         run: |
-          if [[ -z $PR || $(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json isCrossRepository --jq .isCrossRepository) == false ]]; then
+          if [[ -n $PR ]]; then
+            pr=$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json isCrossRepository,headRefName --jq '"\(.isCrossRepository) \(.headRefName)"') || exit 0
+            if [[ $pr == *" renovate/"* ]]; then
+              echo "::notice::Claude doesn't run on Renovate's PRs."
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+          if [[ -z $PR || $pr == "false "* ]]; then
             echo "mix=,Bash(mix format:*),Bash(mix compile:*),Bash(mix credo:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix playwright.parity:*),Bash(mix playwright.gen.api:*),Bash(mix playwright.gen.protocol:*)" >> "$GITHUB_OUTPUT"
           fi
 
       # The Claude actions and prompts from main, not from the ref checked out above
       # (.github/actions/claude): into a gitignored path, after that checkout, which would clean it.
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - if: steps.tools.outputs.skip != 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
           path: tmp/default-branch
@@ -65,7 +79,8 @@ jobs:
           persist-credentials: false
       # No prompt: Claude follows the comment that tagged it. On main for a comment, the PR's merge
       # ref for a review; the action then switches to the PR's branch.
-      - uses: ./tmp/default-branch/.github/actions/claude
+      - if: steps.tools.outputs.skip != 'true'
+        uses: ./tmp/default-branch/.github/actions/claude
         with:
           token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           setup: best-effort

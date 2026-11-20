@@ -1,3 +1,5 @@
+# Accepted risk (.github/actions/claude): with an id-token, `fix` runs a nightly PR branch's setup
+# code. Only claude/nightly-* branches.
 name: Claude Nightly Improvement
 
 on:

@@ -12,3 +12,7 @@ here: CI runs them on your push. Don't merge or rebase on main. End with exactly
   `git commit --allow-empty -m "Re-run CI"`, then the push above.
 - It needs a redesign of the change, a decision or a skip: run the GIVE UP command, with your
   sentence.
+
+If the system prompt says dependency setup failed (likely transient): stop without closing the PR
+or giving up; the next run retries. Only when the failed log shows the same failure did the PR
+break its own deps: fix that as above.

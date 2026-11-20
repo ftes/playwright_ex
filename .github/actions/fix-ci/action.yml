@@ -23,7 +23,8 @@ inputs:
 runs:
   using: composite
   steps:
-    # The number and branch go into the prompt and the allowlist.
+    # The number and branch go into the prompt and the allowlist. Only the workflows' own branches
+    # (never Renovate's): this job has an id-token and runs the branch's setup.
     - name: Save the failed CI log
       shell: bash
       env:
@@ -33,7 +34,8 @@ runs:
         PR: ${{ inputs.pr }}
         BRANCH: ${{ inputs.branch }}
       run: |
-        if [[ ! $KIND =~ ^(nightly|upstream)$ || ! $PR =~ ^[0-9]+$ || ! $BRANCH =~ ^[A-Za-z0-9._/-]+$ ]]; then
+        if [[ ! $KIND =~ ^(nightly|upstream)$ || ! $PR =~ ^[0-9]+$ || ! $BRANCH =~ ^[A-Za-z0-9._/-]+$ ]] ||
+          [[ $KIND == nightly && $BRANCH != claude/nightly-* ]] || [[ $KIND == upstream && $BRANCH != upstream/* ]]; then
           echo "::error::bad input: $KIND $PR $BRANCH"
           exit 1
         fi
@@ -43,8 +45,10 @@ runs:
     - uses: ./tmp/default-branch/.github/actions/claude
       with:
         token: ${{ inputs.token }}
-        # A branch whose deps don't install still gets fixed or given up on.
-        setup: best-effort
+        # The toolchain must install; the deps may fail on the branch's own changes, which Claude
+        # can still fix.
+        setup: deps-best-effort
+        deps-failed: "Dependency setup failed (likely transient): stop without closing the PR or giving up; the next run retries."
         prompt: fix-ci
         context: |
           REPO: ${{ github.repository }}
