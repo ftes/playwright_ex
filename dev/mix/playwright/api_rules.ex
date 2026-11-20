@@ -55,6 +55,9 @@ defmodule Mix.Playwright.ApiRules do
       (`rpId`, which the positional argument overrides in the client too).
     * An option map of `selectOption` also takes `valueOrLabel`: the protocol and the JS client
       accept it and only JS's types leave it out, and a list can't mix strings with option maps.
+    * `getByRole(role)` and `toHaveRole(role)` also take any string: the JS client does (`role:
+      string`), only JS's `AriaRole` type lists the roles, and it lacks some the browser matches
+      (`mark`).
     * An Elixir introduction to a class's module docs (`@intros`: the root module `Playwright`).
     * Elixir notes appended to a member's docs (`@notes`: `getProperties` returns a map, which
       does not keep the property order).
@@ -304,6 +307,7 @@ defmodule Mix.Playwright.ApiRules do
               |> event_type()
               |> storage_state()
               |> select_option()
+              |> any_role()
               |> extra_options("#{class["name"]}.#{member["name"]}")
               |> descriptors("#{class["name"]}.#{member["name"]}")
               |> result_options("#{class["name"]}.#{member["name"]}" in @result_options)
@@ -1157,6 +1161,23 @@ defmodule Mix.Playwright.ApiRules do
     do: update_in(arg, ["type", "union"], fn union -> Enum.map(union, &value_or_label/1) end)
 
   defp select_option_values(arg), do: arg
+
+  defp any_role(%{"name" => name, "args" => args} = member) when name in ~w(getByRole toHaveRole notToHaveRole),
+    do: %{member | "args" => Enum.map(args, &any_role_arg/1)}
+
+  defp any_role(member), do: member
+
+  defp any_role_arg(%{"name" => "role"} = arg) do
+    text =
+      "In Elixir, a role is an atom of the typespec (`:button`) or a string, also one the typespec " <>
+        "lacks (`\"mark\"`): the JS client takes any string."
+
+    arg
+    |> update_in(["type", "union"], &(&1 ++ [%{"expression" => "[string]", "name" => "string"}]))
+    |> Map.update("spec", [%{"type" => "text", "text" => text}], &(&1 ++ [%{"type" => "text", "text" => text}]))
+  end
+
+  defp any_role_arg(arg), do: arg
 
   defp value_or_label(%{"properties" => properties} = type),
     do: %{type | "properties" => properties ++ [value_or_label_property()]}

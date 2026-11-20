@@ -485,13 +485,11 @@ defmodule Playwright.Library.Chromium.OopifTest do
     Page.goto!(page, server.prefix <> "/dynamic-oopif.html")
     assert_oopif_count(browser, 1)
 
-    Task.await_many(
-      [
-        Task.async(fn -> Page.expose_function!(page, "myFunc", fn -> 2022 end) end),
-        Task.async(fn -> Page.evaluate!(page, "() => document.querySelector('iframe').remove()") end)
-      ],
-      :infinity
-    )
+    Promise.all([
+      Promise.async(fn -> Page.expose_function!(page, "myFunc", fn -> 2022 end) end),
+      Promise.async(fn -> Page.evaluate!(page, "() => document.querySelector('iframe').remove()") end)
+    ])
+    |> Promise.await!()
 
     assert Page.evaluate!(page, "() => window.myFunc()") == 2022
   end

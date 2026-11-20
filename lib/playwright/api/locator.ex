@@ -1999,6 +1999,8 @@ defmodule Playwright.Locator do
 
   * `role` - Required aria role.
 
+    In Elixir, a role is an atom of the typespec (`:button`) or a string, also one the typespec lacks (`"mark"`): the JS client takes any string.
+
   ## Options
 
   * `:checked` (`t:boolean/0`) - An attribute that is usually set by `aria-checked` or native `<input type=checkbox>` controls.
@@ -2116,7 +2118,8 @@ defmodule Playwright.Locator do
           | :tooltip
           | :tree
           | :treegrid
-          | :treeitem,
+          | :treeitem
+          | String.t(),
           get_by_role_options()
         ) :: Playwright.Locator.t()
   def get_by_role(%Playwright.Locator{} = locator, role, options \\ []) do
@@ -5848,4 +5851,10 @@ defmodule Playwright.Locator do
   def __options_type__(:uncheck), do: @uncheck_options
   def __options_type__(:wait_for), do: @wait_for_options
   def __options_type__(:wait_for_function), do: @wait_for_function_options
+
+  @doc false
+  # The enum of `function`'s positional argument `arg`, as `Facade.arg!/4` checks it.
+  def __arg_type__(function, arg)
+
+  def __arg_type__(:get_by_role, :role), do: @get_by_role_role
 end

@@ -2998,4 +2998,10 @@ defmodule Playwright.ElementHandle do
   def __options_type__(:uncheck), do: @uncheck_options
   def __options_type__(:wait_for_element_state), do: @wait_for_element_state_options
   def __options_type__(:wait_for_selector), do: @wait_for_selector_options
+
+  @doc false
+  # The enum of `function`'s positional argument `arg`, as `Facade.arg!/4` checks it.
+  def __arg_type__(function, arg)
+
+  def __arg_type__(:wait_for_element_state, :state), do: @wait_for_element_state_state
 end

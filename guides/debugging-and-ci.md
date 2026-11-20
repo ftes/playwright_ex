@@ -113,11 +113,14 @@ steps:
   - run: mix playwright.install chromium --with-deps
   - run: mix test
   - uses: actions/upload-artifact@v7
-    if: failure()
+    if: ${{ !cancelled() }}
     with:
       name: test-results
       path: test-results
 ```
+
+Upload unless cancelled, not only on `failure()`: when failures are rerun (see
+[Annotations](#annotations)), a job the rerun turned green still has the first run's files.
 
 Cache neither the driver nor the browsers. On `ubuntu-latest` (26.04) a cold driver download
 takes about 2 s and Chromium about 8 s, while restoring a cache of both takes about 3 s: it saves
@@ -173,9 +176,12 @@ steps:
 `Playwright.Test.GitHubFormatter` is Playwright Test's `github` reporter: annotations for the
 failed tests (at their line), failed `setup_all`s and slow files, and a summary. It prints
 only those, so name `ExUnit.CLIFormatter` next to it (`--formatter` replaces the configured
-formatters). When failures are rerun, pass it to the first run only, or a test failing twice is
-annotated twice. Rerun only on exit status 2 (tests failed): any other failure, such as a crash
-or a missed coverage threshold, would otherwise go green on an empty `--failed` run.
+formatters). When failures are rerun, pass it to the rerun too: as upstream annotates every
+attempt, a test failing twice gets an error per run (the rerun's under `Retry #1`), and one
+passing on the rerun counts as flaky in the rerun's summary (so does one that a failed
+`setup_all` kept from running in the first run, where upstream counts it as passed). Rerun
+only on exit status 2 (tests failed): any other failure, such as a crash or a missed coverage
+threshold, would otherwise go green on an empty `--failed` run.
 On Elixir 1.20 and earlier, `--failed` loses some failures: see
 [Retries](test-artifacts.md#retries).
 `erlef/setup-beam`'s problem matchers annotate each failure again, at the test's line, so turn
@@ -188,8 +194,8 @@ them off:
     otp-version: "29"
     disable_problem_matchers: true
 - run: |
-    mix test --formatter ExUnit.CLIFormatter --formatter Playwright.Test.GitHubFormatter ||
-      { [ $? -eq 2 ] && mix test --failed; }
+    f="--formatter ExUnit.CLIFormatter --formatter Playwright.Test.GitHubFormatter"
+    mix test $f || { [ $? -eq 2 ] && mix test --failed $f; }
 ```
 
 With `--partitions`, rerun without it. The failures manifest holds only this partition's

@@ -10,6 +10,7 @@ defmodule Playwright.Page.PageExposeFunctionTest do
   alias Playwright.Disposable
   alias Playwright.Frame
   alias Playwright.Page
+  alias Playwright.Promise
   alias Playwright.Runtime
   alias Playwright.TestServer
 
@@ -244,10 +245,11 @@ defmodule Playwright.Page.PageExposeFunctionTest do
     # annotation: { type: 'issue', description: 'https://github.com/microsoft/playwright/issues/37712' }
     [{:ok, _}, {:ok, _}] =
       [
-        Task.async(fn -> Page.expose_binding(page, "foo", fn -> 42 end) end),
-        Task.async(fn -> Page.expose_binding(page, "bar", fn -> 42 end) end)
+        Promise.async(fn -> Page.expose_binding(page, "foo", fn -> 42 end) end),
+        Promise.async(fn -> Page.expose_binding(page, "bar", fn -> 42 end) end)
       ]
-      |> Task.await_many(:infinity)
+      |> Promise.all()
+      |> Promise.await!()
 
     Page.evaluate!(page, """
     () => {

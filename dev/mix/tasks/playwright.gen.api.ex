@@ -47,6 +47,8 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
       `__options_type__(:click)` (`@doc false`) is their type, as
       `Playwright.Runtime.Facade.options!/3` converts them: the config's `context_options` of
       `Playwright.Test`.
+    * Positional enum arguments: `__arg_type__(:wait_for_load_state, :state)` (`@doc false`) is
+      the enum `Playwright.Runtime.Facade.arg!/4` checks it against, for code that needs its atoms.
 
   Each file starts with the copyright header of upstream's docs (`Mix.Playwright.Notices`).
 
@@ -325,6 +327,8 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
     #{listeners_source(ctx, class, events, listeners, receiver)}
 
     #{options_metadata_source(ctx, members)}
+
+    #{arg_types_source(ctx, members)}
     """
 
     """
@@ -1066,6 +1070,27 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
       end
       """
     end)
+  end
+
+  # `__arg_type__(:wait_for_load_state, :state)`: the enum of each positional enum argument, as
+  # `Facade.arg!/4` checks it. Only modules with such an argument define it.
+  defp arg_types_source(ctx, members) do
+    types =
+      for member <- members,
+          name = snake(member["alias"]),
+          arg <- member_args(member),
+          match?({:enum, _}, arg_schema(ctx, arg)),
+          do: "def __arg_type__(:#{name}, :#{arg_var(arg)}), do: @#{name}_#{arg_var(arg)}"
+
+    if types != [] do
+      """
+      @doc false
+      # The enum of `function`'s positional argument `arg`, as `Facade.arg!/4` checks it.
+      def __arg_type__(function, arg)
+
+      #{Enum.join(types, "\n")}
+      """
+    end
   end
 
   # `__options__(:click)`: the options of `click/2` and `click!/2` as their docs show them, for
