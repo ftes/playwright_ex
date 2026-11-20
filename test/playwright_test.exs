@@ -139,8 +139,9 @@ defmodule PlaywrightTest do
     APIRequestContext.dispose!(request)
 
     # Any storage state, as in JS: a request context has no credentials, the validator drops them.
+    Playwright.Credentials.create!(BrowserContext.credentials(context), "example.com")
     with_credentials = BrowserContext.storage_state!(context, credentials: true)
-    assert Map.has_key?(with_credentials, :credentials)
+    assert %{credentials: [%{rpId: "example.com"}]} = with_credentials
     request = APIRequest.new_context!(Playwright.request(playwright), storage_state: with_credentials)
     APIRequestContext.dispose!(request)
 
