@@ -124,9 +124,9 @@ defmodule Playwright.Test.Pool.Worker do
     ClientInstrumentation.add_listener(Heap.get(playwright, :_instrumentation), Recorder.listener())
     :ets.insert(Playwright.Test.Results.table(), {{:driver, playwright.conn}, playwright})
     # `_setupContextOptions`' `if (testIdAttribute) selectors.setTestIdAttribute(testIdAttribute)`:
-    # suite-wide, as the client's value (`get_by_test_id`) is global to the VM.
-    if test_id_attribute = Options.test_id_attribute(),
-      do: Selectors.set_test_id_attribute(Playwright.selectors(playwright), test_id_attribute)
+    # suite-wide, as the client's value (`get_by_test_id`) is global to the VM. Without one, a new
+    # driver has the default, as upstream's fresh worker.
+    Selectors.set_test_id_attribute(Playwright.selectors(playwright), Options.test_id_attribute() || "data-testid")
 
     on_start(state.opts.on_start, playwright)
     {:ok, state}
