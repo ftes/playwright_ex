@@ -874,8 +874,14 @@ so the server tunnels `localhost` to your machine.
 (when the runner closes the test's contexts, just before), in the test's process and in
 processes with it in `$callers` (a `Task`, a route handler). A library that owns resources per
 test (an Ecto sandbox owner, a session) finds the test from a `Task` with it:
-`Playwright.Test.info().test_pid`. Outside a registered test `info/0` raises;
-`Playwright.Test.in_registered_test?/0` tells first.
+`Playwright.Test.info().test_pid`.
+
+In the module's `setup_all`, and processes with it in `$callers`, `info/0` returns the module's
+`file`, `timeout` and `use` (the options its `setup_all` contexts get), without the test's
+fields; `output_path/1`, `snapshot_path/2`, `attach/2` and `step/2,3` raise there. Elsewhere
+`info/0` raises, also in `on_exit` callbacks: `Playwright.Test.in_registered_scope?/0` tells
+whether `info/0` works (its `test_pid` is there only in a test), and `Playwright.Test.info/0`
+shows how to read the config outside them.
 
 ## Polling and waiting
 

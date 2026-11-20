@@ -355,10 +355,10 @@ defmodule Playwright.Test.Options do
   end
 
   @doc """
-  `Playwright.Test.info/0`'s `use`: the resolved options of a registration (a test's), as
-  `use Playwright.Test` takes them: its context options (`context_options/2`'s, by the facade's
-  names, an enum's value as its atom), its timeouts, its recording modes and the worker options
-  of its `BrowserPool.browser/1` calls.
+  `Playwright.Test.info/0`'s `use`: the resolved options of a registration (a test's or a
+  module's `setup_all`'s), as `use Playwright.Test` takes them: its context options
+  (`context_options/2`'s, by the facade's names, an enum's value as its atom), its timeouts, its
+  recording modes and the worker options of its `BrowserPool.browser/1` calls.
   """
   def resolved(test) do
     {:object, schema} = Playwright.Browser.__options_type__(:new_context)

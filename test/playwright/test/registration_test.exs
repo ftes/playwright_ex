@@ -132,7 +132,7 @@ defmodule Playwright.Test.RegistrationTest do
     spawn(fn -> send(test_pid, {:raised, catch_error(Playwright.Test.info())}) end)
 
     assert_receive {:raised,
-                    %RuntimeError{message: "Playwright.Test.info() can only be called while a test is running" <> _}}
+                    %RuntimeError{message: "Playwright.Test.info() can only be called while a test or its module" <> _}}
   end
 
   # Upstream's `testInfo.timeout`: ExUnit's timeout of the test, none (`:infinity`) under `--trace`.
@@ -174,11 +174,11 @@ defmodule Playwright.Test.RegistrationTest do
     assert %{deadline: :infinity, close_deadline: :infinity} = Playwright.Test.info()
   end
 
-  test "in_registered_test?: in the test and its Tasks, not in other processes" do
-    assert Playwright.Test.in_registered_test?()
-    assert Task.await(Task.async(&Playwright.Test.in_registered_test?/0))
+  test "in_registered_scope?: in the test and its Tasks, not in other processes" do
+    assert Playwright.Test.in_registered_scope?()
+    assert Task.await(Task.async(&Playwright.Test.in_registered_scope?/0))
     test_pid = self()
-    spawn(fn -> send(test_pid, {:registered?, Playwright.Test.in_registered_test?()}) end)
+    spawn(fn -> send(test_pid, {:registered?, Playwright.Test.in_registered_scope?()}) end)
     assert_receive {:registered?, false}
   end
 

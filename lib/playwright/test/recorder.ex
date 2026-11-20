@@ -62,13 +62,9 @@ defmodule Playwright.Test.Recorder do
   def timed_out?(nil), do: false
   def timed_out?(recorder), do: match?(%{timed_out: true}, call(recorder, {:fields, [:timed_out]}, @answer_timeout))
 
-  @doc """
-  The registration of the running test (`Playwright.Test`'s per-test setup) of the calling
-  process or a process in its `$callers`, or `nil`. It stops at the nearest registered scope: the
-  test, or `nil` when a module's `setup_all` comes first.
-  """
+  @doc "The test of `scope/0`, or `nil` (also when a module's `setup_all` is the nearer scope)."
   def registration do
-    case defaults() do
+    case scope() do
       {:test, test} -> test
       _module_or_nil -> nil
     end
@@ -82,7 +78,7 @@ defmodule Playwright.Test.Recorder do
   before `use Playwright.Test` registered it fails its registration.
   """
   def worker_options do
-    case defaults() do
+    case scope() do
       {_kind, %{worker: worker}} ->
         worker
 
@@ -92,10 +88,13 @@ defmodule Playwright.Test.Recorder do
     end
   end
 
-  # The registration of the nearest of the calling process and its `$callers` that is a running
-  # test (`{:test, test}`) or a module's `setup_all` (`{:module, module}`,
-  # `Playwright.Test.Results.scope/1`), or `nil`: whose context defaults a context gets.
-  defp defaults, do: Enum.find_value(Callers.capture(), &Results.scope/1)
+  @doc """
+  The registration of the nearest of the calling process and its `$callers` that is a running
+  test (`{:test, test}`) or a module's `setup_all` (`{:module, module}`,
+  `Playwright.Test.Results.scope/1`), or `nil`: whose context defaults a context gets, and whose
+  `Playwright.Test.info/0` it reads.
+  """
+  def scope, do: Enum.find_value(Callers.capture(), &Results.scope/1)
 
   @doc "The registration of the test `test_pid`, or `nil`."
   def registration(test_pid) do
@@ -501,7 +500,7 @@ defmodule Playwright.Test.Recorder do
   # `runBeforeCreateBrowserContext`: `_contextFactory`'s `{ ...videoOptions, ...options }`, then
   # `_combinedContextOptions` for each key not in the options (a key given as `nil` stays).
   def before_create_browser_context(options) do
-    case defaults() do
+    case scope() do
       nil ->
         note_unregistered()
         options
@@ -542,7 +541,7 @@ defmodule Playwright.Test.Recorder do
   @doc false
   # `runBeforeCreateRequestContext`: `_combinedContextOptions` for each key not in the options.
   def before_create_request_context(options) do
-    case defaults() do
+    case scope() do
       nil ->
         note_unregistered()
         options
@@ -563,7 +562,7 @@ defmodule Playwright.Test.Recorder do
   # its first context. A row `{{:context, guid}, recorder}` per recorded context: `before_close`
   # reads it, no call into every test's recorder on each close.
   def after_create_browser_context(context) do
-    with {tag, scope} <- defaults(), do: after_create_browser_context(tag, scope, context)
+    with {tag, scope} <- scope(), do: after_create_browser_context(tag, scope, context)
     nil
   end
 
