@@ -83,15 +83,21 @@ upstream minor, so `~> 1.65.0` is safe.
   true in a test or `setup_all`; `info/0` has `test_pid` only in a test.
 - **RC only:** **Breaking:** option values are checked only where upstream's config loader
   checks them (`preserve_output`, `workers`, `output_dir`, `report_slow_tests`, a project's
-  `name`, `:to_have_screenshot`'s `type`) and `browser_name`; others pass as given, as
-  upstream's. `trace`, `screenshot` and `video` take no `true`/`false`, an unknown mode records
-  nothing, a keyword list without `:mode` is `:off`, and `:retry_with_trace`/`:retry_with_video`
-  are `:on_first_retry`. `test_id_attribute: ""` keeps the default, as upstream's.
-- **RC only:** **Breaking:** a duplicated option of `use Playwright.Test`, `Test.use/1` or
-  `Test.parameters/1` no longer raises: the later wins, as in JS's spread.
-- **RC only:** **Breaking:** `Test.use/1` (a describe's or a test's) raises for `browser_name`,
-  `default_browser_type` (a device's), `launch_options` and `connect_options`, with upstream's
-  "Cannot use({ ... }) in a describe group" message, instead of dropping a device's browser.
+  `name`, `:expect`'s `update_snapshots`, `ignore_snapshots` and `:to_have_screenshot`'s
+  `type`), plus `browser_name`, `on_start` and the keys (an unknown key raises, the object
+  forms' too); others pass as given, as upstream's. `trace`, `screenshot` and `video` take no
+  `true`/`false`, an unknown mode records nothing, a keyword list without `:mode` is `:off`,
+  and `:retry_with_trace`/`:retry_with_video` are `:on_first_retry`. `test_id_attribute: ""`
+  sets none, as upstream's `if (testIdAttribute)`.
+- **RC only:** **Breaking:** a duplicated key no longer raises: the later wins, as in JS's
+  spread, in `use Playwright.Test`, `Test.use/1`, `Test.parameters/1` and in the keyword lists
+  they take (`trace: [mode: :on, mode: :off]` is off, `connect_options`, `driver`,
+  `report_slow_tests`).
+- **RC only:** **Breaking:** `@describetag`/`@tag Test.use(...)` with `browser_name`,
+  `default_browser_type` (a device's), `launch_options` or `connect_options` raises when the test
+  registers, with upstream's "Cannot use({ ... }) in a describe group, because it forces a new
+  worker" message ("in a test" for a `@tag`), instead of dropping a device's browser.
+  `@moduletag Test.use(...)` takes them, as upstream's top-level `test.use`.
 - **RC only:** **Breaking:** `info/0`, `output_path/1`, `attach/2` and `snapshot_path/2`
   outside their scope raise upstream's "... can only be called while test is running";
   `output_path/1` takes path segments too and raises upstream's message for a path outside the
@@ -158,10 +164,11 @@ Node 26.13.1. No upstream API changes.
 - `Playwright.device/1` and `Playwright.devices/0`, Playwright's device
   descriptors as static data (upstream's `import { devices }`), so a device works at compile
   time, spread as upstream's `...devices['iPhone 13']`: `use Playwright.Test,
-  Playwright.device("iPhone 13")`, `@tag Test.use(Playwright.device("Pixel 7"))`. A device is a
-  keyword list of options, so the config takes it as it is: `config :playwright, :test,
-  Playwright.device("Desktop Chrome")`, and `Keyword.merge/2` overrides its options, as
-  upstream's `{ ...devices['iPhone 13'], viewport }`. The driver's `Playwright.devices/1` remains, with maps.
+  Playwright.device("iPhone 13")`, `@moduletag Test.use(Playwright.device("Pixel 7"))`,
+  `Test.parameters(Playwright.device("Pixel 7"))`. A device is a keyword list of options, so the
+  config takes it as it is: `config :playwright, :test, Playwright.device("Desktop Chrome")`,
+  and a later key overrides its option, as upstream's `{ ...devices['iPhone 13'], viewport }`:
+  `Playwright.device("iPhone 13") ++ [viewport: ...]`. The driver's `Playwright.devices/1` remains, with maps.
 
 ### Changed
 

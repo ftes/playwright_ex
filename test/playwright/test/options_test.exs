@@ -128,6 +128,18 @@ defmodule Playwright.Test.OptionsTest do
              }
     end
 
+    test "of a duplicated key the later wins, in the keyword lists of the values too, as JS's spread" do
+      assert %{trace: [mode: :off] ++ _} = artifacts(%{trace: [mode: :on] ++ [mode: :off]})
+      assert %{video: [mode: :on, fps: 2]} = artifacts(%{video: [fps: 1, mode: :on, fps: 2]})
+
+      assert %{connect_options: [slow_mo: 2, ws_endpoint: "ws://b"]} =
+               Options.pool(connect_options: [ws_endpoint: "ws://a", slow_mo: 1, ws_endpoint: "ws://b", slow_mo: 2])
+
+      assert %{driver: [env: %{"B" => "2"}]} = Options.pool(driver: [env: %{"A" => "1"}, env: %{"B" => "2"}])
+      assert %{launch_options: [slow_mo: 2]} = Options.pool(launch_options: [slow_mo: 1, slow_mo: 2])
+      assert %{browser_name: :firefox} = Options.pool(browser_name: :webkit, browser_name: :firefox)
+    end
+
     test "unknown keys of the object forms raise, their values pass as given" do
       for {option, message} <- [
             {%{trace: [mode: :on, live: true]}, ~r/unknown option trace.live, expected one of /},
@@ -533,9 +545,9 @@ defmodule Playwright.Test.ConfigTest do
     Application.put_env(:playwright, :test, config ++ [error_context: true])
     assert_raise ArgumentError, ~r/unknown key error_context, /, fn -> Options.pool([]) end
 
-    # Upstream's `testIdAttribute: ''` is unset.
+    # Upstream's `testIdAttribute: ''` sets none (`if (testIdAttribute)`).
     Application.put_env(:playwright, :test, config ++ [test_id_attribute: ""])
-    assert Options.test_id_attribute() == "data-testid"
+    assert Options.test_id_attribute() == nil
 
     Application.put_env(:playwright, :test, config ++ [preserve_output: :on_failure])
     assert_raise ArgumentError, ~r/invalid value :on_failure for preserve_output, /, fn -> Options.preserve_output() end

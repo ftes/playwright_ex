@@ -43,7 +43,18 @@ defmodule Playwright.Matchers.ExpectTest do
                    Expect.app_env_expect_config(to_have_screenshot: [mask: []])
                  end
 
-    # Only the screenshot's type is checked, as upstream's validateProject.
+    # Upstream's validateConfig and validateProject check these values.
+    for value <- [:all, :changed, :missing, :none, :default, "missing"],
+        do: assert(Expect.app_env_expect_config(update_snapshots: value).updateSnapshots == to_string(value))
+
+    assert_raise ArgumentError,
+                 "config :playwright, :expect: invalid value :always for update_snapshots, expected one of :all, :changed, :missing, :none, :default",
+                 fn -> Expect.app_env_expect_config(update_snapshots: :always) end
+
+    assert_raise ArgumentError,
+                 "config :playwright, :expect: invalid value \"yes\" for ignore_snapshots, expected a boolean",
+                 fn -> Expect.app_env_expect_config(ignore_snapshots: "yes") end
+
     assert_raise ArgumentError,
                  "config :playwright, :expect, :to_have_screenshot: invalid value :gif for type, expected one of :png, :webp",
                  fn -> Expect.app_env_expect_config(to_have_screenshot: [type: :gif]) end

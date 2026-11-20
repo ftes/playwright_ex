@@ -114,11 +114,13 @@ end
 ```
 
 The browser is the module's, as in Playwright Test, which rejects a browser option in a
-describe because it forces a new worker: `Test.use/1` raises for `browser_name`,
-`launch_options`, `connect_options` and `default_browser_type`, so for a device's too
-(`@tag Test.use(Playwright.device("Pixel 7"))`). To run a module once per device, Playwright
-Test's loop over `test.describe` blocks with a device each, make each device a project
-([Projects](#projects)):
+describe because it forces a new worker: a `@describetag` or `@tag` with `browser_name`,
+`launch_options`, `connect_options` or `default_browser_type` raises when its test registers, so
+does one with a device (`@tag Test.use(Playwright.device("Pixel 7"))`). The module takes them, in
+its `use` or a `@moduletag Test.use(...)`. For a device's emulation alone in a describe, drop its
+browser: `Test.use(Keyword.delete(Playwright.device("Pixel 7"), :default_browser_type))`. To run
+a module once per device, Playwright Test's loop over `test.describe` blocks with a device each,
+make each device a project ([Projects](#projects)):
 
 ```elixir
 use Playwright.Case,
