@@ -245,6 +245,7 @@ jobs:
       # takes no --partitions: the failures manifest holds this partition's failures only, and
       # --partitions would split those files again. Warnings fail the newest lane only.
       - name: Run tests
+        id: tests
         env:
           PW_FAILURES_FILE: ${{ runner.temp }}/first-run-failures.txt
           PW_MODULE_TIMES_FILE: ${{ runner.temp }}/module-times.txt
@@ -254,7 +255,8 @@ jobs:
           WARNINGS_AS_ERRORS: ${{ matrix.lane == 'newest' && '1' || '' }}
         run: |
           mix test ${WARNINGS_AS_ERRORS:+--warnings-as-errors} --partitions "$PARTITIONS" ||
-            { [ $? -eq 2 ] && PW_FAILURES_FILE='' PW_MODULE_TIMES_FILE='' mix test --failed; }
+            { [ $? -eq 2 ] && echo "rerun=true" >> "$GITHUB_OUTPUT" &&
+              PW_FAILURES_FILE='' PW_MODULE_TIMES_FILE='' mix test --failed; }
       # The first run's failures to the job summary, and its 10 slowest modules
       # (Playwright.ModuleTimesFormatter): the floor of a partition's time.
       - name: Summarize the first run
@@ -325,9 +327,11 @@ jobs:
         if: failure()
         run: cat "$RUNNER_TEMP/xvfb.log" || true
       # Each failed test's error-context.md and artifacts (test_helper.exs's `output_dir`), as the
-      # testing guide uploads `test-results`: also when the rerun went green.
+      # testing guide uploads `test-results`: on a failure or after a rerun, as a green rerun
+      # keeps the first run's files. Not on every green job: `preserve_output: :always` keeps the
+      # passing tests' output too.
       - name: Upload test results
-        if: ${{ !cancelled() }}
+        if: ${{ failure() || steps.tests.outputs.rerun == 'true' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: test-results-${{ matrix.lane }}-${{ matrix.browser }}-${{ matrix.partition }}

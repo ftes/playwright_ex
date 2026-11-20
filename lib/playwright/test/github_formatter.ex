@@ -35,6 +35,8 @@ defmodule Playwright.Test.GitHubFormatter do
   ExUnit has no retries in a run: a test under `mix test --failed` is upstream's retry 1 (as
   `Playwright.Test.info/0`'s `retry`), so one that passes there is flaky. Each run prints its
   own summary, and a flaky test keeps the first run's `::error`, as upstream's flaky test does.
+  Unlike upstream, a test not run after a failed `setup_all` that passes on the rerun counts as
+  flaky too: the failures manifest doesn't record why a test is in it.
 
   Paths are relative to `GITHUB_WORKSPACE`. It reads only ExUnit's events: any ExUnit suite
   can use it, with or without `Playwright.Test`.
@@ -120,7 +122,7 @@ defmodule Playwright.Test.GitHubFormatter do
     if should_print_failure_annotations(this, test) do
       this = %{this | failed_test_count: this.failed_test_count + 1}
       # this.githubLogger.newLine();  -- in `log/3`
-      # for (const r of test.results): this run's result; a flaky test's failure was the first run's.
+      # for (const r of test.results): this run's result.
       print_failure_annotation(this, test, this.failed_test_count)
       this
     else
@@ -128,11 +130,16 @@ defmodule Playwright.Test.GitHubFormatter do
     end
   end
 
+  # deviation: not 'flaky': its failed result is the first run's, which numbered and annotated it,
+  # so the rerun's numbers have no gaps.
   # 'skipped' with an interrupted result  -- never: no interruption
-  defp should_print_failure_annotations(this, test), do: outcome(this, test) in [:unexpected, :flaky]
+  defp should_print_failure_annotations(this, test), do: outcome(this, test) == :unexpected
 
   # Elixir only: `test.outcome()` of the test's results, this run's and, on a retry, the first
   # run's failure before it (`--failed` reruns only failures).
+  # deviation: a test not run after a failed `setup_all` is in the failures manifest too, without
+  # its state, so one passing on the rerun is flaky, where upstream's did-not-run-then-passed test
+  # is expected (`computeTestCaseOutcome`).
   defp outcome(this, %ExUnit.Test{state: state}) do
     case state do
       nil when this.retry > 0 -> :flaky
@@ -307,9 +314,6 @@ defmodule Playwright.Test.GitHubFormatter do
       %{message: message, location: location(this.deps, stack)}
     end
   end
-
-  # A passed result has no errors.
-  defp format_result_failure(_this, %ExUnit.Test{state: nil}), do: []
 
   # `parsedStack.location` of `filterStackTrace`'s stack: its first frame outside the runner's and
   # the client's code (`filterStackFile`) that is not a dependency's (`parseErrorStack`'s
