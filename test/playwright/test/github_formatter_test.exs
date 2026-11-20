@@ -211,9 +211,11 @@ defmodule Playwright.Test.GitHubFormatterTest do
                  "config :playwright, :test: invalid value -1 for report_slow_tests.max, expected a non-negative number",
                  fn -> report_slow_tests(config, max: -1, threshold: 1) end
 
-    assert_raise ArgumentError, ~r/invalid value nil for report_slow_tests.threshold, expected a non-negative number$/, fn ->
-      report_slow_tests(config, max: 1)
-    end
+    assert_raise ArgumentError,
+                 ~r/invalid value nil for report_slow_tests.threshold, expected a non-negative number$/,
+                 fn ->
+                   report_slow_tests(config, max: 1)
+                 end
 
     assert_raise ArgumentError,
                  ~r/unknown option report_slow_tests.top, expected one of max, threshold$/,
