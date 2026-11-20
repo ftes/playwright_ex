@@ -160,11 +160,14 @@ Firefox and WebKit here (not with a `browser_name` in the config, which wins ove
 give the projects one, `Test.parameters(browser_name: :firefox)`). A module adds its own options
 over the project's (`use Playwright.Case, parameterize: MyApp.Projects.all(), locale: "de-DE"`),
 and parameters of your own go next to them: `Map.put(Test.parameters(...), :role, :admin)`. The
-`name` is upstream's `project.name`: ExUnit's failure output (`Parameters:`) and
-`Playwright.Test.GitHubFormatter`'s report show it, and a snapshot template's `{projectName}` is
-it. Without one, they show the project's browser (its `browser_name`, else its device's
-`default_browser_type`), else its options. ExUnit's filters don't see `parameterize:` values, so to run one project, read
-an env var where the list is built, as above.
+`name` is upstream's `project.name`: a failure prints it as ExUnit's parameters, the
+GitHub annotations of `Playwright.Test.GitHubFormatter` show it (`[de] › ...`), and it fills a
+snapshot template's `{projectName}`. Without one, the failure and the annotations show the
+project's browser (its `browser_name`, else its device's `default_browser_type`), and
+`{projectName}` is empty, so name projects that share a browser, as two locales do:
+`Test.parameters([name: "de", locale: "de-DE"] ++ Playwright.device("Desktop Chrome"))` fails as
+`Parameters: %{"playwright.project": #Playwright.Test.Project<"de">}`. ExUnit's filters don't see
+`parameterize:` values, so to run one project, read an env var where the list is built, as above.
 
 ## Your own case template
 
