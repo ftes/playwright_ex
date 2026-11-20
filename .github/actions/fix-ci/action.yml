@@ -40,7 +40,7 @@ runs:
         run=$(gh run list --branch "$BRANCH" --workflow elixir.yml --event pull_request --limit 1 --json databaseId --jq '.[0].databaseId')
         mkdir -p tmp
         gh run view "$run" --log-failed | tail -n 5000 > tmp/ci-failed.log
-    - uses: ftes/playwright_ex/.github/actions/claude@main
+    - uses: ftes/playwright_ex/.github/actions/claude@ci-test-rc3-ci-tooling
       with:
         token: ${{ inputs.token }}
         prompt: fix-ci

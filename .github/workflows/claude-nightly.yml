@@ -49,7 +49,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
       - if: steps.list.outputs.numbers != ''
-        uses: ftes/playwright_ex/.github/actions/claude@main
+        uses: ftes/playwright_ex/.github/actions/claude@ci-test-rc3-ci-tooling
         with:
           token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           setup: none
@@ -134,7 +134,7 @@ jobs:
           persist-credentials: false
           ref: ${{ matrix.pr.branch }}
           fetch-depth: 0
-      - uses: ftes/playwright_ex/.github/actions/fix-ci@main
+      - uses: ftes/playwright_ex/.github/actions/fix-ci@ci-test-rc3-ci-tooling
         with:
           token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           kind: nightly
@@ -166,7 +166,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
       - run: git switch -c "$NIGHTLY_BRANCH"
-      - uses: ftes/playwright_ex/.github/actions/claude@main
+      - uses: ftes/playwright_ex/.github/actions/claude@ci-test-rc3-ci-tooling
         with:
           token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: nightly-recreate
@@ -257,7 +257,7 @@ jobs:
           echo "::notice::Focus: $area"
           echo "area=$area" >> "$GITHUB_OUTPUT"
 
-      - uses: ftes/playwright_ex/.github/actions/claude@main
+      - uses: ftes/playwright_ex/.github/actions/claude@ci-test-rc3-ci-tooling
         with:
           token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: nightly-improve

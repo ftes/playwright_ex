@@ -3,7 +3,7 @@
 # the job `id-token: write`: the action exchanges the job's OIDC token for the Claude GitHub App's
 # token. That exchange checks only the calling workflow file against the default branch's, so
 # callers take this action, with its prompts (.github/prompts) and summary.jq, from main
-# (`ftes/playwright_ex/.github/actions/claude@main`), never from the branch they check out.
+# (`ftes/playwright_ex/.github/actions/claude@ci-test-rc3-ci-tooling`), never from the branch they check out.
 name: Claude
 description: Runs Claude Code with this repo's model, tool rules and settings.
 

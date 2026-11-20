@@ -96,7 +96,7 @@ jobs:
       # (release notes, PR), curl (playwright-python's NODE_VERSION); a few read-only shell helpers.
       # Prefix rules can't fence pushes tightly, so the denials are a backstop; main's ruleset is
       # the real guard. --add-dir: the upstream clone.
-      - uses: ftes/playwright_ex/.github/actions/claude@main
+      - uses: ftes/playwright_ex/.github/actions/claude@ci-test-rc3-ci-tooling
         with:
           token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           setup: none
@@ -183,7 +183,7 @@ jobs:
           persist-credentials: false
           ref: ${{ matrix.pr.branch }}
           fetch-depth: 0
-      - uses: ftes/playwright_ex/.github/actions/fix-ci@main
+      - uses: ftes/playwright_ex/.github/actions/fix-ci@ci-test-rc3-ci-tooling
         with:
           token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           kind: upstream
