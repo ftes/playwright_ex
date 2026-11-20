@@ -135,12 +135,16 @@ network is slow or you run offline: the driver goes to `~/.cache/playwright`
 ### In Playwright's image
 
 Or run the job in Playwright's image, which has every browser (at `PLAYWRIGHT_BROWSERS_PATH`)
-and its system packages, so only the driver is installed. The image's version must match the
-driver's (`Playwright.Driver.version/0`). `erlef/setup-beam` needs `unzip`, `ImageOS` and
-`HOME` there. It pays off with WebKit or many browser jobs. The image is about 2 GB, pulled per
-job on hosted runners, and it is Ubuntu 24.04: a `_build` (with NIFs) or a cached OTP from a job
-on `ubuntu-latest` may not run in it, so build in the image too. Services are reached by name,
-not `localhost`.
+and its system packages, so only the driver is installed. Its tag is the pinned driver's
+version, not this package's: `mix playwright.cli --version` prints it (`Version 1.65.1`, or
+with `executable:` that CLI's version, the tag then), and the README names it. Install with
+`--no-browsers` there: an image that lacks the driver's browsers then fails at launch with
+Playwright's "Please update docker image as well", instead of `mix playwright.install`
+downloading them on every run.
+`erlef/setup-beam` needs `unzip`, `ImageOS` and `HOME` there. It pays off with WebKit or many
+browser jobs. The image is about 2 GB, pulled per job on hosted runners, and it is Ubuntu 24.04:
+a `_build` (with NIFs) or a cached OTP from a job on `ubuntu-latest` may not run in it, so build
+in the image too. Services are reached by name, not `localhost`.
 
 ```yaml
 runs-on: ubuntu-24.04
@@ -170,6 +174,9 @@ only those, so name `ExUnit.CLIFormatter` next to it (`--formatter` replaces the
 formatters). When failures are rerun, pass it to the first run only, or a test failing twice is
 annotated twice. Rerun only on exit status 2 (tests failed): any other failure, such as a crash
 or a missed coverage threshold, would otherwise go green on an empty `--failed` run.
+On Elixir 1.20 and earlier, `--failed` doesn't rerun a module whose `setup_all` cleanup
+(`on_exit`) failed after its tests passed, so such a failure can be retried green; Elixir 1.21
+fixes this ([elixir-lang/elixir@0f654791](https://github.com/elixir-lang/elixir/commit/0f654791)).
 `erlef/setup-beam`'s problem matchers annotate each failure again, at the test's line, so turn
 them off:
 
@@ -182,6 +189,16 @@ them off:
 - run: |
     mix test --formatter ExUnit.CLIFormatter --formatter Playwright.Test.GitHubFormatter ||
       { [ $? -eq 2 ] && mix test --failed; }
+```
+
+With `--partitions`, rerun without it. The failures manifest holds only this partition's
+failures, and `mix test` deals the files to the partitions round-robin, so `--partitions` would
+deal them again: a partition reruns only some of its failures, possibly none, and can exit 0.
+
+```yaml
+- env:
+    MIX_TEST_PARTITION: ${{ matrix.partition }}
+  run: mix test --partitions 4 || { [ $? -eq 2 ] && mix test --failed; }
 ```
 
 ## Docker

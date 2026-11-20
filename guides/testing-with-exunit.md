@@ -987,15 +987,17 @@ Shared mode (`{:shared, self()}`) would need `async: false`. The `on_exit` close
 the test's contexts close after your `on_exit` callbacks, by when the owner is gone and the app's
 LiveViews log ownership errors.
 
-## Accessibility checks
+## Accessibility testing
 
-`@axe-core/playwright` isn't ported: evaluate axe-core's own script in the page (again after each
-navigation) and run it:
+`@axe-core/playwright` isn't ported: install axe-core with your package manager, evaluate its
+script in the page (again after each navigation), as `AxeBuilder` does, and run it:
 
 ```elixir
-Page.evaluate!(page, File.read!("assets/node_modules/axe-core/axe.min.js"))
-%{"violations" => violations} = Page.evaluate!(page, "() => axe.run()")
-assert violations == []
+axe_path = "assets/node_modules/axe-core/axe.min.js"
+
+Page.evaluate!(page, File.read!(axe_path))
+result = Page.evaluate!(page, "() => axe.run()")
+assert result["violations"] == []
 ```
 
 `axe.run(context, options)` takes what `AxeBuilder`'s `include`, `exclude` and `withTags` set:
@@ -1030,6 +1032,14 @@ Most of a spec ports call for call. What differs (and see [Not supported](#not-s
   `Page.request/1` (upstream's `page.request`, which shares the page's cookies).
 - `addInitScript(fn)` calls the function, but a string is sent as is, so `"() => ..."` only
   defines one: pass `"(#{fun})()"`, or the function's body.
+- `expect(locator, 'should be logged in')` is `locator |> Expect.message("should be logged in")
+  |> Expect.to_be_visible!()`.
+- `reporter: 'github'` is the `Playwright.Test.GitHubFormatter` formatter, which prints only
+  annotations: list it next to `ExUnit.CLIFormatter` (see [CI](debugging-and-ci.md#annotations)).
+- `test('...', { tag: '@slow' })` and `--grep @slow` are an ExUnit tag (`@tag :slow`, or
+  `@moduletag :slow` for the file) and `mix test --only slow`.
+- ExUnit runs the modules in a random (seeded) order, so a spec that relies on state another
+  file left behind (a user it created) fails now and then: set up the state per test, in `setup`.
 - A selector with parentheses can't go in `~s(...)`: use `~s[...]` or a string.
 - `test.use({ locale: 'de-DE' })` at a file's top is `use Playwright.Case, locale: "de-DE"`, in a
   `test.describe` it is `@describetag Test.use(locale: "de-DE")` (`@tag` for one test);
