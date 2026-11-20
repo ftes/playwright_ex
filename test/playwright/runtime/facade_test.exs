@@ -137,6 +137,11 @@ defmodule Playwright.Runtime.FacadeTest do
     assert_raise ArgumentError, ~r/^x\.y: unknown option :"proxy\.server", expected one of color_scheme, /, fn ->
       Facade.options!(["proxy.server": 1], @schema, "x.y")
     end
+
+    # Bare where an atom literal needs no quotes.
+    assert_raise ArgumentError, ~r/^x\.y: unknown option headless\?, /, fn ->
+      Facade.options!([headless?: true], @schema, "x.y")
+    end
   end
 
   # The generated facade checks every object argument before calling the client.

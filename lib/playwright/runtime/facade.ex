@@ -401,11 +401,15 @@ defmodule Playwright.Runtime.Facade do
   defp values(map), do: map |> Map.keys() |> Enum.sort() |> Enum.map_join(", ", &inspect/1)
 
   @doc false
-  # A key as written in a path: bare (`color_scheme`), quoted where it must be (`:"proxy.server"`,
-  # a string key `"httpOnly"`). `Playwright.Application.key_name/1` names the runner's keys so.
+  # A key as written in a path: bare (`color_scheme`, `headless?`), quoted where it must be
+  # (`:"proxy.server"`, a string key `"httpOnly"`). `Playwright.Application.key_name/1` names the
+  # runner's keys so.
   def key(key) when is_atom(key) do
-    name = Atom.to_string(key)
-    if Regex.match?(~r/^[A-Za-z_][A-Za-z0-9_]*$/, name), do: name, else: inspect(key)
+    case inspect(key) do
+      ":\"" <> _ = quoted -> quoted
+      ":" <> name -> name
+      name -> name
+    end
   end
 
   def key(key), do: inspect(key)
