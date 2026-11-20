@@ -46,9 +46,8 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
       wrappers that pass them on (documented as unstable). `__options_type__(:click)` (`@doc
       false`) is their type, as `Playwright.Runtime.Facade.options!/3` converts them: the
       config's `context_options` of `Playwright.Test`.
-    * Positional enums: `__arg_type__(:get_by_role, :role)` (`@doc false`) is the enum
-      `Playwright.Runtime.Facade.arg!/4` checks: the role atoms of locator descriptions
-      (`Playwright.Isomorphic.LocatorGenerators`).
+    * Positional enum arguments: `__arg_type__(:wait_for_load_state, :state)` (`@doc false`) is
+      the enum `Playwright.Runtime.Facade.arg!/4` checks it against, for code that needs its atoms.
 
   Each file starts with the copyright header of upstream's docs (`Mix.Playwright.Notices`).
 
@@ -1071,8 +1070,8 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
     end)
   end
 
-  # `__arg_type__(:get_by_role, :role)`: the enum of a positional argument, as `Facade.arg!/4`
-  # checks it (the roles `LocatorGenerators` writes as atoms).
+  # `__arg_type__(:wait_for_load_state, :state)`: the enum of each positional enum argument, as
+  # `Facade.arg!/4` checks it. Only modules with such an argument define it.
   defp arg_types_source(ctx, members) do
     types =
       for member <- members,

@@ -1148,6 +1148,8 @@ defmodule Playwright.Isomorphic.LocatorGenerators do
     end
 
     # A role: an atom (`:button`) for those the facade takes as atoms, a string otherwise (`"mark"`).
+    # Elixir only: upstream's isomorphic code knows no facade; this factory writes facade calls,
+    # so it reads the role atoms from the facade (`__arg_type__/2`) instead of copying the list.
     defp role(name) do
       {:enum, roles} = Playwright.Locator.__arg_type__(:get_by_role, :role)
 
