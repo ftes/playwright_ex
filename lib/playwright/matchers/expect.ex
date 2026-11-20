@@ -291,9 +291,10 @@ defmodule Playwright.Matchers.Expect do
   end
 
   # Elixir only: the `assert` matcher of `expect.poll`, a jest matcher's place (`toBe`): the
-  # assertion raises when it fails.
+  # assertion raises when it fails. Its `Playwright.Test.assert/1` is no step of its own: this
+  # attempt's step is the jest matcher's (`Playwright.Test.__assertion__/4`).
   defp assert_matcher(_this, actual, assertion) do
-    assertion.(actual)
+    Zones.with(:matcherAssertion, Zones.data(:stepZone), fn -> assertion.(actual) end)
     %{pass: true, message: fn -> "" end}
   end
 

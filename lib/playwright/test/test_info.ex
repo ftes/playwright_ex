@@ -564,13 +564,31 @@ defmodule Playwright.Test.TestInfo do
   its own packages, the runner's too and Node's internals, or without a file.
   """
   def filtered_stack_trace(stacktrace) do
+    runner_modules = runner_modules()
+
     Enum.filter(stacktrace, fn
       {module, _fun, _arity, location} when is_atom(module) ->
-        location[:file] != nil and :application.get_application(module) not in @runner_apps
+        location[:file] != nil and not Map.has_key?(runner_modules, module)
 
       _ ->
         false
     end)
+  end
+
+  # Elixir only: the modules of `@runner_apps`, read once (`:application.get_application/1` scans
+  # every loaded app, ~5 us per frame, which each `assert` would pay). Not kept until all are
+  # loaded.
+  defp runner_modules do
+    case :persistent_term.get({__MODULE__, :runner_modules}, nil) do
+      nil ->
+        specs = for {:ok, app} <- @runner_apps, do: Application.spec(app, :modules)
+        modules = specs |> Enum.flat_map(&(&1 || [])) |> Map.new(&{&1, true})
+        if nil not in specs, do: :persistent_term.put({__MODULE__, :runner_modules}, modules)
+        modules
+
+      modules ->
+        modules
+    end
   end
 
   @doc "An Elixir stacktrace as trace `StackFrame`s (absolute files, as the client's)."

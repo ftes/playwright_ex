@@ -16,7 +16,7 @@
 #     registered and its `init/1` still runs.
 #   * `soft_errors` - tests whose matchers write missing snapshots (`snapshot_dir` next to the
 #     output dir), one of them failing after that, one killed past its timeout.
-#   * `steps` - a test failing in a boxed step, with no browser.
+#   * `steps` - a test failing in a boxed step, and one in an `assert`, with no browser.
 #   * `soft` - soft matchers (`Expect.soft/1`): failing ones, then the rest of the body, then a
 #     hard failure; and a passing one.
 #   * `timeouts` - tests past their timeout: one in a Playwright call, one in `Process.sleep`, one
@@ -366,6 +366,12 @@ case mode do
           # (inside the boxed step)
           raise "cannot log in"
         end
+      end
+
+      test "fails in an assert" do
+        assert {:ok, value} = {:ok, 1}
+        # (the failing assert)
+        assert value + 1 == 3
       end
     end
 

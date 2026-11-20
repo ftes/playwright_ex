@@ -231,11 +231,11 @@ defmodule Playwright.Test.EndToEndTest do
     assert two =~ ~s(Expected: "Deux")
   end
 
-  test "a boxed step fails at its call site, traced", %{tmp_dir: tmp_dir} do
+  test "a boxed step fails at its call site, a failed assert is a step, traced", %{tmp_dir: tmp_dir} do
     child = start("steps", tmp_dir)
     assert ChildProcess.exit_code(child, 60_000) == 0
     output = ChildProcess.output(child)
-    assert output =~ ~r"1 test, 1 failure|Result: 0/1 passed"
+    assert output =~ ~r"2 tests, 2 failures|Result: 0/2 passed"
 
     script = Path.join([__DIR__, "..", "..", "support", "test_runner_impl.exs"]) |> File.read!() |> String.split("\n")
     line = fn marker -> Enum.find_index(script, &(&1 =~ marker)) + 2 end
@@ -272,6 +272,33 @@ defmodule Playwright.Test.EndToEndTest do
              for(%{"type" => "error"} = event <- events, do: event)
 
     assert frame["line"] == line.("(the boxed call)")
+
+    # ExUnit's failure, and an expect step before the test's error.
+    failed = failure(output, "test fails in an assert (StepsTest)")
+    assert failed =~ "Assertion with == failed\n     code:  assert value + 1 == 3\n     left:  2\n     right: 3"
+    assert failed =~ "test/support/test_runner_impl.exs:#{line.("(the failing assert)")}: (test)"
+
+    events = trace_events.("fails-in-an-assert")
+    [passed, failed] = for %{"type" => "before"} = event <- events, do: event
+
+    assert %{
+             "title" => ~s(Expect "assert"),
+             "method" => "expect",
+             "params" => %{"expression" => "{:ok, value} = {:ok, 1}"}
+           } = passed
+
+    assert %{"title" => ~s(Expect "assert"), "subtitle" => "value + 1 == 3", "stack" => [frame | _]} = failed
+    assert frame["line"] == line.("(the failing assert)")
+
+    assert [%{"callId" => id, "error" => %{"message" => message}}] =
+             for(%{"type" => "after", "error" => _} = e <- events, do: e)
+
+    assert id == failed["callId"]
+    assert message =~ "Assertion with == failed"
+    assert [%{"message" => ^message}] = for(%{"type" => "error"} = event <- events, do: event)
+
+    assert Enum.find_index(events, &(&1["callId"] == id and &1["type"] == "after")) <
+             Enum.find_index(events, &(&1["type"] == "error"))
   end
 
   test "a test past its timeout: a hanging Playwright call fails with the call log, other code as ExUnit's",
@@ -345,7 +372,9 @@ defmodule Playwright.Test.EndToEndTest do
     [dir] = output_dir |> File.ls!() |> Enum.filter(&(&1 =~ "fails-in-a-console-listener"))
     assert Enum.sort(File.ls!(Path.join(output_dir, dir))) == ["error-context.md", "test-failed-1.png", "trace.zip"]
     error_context = File.read!(Path.join([output_dir, dir, "error-context.md"]))
-    assert length(String.split(error_context, "Assertion with == failed")) == 2
+    assert length(String.split(error_context, "```\nExUnit.AssertionError: Assertion with == failed")) == 2
+    # The listener's frame (its `assert` is no tail call, `Playwright.Test.assert/1`): its source.
+    assert error_context =~ ~r/^> \d+ \| .*Page.on\(page, :console, fn message -> assert/m
     assert error_context =~ ~s(heading "Logs")
     {:ok, zip} = :zip.unzip(String.to_charlist(Path.join([output_dir, dir, "trace.zip"])), [:memory])
     {_, trace} = List.keyfind(zip, ~c"test.trace", 0)

@@ -205,8 +205,15 @@ A step runs in the calling process, so `assert_receive` works in it. It takes no
 running body can't be interrupted: the test's timeout bounds it. `step_skip` declares a step
 without running it. In `setup_all` a step runs too, unrecorded
 ([Steps](Playwright.Test.html#module-steps)), so the same helpers serve both. `use Playwright.Test`
-imports only `test`, so the rest is called qualified (`Test.step`, `Test.info()`), as Playwright
-Test's `test.step()`, and a wrapper library's own `step` doesn't clash.
+imports only `test`, `assert` and `refute`, so the rest is called qualified (`Test.step`,
+`Test.info()`), as Playwright Test's `test.step()`, and a wrapper library's own `step` doesn't
+clash.
+
+Each `assert` and `refute` is a step too, as Playwright Test's `expect`: `Expect "assert"`, with
+the expression next to it, and a failed one with its error. They are ExUnit's otherwise, with
+the same bindings, messages and stacktraces (a function that ends in one keeps its frame). Don't `import ExUnit.Assertions` again after `use
+Playwright.Test`, which makes `assert` ambiguous; a helper module's own asserts are steps when
+they pass only with the same imports ([Assertions](Playwright.Test.html#module-assertions)).
 
 ## Route handlers and listeners
 

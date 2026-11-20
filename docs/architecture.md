@@ -395,6 +395,13 @@ it), for the reason a step has no timeout. `to_pass` returns the passing attempt
 value}`, the bang form the value), where upstream resolves to `void`: a JS callback assigns what the
 test reads after it to an outer `let`, which an Elixir closure can't rebind.
 
+ExUnit's `assert` and `refute` are steps, as upstream's `expect` (#318): `use Playwright.Test`
+imports its own, which expand to ExUnit's macro and then record a passed step, and a failed one
+is recorded where its `ExUnit.AssertionError` is first caught (a step's or the test body's
+`catch`). Rejected: a `try` around the assertion (it scopes the bindings of `assert {:ok, x} =
+f()` and `assert (y = f()) > 0`), recording failures only (the passed ones are the trace's), and
+an explicit `Playwright.Test.assert` (ported suites wouldn't use it).
+
 Rejected: porting the rest of Playwright Test, `createExpect` (`expect.configure`; `expect.soft`
 and `expect(x, message)` are fields of the receiver, `soft/1` and `message/2`, not a configured
 `expect`), a step's `timeout` (a process can't be interrupted, so the body would run in another

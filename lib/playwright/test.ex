@@ -40,8 +40,9 @@ defmodule Playwright.Test do
   ## Registration
 
   `use Playwright.Test` comes after `use ExUnit.Case` (or in a case template's `using`). It
-  imports only a `test` macro, which hands the test to `ExUnit.Case.test/3` with the body's end
-  marked, so the test's `on_exit` learns whether it passed. And it adds a `setup` that
+  imports a `test` macro, which hands the test to `ExUnit.Case.test/3` with the body's end
+  marked, so the test's `on_exit` learns whether it passed, and `assert/1,2` and `refute/1,2`,
+  which are also steps (see "Assertions"). And it adds a `setup` that
   registers each test: its recording modes, its output dir and an `on_exit` (the first, so it
   runs last) that keeps or drops the artifacts by the result, then releases the test's
   `BrowserPool.browser/1` drivers. Tests of other macros (doctests, a `property`) count as
@@ -375,6 +376,37 @@ defmodule Playwright.Test do
   handler's in the current test: ExUnit runs `setup_all` before any test, and hooks aren't
   steps here.
 
+  ## Assertions
+
+  `use Playwright.Test` imports its own `assert/1,2` and `refute/1,2` in place of
+  `ExUnit.Assertions`' (it imports that module again without them). Each is ExUnit's, also a
+  step of the running test, as upstream's `expect(value).toBe(...)` is: `category: 'expect'`,
+  titled `Expect "assert"` or `Expect "refute"`, with the expression as its subtitle and its
+  `expression` param, located at the call. A message (`assert x, "msg"`) is the title, as
+  upstream's `expect(value, message)`. A passed one expands to ExUnit's `assert` as it is, then
+  records its step, so it binds as ExUnit's (`assert {:ok, user} = create()`, `assert (n =
+  count()) > 0`), and its driver calls come before it, as upstream's. A failed one raises
+  ExUnit's error, with its message and stacktrace; only a function that ends in an assertion
+  keeps its frame in the stacktrace, as the assertion is no longer its tail call (as JS keeps
+  every frame). It is recorded with that error where it is
+  first caught: in the step it ran in (`step/3`), else at the end of the test's body. Outside a
+  test, and in the module's `setup_all` (as a step there), it records nothing. The other
+  assertions (`assert_receive`, `assert_raise`, ...) are ExUnit's, no steps.
+
+  Limits:
+
+    * A passed assertion is recorded only where the import is: a helper module opts in with the
+      same two imports, `import ExUnit.Assertions, except: [assert: 1, assert: 2, refute: 1,
+      refute: 2]` and `import Playwright.Test, only: [assert: 1, assert: 2, refute: 1, refute:
+      2]`. A failed `assert/1` or `refute/1` is recorded wherever it was written.
+    * A test module that imports `ExUnit.Assertions` again after `use Playwright.Test` fails to
+      compile, with an ambiguous call of `assert`: drop that import, or add the same `except:`.
+    * A case template passes the import on with `use Playwright.Test` in its `using`; the one in
+      its body (see "Registration") doesn't.
+    * A failed assertion that the test rescues itself (a retry loop without steps) leaves no
+      step.
+    * `Playwright.Expect.poll/3`'s assertion is no step of its own: each attempt is.
+
   ## Config
 
       config :playwright, :test,
@@ -427,6 +459,14 @@ defmodule Playwright.Test do
   @reraised {__MODULE__, :reraised}
   # When the test's first `setup` callback ran (`__started__/1`), in its process.
   @started {__MODULE__, :started}
+  # Set once a catch recorded a failed assertion's step, to the error it raised on: the catches
+  # it reaches after that (an enclosing step's, the test body's) don't record it again. A new
+  # step clears it (`_step/5`): an error rescued and raised again later (a retry) is recorded.
+  @assertion_recorded {__MODULE__, :assertion_recorded}
+  @assertion_titles Map.new(
+                      [:assert, :refute],
+                      &{&1, "Expect #{Playwright.Isomorphic.StringUtils.escape_with_quotes(to_string(&1), "\"")}"}
+                    )
   # `info/0`'s fields of the registration.
   @info_keys [:test_pid, :file, :test_name, :output_dir, :retry]
 
@@ -439,7 +479,9 @@ defmodule Playwright.Test do
       {:test, 3} in Keyword.get(macros, ExUnit.Case, []) or {:test, 3} in Keyword.get(macros, __MODULE__, []) ->
         quote do
           import ExUnit.Case, only: [describe: 2]
-          import Playwright.Test, only: [test: 1, test: 2, test: 3]
+          # Replaces `use ExUnit.Case`'s import: `assert` and `refute` are this module's.
+          import ExUnit.Assertions, except: [assert: 1, assert: 2, refute: 1, refute: 2]
+          import Playwright.Test, only: [test: 1, test: 2, test: 3, assert: 1, assert: 2, refute: 1, refute: 2]
           require Playwright.Test
 
           if Playwright.Test.__use__(__MODULE__, unquote(opts)) do
@@ -603,6 +645,116 @@ defmodule Playwright.Test do
     end
   end
 
+  @doc """
+  `ExUnit.Assertions.assert/1`, also a step of the running test (`category: 'expect'`), as
+  upstream's `expect(value).toBe(...)` is: `Expect "assert"`, with the expression as its
+  subtitle and its `expression` param. It expands to ExUnit's `assert`, then records the step,
+  so the assertion binds and fails as ExUnit's (see "Assertions" in the moduledoc).
+  """
+  defmacro assert(assertion), do: assertion_ast(:assert, assertion)
+
+  @doc """
+  `ExUnit.Assertions.assert/2`, also a step of the running test, titled by the `message`, as
+  upstream's `expect(value, message)` is. See `assert/1`.
+  """
+  defmacro assert(value, message), do: assertion_ast(:assert, value, message)
+
+  @doc "`ExUnit.Assertions.refute/1`, also a step of the running test: `Expect \"refute\"`. See `assert/1`."
+  defmacro refute(assertion), do: assertion_ast(:refute, assertion)
+
+  @doc "`ExUnit.Assertions.refute/2`, also a step of the running test, titled by the `message`. See `assert/1`."
+  defmacro refute(value, message), do: assertion_ast(:refute, value, message)
+
+  # Elixir only: ExUnit's macro as it is (no `fn` or `try` around it, which would scope its
+  # bindings), then the passed assertion's step. A failed one is recorded where its error is
+  # caught (`__assertion_error__/2`).
+  defp assertion_ast(kind, assertion) do
+    code = Macro.to_string(assertion)
+
+    quote do
+      value = ExUnit.Assertions.unquote(kind)(unquote(assertion))
+      Playwright.Test.__assertion__(unquote(kind), unquote(code), nil, nil)
+      value
+    end
+  end
+
+  # ExUnit's `assert/2` and `refute/2` are functions: their arguments are evaluated first, so
+  # a `try` around the call binds nothing and keeps its stacktrace.
+  defp assertion_ast(kind, value, message) do
+    code = Macro.to_string(value)
+
+    quote do
+      value = unquote(value)
+      message = unquote(message)
+
+      result =
+        try do
+          ExUnit.Assertions.unquote(kind)(value, message)
+        catch
+          class, reason ->
+            error = {class, reason, __STACKTRACE__}
+            Playwright.Test.__assertion__(unquote(kind), unquote(code), message, error)
+            :erlang.raise(class, reason, __STACKTRACE__)
+        end
+
+      Playwright.Test.__assertion__(unquote(kind), unquote(code), message, nil)
+      result
+    end
+  end
+
+  @doc false
+  # The step of an `assert` or `refute` (`kind`) of `code` with `message`: passed, or failed
+  # with `error` (`{kind, reason, stacktrace}`). The shape of
+  # `Playwright.Matchers.Expect.call_matcher_as_step/6`'s: none outside a test, and none in the
+  # module's `setup_all`, where `step/3` records nowhere. Elixir only: none for `expect.poll`'s
+  # assertion, whose attempt is the step (`Playwright.Matchers.Expect.poll/3`).
+  def __assertion__(kind, code, message, error) do
+    matcher_step = Zones.data(:matcherAssertion)
+
+    with false <- matcher_step != nil and matcher_step == Zones.data(:stepZone),
+         %{} = test_info <- TestInfo.current() do
+      stack = if error, do: elem(error, 2), else: TestInfo.capture_raw_stack()
+      add_assertion_step(test_info, kind, code, message, stack, error)
+    end
+
+    :ok
+  end
+
+  @doc false
+  # Elixir only: the step of a failed `assert/1` or `refute/1`, where its error is first caught
+  # (`_step/5`'s catch, the test body's), as ExUnit's macro raises it with no `try` around it.
+  # Its `ExUnit.AssertionError` has the expression, its stacktrace the location; also when a
+  # helper module without the import asserted. `assert_receive` and the others aren't steps.
+  def __assertion_error__(test_info, {:error, %ExUnit.AssertionError{expr: {kind, _, [expr]}} = reason, stacktrace})
+      when kind in [:assert, :refute] do
+    if test_info && Process.get(@assertion_recorded) != reason do
+      Process.put(@assertion_recorded, reason)
+      error = {:error, reason, stacktrace}
+      add_assertion_step(test_info, kind, Macro.to_string(expr), nil, stacktrace, error)
+    end
+
+    :ok
+  end
+
+  def __assertion_error__(_test_info, _error), do: :ok
+
+  # `callMatcherAsStep`'s step: its title is the message, else `Expect "assert"` (its
+  # `escapeWithQuotes` at compile time, which costs more at run time than the step).
+  defp add_assertion_step(test_info, kind, code, message, stacktrace, error) do
+    title = if is_binary(message) and message != "", do: message, else: @assertion_titles[kind]
+
+    step =
+      TestInfo._add_step(test_info, %{
+        category: "expect",
+        title: title,
+        subtitle: code,
+        stack: TestInfo.stack_frames(TestInfo.filtered_stack_trace(stacktrace)),
+        params: %{expression: code}
+      })
+
+    TestInfo.step_complete(step, if(error, do: %{error: error}, else: %{}))
+  end
+
   @doc false
   # When a test registers, its describe's and its own tags have no worker option of `use/1`, as
   # upstream's `test.use` in a describe raises when it loads; the module's `@moduletag` may.
@@ -644,6 +796,7 @@ defmodule Playwright.Test do
     if Process.delete(@reraised) do
       {kind, reason, stacktrace}
     else
+      __assertion_error__(TestInfo.current(), {kind, reason, stacktrace})
       # The worker's `_failWithError` of the body's error: its trace event (`appendForError`).
       TestInfo.trace_errors(self(), errors(kind, reason, stacktrace))
 
@@ -1335,6 +1488,7 @@ defmodule Playwright.Test do
     options = Map.new(options)
     call_site = call_site || (options[:location] && Map.take(options.location, [:file, :line]))
     test_info = step_test_info!()
+    Process.delete(@assertion_recorded)
     Recorder.on_user_step(test_info.test_pid, {:begin, title})
 
     step =
@@ -1361,6 +1515,7 @@ defmodule Playwright.Test do
         result
       catch
         kind, reason ->
+          __assertion_error__(test_info, {kind, reason, __STACKTRACE__})
           TestInfo.step_complete(step, %{error: {kind, reason, __STACKTRACE__}})
           # deviation: Elixir errors are immutable, so none carries its step (`stepSymbol`) for
           # `_failWithError` to report a boxed step's stack: the step raises it with that stack,
