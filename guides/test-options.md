@@ -171,6 +171,9 @@ has more than one, as
 `Test.parameters([name: "de", locale: "de-DE"] ++ Playwright.device("Desktop Chrome"))`. ExUnit's
 filters don't see `parameterize:` values, so to run one project, read an env var where the list is
 built, as above.
+On Elixir 1.20 and earlier, `mix test --failed` loses a failure in a `parameterize:` module when
+another parameter set passes the same test: run one project per `mix test`, which removes the
+project dimension only ([Retries](test-artifacts.md#retries)).
 
 ## Your own case template
 

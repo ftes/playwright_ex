@@ -61,7 +61,7 @@ upstream minor, so `~> 1.65.0` is safe.
   only `env:`; `executable:`, `node:` and `cache_dir:` are `config :playwright, :driver`'s.
 - **RC only:** **Breaking:** `config :playwright, :expect`'s `:to_have_screenshot`,
   `:to_match_aria_snapshot` and `:to_pass` take the matchers' snake_case keys
-  (`max_diff_pixels:`, `path_template:`, `children: :equal`), not JS keys.
+  (`max_diff_pixels:`, `timeout:`, `path_template:`, `children: :equal`), not JS keys.
 - **RC only:** **Breaking:** `Playwright.Test.parameters/1` returns one private key,
   `:"playwright.project"`, holding a `Playwright.Test.Project` (`name`, `use`), not a key per
   option.

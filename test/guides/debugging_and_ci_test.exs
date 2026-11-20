@@ -134,5 +134,6 @@ defmodule Playwright.Guides.DebuggingAndCiTest do
     assert guide =~ "playwright@#{Playwright.Driver.version()} run-server"
     readme = File.read!(Path.expand("../../README.md", __DIR__))
     assert readme =~ "This release drives Playwright #{Playwright.Driver.version()}, the"
+    assert readme =~ "(`v#{Playwright.Driver.version()}-noble`)"
   end
 end
