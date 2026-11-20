@@ -200,6 +200,8 @@ defmodule Playwright.Test.GitHubFormatterTest do
     assert report_slow_tests(config, nil) == [max: 5, threshold: 300_000]
     assert report_slow_tests(config, false) == false
     assert report_slow_tests(config, %{threshold: 1, max: 0}) == [max: 0, threshold: 1]
+    # The later of a duplicated key, as JS's spread.
+    assert report_slow_tests(config, max: 1, threshold: 2, max: 3) == [max: 3, threshold: 2]
 
     assert_raise ArgumentError,
                  "config :playwright, :test: invalid value -1 for report_slow_tests.max, expected a non-negative number",

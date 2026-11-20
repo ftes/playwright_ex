@@ -123,9 +123,11 @@ defmodule Playwright.Test.Pool.Worker do
   defp set_up_new(%{playwright: playwright} = state) do
     ClientInstrumentation.add_listener(Heap.get(playwright, :_instrumentation), Recorder.listener())
     :ets.insert(Playwright.Test.Results.table(), {{:driver, playwright.conn}, playwright})
-    # `_setupContextOptions`' `selectors.setTestIdAttribute(testIdAttribute)`: suite-wide,
-    # as the client's value (`get_by_test_id`) is global to the VM.
-    Selectors.set_test_id_attribute(Playwright.selectors(playwright), Options.test_id_attribute())
+    # `_setupContextOptions`' `if (testIdAttribute) selectors.setTestIdAttribute(testIdAttribute)`:
+    # suite-wide, as the client's value (`get_by_test_id`) is global to the VM.
+    if test_id_attribute = Options.test_id_attribute(),
+      do: Selectors.set_test_id_attribute(Playwright.selectors(playwright), test_id_attribute)
+
     on_start(state.opts.on_start, playwright)
     {:ok, state}
   rescue
@@ -160,7 +162,8 @@ defmodule Playwright.Test.Pool.Worker do
   defp launch_or_connect(browser_type, launch_options, nil), do: BrowserType.launch!(browser_type, launch_options)
 
   defp launch_or_connect(browser_type, launch_options, connect_options) do
-    {ws_endpoint, options} = Keyword.pop!(connect_options, :ws_endpoint)
+    # Without one, the client's own error (`connect/3`'s `ws_endpoint`).
+    {ws_endpoint, options} = Keyword.pop(connect_options, :ws_endpoint)
     launch_options = Facade.options!(launch_options, BrowserType.__options_type__(:launch), "browserType.launch")
     # HTTP headers are ASCII only (not UTF-8).
     headers = %{"x-playwright-launch-options" => json_stringify_force_ascii(launch_options)}

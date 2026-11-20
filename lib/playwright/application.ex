@@ -49,7 +49,8 @@ defmodule Playwright.Application do
   # Raises `ArgumentError` for the first of `keys` that is not `allowed`, as the facade does for
   # an unknown option: `<label>: unknown <noun> <key>, expected one of <allowed>`.
   def unknown_key!(label, noun, keys, allowed, hint \\ "") do
-    case keys -- allowed do
+    # A duplicated key is no unknown one: of those the later wins.
+    case Enum.uniq(keys) -- allowed do
       [] ->
         :ok
 

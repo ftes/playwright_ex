@@ -38,7 +38,7 @@ ExUnit](../testing-with-exunit.md)).
 | fixtures `browser`, `browserName`, `context`, `page` | ◐ | `Playwright.Case`; a `BrowserType.launch` in a test doesn't inherit `launch_options` |
 | fixtures `request`, `baseURL` | ◐ | a line each ([What differs](../porting-playwright-test.md#what-differs)) |
 | custom fixtures (`test.extend`) | n/a | `setup`, case templates; option fixtures are tags |
-| `test.use` | ◐ | values, not functions; a browser or device in a describe raises, as upstream ([Test options](../test-options.md)) |
+| `test.use` | ◐ | values, not functions; a browser or device in a describe or test raises, as upstream ([Test options](../test-options.md)) |
 | projects | ◐ | `parameterize:`; no per-project `outputDir`, `snapshotDir`, `snapshotPathTemplate`, `dependencies` |
 | workers | ◐ | `Playwright.Test.BrowserPool`; no `fullyParallel`, no fresh worker after a failed test |
 | retries | ◐ | `mix test --failed`, which the retry modes go by ([Retries](../test-artifacts.md#retries)) |

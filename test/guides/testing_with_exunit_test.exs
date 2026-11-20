@@ -575,8 +575,14 @@ defmodule Playwright.Guides.TestingWithExUnit.DeviceLevelsTest do
   # A device per test is a project (see the projects module above): `Test.use/1` raises for a
   # device's `default_browser_type`, as upstream's `test.use` in a describe.
   test "a tag's device raises" do
-    assert_raise ArgumentError, ~r/Cannot use\(\{ default_browser_type \}\) in a describe group/, fn ->
-      Test.use(Playwright.device("iPhone 13"))
+    assert_raise ArgumentError, ~r/Cannot use\(\{ default_browser_type \}\) in a test/, fn ->
+      Code.compile_string("""
+      defmodule Playwright.Guides.TestingWithExUnit.TagDevice do
+        use Playwright.Case
+        @tag Playwright.Test.use(Playwright.device("iPhone 13"))
+        test "t", do: :ok
+      end
+      """)
     end
   end
 end

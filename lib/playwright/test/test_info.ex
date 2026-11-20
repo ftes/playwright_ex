@@ -805,7 +805,8 @@ defmodule Playwright.Test.TestInfo do
 
   @doc "`_getOutputPath`: the path of `path_segments` in the test's output dir, which it must stay in."
   def _get_output_path(this, path_segments) do
-    joined_path = Path.join(path_segments)
+    # `path.join()` of none is `.`.
+    joined_path = if path_segments == [], do: ".", else: Path.join(path_segments)
 
     case get_contained_path(this.output_dir, joined_path) do
       nil ->
