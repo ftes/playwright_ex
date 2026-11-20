@@ -485,23 +485,29 @@ defmodule Playwright.Matchers.Expect do
             %{continuePolling: false, result: nil}
           else
             value = actual.()
+            attempt_info = %{info | poll: nil, isSoft: false}
+
+            # Elixir only: the `assert` matcher's attempt is no matcher step around its
+            # assertion, whose own step (`Playwright.Test.assert/1`, with its expression and
+            # `expected`) is the attempt's, as upstream's attempt is `toEqual(expected)`'s; with
+            # a message (the attempt's title) or `assert_steps: false` it is the matcher's.
+            own_step? = matcher_name == "assert" and assert_steps?(test_info) and !truthy?(info[:message])
 
             try do
-              # Elixir only: the `assert` matcher's attempt is no matcher step around its
-              # assertion, whose own step (`Playwright.Test.assert/1`, with its expression and
-              # `expected`) is the attempt's, as upstream's attempt is `toEqual(expected)`'s;
-              # with `assert_steps: false` (no such step) it is the matcher's.
-              if matcher_name == "assert" and assert_steps?(test_info),
-                do: invoke_matcher(matcher_name, %{info | poll: nil, isSoft: false}, matcher, value, args, nil, nil),
-                else: call_matcher_as_step(matcher_name, %{info | poll: nil, isSoft: false}, value, matcher, args)
+              if own_step?,
+                do: invoke_matcher(matcher_name, attempt_info, matcher, value, args, nil, nil),
+                else: call_matcher_as_step(matcher_name, attempt_info, value, matcher, args)
 
               %{continuePolling: false, result: nil}
             catch
               kind, reason ->
                 # Elixir only: a failed `assert/1`'s step, as for a `to_pass` attempt
-                # (`Playwright.Test.__assertion_error__/2`).
+                # (`Playwright.Test.__assertion_error__/2`); another error's, the matcher's.
                 error = {kind, reason, __STACKTRACE__}
-                if matcher_name == "assert", do: Playwright.Test.__assertion_error__(test_info, error)
+
+                if own_step? and !Playwright.Test.__assertion_error__(test_info, error),
+                  do: failed_attempt_step(attempt_info, value, args, error)
+
                 %{continuePolling: true, result: error}
             end
           end
@@ -528,6 +534,19 @@ defmodule Playwright.Matchers.Expect do
   end
 
   # Whether the test records its assertions as steps (`Playwright.Test`'s `assert_steps`).
+  # The matcher's step of a failed `assert` attempt, with its error (raised again, not run again).
+  defp failed_attempt_step(info, value, args, {kind, reason, stacktrace}) do
+    call_matcher_as_step(
+      "assert",
+      info,
+      value,
+      fn _this, _actual, _assertion -> :erlang.raise(kind, reason, stacktrace) end,
+      args
+    )
+  catch
+    _kind, _reason -> :ok
+  end
+
   defp assert_steps?(test_info), do: Map.get(test_info || %{}, :assert_steps, true)
 
   # mergeExpects  -- not ported: expect.extend

@@ -390,6 +390,46 @@ defmodule Playwright.Test.AssertionsTest do
     test_failure(fn -> assert frame == <<0x89, 0xFE>> end)
   end
 
+  test "a poll's attempts are the matcher's with a message, and when a non-assert failure leaves none" do
+    on_trace(fn events ->
+      ids = MapSet.new(befores(events), & &1["callId"])
+      children = fn step -> for %{"parentId" => id} = event <- befores(events), id == step["callId"], do: event end
+      assert [raised, received, messaged] = Enum.reject(befores(events), &MapSet.member?(ids, &1["parentId"]))
+
+      # A raise and an `assert_receive` aren't `assert` steps: a failed attempt is the matcher's.
+      for poll <- [raised, received] do
+        assert poll["title"] == ~s(Expect "poll assert")
+        assert [%{"title" => ~s(Expect "assert")} = failed] = children.(poll)
+        assert after_of(events, failed)["error"]
+      end
+
+      # With a message, each attempt is the matcher's, titled by it; a failed one recorded once.
+      assert messaged["title"] == "count is 2"
+      assert [%{"title" => "count is 2"} = failed, %{"title" => "count is 2"} = passed] = children.(messaged)
+      assert after_of(events, failed)["error"]["message"] =~ "Assertion with == failed"
+      assert children.(failed) == []
+      assert [%{"title" => ~s(Expect "assert")}] = children.(passed)
+      refute after_of(events, passed)["error"]
+    end)
+
+    counter = fn ->
+      {:ok, agent} = Agent.start_link(fn -> 0 end)
+      fn -> Agent.get_and_update(agent, &{&1 + 1, &1 + 1}) end
+    end
+
+    Expect.poll!(counter.(), fn value -> value == 2 or raise "not yet" end, intervals: [0])
+
+    next = counter.()
+
+    Expect.poll!(
+      fn -> with 2 <- next.(), do: send(self(), :ready) end,
+      fn _ -> assert_receive :ready, 0 end,
+      intervals: [0]
+    )
+
+    Expect.poll!(counter.(), &assert(&1 == 2), message: "count is 2", intervals: [0])
+  end
+
   test "a poll's attempt is its assertion's own step, with its expression and expected; none outside a test" do
     on_trace(fn events ->
       poll = before(events, ~s(Expect "poll assert"))
