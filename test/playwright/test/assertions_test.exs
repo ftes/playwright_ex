@@ -439,8 +439,8 @@ defmodule Playwright.Test.AssertionsTest do
       attempts = for %{"parentId" => id} = event <- befores(events), id == poll["callId"], do: event
       assert [failed, passed] = attempts
 
-      # A failed one's expression as ExUnit's error has it.
-      assert failed["params"]["expression"] == "_& == 2"
+      # A failed one's expression as ExUnit's error has it (Elixir 1.18 names the argument `capture`).
+      assert failed["params"]["expression"] in ["_& == 2", "capture == 2"]
       assert passed["params"]["expression"] == "&1 == 2"
 
       for attempt <- attempts do
