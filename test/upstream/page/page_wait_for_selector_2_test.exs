@@ -183,7 +183,7 @@ defmodule Playwright.Page.PageWaitForSelector2Test do
   test "WA-059 should throw for visibility option", %{page: page} do
     Page.set_content!(page, "<section>test</section>")
     # `visibility` is not an option of the facade: it rejects it before the driver does.
-    assert_raise ArgumentError, ~r/unknown option :visibility/, fn ->
+    assert_raise ArgumentError, ~r/unknown option visibility/, fn ->
       Page.wait_for_selector(page, "section", visibility: :hidden)
     end
   end

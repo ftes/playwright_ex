@@ -701,7 +701,7 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
     do: "#{var} = Facade.event!(#{var}, @events, #{inspect(api_name)})"
 
   defp conversion(name, api_name, {_, var, _}),
-    do: "#{var} = Facade.arg!(#{var}, @#{name}_#{var}, #{inspect(api_name)})"
+    do: "#{var} = Facade.arg!(#{var}, @#{name}_#{var}, #{inspect(api_name)}, :#{var})"
 
   defp client_call(class, %{"callback" => %{"call" => call, "event" => event}}, receiver, vars) do
     call_args = [receiver | List.wrap(event && inspect(event))] ++ (vars -- ["action"])
@@ -1157,6 +1157,14 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
 
   defp schema(_ctx, nil, _mode), do: nil
 
+  # An open object (a storage state, cookies, see `Mix.Playwright.ApiRules`): passed as it is, its
+  # keys checked against those of protocol params (`Facade.protocol_type/2` when the module
+  # compiles), which its validator would drop silently. Every one needs them.
+  defp schema(_ctx, %{"protocol" => {params, field}}, _mode), do: {:protocol, params, field}
+
+  defp schema(_ctx, %{"open" => true}, _mode),
+    do: Mix.raise("gen.api: an open object without protocol params (ApiRules.protocol/2, @protocol_params)")
+
   defp schema(ctx, %{"union" => union}, mode) when is_list(union) do
     {literals, others} = Enum.split_with(union, &literal?(&1["name"]))
     literals = for %{"name" => n} <- literals, n not in ["null", "undefined"], uniq: true, do: literal(n)
@@ -1173,9 +1181,6 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
   # A dictionary (`Object<string, ...>`): its keys are data, not checked. api.json can attach the
   # properties of an object value to it (`multipart`).
   defp schema(_ctx, %{"name" => "Object", "templates" => [_, _]}, _mode), do: nil
-
-  # An open object (a storage state, see `Mix.Playwright.ApiRules`): passed as it is.
-  defp schema(_ctx, %{"open" => true}, _mode), do: nil
 
   defp schema(ctx, %{"properties" => props}, _mode) when is_list(props) and props != [] do
     pairs =
@@ -1322,6 +1327,8 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
     fields = for p <- props, do: {p["required"], String.to_atom(p["name"]), type_spec(ctx, p["type"], dir)}
 
     cond do
+      # Passed in: the protocol's keys, atoms or strings (`Playwright.Runtime.Facade`).
+      open? && dir == :nested -> "map()"
       open? -> "%{#{Enum.map_join(fields, ", ", &map_field/1)}, optional(atom()) => term()}"
       Enum.all?(fields, &elem(&1, 0)) -> "%{#{Enum.map_join(fields, ", ", fn {_, k, t} -> "#{key(k)} #{t}" end)}}"
       true -> "%{#{Enum.map_join(fields, ", ", &map_field/1)}}"
@@ -1703,6 +1710,7 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
   # what the VM loaded before.
   defp render({:map, pairs}), do: "%{#{Enum.map_join(pairs, ", ", fn {k, v} -> "#{key(k)} #{render(v)}" end)}}"
 
+  defp render({:protocol, params, field}), do: "Facade.protocol_type(#{inspect(params)}, #{inspect(field)})"
   defp render(tuple) when is_tuple(tuple), do: "{#{tuple |> Tuple.to_list() |> Enum.map_join(", ", &render/1)}}"
   defp render(list) when is_list(list), do: "[#{Enum.map_join(list, ", ", &render/1)}]"
   defp render(term), do: inspect(term)

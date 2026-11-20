@@ -347,7 +347,7 @@ defmodule Playwright.Page do
           add_init_script_options()
         ) :: {:ok, Playwright.Disposable.t()} | {:error, Playwright.error()}
   def add_init_script(%Playwright.Page{} = page, script, arg \\ nil, options \\ []) do
-    script = Facade.arg!(script, @add_init_script_script, "page.addInitScript")
+    script = Facade.arg!(script, @add_init_script_script, "page.addInitScript", :script)
     options = Facade.options!(options, @add_init_script_options, "page.addInitScript")
 
     Facade.async("page.addInitScript", page, fn ->
@@ -363,7 +363,7 @@ defmodule Playwright.Page do
           add_init_script_options()
         ) :: Playwright.Disposable.t()
   def add_init_script!(%Playwright.Page{} = page, script, arg \\ nil, options \\ []) do
-    script = Facade.arg!(script, @add_init_script_script, "page.addInitScript")
+    script = Facade.arg!(script, @add_init_script_script, "page.addInitScript", :script)
     options = Facade.options!(options, @add_init_script_options, "page.addInitScript")
 
     Facade.async!("page.addInitScript", page, fn ->
@@ -1610,7 +1610,7 @@ defmodule Playwright.Page do
             }
         ) :: nil | Playwright.Frame.t()
   def frame(%Playwright.Page{} = page, frame_selector) do
-    frame_selector = Facade.arg!(frame_selector, @frame_frame_selector, "page.frame")
+    frame_selector = Facade.arg!(frame_selector, @frame_frame_selector, "page.frame", :frame_selector)
     Playwright.Client.Page.frame(page, frame_selector)
   end
 
@@ -2149,7 +2149,7 @@ defmodule Playwright.Page do
           get_by_role_options()
         ) :: Playwright.Locator.t()
   def get_by_role(%Playwright.Page{} = page, role, options \\ []) do
-    role = Facade.arg!(role, @get_by_role_role, "page.getByRole")
+    role = Facade.arg!(role, @get_by_role_role, "page.getByRole", :role)
     options = Facade.options!(options, @get_by_role_options, "page.getByRole")
     Playwright.Client.Page.get_by_role(page, role, options)
   end
@@ -4525,7 +4525,7 @@ defmodule Playwright.Page do
           select_option_options()
         ) :: {:ok, [String.t()]} | {:error, Playwright.error()}
   def select_option(%Playwright.Page{} = page, selector, values, options \\ []) do
-    values = Facade.arg!(values, @select_option_values, "page.selectOption")
+    values = Facade.arg!(values, @select_option_values, "page.selectOption", :values)
     options = Facade.options!(options, @select_option_options, "page.selectOption")
 
     Facade.async("page.selectOption", page, fn ->
@@ -4559,7 +4559,7 @@ defmodule Playwright.Page do
           select_option_options()
         ) :: [String.t()]
   def select_option!(%Playwright.Page{} = page, selector, values, options \\ []) do
-    values = Facade.arg!(values, @select_option_values, "page.selectOption")
+    values = Facade.arg!(values, @select_option_values, "page.selectOption", :values)
     options = Facade.options!(options, @select_option_options, "page.selectOption")
 
     Facade.async!("page.selectOption", page, fn ->
@@ -4772,7 +4772,9 @@ defmodule Playwright.Page do
   """
   @spec set_default_navigation_timeout(t(), number() | :infinity) :: :ok
   def set_default_navigation_timeout(%Playwright.Page{} = page, timeout) do
-    timeout = Facade.arg!(timeout, @set_default_navigation_timeout_timeout, "page.setDefaultNavigationTimeout")
+    timeout =
+      Facade.arg!(timeout, @set_default_navigation_timeout_timeout, "page.setDefaultNavigationTimeout", :timeout)
+
     Playwright.Client.Page.set_default_navigation_timeout(page, timeout)
     :ok
   end
@@ -4796,7 +4798,7 @@ defmodule Playwright.Page do
   """
   @spec set_default_timeout(t(), number() | :infinity) :: :ok
   def set_default_timeout(%Playwright.Page{} = page, timeout) do
-    timeout = Facade.arg!(timeout, @set_default_timeout_timeout, "page.setDefaultTimeout")
+    timeout = Facade.arg!(timeout, @set_default_timeout_timeout, "page.setDefaultTimeout", :timeout)
     Playwright.Client.Page.set_default_timeout(page, timeout)
     :ok
   end
@@ -4904,7 +4906,7 @@ defmodule Playwright.Page do
           set_input_files_options()
         ) :: :ok | {:error, Playwright.error()}
   def set_input_files(%Playwright.Page{} = page, selector, files, options \\ []) do
-    files = Facade.arg!(files, @set_input_files_files, "page.setInputFiles")
+    files = Facade.arg!(files, @set_input_files_files, "page.setInputFiles", :files)
     options = Facade.options!(options, @set_input_files_options, "page.setInputFiles")
 
     Facade.async_void("page.setInputFiles", page, fn ->
@@ -4923,7 +4925,7 @@ defmodule Playwright.Page do
           set_input_files_options()
         ) :: :ok
   def set_input_files!(%Playwright.Page{} = page, selector, files, options \\ []) do
-    files = Facade.arg!(files, @set_input_files_files, "page.setInputFiles")
+    files = Facade.arg!(files, @set_input_files_files, "page.setInputFiles", :files)
     options = Facade.options!(options, @set_input_files_options, "page.setInputFiles")
 
     Facade.async_void!("page.setInputFiles", page, fn ->
@@ -4958,7 +4960,7 @@ defmodule Playwright.Page do
   """
   @spec set_viewport_size(t(), %{width: integer(), height: integer()}) :: :ok | {:error, Playwright.error()}
   def set_viewport_size(%Playwright.Page{} = page, viewport_size) do
-    viewport_size = Facade.arg!(viewport_size, @set_viewport_size_viewport_size, "page.setViewportSize")
+    viewport_size = Facade.arg!(viewport_size, @set_viewport_size_viewport_size, "page.setViewportSize", :viewport_size)
 
     Facade.async_void("page.setViewportSize", page, fn ->
       Playwright.Client.Page.set_viewport_size(page, viewport_size)
@@ -4968,7 +4970,7 @@ defmodule Playwright.Page do
   @doc "Like `set_viewport_size/2`, but returns the value and raises on error."
   @spec set_viewport_size!(t(), %{width: integer(), height: integer()}) :: :ok
   def set_viewport_size!(%Playwright.Page{} = page, viewport_size) do
-    viewport_size = Facade.arg!(viewport_size, @set_viewport_size_viewport_size, "page.setViewportSize")
+    viewport_size = Facade.arg!(viewport_size, @set_viewport_size_viewport_size, "page.setViewportSize", :viewport_size)
 
     Facade.async_void!("page.setViewportSize", page, fn ->
       Playwright.Client.Page.set_viewport_size(page, viewport_size)
@@ -5798,7 +5800,7 @@ defmodule Playwright.Page do
       do: wait_for_load_state(page, nil, options)
 
   def wait_for_load_state(%Playwright.Page{} = page, state, options) do
-    state = Facade.arg!(state, @wait_for_load_state_state, "page.waitForLoadState")
+    state = Facade.arg!(state, @wait_for_load_state_state, "page.waitForLoadState", :state)
     options = Facade.options!(options, @wait_for_load_state_options, "page.waitForLoadState")
 
     Facade.async_void("page.waitForLoadState", page, fn ->
@@ -5816,7 +5818,7 @@ defmodule Playwright.Page do
       do: wait_for_load_state!(page, nil, options)
 
   def wait_for_load_state!(%Playwright.Page{} = page, state, options) do
-    state = Facade.arg!(state, @wait_for_load_state_state, "page.waitForLoadState")
+    state = Facade.arg!(state, @wait_for_load_state_state, "page.waitForLoadState", :state)
     options = Facade.options!(options, @wait_for_load_state_options, "page.waitForLoadState")
 
     Facade.async_void!("page.waitForLoadState", page, fn ->

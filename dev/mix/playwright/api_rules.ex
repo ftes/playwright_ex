@@ -20,8 +20,10 @@ defmodule Mix.Playwright.ApiRules do
     * `removeAllListeners(type)` takes an `event`, as `on/3` does (atoms accepted).
     * A storage state (`storageState/1` results, `storageState` options and arguments) is an open
       object (`"open"`): it has more fields than the docs list (`credentials`, IndexedDB), so the
-      facade passes it back unchecked. So are `addCookies(cookies)`: `cookies()` results carry
-      protocol-only fields (`_crHasCrossSiteAncestor`) and must round-trip.
+      facade passes it back as it is. So are `addCookies(cookies)`: `cookies()` results carry
+      protocol-only fields (`_crHasCrossSiteAncestor`) and must round-trip. Their keys are
+      checked against those of protocol params (`"protocol"`, `@protocol_params`), which its
+      validator would drop silently; an open object without them fails the generation.
     * A positional `timeout` is a duration (`"duration"`: `waitForTimeout(timeout)`, no `:infinity`)
       unless its member sets a default timeout (`@timeout_args`: `setDefaultTimeout(timeout)`).
     * Documents the Elixir forms of `timeout` and `signal` (a `Playwright.AbortSignal`), and
@@ -256,6 +258,19 @@ defmodule Mix.Playwright.ApiRules do
   # HTML attribute.
   @prose_keep %{"getByRole" => ~w(disabled)}
 
+  # The protocol params whose keys each member's open objects take (`"protocol"`): those it sends
+  # them in (`newPage` creates a context). `APIRequest.newContext` takes any storage state as JS
+  # does (`SetStorageState` in `fetch.ts`, credentials too, which the validator then drops): the
+  # widest, `setStorageState`'s.
+  @protocol_params %{
+    "APIRequest.newContext" => "BrowserContextSetStorageStateParams",
+    "APIRequestContext.addCookies" => "APIRequestContextAddCookiesParams",
+    "Browser.newContext" => "BrowserNewContextParams",
+    "Browser.newPage" => "BrowserNewContextParams",
+    "BrowserContext.addCookies" => "BrowserContextAddCookiesParams",
+    "BrowserContext.setStorageState" => "BrowserContextSetStorageStateParams"
+  }
+
   # "Class.member.arg" that an overload without it makes optional.
   @optional_args ~w(LocatorAssertions.toHaveAttribute.value)
 
@@ -290,6 +305,7 @@ defmodule Mix.Playwright.ApiRules do
               |> notes("#{class["name"]}.#{member["name"]}")
               |> Map.update("spec", nil, &runner_notes/1)
               |> member("#{class["name"]}.#{member["name"]}" in @dropped_options)
+              |> protocol("#{class["name"]}.#{member["name"]}")
               |> or_options(class_names)
               |> prose("#{class["name"]}.#{member["name"]}")
 
@@ -1159,6 +1175,36 @@ defmodule Mix.Playwright.ApiRules do
         }
       ]
     }
+  end
+
+  # An open object in an argument or option (`cookies`, `storageState`): `"protocol"`, the protocol
+  # params and field whose keys the facade checks (`@protocol_params`).
+  defp protocol(member, name) do
+    %{member | "args" => Enum.map(member["args"], &protocol_arg(&1, name))}
+  end
+
+  defp protocol_arg(%{"name" => "options", "type" => %{"properties" => props} = type} = arg, name),
+    do: %{arg | "type" => %{type | "properties" => Enum.map(props, &protocol_arg(&1, name))}}
+
+  defp protocol_arg(%{"name" => field, "type" => type} = arg, name) when field in ~w(cookies storageState),
+    do: %{arg | "type" => Map.put(type, "protocol", protocol_params!(name, String.to_atom(field)))}
+
+  defp protocol_arg(arg, _name), do: arg
+
+  defp protocol_params!(name, field) do
+    params =
+      @protocol_params[name] ||
+        Mix.raise("ApiRules: #{name} takes an open #{field}, add its params to @protocol_params")
+
+    case Playwright.Protocol.Validator.scheme(params) do
+      {:object, fields} ->
+        if Keyword.has_key?(fields, field),
+          do: {params, field},
+          else: Mix.raise("ApiRules: #{params} has no #{field} (@protocol_params, #{name})")
+
+      _ ->
+        Mix.raise("ApiRules: no protocol params #{params} (@protocol_params, #{name})")
+    end
   end
 
   # Nested objects too (an origin has `indexedDB`).

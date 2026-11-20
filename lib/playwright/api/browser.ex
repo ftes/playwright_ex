@@ -218,7 +218,8 @@ defmodule Playwright.Browser do
                             {:reducedMotion, {:enum, %{reduce: "reduce", no_preference: "no-preference"}}},
                           screen: {:screen, {:fields, %{width: nil, height: nil}}},
                           service_workers: {:serviceWorkers, {:enum, %{allow: "allow", block: "block"}}},
-                          storage_state: {:storageState, nil},
+                          storage_state:
+                            {:storageState, Facade.protocol_type("BrowserNewContextParams", :storageState)},
                           strict_selectors: {:strictSelectors, nil},
                           timezone_id: {:timezoneId, nil},
                           user_agent: {:userAgent, nil},
@@ -313,33 +314,7 @@ defmodule Playwright.Browser do
             reduced_motion: :null | :reduce | :no_preference,
             screen: %{width: integer(), height: integer()},
             service_workers: :allow | :block,
-            storage_state:
-              String.t()
-              | %{
-                  required(:cookies) => [
-                    %{
-                      required(:name) => String.t(),
-                      required(:value) => String.t(),
-                      required(:domain) => String.t(),
-                      required(:path) => String.t(),
-                      required(:expires) => number(),
-                      required(:httpOnly) => boolean(),
-                      required(:secure) => boolean(),
-                      required(:sameSite) => String.t(),
-                      optional(atom()) => term()
-                    }
-                  ],
-                  required(:origins) => [
-                    %{
-                      required(:origin) => String.t(),
-                      required(:localStorage) => [
-                        %{required(:name) => String.t(), required(:value) => String.t(), optional(atom()) => term()}
-                      ],
-                      optional(atom()) => term()
-                    }
-                  ],
-                  optional(atom()) => term()
-                },
+            storage_state: String.t() | map(),
             strict_selectors: boolean(),
             timezone_id: String.t(),
             user_agent: String.t(),
@@ -431,33 +406,7 @@ defmodule Playwright.Browser do
               optional(:reduced_motion) => :null | :reduce | :no_preference,
               optional(:screen) => %{width: integer(), height: integer()},
               optional(:service_workers) => :allow | :block,
-              optional(:storage_state) =>
-                String.t()
-                | %{
-                    required(:cookies) => [
-                      %{
-                        required(:name) => String.t(),
-                        required(:value) => String.t(),
-                        required(:domain) => String.t(),
-                        required(:path) => String.t(),
-                        required(:expires) => number(),
-                        required(:httpOnly) => boolean(),
-                        required(:secure) => boolean(),
-                        required(:sameSite) => String.t(),
-                        optional(atom()) => term()
-                      }
-                    ],
-                    required(:origins) => [
-                      %{
-                        required(:origin) => String.t(),
-                        required(:localStorage) => [
-                          %{required(:name) => String.t(), required(:value) => String.t(), optional(atom()) => term()}
-                        ],
-                        optional(atom()) => term()
-                      }
-                    ],
-                    optional(atom()) => term()
-                  },
+              optional(:storage_state) => String.t() | map(),
               optional(:strict_selectors) => boolean(),
               optional(:timezone_id) => String.t(),
               optional(:user_agent) => String.t(),
@@ -708,7 +657,7 @@ defmodule Playwright.Browser do
                        reduced_motion: {:reducedMotion, {:enum, %{reduce: "reduce", no_preference: "no-preference"}}},
                        screen: {:screen, {:fields, %{width: nil, height: nil}}},
                        service_workers: {:serviceWorkers, {:enum, %{allow: "allow", block: "block"}}},
-                       storage_state: {:storageState, nil},
+                       storage_state: {:storageState, Facade.protocol_type("BrowserNewContextParams", :storageState)},
                        strict_selectors: {:strictSelectors, nil},
                        timezone_id: {:timezoneId, nil},
                        user_agent: {:userAgent, nil},
@@ -803,33 +752,7 @@ defmodule Playwright.Browser do
             reduced_motion: :null | :reduce | :no_preference,
             screen: %{width: integer(), height: integer()},
             service_workers: :allow | :block,
-            storage_state:
-              String.t()
-              | %{
-                  required(:cookies) => [
-                    %{
-                      required(:name) => String.t(),
-                      required(:value) => String.t(),
-                      required(:domain) => String.t(),
-                      required(:path) => String.t(),
-                      required(:expires) => number(),
-                      required(:httpOnly) => boolean(),
-                      required(:secure) => boolean(),
-                      required(:sameSite) => String.t(),
-                      optional(atom()) => term()
-                    }
-                  ],
-                  required(:origins) => [
-                    %{
-                      required(:origin) => String.t(),
-                      required(:localStorage) => [
-                        %{required(:name) => String.t(), required(:value) => String.t(), optional(atom()) => term()}
-                      ],
-                      optional(atom()) => term()
-                    }
-                  ],
-                  optional(atom()) => term()
-                },
+            storage_state: String.t() | map(),
             strict_selectors: boolean(),
             timezone_id: String.t(),
             user_agent: String.t(),
@@ -921,33 +844,7 @@ defmodule Playwright.Browser do
               optional(:reduced_motion) => :null | :reduce | :no_preference,
               optional(:screen) => %{width: integer(), height: integer()},
               optional(:service_workers) => :allow | :block,
-              optional(:storage_state) =>
-                String.t()
-                | %{
-                    required(:cookies) => [
-                      %{
-                        required(:name) => String.t(),
-                        required(:value) => String.t(),
-                        required(:domain) => String.t(),
-                        required(:path) => String.t(),
-                        required(:expires) => number(),
-                        required(:httpOnly) => boolean(),
-                        required(:secure) => boolean(),
-                        required(:sameSite) => String.t(),
-                        optional(atom()) => term()
-                      }
-                    ],
-                    required(:origins) => [
-                      %{
-                        required(:origin) => String.t(),
-                        required(:localStorage) => [
-                          %{required(:name) => String.t(), required(:value) => String.t(), optional(atom()) => term()}
-                        ],
-                        optional(atom()) => term()
-                      }
-                    ],
-                    optional(atom()) => term()
-                  },
+              optional(:storage_state) => String.t() | map(),
               optional(:strict_selectors) => boolean(),
               optional(:timezone_id) => String.t(),
               optional(:user_agent) => String.t(),
@@ -1669,36 +1566,7 @@ defmodule Playwright.Browser do
         type_doc: "`t:String.t/0` | `t:map/0`",
         doc: "Learn more about [storage state and auth](https://playwright.dev/docs/auth).",
         since: nil,
-        spec:
-          quote(
-            do:
-              String.t()
-              | %{
-                  required(:cookies) => [
-                    %{
-                      required(:name) => String.t(),
-                      required(:value) => String.t(),
-                      required(:domain) => String.t(),
-                      required(:path) => String.t(),
-                      required(:expires) => number(),
-                      required(:httpOnly) => boolean(),
-                      required(:secure) => boolean(),
-                      required(:sameSite) => String.t(),
-                      optional(atom()) => term()
-                    }
-                  ],
-                  required(:origins) => [
-                    %{
-                      required(:origin) => String.t(),
-                      required(:localStorage) => [
-                        %{required(:name) => String.t(), required(:value) => String.t(), optional(atom()) => term()}
-                      ],
-                      optional(atom()) => term()
-                    }
-                  ],
-                  optional(atom()) => term()
-                }
-          )
+        spec: quote(do: String.t() | map())
       },
       strict_selectors: %{
         type_doc: "`t:boolean/0`",
@@ -1986,36 +1854,7 @@ defmodule Playwright.Browser do
         type_doc: "`t:String.t/0` | `t:map/0`",
         doc: "Learn more about [storage state and auth](https://playwright.dev/docs/auth).",
         since: nil,
-        spec:
-          quote(
-            do:
-              String.t()
-              | %{
-                  required(:cookies) => [
-                    %{
-                      required(:name) => String.t(),
-                      required(:value) => String.t(),
-                      required(:domain) => String.t(),
-                      required(:path) => String.t(),
-                      required(:expires) => number(),
-                      required(:httpOnly) => boolean(),
-                      required(:secure) => boolean(),
-                      required(:sameSite) => String.t(),
-                      optional(atom()) => term()
-                    }
-                  ],
-                  required(:origins) => [
-                    %{
-                      required(:origin) => String.t(),
-                      required(:localStorage) => [
-                        %{required(:name) => String.t(), required(:value) => String.t(), optional(atom()) => term()}
-                      ],
-                      optional(atom()) => term()
-                    }
-                  ],
-                  optional(atom()) => term()
-                }
-          )
+        spec: quote(do: String.t() | map())
       },
       strict_selectors: %{
         type_doc: "`t:boolean/0`",

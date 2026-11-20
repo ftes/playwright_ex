@@ -40,6 +40,8 @@ defmodule Playwright.APIRequestContext do
   @doc false
   def __client__(_this), do: Playwright.Client.APIRequestContext
 
+  @add_cookies_cookies Facade.protocol_type("APIRequestContextAddCookiesParams", :cookies)
+
   @doc ~S"""
   Adds cookies into this request context. They will be sent with matching subsequent requests. For `Playwright.BrowserContext.request/1`
   and `Playwright.Page.request/1`, this is equivalent to calling `Playwright.BrowserContext.add_cookies/2` on the corresponding browser context.
@@ -66,44 +68,20 @@ defmodule Playwright.APIRequestContext do
     * `:sameSite` - Optional.
     * `:partitionKey` - For partitioned third-party cookies (aka [CHIPS](https://developer.mozilla.org/en-US/docs/Web/Privacy/Guides/Privacy_sandbox/Partitioned_cookies)), the partition key. Optional.
   """
-  @spec add_cookies(t(), [
-          %{
-            required(:name) => String.t(),
-            required(:value) => String.t(),
-            optional(:url) => String.t(),
-            optional(:domain) => String.t(),
-            optional(:path) => String.t(),
-            optional(:expires) => number(),
-            optional(:httpOnly) => boolean(),
-            optional(:secure) => boolean(),
-            optional(:sameSite) => String.t(),
-            optional(:partitionKey) => String.t(),
-            optional(atom()) => term()
-          }
-        ]) :: :ok | {:error, Playwright.error()}
+  @spec add_cookies(t(), [map()]) :: :ok | {:error, Playwright.error()}
   def add_cookies(%Playwright.APIRequestContext{} = api_request_context, cookies) do
+    cookies = Facade.arg!(cookies, @add_cookies_cookies, "apiRequestContext.addCookies", :cookies)
+
     Facade.async_void("apiRequestContext.addCookies", api_request_context, fn ->
       Playwright.Client.APIRequestContext.add_cookies(api_request_context, cookies)
     end)
   end
 
   @doc "Like `add_cookies/2`, but returns the value and raises on error."
-  @spec add_cookies!(t(), [
-          %{
-            required(:name) => String.t(),
-            required(:value) => String.t(),
-            optional(:url) => String.t(),
-            optional(:domain) => String.t(),
-            optional(:path) => String.t(),
-            optional(:expires) => number(),
-            optional(:httpOnly) => boolean(),
-            optional(:secure) => boolean(),
-            optional(:sameSite) => String.t(),
-            optional(:partitionKey) => String.t(),
-            optional(atom()) => term()
-          }
-        ]) :: :ok
+  @spec add_cookies!(t(), [map()]) :: :ok
   def add_cookies!(%Playwright.APIRequestContext{} = api_request_context, cookies) do
+    cookies = Facade.arg!(cookies, @add_cookies_cookies, "apiRequestContext.addCookies", :cookies)
+
     Facade.async_void!("apiRequestContext.addCookies", api_request_context, fn ->
       Playwright.Client.APIRequestContext.add_cookies(api_request_context, cookies)
     end)

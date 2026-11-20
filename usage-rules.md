@@ -38,7 +38,7 @@ Expect.to_have_text!(Page.get_by_role(page, :status), "Welcome")
 - Use bang forms in scripts and tests, tuple forms where failure is an expected outcome.
 - A call JS does not await returns a plain value and has no bang form: `Page.url/1`, `Page.locator/3`, `Page.get_by_role/3`, `Locator.filter/2`.
 - Options come last, as a keyword list or map with snake_case keys: `Page.screenshot!(page, path: "a.png", full_page: true)`. Unknown keys raise `ArgumentError` from both forms.
-- Nested option values are maps with the JS keys: `viewport: %{width: 1280, height: 720}`, `%{sameSite: "Lax"}`.
+- Nested option values and object arguments are maps with the JS keys, unknown ones raise too: `viewport: %{width: 1280, height: 720}`, `add_cookies!(context, [%{name: "a", value: "b", url: url, httpOnly: true}])`.
 - String enums are atoms (`:no_preference`). `nil` is JS `undefined`, `:null` is JS `null`, also in `evaluate` results. A call returning JS `X | null` returns `nil` (`Locator.get_attribute!/2` of a missing attribute).
 - `JSON.encode!/1` turns `:null` into `"null"`: pass such terms to the page as an `evaluate` argument (`:null` arrives as `null`), and `JSON.stringify` there if it needs a string.
 - Strings are literal text or URL globs; use `~r//` for a pattern.

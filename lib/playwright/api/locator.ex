@@ -1190,7 +1190,7 @@ defmodule Playwright.Locator do
           drop_options()
         ) :: :ok | {:error, Playwright.error()}
   def drop(%Playwright.Locator{} = locator, payload, options \\ []) do
-    payload = Facade.arg!(payload, @drop_payload, "locator.drop")
+    payload = Facade.arg!(payload, @drop_payload, "locator.drop", :payload)
     options = Facade.options!(options, @drop_options, "locator.drop")
     Facade.async_void("locator.drop", locator, fn -> Playwright.Client.Locator.drop(locator, payload, options) end)
   end
@@ -1209,7 +1209,7 @@ defmodule Playwright.Locator do
           drop_options()
         ) :: :ok
   def drop!(%Playwright.Locator{} = locator, payload, options \\ []) do
-    payload = Facade.arg!(payload, @drop_payload, "locator.drop")
+    payload = Facade.arg!(payload, @drop_payload, "locator.drop", :payload)
     options = Facade.options!(options, @drop_options, "locator.drop")
     Facade.async_void!("locator.drop", locator, fn -> Playwright.Client.Locator.drop(locator, payload, options) end)
   end
@@ -2143,7 +2143,7 @@ defmodule Playwright.Locator do
           get_by_role_options()
         ) :: Playwright.Locator.t()
   def get_by_role(%Playwright.Locator{} = locator, role, options \\ []) do
-    role = Facade.arg!(role, @get_by_role_role, "locator.getByRole")
+    role = Facade.arg!(role, @get_by_role_role, "locator.getByRole", :role)
     options = Facade.options!(options, @get_by_role_options, "locator.getByRole")
     Playwright.Client.Locator.get_by_role(locator, role, options)
   end
@@ -3456,7 +3456,7 @@ defmodule Playwright.Locator do
           select_option_options()
         ) :: {:ok, [String.t()]} | {:error, Playwright.error()}
   def select_option(%Playwright.Locator{} = locator, values, options \\ []) do
-    values = Facade.arg!(values, @select_option_values, "locator.selectOption")
+    values = Facade.arg!(values, @select_option_values, "locator.selectOption", :values)
     options = Facade.options!(options, @select_option_options, "locator.selectOption")
 
     Facade.async("locator.selectOption", locator, fn ->
@@ -3489,7 +3489,7 @@ defmodule Playwright.Locator do
           select_option_options()
         ) :: [String.t()]
   def select_option!(%Playwright.Locator{} = locator, values, options \\ []) do
-    values = Facade.arg!(values, @select_option_values, "locator.selectOption")
+    values = Facade.arg!(values, @select_option_values, "locator.selectOption", :values)
     options = Facade.options!(options, @select_option_options, "locator.selectOption")
 
     Facade.async!("locator.selectOption", locator, fn ->
@@ -3727,7 +3727,7 @@ defmodule Playwright.Locator do
           set_input_files_options()
         ) :: :ok | {:error, Playwright.error()}
   def set_input_files(%Playwright.Locator{} = locator, files, options \\ []) do
-    files = Facade.arg!(files, @set_input_files_files, "locator.setInputFiles")
+    files = Facade.arg!(files, @set_input_files_files, "locator.setInputFiles", :files)
     options = Facade.options!(options, @set_input_files_options, "locator.setInputFiles")
 
     Facade.async_void("locator.setInputFiles", locator, fn ->
@@ -3745,7 +3745,7 @@ defmodule Playwright.Locator do
           set_input_files_options()
         ) :: :ok
   def set_input_files!(%Playwright.Locator{} = locator, files, options \\ []) do
-    files = Facade.arg!(files, @set_input_files_files, "locator.setInputFiles")
+    files = Facade.arg!(files, @set_input_files_files, "locator.setInputFiles", :files)
     options = Facade.options!(options, @set_input_files_options, "locator.setInputFiles")
 
     Facade.async_void!("locator.setInputFiles", locator, fn ->

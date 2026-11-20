@@ -55,7 +55,8 @@ defmodule Playwright.APIRequest do
                           ignore_https_errors: {:ignoreHTTPSErrors, nil},
                           max_redirects: {:maxRedirects, nil},
                           proxy: {:proxy, {:fields, %{server: nil, bypass: nil, username: nil, password: nil}}},
-                          storage_state: {:storageState, nil},
+                          storage_state:
+                            {:storageState, Facade.protocol_type("BrowserContextSetStorageStateParams", :storageState)},
                           timeout: {:timeout, nil},
                           user_agent: {:userAgent, nil}
                         }}
@@ -101,33 +102,7 @@ defmodule Playwright.APIRequest do
               optional(:username) => String.t(),
               optional(:password) => String.t()
             },
-            storage_state:
-              String.t()
-              | %{
-                  required(:cookies) => [
-                    %{
-                      required(:name) => String.t(),
-                      required(:value) => String.t(),
-                      required(:domain) => String.t(),
-                      required(:path) => String.t(),
-                      required(:expires) => number(),
-                      required(:httpOnly) => boolean(),
-                      required(:secure) => boolean(),
-                      required(:sameSite) => String.t(),
-                      optional(atom()) => term()
-                    }
-                  ],
-                  required(:origins) => [
-                    %{
-                      required(:origin) => String.t(),
-                      required(:localStorage) => [
-                        %{required(:name) => String.t(), required(:value) => String.t(), optional(atom()) => term()}
-                      ],
-                      optional(atom()) => term()
-                    }
-                  ],
-                  optional(atom()) => term()
-                },
+            storage_state: String.t() | map(),
             timeout: number() | :infinity,
             user_agent: String.t()
           ]
@@ -170,33 +145,7 @@ defmodule Playwright.APIRequest do
                 optional(:username) => String.t(),
                 optional(:password) => String.t()
               },
-              optional(:storage_state) =>
-                String.t()
-                | %{
-                    required(:cookies) => [
-                      %{
-                        required(:name) => String.t(),
-                        required(:value) => String.t(),
-                        required(:domain) => String.t(),
-                        required(:path) => String.t(),
-                        required(:expires) => number(),
-                        required(:httpOnly) => boolean(),
-                        required(:secure) => boolean(),
-                        required(:sameSite) => String.t(),
-                        optional(atom()) => term()
-                      }
-                    ],
-                    required(:origins) => [
-                      %{
-                        required(:origin) => String.t(),
-                        required(:localStorage) => [
-                          %{required(:name) => String.t(), required(:value) => String.t(), optional(atom()) => term()}
-                        ],
-                        optional(atom()) => term()
-                      }
-                    ],
-                    optional(atom()) => term()
-                  },
+              optional(:storage_state) => String.t() | map(),
               optional(:timeout) => number() | :infinity,
               optional(:user_agent) => String.t()
             }
@@ -409,36 +358,7 @@ defmodule Playwright.APIRequest do
         doc:
           "Populates context with given storage state. This option can be used to initialize context with logged-in information obtained via `Playwright.BrowserContext.storage_state/2` or `Playwright.APIRequestContext.storage_state/2`. Either a path to the file with saved storage, or the value returned by one of `Playwright.BrowserContext.storage_state/2` or `Playwright.APIRequestContext.storage_state/2` methods.",
         since: nil,
-        spec:
-          quote(
-            do:
-              String.t()
-              | %{
-                  required(:cookies) => [
-                    %{
-                      required(:name) => String.t(),
-                      required(:value) => String.t(),
-                      required(:domain) => String.t(),
-                      required(:path) => String.t(),
-                      required(:expires) => number(),
-                      required(:httpOnly) => boolean(),
-                      required(:secure) => boolean(),
-                      required(:sameSite) => String.t(),
-                      optional(atom()) => term()
-                    }
-                  ],
-                  required(:origins) => [
-                    %{
-                      required(:origin) => String.t(),
-                      required(:localStorage) => [
-                        %{required(:name) => String.t(), required(:value) => String.t(), optional(atom()) => term()}
-                      ],
-                      optional(atom()) => term()
-                    }
-                  ],
-                  optional(atom()) => term()
-                }
-          )
+        spec: quote(do: String.t() | map())
       },
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",

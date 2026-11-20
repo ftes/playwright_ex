@@ -119,7 +119,7 @@ defmodule Playwright.Debugger do
   @spec run_to(t(), %{required(:file) => String.t(), optional(:line) => integer(), optional(:column) => integer()}) ::
           :ok | {:error, Playwright.error()}
   def run_to(%Playwright.Debugger{} = debugger, location) do
-    location = Facade.arg!(location, @run_to_location, "debugger.runTo")
+    location = Facade.arg!(location, @run_to_location, "debugger.runTo", :location)
     Facade.async_void("debugger.runTo", debugger, fn -> Playwright.Client.Debugger.run_to(debugger, location) end)
   end
 
@@ -127,7 +127,7 @@ defmodule Playwright.Debugger do
   @spec run_to!(t(), %{required(:file) => String.t(), optional(:line) => integer(), optional(:column) => integer()}) ::
           :ok
   def run_to!(%Playwright.Debugger{} = debugger, location) do
-    location = Facade.arg!(location, @run_to_location, "debugger.runTo")
+    location = Facade.arg!(location, @run_to_location, "debugger.runTo", :location)
     Facade.async_void!("debugger.runTo", debugger, fn -> Playwright.Client.Debugger.run_to(debugger, location) end)
   end
 

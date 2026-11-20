@@ -133,8 +133,8 @@ defmodule Playwright.Test.ContextOptionsTest do
     # Against the facade's types of `Browser.new_context/2`'s options, as that call checks them.
     values = [
       {"color_scheme: :purple",
-       "invalid value :purple for :color_scheme, expected one of :dark, :light, :no_preference"},
-      {"color_scheme: :purple", "invalid value :purple for :color_scheme, expected one of"},
+       "invalid value :purple for color_scheme, expected one of :dark, :light, :no_preference"},
+      {"color_scheme: :purple", "invalid value :purple for color_scheme, expected one of"},
       {"viewport: %{wide: 1}", "wide"},
       {"video: :sometimes", "invalid video: :sometimes"},
       {"action_timeout: -1", "invalid action_timeout: -1"},
