@@ -13,6 +13,7 @@ defmodule Playwright.Library.VideoTest do
   alias Playwright.BrowserType
   alias Playwright.Client.ChannelOwner
   alias Playwright.Page
+  alias Playwright.Promise
   alias Playwright.Runtime
   alias Playwright.Runtime.Facade
   alias Playwright.TestServer
@@ -289,10 +290,11 @@ defmodule Playwright.Library.VideoTest do
       popup = Page.expect_popup!(page, fn -> Page.evaluate!(page, "() => { window.open('about:blank'); }") end)
       Page.evaluate!(popup, "() => document.body.style.backgroundColor = 'red'")
 
-      Task.await_many(
-        [Task.async(fn -> ensure_some_frames(page) end), Task.async(fn -> ensure_some_frames(popup) end)],
-        :infinity
-      )
+      Promise.all([
+        Promise.async(fn -> ensure_some_frames(page) end),
+        Promise.async(fn -> ensure_some_frames(popup) end)
+      ])
+      |> Promise.await!()
 
       BrowserContext.close!(context)
 

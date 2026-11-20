@@ -12,6 +12,7 @@ defmodule Playwright.Library.PermissionsTest do
   alias Playwright.BrowserType
   alias Playwright.Frame
   alias Playwright.Page
+  alias Playwright.Promise
   alias Playwright.Request
   alias Playwright.Route
   alias Playwright.TestServer
@@ -243,7 +244,7 @@ defmodule Playwright.Library.PermissionsTest do
     [page1, page2] =
       [browser1, browser2]
       |> Enum.map(fn browser ->
-        Task.async(fn ->
+        Promise.async(fn ->
           context = Browser.new_context!(browser)
           # There is no 'clipboard-write' permission in WebKit Web API and no clipboard permission at all in Firefox.
           cond do
@@ -262,7 +263,8 @@ defmodule Playwright.Library.PermissionsTest do
           page
         end)
       end)
-      |> Task.await_many(:infinity)
+      |> Promise.all()
+      |> Promise.await!()
 
     Page.evaluate!(page1, "() => navigator.clipboard.writeText('first')")
     assert Page.evaluate!(page1, "() => navigator.clipboard.readText()") == "first"
@@ -272,7 +274,10 @@ defmodule Playwright.Library.PermissionsTest do
 
     assert Page.evaluate!(page1, "() => navigator.clipboard.readText()") == "first"
 
-    [browser1, browser2] |> Enum.map(&Task.async(fn -> Browser.close!(&1) end)) |> Task.await_many(:infinity)
+    [browser1, browser2]
+    |> Enum.map(&Promise.async(fn -> Browser.close!(&1) end))
+    |> Promise.all()
+    |> Promise.await!()
   end
 
   @tag skip: if(@browser_name != "chromium", do: "upstream skip: chromium-only api")

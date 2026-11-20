@@ -601,7 +601,12 @@ defmodule Playwright.Library.Chromium.ConnectOverCdpTest do
     assert is_print.(page1) == true
     browser2 = BrowserType.connect_over_cdp!(browser_type, "http://localhost:#{port}", no_defaults: true)
     assert is_print.(page1) == true
-    [browser1, browser2] |> Enum.map(&Task.async(fn -> Browser.close!(&1) end)) |> Task.await_many(:infinity)
+
+    [browser1, browser2]
+    |> Enum.map(&Promise.async(fn -> Browser.close!(&1) end))
+    |> Promise.all()
+    |> Promise.await!()
+
     Browser.close!(browser_server)
   end
 
