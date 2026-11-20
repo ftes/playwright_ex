@@ -111,9 +111,11 @@ retry() {
   return $s
 }
 
+status=0
 for project in "Desktop Chrome" "Desktop Firefox"; do
-  PROJECTS="$project" mix test || { [ $? -eq 2 ] && retry; } || exit 1
+  PROJECTS="$project" mix test || { [ $? -eq 2 ] && retry; } || status=1
 done
+exit $status
 ```
 
 The other retry modes are Playwright Test's too: `:on_all_retries` traces every rerun,
