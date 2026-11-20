@@ -292,7 +292,7 @@ defmodule Playwright.Runtime.Promise do
             barrier
           end
 
-        Invocation.start(caller, inv, barrier)
+        Invocation.start(caller, inv, barrier, !in_conn)
         body.()
       end)
 

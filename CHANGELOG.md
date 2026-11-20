@@ -126,6 +126,9 @@ upstream minor, so `~> 1.65.0` is safe.
 - **RC only:** `get_by_role` and `to_have_role` specs and docs take roles as strings too, also
   those Playwright's `AriaRole` lacks (`"mark"`), as JS does; locator descriptions print those
   as strings, not atoms that raise.
+- **RC only:** `Route.fulfill`, `abort` and `continue` in a route handler have the handler's
+  call site in the trace, which a tail call such as `fn r -> Route.abort!(r) end` doesn't keep
+  (BEAM drops its frame).
 
 ## [1.65.0-rc.2] 2026-11-18
 
@@ -279,7 +282,8 @@ Drives [Playwright 1.65.0](https://github.com/microsoft/playwright/releases/tag/
 - `Playwright.Test`: Playwright Test's runner for ExUnit, with pooled worker browsers
   (`Playwright.Test.BrowserPool`), context defaults, traces, screenshots and videos, steps,
   snapshot paths, soft assertions, timeouts and `info/0`. `Playwright.Case` gives each test a
-  `page`; `Playwright.Test.GitHubFormatter` is the `github` reporter.
+  `page`; `Playwright.Test.GitHubFormatter` is the `github` reporter, on a `mix test --failed`
+  rerun too (flaky tests, `Retry #1`).
 - `Expect.to_pass/2`, `Expect.poll/3`, `Expect.soft/1` and `Expect.message/2`, beside upstream's
   matchers.
 - `mix playwright.install` (`--no-browsers` for the driver only) and `mix playwright.cli`.

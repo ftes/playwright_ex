@@ -9,6 +9,7 @@ defmodule Playwright.Page.LocatorElementHandleTest do
 
   alias Playwright.Locator
   alias Playwright.Page
+  alias Playwright.Promise
 
   @moduletag :page
 
@@ -29,9 +30,9 @@ defmodule Playwright.Page.LocatorElementHandleTest do
     assert length(elements) == 2
 
     tasks =
-      Enum.map(elements, fn element -> Task.async(fn -> Page.evaluate!(page, "e => e.textContent", element) end) end)
+      Enum.map(elements, fn element -> Promise.async(fn -> Page.evaluate!(page, "e => e.textContent", element) end) end)
 
-    assert Task.await_many(tasks, :infinity) == ["A", "B"]
+    assert tasks |> Promise.all() |> Promise.await!() == ["A", "B"]
   end
 
   test "LO-081 should return empty array for non-existing elements", %{page: page} do

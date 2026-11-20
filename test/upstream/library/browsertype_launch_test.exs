@@ -13,6 +13,7 @@ defmodule Playwright.Library.BrowsertypeLaunchTest do
   alias Playwright.BrowserContext
   alias Playwright.BrowserType
   alias Playwright.Page
+  alias Playwright.Promise
   alias Playwright.Runtime
 
   test "BT-004 should reject all promises when browser is closed", %{browser_type: browser_type} do
@@ -85,10 +86,8 @@ defmodule Playwright.Library.BrowsertypeLaunchTest do
   test "BT-016 should be callable twice", %{browser_type: browser_type} do
     browser = BrowserType.launch!(browser_type)
 
-    Task.await_many(
-      [Task.async(fn -> Browser.close!(browser) end), Task.async(fn -> Browser.close!(browser) end)],
-      :infinity
-    )
+    Promise.all([Promise.async(fn -> Browser.close!(browser) end), Promise.async(fn -> Browser.close!(browser) end)])
+    |> Promise.await!()
 
     Browser.close!(browser)
     refute Browser.is_connected(browser)
