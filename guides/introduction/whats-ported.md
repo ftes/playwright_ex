@@ -39,7 +39,7 @@ ExUnit](../testing-with-exunit.md)).
 | fixtures `request`, `baseURL` | ◐ | a line each ([What differs](../porting-playwright-test.md#what-differs)) |
 | custom fixtures (`test.extend`) | n/a | `setup`, case templates; option fixtures are tags |
 | `test.use` | ◐ | values, not functions; a browser or device in a describe or test raises, as upstream ([Test options](../test-options.md)) |
-| projects | ◐ | `parameterize:`; no per-project `outputDir`, `snapshotDir`, `snapshotPathTemplate`, `dependencies` |
+| projects | ◐ | `parameterize:`; a project is a `name` and `use` options only (no `outputDir`, `timeout`, `retries`, `testMatch`, `grep`, `dependencies`, ...) |
 | workers | ◐ | `Playwright.Test.BrowserPool`; no `fullyParallel`, no fresh worker after a failed test |
 | retries | ◐ | `mix test --failed`, which the retry modes go by ([Retries](../test-artifacts.md#retries)) |
 | sharding | n/a | `mix test --partitions` |
@@ -48,7 +48,7 @@ ExUnit](../testing-with-exunit.md)).
 | `test.skip(condition)` inside a test | ✗ | ExUnit can't skip a running test |
 | `test.fail`, annotations | ✗ | |
 | `test.step` | ◐ | `Playwright.Test.step/3`; no step timeout, no `step.attach`, a `setup_all` step is recorded nowhere |
-| `testInfo` | ✓ | `Playwright.Test.info/0`, `attach/2`, `output_path/1`, `snapshot_path/2` |
+| `testInfo` | ◐ | `Playwright.Test.info/0` (`file`, `test_name`, `output_dir`, `retry`, `timeout`, `deadline`, `use`), `info/1` (with the result), `attach/2`, `output_path/1`, `snapshot_path/2`; no `setTimeout`, `skip`, `fail`, `slow`, `fixme`, `annotations`, `project`, `titlePath`, `workerIndex`, `parallelIndex`, `snapshotSuffix` |
 | web-first matchers, `expect.soft`, `expect.poll`, `toPass` | ✓ | `Playwright.Expect`; no `URLPattern` |
 | generic and asymmetric matchers (`toEqual`, `expect.any`, ...), `expect.configure` | ✗ | ExUnit's `assert`; the matchers' own `timeout:` |
 | `expect.extend`, `resolves`, `rejects` | ✗ | |
