@@ -177,7 +177,12 @@ defmodule Playwright.Test.Options do
       do:
         raise(
           ArgumentError,
-          "#{label}: assert_steps must be a literal boolean in a literal keyword list (it is read at compile time)"
+          if(label == "use Playwright.Test",
+            do:
+              "#{label}: assert_steps must be a literal boolean in a literal keyword list (it is read at compile time)",
+            else:
+              "#{label}: assert_steps is an option of use Playwright.Test and config :playwright, :test only (it is read at compile time)"
+          )
         )
 
     {context, opts} = Keyword.split(opts, context_keys())

@@ -11,8 +11,10 @@ defmodule Playwright.Test.Assertions do
       import Playwright.Test.Assertions
 
   (the first line only if it imports `ExUnit.Assertions`). A library with its own `assert/2`
-  imports `Playwright.Test.Assertions, except: [assert: 2, refute: 2]`, and can tell whether a
-  module has these from `Playwright.Test.Assertions` in `__CALLER__.macros`. See "Assertions" in
+  excludes exactly the arities it defines (`import Playwright.Test.Assertions, except: [assert:
+  2]`). ExUnit's `refute match?(...)` calls an unqualified `refute(value, expr: ..., ...)`, so a
+  library's own `refute/2` takes that form too (delegating it to `refute/2` here). It can tell
+  whether a module has these from `Playwright.Test.Assertions` in `__CALLER__.macros`. See "Assertions" in
   `Playwright.Test`.
   """
 

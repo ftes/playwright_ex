@@ -25,7 +25,7 @@ end
 defmodule Playwright.Test.AssertionsTest.OwnAssert do
   # A library with its own `assert/2` imports the rest; `__ENV__.macros` (a macro's
   # `__CALLER__.macros`) tells whether a module has them.
-  import Playwright.Test.Assertions, except: [assert: 2, refute: 2]
+  import Playwright.Test.Assertions, except: [assert: 2]
 
   @steps Keyword.has_key?(__ENV__.macros, Playwright.Test.Assertions)
 
@@ -35,6 +35,8 @@ defmodule Playwright.Test.AssertionsTest.OwnAssert do
 
   def check(value) do
     assert value == :ok
+    # ExUnit's `refute match?` calls `refute/2` unqualified: this module's import's.
+    refute match?({:error, _}, value)
     assert(value, "mine")
   end
 end
@@ -274,8 +276,11 @@ defmodule Playwright.Test.AssertionsTest do
 
   test "a library with its own assert/2 imports the rest: its assert/1 is a step" do
     on_trace(fn events ->
-      assert [%{"params" => %{"expression" => "value == :ok"}}, %{"params" => %{"expression" => "steps?"}}] =
-               befores(events)
+      assert [
+               %{"params" => %{"expression" => "value == :ok"}},
+               %{"title" => ~s(Expect "refute"), "params" => %{"expression" => "match?({:error, _}, value)"}},
+               %{"params" => %{"expression" => "steps?"}}
+             ] = befores(events)
     end)
 
     result = Playwright.Test.AssertionsTest.OwnAssert.check(:ok)
@@ -555,6 +560,38 @@ defmodule Playwright.Test.AssertionsOptOutTest do
     Expect.poll!(fn -> Agent.get_and_update(agent, &{&1 + 1, &1 + 1}) end, &assert(&1 == 2), intervals: [0])
   end
 
+  test "a later use's assert_steps: false wins over an earlier use's, also through a case template's using" do
+    Code.compile_string("""
+    defmodule Playwright.Test.AssertionsOptOutTest.LaterOff do
+      use ExUnit.Case, register: false
+      use Playwright.Test
+      use Playwright.Test, assert_steps: false
+      def import_of_assert, do: unquote(Macro.Env.lookup_import(__ENV__, {:assert, 1}))
+    end
+
+    defmodule Playwright.Test.AssertionsOptOutTest.ForwardingCase do
+      use ExUnit.CaseTemplate
+
+      using opts do
+        quote do
+          use Playwright.Test, trace: :off
+          use Playwright.Test, unquote(opts)
+        end
+      end
+    end
+
+    defmodule Playwright.Test.AssertionsOptOutTest.TemplateOff do
+      use Playwright.Test.AssertionsOptOutTest.ForwardingCase, assert_steps: false, register: false
+      def import_of_assert, do: unquote(Macro.Env.lookup_import(__ENV__, {:assert, 1}))
+    end
+    """)
+
+    for module <- [Playwright.Test.AssertionsOptOutTest.LaterOff, Playwright.Test.AssertionsOptOutTest.TemplateOff] do
+      assert module.import_of_assert() == [macro: ExUnit.Assertions]
+      refute module.__playwright_test__(:assert_steps)
+    end
+  end
+
   test "the option takes a literal boolean, the config a boolean" do
     assert_raise ArgumentError,
                  ~r"^config :playwright, :test: invalid value :yes for assert_steps, expected a boolean",
@@ -578,6 +615,13 @@ defmodule Playwright.Test.AssertionsOptOutTest do
     assert_raise ArgumentError, ~r"^use Playwright.Test: assert_steps must be a literal boolean", fn ->
       Playwright.Test.Options.use_options(assert_steps: false)
     end
+
+    # Neither `use/1` nor `parameters/1` takes it.
+    assert_raise ArgumentError,
+                 ~r"^Playwright.Test.use/1: assert_steps is an option of use Playwright.Test and config",
+                 fn ->
+                   Playwright.Test.use(assert_steps: false)
+                 end
   end
 end
 

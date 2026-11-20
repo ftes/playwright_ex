@@ -61,7 +61,11 @@ upstream minor, so `~> 1.65.0` is safe.
 
 ### Changed
 
-- `Playwright.Test.GitHubFormatter` annotates a `mix test --failed` rerun too, as upstream's
+- **RC only:** **Breaking:** `use Playwright.Test` replaces ExUnit's `assert` and `refute` with
+  `Playwright.Test.Assertions`', so a later `import ExUnit.Assertions` or another library's
+  `assert/2` conflicts with them: opt out with `assert_steps: false`, or import
+  `Playwright.Test.Assertions, except: [...]` beside the library's.
+- **RC only:** `Playwright.Test.GitHubFormatter` annotates a `mix test --failed` rerun too, as upstream's
   `github` reporter annotates every attempt: a test passing there counts as flaky in the rerun's
   summary, and one failing again gets its error under `Retry #1`. Pass it to both runs.
 - **RC only:** **Breaking:** `config :playwright, Playwright.Test.GitHubFormatter,
