@@ -92,6 +92,7 @@ defmodule Playwright.MixProject do
       extras: [
         "README.md": [title: "Overview"],
         "guides/introduction/getting-started.md": [title: "Getting started"],
+        "guides/introduction/whats-ported.md": [title: "What's ported"],
         "guides/introduction/api-conventions.md": [title: "From playwright.dev to Elixir"],
         "guides/introduction/cheatsheet.cheatmd": [title: "Cheatsheet"],
         "guides/testing-with-exunit.md": [title: "Testing with ExUnit"],

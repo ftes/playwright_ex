@@ -25,7 +25,7 @@ to open it after the run: `mix playwright.cli show-trace test-results/.../trace.
 `trace`, `screenshot` and `video` are `:off` by default, as in Playwright Test.
 `:retain_on_failure` (trace, video) and `:only_on_failure` (screenshot) record every test and
 keep the files of failures; a passing test's are dropped at its end. They are options of every
-level ([Options, devices and projects](test-options.md)), as `true`, `false` or a mode:
+level ([Options, devices and projects](test-options.md)), as a mode:
 
 ```elixir
 use Playwright.Case, trace: :retain_on_failure, video: :retain_on_failure
@@ -40,7 +40,8 @@ As in Playwright Test, they take options too, with the mode as `:mode`: `trace: 
 snapshots: false]`, `screenshot: [mode: :only_on_failure, full_page: true]`, `video: [mode: :on,
 size: %{width: 640, height: 480}, fps: 10, show: %{test: %{level: "step"}}]` (`show.test` writes
 the test's title and steps over the video). Each replaces the value under it as a whole; an
-unknown `use` option or an invalid value fails the module's compilation.
+unknown `use` option fails the module's compilation, and an unknown mode records nothing, as
+upstream's.
 
 Files of your own go in the test's dir with `Playwright.Test.output_path("export.csv")`; they
 stay when the test passes. `Playwright.Test.attach("export", path: path)` (or `body:`) also shows
@@ -67,8 +68,8 @@ use Playwright.Test
 
 Tracing slows every test. Playwright Test's answer is to trace only the retry of a failure
 (`on-first-retry`). ExUnit has no retries in a run, but `mix test --failed` is one: under it a
-test is Playwright Test's retry (`Playwright.Test.info().retry` is 1, then 2 on the next
-`--failed`), and the retry modes go by it. So trace only the rerun:
+test is Playwright Test's first retry (`Playwright.Test.info().retry` is 1), and the retry
+modes go by it. So trace only the rerun:
 
 ```elixir
 # config/test.exs

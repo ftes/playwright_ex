@@ -16,6 +16,9 @@ version Playwright's Docker image tag must have (`v1.65.1-noble`).
 For Phoenix feature tests with the Ecto sandbox, use [Fluffy](https://hex.pm/packages/fluffy),
 which is built on this library.
 
+[What's ported](guides/introduction/whats-ported.md) shows which parts of the client and of
+Playwright Test are ported.
+
 ## Installation
 
 ```elixir
@@ -70,6 +73,7 @@ names match Python's: snake_case, keyword options, `expect_popup`, `eval_on_sele
 
 - [Getting started](guides/introduction/getting-started.md): install, the driver, a first script, usage rules
   for coding agents.
+- [What's ported](guides/introduction/whats-ported.md): the client and Playwright Test, at a glance.
 - [From playwright.dev to Elixir](guides/introduction/api-conventions.md): how a JS call reads in
   Elixir.
 - [Cheatsheet](guides/introduction/cheatsheet.cheatmd): frequent calls, JS next to Elixir.
@@ -82,11 +86,6 @@ names match Python's: snake_case, keyword options, `expect_popup`, `eval_on_sele
 - [Concurrency](guides/concurrency.md): listeners, promises and processes.
 
 Feedback of any shape and size is welcome: [get in touch](https://ftes.de).
-
-## Known gaps
-
-See [Not supported](guides/porting-playwright-test.md#not-supported) in the Porting Playwright
-Test specs guide.
 
 ## Contributing
 

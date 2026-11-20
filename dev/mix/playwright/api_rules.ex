@@ -260,10 +260,10 @@ defmodule Mix.Playwright.ApiRules do
 
   # The protocol params whose keys each member's open objects take (`"protocol"`): those it sends
   # them in (`newPage` creates a context). `APIRequest.newContext` takes any storage state as JS
-  # does (`SetStorageState` in `fetch.ts`, credentials too, which the validator then drops): the
-  # widest, `setStorageState`'s.
+  # does (`SetStorageState` in `fetch.ts`): the widest, `setStorageState`'s, its `credentials`
+  # unchecked, as `PlaywrightNewRequestParams`' validator drops them unread.
   @protocol_params %{
-    "APIRequest.newContext" => "BrowserContextSetStorageStateParams",
+    "APIRequest.newContext" => {"BrowserContextSetStorageStateParams", [:credentials]},
     "APIRequestContext.addCookies" => "APIRequestContextAddCookiesParams",
     "Browser.newContext" => "BrowserNewContextParams",
     "Browser.newPage" => "BrowserNewContextParams",
@@ -1192,14 +1192,17 @@ defmodule Mix.Playwright.ApiRules do
   defp protocol_arg(arg, _name), do: arg
 
   defp protocol_params!(name, field) do
-    params =
-      @protocol_params[name] ||
-        Mix.raise("ApiRules: #{name} takes an open #{field}, add its params to @protocol_params")
+    {params, unchecked} =
+      case @protocol_params[name] do
+        nil -> Mix.raise("ApiRules: #{name} takes an open #{field}, add its params to @protocol_params")
+        {params, unchecked} -> {params, unchecked}
+        params -> {params, []}
+      end
 
     case Playwright.Protocol.Validator.scheme(params) do
       {:object, fields} ->
         if Keyword.has_key?(fields, field),
-          do: {params, field},
+          do: {params, field, unchecked},
           else: Mix.raise("ApiRules: #{params} has no #{field} (@protocol_params, #{name})")
 
       _ ->

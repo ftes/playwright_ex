@@ -4,11 +4,11 @@ defmodule Playwright.Test.SetupAllInfoTest do
   # test's. Sync, so the config set here reaches no other module.
   use ExUnit.Case,
     async: false,
-    parameterize: [Playwright.Test.parameters(locale: "fr-FR", base_url: "http://project.test")]
+    parameterize: [Playwright.Test.parameters(name: "French", locale: "fr-FR", base_url: "http://project.test")]
 
   alias Playwright.Test
 
-  @test_keys [:test_pid, :test_name, :output_dir, :retry, :deadline, :close_deadline]
+  @test_keys [:test_pid, :test_name, :output_dir, :retry, :deadline]
 
   # Before `use Playwright.Test`, whose `setup_all` reads the config.
   setup_all do
@@ -52,9 +52,12 @@ defmodule Playwright.Test.SetupAllInfoTest do
         end)
       )
 
+    {:module, module} = Playwright.Test.Recorder.scope()
+
     %{
       setup_all: %{
         info: Test.info(),
+        project_name: module.project_name,
         scope?: Test.in_registered_scope?(),
         task: in_task,
         output_path: raised.(fn -> Test.output_path("x.txt") end),
@@ -89,6 +92,10 @@ defmodule Playwright.Test.SetupAllInfoTest do
     assert info.use.browser_name == String.to_existing_atom(Playwright.TestBrowser.name())
   end
 
+  test "the project's name is setup_all's testInfo.project.name", %{setup_all: setup_all} do
+    assert setup_all.project_name == "French"
+  end
+
   test "info: in a Task of setup_all, the same", %{setup_all: setup_all} do
     assert setup_all.task.info == setup_all.info
     assert setup_all.task.scope?
@@ -109,13 +116,13 @@ defmodule Playwright.Test.SetupAllInfoTest do
   end
 
   test "the test's own functions raise in setup_all", %{setup_all: setup_all} do
-    assert "Playwright.Test.output_path/1: no test running, expected a call from a test of a module" <> _ =
+    assert "Playwright.Test.output_path/1 can only be called while test is running" =
              setup_all.output_path
 
-    assert "Playwright.Test.snapshot_path/2: no test running, expected a call from a test of a module" <> _ =
+    assert "Playwright.Test.snapshot_path/2 can only be called while test is running" =
              setup_all.snapshot_path
 
-    assert "Playwright.Test.attach/2: no test running, expected a call from a test of a module" <> _ =
+    assert "Playwright.Test.attach/2 can only be called while test is running" =
              setup_all.attach
   end
 
@@ -139,7 +146,9 @@ defmodule Playwright.Test.SetupAllInfoTest.Unregistered do
   test "info raises in setup_all without use Playwright.Test", ctx do
     refute ctx.scope?
 
-    assert %RuntimeError{message: "Playwright.Test.info/0: no test or setup_all running" <> _} =
+    assert %RuntimeError{
+             message: "Playwright.Test.info/0 can only be called while test or its module's setup_all is running"
+           } =
              ctx.raised
   end
 end

@@ -23,7 +23,7 @@ defmodule Mix.Tasks.Playwright.Install do
     * `:executable`, `:node` - the CLI, or the Node binary, that installs the browsers. The pinned
       driver is downloaded all the same.
 
-  `HTTPS_PROXY` and `HTTP_PROXY` set the proxy for the driver download.
+  `HTTPS_PROXY` (else `https_proxy`) sets the proxy for the driver download.
 
   The Playwright CLI reads its own: `PLAYWRIGHT_BROWSERS_PATH` (where browsers go),
   `PLAYWRIGHT_DOWNLOAD_HOST`, `HTTPS_PROXY`, ...

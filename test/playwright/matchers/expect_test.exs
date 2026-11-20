@@ -43,9 +43,14 @@ defmodule Playwright.Matchers.ExpectTest do
                    Expect.app_env_expect_config(to_have_screenshot: [mask: []])
                  end
 
+    # Only the screenshot's type is checked, as upstream's validateProject.
     assert_raise ArgumentError,
-                 "config :playwright, :expect, :to_match_aria_snapshot: invalid value :all for children, expected one of :contain, :equal, :deep_equal",
-                 fn -> Expect.app_env_expect_config(to_match_aria_snapshot: [children: :all]) end
+                 "config :playwright, :expect, :to_have_screenshot: invalid value :gif for type, expected one of :png, :webp",
+                 fn -> Expect.app_env_expect_config(to_have_screenshot: [type: :gif]) end
+
+    assert Expect.app_env_expect_config(to_match_aria_snapshot: [children: :all]).toMatchAriaSnapshot == %{
+             children: "all"
+           }
   end
 
   test "to_pass: a timeout of :infinity is 0, as :timeout's; other values raise" do
@@ -53,12 +58,16 @@ defmodule Playwright.Matchers.ExpectTest do
     assert Expect.app_env_expect_config(to_pass: %{intervals: [50]}).toPass == %{intervals: [50]}
 
     assert_raise ArgumentError,
-                 "config :playwright, :expect, :to_pass: expected a keyword list or a map, got: 5000",
+                 "config :playwright, :expect, :to_pass: expected a keyword list or a map with atom keys, got: 5000",
                  fn -> Expect.app_env_expect_config(to_pass: 5000) end
 
     assert_raise ArgumentError, ~r/^config :playwright, :expect, :to_pass: unknown key timout, /, fn ->
       Expect.app_env_expect_config(to_pass: [timout: 1_000])
     end
+
+    assert_raise ArgumentError,
+                 ~s(config :playwright, :expect, :to_pass: expected a keyword list or a map with atom keys, got: %{"timeout" => 1}),
+                 fn -> Expect.app_env_expect_config(to_pass: %{"timeout" => 1}) end
   end
 
   test "test_helper sets the timeout through the app env" do

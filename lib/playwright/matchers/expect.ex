@@ -129,13 +129,6 @@ defmodule Playwright.Matchers.Expect do
 
   @config_keys [:timeout, :update_snapshots, :ignore_snapshots, :to_have_screenshot, :to_match_aria_snapshot, :to_pass]
 
-  # What a matcher's config-only key takes, for its error.
-  @config_expected %{
-    path_template: "a string",
-    type: "one of :png, :webp",
-    children: "one of :contain, :equal, :deep_equal"
-  }
-
   # Elixir only: `config :playwright, :expect, ...` as an `ExpectConfig`, its keys and those of
   # its matchers' options snake_case, as the matchers take them.
   @doc false
@@ -176,7 +169,8 @@ defmodule Playwright.Matchers.Expect do
         options = Enum.to_list(options)
 
         if !Keyword.keyword?(options),
-          do: raise(ArgumentError, "#{label}: expected a keyword list or a map, got: #{inspect(env[key])}")
+          do:
+            raise(ArgumentError, "#{label}: expected a keyword list or a map with atom keys, got: #{inspect(env[key])}")
 
         allowed = option_keys ++ config_keys
 
@@ -189,22 +183,22 @@ defmodule Playwright.Matchers.Expect do
         |> Map.merge(Map.new(config_only, fn {name, value} -> config_value!(label, name, value) end))
 
       other ->
-        raise ArgumentError, "#{label}: expected a keyword list or a map, got: #{inspect(other)}"
+        raise ArgumentError, "#{label}: expected a keyword list or a map with atom keys, got: #{inspect(other)}"
     end
   end
 
-  defp config_value!(_label, :path_template, template) when is_binary(template), do: {:pathTemplate, template}
+  # Only the screenshot's `type` is checked, as upstream's `validateProject`; the others pass
+  # as given, an atom `children` as its wire string (`:deep_equal` is `"deep-equal"`).
+  defp config_value!(_label, :path_template, template), do: {:pathTemplate, template}
   defp config_value!(_label, :type, type) when type in [:png, :webp, "png", "webp"], do: {:type, to_string(type)}
 
-  defp config_value!(_label, :children, children) when children in [:contain, :equal, :deep_equal],
+  defp config_value!(label, :type, type),
+    do: raise(ArgumentError, "#{label}: invalid value #{inspect(type)} for type, expected one of :png, :webp")
+
+  defp config_value!(_label, :children, children) when is_atom(children) and children != nil,
     do: {:children, children |> to_string() |> String.replace("_", "-")}
 
-  defp config_value!(_label, :children, children) when children in ["contain", "equal", "deep-equal"],
-    do: {:children, children}
-
-  defp config_value!(label, name, value),
-    do:
-      raise(ArgumentError, "#{label}: invalid value #{inspect(value)} for #{name}, expected #{@config_expected[name]}")
+  defp config_value!(_label, :children, children), do: {:children, children}
 
   @default_expect_timeout 5000
 

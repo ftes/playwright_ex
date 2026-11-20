@@ -108,9 +108,7 @@ defmodule Playwright.Test.ContextOptionsTest do
 
     for {message, options} <- [
           {~r/Playwright.Test.(use|parameters)\/1: .*lokale/, ~s(context_options: [lokale: "de-DE"])},
-          {~r/Playwright.Test.(use|parameters).*: unknown option lokale, /, ~s(lokale: "de-DE")},
-          {~r/invalid value :sometimes for trace, /, "trace: :sometimes"},
-          {~r/duplicated option trace/, "trace: :on, trace: :off"}
+          {~r/Playwright.Test.(use|parameters).*: unknown option lokale, /, ~s(lokale: "de-DE")}
         ] do
       assert_raise ArgumentError, message, fn ->
         compile("Tag", "use Playwright.Case\n@tag Playwright.Test.use(#{options})\ntest \"t\", do: :ok")
@@ -120,6 +118,11 @@ defmodule Playwright.Test.ContextOptionsTest do
         compile("Project", "use Playwright.Case, parameterize: [Playwright.Test.parameters(#{options})]")
       end
     end
+
+    # A duplicated key: the later wins, as in JS's spread.
+    assert Playwright.Test.use(trace: :on, trace: :off) == Playwright.Test.use(trace: :off)
+    assert Playwright.Test.use(locale: "de-DE", locale: "fr-FR") == Playwright.Test.use(locale: "fr-FR")
+    assert Options.project(Playwright.Test.parameters(name: "a", name: "b")).name == "b"
 
     # A map too.
     assert Playwright.Test.use(%{trace: :on}) == Playwright.Test.use(trace: :on)
@@ -140,8 +143,6 @@ defmodule Playwright.Test.ContextOptionsTest do
        "invalid value :purple for color_scheme, expected one of :dark, :light, :no_preference"},
       {"color_scheme: :purple", "invalid value :purple for color_scheme, expected one of"},
       {"viewport: %{wide: 1}", "wide"},
-      {"video: :sometimes", "for video, expected one of"},
-      {"action_timeout: -1", "invalid value -1 for action_timeout, expected a non-negative integer or :infinity"},
       {"lokale: 1", ": unknown option lokale, expected one of"}
     ]
 
@@ -166,20 +167,32 @@ defmodule Playwright.Test.ContextOptionsTest do
     assert_raise ArgumentError, ~r/invalid value :chrome for browser_name, /, fn ->
       Options.use_options(browser_name: :chrome)
     end
-
-    assert_raise ArgumentError,
-                 ~r/Playwright.Test.use.*: unknown option browser_name, .*forces a new worker/,
-                 fn ->
-                   compile("BrowserTag", "use Playwright.Case\n@tag Playwright.Test.use(browser_name: :webkit)")
-                 end
   end
 
-  test "the worker-scoped options raise in a describe's or a test's tag, test_id_attribute everywhere" do
-    for option <- ["launch_options: [slow_mo: 1]", ~s|connect_options: [ws_endpoint: "ws://localhost"]|] do
-      assert_raise ArgumentError, ~r/is worker-scoped, as upstream's, where it forces a new worker/, fn ->
-        compile("WorkerTag", "use Playwright.Case\ndescribe \"d\" do\n@describetag Playwright.Test.use(#{option})\nend")
-      end
+  test "the worker options raise in a describe's or a test's tag, as upstream's test.use in a describe; test_id_attribute everywhere" do
+    for {key, option} <- [
+          browser_name: "browser_name: :webkit",
+          launch_options: "launch_options: [slow_mo: 1]",
+          connect_options: ~s|connect_options: [ws_endpoint: "ws://localhost"]|,
+          default_browser_type: "default_browser_type: :webkit",
+          # A device has the worker's `default_browser_type`.
+          default_browser_type: ~s|Playwright.device("iPhone 13")|
+        ],
+        tag <- ["@tag", "@describetag"] do
+      message =
+        "Playwright.Test.use/1: Cannot use({ #{key} }) in a describe group or a test, because it forces a new worker.\n"
+
+      error =
+        assert_raise ArgumentError, fn ->
+          compile("WorkerTag", "use Playwright.Case\ndescribe \"d\" do\n#{tag} Playwright.Test.use(#{option})\nend")
+        end
+
+      assert String.starts_with?(error.message, message)
+      assert error.message =~ "Make it top-level in the test module"
     end
+
+    # Its emulation without the browser is fine.
+    assert Playwright.Test.use(Keyword.delete(Playwright.device("iPhone 13"), :default_browser_type)) != []
 
     for call <- [&Playwright.Test.use/1, &Playwright.Test.parameters/1, &Options.use_options/1] do
       assert_raise ArgumentError, ~r/test_id_attribute is config only: .*global to the VM/, fn ->
@@ -223,8 +236,7 @@ defmodule Playwright.Test.ContextOptionsTest do
   end
 
   test "a context option is an option of its own, over context_options at every level; a device is spread" do
-    # A private key per option, and one for `context_options`; a describe's or a test's device
-    # loses its browser.
+    # A private key per option, and one for `context_options`.
     assert [
              "playwright.use.context.locale": "de-DE",
              "playwright.use.context_options": %{locale: "fr-FR"},
@@ -232,7 +244,6 @@ defmodule Playwright.Test.ContextOptionsTest do
            ] = Playwright.Test.use(locale: "de-DE", context_options: [locale: "fr-FR"], trace: :on)
 
     device = Playwright.device("iPhone 13")
-    refute Enum.any?(Playwright.Test.use(device), fn {key, _value} -> to_string(key) =~ "rowser" end)
     project = Options.project(Playwright.Test.parameters(device))
     assert project.use.default_browser_type == :webkit
     assert project.use.context.userAgent == device[:user_agent]

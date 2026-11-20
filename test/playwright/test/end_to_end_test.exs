@@ -120,14 +120,6 @@ defmodule Playwright.Test.EndToEndTest do
              "failure-and-retries" => artifacts,
              "failure-and-retries-passing" => nil
            }
-
-    assert run.(["failed"], 2) == %{
-             "first-retry" => nil,
-             "all-retries" => artifacts,
-             "first-failure" => ["error-context.md"],
-             "failure-and-retries" => artifacts,
-             "failure-and-retries-passing" => nil
-           }
   end
 
   test "pooled drivers: one per options and scope, back idle at its end, stopped after a failure (setup_all's too)",
