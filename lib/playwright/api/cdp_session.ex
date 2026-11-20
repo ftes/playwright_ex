@@ -74,13 +74,13 @@ defmodule Playwright.CDPSession do
   """
   @spec detach(t()) :: :ok | {:error, Playwright.error()}
   def detach(%Playwright.CDPSession{} = cdp_session) do
-    Facade.async_void("cdpSession.detach", cdp_session, fn -> Playwright.Client.CDPSession.detach(cdp_session) end)
+    Facade.async_void("cdpSession.detach", fn -> Playwright.Client.CDPSession.detach(cdp_session) end)
   end
 
   @doc "Like `detach/1`, but returns the value and raises on error."
   @spec detach!(t()) :: :ok
   def detach!(%Playwright.CDPSession{} = cdp_session) do
-    Facade.async_void!("cdpSession.detach", cdp_session, fn -> Playwright.Client.CDPSession.detach(cdp_session) end)
+    Facade.async_void!("cdpSession.detach", fn -> Playwright.Client.CDPSession.detach(cdp_session) end)
   end
 
   @send_options {:object, %{signal: {:signal, nil}, timeout: {:timeout, nil}}}
@@ -110,20 +110,14 @@ defmodule Playwright.CDPSession do
   @spec send(t(), String.t(), map() | nil, send_options()) :: {:ok, map()} | {:error, Playwright.error()}
   def send(%Playwright.CDPSession{} = cdp_session, method, params \\ nil, options \\ []) do
     options = Facade.options!(options, @send_options, "cdpSession.send")
-
-    Facade.async("cdpSession.send", cdp_session, fn ->
-      Playwright.Client.CDPSession.send(cdp_session, method, params, options)
-    end)
+    Facade.async("cdpSession.send", fn -> Playwright.Client.CDPSession.send(cdp_session, method, params, options) end)
   end
 
   @doc "Like `send/4`, but returns the value and raises on error."
   @spec send!(t(), String.t(), map() | nil, send_options()) :: map()
   def send!(%Playwright.CDPSession{} = cdp_session, method, params \\ nil, options \\ []) do
     options = Facade.options!(options, @send_options, "cdpSession.send")
-
-    Facade.async!("cdpSession.send", cdp_session, fn ->
-      Playwright.Client.CDPSession.send(cdp_session, method, params, options)
-    end)
+    Facade.async!("cdpSession.send", fn -> Playwright.Client.CDPSession.send(cdp_session, method, params, options) end)
   end
 
   @doc "Adds an event listener for `event`, see the module docs for the events."

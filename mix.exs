@@ -95,6 +95,9 @@ defmodule Playwright.MixProject do
         "guides/introduction/api-conventions.md": [title: "From playwright.dev to Elixir"],
         "guides/introduction/cheatsheet.cheatmd": [title: "Cheatsheet"],
         "guides/testing-with-exunit.md": [title: "Testing with ExUnit"],
+        "guides/test-options.md": [title: "Options, devices and projects"],
+        "guides/test-artifacts.md": [title: "Artifacts, retries and workers"],
+        "guides/porting-playwright-test.md": [title: "Porting Playwright Test specs"],
         "guides/events-and-waiting.md": [title: "Events and waiting"],
         "guides/network.md": [title: "Network"],
         "guides/debugging-and-ci.md": [title: "Debugging and CI"],
@@ -105,6 +108,9 @@ defmodule Playwright.MixProject do
         Introduction: ["README.md", ~r"^guides/introduction/"],
         Guides: [
           "guides/testing-with-exunit.md",
+          "guides/test-options.md",
+          "guides/test-artifacts.md",
+          "guides/porting-playwright-test.md",
           "guides/events-and-waiting.md",
           "guides/network.md",
           "guides/debugging-and-ci.md",
@@ -162,6 +168,7 @@ defmodule Playwright.MixProject do
           Playwright.Case,
           Playwright.Test,
           Playwright.Test.BrowserPool,
+          Playwright.Test.Project,
           Playwright.Test.GitHubFormatter
         ],
         Network: [

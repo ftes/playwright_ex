@@ -12,30 +12,52 @@ defmodule Playwright.Application do
     Playwright.Driver.config()
     Playwright.Matchers.Expect.app_env_expect_config()
     Playwright.Test.Options.context_options(Playwright.Test.Options.config())
-    Playwright.Test.GitHubFormatter.config()
     children = [Playwright.AbortSignal, Playwright.Runtime.ProcessOwner]
     Supervisor.start_link(children, strategy: :one_for_one, name: __MODULE__)
   end
 
-  # The keys of `config :playwright, ...` the library reads (`Playwright.Test`'s, the
-  # matchers', `Playwright.Driver`'s), and the modules that read their own
-  # (`Playwright.Test.GitHubFormatter`).
+  # The keys of `config :playwright, ...` the library reads: `Playwright.Test`'s, the
+  # matchers', `Playwright.Driver`'s.
   @keys [:test, :expect, :driver]
 
   @doc false
-  # Raises `ArgumentError` for a key of `env` (the app env) that is neither one of `@keys` nor a
-  # module.
+  # Raises `ArgumentError` for a key of `env` (the app env) that is not one of `@keys`.
   def validate_env!(env) do
-    case for({key, _value} <- env, key not in @keys and not module?(key), do: key) do
+    keys!("config :playwright", env, @keys)
+    :ok
+  end
+
+  @doc false
+  # `config :playwright, key` (`env`, by default the app env's, `[]` when unset), checked: a
+  # keyword list of `allowed` keys, else `ArgumentError`. Each reader validates the values.
+  def config!(key, allowed, env \\ nil),
+    do: keys!("config :playwright, #{inspect(key)}", env || Application.get_env(:playwright, key, []), allowed)
+
+  defp keys!(label, env, allowed) do
+    if !(is_list(env) and Keyword.keyword?(env)),
+      do: raise(ArgumentError, "#{label}: expected a keyword list, got: #{inspect(env)}")
+
+    unknown_key!(label, "key", Keyword.keys(env), allowed)
+    env
+  end
+
+  @doc false
+  # Raises `ArgumentError` for the first of `keys` that is not `allowed`, as the facade does for
+  # an unknown option: `<label>: unknown <noun> <key>, expected one of <allowed>`.
+  def unknown_key!(label, noun, keys, allowed, hint \\ "") do
+    case keys -- allowed do
       [] ->
         :ok
 
-      unknown ->
-        raise ArgumentError,
-              "unknown keys #{inspect(unknown)} in config :playwright, expected one of #{inspect(@keys)} " <>
-                "or a module's (#{inspect(Playwright.Test.GitHubFormatter)})"
+      [key | _] ->
+        raise ArgumentError, "#{label}: unknown #{noun} #{key_name(key)}, expected one of #{key_names(allowed)}#{hint}"
     end
   end
 
-  defp module?(key), do: String.starts_with?(Atom.to_string(key), "Elixir.") and Code.ensure_loaded?(key)
+  @doc false
+  # Keys as an error names them, as the facade does (`Playwright.Runtime.Facade.key/1`).
+  def key_names(keys), do: Enum.map_join(keys, ", ", &key_name/1)
+
+  @doc false
+  defdelegate key_name(key), to: Playwright.Runtime.Facade, as: :key
 end

@@ -22,8 +22,8 @@ defmodule Mix.Playwright.ApiRules do
       object (`"open"`): it has more fields than the docs list (`credentials`, IndexedDB), so the
       facade passes it back as it is. So are `addCookies(cookies)`: `cookies()` results carry
       protocol-only fields (`_crHasCrossSiteAncestor`) and must round-trip. Their keys are
-      checked against those of the protocol params they are sent in (`"protocol"`,
-      `@protocol_params`), which its validator would drop silently.
+      checked against those of protocol params (`"protocol"`, `@protocol_params`), which its
+      validator would drop silently; an open object without them fails the generation.
     * A positional `timeout` is a duration (`"duration"`: `waitForTimeout(timeout)`, no `:infinity`)
       unless its member sets a default timeout (`@timeout_args`: `setDefaultTimeout(timeout)`).
     * Documents the Elixir forms of `timeout` and `signal` (a `Playwright.AbortSignal`), and
@@ -224,10 +224,7 @@ defmodule Mix.Playwright.ApiRules do
   @notes %{
     # The client returns `Map<string, JSHandle>` as a map (`# deviation:` in its `get_properties`).
     "JSHandle.getProperties" =>
-      "In Elixir, the result is a map of property name to handle; unlike JS's `Map`, it does not keep the property order.",
-    # The facade checks a storage state against `PlaywrightNewRequestParams` (`@protocol_params`).
-    "APIRequest.newContext" =>
-      "In Elixir, a storage state with `credentials` (`BrowserContext.storage_state!(context, credentials: true)`) raises here: drop them first, `Map.delete(state, :credentials)`."
+      "In Elixir, the result is a map of property name to handle; unlike JS's `Map`, it does not keep the property order."
   }
 
   # Class => an Elixir introduction to its module docs, before upstream's: the root module
@@ -261,10 +258,12 @@ defmodule Mix.Playwright.ApiRules do
   # HTML attribute.
   @prose_keep %{"getByRole" => ~w(disabled)}
 
-  # The protocol params each member sends its open objects in (`"protocol"`): `newPage` creates
-  # a context, `APIRequest.newContext` is `Playwright.newRequest`.
+  # The protocol params whose keys each member's open objects take (`"protocol"`): those it sends
+  # them in (`newPage` creates a context). `APIRequest.newContext` takes any storage state as JS
+  # does (`SetStorageState` in `fetch.ts`, credentials too, which the validator then drops): the
+  # widest, `setStorageState`'s.
   @protocol_params %{
-    "APIRequest.newContext" => "PlaywrightNewRequestParams",
+    "APIRequest.newContext" => "BrowserContextSetStorageStateParams",
     "APIRequestContext.addCookies" => "APIRequestContextAddCookiesParams",
     "Browser.newContext" => "BrowserNewContextParams",
     "Browser.newPage" => "BrowserNewContextParams",
@@ -1179,7 +1178,7 @@ defmodule Mix.Playwright.ApiRules do
   end
 
   # An open object in an argument or option (`cookies`, `storageState`): `"protocol"`, the protocol
-  # params and field it is sent in, whose keys the facade checks.
+  # params and field whose keys the facade checks (`@protocol_params`).
   defp protocol(member, name) do
     %{member | "args" => Enum.map(member["args"], &protocol_arg(&1, name))}
   end
@@ -1188,9 +1187,25 @@ defmodule Mix.Playwright.ApiRules do
     do: %{arg | "type" => %{type | "properties" => Enum.map(props, &protocol_arg(&1, name))}}
 
   defp protocol_arg(%{"name" => field, "type" => type} = arg, name) when field in ~w(cookies storageState),
-    do: %{arg | "type" => Map.put(type, "protocol", {Map.fetch!(@protocol_params, name), String.to_atom(field)})}
+    do: %{arg | "type" => Map.put(type, "protocol", protocol_params!(name, String.to_atom(field)))}
 
   defp protocol_arg(arg, _name), do: arg
+
+  defp protocol_params!(name, field) do
+    params =
+      @protocol_params[name] ||
+        Mix.raise("ApiRules: #{name} takes an open #{field}, add its params to @protocol_params")
+
+    case Playwright.Protocol.Validator.scheme(params) do
+      {:object, fields} ->
+        if Keyword.has_key?(fields, field),
+          do: {params, field},
+          else: Mix.raise("ApiRules: #{params} has no #{field} (@protocol_params, #{name})")
+
+      _ ->
+        Mix.raise("ApiRules: no protocol params #{params} (@protocol_params, #{name})")
+    end
+  end
 
   # Nested objects too (an origin has `indexedDB`).
   defp open(%{"union" => union} = type) when is_list(union), do: %{type | "union" => Enum.map(union, &open/1)}

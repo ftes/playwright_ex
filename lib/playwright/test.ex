@@ -239,11 +239,16 @@ defmodule Playwright.Test do
   own. These three are the worker's, as upstream's, where a describe with another one starts a
   new worker: `use/1` takes none of them, and a tag's device doesn't change the browser.
 
-  `action_timeout` and `navigation_timeout` (see "Timeouts") are options of every level, as
-  the context options. `test_id_attribute` is config only, a deviation: upstream's is an
-  option of every level, as its value is global to a worker, which runs one test at a time;
-  here it is global to the VM, which the tests running at once share. `trace`, `screenshot`
-  and `video` are options of every level, an addition: upstream's are the worker's.
+  Where each option can be set:
+
+  | Option | Config | Project (`parameters/1`) | Module (`use`) | Describe, test (`use/1`) |
+  |---|---|---|---|---|
+  | the context options, `context_options`, `action_timeout`, `navigation_timeout` | yes | yes | yes | yes |
+  | `trace`, `screenshot`, `video` | yes | yes | yes | yes (an addition: upstream's are the worker's) |
+  | `browser_name`, `launch_options`, `connect_options` | yes | yes | yes | no: the worker's |
+  | `default_browser_type` (a device's) | picks the browser | picks the browser | picks the browser | ignored (a deviation, above) |
+  | `test_id_attribute` | yes | no | no | no (a deviation: upstream's is an option of every level, global to a worker, which runs one test at a time; here it is global to the VM, which the tests running at once share) |
+  | `output_dir`, `preserve_output`, `workers`, `snapshot_dir`, `snapshot_path_template`, `driver`, `on_start` | yes | no | no | no |
 
   ## Contexts of `setup_all`
 
@@ -329,11 +334,11 @@ defmodule Playwright.Test do
   Without a name, a snapshot is named after the test and its count in the test:
   `pays-1-<platform>.png` for a screenshot, `pays-1.aria.yml` for an aria snapshot.
   A name is sanitized for the file system, a list of path segments is not. `snapshot_dir` is
-  `test/` by default; `snapshot_path_template` (or the matcher's `pathTemplate` in `config
+  `test/` by default; `snapshot_path_template` (or the matcher's `path_template` in `config
   :playwright, :expect`) takes upstream's tokens: `{testDir}`, `{snapshotDir}`,
   `{testFileDir}`, `{testFileName}`, `{testFileBaseName}`, `{testFilePath}`, `{testName}`,
   `{arg}`, `{ext}`, `{platform}` and `{snapshotSuffix}` (the platform, as upstream's);
-  `{projectName}` is accepted for upstream templates and is always empty. `snapshot_path/2`
+  `{projectName}` is the `name` of the module's project (`parameters/1`), empty without one. `snapshot_path/2`
   returns a name's path. A failed comparison writes its `-actual`, `-expected`, `-previous` and
   `-diff` images to the test's output dir.
 
@@ -372,7 +377,7 @@ defmodule Playwright.Test do
         browser_name: :chromium,      # BrowserPool: :chromium | :firefox | :webkit
         launch_options: [],           # BrowserPool: Playwright.BrowserType.launch/2
         connect_options: nil,         # BrowserPool: [ws_endpoint: _, ...] to connect instead of launching
-        driver: [],                   # BrowserPool: Playwright.Supervisor's :env, :executable, :node, :cache_dir
+        driver: [],                   # BrowserPool: [env: _], Playwright.Supervisor's (the driver is config :playwright, :driver's)
         on_start: nil,                # BrowserPool
         workers: max(div(System.schedulers_online(), 2), 1),
         context_options: [],          # Playwright.Browser.new_context/2's options, as upstream's contextOptions
@@ -387,7 +392,8 @@ defmodule Playwright.Test do
         preserve_output: :always,     # :always | :failures_only | :never, see Artifacts
         snapshot_dir: nil,            # upstream's testDir: test/
         snapshot_path_template: nil,  # upstream's defaults, see Snapshots
-        test_id_attribute: "data-testid"
+        test_id_attribute: "data-testid",
+        report_slow_tests: [max: 5, threshold: 300_000]  # Playwright.Test.GitHubFormatter's, ms; false: none
 
   Each context option (`base_url`, `locale`, `viewport`, `storage_state`, ...) is a config key of
   its own, over the `context_options` bag, as under every other level, and in `config/0` only
@@ -709,7 +715,7 @@ defmodule Playwright.Test do
         |> context_defaults(layers, use_options)
         |> Map.merge(%{file: compiled(context[:module], :file, nil), timeout: Options.ex_unit_timeout(context)})
         # Also its steps' `testInfo` (`step_test_info!/0`): never started, so not running.
-        |> Map.merge(%{test_pid: self(), step_id_prefix: "setup_all"})
+        |> Map.merge(%{test_pid: self(), step_id_prefix: "setup_all", project_name: TestInfo.project_name(parameters)})
         |> Map.put(:use_modes, Options.artifacts(config, layers))
 
       Results.register_module(self(), module)
@@ -723,7 +729,7 @@ defmodule Playwright.Test do
   defp check_registered!(pid, message) do
     case :ets.take(Results.table(), {:unregistered, pid}) do
       [] -> :ok
-      [_noted] -> raise ArgumentError, message
+      [_noted] -> raise "use Playwright.Test: " <> message
     end
   end
 
@@ -841,13 +847,13 @@ defmodule Playwright.Test do
     Results.finishing(test_pid)
     {verdict, _failures} = result = Results.result(test_pid, budget)
     {test, recorder} = Results.take(test_pid)
-    if !test, do: raise("its registration is gone (the pool restarted since)")
+    if !test, do: raise("Playwright.Test: the test's registration is gone (the pool restarted since)")
     # For `info/1` in the `on_exit` callbacks that run after this one.
     Results.keep_info(test_pid, Map.merge(info_of(test), result_info(test_pid, result, recorder)))
 
     trace =
       case finish_artifacts(test, recorder, result, deadline) do
-        # Past the budget its contexts may be left open in a pooled browser: its seats reset, as a
+        # Past the budget its contexts may be left open in a pooled browser: its workers reset, as a
         # failed test's.
         :abandoned ->
           Pool.fail(test_pid)
@@ -968,9 +974,9 @@ defmodule Playwright.Test do
         setup_all_info(module)
 
       nil ->
-        raise "Playwright.Test.info() can only be called while a test or its module's setup_all is running: in a " <>
-                "module with `use Playwright.Test` (the test's or setup_all's process, or one with it in $callers), " <>
-                "after `use Playwright.Test` registered it"
+        raise "Playwright.Test.info/0: no test or setup_all running, expected a call from a test or its module's " <>
+                "setup_all in a module with `use Playwright.Test` (the test's or setup_all's process, or one with it " <>
+                "in $callers), after `use Playwright.Test` registered it"
     end
   end
 
@@ -1028,7 +1034,7 @@ defmodule Playwright.Test do
       nil ->
         case Results.started?() && :ets.lookup(Results.table(), {:info, test_pid}) do
           [{_key, info}] -> info
-          _ -> raise ArgumentError, "Playwright.Test.info/1: no test #{inspect(test_pid)} running or in its on_exit"
+          _ -> raise "Playwright.Test.info/1: no test running or in its on_exit, got: #{inspect(test_pid)}"
         end
 
       test ->
@@ -1097,23 +1103,27 @@ defmodule Playwright.Test do
   def use(opts), do: Options.use(opts)
 
   @doc """
-  A project for `parameterize:`, upstream's `projects: [{ use: { ... } }]`: `use/1`'s options
-  and the worker's (`browser_name`, `default_browser_type`, `launch_options`,
-  `connect_options`), validated as it does, as a map of the private keys, which ExUnit takes
-  there (a tag takes `use/1`'s keyword list).
+  A project for `parameterize:`, upstream's `projects: [{ name, use: { ... } }]`: `name:` (a
+  string, upstream's `project.name`), `use/1`'s options and the worker's (`browser_name`,
+  `default_browser_type`, `launch_options`, `connect_options`), validated as it does. A map of
+  one private key, `:"playwright.project"`, whose value is a `Playwright.Test.Project`, which
+  ExUnit takes there (a tag takes `use/1`'s keyword list).
 
       use Playwright.Case,
         async: true,
         parameterize:
           for device <- ["Desktop Chrome", "Desktop Firefox", "Desktop Safari"],
-              do: Playwright.Test.parameters(Playwright.device(device))
+              do: Playwright.Test.parameters([name: device] ++ Playwright.device(device))
 
   The project's options are under the module's `use` and over the config's, for every context
   of the module's run, `setup_all`'s included. Its browser is its `browser_name`, else its
-  `default_browser_type` (a device's), see "Browser" in the moduledoc. For parameters of your own
-  next to them: `Map.put(Test.parameters(...), :role, :admin)`.
+  `default_browser_type` (a device's), see "Browser" in the moduledoc. A failed test prints the
+  project as its name (`Parameters: %{"playwright.project": #Playwright.Test.Project<"Desktop
+  Safari">}`), else its browser (`Playwright.Test.Project.title/1`); the name is also the
+  snapshot templates' `{projectName}`. For parameters of your own next to it:
+  `Map.put(Test.parameters(...), :role, :admin)`.
   """
-  @spec parameters(keyword() | map()) :: map()
+  @spec parameters(keyword() | map()) :: %{optional(atom()) => Playwright.Test.Project.t()}
   def parameters(opts), do: Options.parameters(opts)
 
   @doc """
@@ -1152,7 +1162,8 @@ defmodule Playwright.Test do
         Path.join(dir, relative)
 
       :error ->
-        raise ArgumentError, "output_path is not allowed outside of the output dir, got: #{inspect(name)}"
+        raise ArgumentError,
+              "Playwright.Test.output_path/1: a path outside the output dir, expected a relative path in it, got: #{inspect(name)}"
     end
   end
 
@@ -1172,7 +1183,11 @@ defmodule Playwright.Test do
   """
   @spec attach(String.t(), keyword()) :: :ok
   def attach(name, options \\ []) when is_binary(name) do
-    options = Keyword.validate!(options, [:path, :body, :content_type])
+    Playwright.Application.unknown_key!("Playwright.Test.attach/2", "option", Keyword.keys(options), [
+      :path,
+      :body,
+      :content_type
+    ])
 
     test_info = running_test!("attach/2", &TestInfo.current/0)
     TestInfo.attach(test_info, name, %{path: options[:path], body: options[:body], contentType: options[:content_type]})
@@ -1189,7 +1204,9 @@ defmodule Playwright.Test do
   @spec snapshot_path(String.t() | [String.t()], keyword()) :: Path.t()
   def snapshot_path(name, options \\ []) when is_binary(name) or is_list(name) do
     {kind, options} = Keyword.pop(options, :kind, :snapshot)
-    if options != [], do: raise(ArgumentError, "unknown options #{inspect(Keyword.keys(options))}, expected [:kind]")
+
+    Playwright.Application.unknown_key!("Playwright.Test.snapshot_path/2", "option", Keyword.keys(options), [:kind])
+
     TestInfo.snapshot_path(running_test!("snapshot_path/2"), name, to_string(kind))
   end
 
@@ -1197,7 +1214,7 @@ defmodule Playwright.Test do
   # raises in `setup_all`, which has no output dir or snapshot names.
   defp running_test!(function, lookup \\ &Recorder.registration/0) do
     lookup.() ||
-      raise "Playwright.Test.#{function} can only be called while a test is running: in a test of a module with " <>
+      raise "Playwright.Test.#{function}: no test running, expected a call from a test of a module with " <>
               "`use Playwright.Test` (its process, or one with it in $callers)"
   end
 
@@ -1281,10 +1298,18 @@ defmodule Playwright.Test do
       do:
         raise(
           ArgumentError,
-          "step timeout is not supported: a step body can't be interrupted in its own process; the test's timeout bounds it"
+          "Playwright.Test.step/3: unsupported option timeout (a step body can't be interrupted " <>
+            "in its own process; the test's timeout bounds it)"
         )
 
-    options = Map.new(Keyword.validate!(options, [:box, :location, :params, :subtitle]))
+    Playwright.Application.unknown_key!("Playwright.Test.step/3", "option", Keyword.keys(options), [
+      :box,
+      :location,
+      :params,
+      :subtitle
+    ])
+
+    options = Map.new(options)
     call_site = call_site || (options[:location] && Map.take(options.location, [:file, :line]))
     test_info = step_test_info!()
     Recorder.on_user_step(test_info.test_pid, {:begin, title})

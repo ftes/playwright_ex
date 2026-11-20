@@ -2,8 +2,8 @@ defmodule Playwright.Supervisor do
   @moduledoc """
   Runs one Playwright driver and its connection.
 
-      children = [{Playwright.Supervisor, name: MyApp.Playwright}]
-      playwright = Playwright.instance(MyApp.Playwright)
+      children = [{Playwright.Supervisor, name: MyApp.PlaywrightDriver}]
+      playwright = Playwright.instance(MyApp.PlaywrightDriver)
 
   Options:
 
@@ -62,7 +62,15 @@ defmodule Playwright.Supervisor do
   """
   @spec start_link([option()]) :: Supervisor.on_start()
   def start_link(opts \\ []) do
-    opts = Keyword.validate!(opts, [:executable, :node, :cache_dir, name: Playwright, env: []])
+    Playwright.Application.unknown_key!("Playwright.Supervisor.start_link/1", "option", Keyword.keys(opts), [
+      :executable,
+      :node,
+      :cache_dir,
+      :name,
+      :env
+    ])
+
+    opts = Keyword.merge([name: Playwright, env: []], opts)
     Supervisor.start_link(__MODULE__, opts, name: opts[:name])
   end
 

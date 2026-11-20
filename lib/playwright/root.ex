@@ -48,9 +48,8 @@ defmodule Playwright.Root do
             else: []
 
         raise ArgumentError,
-              "unknown device #{inspect(name)}" <>
-                if(closest == [], do: "", else: ", did you mean #{Enum.map_join(closest, ", ", &inspect/1)}?") <>
-                " (the docs of Playwright.devices/0 list the names)"
+              "Playwright.device/1: unknown device, expected a name of Playwright.devices/0, got: #{inspect(name)}" <>
+                if(closest == [], do: "", else: ". Did you mean #{Enum.map_join(closest, ", ", &inspect/1)}?")
     end
   end
 

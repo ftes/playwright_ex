@@ -314,7 +314,7 @@ page.on('dialog', dialog => dialog.accept());
 ```elixir
 require Logger
 Page.on(page, :console, &Logger.info(ConsoleMessage.text(&1)))
-Page.on(page, :dialog, &Dialog.accept/1)
+Page.on(page, :dialog, &Dialog.accept!/1)
 ```
 
 ## Network
@@ -329,8 +329,8 @@ await page.route('**/*.png', route => route.abort());
 ```
 
 ```elixir
-Page.route!(page, "**/api/user", &Route.fulfill(&1, json: %{name: "Ada"}))
-Page.route!(page, "**/*.png", &Route.abort/1)
+Page.route!(page, "**/api/user", &Route.fulfill!(&1, json: %{name: "Ada"}))
+Page.route!(page, "**/*.png", &Route.abort!/1)
 ```
 
 ### Modify a request
@@ -345,7 +345,7 @@ await page.route('**/api/**', route => {
 ```elixir
 Page.route!(page, "**/api/**", fn route, request ->
   headers = Map.put(Request.headers(request), "x-test", "1")
-  Route.continue(route, headers: headers)
+  Route.continue!(route, headers: headers)
 end)
 ```
 

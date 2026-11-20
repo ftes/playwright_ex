@@ -76,14 +76,14 @@ defmodule Playwright.Mouse do
   @spec click(t(), number(), number(), click_options()) :: :ok | {:error, Playwright.error()}
   def click(%Playwright.Mouse{} = mouse, x, y, options \\ []) do
     options = Facade.options!(options, @click_options, "mouse.click")
-    Facade.async_void("mouse.click", mouse, fn -> Playwright.Client.Mouse.click(mouse, x, y, options) end)
+    Facade.async_void("mouse.click", fn -> Playwright.Client.Mouse.click(mouse, x, y, options) end)
   end
 
   @doc "Like `click/4`, but returns the value and raises on error."
   @spec click!(t(), number(), number(), click_options()) :: :ok
   def click!(%Playwright.Mouse{} = mouse, x, y, options \\ []) do
     options = Facade.options!(options, @click_options, "mouse.click")
-    Facade.async_void!("mouse.click", mouse, fn -> Playwright.Client.Mouse.click(mouse, x, y, options) end)
+    Facade.async_void!("mouse.click", fn -> Playwright.Client.Mouse.click(mouse, x, y, options) end)
   end
 
   @dblclick_options {:object,
@@ -116,14 +116,14 @@ defmodule Playwright.Mouse do
   @spec dblclick(t(), number(), number(), dblclick_options()) :: :ok | {:error, Playwright.error()}
   def dblclick(%Playwright.Mouse{} = mouse, x, y, options \\ []) do
     options = Facade.options!(options, @dblclick_options, "mouse.dblclick")
-    Facade.async_void("mouse.dblclick", mouse, fn -> Playwright.Client.Mouse.dblclick(mouse, x, y, options) end)
+    Facade.async_void("mouse.dblclick", fn -> Playwright.Client.Mouse.dblclick(mouse, x, y, options) end)
   end
 
   @doc "Like `dblclick/4`, but returns the value and raises on error."
   @spec dblclick!(t(), number(), number(), dblclick_options()) :: :ok
   def dblclick!(%Playwright.Mouse{} = mouse, x, y, options \\ []) do
     options = Facade.options!(options, @dblclick_options, "mouse.dblclick")
-    Facade.async_void!("mouse.dblclick", mouse, fn -> Playwright.Client.Mouse.dblclick(mouse, x, y, options) end)
+    Facade.async_void!("mouse.dblclick", fn -> Playwright.Client.Mouse.dblclick(mouse, x, y, options) end)
   end
 
   @down_options {:object,
@@ -150,14 +150,14 @@ defmodule Playwright.Mouse do
   @spec down(t(), down_options()) :: :ok | {:error, Playwright.error()}
   def down(%Playwright.Mouse{} = mouse, options \\ []) do
     options = Facade.options!(options, @down_options, "mouse.down")
-    Facade.async_void("mouse.down", mouse, fn -> Playwright.Client.Mouse.down(mouse, options) end)
+    Facade.async_void("mouse.down", fn -> Playwright.Client.Mouse.down(mouse, options) end)
   end
 
   @doc "Like `down/2`, but returns the value and raises on error."
   @spec down!(t(), down_options()) :: :ok
   def down!(%Playwright.Mouse{} = mouse, options \\ []) do
     options = Facade.options!(options, @down_options, "mouse.down")
-    Facade.async_void!("mouse.down", mouse, fn -> Playwright.Client.Mouse.down(mouse, options) end)
+    Facade.async_void!("mouse.down", fn -> Playwright.Client.Mouse.down(mouse, options) end)
   end
 
   @move_options {:object, %{steps: {:steps, nil}}}
@@ -182,14 +182,14 @@ defmodule Playwright.Mouse do
   @spec move(t(), number(), number(), move_options()) :: :ok | {:error, Playwright.error()}
   def move(%Playwright.Mouse{} = mouse, x, y, options \\ []) do
     options = Facade.options!(options, @move_options, "mouse.move")
-    Facade.async_void("mouse.move", mouse, fn -> Playwright.Client.Mouse.move(mouse, x, y, options) end)
+    Facade.async_void("mouse.move", fn -> Playwright.Client.Mouse.move(mouse, x, y, options) end)
   end
 
   @doc "Like `move/4`, but returns the value and raises on error."
   @spec move!(t(), number(), number(), move_options()) :: :ok
   def move!(%Playwright.Mouse{} = mouse, x, y, options \\ []) do
     options = Facade.options!(options, @move_options, "mouse.move")
-    Facade.async_void!("mouse.move", mouse, fn -> Playwright.Client.Mouse.move(mouse, x, y, options) end)
+    Facade.async_void!("mouse.move", fn -> Playwright.Client.Mouse.move(mouse, x, y, options) end)
   end
 
   @up_options {:object,
@@ -216,14 +216,14 @@ defmodule Playwright.Mouse do
   @spec up(t(), up_options()) :: :ok | {:error, Playwright.error()}
   def up(%Playwright.Mouse{} = mouse, options \\ []) do
     options = Facade.options!(options, @up_options, "mouse.up")
-    Facade.async_void("mouse.up", mouse, fn -> Playwright.Client.Mouse.up(mouse, options) end)
+    Facade.async_void("mouse.up", fn -> Playwright.Client.Mouse.up(mouse, options) end)
   end
 
   @doc "Like `up/2`, but returns the value and raises on error."
   @spec up!(t(), up_options()) :: :ok
   def up!(%Playwright.Mouse{} = mouse, options \\ []) do
     options = Facade.options!(options, @up_options, "mouse.up")
-    Facade.async_void!("mouse.up", mouse, fn -> Playwright.Client.Mouse.up(mouse, options) end)
+    Facade.async_void!("mouse.up", fn -> Playwright.Client.Mouse.up(mouse, options) end)
   end
 
   @doc ~S"""
@@ -243,13 +243,13 @@ defmodule Playwright.Mouse do
   """
   @spec wheel(t(), number(), number()) :: :ok | {:error, Playwright.error()}
   def wheel(%Playwright.Mouse{} = mouse, delta_x, delta_y) do
-    Facade.async_void("mouse.wheel", mouse, fn -> Playwright.Client.Mouse.wheel(mouse, delta_x, delta_y) end)
+    Facade.async_void("mouse.wheel", fn -> Playwright.Client.Mouse.wheel(mouse, delta_x, delta_y) end)
   end
 
   @doc "Like `wheel/3`, but returns the value and raises on error."
   @spec wheel!(t(), number(), number()) :: :ok
   def wheel!(%Playwright.Mouse{} = mouse, delta_x, delta_y) do
-    Facade.async_void!("mouse.wheel", mouse, fn -> Playwright.Client.Mouse.wheel(mouse, delta_x, delta_y) end)
+    Facade.async_void!("mouse.wheel", fn -> Playwright.Client.Mouse.wheel(mouse, delta_x, delta_y) end)
   end
 
   @doc """

@@ -38,7 +38,7 @@ or drop the file on [trace.playwright.dev](https://trace.playwright.dev).
 [`Tracing.group!/3`](`Playwright.Tracing.group!/3`) and
 [`Tracing.group_end!/1`](`Playwright.Tracing.group_end!/1`) name a group of steps. In tests,
 `Playwright.Test` traces failing tests, on a rerun or retained on failure ([Testing with
-ExUnit](testing-with-exunit.md#traces-screenshots-and-videos)).
+ExUnit](test-artifacts.md#traces-screenshots-and-videos)).
 
 ## Screenshots and videos
 
@@ -119,12 +119,14 @@ steps:
       path: test-results
 ```
 
-Cache neither the driver, the browsers nor the apt packages. On `ubuntu-latest` (26.04) a cold
-driver download takes about 2 s and Chromium about 8 s, while restoring a cache of both takes
-about 3 s: it saves roughly 6 s per job and churns the cache on every Playwright bump. With the
-system libraries already on the image, `--with-deps` installs only 9 font packages (21 MB), and
-caching them (`cache-apt-pkgs-action`, or the `.deb` files) didn't speed up the roughly 14 s
-step, which `apt-get update` and dpkg dominate. Upstream
+Cache neither the driver nor the browsers. On `ubuntu-latest` (26.04) a cold driver download
+takes about 2 s and Chromium about 8 s, while restoring a cache of both takes about 3 s: it saves
+roughly 6 s per job and churns the cache on every Playwright bump. For Chromium, with the system
+libraries already on the image, `--with-deps` installs only 9 font packages (21 MB), and caching
+them (`cache-apt-pkgs-action`, or the `.deb` files) didn't speed up the roughly 14 s step, which
+`apt-get update` and dpkg dominate. WebKit's system packages are about 140 MB, and the runner's
+apt mirror has stalled for whole attempts, so this library's CI caches the `.deb` files and
+bounds each attempt. Upstream
 [advises the same](https://playwright.dev/docs/ci): restoring a browser cache takes about as
 long as downloading, and operating system dependencies aren't cacheable. For reference, if your
 network is slow or you run offline: the driver goes to `~/.cache/playwright`
@@ -237,7 +239,7 @@ browser =
 The local driver still runs; only the browser is remote. `expose_network: "<loopback>"` lets the
 remote browser reach `localhost` on your machine, where the app under test runs. For the pooled
 browsers of `Playwright.Test`, set `connect_options`
-([Remote browsers](testing-with-exunit.md#remote-browsers)).
+([Remote browsers](test-artifacts.md#remote-browsers)).
 
 More: [trace viewer](https://playwright.dev/python/docs/trace-viewer-intro),
 [debugging](https://playwright.dev/python/docs/debug), [CI](https://playwright.dev/python/docs/ci),

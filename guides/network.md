@@ -8,8 +8,8 @@ Snippets alias `Playwright.{Page, Route, ...}`.
 A route intercepts the requests whose URL matches, and its handler decides what happens to each:
 
 ```elixir
-Page.route!(page, "**/api/users", &Route.fulfill(&1, json: [%{name: "Ada"}]))
-Page.route!(page, "**/*.{png,jpg}", &Route.abort/1)
+Page.route!(page, "**/api/users", &Route.fulfill!(&1, json: [%{name: "Ada"}]))
+Page.route!(page, "**/*.{png,jpg}", &Route.abort!/1)
 ```
 
 A handler of two arguments also gets the `Request`. It must `fulfill`, `continue`, `abort` or
@@ -18,8 +18,8 @@ A handler of two arguments also gets the `Request`. It must `fulfill`, `continue
 ```elixir
 Page.route!(page, "**/api/**", fn route, request ->
   case Request.method(request) do
-    "DELETE" -> Route.fulfill(route, status: 403, json: %{error: "forbidden"})
-    _ -> Route.continue(route, headers: Map.put(Request.headers(request), "x-test", "1"))
+    "DELETE" -> Route.fulfill!(route, status: 403, json: %{error: "forbidden"})
+    _ -> Route.continue!(route, headers: Map.put(Request.headers(request), "x-test", "1"))
   end
 end)
 ```
@@ -30,7 +30,7 @@ To change a real response, fetch it and fulfill with the result:
 Page.route!(page, "**/api/users", fn route ->
   response = Route.fetch!(route)
   users = APIResponse.json!(response)
-  Route.fulfill(route, response: response, json: users ++ [%{name: "Grace"}])
+  Route.fulfill!(route, response: response, json: users ++ [%{name: "Grace"}])
 end)
 ```
 
@@ -38,7 +38,7 @@ end)
   (`&(&1.path == "/api/users")`); with `base_url`, a path such as `"/api/users"` is resolved
   against it.
 - When several routes match, the one added last runs;
-  [`Route.fallback/2`](`Playwright.Route.fallback/2`) hands the request to the one before.
+  [`Route.fallback!/2`](`Playwright.Route.fallback!/2`) hands the request to the one before.
 - [`BrowserContext.route/4`](`Playwright.BrowserContext.route/4`) covers every page of the
   context, including a popup's first request.
 - `times: 1` routes once; [`Page.unroute/3`](`Playwright.Page.unroute/3`) removes a route.

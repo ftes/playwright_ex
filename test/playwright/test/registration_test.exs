@@ -131,8 +131,7 @@ defmodule Playwright.Test.RegistrationTest do
     test_pid = self()
     spawn(fn -> send(test_pid, {:raised, catch_error(Playwright.Test.info())}) end)
 
-    assert_receive {:raised,
-                    %RuntimeError{message: "Playwright.Test.info() can only be called while a test or its module" <> _}}
+    assert_receive {:raised, %RuntimeError{message: "Playwright.Test.info/0: no test or setup_all running" <> _}}
   end
 
   # Upstream's `testInfo.timeout`: ExUnit's timeout of the test, none (`:infinity`) under `--trace`.
@@ -187,7 +186,10 @@ defmodule Playwright.Test.RegistrationTest do
     on_exit(fn -> File.rm_rf!(dir) end)
     assert Playwright.Test.output_path("export.csv") == Path.join(dir, "export.csv")
     assert File.dir?(dir)
-    assert_raise ArgumentError, ~r/outside of the output dir/, fn -> Playwright.Test.output_path("../export.csv") end
+
+    assert_raise ArgumentError, ~r/^Playwright.Test.output_path\/1: a path outside the output dir/, fn ->
+      Playwright.Test.output_path("../export.csv")
+    end
   end
 
   test "with every artifact off, nothing is written and no recorder runs for a test without contexts" do
@@ -317,7 +319,7 @@ defmodule Playwright.Test.RegistrationTest.LateTest do
         try do
           Playwright.Test.__setup__(%{test_pid: self()})
         rescue
-          e in ArgumentError -> e.message
+          e in RuntimeError -> e.message
         end
 
       Playwright.BrowserContext.close!(context)
@@ -345,7 +347,7 @@ defmodule Playwright.Test.RegistrationTest.LateTest do
         try do
           Playwright.Test.__setup_all__(%{module: __MODULE__})
         rescue
-          e in ArgumentError -> e.message
+          e in RuntimeError -> e.message
         end
 
       Playwright.BrowserContext.close!(context)
@@ -365,7 +367,7 @@ defmodule Playwright.Test.RegistrationTest.LateTest do
   test "a browser before the registration makes it raise, with the fix" do
     Playwright.Test.BrowserPool.browser()
 
-    message = assert_raise(ArgumentError, fn -> Playwright.Test.__setup__(%{test_pid: self()}) end).message
+    message = assert_raise(RuntimeError, fn -> Playwright.Test.__setup__(%{test_pid: self()}) end).message
 
     assert message =~
              "this test fetched a browser (`BrowserPool.browser/1`) or created a context before `use Playwright.Test` registered it"
@@ -377,7 +379,7 @@ defmodule Playwright.Test.RegistrationTest.LateTest do
   test "a browser of setup_all before the module's registration makes it raise, with the fix" do
     Playwright.Test.BrowserPool.browser()
 
-    message = assert_raise(ArgumentError, fn -> Playwright.Test.__setup_all__(%{module: __MODULE__}) end).message
+    message = assert_raise(RuntimeError, fn -> Playwright.Test.__setup_all__(%{module: __MODULE__}) end).message
 
     assert message =~
              "this module's setup_all fetched a browser (`BrowserPool.browser/1`) or created a context before `use Playwright.Test` registered it"
@@ -389,7 +391,7 @@ defmodule Playwright.Test.RegistrationTest.LateTest do
   test "a second early call keeps one note and one error" do
     context = Playwright.Browser.new_context!(Playwright.Test.BrowserPool.browser())
     on_exit(fn -> Playwright.BrowserContext.close!(context) end)
-    message = assert_raise(ArgumentError, fn -> Playwright.Test.__setup__(%{test_pid: self()}) end).message
+    message = assert_raise(RuntimeError, fn -> Playwright.Test.__setup__(%{test_pid: self()}) end).message
 
     assert message =~
              "this test fetched a browser (`BrowserPool.browser/1`) or created a context before `use Playwright.Test` registered it"

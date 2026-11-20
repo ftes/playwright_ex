@@ -97,12 +97,12 @@ defmodule Playwright.Guides.EventsAndWaitingTest do
     Page.get_by_role(page, :button, name: "Delete") |> Locator.click!()
     Expect.to_have_title!(page, "Home")
 
-    Page.on(page, :dialog, &Dialog.accept/1)
+    Page.on(page, :dialog, &Dialog.accept!/1)
     Page.get_by_role(page, :button, name: "Delete") |> Locator.click!()
     Expect.to_have_title!(page, "Deleted")
     Page.remove_all_listeners!(page, :dialog)
 
-    Page.once(page, :dialog, &Dialog.accept(&1, "42"))
+    Page.once(page, :dialog, &Dialog.accept!(&1, "42"))
     Page.get_by_role(page, :button, name: "Pick a number") |> Locator.click!()
     Expect.to_have_title!(page, "42")
   end

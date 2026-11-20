@@ -114,7 +114,7 @@ defmodule Playwright.Client.ConnectBacklogTest do
 
         # A test hook is no API option: the client is called directly.
         {:ok, browser} =
-          Facade.async("browserType.connect", browser_type, fn ->
+          Facade.async("browserType.connect", fn ->
             Playwright.Client.BrowserType.connect(browser_type, endpoint, %{__testHookBeforeCreateBrowser: hook})
           end)
 

@@ -25,11 +25,11 @@ defmodule Playwright.Guides.GettingStartedTest do
 
   test "supervision tree" do
     children = [
-      {Playwright.Supervisor, name: MyApp.Playwright}
+      {Playwright.Supervisor, name: MyApp.PlaywrightDriver}
     ]
 
     {:ok, _} = start_supervised(%{id: MyApp, start: {Supervisor, :start_link, [children, [strategy: :one_for_one]]}})
-    playwright = Playwright.instance(MyApp.Playwright)
+    playwright = Playwright.instance(MyApp.PlaywrightDriver)
     assert %Playwright{} = playwright
   end
 

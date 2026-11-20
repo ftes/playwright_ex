@@ -56,6 +56,16 @@ Use the bang forms in scripts and tests, the tuple forms where a failure is an e
 Where JS docs say a call throws, the function docs say it *fails* (with a `TimeoutError`, say):
 the tuple form returns the error, the bang form raises it.
 
+The library's own functions, those with no JS counterpart (the runner's `Playwright.Test`,
+`Playwright.Test.BrowserPool`, `Playwright.Driver`, `Playwright.device/1`), are plain Elixir:
+one form, without a bang, that takes its options as a keyword list (`Test.use/1` and
+`Test.parameters/1` a map too) and raises on failure. Bad input raises `ArgumentError`, a call
+outside its scope (`Playwright.Test.info/0` outside a test) `RuntimeError`, with a message
+`<Module.function/arity or config path>: <problem>, expected ...`, `got: ...` when the problem
+doesn't name the value. Keys and values read as the facade's errors
+(`Playwright.Test.use/1: unknown option headless, expected one of trace, ...`,
+`invalid value :sometimes for trace, expected one of :off, :on, ...`).
+
 ## Options
 
 The JS options object is the last argument: a keyword list (or a map) with snake_case keys.
@@ -156,7 +166,7 @@ ready = Page.wait_for_event(page, :console, &(ConsoleMessage.text(&1) == "ready"
 
 `on/3`, `once/3` and `off/3` take a listener function, as in JS. A listener runs in a process of its
 own and may call Playwright, as a `:dialog` listener calls
-[`Dialog.accept/2`](`Playwright.Dialog.accept/2`). The [Concurrency](../concurrency.md) guide
+[`Dialog.accept!/2`](`Playwright.Dialog.accept!/2`). The [Concurrency](../concurrency.md) guide
 covers ordering, blocking listeners and promise lifetimes.
 
 ## Assertions

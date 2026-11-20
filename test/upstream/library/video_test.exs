@@ -14,7 +14,7 @@ defmodule Playwright.Library.VideoTest do
   alias Playwright.Client.ChannelOwner
   alias Playwright.Page
   alias Playwright.Runtime
-  alias Playwright.Runtime.Api
+  alias Playwright.Runtime.Facade
   alias Playwright.TestServer
   alias Playwright.Tracing
   alias Playwright.Utils
@@ -491,7 +491,7 @@ defmodule Playwright.Library.VideoTest do
       page = BrowserContext.new_page!(context)
       ensure_some_frames(page)
       # (browser as any)._channel.killForTests()
-      Api.call(nil, browser, fn -> ChannelOwner.channel_call(browser, :killForTests, %{}) end)
+      Facade.call(nil, fn -> ChannelOwner.channel_call(browser, :killForTests, %{}) end)
 
       file = Path.join(tmp_dir, "saved-video-")
       {:error, save_result} = Video.save_as(Page.video(page), file)

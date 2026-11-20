@@ -3,7 +3,7 @@
 A statement-by-statement port of the Playwright JS client to Elixir. The rules are in
 [`PORTING.md`](PORTING.md) (how to port) and [`docs/architecture.md`](docs/architecture.md) (why).
 Read them before changing ported code. When reviewing a change or fixing review findings, follow
-[Reviewing](README.md#reviewing).
+[Reviewing](CONTRIBUTING.md#reviewing).
 
 - Names: the modules are `Playwright.*`, the app `:playwright` (`config :playwright`,
   `mix playwright.*`); only the Hex package and the GitHub repo are `playwright_ex`.
@@ -16,8 +16,9 @@ Read them before changing ported code. When reviewing a change or fixing review 
   reference: `mix playwright.upstream` (part of `mix setup`) downloads them and prints their
   directory, `<cache_dir>/<version>/upstream`.
 - `Playwright.Test` (ExUnit runner and browser pool, `lib/playwright/test*`) is a native runner, with no
-  port markers. Only what the ported matchers and traces need is ported: testInfo, `test.trace`
-  and `step` (`Playwright.Test.{TestInfo, TestTracing}`, `test.ex`), with upstream source
+  port markers. Only what the ported matchers, traces and failure reports need is ported:
+  testInfo, `test.trace`, `step`, errorContext and the github reporter
+  (`Playwright.Test.{TestInfo, TestTracing, ErrorContext, GitHubFormatter}`, `test.ex`), with upstream source
   references and `-- not ported`/`# deviation:` comments, but no `@upstream`: parity covers the
   client API, not the runner.
 - CHANGELOG during an RC phase: prefix entries that only matter to users of an earlier RC with

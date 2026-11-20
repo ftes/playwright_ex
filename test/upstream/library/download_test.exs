@@ -20,7 +20,7 @@ defmodule Playwright.Library.DownloadTest do
   alias Playwright.Page
   alias Playwright.Promise
   alias Playwright.Route
-  alias Playwright.Runtime.Api
+  alias Playwright.Runtime.Facade
   alias Playwright.TestServer
 
   # config/errors.ts
@@ -503,7 +503,7 @@ defmodule Playwright.Library.DownloadTest do
           fn -> Download.path(download) end,
           fn -> Download.save_as(download, Path.join(tmp_dir, "download.txt")) end,
           # (browser as any)._channel.killForTests()
-          fn -> Api.call(nil, browser, fn -> ChannelOwner.channel_call(browser, :killForTests, %{}) end) end
+          fn -> Facade.call(nil, fn -> ChannelOwner.channel_call(browser, :killForTests, %{}) end) end
         ])
 
       assert {:error, %{message: "download.path: " <> @k_target_closed_error_message}} = download_error

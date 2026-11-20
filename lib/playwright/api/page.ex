@@ -96,7 +96,7 @@ defmodule Playwright.Page do
   **Usage**
 
   ```elixir
-  Page.on(page, :dialog, &Dialog.accept/1)
+  Page.on(page, :dialog, &Dialog.accept!/1)
   ```
 
   > #### Note {: .info}
@@ -349,10 +349,7 @@ defmodule Playwright.Page do
   def add_init_script(%Playwright.Page{} = page, script, arg \\ nil, options \\ []) do
     script = Facade.arg!(script, @add_init_script_script, "page.addInitScript", :script)
     options = Facade.options!(options, @add_init_script_options, "page.addInitScript")
-
-    Facade.async("page.addInitScript", page, fn ->
-      Playwright.Client.Page.add_init_script(page, script, arg, options)
-    end)
+    Facade.async("page.addInitScript", fn -> Playwright.Client.Page.add_init_script(page, script, arg, options) end)
   end
 
   @doc "Like `add_init_script/4`, but returns the value and raises on error."
@@ -365,10 +362,7 @@ defmodule Playwright.Page do
   def add_init_script!(%Playwright.Page{} = page, script, arg \\ nil, options \\ []) do
     script = Facade.arg!(script, @add_init_script_script, "page.addInitScript", :script)
     options = Facade.options!(options, @add_init_script_options, "page.addInitScript")
-
-    Facade.async!("page.addInitScript", page, fn ->
-      Playwright.Client.Page.add_init_script(page, script, arg, options)
-    end)
+    Facade.async!("page.addInitScript", fn -> Playwright.Client.Page.add_init_script(page, script, arg, options) end)
   end
 
   @add_script_tag_options {:object,
@@ -403,14 +397,14 @@ defmodule Playwright.Page do
           {:ok, Playwright.ElementHandle.t()} | {:error, Playwright.error()}
   def add_script_tag(%Playwright.Page{} = page, options \\ []) do
     options = Facade.options!(options, @add_script_tag_options, "page.addScriptTag")
-    Facade.async("page.addScriptTag", page, fn -> Playwright.Client.Page.add_script_tag(page, options) end)
+    Facade.async("page.addScriptTag", fn -> Playwright.Client.Page.add_script_tag(page, options) end)
   end
 
   @doc "Like `add_script_tag/2`, but returns the value and raises on error."
   @spec add_script_tag!(t(), add_script_tag_options()) :: Playwright.ElementHandle.t()
   def add_script_tag!(%Playwright.Page{} = page, options \\ []) do
     options = Facade.options!(options, @add_script_tag_options, "page.addScriptTag")
-    Facade.async!("page.addScriptTag", page, fn -> Playwright.Client.Page.add_script_tag(page, options) end)
+    Facade.async!("page.addScriptTag", fn -> Playwright.Client.Page.add_script_tag(page, options) end)
   end
 
   @add_style_tag_options {:object, %{content: {:content, nil}, path: {:path, nil}, url: {:url, nil}}}
@@ -437,14 +431,14 @@ defmodule Playwright.Page do
           {:ok, Playwright.ElementHandle.t()} | {:error, Playwright.error()}
   def add_style_tag(%Playwright.Page{} = page, options \\ []) do
     options = Facade.options!(options, @add_style_tag_options, "page.addStyleTag")
-    Facade.async("page.addStyleTag", page, fn -> Playwright.Client.Page.add_style_tag(page, options) end)
+    Facade.async("page.addStyleTag", fn -> Playwright.Client.Page.add_style_tag(page, options) end)
   end
 
   @doc "Like `add_style_tag/2`, but returns the value and raises on error."
   @spec add_style_tag!(t(), add_style_tag_options()) :: Playwright.ElementHandle.t()
   def add_style_tag!(%Playwright.Page{} = page, options \\ []) do
     options = Facade.options!(options, @add_style_tag_options, "page.addStyleTag")
-    Facade.async!("page.addStyleTag", page, fn -> Playwright.Client.Page.add_style_tag(page, options) end)
+    Facade.async!("page.addStyleTag", fn -> Playwright.Client.Page.add_style_tag(page, options) end)
   end
 
   @doc ~S"""
@@ -454,13 +448,13 @@ defmodule Playwright.Page do
   """
   @spec bring_to_front(t()) :: :ok | {:error, Playwright.error()}
   def bring_to_front(%Playwright.Page{} = page) do
-    Facade.async_void("page.bringToFront", page, fn -> Playwright.Client.Page.bring_to_front(page) end)
+    Facade.async_void("page.bringToFront", fn -> Playwright.Client.Page.bring_to_front(page) end)
   end
 
   @doc "Like `bring_to_front/1`, but returns the value and raises on error."
   @spec bring_to_front!(t()) :: :ok
   def bring_to_front!(%Playwright.Page{} = page) do
-    Facade.async_void!("page.bringToFront", page, fn -> Playwright.Client.Page.bring_to_front(page) end)
+    Facade.async_void!("page.bringToFront", fn -> Playwright.Client.Page.bring_to_front(page) end)
   end
 
   @doc ~S"""
@@ -471,13 +465,13 @@ defmodule Playwright.Page do
   """
   @spec cancel_pick_locator(t()) :: :ok | {:error, Playwright.error()}
   def cancel_pick_locator(%Playwright.Page{} = page) do
-    Facade.async_void("page.cancelPickLocator", page, fn -> Playwright.Client.Page.cancel_pick_locator(page) end)
+    Facade.async_void("page.cancelPickLocator", fn -> Playwright.Client.Page.cancel_pick_locator(page) end)
   end
 
   @doc "Like `cancel_pick_locator/1`, but returns the value and raises on error."
   @spec cancel_pick_locator!(t()) :: :ok
   def cancel_pick_locator!(%Playwright.Page{} = page) do
-    Facade.async_void!("page.cancelPickLocator", page, fn -> Playwright.Client.Page.cancel_pick_locator(page) end)
+    Facade.async_void!("page.cancelPickLocator", fn -> Playwright.Client.Page.cancel_pick_locator(page) end)
   end
 
   @check_options {:object,
@@ -569,14 +563,14 @@ defmodule Playwright.Page do
   @spec check(t(), String.t(), check_options()) :: :ok | {:error, Playwright.error()}
   def check(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @check_options, "page.check")
-    Facade.async_void("page.check", page, fn -> Playwright.Client.Page.check(page, selector, options) end)
+    Facade.async_void("page.check", fn -> Playwright.Client.Page.check(page, selector, options) end)
   end
 
   @doc "Like `check/3`, but returns the value and raises on error."
   @spec check!(t(), String.t(), check_options()) :: :ok
   def check!(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @check_options, "page.check")
-    Facade.async_void!("page.check", page, fn -> Playwright.Client.Page.check(page, selector, options) end)
+    Facade.async_void!("page.check", fn -> Playwright.Client.Page.check(page, selector, options) end)
   end
 
   @click_options {:object,
@@ -696,14 +690,14 @@ defmodule Playwright.Page do
   @spec click(t(), String.t(), click_options()) :: :ok | {:error, Playwright.error()}
   def click(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @click_options, "page.click")
-    Facade.async_void("page.click", page, fn -> Playwright.Client.Page.click(page, selector, options) end)
+    Facade.async_void("page.click", fn -> Playwright.Client.Page.click(page, selector, options) end)
   end
 
   @doc "Like `click/3`, but returns the value and raises on error."
   @spec click!(t(), String.t(), click_options()) :: :ok
   def click!(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @click_options, "page.click")
-    Facade.async_void!("page.click", page, fn -> Playwright.Client.Page.click(page, selector, options) end)
+    Facade.async_void!("page.click", fn -> Playwright.Client.Page.click(page, selector, options) end)
   end
 
   @close_options {:object, %{reason: {:reason, nil}, run_before_unload: {:runBeforeUnload, nil}}}
@@ -735,14 +729,14 @@ defmodule Playwright.Page do
   @spec close(t(), close_options()) :: :ok | {:error, Playwright.error()}
   def close(%Playwright.Page{} = page, options \\ []) do
     options = Facade.options!(options, @close_options, "page.close")
-    Facade.async_void("page.close", page, fn -> Playwright.Client.Page.close(page, options) end)
+    Facade.async_void("page.close", fn -> Playwright.Client.Page.close(page, options) end)
   end
 
   @doc "Like `close/2`, but returns the value and raises on error."
   @spec close!(t(), close_options()) :: :ok
   def close!(%Playwright.Page{} = page, options \\ []) do
     options = Facade.options!(options, @close_options, "page.close")
-    Facade.async_void!("page.close", page, fn -> Playwright.Client.Page.close(page, options) end)
+    Facade.async_void!("page.close", fn -> Playwright.Client.Page.close(page, options) end)
   end
 
   @content_options {:object, %{include_shadow: {:includeShadow, nil}}}
@@ -763,14 +757,14 @@ defmodule Playwright.Page do
   @spec content(t(), content_options()) :: {:ok, String.t()} | {:error, Playwright.error()}
   def content(%Playwright.Page{} = page, options \\ []) do
     options = Facade.options!(options, @content_options, "page.content")
-    Facade.async("page.content", page, fn -> Playwright.Client.Page.content(page, options) end)
+    Facade.async("page.content", fn -> Playwright.Client.Page.content(page, options) end)
   end
 
   @doc "Like `content/2`, but returns the value and raises on error."
   @spec content!(t(), content_options()) :: String.t()
   def content!(%Playwright.Page{} = page, options \\ []) do
     options = Facade.options!(options, @content_options, "page.content")
-    Facade.async!("page.content", page, fn -> Playwright.Client.Page.content(page, options) end)
+    Facade.async!("page.content", fn -> Playwright.Client.Page.content(page, options) end)
   end
 
   @doc ~S"""
@@ -911,14 +905,14 @@ defmodule Playwright.Page do
   @spec dblclick(t(), String.t(), dblclick_options()) :: :ok | {:error, Playwright.error()}
   def dblclick(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @dblclick_options, "page.dblclick")
-    Facade.async_void("page.dblclick", page, fn -> Playwright.Client.Page.dblclick(page, selector, options) end)
+    Facade.async_void("page.dblclick", fn -> Playwright.Client.Page.dblclick(page, selector, options) end)
   end
 
   @doc "Like `dblclick/3`, but returns the value and raises on error."
   @spec dblclick!(t(), String.t(), dblclick_options()) :: :ok
   def dblclick!(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @dblclick_options, "page.dblclick")
-    Facade.async_void!("page.dblclick", page, fn -> Playwright.Client.Page.dblclick(page, selector, options) end)
+    Facade.async_void!("page.dblclick", fn -> Playwright.Client.Page.dblclick(page, selector, options) end)
   end
 
   @dispatch_event_options {:object, %{signal: {:signal, nil}, strict: {:strict, nil}, timeout: {:timeout, nil}}}
@@ -1000,7 +994,7 @@ defmodule Playwright.Page do
   def dispatch_event(%Playwright.Page{} = page, selector, type, event_init \\ nil, options \\ []) do
     options = Facade.options!(options, @dispatch_event_options, "page.dispatchEvent")
 
-    Facade.async_void("page.dispatchEvent", page, fn ->
+    Facade.async_void("page.dispatchEvent", fn ->
       Playwright.Client.Page.dispatch_event(page, selector, type, event_init, options)
     end)
   end
@@ -1010,7 +1004,7 @@ defmodule Playwright.Page do
   def dispatch_event!(%Playwright.Page{} = page, selector, type, event_init \\ nil, options \\ []) do
     options = Facade.options!(options, @dispatch_event_options, "page.dispatchEvent")
 
-    Facade.async_void!("page.dispatchEvent", page, fn ->
+    Facade.async_void!("page.dispatchEvent", fn ->
       Playwright.Client.Page.dispatch_event(page, selector, type, event_init, options)
     end)
   end
@@ -1110,10 +1104,7 @@ defmodule Playwright.Page do
   @spec drag_and_drop(t(), String.t(), String.t(), drag_and_drop_options()) :: :ok | {:error, Playwright.error()}
   def drag_and_drop(%Playwright.Page{} = page, source, target, options \\ []) do
     options = Facade.options!(options, @drag_and_drop_options, "page.dragAndDrop")
-
-    Facade.async_void("page.dragAndDrop", page, fn ->
-      Playwright.Client.Page.drag_and_drop(page, source, target, options)
-    end)
+    Facade.async_void("page.dragAndDrop", fn -> Playwright.Client.Page.drag_and_drop(page, source, target, options) end)
   end
 
   @doc "Like `drag_and_drop/4`, but returns the value and raises on error."
@@ -1121,9 +1112,7 @@ defmodule Playwright.Page do
   def drag_and_drop!(%Playwright.Page{} = page, source, target, options \\ []) do
     options = Facade.options!(options, @drag_and_drop_options, "page.dragAndDrop")
 
-    Facade.async_void!("page.dragAndDrop", page, fn ->
-      Playwright.Client.Page.drag_and_drop(page, source, target, options)
-    end)
+    Facade.async_void!("page.dragAndDrop", fn -> Playwright.Client.Page.drag_and_drop(page, source, target, options) end)
   end
 
   @emulate_media_options {:object,
@@ -1202,14 +1191,14 @@ defmodule Playwright.Page do
   @spec emulate_media(t(), emulate_media_options()) :: :ok | {:error, Playwright.error()}
   def emulate_media(%Playwright.Page{} = page, options \\ []) do
     options = Facade.options!(options, @emulate_media_options, "page.emulateMedia")
-    Facade.async_void("page.emulateMedia", page, fn -> Playwright.Client.Page.emulate_media(page, options) end)
+    Facade.async_void("page.emulateMedia", fn -> Playwright.Client.Page.emulate_media(page, options) end)
   end
 
   @doc "Like `emulate_media/2`, but returns the value and raises on error."
   @spec emulate_media!(t(), emulate_media_options()) :: :ok
   def emulate_media!(%Playwright.Page{} = page, options \\ []) do
     options = Facade.options!(options, @emulate_media_options, "page.emulateMedia")
-    Facade.async_void!("page.emulateMedia", page, fn -> Playwright.Client.Page.emulate_media(page, options) end)
+    Facade.async_void!("page.emulateMedia", fn -> Playwright.Client.Page.emulate_media(page, options) end)
   end
 
   @doc ~S"""
@@ -1244,13 +1233,13 @@ defmodule Playwright.Page do
   """
   @spec eval_on_selector(t(), String.t(), String.t(), term() | nil) :: {:ok, term()} | {:error, Playwright.error()}
   def eval_on_selector(%Playwright.Page{} = page, selector, expression, arg \\ nil) do
-    Facade.async("page.$eval", page, fn -> Playwright.Client.Page.eval_on_selector(page, selector, expression, arg) end)
+    Facade.async("page.$eval", fn -> Playwright.Client.Page.eval_on_selector(page, selector, expression, arg) end)
   end
 
   @doc "Like `eval_on_selector/4`, but returns the value and raises on error."
   @spec eval_on_selector!(t(), String.t(), String.t(), term() | nil) :: term()
   def eval_on_selector!(%Playwright.Page{} = page, selector, expression, arg \\ nil) do
-    Facade.async!("page.$eval", page, fn -> Playwright.Client.Page.eval_on_selector(page, selector, expression, arg) end)
+    Facade.async!("page.$eval", fn -> Playwright.Client.Page.eval_on_selector(page, selector, expression, arg) end)
   end
 
   @doc ~S"""
@@ -1281,17 +1270,13 @@ defmodule Playwright.Page do
   """
   @spec eval_on_selector_all(t(), String.t(), String.t(), term() | nil) :: {:ok, term()} | {:error, Playwright.error()}
   def eval_on_selector_all(%Playwright.Page{} = page, selector, expression, arg \\ nil) do
-    Facade.async("page.$$eval", page, fn ->
-      Playwright.Client.Page.eval_on_selector_all(page, selector, expression, arg)
-    end)
+    Facade.async("page.$$eval", fn -> Playwright.Client.Page.eval_on_selector_all(page, selector, expression, arg) end)
   end
 
   @doc "Like `eval_on_selector_all/4`, but returns the value and raises on error."
   @spec eval_on_selector_all!(t(), String.t(), String.t(), term() | nil) :: term()
   def eval_on_selector_all!(%Playwright.Page{} = page, selector, expression, arg \\ nil) do
-    Facade.async!("page.$$eval", page, fn ->
-      Playwright.Client.Page.eval_on_selector_all(page, selector, expression, arg)
-    end)
+    Facade.async!("page.$$eval", fn -> Playwright.Client.Page.eval_on_selector_all(page, selector, expression, arg) end)
   end
 
   @evaluate_options {:object, %{expose_functions: {:exposeFunctions, nil}}}
@@ -1351,14 +1336,14 @@ defmodule Playwright.Page do
   @spec evaluate(t(), String.t(), term() | nil, evaluate_options()) :: {:ok, term()} | {:error, Playwright.error()}
   def evaluate(%Playwright.Page{} = page, expression, arg \\ nil, options \\ []) do
     options = Facade.options!(options, @evaluate_options, "page.evaluate")
-    Facade.async("page.evaluate", page, fn -> Playwright.Client.Page.evaluate(page, expression, arg, options) end)
+    Facade.async("page.evaluate", fn -> Playwright.Client.Page.evaluate(page, expression, arg, options) end)
   end
 
   @doc "Like `evaluate/4`, but returns the value and raises on error."
   @spec evaluate!(t(), String.t(), term() | nil, evaluate_options()) :: term()
   def evaluate!(%Playwright.Page{} = page, expression, arg \\ nil, options \\ []) do
     options = Facade.options!(options, @evaluate_options, "page.evaluate")
-    Facade.async!("page.evaluate", page, fn -> Playwright.Client.Page.evaluate(page, expression, arg, options) end)
+    Facade.async!("page.evaluate", fn -> Playwright.Client.Page.evaluate(page, expression, arg, options) end)
   end
 
   @evaluate_handle_options {:object, %{expose_functions: {:exposeFunctions, nil}}}
@@ -1413,9 +1398,7 @@ defmodule Playwright.Page do
   def evaluate_handle(%Playwright.Page{} = page, expression, arg \\ nil, options \\ []) do
     options = Facade.options!(options, @evaluate_handle_options, "page.evaluateHandle")
 
-    Facade.async("page.evaluateHandle", page, fn ->
-      Playwright.Client.Page.evaluate_handle(page, expression, arg, options)
-    end)
+    Facade.async("page.evaluateHandle", fn -> Playwright.Client.Page.evaluate_handle(page, expression, arg, options) end)
   end
 
   @doc "Like `evaluate_handle/4`, but returns the value and raises on error."
@@ -1423,7 +1406,7 @@ defmodule Playwright.Page do
   def evaluate_handle!(%Playwright.Page{} = page, expression, arg \\ nil, options \\ []) do
     options = Facade.options!(options, @evaluate_handle_options, "page.evaluateHandle")
 
-    Facade.async!("page.evaluateHandle", page, fn ->
+    Facade.async!("page.evaluateHandle", fn ->
       Playwright.Client.Page.evaluate_handle(page, expression, arg, options)
     end)
   end
@@ -1431,25 +1414,25 @@ defmodule Playwright.Page do
   @doc "The method adds a function called `name` on the `window` object of every frame in this page. When called, the\nfunction executes `callback` and returns a `Promise` which resolves to the return value of `callback`.\nIf `callback` returns a `Playwright.Promise`, it is awaited.\n\nThe first argument of the `callback` function contains information about the caller: `{ browserContext:\nBrowserContext, page: Page, frame: Frame }`.\n\nSee `Playwright.BrowserContext.expose_binding/3` for the context-wide version.\n\n> #### Note {: .info}\n>\n> Functions installed via `Playwright.Page.expose_binding/3` survive navigations.\n\n**Usage**\n\nAn example of exposing page URL to all frames in a page:\n\n```elixir\n# Or Playwright.chromium/1 or Playwright.firefox/1.\nbrowser = Playwright.webkit(playwright) |> BrowserType.launch!(headless: false)\ncontext = Browser.new_context!(browser)\npage = BrowserContext.new_page!(context)\nPage.expose_binding!(page, \"pageURL\", fn %{page: page} -> Page.url(page) end)\n\nPage.set_content!(page, \"\"\"\n<script>\n  async function onClick() {\n    document.querySelector('div').textContent = await window.pageURL();\n  }\n</script>\n<button onclick=\"onClick()\">Click me</button>\n<div></div>\n\"\"\")\n\nPage.click!(page, \"button\")\n```\n\n*Since Playwright 1.8.*\n\n## Arguments\n\n* `name` - Name of the function on the window object.\n* `callback` - Callback function that will be called in the Playwright's context."
   @spec expose_binding(t(), String.t(), fun()) :: {:ok, Playwright.Disposable.t()} | {:error, Playwright.error()}
   def expose_binding(%Playwright.Page{} = page, name, callback) do
-    Facade.async("page.exposeBinding", page, fn -> Playwright.Client.Page.expose_binding(page, name, callback) end)
+    Facade.async("page.exposeBinding", fn -> Playwright.Client.Page.expose_binding(page, name, callback) end)
   end
 
   @doc "Like `expose_binding/3`, but returns the value and raises on error."
   @spec expose_binding!(t(), String.t(), fun()) :: Playwright.Disposable.t()
   def expose_binding!(%Playwright.Page{} = page, name, callback) do
-    Facade.async!("page.exposeBinding", page, fn -> Playwright.Client.Page.expose_binding(page, name, callback) end)
+    Facade.async!("page.exposeBinding", fn -> Playwright.Client.Page.expose_binding(page, name, callback) end)
   end
 
   @doc "The method adds a function called `name` on the `window` object of every frame in the page. When called, the\nfunction executes `callback` and returns a `Promise` which resolves to the return value of `callback`.\n\nIf `callback` returns a `Playwright.Promise`, it is awaited.\n\nSee `Playwright.BrowserContext.expose_function/3` for context-wide exposed function.\n\n> #### Note {: .info}\n>\n> Functions installed via `Playwright.Page.expose_function/3` survive navigations.\n\n**Usage**\n\nAn example of adding a `sha256` function to the page:\n\n```elixir\n# Or Playwright.chromium/1 or Playwright.firefox/1.\nbrowser = Playwright.webkit(playwright) |> BrowserType.launch!(headless: false)\npage = Browser.new_page!(browser)\n\nPage.expose_function!(page, \"sha256\", fn text ->\n  :crypto.hash(:sha256, text) |> Base.encode16(case: :lower)\nend)\n\nPage.set_content!(page, \"\"\"\n<script>\n  async function onClick() {\n    document.querySelector('div').textContent = await window.sha256('PLAYWRIGHT');\n  }\n</script>\n<button onclick=\"onClick()\">Click me</button>\n<div></div>\n\"\"\")\n\nPage.click!(page, \"button\")\n```\n\n*Since Playwright 1.8.*\n\n## Arguments\n\n* `name` - Name of the function on the window object\n* `callback` - Callback function which will be called in Playwright's context."
   @spec expose_function(t(), String.t(), fun()) :: {:ok, Playwright.Disposable.t()} | {:error, Playwright.error()}
   def expose_function(%Playwright.Page{} = page, name, callback) do
-    Facade.async("page.exposeFunction", page, fn -> Playwright.Client.Page.expose_function(page, name, callback) end)
+    Facade.async("page.exposeFunction", fn -> Playwright.Client.Page.expose_function(page, name, callback) end)
   end
 
   @doc "Like `expose_function/3`, but returns the value and raises on error."
   @spec expose_function!(t(), String.t(), fun()) :: Playwright.Disposable.t()
   def expose_function!(%Playwright.Page{} = page, name, callback) do
-    Facade.async!("page.exposeFunction", page, fn -> Playwright.Client.Page.expose_function(page, name, callback) end)
+    Facade.async!("page.exposeFunction", fn -> Playwright.Client.Page.expose_function(page, name, callback) end)
   end
 
   @fill_options {:object,
@@ -1515,14 +1498,14 @@ defmodule Playwright.Page do
   @spec fill(t(), String.t(), String.t(), fill_options()) :: :ok | {:error, Playwright.error()}
   def fill(%Playwright.Page{} = page, selector, value, options \\ []) do
     options = Facade.options!(options, @fill_options, "page.fill")
-    Facade.async_void("page.fill", page, fn -> Playwright.Client.Page.fill(page, selector, value, options) end)
+    Facade.async_void("page.fill", fn -> Playwright.Client.Page.fill(page, selector, value, options) end)
   end
 
   @doc "Like `fill/4`, but returns the value and raises on error."
   @spec fill!(t(), String.t(), String.t(), fill_options()) :: :ok
   def fill!(%Playwright.Page{} = page, selector, value, options \\ []) do
     options = Facade.options!(options, @fill_options, "page.fill")
-    Facade.async_void!("page.fill", page, fn -> Playwright.Client.Page.fill(page, selector, value, options) end)
+    Facade.async_void!("page.fill", fn -> Playwright.Client.Page.fill(page, selector, value, options) end)
   end
 
   @focus_options {:object, %{signal: {:signal, nil}, strict: {:strict, nil}, timeout: {:timeout, nil}}}
@@ -1567,14 +1550,14 @@ defmodule Playwright.Page do
   @spec focus(t(), String.t(), focus_options()) :: :ok | {:error, Playwright.error()}
   def focus(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @focus_options, "page.focus")
-    Facade.async_void("page.focus", page, fn -> Playwright.Client.Page.focus(page, selector, options) end)
+    Facade.async_void("page.focus", fn -> Playwright.Client.Page.focus(page, selector, options) end)
   end
 
   @doc "Like `focus/3`, but returns the value and raises on error."
   @spec focus!(t(), String.t(), focus_options()) :: :ok
   def focus!(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @focus_options, "page.focus")
-    Facade.async_void!("page.focus", page, fn -> Playwright.Client.Page.focus(page, selector, options) end)
+    Facade.async_void!("page.focus", fn -> Playwright.Client.Page.focus(page, selector, options) end)
   end
 
   @frame_frame_selector {:fields, %{name: nil, url: nil}}
@@ -1703,20 +1686,14 @@ defmodule Playwright.Page do
           {:ok, nil | String.t()} | {:error, Playwright.error()}
   def get_attribute(%Playwright.Page{} = page, selector, name, options \\ []) do
     options = Facade.options!(options, @get_attribute_options, "page.getAttribute")
-
-    Facade.async("page.getAttribute", page, fn ->
-      Playwright.Client.Page.get_attribute(page, selector, name, options)
-    end)
+    Facade.async("page.getAttribute", fn -> Playwright.Client.Page.get_attribute(page, selector, name, options) end)
   end
 
   @doc "Like `get_attribute/4`, but returns the value and raises on error."
   @spec get_attribute!(t(), String.t(), String.t(), get_attribute_options()) :: nil | String.t()
   def get_attribute!(%Playwright.Page{} = page, selector, name, options \\ []) do
     options = Facade.options!(options, @get_attribute_options, "page.getAttribute")
-
-    Facade.async!("page.getAttribute", page, fn ->
-      Playwright.Client.Page.get_attribute(page, selector, name, options)
-    end)
+    Facade.async!("page.getAttribute", fn -> Playwright.Client.Page.get_attribute(page, selector, name, options) end)
   end
 
   @get_by_alt_text_options {:object, %{exact: {:exact, nil}}}
@@ -2356,14 +2333,14 @@ defmodule Playwright.Page do
   @spec go_back(t(), go_back_options()) :: {:ok, nil | Playwright.Response.t()} | {:error, Playwright.error()}
   def go_back(%Playwright.Page{} = page, options \\ []) do
     options = Facade.options!(options, @go_back_options, "page.goBack")
-    Facade.async("page.goBack", page, fn -> Playwright.Client.Page.go_back(page, options) end)
+    Facade.async("page.goBack", fn -> Playwright.Client.Page.go_back(page, options) end)
   end
 
   @doc "Like `go_back/2`, but returns the value and raises on error."
   @spec go_back!(t(), go_back_options()) :: nil | Playwright.Response.t()
   def go_back!(%Playwright.Page{} = page, options \\ []) do
     options = Facade.options!(options, @go_back_options, "page.goBack")
-    Facade.async!("page.goBack", page, fn -> Playwright.Client.Page.go_back(page, options) end)
+    Facade.async!("page.goBack", fn -> Playwright.Client.Page.go_back(page, options) end)
   end
 
   @go_forward_options {:object,
@@ -2431,14 +2408,14 @@ defmodule Playwright.Page do
   @spec go_forward(t(), go_forward_options()) :: {:ok, nil | Playwright.Response.t()} | {:error, Playwright.error()}
   def go_forward(%Playwright.Page{} = page, options \\ []) do
     options = Facade.options!(options, @go_forward_options, "page.goForward")
-    Facade.async("page.goForward", page, fn -> Playwright.Client.Page.go_forward(page, options) end)
+    Facade.async("page.goForward", fn -> Playwright.Client.Page.go_forward(page, options) end)
   end
 
   @doc "Like `go_forward/2`, but returns the value and raises on error."
   @spec go_forward!(t(), go_forward_options()) :: nil | Playwright.Response.t()
   def go_forward!(%Playwright.Page{} = page, options \\ []) do
     options = Facade.options!(options, @go_forward_options, "page.goForward")
-    Facade.async!("page.goForward", page, fn -> Playwright.Client.Page.go_forward(page, options) end)
+    Facade.async!("page.goForward", fn -> Playwright.Client.Page.go_forward(page, options) end)
   end
 
   @doc ~S"""
@@ -2459,13 +2436,13 @@ defmodule Playwright.Page do
   """
   @spec request_gc(t()) :: :ok | {:error, Playwright.error()}
   def request_gc(%Playwright.Page{} = page) do
-    Facade.async_void("page.requestGC", page, fn -> Playwright.Client.Page.request_gc(page) end)
+    Facade.async_void("page.requestGC", fn -> Playwright.Client.Page.request_gc(page) end)
   end
 
   @doc "Like `request_gc/1`, but returns the value and raises on error."
   @spec request_gc!(t()) :: :ok
   def request_gc!(%Playwright.Page{} = page) do
-    Facade.async_void!("page.requestGC", page, fn -> Playwright.Client.Page.request_gc(page) end)
+    Facade.async_void!("page.requestGC", fn -> Playwright.Client.Page.request_gc(page) end)
   end
 
   @goto_options {:object,
@@ -2559,14 +2536,14 @@ defmodule Playwright.Page do
   @spec goto(t(), String.t(), goto_options()) :: {:ok, nil | Playwright.Response.t()} | {:error, Playwright.error()}
   def goto(%Playwright.Page{} = page, url, options \\ []) do
     options = Facade.options!(options, @goto_options, "page.goto")
-    Facade.async("page.goto", page, fn -> Playwright.Client.Page.goto(page, url, options) end)
+    Facade.async("page.goto", fn -> Playwright.Client.Page.goto(page, url, options) end)
   end
 
   @doc "Like `goto/3`, but returns the value and raises on error."
   @spec goto!(t(), String.t(), goto_options()) :: nil | Playwright.Response.t()
   def goto!(%Playwright.Page{} = page, url, options \\ []) do
     options = Facade.options!(options, @goto_options, "page.goto")
-    Facade.async!("page.goto", page, fn -> Playwright.Client.Page.goto(page, url, options) end)
+    Facade.async!("page.goto", fn -> Playwright.Client.Page.goto(page, url, options) end)
   end
 
   @doc ~S"""
@@ -2576,13 +2553,13 @@ defmodule Playwright.Page do
   """
   @spec hide_highlight(t()) :: :ok | {:error, Playwright.error()}
   def hide_highlight(%Playwright.Page{} = page) do
-    Facade.async_void("page.hideHighlight", page, fn -> Playwright.Client.Page.hide_highlight(page) end)
+    Facade.async_void("page.hideHighlight", fn -> Playwright.Client.Page.hide_highlight(page) end)
   end
 
   @doc "Like `hide_highlight/1`, but returns the value and raises on error."
   @spec hide_highlight!(t()) :: :ok
   def hide_highlight!(%Playwright.Page{} = page) do
-    Facade.async_void!("page.hideHighlight", page, fn -> Playwright.Client.Page.hide_highlight(page) end)
+    Facade.async_void!("page.hideHighlight", fn -> Playwright.Client.Page.hide_highlight(page) end)
   end
 
   @hover_options {:object,
@@ -2687,14 +2664,14 @@ defmodule Playwright.Page do
   @spec hover(t(), String.t(), hover_options()) :: :ok | {:error, Playwright.error()}
   def hover(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @hover_options, "page.hover")
-    Facade.async_void("page.hover", page, fn -> Playwright.Client.Page.hover(page, selector, options) end)
+    Facade.async_void("page.hover", fn -> Playwright.Client.Page.hover(page, selector, options) end)
   end
 
   @doc "Like `hover/3`, but returns the value and raises on error."
   @spec hover!(t(), String.t(), hover_options()) :: :ok
   def hover!(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @hover_options, "page.hover")
-    Facade.async_void!("page.hover", page, fn -> Playwright.Client.Page.hover(page, selector, options) end)
+    Facade.async_void!("page.hover", fn -> Playwright.Client.Page.hover(page, selector, options) end)
   end
 
   @inner_html_options {:object, %{signal: {:signal, nil}, strict: {:strict, nil}, timeout: {:timeout, nil}}}
@@ -2738,14 +2715,14 @@ defmodule Playwright.Page do
   @spec inner_html(t(), String.t(), inner_html_options()) :: {:ok, String.t()} | {:error, Playwright.error()}
   def inner_html(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @inner_html_options, "page.innerHTML")
-    Facade.async("page.innerHTML", page, fn -> Playwright.Client.Page.inner_html(page, selector, options) end)
+    Facade.async("page.innerHTML", fn -> Playwright.Client.Page.inner_html(page, selector, options) end)
   end
 
   @doc "Like `inner_html/3`, but returns the value and raises on error."
   @spec inner_html!(t(), String.t(), inner_html_options()) :: String.t()
   def inner_html!(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @inner_html_options, "page.innerHTML")
-    Facade.async!("page.innerHTML", page, fn -> Playwright.Client.Page.inner_html(page, selector, options) end)
+    Facade.async!("page.innerHTML", fn -> Playwright.Client.Page.inner_html(page, selector, options) end)
   end
 
   @inner_text_options {:object, %{signal: {:signal, nil}, strict: {:strict, nil}, timeout: {:timeout, nil}}}
@@ -2789,14 +2766,14 @@ defmodule Playwright.Page do
   @spec inner_text(t(), String.t(), inner_text_options()) :: {:ok, String.t()} | {:error, Playwright.error()}
   def inner_text(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @inner_text_options, "page.innerText")
-    Facade.async("page.innerText", page, fn -> Playwright.Client.Page.inner_text(page, selector, options) end)
+    Facade.async("page.innerText", fn -> Playwright.Client.Page.inner_text(page, selector, options) end)
   end
 
   @doc "Like `inner_text/3`, but returns the value and raises on error."
   @spec inner_text!(t(), String.t(), inner_text_options()) :: String.t()
   def inner_text!(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @inner_text_options, "page.innerText")
-    Facade.async!("page.innerText", page, fn -> Playwright.Client.Page.inner_text(page, selector, options) end)
+    Facade.async!("page.innerText", fn -> Playwright.Client.Page.inner_text(page, selector, options) end)
   end
 
   @input_value_options {:object, %{signal: {:signal, nil}, strict: {:strict, nil}, timeout: {:timeout, nil}}}
@@ -2842,14 +2819,14 @@ defmodule Playwright.Page do
   @spec input_value(t(), String.t(), input_value_options()) :: {:ok, String.t()} | {:error, Playwright.error()}
   def input_value(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @input_value_options, "page.inputValue")
-    Facade.async("page.inputValue", page, fn -> Playwright.Client.Page.input_value(page, selector, options) end)
+    Facade.async("page.inputValue", fn -> Playwright.Client.Page.input_value(page, selector, options) end)
   end
 
   @doc "Like `input_value/3`, but returns the value and raises on error."
   @spec input_value!(t(), String.t(), input_value_options()) :: String.t()
   def input_value!(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @input_value_options, "page.inputValue")
-    Facade.async!("page.inputValue", page, fn -> Playwright.Client.Page.input_value(page, selector, options) end)
+    Facade.async!("page.inputValue", fn -> Playwright.Client.Page.input_value(page, selector, options) end)
   end
 
   @is_checked_options {:object, %{signal: {:signal, nil}, strict: {:strict, nil}, timeout: {:timeout, nil}}}
@@ -2893,14 +2870,14 @@ defmodule Playwright.Page do
   @spec is_checked(t(), String.t(), is_checked_options()) :: {:ok, boolean()} | {:error, Playwright.error()}
   def is_checked(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @is_checked_options, "page.isChecked")
-    Facade.async("page.isChecked", page, fn -> Playwright.Client.Page.is_checked(page, selector, options) end)
+    Facade.async("page.isChecked", fn -> Playwright.Client.Page.is_checked(page, selector, options) end)
   end
 
   @doc "Like `is_checked/3`, but returns the value and raises on error."
   @spec is_checked!(t(), String.t(), is_checked_options()) :: boolean()
   def is_checked!(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @is_checked_options, "page.isChecked")
-    Facade.async!("page.isChecked", page, fn -> Playwright.Client.Page.is_checked(page, selector, options) end)
+    Facade.async!("page.isChecked", fn -> Playwright.Client.Page.is_checked(page, selector, options) end)
   end
 
   @doc ~S"""
@@ -2954,14 +2931,14 @@ defmodule Playwright.Page do
   @spec is_disabled(t(), String.t(), is_disabled_options()) :: {:ok, boolean()} | {:error, Playwright.error()}
   def is_disabled(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @is_disabled_options, "page.isDisabled")
-    Facade.async("page.isDisabled", page, fn -> Playwright.Client.Page.is_disabled(page, selector, options) end)
+    Facade.async("page.isDisabled", fn -> Playwright.Client.Page.is_disabled(page, selector, options) end)
   end
 
   @doc "Like `is_disabled/3`, but returns the value and raises on error."
   @spec is_disabled!(t(), String.t(), is_disabled_options()) :: boolean()
   def is_disabled!(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @is_disabled_options, "page.isDisabled")
-    Facade.async!("page.isDisabled", page, fn -> Playwright.Client.Page.is_disabled(page, selector, options) end)
+    Facade.async!("page.isDisabled", fn -> Playwright.Client.Page.is_disabled(page, selector, options) end)
   end
 
   @is_editable_options {:object, %{signal: {:signal, nil}, strict: {:strict, nil}, timeout: {:timeout, nil}}}
@@ -3005,14 +2982,14 @@ defmodule Playwright.Page do
   @spec is_editable(t(), String.t(), is_editable_options()) :: {:ok, boolean()} | {:error, Playwright.error()}
   def is_editable(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @is_editable_options, "page.isEditable")
-    Facade.async("page.isEditable", page, fn -> Playwright.Client.Page.is_editable(page, selector, options) end)
+    Facade.async("page.isEditable", fn -> Playwright.Client.Page.is_editable(page, selector, options) end)
   end
 
   @doc "Like `is_editable/3`, but returns the value and raises on error."
   @spec is_editable!(t(), String.t(), is_editable_options()) :: boolean()
   def is_editable!(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @is_editable_options, "page.isEditable")
-    Facade.async!("page.isEditable", page, fn -> Playwright.Client.Page.is_editable(page, selector, options) end)
+    Facade.async!("page.isEditable", fn -> Playwright.Client.Page.is_editable(page, selector, options) end)
   end
 
   @is_enabled_options {:object, %{signal: {:signal, nil}, strict: {:strict, nil}, timeout: {:timeout, nil}}}
@@ -3056,14 +3033,14 @@ defmodule Playwright.Page do
   @spec is_enabled(t(), String.t(), is_enabled_options()) :: {:ok, boolean()} | {:error, Playwright.error()}
   def is_enabled(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @is_enabled_options, "page.isEnabled")
-    Facade.async("page.isEnabled", page, fn -> Playwright.Client.Page.is_enabled(page, selector, options) end)
+    Facade.async("page.isEnabled", fn -> Playwright.Client.Page.is_enabled(page, selector, options) end)
   end
 
   @doc "Like `is_enabled/3`, but returns the value and raises on error."
   @spec is_enabled!(t(), String.t(), is_enabled_options()) :: boolean()
   def is_enabled!(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @is_enabled_options, "page.isEnabled")
-    Facade.async!("page.isEnabled", page, fn -> Playwright.Client.Page.is_enabled(page, selector, options) end)
+    Facade.async!("page.isEnabled", fn -> Playwright.Client.Page.is_enabled(page, selector, options) end)
   end
 
   @is_hidden_options {:object, %{strict: {:strict, nil}, timeout: {:timeout, nil}}}
@@ -3096,14 +3073,14 @@ defmodule Playwright.Page do
   @spec is_hidden(t(), String.t(), is_hidden_options()) :: {:ok, boolean()} | {:error, Playwright.error()}
   def is_hidden(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @is_hidden_options, "page.isHidden")
-    Facade.async("page.isHidden", page, fn -> Playwright.Client.Page.is_hidden(page, selector, options) end)
+    Facade.async("page.isHidden", fn -> Playwright.Client.Page.is_hidden(page, selector, options) end)
   end
 
   @doc "Like `is_hidden/3`, but returns the value and raises on error."
   @spec is_hidden!(t(), String.t(), is_hidden_options()) :: boolean()
   def is_hidden!(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @is_hidden_options, "page.isHidden")
-    Facade.async!("page.isHidden", page, fn -> Playwright.Client.Page.is_hidden(page, selector, options) end)
+    Facade.async!("page.isHidden", fn -> Playwright.Client.Page.is_hidden(page, selector, options) end)
   end
 
   @is_visible_options {:object, %{strict: {:strict, nil}, timeout: {:timeout, nil}}}
@@ -3136,14 +3113,14 @@ defmodule Playwright.Page do
   @spec is_visible(t(), String.t(), is_visible_options()) :: {:ok, boolean()} | {:error, Playwright.error()}
   def is_visible(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @is_visible_options, "page.isVisible")
-    Facade.async("page.isVisible", page, fn -> Playwright.Client.Page.is_visible(page, selector, options) end)
+    Facade.async("page.isVisible", fn -> Playwright.Client.Page.is_visible(page, selector, options) end)
   end
 
   @doc "Like `is_visible/3`, but returns the value and raises on error."
   @spec is_visible!(t(), String.t(), is_visible_options()) :: boolean()
   def is_visible!(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @is_visible_options, "page.isVisible")
-    Facade.async!("page.isVisible", page, fn -> Playwright.Client.Page.is_visible(page, selector, options) end)
+    Facade.async!("page.isVisible", fn -> Playwright.Client.Page.is_visible(page, selector, options) end)
   end
 
   @doc ~S"""
@@ -3161,13 +3138,13 @@ defmodule Playwright.Page do
   """
   @spec clear_console_messages(t()) :: :ok | {:error, Playwright.error()}
   def clear_console_messages(%Playwright.Page{} = page) do
-    Facade.async_void("page.clearConsoleMessages", page, fn -> Playwright.Client.Page.clear_console_messages(page) end)
+    Facade.async_void("page.clearConsoleMessages", fn -> Playwright.Client.Page.clear_console_messages(page) end)
   end
 
   @doc "Like `clear_console_messages/1`, but returns the value and raises on error."
   @spec clear_console_messages!(t()) :: :ok
   def clear_console_messages!(%Playwright.Page{} = page) do
-    Facade.async_void!("page.clearConsoleMessages", page, fn -> Playwright.Client.Page.clear_console_messages(page) end)
+    Facade.async_void!("page.clearConsoleMessages", fn -> Playwright.Client.Page.clear_console_messages(page) end)
   end
 
   @doc ~S"""
@@ -3177,13 +3154,13 @@ defmodule Playwright.Page do
   """
   @spec clear_page_errors(t()) :: :ok | {:error, Playwright.error()}
   def clear_page_errors(%Playwright.Page{} = page) do
-    Facade.async_void("page.clearPageErrors", page, fn -> Playwright.Client.Page.clear_page_errors(page) end)
+    Facade.async_void("page.clearPageErrors", fn -> Playwright.Client.Page.clear_page_errors(page) end)
   end
 
   @doc "Like `clear_page_errors/1`, but returns the value and raises on error."
   @spec clear_page_errors!(t()) :: :ok
   def clear_page_errors!(%Playwright.Page{} = page) do
-    Facade.async_void!("page.clearPageErrors", page, fn -> Playwright.Client.Page.clear_page_errors(page) end)
+    Facade.async_void!("page.clearPageErrors", fn -> Playwright.Client.Page.clear_page_errors(page) end)
   end
 
   @doc ~S"""
@@ -3236,14 +3213,14 @@ defmodule Playwright.Page do
           {:ok, [Playwright.ConsoleMessage.t()]} | {:error, Playwright.error()}
   def console_messages(%Playwright.Page{} = page, options \\ []) do
     options = Facade.options!(options, @console_messages_options, "page.consoleMessages")
-    Facade.async("page.consoleMessages", page, fn -> Playwright.Client.Page.console_messages(page, options) end)
+    Facade.async("page.consoleMessages", fn -> Playwright.Client.Page.console_messages(page, options) end)
   end
 
   @doc "Like `console_messages/2`, but returns the value and raises on error."
   @spec console_messages!(t(), console_messages_options()) :: [Playwright.ConsoleMessage.t()]
   def console_messages!(%Playwright.Page{} = page, options \\ []) do
     options = Facade.options!(options, @console_messages_options, "page.consoleMessages")
-    Facade.async!("page.consoleMessages", page, fn -> Playwright.Client.Page.console_messages(page, options) end)
+    Facade.async!("page.consoleMessages", fn -> Playwright.Client.Page.console_messages(page, options) end)
   end
 
   @page_errors_options {:object, %{filter: {:filter, {:enum, %{all: "all", since_navigation: "since-navigation"}}}}}
@@ -3263,14 +3240,14 @@ defmodule Playwright.Page do
   @spec page_errors(t(), page_errors_options()) :: {:ok, [Exception.t()]} | {:error, Playwright.error()}
   def page_errors(%Playwright.Page{} = page, options \\ []) do
     options = Facade.options!(options, @page_errors_options, "page.pageErrors")
-    Facade.async("page.pageErrors", page, fn -> Playwright.Client.Page.page_errors(page, options) end)
+    Facade.async("page.pageErrors", fn -> Playwright.Client.Page.page_errors(page, options) end)
   end
 
   @doc "Like `page_errors/2`, but returns the value and raises on error."
   @spec page_errors!(t(), page_errors_options()) :: [Exception.t()]
   def page_errors!(%Playwright.Page{} = page, options \\ []) do
     options = Facade.options!(options, @page_errors_options, "page.pageErrors")
-    Facade.async!("page.pageErrors", page, fn -> Playwright.Client.Page.page_errors(page, options) end)
+    Facade.async!("page.pageErrors", fn -> Playwright.Client.Page.page_errors(page, options) end)
   end
 
   @locator_options {:object,
@@ -3355,13 +3332,13 @@ defmodule Playwright.Page do
   """
   @spec opener(t()) :: {:ok, nil | Playwright.Page.t()} | {:error, Playwright.error()}
   def opener(%Playwright.Page{} = page) do
-    Facade.async("page.opener", page, fn -> Playwright.Client.Page.opener(page) end)
+    Facade.async("page.opener", fn -> Playwright.Client.Page.opener(page) end)
   end
 
   @doc "Like `opener/1`, but returns the value and raises on error."
   @spec opener!(t()) :: nil | Playwright.Page.t()
   def opener!(%Playwright.Page{} = page) do
-    Facade.async!("page.opener", page, fn -> Playwright.Client.Page.opener(page) end)
+    Facade.async!("page.opener", fn -> Playwright.Client.Page.opener(page) end)
   end
 
   @doc ~S"""
@@ -3379,13 +3356,13 @@ defmodule Playwright.Page do
   """
   @spec pause(t()) :: :ok | {:error, Playwright.error()}
   def pause(%Playwright.Page{} = page) do
-    Facade.async_void("page.pause", page, fn -> Playwright.Client.Page.pause(page) end)
+    Facade.async_void("page.pause", fn -> Playwright.Client.Page.pause(page) end)
   end
 
   @doc "Like `pause/1`, but returns the value and raises on error."
   @spec pause!(t()) :: :ok
   def pause!(%Playwright.Page{} = page) do
-    Facade.async_void!("page.pause", page, fn -> Playwright.Client.Page.pause(page) end)
+    Facade.async_void!("page.pause", fn -> Playwright.Client.Page.pause(page) end)
   end
 
   @pdf_options {:object,
@@ -3546,14 +3523,14 @@ defmodule Playwright.Page do
   @spec pdf(t(), pdf_options()) :: {:ok, binary()} | {:error, Playwright.error()}
   def pdf(%Playwright.Page{} = page, options \\ []) do
     options = Facade.options!(options, @pdf_options, "page.pdf")
-    Facade.async("page.pdf", page, fn -> Playwright.Client.Page.pdf(page, options) end)
+    Facade.async("page.pdf", fn -> Playwright.Client.Page.pdf(page, options) end)
   end
 
   @doc "Like `pdf/2`, but returns the value and raises on error."
   @spec pdf!(t(), pdf_options()) :: binary()
   def pdf!(%Playwright.Page{} = page, options \\ []) do
     options = Facade.options!(options, @pdf_options, "page.pdf")
-    Facade.async!("page.pdf", page, fn -> Playwright.Client.Page.pdf(page, options) end)
+    Facade.async!("page.pdf", fn -> Playwright.Client.Page.pdf(page, options) end)
   end
 
   @doc ~S"""
@@ -3571,13 +3548,13 @@ defmodule Playwright.Page do
   """
   @spec pick_locator(t()) :: {:ok, Playwright.Locator.t()} | {:error, Playwright.error()}
   def pick_locator(%Playwright.Page{} = page) do
-    Facade.async("page.pickLocator", page, fn -> Playwright.Client.Page.pick_locator(page) end)
+    Facade.async("page.pickLocator", fn -> Playwright.Client.Page.pick_locator(page) end)
   end
 
   @doc "Like `pick_locator/1`, but returns the value and raises on error."
   @spec pick_locator!(t()) :: Playwright.Locator.t()
   def pick_locator!(%Playwright.Page{} = page) do
-    Facade.async!("page.pickLocator", page, fn -> Playwright.Client.Page.pick_locator(page) end)
+    Facade.async!("page.pickLocator", fn -> Playwright.Client.Page.pick_locator(page) end)
   end
 
   @press_options {:object,
@@ -3674,14 +3651,14 @@ defmodule Playwright.Page do
   @spec press(t(), String.t(), String.t(), press_options()) :: :ok | {:error, Playwright.error()}
   def press(%Playwright.Page{} = page, selector, key, options \\ []) do
     options = Facade.options!(options, @press_options, "page.press")
-    Facade.async_void("page.press", page, fn -> Playwright.Client.Page.press(page, selector, key, options) end)
+    Facade.async_void("page.press", fn -> Playwright.Client.Page.press(page, selector, key, options) end)
   end
 
   @doc "Like `press/4`, but returns the value and raises on error."
   @spec press!(t(), String.t(), String.t(), press_options()) :: :ok
   def press!(%Playwright.Page{} = page, selector, key, options \\ []) do
     options = Facade.options!(options, @press_options, "page.press")
-    Facade.async_void!("page.press", page, fn -> Playwright.Client.Page.press(page, selector, key, options) end)
+    Facade.async_void!("page.press", fn -> Playwright.Client.Page.press(page, selector, key, options) end)
   end
 
   @query_selector_options {:object, %{strict: {:strict, nil}}}
@@ -3712,14 +3689,14 @@ defmodule Playwright.Page do
           {:ok, nil | Playwright.ElementHandle.t()} | {:error, Playwright.error()}
   def query_selector(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @query_selector_options, "page.$")
-    Facade.async("page.$", page, fn -> Playwright.Client.Page.query_selector(page, selector, options) end)
+    Facade.async("page.$", fn -> Playwright.Client.Page.query_selector(page, selector, options) end)
   end
 
   @doc "Like `query_selector/3`, but returns the value and raises on error."
   @spec query_selector!(t(), String.t(), query_selector_options()) :: nil | Playwright.ElementHandle.t()
   def query_selector!(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @query_selector_options, "page.$")
-    Facade.async!("page.$", page, fn -> Playwright.Client.Page.query_selector(page, selector, options) end)
+    Facade.async!("page.$", fn -> Playwright.Client.Page.query_selector(page, selector, options) end)
   end
 
   @doc ~S"""
@@ -3738,13 +3715,13 @@ defmodule Playwright.Page do
   """
   @spec query_selector_all(t(), String.t()) :: {:ok, [Playwright.ElementHandle.t()]} | {:error, Playwright.error()}
   def query_selector_all(%Playwright.Page{} = page, selector) do
-    Facade.async("page.$$", page, fn -> Playwright.Client.Page.query_selector_all(page, selector) end)
+    Facade.async("page.$$", fn -> Playwright.Client.Page.query_selector_all(page, selector) end)
   end
 
   @doc "Like `query_selector_all/2`, but returns the value and raises on error."
   @spec query_selector_all!(t(), String.t()) :: [Playwright.ElementHandle.t()]
   def query_selector_all!(%Playwright.Page{} = page, selector) do
-    Facade.async!("page.$$", page, fn -> Playwright.Client.Page.query_selector_all(page, selector) end)
+    Facade.async!("page.$$", fn -> Playwright.Client.Page.query_selector_all(page, selector) end)
   end
 
   @doc ~S"""
@@ -3758,13 +3735,13 @@ defmodule Playwright.Page do
   """
   @spec requests(t()) :: {:ok, [Playwright.Request.t()]} | {:error, Playwright.error()}
   def requests(%Playwright.Page{} = page) do
-    Facade.async("page.requests", page, fn -> Playwright.Client.Page.requests(page) end)
+    Facade.async("page.requests", fn -> Playwright.Client.Page.requests(page) end)
   end
 
   @doc "Like `requests/1`, but returns the value and raises on error."
   @spec requests!(t()) :: [Playwright.Request.t()]
   def requests!(%Playwright.Page{} = page) do
-    Facade.async!("page.requests", page, fn -> Playwright.Client.Page.requests(page) end)
+    Facade.async!("page.requests", fn -> Playwright.Client.Page.requests(page) end)
   end
 
   @add_locator_handler_options {:object, %{no_wait_after: {:noWaitAfter, nil}, times: {:times, nil}}}
@@ -3866,7 +3843,7 @@ defmodule Playwright.Page do
   def add_locator_handler(%Playwright.Page{} = page, locator, handler, options \\ []) do
     options = Facade.options!(options, @add_locator_handler_options, "page.addLocatorHandler")
 
-    Facade.async_void("page.addLocatorHandler", page, fn ->
+    Facade.async_void("page.addLocatorHandler", fn ->
       Playwright.Client.Page.add_locator_handler(page, locator, handler, options)
     end)
   end
@@ -3881,7 +3858,7 @@ defmodule Playwright.Page do
   def add_locator_handler!(%Playwright.Page{} = page, locator, handler, options \\ []) do
     options = Facade.options!(options, @add_locator_handler_options, "page.addLocatorHandler")
 
-    Facade.async_void!("page.addLocatorHandler", page, fn ->
+    Facade.async_void!("page.addLocatorHandler", fn ->
       Playwright.Client.Page.add_locator_handler(page, locator, handler, options)
     end)
   end
@@ -3941,7 +3918,7 @@ defmodule Playwright.Page do
     event = Facade.event!(event, @events, "page.removeAllListeners")
     options = Facade.options!(options, @remove_all_listeners_options, "page.removeAllListeners")
 
-    Facade.async_void("page.removeAllListeners", page, fn ->
+    Facade.async_void("page.removeAllListeners", fn ->
       Playwright.Client.Page.remove_all_listeners(page, event, options)
     end)
   end
@@ -3959,7 +3936,7 @@ defmodule Playwright.Page do
     event = Facade.event!(event, @events, "page.removeAllListeners")
     options = Facade.options!(options, @remove_all_listeners_options, "page.removeAllListeners")
 
-    Facade.async_void!("page.removeAllListeners", page, fn ->
+    Facade.async_void!("page.removeAllListeners", fn ->
       Playwright.Client.Page.remove_all_listeners(page, event, options)
     end)
   end
@@ -3975,7 +3952,7 @@ defmodule Playwright.Page do
   """
   @spec remove_locator_handler(t(), Playwright.Locator.t()) :: :ok | {:error, Playwright.error()}
   def remove_locator_handler(%Playwright.Page{} = page, locator) do
-    Facade.async_void("page.removeLocatorHandler", page, fn ->
+    Facade.async_void("page.removeLocatorHandler", fn ->
       Playwright.Client.Page.remove_locator_handler(page, locator)
     end)
   end
@@ -3983,7 +3960,7 @@ defmodule Playwright.Page do
   @doc "Like `remove_locator_handler/2`, but returns the value and raises on error."
   @spec remove_locator_handler!(t(), Playwright.Locator.t()) :: :ok
   def remove_locator_handler!(%Playwright.Page{} = page, locator) do
-    Facade.async_void!("page.removeLocatorHandler", page, fn ->
+    Facade.async_void!("page.removeLocatorHandler", fn ->
       Playwright.Client.Page.remove_locator_handler(page, locator)
     end)
   end
@@ -4047,14 +4024,14 @@ defmodule Playwright.Page do
   @spec reload(t(), reload_options()) :: {:ok, nil | Playwright.Response.t()} | {:error, Playwright.error()}
   def reload(%Playwright.Page{} = page, options \\ []) do
     options = Facade.options!(options, @reload_options, "page.reload")
-    Facade.async("page.reload", page, fn -> Playwright.Client.Page.reload(page, options) end)
+    Facade.async("page.reload", fn -> Playwright.Client.Page.reload(page, options) end)
   end
 
   @doc "Like `reload/2`, but returns the value and raises on error."
   @spec reload!(t(), reload_options()) :: nil | Playwright.Response.t()
   def reload!(%Playwright.Page{} = page, options \\ []) do
     options = Facade.options!(options, @reload_options, "page.reload")
-    Facade.async!("page.reload", page, fn -> Playwright.Client.Page.reload(page, options) end)
+    Facade.async!("page.reload", fn -> Playwright.Client.Page.reload(page, options) end)
   end
 
   @doc ~S"""
@@ -4096,7 +4073,7 @@ defmodule Playwright.Page do
 
   ```elixir
   page = Browser.new_page!(browser)
-  Page.route!(page, "**/*.{png,jpg,jpeg}", &Route.abort/1)
+  Page.route!(page, "**/*.{png,jpg,jpeg}", &Route.abort!/1)
   Page.goto!(page, "https://example.com")
   Browser.close!(browser)
   ```
@@ -4105,7 +4082,7 @@ defmodule Playwright.Page do
 
   ```elixir
   page = Browser.new_page!(browser)
-  Page.route!(page, ~r/(\.png$)|(\.jpg$)/, &Route.abort/1)
+  Page.route!(page, ~r/(\.png$)|(\.jpg$)/, &Route.abort!/1)
   Page.goto!(page, "https://example.com")
   Browser.close!(browser)
   ```
@@ -4152,7 +4129,7 @@ defmodule Playwright.Page do
         ) :: {:ok, Playwright.Disposable.t()} | {:error, Playwright.error()}
   def route(%Playwright.Page{} = page, url, handler, options \\ []) do
     options = Facade.options!(options, @route_options, "page.route")
-    Facade.async("page.route", page, fn -> Playwright.Client.Page.route(page, url, handler, options) end)
+    Facade.async("page.route", fn -> Playwright.Client.Page.route(page, url, handler, options) end)
   end
 
   @doc "Like `route/4`, but returns the value and raises on error."
@@ -4164,7 +4141,7 @@ defmodule Playwright.Page do
         ) :: Playwright.Disposable.t()
   def route!(%Playwright.Page{} = page, url, handler, options \\ []) do
     options = Facade.options!(options, @route_options, "page.route")
-    Facade.async!("page.route", page, fn -> Playwright.Client.Page.route(page, url, handler, options) end)
+    Facade.async!("page.route", fn -> Playwright.Client.Page.route(page, url, handler, options) end)
   end
 
   @route_from_har_options {:object,
@@ -4220,14 +4197,14 @@ defmodule Playwright.Page do
   @spec route_from_har(t(), String.t(), route_from_har_options()) :: :ok | {:error, Playwright.error()}
   def route_from_har(%Playwright.Page{} = page, har, options \\ []) do
     options = Facade.options!(options, @route_from_har_options, "page.routeFromHAR")
-    Facade.async_void("page.routeFromHAR", page, fn -> Playwright.Client.Page.route_from_har(page, har, options) end)
+    Facade.async_void("page.routeFromHAR", fn -> Playwright.Client.Page.route_from_har(page, har, options) end)
   end
 
   @doc "Like `route_from_har/3`, but returns the value and raises on error."
   @spec route_from_har!(t(), String.t(), route_from_har_options()) :: :ok
   def route_from_har!(%Playwright.Page{} = page, har, options \\ []) do
     options = Facade.options!(options, @route_from_har_options, "page.routeFromHAR")
-    Facade.async_void!("page.routeFromHAR", page, fn -> Playwright.Client.Page.route_from_har(page, har, options) end)
+    Facade.async_void!("page.routeFromHAR", fn -> Playwright.Client.Page.route_from_har(page, har, options) end)
   end
 
   @doc ~S"""
@@ -4260,7 +4237,7 @@ defmodule Playwright.Page do
           (Playwright.WebSocketRoute.t() -> term())
         ) :: :ok | {:error, Playwright.error()}
   def route_web_socket(%Playwright.Page{} = page, url, handler) do
-    Facade.async_void("page.routeWebSocket", page, fn -> Playwright.Client.Page.route_web_socket(page, url, handler) end)
+    Facade.async_void("page.routeWebSocket", fn -> Playwright.Client.Page.route_web_socket(page, url, handler) end)
   end
 
   @doc "Like `route_web_socket/3`, but returns the value and raises on error."
@@ -4270,9 +4247,7 @@ defmodule Playwright.Page do
           (Playwright.WebSocketRoute.t() -> term())
         ) :: :ok
   def route_web_socket!(%Playwright.Page{} = page, url, handler) do
-    Facade.async_void!("page.routeWebSocket", page, fn ->
-      Playwright.Client.Page.route_web_socket(page, url, handler)
-    end)
+    Facade.async_void!("page.routeWebSocket", fn -> Playwright.Client.Page.route_web_socket(page, url, handler) end)
   end
 
   @doc ~S"""
@@ -4404,14 +4379,14 @@ defmodule Playwright.Page do
   @spec screenshot(t(), screenshot_options()) :: {:ok, binary()} | {:error, Playwright.error()}
   def screenshot(%Playwright.Page{} = page, options \\ []) do
     options = Facade.options!(options, @screenshot_options, "page.screenshot")
-    Facade.async("page.screenshot", page, fn -> Playwright.Client.Page.screenshot(page, options) end)
+    Facade.async("page.screenshot", fn -> Playwright.Client.Page.screenshot(page, options) end)
   end
 
   @doc "Like `screenshot/2`, but returns the value and raises on error."
   @spec screenshot!(t(), screenshot_options()) :: binary()
   def screenshot!(%Playwright.Page{} = page, options \\ []) do
     options = Facade.options!(options, @screenshot_options, "page.screenshot")
-    Facade.async!("page.screenshot", page, fn -> Playwright.Client.Page.screenshot(page, options) end)
+    Facade.async!("page.screenshot", fn -> Playwright.Client.Page.screenshot(page, options) end)
   end
 
   @select_option_values {:union,
@@ -4527,10 +4502,7 @@ defmodule Playwright.Page do
   def select_option(%Playwright.Page{} = page, selector, values, options \\ []) do
     values = Facade.arg!(values, @select_option_values, "page.selectOption", :values)
     options = Facade.options!(options, @select_option_options, "page.selectOption")
-
-    Facade.async("page.selectOption", page, fn ->
-      Playwright.Client.Page.select_option(page, selector, values, options)
-    end)
+    Facade.async("page.selectOption", fn -> Playwright.Client.Page.select_option(page, selector, values, options) end)
   end
 
   @doc "Like `select_option/4`, but returns the value and raises on error."
@@ -4561,10 +4533,7 @@ defmodule Playwright.Page do
   def select_option!(%Playwright.Page{} = page, selector, values, options \\ []) do
     values = Facade.arg!(values, @select_option_values, "page.selectOption", :values)
     options = Facade.options!(options, @select_option_options, "page.selectOption")
-
-    Facade.async!("page.selectOption", page, fn ->
-      Playwright.Client.Page.select_option(page, selector, values, options)
-    end)
+    Facade.async!("page.selectOption", fn -> Playwright.Client.Page.select_option(page, selector, values, options) end)
   end
 
   @set_checked_options {:object,
@@ -4657,10 +4626,7 @@ defmodule Playwright.Page do
   @spec set_checked(t(), String.t(), boolean(), set_checked_options()) :: :ok | {:error, Playwright.error()}
   def set_checked(%Playwright.Page{} = page, selector, checked, options \\ []) do
     options = Facade.options!(options, @set_checked_options, "page.setChecked")
-
-    Facade.async_void("page.setChecked", page, fn ->
-      Playwright.Client.Page.set_checked(page, selector, checked, options)
-    end)
+    Facade.async_void("page.setChecked", fn -> Playwright.Client.Page.set_checked(page, selector, checked, options) end)
   end
 
   @doc "Like `set_checked/4`, but returns the value and raises on error."
@@ -4668,9 +4634,7 @@ defmodule Playwright.Page do
   def set_checked!(%Playwright.Page{} = page, selector, checked, options \\ []) do
     options = Facade.options!(options, @set_checked_options, "page.setChecked")
 
-    Facade.async_void!("page.setChecked", page, fn ->
-      Playwright.Client.Page.set_checked(page, selector, checked, options)
-    end)
+    Facade.async_void!("page.setChecked", fn -> Playwright.Client.Page.set_checked(page, selector, checked, options) end)
   end
 
   @set_content_options {:object,
@@ -4734,14 +4698,14 @@ defmodule Playwright.Page do
   @spec set_content(t(), String.t(), set_content_options()) :: :ok | {:error, Playwright.error()}
   def set_content(%Playwright.Page{} = page, html, options \\ []) do
     options = Facade.options!(options, @set_content_options, "page.setContent")
-    Facade.async_void("page.setContent", page, fn -> Playwright.Client.Page.set_content(page, html, options) end)
+    Facade.async_void("page.setContent", fn -> Playwright.Client.Page.set_content(page, html, options) end)
   end
 
   @doc "Like `set_content/3`, but returns the value and raises on error."
   @spec set_content!(t(), String.t(), set_content_options()) :: :ok
   def set_content!(%Playwright.Page{} = page, html, options \\ []) do
     options = Facade.options!(options, @set_content_options, "page.setContent")
-    Facade.async_void!("page.setContent", page, fn -> Playwright.Client.Page.set_content(page, html, options) end)
+    Facade.async_void!("page.setContent", fn -> Playwright.Client.Page.set_content(page, html, options) end)
   end
 
   @set_default_navigation_timeout_timeout :timeout
@@ -4818,15 +4782,13 @@ defmodule Playwright.Page do
   """
   @spec set_extra_http_headers(t(), %{optional(String.t()) => String.t()}) :: :ok | {:error, Playwright.error()}
   def set_extra_http_headers(%Playwright.Page{} = page, headers) do
-    Facade.async_void("page.setExtraHTTPHeaders", page, fn ->
-      Playwright.Client.Page.set_extra_http_headers(page, headers)
-    end)
+    Facade.async_void("page.setExtraHTTPHeaders", fn -> Playwright.Client.Page.set_extra_http_headers(page, headers) end)
   end
 
   @doc "Like `set_extra_http_headers/2`, but returns the value and raises on error."
   @spec set_extra_http_headers!(t(), %{optional(String.t()) => String.t()}) :: :ok
   def set_extra_http_headers!(%Playwright.Page{} = page, headers) do
-    Facade.async_void!("page.setExtraHTTPHeaders", page, fn ->
+    Facade.async_void!("page.setExtraHTTPHeaders", fn ->
       Playwright.Client.Page.set_extra_http_headers(page, headers)
     end)
   end
@@ -4909,7 +4871,7 @@ defmodule Playwright.Page do
     files = Facade.arg!(files, @set_input_files_files, "page.setInputFiles", :files)
     options = Facade.options!(options, @set_input_files_options, "page.setInputFiles")
 
-    Facade.async_void("page.setInputFiles", page, fn ->
+    Facade.async_void("page.setInputFiles", fn ->
       Playwright.Client.Page.set_input_files(page, selector, files, options)
     end)
   end
@@ -4928,7 +4890,7 @@ defmodule Playwright.Page do
     files = Facade.arg!(files, @set_input_files_files, "page.setInputFiles", :files)
     options = Facade.options!(options, @set_input_files_options, "page.setInputFiles")
 
-    Facade.async_void!("page.setInputFiles", page, fn ->
+    Facade.async_void!("page.setInputFiles", fn ->
       Playwright.Client.Page.set_input_files(page, selector, files, options)
     end)
   end
@@ -4961,20 +4923,14 @@ defmodule Playwright.Page do
   @spec set_viewport_size(t(), %{width: integer(), height: integer()}) :: :ok | {:error, Playwright.error()}
   def set_viewport_size(%Playwright.Page{} = page, viewport_size) do
     viewport_size = Facade.arg!(viewport_size, @set_viewport_size_viewport_size, "page.setViewportSize", :viewport_size)
-
-    Facade.async_void("page.setViewportSize", page, fn ->
-      Playwright.Client.Page.set_viewport_size(page, viewport_size)
-    end)
+    Facade.async_void("page.setViewportSize", fn -> Playwright.Client.Page.set_viewport_size(page, viewport_size) end)
   end
 
   @doc "Like `set_viewport_size/2`, but returns the value and raises on error."
   @spec set_viewport_size!(t(), %{width: integer(), height: integer()}) :: :ok
   def set_viewport_size!(%Playwright.Page{} = page, viewport_size) do
     viewport_size = Facade.arg!(viewport_size, @set_viewport_size_viewport_size, "page.setViewportSize", :viewport_size)
-
-    Facade.async_void!("page.setViewportSize", page, fn ->
-      Playwright.Client.Page.set_viewport_size(page, viewport_size)
-    end)
+    Facade.async_void!("page.setViewportSize", fn -> Playwright.Client.Page.set_viewport_size(page, viewport_size) end)
   end
 
   @aria_snapshot_options {:object,
@@ -5028,14 +4984,14 @@ defmodule Playwright.Page do
   @spec aria_snapshot(t(), aria_snapshot_options()) :: {:ok, String.t()} | {:error, Playwright.error()}
   def aria_snapshot(%Playwright.Page{} = page, options \\ []) do
     options = Facade.options!(options, @aria_snapshot_options, "page.ariaSnapshot")
-    Facade.async("page.ariaSnapshot", page, fn -> Playwright.Client.Page.aria_snapshot(page, options) end)
+    Facade.async("page.ariaSnapshot", fn -> Playwright.Client.Page.aria_snapshot(page, options) end)
   end
 
   @doc "Like `aria_snapshot/2`, but returns the value and raises on error."
   @spec aria_snapshot!(t(), aria_snapshot_options()) :: String.t()
   def aria_snapshot!(%Playwright.Page{} = page, options \\ []) do
     options = Facade.options!(options, @aria_snapshot_options, "page.ariaSnapshot")
-    Facade.async!("page.ariaSnapshot", page, fn -> Playwright.Client.Page.aria_snapshot(page, options) end)
+    Facade.async!("page.ariaSnapshot", fn -> Playwright.Client.Page.aria_snapshot(page, options) end)
   end
 
   @aria_snapshot_json_options {:object,
@@ -5091,14 +5047,14 @@ defmodule Playwright.Page do
   @spec aria_snapshot_json(t(), aria_snapshot_json_options()) :: {:ok, term()} | {:error, Playwright.error()}
   def aria_snapshot_json(%Playwright.Page{} = page, options \\ []) do
     options = Facade.options!(options, @aria_snapshot_json_options, "page.ariaSnapshotJSON")
-    Facade.async("page.ariaSnapshotJSON", page, fn -> Playwright.Client.Page.aria_snapshot_json(page, options) end)
+    Facade.async("page.ariaSnapshotJSON", fn -> Playwright.Client.Page.aria_snapshot_json(page, options) end)
   end
 
   @doc "Like `aria_snapshot_json/2`, but returns the value and raises on error."
   @spec aria_snapshot_json!(t(), aria_snapshot_json_options()) :: term()
   def aria_snapshot_json!(%Playwright.Page{} = page, options \\ []) do
     options = Facade.options!(options, @aria_snapshot_json_options, "page.ariaSnapshotJSON")
-    Facade.async!("page.ariaSnapshotJSON", page, fn -> Playwright.Client.Page.aria_snapshot_json(page, options) end)
+    Facade.async!("page.ariaSnapshotJSON", fn -> Playwright.Client.Page.aria_snapshot_json(page, options) end)
   end
 
   @tap_options {:object,
@@ -5201,14 +5157,14 @@ defmodule Playwright.Page do
   @spec tap(t(), String.t(), tap_options()) :: :ok | {:error, Playwright.error()}
   def tap(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @tap_options, "page.tap")
-    Facade.async_void("page.tap", page, fn -> Playwright.Client.Page.tap(page, selector, options) end)
+    Facade.async_void("page.tap", fn -> Playwright.Client.Page.tap(page, selector, options) end)
   end
 
   @doc "Like `tap/3`, but returns the value and raises on error."
   @spec tap!(t(), String.t(), tap_options()) :: :ok
   def tap!(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @tap_options, "page.tap")
-    Facade.async_void!("page.tap", page, fn -> Playwright.Client.Page.tap(page, selector, options) end)
+    Facade.async_void!("page.tap", fn -> Playwright.Client.Page.tap(page, selector, options) end)
   end
 
   @text_content_options {:object, %{signal: {:signal, nil}, strict: {:strict, nil}, timeout: {:timeout, nil}}}
@@ -5252,14 +5208,14 @@ defmodule Playwright.Page do
   @spec text_content(t(), String.t(), text_content_options()) :: {:ok, nil | String.t()} | {:error, Playwright.error()}
   def text_content(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @text_content_options, "page.textContent")
-    Facade.async("page.textContent", page, fn -> Playwright.Client.Page.text_content(page, selector, options) end)
+    Facade.async("page.textContent", fn -> Playwright.Client.Page.text_content(page, selector, options) end)
   end
 
   @doc "Like `text_content/3`, but returns the value and raises on error."
   @spec text_content!(t(), String.t(), text_content_options()) :: nil | String.t()
   def text_content!(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @text_content_options, "page.textContent")
-    Facade.async!("page.textContent", page, fn -> Playwright.Client.Page.text_content(page, selector, options) end)
+    Facade.async!("page.textContent", fn -> Playwright.Client.Page.text_content(page, selector, options) end)
   end
 
   @doc ~S"""
@@ -5269,13 +5225,13 @@ defmodule Playwright.Page do
   """
   @spec title(t()) :: {:ok, String.t()} | {:error, Playwright.error()}
   def title(%Playwright.Page{} = page) do
-    Facade.async("page.title", page, fn -> Playwright.Client.Page.title(page) end)
+    Facade.async("page.title", fn -> Playwright.Client.Page.title(page) end)
   end
 
   @doc "Like `title/1`, but returns the value and raises on error."
   @spec title!(t()) :: String.t()
   def title!(%Playwright.Page{} = page) do
-    Facade.async!("page.title", page, fn -> Playwright.Client.Page.title(page) end)
+    Facade.async!("page.title", fn -> Playwright.Client.Page.title(page) end)
   end
 
   @doc ~S"""
@@ -5348,7 +5304,7 @@ defmodule Playwright.Page do
   @spec type(t(), String.t(), String.t(), type_options()) :: :ok | {:error, Playwright.error()}
   def type(%Playwright.Page{} = page, selector, text, options \\ []) do
     options = Facade.options!(options, @type_options, "page.type")
-    Facade.async_void("page.type", page, fn -> Playwright.Client.Page.type(page, selector, text, options) end)
+    Facade.async_void("page.type", fn -> Playwright.Client.Page.type(page, selector, text, options) end)
   end
 
   @doc deprecated:
@@ -5357,7 +5313,7 @@ defmodule Playwright.Page do
   @spec type!(t(), String.t(), String.t(), type_options()) :: :ok
   def type!(%Playwright.Page{} = page, selector, text, options \\ []) do
     options = Facade.options!(options, @type_options, "page.type")
-    Facade.async_void!("page.type", page, fn -> Playwright.Client.Page.type(page, selector, text, options) end)
+    Facade.async_void!("page.type", fn -> Playwright.Client.Page.type(page, selector, text, options) end)
   end
 
   @uncheck_options {:object,
@@ -5449,14 +5405,14 @@ defmodule Playwright.Page do
   @spec uncheck(t(), String.t(), uncheck_options()) :: :ok | {:error, Playwright.error()}
   def uncheck(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @uncheck_options, "page.uncheck")
-    Facade.async_void("page.uncheck", page, fn -> Playwright.Client.Page.uncheck(page, selector, options) end)
+    Facade.async_void("page.uncheck", fn -> Playwright.Client.Page.uncheck(page, selector, options) end)
   end
 
   @doc "Like `uncheck/3`, but returns the value and raises on error."
   @spec uncheck!(t(), String.t(), uncheck_options()) :: :ok
   def uncheck!(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @uncheck_options, "page.uncheck")
-    Facade.async_void!("page.uncheck", page, fn -> Playwright.Client.Page.uncheck(page, selector, options) end)
+    Facade.async_void!("page.uncheck", fn -> Playwright.Client.Page.uncheck(page, selector, options) end)
   end
 
   @unroute_all_options {:object,
@@ -5485,14 +5441,14 @@ defmodule Playwright.Page do
   @spec unroute_all(t(), unroute_all_options()) :: :ok | {:error, Playwright.error()}
   def unroute_all(%Playwright.Page{} = page, options \\ []) do
     options = Facade.options!(options, @unroute_all_options, "page.unrouteAll")
-    Facade.async_void("page.unrouteAll", page, fn -> Playwright.Client.Page.unroute_all(page, options) end)
+    Facade.async_void("page.unrouteAll", fn -> Playwright.Client.Page.unroute_all(page, options) end)
   end
 
   @doc "Like `unroute_all/2`, but returns the value and raises on error."
   @spec unroute_all!(t(), unroute_all_options()) :: :ok
   def unroute_all!(%Playwright.Page{} = page, options \\ []) do
     options = Facade.options!(options, @unroute_all_options, "page.unrouteAll")
-    Facade.async_void!("page.unrouteAll", page, fn -> Playwright.Client.Page.unroute_all(page, options) end)
+    Facade.async_void!("page.unrouteAll", fn -> Playwright.Client.Page.unroute_all(page, options) end)
   end
 
   @doc ~S"""
@@ -5512,7 +5468,7 @@ defmodule Playwright.Page do
           (Playwright.Route.t() -> term()) | (Playwright.Route.t(), Playwright.Request.t() -> term()) | nil
         ) :: :ok | {:error, Playwright.error()}
   def unroute(%Playwright.Page{} = page, url, handler \\ nil) do
-    Facade.async_void("page.unroute", page, fn -> Playwright.Client.Page.unroute(page, url, handler) end)
+    Facade.async_void("page.unroute", fn -> Playwright.Client.Page.unroute(page, url, handler) end)
   end
 
   @doc "Like `unroute/3`, but returns the value and raises on error."
@@ -5522,7 +5478,7 @@ defmodule Playwright.Page do
           (Playwright.Route.t() -> term()) | (Playwright.Route.t(), Playwright.Request.t() -> term()) | nil
         ) :: :ok
   def unroute!(%Playwright.Page{} = page, url, handler \\ nil) do
-    Facade.async_void!("page.unroute", page, fn -> Playwright.Client.Page.unroute(page, url, handler) end)
+    Facade.async_void!("page.unroute", fn -> Playwright.Client.Page.unroute(page, url, handler) end)
   end
 
   @doc ~S"""
@@ -5708,7 +5664,7 @@ defmodule Playwright.Page do
   def wait_for_function(%Playwright.Page{} = page, expression, arg \\ nil, options \\ []) do
     options = Facade.options!(options, @wait_for_function_options, "page.waitForFunction")
 
-    Facade.async("page.waitForFunction", page, fn ->
+    Facade.async("page.waitForFunction", fn ->
       Playwright.Client.Page.wait_for_function(page, expression, arg, options)
     end)
   end
@@ -5718,7 +5674,7 @@ defmodule Playwright.Page do
   def wait_for_function!(%Playwright.Page{} = page, expression, arg \\ nil, options \\ []) do
     options = Facade.options!(options, @wait_for_function_options, "page.waitForFunction")
 
-    Facade.async!("page.waitForFunction", page, fn ->
+    Facade.async!("page.waitForFunction", fn ->
       Playwright.Client.Page.wait_for_function(page, expression, arg, options)
     end)
   end
@@ -5803,7 +5759,7 @@ defmodule Playwright.Page do
     state = Facade.arg!(state, @wait_for_load_state_state, "page.waitForLoadState", :state)
     options = Facade.options!(options, @wait_for_load_state_options, "page.waitForLoadState")
 
-    Facade.async_void("page.waitForLoadState", page, fn ->
+    Facade.async_void("page.waitForLoadState", fn ->
       Playwright.Client.Page.wait_for_load_state(page, state, options)
     end)
   end
@@ -5821,7 +5777,7 @@ defmodule Playwright.Page do
     state = Facade.arg!(state, @wait_for_load_state_state, "page.waitForLoadState", :state)
     options = Facade.options!(options, @wait_for_load_state_options, "page.waitForLoadState")
 
-    Facade.async_void!("page.waitForLoadState", page, fn ->
+    Facade.async_void!("page.waitForLoadState", fn ->
       Playwright.Client.Page.wait_for_load_state(page, state, options)
     end)
   end
@@ -6243,20 +6199,14 @@ defmodule Playwright.Page do
           {:ok, nil | Playwright.ElementHandle.t()} | {:error, Playwright.error()}
   def wait_for_selector(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @wait_for_selector_options, "page.waitForSelector")
-
-    Facade.async("page.waitForSelector", page, fn ->
-      Playwright.Client.Page.wait_for_selector(page, selector, options)
-    end)
+    Facade.async("page.waitForSelector", fn -> Playwright.Client.Page.wait_for_selector(page, selector, options) end)
   end
 
   @doc "Like `wait_for_selector/3`, but returns the value and raises on error."
   @spec wait_for_selector!(t(), String.t(), wait_for_selector_options()) :: nil | Playwright.ElementHandle.t()
   def wait_for_selector!(%Playwright.Page{} = page, selector, options \\ []) do
     options = Facade.options!(options, @wait_for_selector_options, "page.waitForSelector")
-
-    Facade.async!("page.waitForSelector", page, fn ->
-      Playwright.Client.Page.wait_for_selector(page, selector, options)
-    end)
+    Facade.async!("page.waitForSelector", fn -> Playwright.Client.Page.wait_for_selector(page, selector, options) end)
   end
 
   @doc ~S"""
@@ -6285,13 +6235,13 @@ defmodule Playwright.Page do
   """
   @spec wait_for_timeout(t(), number()) :: :ok | {:error, Playwright.error()}
   def wait_for_timeout(%Playwright.Page{} = page, timeout) do
-    Facade.async_void("page.waitForTimeout", page, fn -> Playwright.Client.Page.wait_for_timeout(page, timeout) end)
+    Facade.async_void("page.waitForTimeout", fn -> Playwright.Client.Page.wait_for_timeout(page, timeout) end)
   end
 
   @doc "Like `wait_for_timeout/2`, but returns the value and raises on error."
   @spec wait_for_timeout!(t(), number()) :: :ok
   def wait_for_timeout!(%Playwright.Page{} = page, timeout) do
-    Facade.async_void!("page.waitForTimeout", page, fn -> Playwright.Client.Page.wait_for_timeout(page, timeout) end)
+    Facade.async_void!("page.waitForTimeout", fn -> Playwright.Client.Page.wait_for_timeout(page, timeout) end)
   end
 
   @wait_for_url_options {:object,
@@ -6369,7 +6319,7 @@ defmodule Playwright.Page do
         ) :: :ok | {:error, Playwright.error()}
   def wait_for_url(%Playwright.Page{} = page, url, options \\ []) do
     options = Facade.options!(options, @wait_for_url_options, "page.waitForURL")
-    Facade.async_void("page.waitForURL", page, fn -> Playwright.Client.Page.wait_for_url(page, url, options) end)
+    Facade.async_void("page.waitForURL", fn -> Playwright.Client.Page.wait_for_url(page, url, options) end)
   end
 
   @doc "Like `wait_for_url/3`, but returns the value and raises on error."
@@ -6380,7 +6330,7 @@ defmodule Playwright.Page do
         ) :: :ok
   def wait_for_url!(%Playwright.Page{} = page, url, options \\ []) do
     options = Facade.options!(options, @wait_for_url_options, "page.waitForURL")
-    Facade.async_void!("page.waitForURL", page, fn -> Playwright.Client.Page.wait_for_url(page, url, options) end)
+    Facade.async_void!("page.waitForURL", fn -> Playwright.Client.Page.wait_for_url(page, url, options) end)
   end
 
   @doc ~S"""
@@ -6470,7 +6420,6 @@ defmodule Playwright.Page do
 
     Facade.expect(
       "page.waitForEvent",
-      page,
       fn -> Playwright.Client.Page.wait_for_event(page, "console", options) end,
       action
     )
@@ -6489,7 +6438,6 @@ defmodule Playwright.Page do
 
     Facade.expect!(
       "page.waitForEvent",
-      page,
       fn -> Playwright.Client.Page.wait_for_event(page, "console", options) end,
       action
     )
@@ -6549,7 +6497,6 @@ defmodule Playwright.Page do
 
     Facade.expect(
       "page.waitForEvent",
-      page,
       fn -> Playwright.Client.Page.wait_for_event(page, "download", options) end,
       action
     )
@@ -6567,7 +6514,6 @@ defmodule Playwright.Page do
 
     Facade.expect!(
       "page.waitForEvent",
-      page,
       fn -> Playwright.Client.Page.wait_for_event(page, "download", options) end,
       action
     )
@@ -6630,13 +6576,7 @@ defmodule Playwright.Page do
   def expect_event(%Playwright.Page{} = page, event, action, options) do
     event = Facade.event!(event, @events, "page.waitForEvent")
     options = Facade.options!(options, @expect_event_options, "page.waitForEvent")
-
-    Facade.expect(
-      "page.waitForEvent",
-      page,
-      fn -> Playwright.Client.Page.wait_for_event(page, event, options) end,
-      action
-    )
+    Facade.expect("page.waitForEvent", fn -> Playwright.Client.Page.wait_for_event(page, event, options) end, action)
   end
 
   @doc "Like `expect_event/4`, but returns the value and raises on error."
@@ -6649,13 +6589,7 @@ defmodule Playwright.Page do
   def expect_event!(%Playwright.Page{} = page, event, action, options) do
     event = Facade.event!(event, @events, "page.waitForEvent")
     options = Facade.options!(options, @expect_event_options, "page.waitForEvent")
-
-    Facade.expect!(
-      "page.waitForEvent",
-      page,
-      fn -> Playwright.Client.Page.wait_for_event(page, event, options) end,
-      action
-    )
+    Facade.expect!("page.waitForEvent", fn -> Playwright.Client.Page.wait_for_event(page, event, options) end, action)
   end
 
   @expect_file_chooser_options {:object,
@@ -6713,7 +6647,6 @@ defmodule Playwright.Page do
 
     Facade.expect(
       "page.waitForEvent",
-      page,
       fn -> Playwright.Client.Page.wait_for_event(page, "filechooser", options) end,
       action
     )
@@ -6731,7 +6664,6 @@ defmodule Playwright.Page do
 
     Facade.expect!(
       "page.waitForEvent",
-      page,
       fn -> Playwright.Client.Page.wait_for_event(page, "filechooser", options) end,
       action
     )
@@ -6828,13 +6760,7 @@ defmodule Playwright.Page do
           {:ok, nil | Playwright.Response.t()} | {:error, Playwright.error()}
   def expect_navigation(%Playwright.Page{} = page, action, options \\ []) do
     options = Facade.options!(options, @expect_navigation_options, "page.waitForNavigation")
-
-    Facade.expect(
-      "page.waitForNavigation",
-      page,
-      fn -> Playwright.Client.Page.wait_for_navigation(page, options) end,
-      action
-    )
+    Facade.expect("page.waitForNavigation", fn -> Playwright.Client.Page.wait_for_navigation(page, options) end, action)
   end
 
   @doc deprecated: "This method is inherently racy, please use Playwright.Page.wait_for_url/3 instead"
@@ -6845,7 +6771,6 @@ defmodule Playwright.Page do
 
     Facade.expect!(
       "page.waitForNavigation",
-      page,
       fn -> Playwright.Client.Page.wait_for_navigation(page, options) end,
       action
     )
@@ -6902,13 +6827,7 @@ defmodule Playwright.Page do
 
   def expect_popup(%Playwright.Page{} = page, action, options) do
     options = Facade.options!(options, @expect_popup_options, "page.waitForEvent")
-
-    Facade.expect(
-      "page.waitForEvent",
-      page,
-      fn -> Playwright.Client.Page.wait_for_event(page, "popup", options) end,
-      action
-    )
+    Facade.expect("page.waitForEvent", fn -> Playwright.Client.Page.wait_for_event(page, "popup", options) end, action)
   end
 
   @doc "Like `expect_popup/3`, but returns the value and raises on error."
@@ -6920,13 +6839,7 @@ defmodule Playwright.Page do
 
   def expect_popup!(%Playwright.Page{} = page, action, options) do
     options = Facade.options!(options, @expect_popup_options, "page.waitForEvent")
-
-    Facade.expect!(
-      "page.waitForEvent",
-      page,
-      fn -> Playwright.Client.Page.wait_for_event(page, "popup", options) end,
-      action
-    )
+    Facade.expect!("page.waitForEvent", fn -> Playwright.Client.Page.wait_for_event(page, "popup", options) end, action)
   end
 
   @expect_request_options {:object, %{timeout: {:timeout, nil}, signal: {:signal, nil}}}
@@ -6990,7 +6903,6 @@ defmodule Playwright.Page do
 
     Facade.expect(
       "page.waitForRequest",
-      page,
       fn -> Playwright.Client.Page.wait_for_request(page, url_or_predicate, options) end,
       action
     )
@@ -7008,7 +6920,6 @@ defmodule Playwright.Page do
 
     Facade.expect!(
       "page.waitForRequest",
-      page,
       fn -> Playwright.Client.Page.wait_for_request(page, url_or_predicate, options) end,
       action
     )
@@ -7069,7 +6980,6 @@ defmodule Playwright.Page do
 
     Facade.expect(
       "page.waitForEvent",
-      page,
       fn -> Playwright.Client.Page.wait_for_event(page, "requestfinished", options) end,
       action
     )
@@ -7087,7 +6997,6 @@ defmodule Playwright.Page do
 
     Facade.expect!(
       "page.waitForEvent",
-      page,
       fn -> Playwright.Client.Page.wait_for_event(page, "requestfinished", options) end,
       action
     )
@@ -7155,7 +7064,6 @@ defmodule Playwright.Page do
 
     Facade.expect(
       "page.waitForResponse",
-      page,
       fn -> Playwright.Client.Page.wait_for_response(page, url_or_predicate, options) end,
       action
     )
@@ -7173,7 +7081,6 @@ defmodule Playwright.Page do
 
     Facade.expect!(
       "page.waitForResponse",
-      page,
       fn -> Playwright.Client.Page.wait_for_response(page, url_or_predicate, options) end,
       action
     )
@@ -7233,7 +7140,6 @@ defmodule Playwright.Page do
 
     Facade.expect(
       "page.waitForEvent",
-      page,
       fn -> Playwright.Client.Page.wait_for_event(page, "websocket", options) end,
       action
     )
@@ -7251,7 +7157,6 @@ defmodule Playwright.Page do
 
     Facade.expect!(
       "page.waitForEvent",
-      page,
       fn -> Playwright.Client.Page.wait_for_event(page, "websocket", options) end,
       action
     )
@@ -7308,13 +7213,7 @@ defmodule Playwright.Page do
 
   def expect_worker(%Playwright.Page{} = page, action, options) do
     options = Facade.options!(options, @expect_worker_options, "page.waitForEvent")
-
-    Facade.expect(
-      "page.waitForEvent",
-      page,
-      fn -> Playwright.Client.Page.wait_for_event(page, "worker", options) end,
-      action
-    )
+    Facade.expect("page.waitForEvent", fn -> Playwright.Client.Page.wait_for_event(page, "worker", options) end, action)
   end
 
   @doc "Like `expect_worker/3`, but returns the value and raises on error."
@@ -7329,7 +7228,6 @@ defmodule Playwright.Page do
 
     Facade.expect!(
       "page.waitForEvent",
-      page,
       fn -> Playwright.Client.Page.wait_for_event(page, "worker", options) end,
       action
     )

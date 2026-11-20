@@ -48,8 +48,8 @@ Application.put_env(:playwright, :test,
   trace: :retain_on_failure,
   screenshot: :only_on_failure,
   preserve_output: if(mode == "rerun", do: :failures_only, else: :always),
-  # `modules` leases ten seats at once, four of them failed scopes': under fewer workers a release
-  # trims a warm seat when it comes before the failed ones'.
+  # `modules` holds ten workers at once, four of them failed scopes': under fewer workers a release
+  # trims a warm worker when it comes before the failed ones'.
   workers: if(mode == "modules", do: 10, else: 8)
 )
 
@@ -82,7 +82,7 @@ ExUnit.start(
   only_test_ids: only_test_ids
 )
 
-# What the modules saw: `{label, scope, playwright}` (the scope: the pid that holds the lease).
+# What the modules saw: `{label, scope, playwright}` (the scope: the pid that holds the workers).
 :ets.new(:report, [:named_table, :public, :bag])
 
 defmodule Report do
@@ -102,7 +102,7 @@ defmodule Report do
   # newest first, and the pool registers its own when it starts (on first use).
   def after_suite, do: ExUnit.after_suite(&print/1)
 
-  # The labels of the idle seats' warm drivers, how many scopes hold seats, and per label how
+  # The labels of the idle workers' warm drivers, how many scopes hold workers, and per label how
   # many scopes and drivers its tests saw.
   def print(_stats) do
     state = :sys.get_state(Playwright.Test.Pool)
@@ -111,7 +111,7 @@ defmodule Report do
     label_of = Map.new(reported, fn {label, _scope, playwright} -> {playwright.conn, label} end)
 
     free =
-      for {pid, %{scope: nil, key: key}} <- state.seats,
+      for {pid, %{scope: nil, key: key}} <- state.workers,
           key != nil,
           do: label_of[:sys.get_state(pid).playwright.conn]
 
@@ -121,7 +121,7 @@ defmodule Report do
 
     report = %{
       free: Enum.sort(free),
-      leases: map_size(state.scopes),
+      holds: map_size(state.scopes),
       scopes: count.(&elem(&1, 1)),
       drivers: count.(&elem(&1, 2).conn)
     }
@@ -158,7 +158,7 @@ case mode do
     alias Playwright.Test.BrowserPool
 
     defmodule TenTest do
-      # The module's lease: two browser options, a worker each.
+      # The module's hold: two browser options, a worker each.
       use ExUnit.Case, async: true
       use Playwright.Test
 
@@ -177,7 +177,7 @@ case mode do
     end
 
     defmodule TwoDriversTest do
-      # A test's lease: two options, two drivers.
+      # A test's hold: two options, two drivers.
       use ExUnit.Case, async: true
       use Playwright.Test
 
@@ -262,7 +262,7 @@ case mode do
       use Playwright.Test
 
       test "asks for none" do
-        refute Enum.any?(Map.values(:sys.get_state(Playwright.Test.Pool).seats), &(&1.scope == self()))
+        refute Enum.any?(Map.values(:sys.get_state(Playwright.Test.Pool).workers), &(&1.scope == self()))
       end
     end
 

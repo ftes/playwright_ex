@@ -4,7 +4,7 @@ defmodule Playwright.Runtime.Facade do
   generates from `api.json` (`Playwright.Browser`, ...).
 
   The facade converts Elixir arguments to the shapes the ported client expects, then runs the
-  call in `Playwright.Runtime.Api.call/3`:
+  call in `call/2`:
 
     * Options: a keyword list or map with snake_case keys (`executable_path:`) becomes a map
       with the JS names (`executablePath`). Unknown keys raise `ArgumentError`, as there are
@@ -13,22 +13,23 @@ defmodule Playwright.Runtime.Facade do
       the Python client: maps with the JS keys (`%{sameSite: "Lax"}`), passed as they are, so
       values returned by the client round-trip. Only their keys are checked: an unknown one
       raises `ArgumentError` naming where it is (`cookies[0].http_only`). Cookies and storage
-      states, which the client passes on, have the keys of the protocol params they are sent in
-      (results carry some the docs leave out), as atoms or strings (`JSON.decode!/1`); a storage
-      state given as a file path is passed unchecked.
+      states, which the client passes on, have the protocol's keys (results carry some the docs
+      leave out), as atoms or strings (`JSON.decode!/1`); a storage state given as a file path
+      is passed unchecked.
     * Enums of options and positional arguments: atoms (`:no_preference`) become the wire
       strings (`"no-preference"`); strings pass through.
     * `timeout: :infinity` is `timeout: 0` (no timeout, as in JS), likewise a positional
       `timeout` (`set_default_timeout(context, :infinity)`).
 
   A type is `nil` (passed through), `:timeout` (a positional timeout), `{:object, %{key => {js_key, type}}}`
-  (options), `{:fields, %{js_key => type}}` (a nested object), `{:protocol, params, field}` (one the
-  client passes on, `field` of the protocol's `params`), `{:array, type}`, `{:enum, %{atom => string}}`
+  (options), `{:fields, %{js_key => type}}` (a nested object), `{:protocol, %{js_key => type},
+  %{string => type}}` (one the client passes on, `protocol_type/2`), `{:array, type}`, `{:enum, %{atom => string}}`
   or `{:union, [type]}`.
   """
   alias Playwright.Protocol.Validator
-  alias Playwright.Runtime.Api
   alias Playwright.Runtime.Promise
+  alias Playwright.Runtime.Zones
+  alias Playwright.TargetClosedError
 
   # The errors a call fails with (`t:Playwright.error/0`), as upstream rejects with them.
   @errors [
@@ -53,26 +54,49 @@ defmodule Playwright.Runtime.Facade do
   def error?(_e), do: false
 
   @doc """
+  Runs `fun` as the public API call `api_name` (e.g. `\"browserType.launch\"`), the entry point
+  of every facade call. Upstream derives `apiName` from the JS stack in
+  `captureLibraryStackTrace`; BEAM stack traces drop tail-call frames, so the entry point records
+  its name instead (`Playwright.Client.ClientStackTrace` reads it). `nil` records none.
+  """
+  def call(api_name, fun) do
+    if !api_name or Zones.data(:apiName) do
+      fun.()
+    else
+      try do
+        Zones.with(:apiName, api_name, fun)
+      rescue
+        # A field read of a disposed object raises before `_wrapApiCall` (JS reads the stale value
+        # and the server rejects the call): the error gets the API name all the same.
+        e in TargetClosedError ->
+          prefix = api_name <> ": "
+          e = if String.starts_with?(e.message, prefix), do: e, else: %{e | message: prefix <> e.message}
+          reraise e, __STACKTRACE__
+      end
+    end
+  end
+
+  @doc """
   Runs an async call: `{:ok, value}`, or `{:error, exception}` for an error it fails with
   (`error?/1`); anything else is raised.
   """
-  def async(api_name, receiver, fun) do
-    {:ok, Api.call(api_name, receiver, fun)}
+  def async(api_name, fun) do
+    {:ok, call(api_name, fun)}
   rescue
     e -> if error?(e), do: {:error, e}, else: reraise(e, __STACKTRACE__)
   end
 
   @doc "Runs an async call and returns its value, raising on error."
-  def async!(api_name, receiver, fun), do: Api.call(api_name, receiver, fun)
+  def async!(api_name, fun), do: call(api_name, fun)
 
   @doc "Runs an async call that returns `void` in JS: `:ok`, or `{:error, exception}`."
-  def async_void(api_name, receiver, fun) do
-    with {:ok, _} <- async(api_name, receiver, fun), do: :ok
+  def async_void(api_name, fun) do
+    with {:ok, _} <- async(api_name, fun), do: :ok
   end
 
   @doc "Runs an async call that returns `void` in JS: `:ok`, raising on error."
-  def async_void!(api_name, receiver, fun) do
-    async!(api_name, receiver, fun)
+  def async_void!(api_name, fun) do
+    async!(api_name, fun)
     :ok
   end
 
@@ -90,7 +114,7 @@ defmodule Playwright.Runtime.Facade do
         do: [owner: receiver],
         else: [shared: true]
 
-    Api.call(api_name, receiver, fn -> Promise.async(fun, owner) end)
+    call(api_name, fn -> Promise.async(fun, owner) end)
   end
 
   @doc """
@@ -117,17 +141,17 @@ defmodule Playwright.Runtime.Facade do
   The callback form of a wait (`expect_popup`): starts the wait (`promise/3`), runs `action`, then
   awaits the wait: `{:ok, value}` or `{:error, exception}`. Exceptions raised by `action` propagate.
   """
-  def expect(api_name, receiver, fun, action) do
+  def expect(api_name, fun, action) do
     # The handle never leaves this function: a local promise.
-    promise = Api.call(api_name, receiver, fn -> Promise.async(fun) end)
+    promise = call(api_name, fn -> Promise.async(fun) end)
     run_action(action, promise)
     Playwright.Promise.await(promise)
   end
 
-  @doc "Like `expect/4`, but returns the value and raises on error."
-  def expect!(api_name, receiver, fun, action) do
+  @doc "Like `expect/3`, but returns the value and raises on error."
+  def expect!(api_name, fun, action) do
     # The handle never leaves this function: a local promise.
-    promise = Api.call(api_name, receiver, fn -> Promise.async(fun) end)
+    promise = call(api_name, fn -> Promise.async(fun) end)
     run_action(action, promise)
     Playwright.Promise.await!(promise)
   end
@@ -143,11 +167,11 @@ defmodule Playwright.Runtime.Facade do
   end
 
   @doc """
-  Runs a matcher (`Playwright.Expect`): `:ok`, or `{:error, exception}` as `async/3` returns it
+  Runs a matcher (`Playwright.Expect`): `:ok`, or `{:error, exception}` as `async/2` returns it
   (`Playwright.ExpectError` when the expectation is not met). The API name
   comes from the matcher's title (`Expect "toHaveText"`), as upstream's does.
   """
-  def matcher(receiver, fun), do: async_void(nil, receiver, fun)
+  def matcher(fun), do: async_void(nil, fun)
 
   @doc """
   A matcher's receiver and info (`isNot`, `isSoft`, `message`): a negated receiver
@@ -165,20 +189,20 @@ defmodule Playwright.Runtime.Facade do
 
   def matcher_info(actual, is_not, _api_name), do: {actual, %{isNot: is_not, isSoft: false}}
 
-  @doc "Like `matcher/2`, but raises (`Playwright.ExpectError` when the expectation is not met)."
-  def matcher!(receiver, fun), do: async_void!(nil, receiver, fun)
+  @doc "Like `matcher/1`, but raises (`Playwright.ExpectError` when the expectation is not met)."
+  def matcher!(fun), do: async_void!(nil, fun)
 
   @doc """
-  Like `matcher/2`, for a matcher with a value (`Playwright.Expect.to_pass/2`, the passing
+  Like `matcher/1`, for a matcher with a value (`Playwright.Expect.to_pass/2`, the passing
   attempt's): `{:ok, value}`, or `{:error, exception}`. A negated one (`info` of
-  `matcher_info/3`) has none: `matcher/2`.
+  `matcher_info/3`) has none: `matcher/1`.
   """
-  def matcher_value(receiver, %{isNot: true}, fun), do: matcher(receiver, fun)
-  def matcher_value(receiver, _info, fun), do: async(nil, receiver, fun)
+  def matcher_value(%{isNot: true}, fun), do: matcher(fun)
+  def matcher_value(_info, fun), do: async(nil, fun)
 
-  @doc "Like `matcher_value/3`, but returns the value and raises on error."
-  def matcher_value!(receiver, %{isNot: true}, fun), do: matcher!(receiver, fun)
-  def matcher_value!(receiver, _info, fun), do: async!(nil, receiver, fun)
+  @doc "Like `matcher_value/2`, but returns the value and raises on error."
+  def matcher_value!(%{isNot: true}, fun), do: matcher!(fun)
+  def matcher_value!(_info, fun), do: async!(nil, fun)
 
   @doc """
   Converts `options` (keyword list or map) of type `{:object, schema}` for the call `api_name`.
@@ -219,6 +243,30 @@ defmodule Playwright.Runtime.Facade do
     end)
   end
 
+  @doc """
+  The type of `field` of the protocol's `params` (`Playwright.Protocol.Validator`): a value the
+  client passes on (cookies, storage states), whose objects take the protocol's keys as atoms or
+  strings. The generated facade computes it when it compiles.
+  """
+  def protocol_type(params, field) do
+    {:object, fields} = Validator.scheme(params)
+    protocol_type(Keyword.fetch!(fields, field))
+  end
+
+  defp protocol_type({:optional, scheme}), do: protocol_type(scheme)
+  defp protocol_type({:type, name}), do: protocol_type(Validator.scheme(name))
+
+  defp protocol_type({:array, scheme}) do
+    if type = protocol_type(scheme), do: {:array, type}
+  end
+
+  defp protocol_type({:object, fields}) do
+    atoms = Map.new(fields, fn {key, scheme} -> {key, protocol_type(scheme)} end)
+    {:protocol, atoms, Map.new(atoms, fn {key, type} -> {Atom.to_string(key), type} end)}
+  end
+
+  defp protocol_type(_scheme), do: nil
+
   @doc "Converts the positional argument `name` (its Elixir name, for errors) of `type`."
   def arg!(value, type, api_name, name), do: convert!(value, type, api_name, [name])
 
@@ -232,7 +280,7 @@ defmodule Playwright.Runtime.Facade do
       event == nil -> nil
       is_atom(event) and Map.has_key?(events, event) -> Map.fetch!(events, event)
       is_binary(event) and (open? or event in Map.values(events)) -> event
-      true -> raise ArgumentError, "#{api_name}: unknown event #{inspect(event)}, expected one of #{keys(events)}"
+      true -> raise ArgumentError, "#{api_name}: unknown event #{inspect(event)}, expected one of #{values(events)}"
     end
   end
 
@@ -245,9 +293,19 @@ defmodule Playwright.Runtime.Facade do
     value
   end
 
-  defp convert!(value, {:protocol, params, field}, api_name, path) do
-    {:object, fields} = Validator.scheme(params)
-    protocol!(value, Keyword.fetch!(fields, field), api_name, path)
+  # Passed on to the protocol as it is, whose validator reads atom or string keys.
+  defp convert!(value, {:protocol, atoms, strings}, api_name, path) do
+    if object?(value) do
+      for {key, item} <- value do
+        known = if is_binary(key), do: strings, else: atoms
+
+        case known do
+          %{^key => type} -> convert!(item, type, api_name, [key | path])
+          _ -> unknown_field!(api_name, [key | path], known)
+        end
+      end
+    end
+
     value
   end
 
@@ -264,7 +322,7 @@ defmodule Playwright.Runtime.Facade do
 
       _ ->
         raise ArgumentError,
-              "#{api_name}: invalid value #{inspect(value)} for #{name(path)}, expected one of #{keys(literals)}"
+              "#{api_name}: invalid value #{inspect(value)} for #{name(path)}, expected one of #{values(literals)}"
     end
   end
 
@@ -314,34 +372,6 @@ defmodule Playwright.Runtime.Facade do
     end
   end
 
-  # A value passed on to the protocol as it is (cookies, storage states): the keys of its objects
-  # are the scheme's (`Playwright.Protocol.Validator`), atoms or strings as the validator reads them.
-  defp protocol!(value, {:optional, scheme}, api_name, path), do: protocol!(value, scheme, api_name, path)
-  defp protocol!(value, {:type, name}, api_name, path), do: protocol!(value, Validator.scheme(name), api_name, path)
-
-  defp protocol!(value, {:array, scheme}, api_name, path) when is_list(value) do
-    for {item, index} <- Enum.with_index(value), do: protocol!(item, scheme, api_name, [{:index, index} | path])
-  end
-
-  defp protocol!(value, {:object, fields}, api_name, path) when is_map(value) and not is_struct(value) do
-    atoms = Map.new(fields)
-
-    strings =
-      if Enum.any?(value, fn {key, _} -> is_binary(key) end),
-        do: Map.new(fields, fn {k, s} -> {Atom.to_string(k), s} end)
-
-    for {key, item} <- value do
-      known = if is_binary(key), do: strings, else: atoms
-
-      case known do
-        %{^key => scheme} -> protocol!(item, scheme, api_name, [key | path])
-        _ -> unknown_field!(api_name, [key | path], known)
-      end
-    end
-  end
-
-  defp protocol!(_value, _scheme, _api_name, _path), do: :ok
-
   defp unknown_field!(api_name, path, keys),
     do: raise(ArgumentError, "#{api_name}: unknown field #{name(path)}, expected one of #{keys(keys)}")
 
@@ -356,11 +386,23 @@ defmodule Playwright.Runtime.Facade do
     |> Enum.reverse()
     |> Enum.map_join(fn
       {:index, index} -> "[#{index}]"
-      key when is_atom(key) -> ".#{key}"
-      key -> ".#{inspect(key)}"
+      key -> "." <> key(key)
     end)
     |> String.trim_leading(".")
   end
 
-  defp keys(map), do: map |> Map.keys() |> Enum.sort() |> Enum.map_join(", ", &inspect/1)
+  defp keys(map), do: map |> Map.keys() |> Enum.sort() |> Enum.map_join(", ", &key/1)
+
+  # Atoms passed as values (`:no_preference`, `:page_error`).
+  defp values(map), do: map |> Map.keys() |> Enum.sort() |> Enum.map_join(", ", &inspect/1)
+
+  @doc false
+  # A key as written in a path: bare (`color_scheme`), quoted where it must be (`:"proxy.server"`,
+  # a string key `"httpOnly"`). `Playwright.Application.key_name/1` names the runner's keys so.
+  def key(key) when is_atom(key) do
+    name = Atom.to_string(key)
+    if Regex.match?(~r/^[A-Za-z_][A-Za-z0-9_]*$/, name), do: name, else: inspect(key)
+  end
+
+  def key(key), do: inspect(key)
 end

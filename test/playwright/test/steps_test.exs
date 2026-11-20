@@ -241,7 +241,7 @@ defmodule Playwright.Test.StepsTest do
   end
 
   test "a step rejects timeout and runs in the test's process" do
-    assert_raise ArgumentError, ~r/^step timeout is not supported/, fn ->
+    assert_raise ArgumentError, ~r/^Playwright.Test.step\/3: unsupported option timeout/, fn ->
       Test.step("timed", fn -> :value end, timeout: 5000)
     end
 

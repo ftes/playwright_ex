@@ -53,13 +53,13 @@ defmodule Playwright.JSHandle do
   """
   @spec dispose(t()) :: :ok | {:error, Playwright.error()}
   def dispose(js_handle) do
-    Facade.async_void("jsHandle.dispose", js_handle, fn -> Playwright.Client.JSHandle.dispose(js_handle) end)
+    Facade.async_void("jsHandle.dispose", fn -> Playwright.Client.JSHandle.dispose(js_handle) end)
   end
 
   @doc "Like `dispose/1`, but returns the value and raises on error."
   @spec dispose!(t()) :: :ok
   def dispose!(js_handle) do
-    Facade.async_void!("jsHandle.dispose", js_handle, fn -> Playwright.Client.JSHandle.dispose(js_handle) end)
+    Facade.async_void!("jsHandle.dispose", fn -> Playwright.Client.JSHandle.dispose(js_handle) end)
   end
 
   @evaluate_options {:object, %{expose_functions: {:exposeFunctions, nil}}}
@@ -97,9 +97,7 @@ defmodule Playwright.JSHandle do
   def evaluate(js_handle, expression, arg \\ nil, options \\ []) do
     options = Facade.options!(options, @evaluate_options, "jsHandle.evaluate")
 
-    Facade.async("jsHandle.evaluate", js_handle, fn ->
-      Playwright.Client.JSHandle.evaluate(js_handle, expression, arg, options)
-    end)
+    Facade.async("jsHandle.evaluate", fn -> Playwright.Client.JSHandle.evaluate(js_handle, expression, arg, options) end)
   end
 
   @doc "Like `evaluate/4`, but returns the value and raises on error."
@@ -107,7 +105,7 @@ defmodule Playwright.JSHandle do
   def evaluate!(js_handle, expression, arg \\ nil, options \\ []) do
     options = Facade.options!(options, @evaluate_options, "jsHandle.evaluate")
 
-    Facade.async!("jsHandle.evaluate", js_handle, fn ->
+    Facade.async!("jsHandle.evaluate", fn ->
       Playwright.Client.JSHandle.evaluate(js_handle, expression, arg, options)
     end)
   end
@@ -145,7 +143,7 @@ defmodule Playwright.JSHandle do
   def evaluate_handle(js_handle, expression, arg \\ nil, options \\ []) do
     options = Facade.options!(options, @evaluate_handle_options, "jsHandle.evaluateHandle")
 
-    Facade.async("jsHandle.evaluateHandle", js_handle, fn ->
+    Facade.async("jsHandle.evaluateHandle", fn ->
       Playwright.Client.JSHandle.evaluate_handle(js_handle, expression, arg, options)
     end)
   end
@@ -155,7 +153,7 @@ defmodule Playwright.JSHandle do
   def evaluate_handle!(js_handle, expression, arg \\ nil, options \\ []) do
     options = Facade.options!(options, @evaluate_handle_options, "jsHandle.evaluateHandle")
 
-    Facade.async!("jsHandle.evaluateHandle", js_handle, fn ->
+    Facade.async!("jsHandle.evaluateHandle", fn ->
       Playwright.Client.JSHandle.evaluate_handle(js_handle, expression, arg, options)
     end)
   end
@@ -179,13 +177,13 @@ defmodule Playwright.JSHandle do
   """
   @spec get_properties(t()) :: {:ok, term()} | {:error, Playwright.error()}
   def get_properties(js_handle) do
-    Facade.async("jsHandle.getProperties", js_handle, fn -> Playwright.Client.JSHandle.get_properties(js_handle) end)
+    Facade.async("jsHandle.getProperties", fn -> Playwright.Client.JSHandle.get_properties(js_handle) end)
   end
 
   @doc "Like `get_properties/1`, but returns the value and raises on error."
   @spec get_properties!(t()) :: term()
   def get_properties!(js_handle) do
-    Facade.async!("jsHandle.getProperties", js_handle, fn -> Playwright.Client.JSHandle.get_properties(js_handle) end)
+    Facade.async!("jsHandle.getProperties", fn -> Playwright.Client.JSHandle.get_properties(js_handle) end)
   end
 
   @doc ~S"""
@@ -199,17 +197,13 @@ defmodule Playwright.JSHandle do
   """
   @spec get_property(t(), String.t()) :: {:ok, Playwright.JSHandle.t()} | {:error, Playwright.error()}
   def get_property(js_handle, property_name) do
-    Facade.async("jsHandle.getProperty", js_handle, fn ->
-      Playwright.Client.JSHandle.get_property(js_handle, property_name)
-    end)
+    Facade.async("jsHandle.getProperty", fn -> Playwright.Client.JSHandle.get_property(js_handle, property_name) end)
   end
 
   @doc "Like `get_property/2`, but returns the value and raises on error."
   @spec get_property!(t(), String.t()) :: Playwright.JSHandle.t()
   def get_property!(js_handle, property_name) do
-    Facade.async!("jsHandle.getProperty", js_handle, fn ->
-      Playwright.Client.JSHandle.get_property(js_handle, property_name)
-    end)
+    Facade.async!("jsHandle.getProperty", fn -> Playwright.Client.JSHandle.get_property(js_handle, property_name) end)
   end
 
   @doc ~S"""
@@ -224,13 +218,13 @@ defmodule Playwright.JSHandle do
   """
   @spec json_value(t()) :: {:ok, term()} | {:error, Playwright.error()}
   def json_value(js_handle) do
-    Facade.async("jsHandle.jsonValue", js_handle, fn -> Playwright.Client.JSHandle.json_value(js_handle) end)
+    Facade.async("jsHandle.jsonValue", fn -> Playwright.Client.JSHandle.json_value(js_handle) end)
   end
 
   @doc "Like `json_value/1`, but returns the value and raises on error."
   @spec json_value!(t()) :: term()
   def json_value!(js_handle) do
-    Facade.async!("jsHandle.jsonValue", js_handle, fn -> Playwright.Client.JSHandle.json_value(js_handle) end)
+    Facade.async!("jsHandle.jsonValue", fn -> Playwright.Client.JSHandle.json_value(js_handle) end)
   end
 
   @doc """

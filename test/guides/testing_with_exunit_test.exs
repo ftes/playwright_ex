@@ -1,4 +1,5 @@
-# The snippets of `guides/testing-with-exunit.md`, run against an app on `Playwright.TestServer`.
+# The snippets of `guides/testing-with-exunit.md`, `test-options.md`, `test-artifacts.md` and
+# `porting-playwright-test.md`, run against an app on `Playwright.TestServer`.
 # Deviations from the guide: each module starts its own app, and the browser is `BROWSER`'s.
 
 defmodule Playwright.Guides.TestingWithExUnit.App do
@@ -511,7 +512,7 @@ defmodule Playwright.Guides.TestingWithExUnit.Projects do
   # (`BROWSER`), which wins over a device's browser.
   def all do
     names = String.split(System.get_env("PROJECTS", "Desktop Chrome"), ",")
-    for name <- names, do: Playwright.Test.parameters(Playwright.device(name))
+    for name <- names, do: Playwright.Test.parameters([name: name] ++ Playwright.device(name))
   end
 end
 

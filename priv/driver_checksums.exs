@@ -8,7 +8,5 @@
     "win-arm64" => "181ebe431b90787113a9e4fc80d38ce86d37888a353a0386de44d2872e48cb97",
     "win-x64" => "e2edda75bfb089654705cf65a13b58933bfd5f57148e8ebda916f58a2474f1f7"
   },
-  node_version: "26.13.1",
-  driver_version: "1.65.1",
   playwright_core: "sha512-hqPpz7blSMPxWVdoeE1yiBSzXsKiVOd2k+kjCvmUywD2GPO2Dd9HfcWnq9NN0GHbNZDFgZ9JfBFr+X5/BLo0qw=="
 }

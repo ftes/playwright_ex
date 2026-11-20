@@ -17,7 +17,7 @@ defmodule Playwright.DriverCleanup do
   alias Playwright.Browser
   alias Playwright.BrowserContext
   alias Playwright.Client
-  alias Playwright.Runtime.Api
+  alias Playwright.Runtime.Facade
   alias Playwright.Runtime.Heap
 
   require Logger
@@ -69,7 +69,7 @@ defmodule Playwright.DriverCleanup do
     module_pid = self()
 
     ExUnit.Callbacks.on_exit(fn ->
-      contexts = Api.call(nil, playwright, fn -> Client.Playwright._all_contexts(playwright) end)
+      contexts = Facade.call(nil, fn -> Client.Playwright._all_contexts(playwright) end)
       for context <- contexts, created_by?(context, [module_pid]), do: BrowserContext.close(context)
       close_browsers(playwright, [module_pid], opts[:keep] || [])
     end)
@@ -86,7 +86,7 @@ defmodule Playwright.DriverCleanup do
 
   defp close_browsers(playwright, pids, keep) do
     browsers =
-      Api.call(nil, playwright, fn ->
+      Facade.call(nil, fn ->
         for name <- [:chromium, :firefox, :webkit],
             type = Heap.get(playwright, name),
             object <- Heap.map_values(type, :_objects),

@@ -108,7 +108,7 @@ defmodule Playwright.WebSocketRoute do
   def close(%Playwright.WebSocketRoute{} = web_socket_route, options \\ []) do
     options = Facade.options!(options, @close_options, "webSocketRoute.close")
 
-    Facade.async_void("webSocketRoute.close", web_socket_route, fn ->
+    Facade.async_void("webSocketRoute.close", fn ->
       Playwright.Client.WebSocketRoute.close(web_socket_route, options)
     end)
   end
@@ -118,7 +118,7 @@ defmodule Playwright.WebSocketRoute do
   def close!(%Playwright.WebSocketRoute{} = web_socket_route, options \\ []) do
     options = Facade.options!(options, @close_options, "webSocketRoute.close")
 
-    Facade.async_void!("webSocketRoute.close", web_socket_route, fn ->
+    Facade.async_void!("webSocketRoute.close", fn ->
       Playwright.Client.WebSocketRoute.close(web_socket_route, options)
     end)
   end
@@ -205,7 +205,7 @@ defmodule Playwright.WebSocketRoute do
     if "chat.v2" in WebSocketRoute.protocols(ws) do
       WebSocketRoute.on_message(ws, &WebSocketRoute.send(ws, JSON.encode!(%{version: 2, echo: &1})))
     else
-      WebSocketRoute.close(ws, code: 1002, reason: "Unsupported protocol")
+      WebSocketRoute.close!(ws, code: 1002, reason: "Unsupported protocol")
     end
   end)
   ```

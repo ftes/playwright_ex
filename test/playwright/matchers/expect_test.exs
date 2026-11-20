@@ -5,29 +5,47 @@ defmodule Playwright.Matchers.ExpectTest do
 
   test "unknown keys of the app env config raise, naming the valid ones" do
     assert_raise ArgumentError,
-                 ~r/^config :playwright, :expect: unknown keys \[:timout\], expected one of \[:timeout, /,
+                 ~r/^config :playwright, :expect: unknown key timout, expected one of timeout, /,
                  fn -> Expect.app_env_expect_config(timout: 1_000) end
   end
 
-  test "the app env config is an ExpectConfig" do
+  test "the app env config is an ExpectConfig, the matchers' options snake_case" do
     assert Expect.app_env_expect_config([]) == %{testInfo: nil, ignoreSnapshots: false, updateSnapshots: "default"}
 
     assert Expect.app_env_expect_config(
              timeout: :infinity,
              update_snapshots: :missing,
              ignore_snapshots: true,
-             to_have_screenshot: %{maxDiffPixels: 10},
-             to_match_aria_snapshot: %{children: "equal"},
+             to_have_screenshot: [max_diff_pixels: 10, animations: :allow, type: :webp, path_template: "{arg}{ext}"],
+             to_match_aria_snapshot: %{children: :deep_equal, path_template: "{arg}{ext}"},
              to_pass: [timeout: 1_000, intervals: [50]]
            ) == %{
              testInfo: nil,
              timeout: 0,
              updateSnapshots: "missing",
              ignoreSnapshots: true,
-             toHaveScreenshot: %{maxDiffPixels: 10},
-             toMatchAriaSnapshot: %{children: "equal"},
+             toHaveScreenshot: %{maxDiffPixels: 10, animations: "allow", type: "webp", pathTemplate: "{arg}{ext}"},
+             toMatchAriaSnapshot: %{children: "deep-equal", pathTemplate: "{arg}{ext}"},
              toPass: %{timeout: 1_000, intervals: [50]}
            }
+  end
+
+  test "a matcher's config: upstream's keys, snake_case; others raise" do
+    assert_raise ArgumentError,
+                 ~r/^config :playwright, :expect, :to_have_screenshot: unknown key maxDiffPixels, /,
+                 fn ->
+                   Expect.app_env_expect_config(to_have_screenshot: %{maxDiffPixels: 10})
+                 end
+
+    assert_raise ArgumentError,
+                 ~r/^config :playwright, :expect, :to_have_screenshot: unknown key mask, /,
+                 fn ->
+                   Expect.app_env_expect_config(to_have_screenshot: [mask: []])
+                 end
+
+    assert_raise ArgumentError,
+                 "config :playwright, :expect, :to_match_aria_snapshot: invalid value :all for children, expected one of :contain, :equal, :deep_equal",
+                 fn -> Expect.app_env_expect_config(to_match_aria_snapshot: [children: :all]) end
   end
 
   test "to_pass: a timeout of :infinity is 0, as :timeout's; other values raise" do
@@ -35,10 +53,10 @@ defmodule Playwright.Matchers.ExpectTest do
     assert Expect.app_env_expect_config(to_pass: %{intervals: [50]}).toPass == %{intervals: [50]}
 
     assert_raise ArgumentError,
-                 ~r/^config :playwright, :expect, :to_pass: expected a keyword list or map with the keys \[:timeout, :intervals\], got: 5000/,
+                 "config :playwright, :expect, :to_pass: expected a keyword list or a map, got: 5000",
                  fn -> Expect.app_env_expect_config(to_pass: 5000) end
 
-    assert_raise ArgumentError, ~r/^config :playwright, :expect, :to_pass: .*got: \[timout: 1000\]/, fn ->
+    assert_raise ArgumentError, ~r/^config :playwright, :expect, :to_pass: unknown key timout, /, fn ->
       Expect.app_env_expect_config(to_pass: [timout: 1_000])
     end
   end

@@ -37,7 +37,7 @@ defmodule Playwright.Runtime.FacadeTest do
   end
 
   test "rejects unknown options, fields and enum values" do
-    assert_raise ArgumentError, ~r/^x\.y: unknown option colour_scheme, expected one of :color_scheme, /, fn ->
+    assert_raise ArgumentError, ~r/^x\.y: unknown option colour_scheme, expected one of color_scheme, /, fn ->
       Facade.options!([colour_scheme: :light], @schema, "x.y")
     end
 
@@ -51,11 +51,11 @@ defmodule Playwright.Runtime.FacadeTest do
                    Facade.options!([color_scheme: :dark], @schema, "x.y")
                  end
 
-    assert_raise ArgumentError, "x.y: unknown field viewport.depth, expected one of :height, :width", fn ->
+    assert_raise ArgumentError, "x.y: unknown field viewport.depth, expected one of height, width", fn ->
       Facade.options!([viewport: %{depth: 1}], @schema, "x.y")
     end
 
-    assert_raise ArgumentError, "x.y: unknown field cookies[1].same_site, expected one of :sameSite", fn ->
+    assert_raise ArgumentError, "x.y: unknown field cookies[1].same_site, expected one of sameSite", fn ->
       Facade.options!([cookies: [%{sameSite: "Lax"}, %{same_site: "Lax"}]], @schema, "x.y")
     end
   end
@@ -64,11 +64,11 @@ defmodule Playwright.Runtime.FacadeTest do
     fields = {:fields, %{name: nil, origin: {:fields, %{url: nil}}}}
     assert Facade.arg!([%{name: "a"}, "b"], {:union, [{:array, fields}]}, "x.y", :items) == [%{name: "a"}, "b"]
 
-    assert_raise ArgumentError, "x.y: unknown field cookies[0].http_only, expected one of :name, :origin", fn ->
+    assert_raise ArgumentError, "x.y: unknown field cookies[0].http_only, expected one of name, origin", fn ->
       Facade.arg!([%{http_only: true}], {:array, fields}, "x.y", :cookies)
     end
 
-    assert_raise ArgumentError, "x.y: unknown field item.origin.uri, expected one of :url", fn ->
+    assert_raise ArgumentError, "x.y: unknown field item.origin.uri, expected one of url", fn ->
       Facade.arg!(%{origin: %{uri: "u"}}, fields, "x.y", :item)
     end
 
@@ -102,7 +102,7 @@ defmodule Playwright.Runtime.FacadeTest do
   end
 
   test "objects passed on to the protocol have the keys of its params, as atoms or strings" do
-    type = {:protocol, "BrowserContextAddCookiesParams", :cookies}
+    type = Facade.protocol_type("BrowserContextAddCookiesParams", :cookies)
     cookies = [%{"name" => "a", "httpOnly" => true}, %{name: "b", _crHasCrossSiteAncestor: false}]
     assert Facade.arg!(cookies, type, "x.y", :cookies) == cookies
 
@@ -113,8 +113,18 @@ defmodule Playwright.Runtime.FacadeTest do
                  end
 
     # Other nested objects: atom keys, as the client reads them.
-    assert_raise ArgumentError, ~s(x.y: unknown field cookies[0]."name", expected one of :httpOnly, :name), fn ->
+    assert_raise ArgumentError, ~s(x.y: unknown field cookies[0]."name", expected one of httpOnly, name), fn ->
       Facade.arg!([%{"name" => "a"}], {:array, {:fields, %{name: nil, httpOnly: nil}}}, "x.y", :cookies)
+    end
+  end
+
+  test "keys that need quoting are quoted, so a key with a dot is no path" do
+    assert_raise ArgumentError, ~s(x.y: unknown field viewport.:"proxy.server", expected one of height, width), fn ->
+      Facade.options!([viewport: %{"proxy.server": 1}], @schema, "x.y")
+    end
+
+    assert_raise ArgumentError, ~r/^x\.y: unknown option :"proxy\.server", expected one of color_scheme, /, fn ->
+      Facade.options!(["proxy.server": 1], @schema, "x.y")
     end
   end
 
@@ -143,11 +153,13 @@ defmodule Playwright.Runtime.FacadeTest do
       Playwright.Browser.new_context(%Playwright.Browser{}, storage_state: %{cookies: [%{http_only: true}]})
     end
 
-    # Each call's own params: a request context's storage state has no credentials.
+    # Any storage state, as JS takes one (the validator drops credentials there).
     assert_raise ArgumentError,
-                 "apiRequest.newContext: unknown field storage_state.credentials, expected one of :cookies, :origins",
+                 ~r/^apiRequest\.newContext: unknown field storage_state\.credentials\[0\]\.rp_id, expected one of id, privateKey, publicKey, rpId, /,
                  fn ->
-                   Playwright.APIRequest.new_context(%Playwright.APIRequest{}, storage_state: %{credentials: []})
+                   Playwright.APIRequest.new_context(%Playwright.APIRequest{},
+                     storage_state: %{credentials: [%{rp_id: "x"}]}
+                   )
                  end
 
     # Object | Array<Object> unions: one object, or one in a list.
@@ -179,14 +191,14 @@ defmodule Playwright.Runtime.FacadeTest do
           %RuntimeError{message: "Route is already handled!"},
           %File.Error{reason: :enoent, path: "x", action: "read file"}
         ] do
-      assert Facade.async(nil, nil, fn -> raise error end) == {:error, error}
-      assert Facade.async_void(nil, nil, fn -> raise error end) == {:error, error}
+      assert Facade.async(nil, fn -> raise error end) == {:error, error}
+      assert Facade.async_void(nil, fn -> raise error end) == {:error, error}
     end
 
     # Bugs: values the type checker doesn't see at compile time.
     {map, number} = Process.get(:not_set, {%{}, 1})
-    assert_raise KeyError, fn -> Facade.async(nil, nil, fn -> Map.fetch!(map, :x) end) end
-    assert_raise FunctionClauseError, fn -> Facade.async_void(nil, nil, fn -> String.trim(number) end) end
+    assert_raise KeyError, fn -> Facade.async(nil, fn -> Map.fetch!(map, :x) end) end
+    assert_raise FunctionClauseError, fn -> Facade.async_void(nil, fn -> String.trim(number) end) end
   end
 
   test "a matcher's message: option points to Expect.message/2, for the matcher as called" do
@@ -210,8 +222,8 @@ defmodule Playwright.Runtime.FacadeTest do
 
   test "a failed bang matcher raises the ExpectError" do
     error = %Playwright.ExpectError{message: "Expect failed"}
-    assert Facade.matcher(nil, fn -> raise error end) == {:error, error}
-    assert_raise Playwright.ExpectError, "Expect failed", fn -> Facade.matcher!(nil, fn -> raise error end) end
+    assert Facade.matcher(fn -> raise error end) == {:error, error}
+    assert_raise Playwright.ExpectError, "Expect failed", fn -> Facade.matcher!(fn -> raise error end) end
   end
 
   test "expect: when the action raises, the wait's later result leaves no message" do
@@ -226,8 +238,8 @@ defmodule Playwright.Runtime.FacadeTest do
       end
     end
 
-    for expect <- [&Facade.expect/4, &Facade.expect!/4] do
-      assert_raise RuntimeError, "boom", fn -> expect.(nil, nil, wait, fn -> raise "boom" end) end
+    for expect <- [&Facade.expect/3, &Facade.expect!/3] do
+      assert_raise RuntimeError, "boom", fn -> expect.(nil, wait, fn -> raise "boom" end) end
       assert_receive {:waiting, pid}
       ref = Process.monitor(pid)
       send(pid, :go)
