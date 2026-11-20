@@ -733,6 +733,6 @@ defmodule Playwright.Library.DownloadTest do
     assert expected == actual
   end
 
-  # Promise.all([...]) of calls that run concurrently.
-  defp await_all(funs), do: funs |> Enum.map(&Task.async/1) |> Enum.map(&Task.await(&1, :infinity))
+  # Promise.all([...]) of calls that run concurrently, sent in list order.
+  defp await_all(funs), do: funs |> Enum.map(&Promise.async/1) |> Promise.all() |> Promise.await!()
 end
