@@ -1,8 +1,8 @@
-defmodule Playwright.Test.Pool.Slot do
+defmodule Playwright.Test.Pool.Worker do
   @moduledoc false
-  # A seat of `Playwright.Test.Pool` (upstream's worker slot): a process that runs one driver
+  # A worker of `Playwright.Test.Pool` (upstream's worker): a process that runs one driver
   # and its browser at a time, those of its holder's options. Starting, stopping and launching
-  # block this seat and its holder only, and the seat stays alive as the browser's creator, which
+  # block this worker and its holder only, and it stays alive as the browser's creator, which
   # anchors its rows. Lazy: the driver starts with the first `browser/3`, which adds the
   # recording listener (`Playwright.Test.Recorder.listener/0`), sets the test id attribute and
   # runs `on_start` on each new driver's Playwright before the launch. A `browser/3` of another
@@ -36,7 +36,7 @@ defmodule Playwright.Test.Pool.Slot do
     do: {Enum.sort(opts.driver), opts.on_start, opts.browser_name, Enum.sort(opts.launch_options), opts.connect_options}
 
   @doc """
-  `%{playwright: _, browser: _}` of the seat `pid` for `opts` (of `key`): a driver of another
+  `%{playwright: _, browser: _}` of the worker `pid` for `opts` (of `key`): a driver of another
   key stopped, the driver started and the browser launched if needed.
   """
   def browser(pid, key, opts) do
@@ -46,10 +46,10 @@ defmodule Playwright.Test.Pool.Slot do
     end
   end
 
-  @doc "Stops the seat's driver now, without waiting: the next `browser/3` starts another."
+  @doc "Stops the worker's driver now, without waiting: the next `browser/3` starts another."
   def reset(pid), do: GenServer.cast(pid, :reset)
 
-  @doc "Stops the driver (waiting for it to exit) and the seat."
+  @doc "Stops the driver (waiting for it to exit) and the worker."
   def stop(pid) do
     GenServer.stop(pid, :normal, :infinity)
   catch
@@ -123,9 +123,11 @@ defmodule Playwright.Test.Pool.Slot do
   defp set_up_new(%{playwright: playwright} = state) do
     ClientInstrumentation.add_listener(Heap.get(playwright, :_instrumentation), Recorder.listener())
     :ets.insert(Playwright.Test.Results.table(), {{:driver, playwright.conn}, playwright})
-    # `_setupContextOptions`' `selectors.setTestIdAttribute(testIdAttribute)`: suite-wide,
-    # as the client's value (`get_by_test_id`) is global to the VM.
-    Selectors.set_test_id_attribute(Playwright.selectors(playwright), Options.test_id_attribute())
+    # `_setupContextOptions`' `if (testIdAttribute) selectors.setTestIdAttribute(testIdAttribute)`:
+    # suite-wide, as the client's value (`get_by_test_id`) is global to the VM.
+    if test_id_attribute = Options.test_id_attribute(),
+      do: Selectors.set_test_id_attribute(Playwright.selectors(playwright), test_id_attribute)
+
     on_start(state.opts.on_start, playwright)
     {:ok, state}
   rescue
@@ -160,7 +162,8 @@ defmodule Playwright.Test.Pool.Slot do
   defp launch_or_connect(browser_type, launch_options, nil), do: BrowserType.launch!(browser_type, launch_options)
 
   defp launch_or_connect(browser_type, launch_options, connect_options) do
-    {ws_endpoint, options} = Keyword.pop!(connect_options, :ws_endpoint)
+    # Without one, the client's own error (`connect/3`'s `ws_endpoint`).
+    {ws_endpoint, options} = Keyword.pop(connect_options, :ws_endpoint)
     launch_options = Facade.options!(launch_options, BrowserType.__options_type__(:launch), "browserType.launch")
     # HTTP headers are ASCII only (not UTF-8).
     headers = %{"x-playwright-launch-options" => json_stringify_force_ascii(launch_options)}

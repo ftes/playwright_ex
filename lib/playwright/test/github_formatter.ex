@@ -28,8 +28,8 @@ defmodule Playwright.Test.GitHubFormatter do
       `file:line › describe › test`, with ExUnit's failure text.
     * an `::error` for each failed `setup_all`; its tests count as not run.
     * a `Slow Test` `::warning` for each of the 5 slowest files whose tests took more than
-      5 minutes (upstream's `reportSlowTests`; `config :playwright, #{inspect(__MODULE__)},
-      report_slow_tests: [max: 5, threshold: 300_000]` in ms, `nil` for none).
+      5 minutes (upstream's `reportSlowTests`: `config :playwright, :test, report_slow_tests:
+      [max: 5, threshold: 300_000]` in ms, `false` for none).
     * a `🎭 Playwright Run Summary` `::notice`: the failed tests, the counts of skipped, not run
       and passed tests, and the run's duration.
 
@@ -72,57 +72,10 @@ defmodule Playwright.Test.GitHubFormatter do
   # class GitHubReporter
 
   # constructor: `omitTags`  -- not ported: ExUnit's tags are not Playwright's `@tag`s
-  @doc false
-  # Elixir only: `config :playwright, Playwright.Test.GitHubFormatter`, validated as upstream's
-  # configLoader validates `reportSlowTests` (also at application start).
-  def config(env \\ Application.get_env(:playwright, __MODULE__, []))
-
-  def config(env) when is_list(env) do
-    env =
-      case Keyword.keyword?(env) && Keyword.validate(env, report_slow_tests: [max: 5, threshold: 300_000]) do
-        {:ok, env} ->
-          env
-
-        {:error, unknown} ->
-          raise ArgumentError,
-                "unknown keys #{inspect(unknown)} in config :playwright, #{inspect(__MODULE__)}, expected one of [:report_slow_tests]"
-
-        false ->
-          raise ArgumentError,
-                "config :playwright, #{inspect(__MODULE__)} must be a keyword list, got: #{inspect(env)}"
-      end
-
-    %{report_slow_tests: report_slow_tests(env[:report_slow_tests])}
-  end
-
-  def config(env),
-    do: raise(ArgumentError, "config :playwright, #{inspect(__MODULE__)} must be a keyword list, got: #{inspect(env)}")
-
-  defp report_slow_tests(nil), do: nil
-
-  defp report_slow_tests(options) when is_list(options) or (is_map(options) and not is_struct(options)) do
-    options = Enum.to_list(options)
-
-    case Keyword.keyword?(options) && Keyword.keys(options) -- [:max, :threshold] do
-      [] ->
-        for key <- [:max, :threshold], do: {key, non_negative!(key, options[key])}
-
-      _ ->
-        raise ArgumentError, "config report_slow_tests takes [:max, :threshold], got: #{inspect(options)}"
-    end
-  end
-
-  defp report_slow_tests(other),
-    do: raise(ArgumentError, "config report_slow_tests must be a keyword list or nil, got: #{inspect(other)}")
-
-  defp non_negative!(_key, value) when is_number(value) and value >= 0, do: value
-
-  defp non_negative!(key, value),
-    do: raise(ArgumentError, "config report_slow_tests.#{key} must be a non-negative number, got: #{inspect(value)}")
-
   @impl true
   def init(opts) do
-    %{report_slow_tests: report_slow_tests} = config()
+    # Elixir only: upstream's `reportSlowTests` is `config :playwright, :test`'s.
+    %{report_slow_tests: report_slow_tests} = Playwright.Test.Options.config()
 
     # TerminalReporter's `suite` (the tests, newest first), `fileDurations` and
     # `config.reportSlowTests`; GitHubReporter's `_failedTestCount`.
@@ -193,8 +146,8 @@ defmodule Playwright.Test.GitHubFormatter do
   end
 
   defp print_slow_test_annotations(this) do
-    # deviation: the file without its project (upstream joins `[project] › file` to the cwd).
-    Enum.each(get_slow_tests(this), fn {{_project, file}, duration} ->
+    # The `[project] › file` key joined to the cwd, as upstream's.
+    Enum.each(get_slow_tests(this), fn {file, duration} ->
       file_path = workspace_relative_path(Path.join(File.cwd!(), file))
       log("#{file_path} took #{ms_to_string(duration)}", :warning, title: "Slow Test", file: file_path)
     end)
@@ -230,15 +183,14 @@ defmodule Playwright.Test.GitHubFormatter do
     # ++this._failureCount  -- not ported: only the line and dot reporters read it
     project_name = project_name(test)
     relative_path = relative_test_path(test)
-    # `(projectName ? `[${projectName}] › ` : '') + relativePath`, as a pair.
-    file_and_project = {project_name, relative_path}
+    file_and_project = if(project_name, do: "[#{project_name}] › ", else: "") <> relative_path
     {duration, workers} = Map.get(this.file_durations, file_and_project, {0, MapSet.new()})
     # A module's tests run one at a time, as a worker's: the module is the worker.
     entry = {duration + test.time / 1000, MapSet.put(workers, test.module)}
     %{this | tests: [test | this.tests], file_durations: Map.put(this.file_durations, file_and_project, entry)}
   end
 
-  defp get_slow_tests(%{report_slow_tests: nil}), do: []
+  defp get_slow_tests(%{report_slow_tests: false}), do: []
 
   defp get_slow_tests(%{report_slow_tests: report_slow_tests} = this) do
     # Only pick durations that were served by single worker.
@@ -292,7 +244,7 @@ defmodule Playwright.Test.GitHubFormatter do
   end
 
   # formatTestTitle: `test.titlePath()` is `Playwright.Test`'s (the file, the describe block,
-  # the test), the project a module's `parameterize:` parameters (the guide's projects).
+  # the test), the project its `Playwright.Test.parameters/1` name.
   defp format_test_title(test) do
     [_file | titles] = TestInfo.title_path(Map.put(test.tags, :test, test.name))
     # ExUnit has no column.
@@ -399,25 +351,12 @@ defmodule Playwright.Test.GitHubFormatter do
 
   defp relative_test_path(test), do: Path.relative_to(Path.expand(test.tags.file), File.cwd!(), force: true)
 
-  # A project's name: the `parameterize:` values, by key, as `[chromium]` for
-  # `%{browser_name: :chromium}`, without its `Playwright.Test.parameters/1` options (the project's `use`, not its name) but
-  # its `browser_name`, else its device's browser.
+  # `test.titlePath()[1]`: the name of the module's `Playwright.Test.parameters/1` project, `nil`
+  # for an unnamed one or none (upstream's `""`).
   defp project_name(%ExUnit.Test{parameters: parameters}) do
-    use = Playwright.Test.Options.used(parameters)
-
-    parameters
-    |> Map.reject(fn {key, _value} -> Playwright.Test.Options.use_key?(key) end)
-    # The project's browser, as upstream names its default projects.
-    |> Map.put(:"playwright.use", use[:browser_name] || use[:default_browser_type])
-    |> Enum.sort()
-    |> Enum.flat_map(fn
-      {:"playwright.use", nil} -> []
-      {_key, value} when is_binary(value) or (is_atom(value) and value != nil) or is_number(value) -> [to_string(value)]
-      {_key, value} -> [inspect(value)]
-    end)
-    |> case do
-      [] -> nil
-      names -> Enum.join(names, ", ")
+    case TestInfo.project_name(parameters) do
+      "" -> nil
+      name -> name
     end
   end
 

@@ -135,7 +135,7 @@ single thread. Use each only where the JS code needs it, with its marker.
   ([why](docs/architecture.md#object-lifetimes)). Tests read closed objects in the test process.
 - `then_`/`catch_` are lazy: a reaction nobody awaits never runs. For a side effect use
   `Promise.void(fn -> f.(Promise.await(p)) end)` (`p` a latch).
-- Public entry points run inside `Playwright.Runtime.Api.call/3` (the generated facade does
+- Public entry points run inside `Playwright.Runtime.Facade.call/2` (the generated facade does
   this for async methods): it names the call for error messages; it does not block dispatch.
 
 ## Tests
@@ -263,8 +263,6 @@ to that PR, the workflow also pushes fixes for its CI failures. The mix tasks be
      `usage-rules.md` ("Locators and assertions"): `locators.md` "Quick Guide" and "Locating
      elements", and `best-practices-js.md` "Prefer user-facing attributes to XPath or CSS
      selectors".
-   - Check that `@no_driver_reinstall` in `lib/mix/tasks/playwright.install.ex` still lists the
-     `mix playwright.cli install --help` flags that install no browsers.
 6. Re-check skips that may be gone: run the spec files with `env:` or `flaky:` skips
    (`grep -rlE '"(env|flaky):' test/upstream`) with `PW_UNSKIP=env,flaky mix test <files>` on the
    browser they name (ExUnit runs no skipped test, `--include skip` neither), drop each skip that

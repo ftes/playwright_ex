@@ -1,7 +1,7 @@
 defmodule Playwright.Test.EndToEndTest do
   # Suites on `Playwright.Test` in a child BEAM (`test/support/test_runner_impl.exs`): only the
   # failing test keeps its artifacts and gets `error-context.md`, no driver outlives the halted
-  # VM (`after_suite`), each scope's seats go back idle at its end (their drivers stopped
+  # VM (`after_suite`), each scope's workers go back idle at its end (their drivers stopped
   # after a failure), also when `max_failures` stops the run, a test fails with the
   # snapshots its matchers wrote and with its soft matchers' failures, and a failing step's error
   # as ExUnit reports it and in the trace, and a rerun under `--failed` writes a `-retry1` dir.
@@ -120,14 +120,6 @@ defmodule Playwright.Test.EndToEndTest do
              "failure-and-retries" => artifacts,
              "failure-and-retries-passing" => nil
            }
-
-    assert run.(["failed"], 2) == %{
-             "first-retry" => nil,
-             "all-retries" => artifacts,
-             "first-failure" => ["error-context.md"],
-             "failure-and-retries" => artifacts,
-             "failure-and-retries-passing" => nil
-           }
   end
 
   test "pooled drivers: one per options and scope, back idle at its end, stopped after a failure (setup_all's too)",
@@ -135,7 +127,7 @@ defmodule Playwright.Test.EndToEndTest do
     {output, report} = report(start("modules", tmp_dir))
     assert output =~ ~r"18 tests, 1 failure, 3 invalid|Result: 14/15 passed, 3 invalid"
 
-    assert report.leases == 0
+    assert report.holds == 0
     # Not the failed module's, nor the failed `setup_all`s'; each parameter set's own (a driver has
     # one label).
     assert report.free == [:param_1, :param_2, :ten, :ten, :two_a, :two_b]
@@ -147,7 +139,7 @@ defmodule Playwright.Test.EndToEndTest do
   test "max_failures: a module still running is released", %{tmp_dir: tmp_dir} do
     {output, report} = report(start("max_failures", tmp_dir))
     assert output =~ "--max-failures reached, aborting test suite"
-    assert report.leases == 0
+    assert report.holds == 0
     assert report.free == [:held]
   end
 

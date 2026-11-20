@@ -104,7 +104,7 @@ defmodule Playwright.Library.BrowsertypeLaunchSeleniumTest do
   # sends __testHook* parameters when under test, as upstream's validator does. The driver passes
   # the launch's default args (`--headless` included) in goog:chromeOptions: Chrome runs headless.
   defp launch(browser_type, test_hook_selenium_remote_url) do
-    Facade.async("browserType.launch", browser_type, fn ->
+    Facade.async("browserType.launch", fn ->
       Playwright.Client.BrowserType.launch(browser_type, %{__testHookSeleniumRemoteURL: test_hook_selenium_remote_url})
     end)
   end

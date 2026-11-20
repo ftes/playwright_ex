@@ -47,8 +47,72 @@ upstream minor, so `~> 1.65.0` is safe.
 - `Playwright.Test.step/2,3` and `step_skip/2,3` in `setup_all`, as `test.step` in
   `beforeAll`: a step returns its body's value and raises its error (a boxed step's where its
   helper is called), unrecorded.
+- `Playwright.Test.parameters/1` takes `name:`, upstream's `project.name`: a failed test prints
+  the project as `#Playwright.Test.Project<"Mobile Safari">`, not the whole device, and the
+  name is the snapshot templates' `{projectName}`.
+
+### Changed
+
+- **RC only:** **Breaking:** `config :playwright, Playwright.Test.GitHubFormatter,
+  report_slow_tests: ...` is `config :playwright, :test, report_slow_tests: ...`, as upstream's
+  top-level `reportSlowTests`, with `false` for none (`nil` is the default there, as for every
+  `:test` key); other module keys of `config :playwright` raise.
+- **RC only:** **Breaking:** the `:test` config's and `BrowserPool.browser/1`'s `driver:` take
+  only `env:`; `executable:`, `node:` and `cache_dir:` are `config :playwright, :driver`'s.
+- **RC only:** **Breaking:** `config :playwright, :expect`'s `:to_have_screenshot`,
+  `:to_match_aria_snapshot` and `:to_pass` take the matchers' snake_case keys
+  (`max_diff_pixels:`, `path_template:`, `children: :equal`), not JS keys.
+- **RC only:** **Breaking:** `Playwright.Test.parameters/1` returns one private key,
+  `:"playwright.project"`, holding a `Playwright.Test.Project` (`name`, `use`), not a key per
+  option.
+- **RC only:** **Breaking:** `Playwright.Driver.install_browsers/2` raises on a failed install,
+  as `install/1` does, instead of returning `{:error, {:exit_status, n}}`.
+- **RC only:** **Breaking:** `mix playwright.install --force` reinstalls the driver with every
+  flag, `--dry-run`, `--list` and `--help` too.
+- **RC only:** **Breaking:** errors of the runner, the pool, the driver and the config read
+  `<Module.function/arity or config path>: <problem>, expected ...`, keys and values as the
+  facade's errors name them (`config :playwright, :test: unknown key tracing, expected one of
+  browser_name, ...`, `invalid value 0 for workers, expected a positive integer`); a call outside its
+  scope (`BrowserPool.browser/1` past its test, a context before the registration) raises
+  `RuntimeError`, bad input `ArgumentError`.
+- **RC only:** the internal `Runtime.Api.call/3` is `Runtime.Facade.call/2`, without
+  the unused receiver, as are the facade's `async`, `expect` and `matcher` runners.
+- **RC only:** `priv/driver_checksums.exs` no longer repeats the driver and Node versions:
+  `DRIVER_VERSION` and `NODE_VERSION` alone hold them.
 - **RC only:** `Playwright.Test.in_registered_test?/0` is replaced by `in_registered_scope?/0`,
   true in a test or `setup_all`; `info/0` has `test_pid` only in a test.
+- **RC only:** **Breaking:** option values are checked only where upstream's config loader
+  checks them (`preserve_output`, `workers`, `output_dir`, `report_slow_tests`, a project's
+  `name`, `:expect`'s `update_snapshots`, `ignore_snapshots` and `:to_have_screenshot`'s
+  `type`), plus `browser_name`, `on_start` and the keys (an unknown key raises, the object
+  forms' too); others pass as given, as upstream's. `trace`, `screenshot` and `video` take no
+  `true`/`false`, an unknown mode records nothing, a keyword list without `:mode` is `:off`,
+  and `:retry_with_trace`/`:retry_with_video` are `:on_first_retry`. `test_id_attribute: ""`
+  sets none, as upstream's `if (testIdAttribute)`.
+- **RC only:** **Breaking:** a duplicated key no longer raises: the later wins, as in JS's
+  spread, in `use Playwright.Test`, `Test.use/1`, `Test.parameters/1` and the keyword lists
+  they take (`trace: [mode: :on, mode: :off]` is off, `connect_options`), in the config's
+  (`driver`, `report_slow_tests`, `config :playwright, :expect` and its matchers'), and in the
+  options of `Playwright.Supervisor.start_link/1`, `step/3`, `attach/2` and `snapshot_path/2`.
+- **RC only:** **Breaking:** `@describetag`/`@tag Test.use(...)` with `browser_name`,
+  `default_browser_type` (a device's), `launch_options` or `connect_options` raises when the
+  module compiles a test of the `test` macro under it, with upstream's "Cannot use({ ... }) in
+  a describe group, because it forces a new worker" message ("in a test" for a `@tag`), instead
+  of dropping a device's browser. `@moduletag Test.use(...)` takes them, as upstream's top-level
+  `test.use`. A test's worker is its module's (its `use`, then its `@moduletag`s, the later per option), so a
+  test the check doesn't see (a doctest, a bare `ExUnit.Case.test`) gets the module's too.
+- **RC only:** **Breaking:** `info/0`, `output_path/1`, `attach/2` and `snapshot_path/2`
+  outside their scope raise upstream's "... can only be called while test is running";
+  `output_path/1` takes path segments too and raises upstream's message for a path outside the
+  output dir (a `RuntimeError`).
+- **RC only:** **Breaking:** `Playwright.Test.info/0`'s `close_deadline` is `deadline`
+  (upstream's `testInfo._deadline()`, when the test's contexts close); ExUnit's raw kill time
+  is gone.
+- **RC only:** **Breaking:** `retry` is 1 under `mix test --failed`, else 0, its dir always
+  `-retry1`, no longer counted from earlier `-retryN` dirs.
+- **RC only:** `Playwright.Test.GitHubFormatter` labels a test by its project's name only, not
+  by every `parameterize:` value, and a slow file's annotation is `[project] › file`, as
+  upstream's.
 
 ### Fixed
 
@@ -103,10 +167,11 @@ Node 26.13.1. No upstream API changes.
 - `Playwright.device/1` and `Playwright.devices/0`, Playwright's device
   descriptors as static data (upstream's `import { devices }`), so a device works at compile
   time, spread as upstream's `...devices['iPhone 13']`: `use Playwright.Test,
-  Playwright.device("iPhone 13")`, `@tag Test.use(Playwright.device("Pixel 7"))`. A device is a
-  keyword list of options, so the config takes it as it is: `config :playwright, :test,
-  Playwright.device("Desktop Chrome")`, and `Keyword.merge/2` overrides its options, as
-  upstream's `{ ...devices['iPhone 13'], viewport }`. The driver's `Playwright.devices/1` remains, with maps.
+  Playwright.device("iPhone 13")`, `@moduletag Test.use(Playwright.device("Pixel 7"))`,
+  `Test.parameters(Playwright.device("Pixel 7"))`. A device is a keyword list of options, so the
+  config takes it as it is: `config :playwright, :test, Playwright.device("Desktop Chrome")`,
+  and a later key overrides its option, as upstream's `{ ...devices['iPhone 13'], viewport }`:
+  `Playwright.device("iPhone 13") ++ [viewport: ...]`. The driver's `Playwright.devices/1` remains, with maps.
 
 ### Changed
 

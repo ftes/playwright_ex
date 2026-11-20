@@ -608,7 +608,7 @@ defmodule Playwright.Client.ChannelOwner do
   # args)`), which it runs through the receiver's own `_wrapApiCall` (Mouse, Locator, Screencast and
   # APIResponse delegate theirs). `Playwright.Client.Decorators` applies it.
   # Object.defineProperty(wrapper, 'name', { value: context.name });  -- not needed: the facade's
-  # `Runtime.Api.call/3` names the call.
+  # `Runtime.Facade.call/2` names the call.
   def wrap_api_call_decorator(options) do
     fn this, method -> impl(this)._wrap_api_call(this, fn _api_zone -> method.() end, options || %{}) end
   end

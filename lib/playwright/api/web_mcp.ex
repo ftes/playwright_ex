@@ -75,18 +75,14 @@ defmodule Playwright.WebMCP do
   @spec call_tool(t(), String.t(), term() | nil, call_tool_options()) :: {:ok, term()} | {:error, Playwright.error()}
   def call_tool(%Playwright.WebMCP{} = web_mcp, name, input \\ nil, options \\ []) do
     options = Facade.options!(options, @call_tool_options, "webMCP.callTool")
-
-    Facade.async("webMCP.callTool", web_mcp, fn -> Playwright.Client.WebMCP.call_tool(web_mcp, name, input, options) end)
+    Facade.async("webMCP.callTool", fn -> Playwright.Client.WebMCP.call_tool(web_mcp, name, input, options) end)
   end
 
   @doc "Like `call_tool/4`, but returns the value and raises on error."
   @spec call_tool!(t(), String.t(), term() | nil, call_tool_options()) :: term()
   def call_tool!(%Playwright.WebMCP{} = web_mcp, name, input \\ nil, options \\ []) do
     options = Facade.options!(options, @call_tool_options, "webMCP.callTool")
-
-    Facade.async!("webMCP.callTool", web_mcp, fn ->
-      Playwright.Client.WebMCP.call_tool(web_mcp, name, input, options)
-    end)
+    Facade.async!("webMCP.callTool", fn -> Playwright.Client.WebMCP.call_tool(web_mcp, name, input, options) end)
   end
 
   @tools_options {:object, %{timeout: {:timeout, nil}}}
@@ -126,7 +122,7 @@ defmodule Playwright.WebMCP do
           | {:error, Playwright.error()}
   def tools(%Playwright.WebMCP{} = web_mcp, options \\ []) do
     options = Facade.options!(options, @tools_options, "webMCP.tools")
-    Facade.async("webMCP.tools", web_mcp, fn -> Playwright.Client.WebMCP.tools(web_mcp, options) end)
+    Facade.async("webMCP.tools", fn -> Playwright.Client.WebMCP.tools(web_mcp, options) end)
   end
 
   @doc "Like `tools/2`, but returns the value and raises on error."
@@ -144,7 +140,7 @@ defmodule Playwright.WebMCP do
         ]
   def tools!(%Playwright.WebMCP{} = web_mcp, options \\ []) do
     options = Facade.options!(options, @tools_options, "webMCP.tools")
-    Facade.async!("webMCP.tools", web_mcp, fn -> Playwright.Client.WebMCP.tools(web_mcp, options) end)
+    Facade.async!("webMCP.tools", fn -> Playwright.Client.WebMCP.tools(web_mcp, options) end)
   end
 
   @doc """

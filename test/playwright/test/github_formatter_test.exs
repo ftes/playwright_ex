@@ -12,11 +12,20 @@ defmodule Playwright.Test.GitHubFormatterTest do
   setup do
     workspace = System.get_env("GITHUB_WORKSPACE")
     System.delete_env("GITHUB_WORKSPACE")
+    config = Application.get_env(:playwright, :test, [])
 
     on_exit(fn ->
       if workspace, do: System.put_env("GITHUB_WORKSPACE", workspace), else: System.delete_env("GITHUB_WORKSPACE")
-      Application.delete_env(:playwright, GitHubFormatter)
+      Application.put_env(:playwright, :test, config)
     end)
+
+    %{config: config}
+  end
+
+  # `config :playwright, :test`'s `report_slow_tests`, as the formatter reads it.
+  defp report_slow_tests(config, value) do
+    Application.put_env(:playwright, :test, Keyword.put(config, :report_slow_tests, value))
+    Playwright.Test.Options.config().report_slow_tests
   end
 
   test "a failed test: an error per failure, at its line in the test's file, escaped" do
@@ -116,32 +125,29 @@ defmodule Playwright.Test.GitHubFormatterTest do
     refute output =~ "%0A     #{@file_path}:10%0A"
   end
 
-  test "a parameterized module's parameter values are the project, as upstream's [chromium]" do
+  test "the project is the Playwright.Test.parameters/1 project's name, as upstream's titlePath()[1]" do
     test = %{
       test_struct("test fails", state: {:failed, [failure(fn -> raise "oops" end)]})
-      | parameters: %{browser_name: :firefox}
+      | parameters: Playwright.Test.parameters([name: "Mobile Safari"] ++ Playwright.device("iPhone 13"))
     }
 
     output = run([{:test_finished, test}])
-    assert output =~ ",title=[firefox] › #{@file_path}%3A10 › fails,"
-    assert output =~ "::  1) [firefox] › #{@file_path}:10 › fails ─"
+    assert output =~ ",title=[Mobile Safari] › #{@file_path}%3A10 › fails,"
+    assert output =~ "::  1) [Mobile Safari] › #{@file_path}:10 › fails ─"
     assert output =~ "─%0A     ** (RuntimeError) oops%0A"
 
-    test = %{test | parameters: %{size: {1280, 720}, browser_name: "webkit"}}
-    assert run([{:test_finished, test}]) =~ "::  1) [webkit, {1280, 720}] › #{@file_path}:10 › fails ─"
+    # Parameters of one's own aren't the project.
+    test = %{test | parameters: Map.put(test.parameters, :role, :admin)}
+    assert run([{:test_finished, test}]) =~ "::  1) [Mobile Safari] › #{@file_path}:10 › fails ─"
 
-    test = %{
-      test
-      | parameters: Playwright.Test.parameters(context_options: [locale: "de-DE"], browser_name: :chromium)
-    }
-
-    assert run([{:test_finished, test}]) =~ "::  1) [chromium] › #{@file_path}:10 › fails ─"
-    test = %{test | parameters: Playwright.Test.parameters(Playwright.device("Desktop Firefox"))}
-    assert run([{:test_finished, test}]) =~ "::  1) [firefox] › #{@file_path}:10 › fails ─"
-    test = %{test | parameters: Playwright.Test.parameters(locale: "de-DE")}
-    assert run([{:test_finished, test}]) =~ "::  1) #{@file_path}:10 › fails ─"
-    test = %{test | parameters: %{browser_name: :chromium, device: nil}}
-    assert run([{:test_finished, test}]) =~ "::  1) [chromium, nil] › #{@file_path}:10 › fails ─"
+    # No label for an unnamed project or plain parameters, as upstream's unnamed project.
+    for parameters <- [
+          Playwright.Test.parameters(Playwright.device("Desktop Firefox")),
+          Playwright.Test.parameters(name: "", locale: "de-DE"),
+          %{browser_name: :firefox}
+        ] do
+      assert run([{:test_finished, %{test | parameters: parameters}}]) =~ "::  1) #{@file_path}:10 › fails ─"
+    end
   end
 
   test "the summary lists the failed tests and counts the others; a failed setup_all is an error" do
@@ -187,38 +193,39 @@ defmodule Playwright.Test.GitHubFormatterTest do
                )
   end
 
-  test "its config: report_slow_tests' max and threshold, non-negative numbers, or nil" do
-    assert GitHubFormatter.config([]) == %{report_slow_tests: [max: 5, threshold: 300_000]}
-    assert GitHubFormatter.config(report_slow_tests: nil) == %{report_slow_tests: nil}
+  test "config :playwright, :test's report_slow_tests: max and threshold, non-negative numbers, or false",
+       %{config: config} do
+    Application.put_env(:playwright, :test, Keyword.delete(config, :report_slow_tests))
+    assert Playwright.Test.Options.config().report_slow_tests == [max: 5, threshold: 300_000]
+    assert report_slow_tests(config, nil) == [max: 5, threshold: 300_000]
+    assert report_slow_tests(config, false) == false
+    assert report_slow_tests(config, %{threshold: 1, max: 0}) == [max: 0, threshold: 1]
+    # The later of a duplicated key, as JS's spread.
+    assert report_slow_tests(config, max: 1, threshold: 2, max: 3) == [max: 3, threshold: 2]
 
-    assert GitHubFormatter.config(report_slow_tests: %{threshold: 1, max: 0}) == %{
-             report_slow_tests: [max: 0, threshold: 1]
-           }
+    assert_raise ArgumentError,
+                 "config :playwright, :test: invalid value -1 for report_slow_tests.max, expected a non-negative number",
+                 fn -> report_slow_tests(config, max: -1, threshold: 1) end
 
-    assert_raise ArgumentError, ~r/unknown keys \[:slow\] .*, expected one of \[:report_slow_tests\]/, fn ->
-      GitHubFormatter.config(slow: true)
+    assert_raise ArgumentError,
+                 ~r/invalid value nil for report_slow_tests.threshold, expected a non-negative number$/,
+                 fn ->
+                   report_slow_tests(config, max: 1)
+                 end
+
+    assert_raise ArgumentError,
+                 ~r/unknown option report_slow_tests.top, expected one of max, threshold$/,
+                 fn ->
+                   report_slow_tests(config, top: 1)
+                 end
+
+    assert_raise ArgumentError, ~r/invalid value true for report_slow_tests, expected a keyword list or a map$/, fn ->
+      report_slow_tests(config, true)
     end
-
-    assert_raise ArgumentError, ~r/must be a keyword list, got: :on/, fn -> GitHubFormatter.config(:on) end
-    assert_raise ArgumentError, ~r/must be a keyword list, got: \[1\]/, fn -> GitHubFormatter.config([1]) end
-
-    assert_raise ArgumentError, ~r/max must be a non-negative number, got: -1/, fn ->
-      GitHubFormatter.config(report_slow_tests: [max: -1, threshold: 1])
-    end
-
-    assert_raise ArgumentError, ~r/threshold must be a non-negative number, got: nil/, fn ->
-      GitHubFormatter.config(report_slow_tests: [max: 1])
-    end
-
-    assert_raise ArgumentError, ~r/takes \[:max, :threshold\]/, fn ->
-      GitHubFormatter.config(report_slow_tests: [top: 1])
-    end
-
-    assert_raise ArgumentError, ~r/keyword list or nil/, fn -> GitHubFormatter.config(report_slow_tests: true) end
   end
 
-  test "slow files: the slowest over the threshold, of one module each" do
-    Application.put_env(:playwright, GitHubFormatter, report_slow_tests: [max: 2, threshold: 1000])
+  test "slow files: the slowest over the threshold, of one module each", %{config: config} do
+    report_slow_tests(config, max: 2, threshold: 1000)
     project_file = Path.join(File.cwd!(), "test/project_test.exs")
 
     events = [
@@ -227,15 +234,19 @@ defmodule Playwright.Test.GitHubFormatterTest do
       {:test_finished, test_struct("test c", file: "/tmp/other_test.exs", time: 1_200_000)},
       {:test_finished, test_struct("test d", file: "/tmp/two_modules_test.exs", time: 9_000_000)},
       {:test_finished, test_struct("test e", file: "/tmp/two_modules_test.exs", module: Other)},
-      {:test_finished, %{test_struct("test f", file: project_file, time: 3_000_000) | parameters: %{p: 1}}},
+      {:test_finished,
+       %{test_struct("test f", file: project_file, time: 3_000_000) | parameters: Playwright.Test.parameters(name: "p")}},
       {:suite_finished, %{run: 0, load: nil, async: nil}}
     ]
 
     assert [project_warning, warning, "::notice " <> _] = String.split(run(events), "\n", trim: true)
-    assert project_warning == "::warning title=Slow Test,file=test/project_test.exs::test/project_test.exs took 3.0s"
+    # The `[project] › file` key joined to the cwd, as upstream's.
+    assert project_warning ==
+             "::warning title=Slow Test,file=[p] › test/project_test.exs::[p] › test/project_test.exs took 3.0s"
+
     assert warning == "::warning title=Slow Test,file=#{@file_path}::#{@file_path} took 2.5s"
 
-    Application.put_env(:playwright, GitHubFormatter, report_slow_tests: nil)
+    report_slow_tests(config, false)
     refute run(events) =~ "::warning"
   end
 

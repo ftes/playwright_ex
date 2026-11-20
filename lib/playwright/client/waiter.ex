@@ -32,7 +32,7 @@ defmodule Playwright.Client.Waiter do
     put(this, :_waitId, ClientHelper.create_guid())
     put(this, :_channelOwner, channel_owner)
 
-    # Elixir: also without `apiName` (`Playwright.Runtime.Api`), as a predicate's API calls are
+    # Elixir: also without `apiName` (`Playwright.Runtime.Facade.call/2`), as a predicate's API calls are
     # its own (JS derives the name from the stack).
     put(this, :_savedZone, Map.drop(Zones.current_zone(), [:apiZone, :apiName]))
 

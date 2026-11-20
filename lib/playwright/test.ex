@@ -112,8 +112,10 @@ defmodule Playwright.Test do
   those, and `use/1` in tags over those (a test's `@tag` over its `@describetag` over the
   module's `@moduletag`): `trace` and `video` `:off`
   (default), `:on`, `:retain_on_failure` or a retry mode, `screenshot` `:off`, `:on`,
-  `:only_on_failure` or `:on_first_failure`, and `true` (`:on`) or `false` (`:off`). Each is
-  also the `:mode` of a keyword list (or map) of options, as upstream's object forms: `trace:
+  `:only_on_failure` or `:on_first_failure` (upstream's deprecated `:retry_with_trace` and
+  `:retry_with_video` are `:on_first_retry`; another value records nothing, as upstream's). Each
+  is also the `:mode` of a keyword list (or map) of options, as upstream's object forms, `:off`
+  without one: `trace:
   [mode: :on, snapshots: false]`, `screenshot: [mode: :on, full_page: true]`, `video: [mode:
   :on, size: %{width: 640, height: 480}]`. The trace's `:snapshots` (a boolean or `%{dom: _, aria: _, screen: _}`),
   `:screenshots` and `:sources` are `Playwright.Tracing.start/2`'s, `true` by default, as is
@@ -127,8 +129,8 @@ defmodule Playwright.Test do
   test hangs until its timeout, as upstream's does.
 
   `use Playwright.Test, trace: :on` is upstream's file-level `test.use({ trace: 'on' })` (the
-  modes are worker-scoped options there), with the values the config takes; an unknown option or
-  an invalid value raises at compile time. A module's `use`s merge per key, the later winning
+  modes are worker-scoped options there), with the values the config takes; an unknown option (or a
+  context option the facade rejects) raises at compile time. A module's `use`s merge per key, the later winning
   (see "Context defaults").
   A template's own `use Playwright.Test, ...` lines go before the forwarded options, which win per
   option, as a test file's `test.use` beats a project's device.
@@ -150,16 +152,14 @@ defmodule Playwright.Test do
 
   A test's dir is deleted before it runs, as upstream's, so no file of an earlier run is left
   in it. ExUnit has no retries in a run: a test under `mix test --failed` is upstream's retry
-  (`info/0`'s `retry`, 1 after the first run), and writes to `<dir>-retry1` (`-retry2` on the
-  next `--failed`, ...), next to the dirs of its earlier runs. So with `trace: :on_first_retry`,
+  (`info/0`'s `retry`, 1), and writes to `<dir>-retry1`, next to the dir of its first run. So
+  with `trace: :on_first_retry`,
   `mix test || { [ $? -eq 2 ] && mix test --failed; }` traces the failures' rerun and keeps the
   first run's files (exit status 2 means tests failed; anything else isn't retried). A run
-  without `--failed` deletes the test's `-retryN` dirs too, where
+  without `--failed` deletes the test's `-retry1` dir too, where
   upstream deletes all of `output_dir` at the start of a run: here the dirs of tests that didn't
   run stay. Config `preserve_output` is upstream's `preserveOutput`: `:always` (default) keeps
-  the files at the end of each test, `:failures_only` only a failed test's, `:never` none. The
-  retry is counted from the test's dirs on disk, so with `:never` (no dirs left) each
-  `--failed` run is retry 1 again.
+  the files at the end of each test, `:failures_only` only a failed test's, `:never` none.
 
   ## Context defaults
 
@@ -187,9 +187,9 @@ defmodule Playwright.Test do
   A device is a keyword list of these options and its `default_browser_type` (see "Browser"),
   spread into the others as upstream's `...devices['iPhone 13']`: `use Playwright.Test,
   Playwright.device("iPhone 13")` after `use Playwright.Case, async: true`, or in one `use`,
-  `use Playwright.Case, [async: true] ++ Playwright.device("iPhone 13")`. A duplicated option
-  raises, so to override one of the device's, upstream's `{ ...devices['iPhone 13'], viewport }`,
-  merge it in: `Keyword.merge(Playwright.device("iPhone 13"), viewport: %{width: 800, height: 600})`.
+  `use Playwright.Case, [async: true] ++ Playwright.device("iPhone 13")`. A later key wins, as in
+  JS's spread, so upstream's `{ ...devices['iPhone 13'], viewport }` is
+  `Playwright.device("iPhone 13") ++ [viewport: %{width: 800, height: 600}]`.
   The options may be a map too.
 
   `context_options` is upstream's `contextOptions`: `new_context/2`'s options, for those that
@@ -202,7 +202,8 @@ defmodule Playwright.Test do
 
   Below the module, `use/1` gives the options to ExUnit as a tag, for a describe block
   (`@describetag Test.use(locale: "de-DE")`, upstream's `test.use` in a `test.describe`) or a
-  test (`@tag`); `@moduletag` works too, the `use` option being the module's form. A project's
+  test (`@tag`); `@moduletag` works too, the worker options included, as upstream's top-level
+  `test.use`. A project's
   are `parameters/1` in the module's `parameterize:` (upstream's `project.use`).
 
   The layers, each over the one before per option: Playwright Test's defaults, the config's,
@@ -230,14 +231,17 @@ defmodule Playwright.Test do
   (`use Playwright.Case, browser_name: :webkit`), else its project's (`parameters/1`), else the
   config's if it sets one. Else their `default_browser_type`, in the same order, upstream's
   worker option `defaultBrowserType`, which a device has (`Playwright.device("iPhone 13")` is
-  WebKit's) and upstream's `browserName` defaults to; else `:chromium`. A describe's or a
-  test's `default_browser_type` is ignored, a deviation: upstream rejects it there, so the
-  device's other options apply on the module's browser. The module's
+  WebKit's) and upstream's `browserName` defaults to; else `:chromium`. The module's
   `launch_options` (its `use`'s, else its project's, else the config's, each as a whole) and
   `connect_options` are that call's defaults too, upstream's `launchOptions` and
   `connectOptions`: a project with `launch_options: [channel: "chrome"]` gets a worker of its
-  own. These three are the worker's, as upstream's, where a describe with another one starts a
-  new worker: `use/1` takes none of them, and a tag's device doesn't change the browser.
+  own. These four are the worker's, as upstream's: the module's (its `use`, then all of its
+  `@moduletag Test.use(...)`s merged, the later per option, upstream's top-level `test.use`, for
+  every test of the module, also those above such a line) or its project's. In a `@describetag` or a `@tag` of a test of
+  the `test` macro they raise when the module compiles, as upstream's `test.use` in a describe
+  when the file loads, a device's `default_browser_type` too; other tests (a doctest, a bare
+  `ExUnit.Case.test`) get the module's worker regardless. For a browser or a device per run,
+  make each a project (`parameters/1`) in the module's `parameterize:`.
 
   `action_timeout` and `navigation_timeout` (see "Timeouts") are options of every level, as
   the context options. `test_id_attribute` is config only, a deviation: upstream's is an
@@ -329,11 +333,11 @@ defmodule Playwright.Test do
   Without a name, a snapshot is named after the test and its count in the test:
   `pays-1-<platform>.png` for a screenshot, `pays-1.aria.yml` for an aria snapshot.
   A name is sanitized for the file system, a list of path segments is not. `snapshot_dir` is
-  `test/` by default; `snapshot_path_template` (or the matcher's `pathTemplate` in `config
+  `test/` by default; `snapshot_path_template` (or the matcher's `path_template` in `config
   :playwright, :expect`) takes upstream's tokens: `{testDir}`, `{snapshotDir}`,
   `{testFileDir}`, `{testFileName}`, `{testFileBaseName}`, `{testFilePath}`, `{testName}`,
   `{arg}`, `{ext}`, `{platform}` and `{snapshotSuffix}` (the platform, as upstream's);
-  `{projectName}` is accepted for upstream templates and is always empty. `snapshot_path/2`
+  `{projectName}` is the `name` of the module's project (`parameters/1`), empty without one. `snapshot_path/2`
   returns a name's path. A failed comparison writes its `-actual`, `-expected`, `-previous` and
   `-diff` images to the test's output dir.
 
@@ -372,7 +376,7 @@ defmodule Playwright.Test do
         browser_name: :chromium,      # BrowserPool: :chromium | :firefox | :webkit
         launch_options: [],           # BrowserPool: Playwright.BrowserType.launch/2
         connect_options: nil,         # BrowserPool: [ws_endpoint: _, ...] to connect instead of launching
-        driver: [],                   # BrowserPool: Playwright.Supervisor's :env, :executable, :node, :cache_dir
+        driver: [],                   # BrowserPool: [env: _], Playwright.Supervisor's (the driver is config :playwright, :driver's)
         on_start: nil,                # BrowserPool
         workers: max(div(System.schedulers_online(), 2), 1),
         context_options: [],          # Playwright.Browser.new_context/2's options, as upstream's contextOptions
@@ -387,7 +391,8 @@ defmodule Playwright.Test do
         preserve_output: :always,     # :always | :failures_only | :never, see Artifacts
         snapshot_dir: nil,            # upstream's testDir: test/
         snapshot_path_template: nil,  # upstream's defaults, see Snapshots
-        test_id_attribute: "data-testid"
+        test_id_attribute: "data-testid",
+        report_slow_tests: [max: 5, threshold: 300_000]  # Playwright.Test.GitHubFormatter's, ms; false: none
 
   Each context option (`base_url`, `locale`, `viewport`, `storage_state`, ...) is a config key of
   its own, over the `context_options` bag, as under every other level, and in `config/0` only
@@ -577,6 +582,7 @@ defmodule Playwright.Test do
         else: [do: block, catch: failed]
 
     quote do
+      Playwright.Test.__worker_tags__!(__MODULE__)
       @tag "playwright.test": :marked
       ExUnit.Case.test(unquote(message), unquote(var), unquote(contents))
     end
@@ -585,9 +591,21 @@ defmodule Playwright.Test do
   @doc "`ExUnit.Case.test/1`: a test that fails as not implemented."
   defmacro test(message) do
     quote do
+      Playwright.Test.__worker_tags__!(__MODULE__)
       @tag "playwright.test": :marked
       ExUnit.Case.test(unquote(message))
     end
+  end
+
+  @doc false
+  # When a test registers, its describe's and its own tags have no worker option of `use/1`, as
+  # upstream's `test.use` in a describe raises when it loads; the module's `@moduletag` may.
+  def __worker_tags__!(module) do
+    # ExUnit's `@describetag` outside a describe (`@ex_unit_describe` unset) applies to nothing.
+    if Module.get_attribute(module, :ex_unit_describe),
+      do: Options.worker_tags!(Module.get_attribute(module, :describetag) || [], "a describe group")
+
+    Options.worker_tags!(Module.get_attribute(module, :tag) || [], "a test")
   end
 
   # The end of the body: the test fails with the errors its matchers recorded (upstream's
@@ -706,10 +724,10 @@ defmodule Playwright.Test do
       # `info/0`'s fields that apply to the module (`setup_all_info/1`).
       module =
         config
-        |> context_defaults(layers, use_options)
+        |> context_defaults(layers, module_worker(context[:module], use_options, tags))
         |> Map.merge(%{file: compiled(context[:module], :file, nil), timeout: Options.ex_unit_timeout(context)})
         # Also its steps' `testInfo` (`step_test_info!/0`): never started, so not running.
-        |> Map.merge(%{test_pid: self(), step_id_prefix: "setup_all"})
+        |> Map.merge(%{test_pid: self(), step_id_prefix: "setup_all", project_name: TestInfo.project_name(parameters)})
         |> Map.put(:use_modes, Options.artifacts(config, layers))
 
       Results.register_module(self(), module)
@@ -723,7 +741,7 @@ defmodule Playwright.Test do
   defp check_registered!(pid, message) do
     case :ets.take(Results.table(), {:unregistered, pid}) do
       [] -> :ok
-      [_noted] -> raise ArgumentError, message
+      [_noted] -> raise "use Playwright.Test: " <> message
     end
   end
 
@@ -789,7 +807,7 @@ defmodule Playwright.Test do
         preserve_output: Options.preserve_output(config),
         tmp: Path.join(System.tmp_dir!(), "playwright-test-#{System.unique_integer([:positive])}")
       })
-      |> Map.merge(context_defaults(config, layers, use_options))
+      |> Map.merge(context_defaults(config, layers, module_worker(context[:module], use_options, %{})))
       |> Map.put(:use_modes, use_modes)
 
     TestInfo.remove_output_dirs(test)
@@ -805,14 +823,22 @@ defmodule Playwright.Test do
 
   # What a test's or a module's `setup_all`'s contexts get: the `context_options` and timeouts
   # of `config` and of its `layers` (`Playwright.Test.Options.layers/3`). And the worker options
-  # of its `BrowserPool.browser/1` calls: the module's `use_options` and its project's, not the
-  # tags'.
-  defp context_defaults(config, layers, use_options) do
+  # of its `BrowserPool.browser/1` calls: its project's and the `module`'s (`module_worker/3`),
+  # the same for the module's `setup_all` and each of its tests.
+  defp context_defaults(config, layers, module) do
     %{
       context_options: Options.context_options(config, layers),
       timeouts: Options.timeouts(config, layers),
-      worker: Options.worker(config, layers.project, use_options)
+      worker: Options.worker(config, layers.project, module)
     }
+  end
+
+  # The module's worker options: its `use`, then its `@moduletag`s, merged, the later per option
+  # (`ExUnit.TestModule`'s `tags`), never a describe's or a test's tags, as upstream's top-level `test.use` applies to the
+  # whole file. `tags` without ExUnit's `__ex_unit__/0`.
+  defp module_worker(module, use_options, tags) do
+    tags = if module && function_exported?(module, :__ex_unit__, 0), do: module.__ex_unit__().tags, else: tags
+    Options.module_worker(use_options, tags)
   end
 
   # What the module's `use Playwright.Test` compiled in (`__before_compile__/1`): its merged
@@ -841,13 +867,13 @@ defmodule Playwright.Test do
     Results.finishing(test_pid)
     {verdict, _failures} = result = Results.result(test_pid, budget)
     {test, recorder} = Results.take(test_pid)
-    if !test, do: raise("its registration is gone (the pool restarted since)")
+    if !test, do: raise("Playwright.Test: the test's registration is gone (the pool restarted since)")
     # For `info/1` in the `on_exit` callbacks that run after this one.
     Results.keep_info(test_pid, Map.merge(info_of(test), result_info(test_pid, result, recorder)))
 
     trace =
       case finish_artifacts(test, recorder, result, deadline) do
-        # Past the budget its contexts may be left open in a pooled browser: its seats reset, as a
+        # Past the budget its contexts may be left open in a pooled browser: its workers reset, as a
         # failed test's.
         :abandoned ->
           Pool.fail(test_pid)
@@ -895,15 +921,14 @@ defmodule Playwright.Test do
   @doc """
   The running test of the calling process or a process in its `$callers` (a `Task`), as
   upstream's `test.info()`: `test_pid`, `file` (absolute), `test_name` (without the macro's
-  `test ` prefix), `output_dir` (absolute, with its `-retryN` suffix under `mix test --failed`,
-  see "Artifacts" in the moduledoc), `retry` (upstream's `testInfo.retry`: 0, or N in a
-  `-retryN` run) and `timeout` (upstream's `testInfo.timeout`: ExUnit's timeout of the test in
+  `test ` prefix), `output_dir` (absolute, with its `-retry1` suffix under `mix test --failed`,
+  see "Artifacts" in the moduledoc), `retry` (upstream's `testInfo.retry`: 0, or 1
+  under `mix test --failed`) and `timeout` (upstream's `testInfo.timeout`: ExUnit's timeout of the test in
   ms, the `@tag timeout:` or `mix test --timeout`, `:infinity` for none, as under `mix test
-  --trace`), `deadline` (the `System.monotonic_time(:millisecond)` at which ExUnit's timeout
-  kills the test, counted from its first setup callback as ExUnit counts, `:infinity` for none)
-  and `close_deadline` (when the runner closes the test's contexts, `min(1000, timeout / 20)` ms
-  before `deadline`, see "Timeouts": upstream's internal `testInfo._deadline()`, where its
-  timeout fails the test), from the test's setup to the end of its body. `use` is the test's
+  --trace`) and `deadline` (upstream's internal `testInfo._deadline()`: monotonic milliseconds
+  (compare with `System.monotonic_time(:millisecond)`) by which the test must be done: after
+  it, the test's contexts are closed and Playwright calls fail; `:infinity` without a test
+  timeout; see "Timeouts"), from the test's setup to the end of its body. `use` is the test's
   options as resolved from every level (the config's, its project's, its module's, its
   describe's and its own), what upstream's option fixtures give a fixture: a map of the context
   options every context of the test starts from (`base_url`, `locale`, `extra_http_headers`,
@@ -913,7 +938,7 @@ defmodule Playwright.Test do
   call merges into it, as the call's replace the resolved ones as a whole:
   `Browser.new_context!(browser, extra_http_headers: Map.merge(Test.info().use[:extra_http_headers]
   || %{}, headers))`. A library that waits or
-  retries on its own (a server-side backstop) should stop by `close_deadline`, as the matchers
+  retries on its own (a server-side backstop) should stop by `deadline`, as the matchers
   stop 250 ms before it, as upstream's stop 250 ms before its test deadline.
 
   In the module's `setup_all` (and processes with it in `$callers`), it returns the fields that
@@ -922,7 +947,7 @@ defmodule Playwright.Test do
   `setup_all` callbacks) and `use`, the module's options as resolved from the config, its
   project and the module itself (its `use` and `@moduletag`): a describe's and a test's options
   never reach `setup_all`. The test's fields (`test_pid`, `test_name`, `output_dir`, `retry`,
-  `deadline`, `close_deadline`) are absent. Deviations: upstream runs `beforeAll` hooks with the
+  `deadline`) are absent. Deviations: upstream runs `beforeAll` hooks with the
   first test's `testInfo`, which ExUnit's `setup_all`, run before any test, has none of; and a
   long-lived process or handler of `setup_all`'s (with it in `$callers`) gets the module's fields
   during a test too, as its contexts get the module's defaults (see "Contexts of `setup_all`"),
@@ -955,7 +980,6 @@ defmodule Playwright.Test do
             retry: non_neg_integer(),
             timeout: timeout(),
             deadline: integer() | :infinity,
-            close_deadline: integer() | :infinity,
             use: map()
           }
           | %{file: Path.t(), timeout: timeout(), use: map()}
@@ -968,9 +992,8 @@ defmodule Playwright.Test do
         setup_all_info(module)
 
       nil ->
-        raise "Playwright.Test.info() can only be called while a test or its module's setup_all is running: in a " <>
-                "module with `use Playwright.Test` (the test's or setup_all's process, or one with it in $callers), " <>
-                "after `use Playwright.Test` registered it"
+        # Upstream's `test.info()` text (`testType.ts`), and its module's setup_all (an addition).
+        raise "Playwright.Test.info/0 can only be called while test or its module's setup_all is running"
     end
   end
 
@@ -981,15 +1004,14 @@ defmodule Playwright.Test do
     |> Map.put(:use, Options.resolved(module))
   end
 
-  # `info/0` of a registration: its `@info_keys`, `timeout` (upstream's `testInfo.timeout`),
-  # `deadline` (ExUnit's) and `close_deadline` (`TestInfo._deadline/1`, the contexts' close).
+  # `info/0` of a registration: its `@info_keys`, `timeout` (upstream's `testInfo.timeout`) and
+  # `deadline` (`TestInfo._deadline/1`, upstream's `testInfo._deadline()`: the contexts' close).
   defp info_of(test) do
     test
     |> Map.take(@info_keys)
     |> Map.merge(%{
       timeout: test.test_timeout,
-      deadline: test.deadline || :infinity,
-      close_deadline: TestInfo._deadline(test).deadline,
+      deadline: TestInfo._deadline(test).deadline,
       use: Options.resolved(test)
     })
   end
@@ -1028,7 +1050,7 @@ defmodule Playwright.Test do
       nil ->
         case Results.started?() && :ets.lookup(Results.table(), {:info, test_pid}) do
           [{_key, info}] -> info
-          _ -> raise ArgumentError, "Playwright.Test.info/1: no test #{inspect(test_pid)} running or in its on_exit"
+          _ -> raise "Playwright.Test.info/1: no test running or in its on_exit, got: #{inspect(test_pid)}"
         end
 
       test ->
@@ -1058,11 +1080,12 @@ defmodule Playwright.Test do
   end
 
   @doc """
-  Options for a `describe` block, a test or a project: upstream's `test.use` below the file
-  level. It takes the test-scoped options of `use Playwright.Test` (the context options,
-  `context_options`, `action_timeout`, `navigation_timeout`, `trace`, `screenshot`, `video`), as
-  a keyword list (a device too) or a map, validates them as it does, and returns a keyword list for
-  an ExUnit tag.
+  Options for a module's `@moduletag`, a `describe` block or a test: upstream's `test.use`. It
+  takes the options of `use Playwright.Test` (the context options, `context_options`,
+  `action_timeout`, `navigation_timeout`, `trace`, `screenshot`, `video`, and in `@moduletag`
+  the worker's), as a keyword list or a map, validates them as it does, and returns a keyword
+  list for an ExUnit tag. A device in `@moduletag` too; in a describe's or a test's tag only
+  without its `default_browser_type`.
 
       # test.describe(() => { test.use({ timezoneId: 'Europe/Berlin' }) ... })
       describe "in Berlin" do
@@ -1076,8 +1099,9 @@ defmodule Playwright.Test do
         ...
       end
 
-      # A device: its options, without its browser (the module's stays).
-      @tag Test.use(Playwright.device("iPhone 13"))
+      # A device's emulation without its browser (a device in a test's or a describe's tag
+      # raises, as its `default_browser_type` is the worker's: make each device a project).
+      @tag Test.use(Keyword.delete(Playwright.device("iPhone 13"), :default_browser_type))
 
   Each option gets a private key of its own (`:"playwright.use.trace"`,
   `:"playwright.use.context.locale"`), so ExUnit, which merges a test's `@moduletag`,
@@ -1086,10 +1110,14 @@ defmodule Playwright.Test do
   calls on one test, and an option given as `nil` resets it to the project's, the config's or
   the default. A plain tag named like an option (`@tag trace: :on`) sets nothing.
 
-  An unknown option or an invalid value raises `ArgumentError`, when the test module compiles. So
-  do `browser_name`, `launch_options` and `connect_options`: they are the worker's, as upstream's,
-  where a describe with another one starts a new worker. They are options of the module's `use`
-  and of `parameters/1`. For a
+  An unknown option raises `ArgumentError`, when the test module compiles. So do
+  `browser_name`, `default_browser_type` (a device's), `launch_options` and `connect_options` in
+  a `@describetag` or a `@tag`, when the module compiles a test of the `test` macro under it,
+  with upstream's message ("Cannot use({
+  browser_name }) in a describe group, because it forces a new worker.\nMake it top-level in the
+  test file or put in the configuration file.", "in a test" for a `@tag`): they are the
+  worker's (a test the check doesn't see gets the module's worker regardless). They are options
+  of the module's `use`, its `@moduletag` and `parameters/1`. For a
   project in `parameterize:`, which takes maps, see `parameters/1`. See "Context defaults",
   "Browser" and "Artifacts" in the moduledoc for the layers.
   """
@@ -1097,23 +1125,28 @@ defmodule Playwright.Test do
   def use(opts), do: Options.use(opts)
 
   @doc """
-  A project for `parameterize:`, upstream's `projects: [{ use: { ... } }]`: `use/1`'s options
-  and the worker's (`browser_name`, `default_browser_type`, `launch_options`,
-  `connect_options`), validated as it does, as a map of the private keys, which ExUnit takes
-  there (a tag takes `use/1`'s keyword list).
+  A project for `parameterize:`, upstream's `projects: [{ name, use: { ... } }]`: `name:` (a
+  string, upstream's `project.name`), `use/1`'s options and the worker's (`browser_name`,
+  `default_browser_type`, `launch_options`, `connect_options`), validated as it does. A map of
+  one private key, `:"playwright.project"`, whose value is a `Playwright.Test.Project`, which
+  ExUnit takes there (a tag takes `use/1`'s keyword list).
 
       use Playwright.Case,
         async: true,
         parameterize:
           for device <- ["Desktop Chrome", "Desktop Firefox", "Desktop Safari"],
-              do: Playwright.Test.parameters(Playwright.device(device))
+              do: Playwright.Test.parameters([name: device] ++ Playwright.device(device))
 
   The project's options are under the module's `use` and over the config's, for every context
-  of the module's run, `setup_all`'s included. Its browser is its `browser_name`, else its
-  `default_browser_type` (a device's), see "Browser" in the moduledoc. For parameters of your own
-  next to them: `Map.put(Test.parameters(...), :role, :admin)`.
+  of the module's run, `setup_all`'s included. Its browser is its `browser_name`, else the
+  config's, else its `default_browser_type` (a device's), see "Browser" in the moduledoc. A failed
+  test prints the project as its name (`Parameters: %{"playwright.project":
+  #Playwright.Test.Project<"Desktop Safari">}`, `[Desktop Safari] ›` in
+  `Playwright.Test.GitHubFormatter`); the name is also the snapshot templates' `{projectName}`.
+  An unnamed project, as upstream's, has no label: it prints as its options, so name each one.
+  For parameters of your own next to it: `Map.put(Test.parameters(...), :role, :admin)`.
   """
-  @spec parameters(keyword() | map()) :: map()
+  @spec parameters(keyword() | map()) :: %{optional(atom()) => Playwright.Test.Project.t()}
   def parameters(opts), do: Options.parameters(opts)
 
   @doc """
@@ -1138,22 +1171,17 @@ defmodule Playwright.Test do
   end
 
   @doc """
-  The path of `name` in the test's output dir (see "Artifacts" in the moduledoc), as upstream's
-  `testInfo.outputPath`: creates the dir, and raises for a `name` outside it. Files written
+  The path of `path_segments` (a string or a list of them) in the test's output dir (see
+  "Artifacts" in the moduledoc), as upstream's `testInfo.outputPath(...pathSegments)`: creates the
+  dir, and raises for a path outside it. Files written
   there stay when the test passes, under the default `preserve_output`.
   """
-  @spec output_path(String.t()) :: Path.t()
-  def output_path(name) when is_binary(name) do
-    %{output_dir: dir} = running_test!("output_path/1")
-
-    case Path.safe_relative(name) do
-      {:ok, relative} ->
-        File.mkdir_p!(dir)
-        Path.join(dir, relative)
-
-      :error ->
-        raise ArgumentError, "output_path is not allowed outside of the output dir, got: #{inspect(name)}"
-    end
+  @spec output_path(String.t() | [String.t()]) :: Path.t()
+  def output_path(path_segments) when is_binary(path_segments) or is_list(path_segments) do
+    this = running_test!("output_path/1")
+    output_path = TestInfo._get_output_path(this, List.wrap(path_segments))
+    File.mkdir_p!(this.output_dir)
+    output_path
   end
 
   @doc """
@@ -1172,7 +1200,12 @@ defmodule Playwright.Test do
   """
   @spec attach(String.t(), keyword()) :: :ok
   def attach(name, options \\ []) when is_binary(name) do
-    options = Keyword.validate!(options, [:path, :body, :content_type])
+    options =
+      Playwright.Application.options!("Playwright.Test.attach/2", options, [
+        :path,
+        :body,
+        :content_type
+      ])
 
     test_info = running_test!("attach/2", &TestInfo.current/0)
     TestInfo.attach(test_info, name, %{path: options[:path], body: options[:body], contentType: options[:content_type]})
@@ -1188,17 +1221,17 @@ defmodule Playwright.Test do
   """
   @spec snapshot_path(String.t() | [String.t()], keyword()) :: Path.t()
   def snapshot_path(name, options \\ []) when is_binary(name) or is_list(name) do
-    {kind, options} = Keyword.pop(options, :kind, :snapshot)
-    if options != [], do: raise(ArgumentError, "unknown options #{inspect(Keyword.keys(options))}, expected [:kind]")
+    options = Playwright.Application.options!("Playwright.Test.snapshot_path/2", options, [:kind])
+    kind = Keyword.get(options, :kind, :snapshot)
+
     TestInfo.snapshot_path(running_test!("snapshot_path/2"), name, to_string(kind))
   end
 
   # The running test's registration (as `info/0` finds it), for a function of the test only: it
   # raises in `setup_all`, which has no output dir or snapshot names.
   defp running_test!(function, lookup \\ &Recorder.registration/0) do
-    lookup.() ||
-      raise "Playwright.Test.#{function} can only be called while a test is running: in a test of a module with " <>
-              "`use Playwright.Test` (its process, or one with it in $callers)"
+    # Upstream's `test.info()` text (`testType.ts`), for the function of `testInfo` called.
+    lookup.() || raise "Playwright.Test.#{function} can only be called while test is running"
   end
 
   @doc """
@@ -1277,14 +1310,23 @@ defmodule Playwright.Test do
   # where the step is called, for the boxed stack to start after it.
   def _step(expectation, title, body, options \\ [], call_site \\ nil) when is_function(body, 0) do
     # deviation: no `timeout` (`raceAgainstDeadline` below).
-    if Keyword.has_key?(options, :timeout),
+    if Keyword.keyword?(options) and Keyword.has_key?(options, :timeout),
       do:
         raise(
           ArgumentError,
-          "step timeout is not supported: a step body can't be interrupted in its own process; the test's timeout bounds it"
+          "Playwright.Test.step/3: unsupported option timeout (a step body can't be interrupted " <>
+            "in its own process; the test's timeout bounds it)"
         )
 
-    options = Map.new(Keyword.validate!(options, [:box, :location, :params, :subtitle]))
+    options =
+      Playwright.Application.options!("Playwright.Test.step/3", options, [
+        :box,
+        :location,
+        :params,
+        :subtitle
+      ])
+
+    options = Map.new(options)
     call_site = call_site || (options[:location] && Map.take(options.location, [:file, :line]))
     test_info = step_test_info!()
     Recorder.on_user_step(test_info.test_pid, {:begin, title})

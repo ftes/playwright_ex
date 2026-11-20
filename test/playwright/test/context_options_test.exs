@@ -67,22 +67,26 @@ defmodule Playwright.Test.ContextOptionsTest do
           {"Anonymous", "fn _context -> [] end"},
           {"Capture", "&Playwright.Test.ContextOptionsTest.language/1"}
         ] do
-      assert_raise ArgumentError, ~r/invalid context_options: (#Function<|&).*, expected a keyword list or a map/, fn ->
-        compile(name, "use Playwright.Case, context_options: #{function}")
-      end
+      assert_raise ArgumentError,
+                   ~r/invalid value (#Function<|&).* for context_options, expected a keyword list or a map/,
+                   fn ->
+                     compile(name, "use Playwright.Case, context_options: #{function}")
+                   end
     end
 
     assert_raise ArgumentError, ~r/lokale/, fn ->
       compile("Unknown", "use Playwright.Test, lokale: \"de-DE\"")
     end
 
-    assert_raise ArgumentError, ~r/invalid context_options: :dark, expected a keyword list/, fn ->
+    assert_raise ArgumentError, ~r/invalid value :dark for context_options, expected a keyword list or a map/, fn ->
       compile("Invalid", "use Playwright.Test, context_options: :dark")
     end
 
-    assert_raise ArgumentError, ~r/invalid context_options: \{Mod, :fun\}, expected a keyword list/, fn ->
-      compile("Tuple", "use Playwright.Test, context_options: {Mod, :fun}")
-    end
+    assert_raise ArgumentError,
+                 ~r/invalid value \{Mod, :fun\} for context_options, expected a keyword list or a map/,
+                 fn ->
+                   compile("Tuple", "use Playwright.Test, context_options: {Mod, :fun}")
+                 end
   end
 
   test "Test.use validates as the use option, when the module compiles" do
@@ -103,10 +107,8 @@ defmodule Playwright.Test.ContextOptionsTest do
            }
 
     for {message, options} <- [
-          {~r/Playwright.Test.(use|parameters): .*lokale/, ~s(context_options: [lokale: "de-DE"])},
-          {~r/unknown options \[:lokale\] for Playwright.Test.(use|parameters)/, ~s(lokale: "de-DE")},
-          {~r/invalid trace: :sometimes/, "trace: :sometimes"},
-          {~r/duplicated option :trace/, "trace: :on, trace: :off"}
+          {~r/Playwright.Test.(use|parameters)\/1: .*lokale/, ~s(context_options: [lokale: "de-DE"])},
+          {~r/Playwright.Test.(use|parameters).*: unknown option lokale, /, ~s(lokale: "de-DE")}
         ] do
       assert_raise ArgumentError, message, fn ->
         compile("Tag", "use Playwright.Case\n@tag Playwright.Test.use(#{options})\ntest \"t\", do: :ok")
@@ -116,6 +118,11 @@ defmodule Playwright.Test.ContextOptionsTest do
         compile("Project", "use Playwright.Case, parameterize: [Playwright.Test.parameters(#{options})]")
       end
     end
+
+    # A duplicated key: the later wins, as in JS's spread.
+    assert Playwright.Test.use(trace: :on, trace: :off) == Playwright.Test.use(trace: :off)
+    assert Playwright.Test.use(locale: "de-DE", locale: "fr-FR") == Playwright.Test.use(locale: "fr-FR")
+    assert Options.project(Playwright.Test.parameters(name: "a", name: "b")).name == "b"
 
     # A map too.
     assert Playwright.Test.use(%{trace: :on}) == Playwright.Test.use(trace: :on)
@@ -136,9 +143,7 @@ defmodule Playwright.Test.ContextOptionsTest do
        "invalid value :purple for color_scheme, expected one of :dark, :light, :no_preference"},
       {"color_scheme: :purple", "invalid value :purple for color_scheme, expected one of"},
       {"viewport: %{wide: 1}", "wide"},
-      {"video: :sometimes", "invalid video: :sometimes"},
-      {"action_timeout: -1", "invalid action_timeout: -1"},
-      {"lokale: 1", "unknown options [:lokale] for"}
+      {"lokale: 1", ": unknown option lokale, expected one of"}
     ]
 
     for {label, source} <- entries, {options, message} <- values do
@@ -149,27 +154,52 @@ defmodule Playwright.Test.ContextOptionsTest do
   end
 
   test "browser_name is the module's or the project's: a tag's raises" do
-    assert Playwright.Test.parameters(browser_name: :webkit, trace: :on) == %{
-             "playwright.use.browser_name": :webkit,
-             "playwright.use.trace": [mode: :on, snapshots: true, screenshots: true, sources: true, attachments: true]
+    assert %{"playwright.project": %Playwright.Test.Project{name: nil, use: options}} =
+             Playwright.Test.parameters(browser_name: :webkit, trace: :on)
+
+    assert options == %{
+             browser_name: :webkit,
+             trace: [mode: :on, snapshots: true, screenshots: true, sources: true, attachments: true]
            }
 
     assert %{browser_name: :firefox} = Options.use_options(browser_name: :firefox, async: true)
-    assert_raise ArgumentError, ~r/invalid browser_name: :chrome/, fn -> Options.use_options(browser_name: :chrome) end
 
-    assert_raise ArgumentError,
-                 ~r/unknown options \[:browser_name\] for Playwright.Test.use.*forces a new worker/,
-                 fn ->
-                   compile("BrowserTag", "use Playwright.Case\n@tag Playwright.Test.use(browser_name: :webkit)")
-                 end
+    assert_raise ArgumentError, ~r/invalid value :chrome for browser_name, /, fn ->
+      Options.use_options(browser_name: :chrome)
+    end
   end
 
-  test "the worker-scoped options raise in a describe's or a test's tag, test_id_attribute everywhere" do
-    for option <- ["launch_options: [slow_mo: 1]", ~s|connect_options: [ws_endpoint: "ws://localhost"]|] do
-      assert_raise ArgumentError, ~r/is worker-scoped, as upstream's, where it forces a new worker/, fn ->
-        compile("WorkerTag", "use Playwright.Case\ndescribe \"d\" do\n@describetag Playwright.Test.use(#{option})\nend")
+  test "the worker options raise in a describe's or a test's tag, as upstream's test.use in a describe; test_id_attribute everywhere" do
+    for {key, option} <- [
+          browser_name: "browser_name: :webkit",
+          launch_options: "launch_options: [slow_mo: 1]",
+          connect_options: ~s|connect_options: [ws_endpoint: "ws://localhost"]|,
+          default_browser_type: "default_browser_type: :webkit",
+          # A device has the worker's `default_browser_type`.
+          default_browser_type: ~s|Playwright.device("iPhone 13")|
+        ],
+        {tag, scope} <- [{"@tag", "a test"}, {"@describetag", "a describe group"}] do
+      # Upstream's `_useFixtures` text, "in a test" for a test's.
+      message =
+        "Playwright.Test.use/1: Cannot use({ #{key} }) in #{scope}, because it forces a new worker.\n" <>
+          "Make it top-level in the test file or put in the configuration file."
+
+      assert_raise ArgumentError, message, fn ->
+        compile(
+          "WorkerTag",
+          "use Playwright.Case\ndescribe \"d\" do\n#{tag} Playwright.Test.use(#{option})\ntest \"t\", do: :ok\nend"
+        )
       end
     end
+
+    # Its emulation without the browser is fine, and a module's `@moduletag` takes them, as
+    # upstream's top-level `test.use`.
+    assert Playwright.Test.use(Keyword.delete(Playwright.device("iPhone 13"), :default_browser_type)) != []
+    tags = Map.new(Playwright.Test.use(Playwright.device("iPhone 13") ++ [launch_options: [slow_mo: 1]]))
+    layers = Options.layers(%{}, Options.use_options(browser_name: :chromium), tags)
+    # The `@moduletag` over the module's `use`; a configured browser_name (`BROWSER`) wins over a device's.
+    assert %{default_browser_type: :webkit, launch_options: [slow_mo: 1]} = layers.module
+    assert Options.worker(Options.config(), layers.project, layers.module)[:launch_options] == [slow_mo: 1]
 
     for call <- [&Playwright.Test.use/1, &Playwright.Test.parameters/1, &Options.use_options/1] do
       assert_raise ArgumentError, ~r/test_id_attribute is config only: .*global to the VM/, fn ->
@@ -179,7 +209,7 @@ defmodule Playwright.Test.ContextOptionsTest do
   end
 
   test "the worker options: the module's use over its project's over the config's, launch_options as a whole" do
-    project = Options.used(Playwright.Test.parameters(launch_options: [slow_mo: 1, timeout: 5000]))
+    project = Options.project(Playwright.Test.parameters(launch_options: [slow_mo: 1, timeout: 5000])).use
     use_options = Options.use_options(launch_options: %{slow_mo: 2}, connect_options: [ws_endpoint: "ws://localhost"])
     worker = Options.worker(Options.config(), project, use_options)
 
@@ -196,8 +226,8 @@ defmodule Playwright.Test.ContextOptionsTest do
 
   test "the browser: an explicit browser_name (use, project, config), else a device's, else the default" do
     iphone = Playwright.Test.Options.use_options(Playwright.device("iPhone 13"))
-    pixel = Options.used(Playwright.Test.parameters(Playwright.device("Pixel 7")))
-    firefox = Options.used(Playwright.Test.parameters(browser_name: :firefox))
+    pixel = Options.project(Playwright.Test.parameters(Playwright.device("Pixel 7"))).use
+    firefox = Options.project(Playwright.Test.parameters(browser_name: :firefox)).use
     config = Options.config()
     env = Application.get_env(:playwright, :test)
     # This suite's config sets one (`BROWSER`).
@@ -213,8 +243,7 @@ defmodule Playwright.Test.ContextOptionsTest do
   end
 
   test "a context option is an option of its own, over context_options at every level; a device is spread" do
-    # A private key per option, and one for `context_options`; a describe's or a test's device
-    # loses its browser.
+    # A private key per option, and one for `context_options`.
     assert [
              "playwright.use.context.locale": "de-DE",
              "playwright.use.context_options": %{locale: "fr-FR"},
@@ -222,9 +251,9 @@ defmodule Playwright.Test.ContextOptionsTest do
            ] = Playwright.Test.use(locale: "de-DE", context_options: [locale: "fr-FR"], trace: :on)
 
     device = Playwright.device("iPhone 13")
-    refute Enum.any?(Playwright.Test.use(device), fn {key, _value} -> to_string(key) =~ "rowser" end)
-    assert Playwright.Test.parameters(device)[:"playwright.use.default_browser_type"] == :webkit
-    assert Playwright.Test.parameters(device)[:"playwright.use.context.userAgent"] == device[:user_agent]
+    project = Options.project(Playwright.Test.parameters(device))
+    assert project.use.default_browser_type == :webkit
+    assert project.use.context.userAgent == device[:user_agent]
     assert %{default_browser_type: :webkit, context: %{isMobile: true}} = Options.use_options(device)
 
     config = %{context_options: [locale: "it-IT", color_scheme: :dark], timezone_id: "Europe/Rome"}
@@ -602,7 +631,7 @@ defmodule Playwright.Test.ContextOptionsTest.DeviceBrowserTest do
 
   test "the module's device, else the project's, else the config's, else chromium", %{env: env} do
     iphone = Options.use_options(Playwright.device("iPhone 13"))
-    firefox = Options.used(Playwright.Test.parameters(Playwright.device("Desktop Firefox")))
+    firefox = Options.project(Playwright.Test.parameters(Playwright.device("Desktop Firefox"))).use
     # A device in `context_options` is no worker option.
     assert Options.browser_name(
              Options.config(),
@@ -682,7 +711,7 @@ defmodule Playwright.Test.ContextOptionsTest.LaunchOptionsProjectTest do
 
   test "the case's browser is the project's worker's", %{browser: browser, slow_mo: slow_mo} do
     keys =
-      for {_pid, %{key: {_, _, _, launch_options, _}}} <- :sys.get_state(Playwright.Test.Pool).seats,
+      for {_pid, %{key: {_, _, _, launch_options, _}}} <- :sys.get_state(Playwright.Test.Pool).workers,
           do: launch_options
 
     assert Enum.any?(keys, &(&1[:slow_mo] == slow_mo))
@@ -794,4 +823,38 @@ defmodule Playwright.Test.ContextOptionsTest.NilThenOption do
   use Playwright.Test, locale: "fr-FR", color_scheme: :dark
   use Playwright.Test, locale: nil
   use Playwright.Test, locale: "it-IT"
+end
+
+defmodule Playwright.Test.ContextOptionsTest.ModuleWorkerTest do
+  # A test's worker is its module's: the `use`, then the `@moduletag`s, also for a test
+  # defined before that line (upstream's top-level `test.use` applies file-wide), and a test
+  # whose own tag skipped the `test` macro's check gets none of its tag's.
+  use ExUnit.Case, async: true
+  use Playwright.Test, launch_options: [slow_mo: 1]
+
+  alias Playwright.Test.Recorder
+
+  setup_all do
+    %{setup_all_worker: Recorder.worker_options()}
+  end
+
+  test "before the @moduletag: the module's worker, as setup_all's", %{setup_all_worker: setup_all_worker} do
+    assert Recorder.worker_options() == setup_all_worker
+    assert setup_all_worker[:launch_options] == [slow_mo: 2]
+    assert setup_all_worker[:connect_options] == nil
+  end
+
+  @moduletag Playwright.Test.use(launch_options: [slow_mo: 2])
+
+  # `ExUnit.Case.test/3` itself: no check, and its tag's worker options don't count.
+  @tag Playwright.Test.use(connect_options: [ws_endpoint: "ws://tag"])
+  ExUnit.Case.test "a bare ExUnit test's tag", %{setup_all_worker: setup_all_worker} do
+    assert Recorder.worker_options() == setup_all_worker
+  end
+
+  # A module-level `@describetag` applies to nothing: no "in a describe group" error.
+  @describetag Playwright.Test.use(browser_name: :webkit)
+  test "a module-level @describetag", %{setup_all_worker: setup_all_worker} do
+    assert Recorder.worker_options() == setup_all_worker
+  end
 end

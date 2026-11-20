@@ -36,6 +36,17 @@ defmodule Playwright.Runtime.FacadeTest do
              %{timeout: 0, colorScheme: :null, viewport: nil}
   end
 
+  test "APIRequest.new_context's storage state credentials pass unchecked, as its validator drops them" do
+    state = %{cookies: [], origins: [], credentials: [%{anything: 1}]}
+    type = Playwright.APIRequest.__options_type__(:new_context)
+    assert %{storageState: ^state} = Facade.options!([storage_state: state], type, "apiRequest.newContext")
+
+    # A browser context's are the protocol's.
+    assert_raise ArgumentError, ~r/unknown field storage_state\.credentials\[0\]\.anything, /, fn ->
+      Facade.options!([storage_state: state], Playwright.Browser.__options_type__(:new_context), "browser.newContext")
+    end
+  end
+
   test "rejects unknown options, fields and enum values" do
     assert_raise ArgumentError, ~r/^x\.y: unknown option colour_scheme, expected one of color_scheme, /, fn ->
       Facade.options!([colour_scheme: :light], @schema, "x.y")
@@ -153,12 +164,12 @@ defmodule Playwright.Runtime.FacadeTest do
       Playwright.Browser.new_context(%Playwright.Browser{}, storage_state: %{cookies: [%{http_only: true}]})
     end
 
-    # Any storage state, as JS takes one (the validator drops credentials there).
+    # Any storage state, as JS takes one; its credentials unchecked, as the validator drops them.
     assert_raise ArgumentError,
-                 ~r/^apiRequest\.newContext: unknown field storage_state\.credentials\[0\]\.rp_id, expected one of id, privateKey, publicKey, rpId, /,
+                 ~r/^apiRequest\.newContext: unknown field storage_state\.cookies\[0\]\.http_only, /,
                  fn ->
                    Playwright.APIRequest.new_context(%Playwright.APIRequest{},
-                     storage_state: %{credentials: [%{rp_id: "x"}]}
+                     storage_state: %{cookies: [%{http_only: true}]}
                    )
                  end
 
@@ -191,14 +202,14 @@ defmodule Playwright.Runtime.FacadeTest do
           %RuntimeError{message: "Route is already handled!"},
           %File.Error{reason: :enoent, path: "x", action: "read file"}
         ] do
-      assert Facade.async(nil, nil, fn -> raise error end) == {:error, error}
-      assert Facade.async_void(nil, nil, fn -> raise error end) == {:error, error}
+      assert Facade.async(nil, fn -> raise error end) == {:error, error}
+      assert Facade.async_void(nil, fn -> raise error end) == {:error, error}
     end
 
     # Bugs: values the type checker doesn't see at compile time.
     {map, number} = Process.get(:not_set, {%{}, 1})
-    assert_raise KeyError, fn -> Facade.async(nil, nil, fn -> Map.fetch!(map, :x) end) end
-    assert_raise FunctionClauseError, fn -> Facade.async_void(nil, nil, fn -> String.trim(number) end) end
+    assert_raise KeyError, fn -> Facade.async(nil, fn -> Map.fetch!(map, :x) end) end
+    assert_raise FunctionClauseError, fn -> Facade.async_void(nil, fn -> String.trim(number) end) end
   end
 
   test "a matcher's message: option points to Expect.message/2, for the matcher as called" do
@@ -222,8 +233,8 @@ defmodule Playwright.Runtime.FacadeTest do
 
   test "a failed bang matcher raises the ExpectError" do
     error = %Playwright.ExpectError{message: "Expect failed"}
-    assert Facade.matcher(nil, fn -> raise error end) == {:error, error}
-    assert_raise Playwright.ExpectError, "Expect failed", fn -> Facade.matcher!(nil, fn -> raise error end) end
+    assert Facade.matcher(fn -> raise error end) == {:error, error}
+    assert_raise Playwright.ExpectError, "Expect failed", fn -> Facade.matcher!(fn -> raise error end) end
   end
 
   test "expect: when the action raises, the wait's later result leaves no message" do
@@ -238,8 +249,8 @@ defmodule Playwright.Runtime.FacadeTest do
       end
     end
 
-    for expect <- [&Facade.expect/4, &Facade.expect!/4] do
-      assert_raise RuntimeError, "boom", fn -> expect.(nil, nil, wait, fn -> raise "boom" end) end
+    for expect <- [&Facade.expect/3, &Facade.expect!/3] do
+      assert_raise RuntimeError, "boom", fn -> expect.(nil, wait, fn -> raise "boom" end) end
       assert_receive {:waiting, pid}
       ref = Process.monitor(pid)
       send(pid, :go)

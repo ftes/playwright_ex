@@ -41,7 +41,7 @@ defmodule Playwright.Selectors do
     script = Facade.arg!(script, @register_script, "selectors.register", :script)
     options = Facade.options!(options, @register_options, "selectors.register")
 
-    Facade.async_void("selectors.register", selectors, fn ->
+    Facade.async_void("selectors.register", fn ->
       Playwright.Client.Selectors.register(selectors, name, script, options)
     end)
   end
@@ -57,7 +57,7 @@ defmodule Playwright.Selectors do
     script = Facade.arg!(script, @register_script, "selectors.register", :script)
     options = Facade.options!(options, @register_options, "selectors.register")
 
-    Facade.async_void!("selectors.register", selectors, fn ->
+    Facade.async_void!("selectors.register", fn ->
       Playwright.Client.Selectors.register(selectors, name, script, options)
     end)
   end

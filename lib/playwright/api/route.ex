@@ -54,13 +54,13 @@ defmodule Playwright.Route do
   """
   @spec abort(t(), String.t() | nil) :: :ok | {:error, Playwright.error()}
   def abort(%Playwright.Route{} = route, error_code \\ nil) do
-    Facade.async_void("route.abort", route, fn -> Playwright.Client.Route.abort(route, error_code) end)
+    Facade.async_void("route.abort", fn -> Playwright.Client.Route.abort(route, error_code) end)
   end
 
   @doc "Like `abort/2`, but returns the value and raises on error."
   @spec abort!(t(), String.t() | nil) :: :ok
   def abort!(%Playwright.Route{} = route, error_code \\ nil) do
-    Facade.async_void!("route.abort", route, fn -> Playwright.Client.Route.abort(route, error_code) end)
+    Facade.async_void!("route.abort", fn -> Playwright.Client.Route.abort(route, error_code) end)
   end
 
   @continue_options {:object,
@@ -125,14 +125,14 @@ defmodule Playwright.Route do
   @spec continue(t(), continue_options()) :: :ok | {:error, Playwright.error()}
   def continue(%Playwright.Route{} = route, options \\ []) do
     options = Facade.options!(options, @continue_options, "route.continue")
-    Facade.async_void("route.continue", route, fn -> Playwright.Client.Route.continue(route, options) end)
+    Facade.async_void("route.continue", fn -> Playwright.Client.Route.continue(route, options) end)
   end
 
   @doc "Like `continue/2`, but returns the value and raises on error."
   @spec continue!(t(), continue_options()) :: :ok
   def continue!(%Playwright.Route{} = route, options \\ []) do
     options = Facade.options!(options, @continue_options, "route.continue")
-    Facade.async_void!("route.continue", route, fn -> Playwright.Client.Route.continue(route, options) end)
+    Facade.async_void!("route.continue", fn -> Playwright.Client.Route.continue(route, options) end)
   end
 
   @fallback_options {:object,
@@ -238,14 +238,14 @@ defmodule Playwright.Route do
   @spec fallback(t(), fallback_options()) :: :ok | {:error, Playwright.error()}
   def fallback(%Playwright.Route{} = route, options \\ []) do
     options = Facade.options!(options, @fallback_options, "route.fallback")
-    Facade.async_void("route.fallback", route, fn -> Playwright.Client.Route.fallback(route, options) end)
+    Facade.async_void("route.fallback", fn -> Playwright.Client.Route.fallback(route, options) end)
   end
 
   @doc "Like `fallback/2`, but returns the value and raises on error."
   @spec fallback!(t(), fallback_options()) :: :ok
   def fallback!(%Playwright.Route{} = route, options \\ []) do
     options = Facade.options!(options, @fallback_options, "route.fallback")
-    Facade.async_void!("route.fallback", route, fn -> Playwright.Client.Route.fallback(route, options) end)
+    Facade.async_void!("route.fallback", fn -> Playwright.Client.Route.fallback(route, options) end)
   end
 
   @fetch_options {:object,
@@ -326,14 +326,14 @@ defmodule Playwright.Route do
   @spec fetch(t(), fetch_options()) :: {:ok, Playwright.APIResponse.t()} | {:error, Playwright.error()}
   def fetch(%Playwright.Route{} = route, options \\ []) do
     options = Facade.options!(options, @fetch_options, "route.fetch")
-    Facade.async("route.fetch", route, fn -> Playwright.Client.Route.fetch(route, options) end)
+    Facade.async("route.fetch", fn -> Playwright.Client.Route.fetch(route, options) end)
   end
 
   @doc "Like `fetch/2`, but returns the value and raises on error."
   @spec fetch!(t(), fetch_options()) :: Playwright.APIResponse.t()
   def fetch!(%Playwright.Route{} = route, options \\ []) do
     options = Facade.options!(options, @fetch_options, "route.fetch")
-    Facade.async!("route.fetch", route, fn -> Playwright.Client.Route.fetch(route, options) end)
+    Facade.async!("route.fetch", fn -> Playwright.Client.Route.fetch(route, options) end)
   end
 
   @fulfill_options {:object,
@@ -403,14 +403,14 @@ defmodule Playwright.Route do
   @spec fulfill(t(), fulfill_options()) :: :ok | {:error, Playwright.error()}
   def fulfill(%Playwright.Route{} = route, options \\ []) do
     options = Facade.options!(options, @fulfill_options, "route.fulfill")
-    Facade.async_void("route.fulfill", route, fn -> Playwright.Client.Route.fulfill(route, options) end)
+    Facade.async_void("route.fulfill", fn -> Playwright.Client.Route.fulfill(route, options) end)
   end
 
   @doc "Like `fulfill/2`, but returns the value and raises on error."
   @spec fulfill!(t(), fulfill_options()) :: :ok
   def fulfill!(%Playwright.Route{} = route, options \\ []) do
     options = Facade.options!(options, @fulfill_options, "route.fulfill")
-    Facade.async_void!("route.fulfill", route, fn -> Playwright.Client.Route.fulfill(route, options) end)
+    Facade.async_void!("route.fulfill", fn -> Playwright.Client.Route.fulfill(route, options) end)
   end
 
   @doc ~S"""

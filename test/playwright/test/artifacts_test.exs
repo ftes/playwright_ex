@@ -70,7 +70,7 @@ defmodule Playwright.Test.ArtifactsTest do
     assert_receive {:registered, test}
     on_exit(fn -> File.rm_rf!(test.output_dir) end)
 
-    # Its leases released, also when the test fails before the fake test's end.
+    # Its holds released, also when the test fails before the fake test's end.
     on_exit(fn ->
       Process.exit(pid, :kill)
       Pool.release(pid)
@@ -804,11 +804,11 @@ defmodule Playwright.Test.ArtifactsTest.TagsTest do
 
   alias Playwright.Test.Recorder
 
-  @moduletag Playwright.Test.use(video: true, screenshot: [mode: :only_on_failure, full_page: true])
+  @moduletag Playwright.Test.use(video: :on, screenshot: [mode: :only_on_failure, full_page: true])
 
   defp modes, do: Map.take(Recorder.registration(self()), [:trace, :screenshot, :video])
 
-  test "the module's tags, true as :on; the config for the rest" do
+  test "the module's tags; the config for the rest" do
     assert modes() == %{
              trace: [mode: :off, snapshots: true, screenshots: true, sources: true, attachments: true],
              screenshot: [mode: :only_on_failure, full_page: true],
@@ -817,7 +817,7 @@ defmodule Playwright.Test.ArtifactsTest.TagsTest do
   end
 
   describe "a describe block" do
-    @describetag Playwright.Test.use(video: false, trace: :on)
+    @describetag Playwright.Test.use(video: :off, trace: :on)
 
     # Kept on failure only, so the passing test leaves no files.
     @tag Playwright.Test.use(trace: :retain_on_failure)
@@ -826,21 +826,13 @@ defmodule Playwright.Test.ArtifactsTest.TagsTest do
                modes()
     end
   end
-
-  test "an invalid value raises in Test.use, with the accepted values" do
-    for {key, value} <- [trace: :retry_with_trace, screenshot: :retain_on_failure, video: "on"] do
-      message = assert_raise(ArgumentError, fn -> Playwright.Test.use([{key, value}]) end).message
-      assert message =~ "invalid #{key}: #{inspect(value)}, expected one of"
-      assert message =~ "true, false"
-    end
-  end
 end
 
 defmodule Playwright.Test.ArtifactsTest.UseOptionsTest do
   # The modes from `use Playwright.Test`'s options (upstream's `test.use({ trace: 'on' })`): over
   # the config, under the tags.
   use ExUnit.Case, async: true
-  use Playwright.Test, trace: :retain_on_failure, screenshot: :only_on_failure, video: true
+  use Playwright.Test, trace: :retain_on_failure, screenshot: :only_on_failure, video: :on
 
   alias Playwright.Test.Recorder
 
@@ -858,7 +850,7 @@ defmodule Playwright.Test.ArtifactsTest.UseOptionsTest do
            }
   end
 
-  @tag Playwright.Test.use(video: false)
+  @tag Playwright.Test.use(video: :off)
   test "the test's tag over them" do
     assert %{trace: [mode: :retain_on_failure] ++ _, video: [mode: :off]} = modes()
   end
@@ -872,26 +864,20 @@ defmodule Playwright.Test.ArtifactsTest.UseOptionsTest do
     """)
   end
 
-  test "an unknown option or an invalid value raises at compile time" do
-    assert_raise ArgumentError, ~r/unknown options \[:headless\] for use Playwright.Test, expected one of/, fn ->
+  test "an unknown option raises at compile time; a duplicated one's later wins" do
+    assert_raise ArgumentError, ~r/use Playwright.Test: unknown option headless, /, fn ->
       compile("headless: false")
     end
 
-    assert_raise ArgumentError, ~r/invalid trace: :retry_with_trace, expected one of/, fn ->
-      compile("trace: :retry_with_trace")
-    end
-
-    assert_raise ArgumentError, ~r/unknown video options \[:full_page\]/, fn ->
+    assert_raise ArgumentError, ~r/unknown option video.full_page, /, fn ->
       compile("video: [mode: :on, full_page: true]")
     end
 
-    assert_raise ArgumentError, ~r/duplicated option :trace for use Playwright.Test/, fn ->
-      compile("trace: :on, trace: :off")
-    end
+    assert [{:mode, :off} | _] = Playwright.Test.Options.use_options(trace: :on, trace: :off).trace
   end
 
   test "a typo through a case template raises at compile time" do
-    assert_raise ArgumentError, ~r/unknown options \[:screnshot\] for use Playwright.Test/, fn ->
+    assert_raise ArgumentError, ~r/use Playwright.Test.*: unknown option screnshot, /, fn ->
       Code.compile_string("""
       defmodule Playwright.Test.ArtifactsTest.UseOptionsTest.Typo do
         use Playwright.Test.ArtifactsTest.UseOptionsCase, async: true, screnshot: :on
@@ -937,7 +923,7 @@ defmodule Playwright.Test.ArtifactsTest.UseOptionsCase do
 
   using opts do
     quote do
-      use Playwright.Test, trace: :retain_on_failure, screenshot: :only_on_failure, video: true
+      use Playwright.Test, trace: :retain_on_failure, screenshot: :only_on_failure, video: :on
       use Playwright.Test, unquote(opts)
     end
   end
@@ -945,7 +931,7 @@ end
 
 defmodule Playwright.Test.ArtifactsTest.UseTemplateTest do
   # The module's `use`s merge per key, the later winning; ExUnit's options go to ExUnit.Case.
-  use Playwright.Test.ArtifactsTest.UseOptionsCase, async: true, video: false, screenshot: :on
+  use Playwright.Test.ArtifactsTest.UseOptionsCase, async: true, video: :off, screenshot: :on
   use Playwright.Test, screenshot: :off
 
   import Playwright.Test.ArtifactsTest.UseOptionsTest, only: [modes: 0]
@@ -958,7 +944,7 @@ end
 
 defmodule Playwright.Test.ArtifactsTest.UseAttributeTest do
   # Options that are an expression, evaluated in the module's body.
-  @opts [async: true, video: false]
+  @opts [async: true, video: :off]
   use Playwright.Test.ArtifactsTest.UseOptionsCase, @opts
 
   import Playwright.Test.ArtifactsTest.UseOptionsTest, only: [modes: 0]

@@ -30,13 +30,13 @@ defmodule Playwright.APIResponse do
   """
   @spec body(t()) :: {:ok, binary()} | {:error, Playwright.error()}
   def body(%Playwright.APIResponse{} = api_response) do
-    Facade.async("apiResponse.body", api_response, fn -> Playwright.Client.APIResponse.body(api_response) end)
+    Facade.async("apiResponse.body", fn -> Playwright.Client.APIResponse.body(api_response) end)
   end
 
   @doc "Like `body/1`, but returns the value and raises on error."
   @spec body!(t()) :: binary()
   def body!(%Playwright.APIResponse{} = api_response) do
-    Facade.async!("apiResponse.body", api_response, fn -> Playwright.Client.APIResponse.body(api_response) end)
+    Facade.async!("apiResponse.body", fn -> Playwright.Client.APIResponse.body(api_response) end)
   end
 
   @doc ~S"""
@@ -46,15 +46,13 @@ defmodule Playwright.APIResponse do
   """
   @spec dispose(t()) :: :ok | {:error, Playwright.error()}
   def dispose(%Playwright.APIResponse{} = api_response) do
-    Facade.async_void("apiResponse.dispose", api_response, fn -> Playwright.Client.APIResponse.dispose(api_response) end)
+    Facade.async_void("apiResponse.dispose", fn -> Playwright.Client.APIResponse.dispose(api_response) end)
   end
 
   @doc "Like `dispose/1`, but returns the value and raises on error."
   @spec dispose!(t()) :: :ok
   def dispose!(%Playwright.APIResponse{} = api_response) do
-    Facade.async_void!("apiResponse.dispose", api_response, fn ->
-      Playwright.Client.APIResponse.dispose(api_response)
-    end)
+    Facade.async_void!("apiResponse.dispose", fn -> Playwright.Client.APIResponse.dispose(api_response) end)
   end
 
   @doc ~S"""
@@ -87,13 +85,13 @@ defmodule Playwright.APIResponse do
   """
   @spec json(t()) :: {:ok, term()} | {:error, Playwright.error()}
   def json(%Playwright.APIResponse{} = api_response) do
-    Facade.async("apiResponse.json", api_response, fn -> Playwright.Client.APIResponse.json(api_response) end)
+    Facade.async("apiResponse.json", fn -> Playwright.Client.APIResponse.json(api_response) end)
   end
 
   @doc "Like `json/1`, but returns the value and raises on error."
   @spec json!(t()) :: term()
   def json!(%Playwright.APIResponse{} = api_response) do
-    Facade.async!("apiResponse.json", api_response, fn -> Playwright.Client.APIResponse.json(api_response) end)
+    Facade.async!("apiResponse.json", fn -> Playwright.Client.APIResponse.json(api_response) end)
   end
 
   @doc ~S"""
@@ -123,9 +121,7 @@ defmodule Playwright.APIResponse do
              }}
           | {:error, Playwright.error()}
   def security_details(%Playwright.APIResponse{} = api_response) do
-    Facade.async("apiResponse.securityDetails", api_response, fn ->
-      Playwright.Client.APIResponse.security_details(api_response)
-    end)
+    Facade.async("apiResponse.securityDetails", fn -> Playwright.Client.APIResponse.security_details(api_response) end)
   end
 
   @doc "Like `security_details/1`, but returns the value and raises on error."
@@ -139,9 +135,7 @@ defmodule Playwright.APIResponse do
               optional(:validTo) => number()
             }
   def security_details!(%Playwright.APIResponse{} = api_response) do
-    Facade.async!("apiResponse.securityDetails", api_response, fn ->
-      Playwright.Client.APIResponse.security_details(api_response)
-    end)
+    Facade.async!("apiResponse.securityDetails", fn -> Playwright.Client.APIResponse.security_details(api_response) end)
   end
 
   @doc ~S"""
@@ -151,17 +145,13 @@ defmodule Playwright.APIResponse do
   """
   @spec server_addr(t()) :: {:ok, nil | %{ipAddress: String.t(), port: integer()}} | {:error, Playwright.error()}
   def server_addr(%Playwright.APIResponse{} = api_response) do
-    Facade.async("apiResponse.serverAddr", api_response, fn ->
-      Playwright.Client.APIResponse.server_addr(api_response)
-    end)
+    Facade.async("apiResponse.serverAddr", fn -> Playwright.Client.APIResponse.server_addr(api_response) end)
   end
 
   @doc "Like `server_addr/1`, but returns the value and raises on error."
   @spec server_addr!(t()) :: nil | %{ipAddress: String.t(), port: integer()}
   def server_addr!(%Playwright.APIResponse{} = api_response) do
-    Facade.async!("apiResponse.serverAddr", api_response, fn ->
-      Playwright.Client.APIResponse.server_addr(api_response)
-    end)
+    Facade.async!("apiResponse.serverAddr", fn -> Playwright.Client.APIResponse.server_addr(api_response) end)
   end
 
   @doc ~S"""
@@ -191,13 +181,13 @@ defmodule Playwright.APIResponse do
   """
   @spec text(t()) :: {:ok, String.t()} | {:error, Playwright.error()}
   def text(%Playwright.APIResponse{} = api_response) do
-    Facade.async("apiResponse.text", api_response, fn -> Playwright.Client.APIResponse.text(api_response) end)
+    Facade.async("apiResponse.text", fn -> Playwright.Client.APIResponse.text(api_response) end)
   end
 
   @doc "Like `text/1`, but returns the value and raises on error."
   @spec text!(t()) :: String.t()
   def text!(%Playwright.APIResponse{} = api_response) do
-    Facade.async!("apiResponse.text", api_response, fn -> Playwright.Client.APIResponse.text(api_response) end)
+    Facade.async!("apiResponse.text", fn -> Playwright.Client.APIResponse.text(api_response) end)
   end
 
   @doc ~S"""

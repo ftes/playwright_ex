@@ -7,13 +7,13 @@ defmodule Playwright.Client.ChannelOwnerReuseTest do
   alias Playwright.BrowserContext
   alias Playwright.BrowserType
   alias Playwright.Client.Browser, as: ClientBrowser
-  alias Playwright.Runtime.Api
+  alias Playwright.Runtime.Facade
   alias Playwright.Runtime.Heap
   alias Playwright.Selectors
 
   # tests/library/browsercontext-reuse.spec.ts `reusedContext` (launch scenario).
   defp reused_context(browser) do
-    Api.call("browser._newContextForReuse", browser, fn ->
+    Facade.call("browser._newContextForReuse", fn ->
       ClientBrowser._disconnect_from_reused_context(browser, "reusedContext")
       ClientBrowser._new_context_for_reuse(browser, %{})
     end)
@@ -58,8 +58,8 @@ defmodule Playwright.Client.ChannelOwnerReuseTest do
       |> Task.await()
 
     selectors = Playwright.selectors(playwright)
-    contexts_for_selectors = fn -> Api.call(nil, browser, fn -> Heap.get(selectors, :_contextsForSelectors) end) end
-    assert Api.call(nil, browser, fn -> Heap.get(context, :_browser) end) == browser
+    contexts_for_selectors = fn -> Facade.call(nil, fn -> Heap.get(selectors, :_contextsForSelectors) end) end
+    assert Facade.call(nil, fn -> Heap.get(context, :_browser) end) == browser
     assert context in contexts_for_selectors.()
 
     Playwright.Browser.close!(browser)

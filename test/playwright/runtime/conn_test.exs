@@ -570,7 +570,7 @@ defmodule Playwright.RuntimeConnTest do
         _ -> :ok
       end)
 
-      Playwright.Runtime.Api.call("frame.title", frame, fn ->
+      Playwright.Runtime.Facade.call("frame.title", fn ->
         ChannelOwner._wrap_api_call(frame, fn _ ->
           children = for _ <- 1..2, do: RuntimePromise.async(fn -> ChannelOwner.channel_call(frame, :title, %{}) end)
           RuntimePromise.await(RuntimePromise.all(children))

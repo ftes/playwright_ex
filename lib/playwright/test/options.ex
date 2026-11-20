@@ -61,11 +61,14 @@ defmodule Playwright.Test.Options do
     :workers,
     :snapshot_dir,
     :snapshot_path_template,
-    :test_id_attribute
+    :test_id_attribute,
+    :report_slow_tests
   ]
   @config_keys @pool_keys ++ @artifact_keys ++ @config_only_keys
 
-  @driver_keys [:executable, :node, :cache_dir, :env]
+  # `Playwright.Supervisor`'s `env` of each pooled driver: the driver itself is `config
+  # :playwright, :driver`'s (`Playwright.Driver`), as `mix playwright.install` installs it.
+  @driver_keys [:env]
   # Playwright Test's `connectOptions`: `wsEndpoint` and `BrowserType.connect`'s options.
   @connect_keys [:ws_endpoint, :headers, :expose_network, :slow_mo, :timeout]
 
@@ -89,14 +92,6 @@ defmodule Playwright.Test.Options do
     serviceWorkers: "allow"
   }
 
-  # Upstream's `TraceMode`, `ScreenshotMode`, `VideoMode` (`overrides-test.d.ts`).
-  @retry_modes [:on_first_retry, :on_all_retries, :retain_on_first_failure, :retain_on_failure_and_retries]
-  @modes %{
-    trace: [:off, :on, :retain_on_failure | @retry_modes],
-    screenshot: [:off, :on, :only_on_failure, :on_first_failure],
-    video: [:off, :on, :retain_on_failure | @retry_modes]
-  }
-
   # The keys of the object forms, upstream's (`packages/playwright/types/test.d.ts`).
   @artifact_options %{
     trace: [:mode, :snapshots, :screenshots, :sources, :attachments],
@@ -104,17 +99,29 @@ defmodule Playwright.Test.Options do
     video: [:mode, :size, :fps, :show]
   }
 
+  @pool_label "Playwright.Test.BrowserPool.browser/1"
+
+  # What `validate!/2` checks, for its error: upstream's `configLoader` checks (`preserveOutput`,
+  # `workers`, `outputDir`), its browser fixture's (`browserName`), and `on_start`'s (Elixir only).
+  # Other values pass as given, as upstream's do.
+  @expected %{
+    browser_name: "one of :chromium, :firefox, :webkit",
+    on_start: "nil, a 1-arity function or an {m, f, a} tuple",
+    output_dir: "a string",
+    preserve_output: "one of :always, :never, :failures_only",
+    workers: "a positive integer"
+  }
+
+  @config_label "config :playwright, :test"
   @doc """
   The pool options (`BrowserPool.browser/1`): the config, then `worker`, the calling scope's
   (`worker/3`), then `opts` (`launch_options` and `driver` one level deep).
   """
   def pool(opts, worker \\ []) do
-    if !Keyword.keyword?(opts), do: raise(ArgumentError, "expected a keyword list of options, got: #{inspect(opts)}")
+    if !(is_list(opts) and Keyword.keyword?(opts)),
+      do: raise(ArgumentError, "#{@pool_label}: expected a keyword list, got: #{inspect(opts)}")
 
-    case Keyword.keys(opts) -- @pool_keys do
-      [] -> :ok
-      unknown -> raise ArgumentError, "unknown options #{inspect(unknown)}, expected one of #{inspect(@pool_keys)}"
-    end
+    Playwright.Application.unknown_key!(@pool_label, "option", Keyword.keys(opts), @pool_keys)
 
     config = config()
 
@@ -124,7 +131,7 @@ defmodule Playwright.Test.Options do
     # call's `launch_options` merge over them per key.
     |> Map.merge(Map.new(worker))
     |> Map.merge(Map.new(opts), &merge_value/3)
-    |> validate!()
+    |> validate_all!(@pool_label)
   end
 
   @doc """
@@ -132,8 +139,8 @@ defmodule Playwright.Test.Options do
   and the worker options as the config takes them, the context options (`:context`) and
   `context_options`, converted. A `nil` option is kept: it wins over the earlier `use`s'
   (`merge/2`), then `layers/3` drops it, so the layer under gives the option.
-  ExUnit.Case's keys are ignored (`without_ex_unit_keys/1`); any other key, a duplicated one or
-  a bad value raises.
+  ExUnit.Case's keys are ignored (`without_ex_unit_keys/1`); of a duplicated key the later wins,
+  as in JS's spread; an unknown key raises.
   """
   def use_options(opts), do: opts |> without_ex_unit_keys() |> use_options!("use Playwright.Test", @worker_keys)
 
@@ -162,26 +169,17 @@ defmodule Playwright.Test.Options do
   end
 
   defp use_options!(opts, label, worker_keys) do
-    keys = Keyword.keys(opts)
     {context, opts} = Keyword.split(opts, context_keys())
 
-    case keys -- Enum.uniq(keys) do
-      [] -> :ok
-      [key | _] -> raise ArgumentError, "duplicated option #{inspect(key)} for #{label}"
-    end
-
-    # A device's, with its other keys: upstream's worker-scoped `defaultBrowserType`, which a
-    # describe's or a test's `use/1` drops (`private/3`).
+    # A device's, with its other keys: upstream's worker-scoped `defaultBrowserType` (`use/1`
+    # raises for it).
     known = @use_keys ++ [:default_browser_type] ++ worker_keys
 
-    case Keyword.keys(opts) -- known do
-      [] ->
-        :ok
+    with [_ | _] = unknown <- Enum.uniq(Keyword.keys(opts)) -- known do
+      hint =
+        " or a context option (#{Playwright.Application.key_names(Enum.sort(context_keys()))}). #{unknown_hint(unknown)}"
 
-      unknown ->
-        raise ArgumentError,
-              "unknown options #{inspect(unknown)} for #{label}, expected one of #{inspect(known)} or a " <>
-                "context option as #{inspect(Enum.sort(context_keys()))} (#{unknown_hint(unknown)})"
+      Playwright.Application.unknown_key!(label, "option", unknown, known, hint)
     end
 
     options =
@@ -196,40 +194,26 @@ defmodule Playwright.Test.Options do
 
   # Why `unknown` are no options of a `use`.
   defp unknown_hint(unknown) do
-    cond do
-      :test_id_attribute in unknown ->
+    if :test_id_attribute in unknown,
+      do:
         "test_id_attribute is config only: the client's value is global to the VM, which the tests " <>
-          "running at once share, where upstream's is global to a worker, which runs one test at a time"
-
-      unknown -- @worker_keys == [] ->
-        "#{Enum.map_join(unknown, ", ", &to_string/1)} is worker-scoped, as upstream's, where it forces a " <>
-          "new worker in a describe: set it for the module (`use Playwright.Case, #{hd(unknown)}: _`) or " <>
-          "its project (`Playwright.Test.parameters/1`)"
-
-      true ->
-        "the browser's other options are BrowserPool.browser/1's, the rest config's"
-    end
+          "running at once share, where upstream's is global to a worker, which runs one test at a time.",
+      else: "The browser's other options are BrowserPool.browser/1's, the rest config's."
   end
 
   @doc """
-  `Playwright.Test.use/1`: `opts` validated as `use_options/1`'s, as a keyword list for a tag
-  or a `parameterize:` map, with a private key per option: `:"playwright.use.trace"` for a
+  `Playwright.Test.use/1`: `opts` validated as `use_options/1`'s, as a keyword list for a tag,
+  with a private key per option: `:"playwright.use.trace"` for a
   mode, `:"playwright.use.context.locale"` for a context option (its client key), next to
   `:"playwright.use.context_options"` for `context_options` as a whole, so
   ExUnit's merge of tags per key layers them per option, as upstream's, where each option is a
   fixture of its own. The keys are of the known options only.
   """
-  def use(opts), do: private(opts, "Playwright.Test.use", [])
-
-  @doc "`Playwright.Test.parameters/1`: as `use/1`, with the worker options too, as a map for `parameterize:`."
-  def parameters(opts), do: Map.new(private(opts, "Playwright.Test.parameters", @worker_keys))
-
-  defp private(opts, label, worker_keys) do
-    opts = to_keyword(label, opts)
-    options = use_options!(opts, label, worker_keys)
-    # In a describe's or a test's, a device's browser is ignored: the browser is the worker's.
-    options = if worker_keys == [], do: Map.delete(options, :default_browser_type), else: options
-    {context, options} = Map.pop(options, :context, %{})
+  def use(opts) do
+    label = "Playwright.Test.use/1"
+    # The worker's options too, for `@moduletag`: `Playwright.Test.test/3` raises for them in a
+    # describe's or a test's tag (`worker_tags!/2`).
+    {context, options} = label |> keyword!(opts) |> use_options!(label, @worker_keys) |> Map.pop(:context, %{})
 
     private = fn options, prefix ->
       for {key, value} <- options, do: {String.to_atom(prefix <> Atom.to_string(key)), value}
@@ -238,12 +222,61 @@ defmodule Playwright.Test.Options do
     Enum.sort(private.(options, @use_prefix) ++ private.(context, @context_prefix))
   end
 
+  # The one parameter of `parameters/1`: the project.
+  @project_key :"playwright.project"
+
+  @doc """
+  `Playwright.Test.parameters/1`: a `Playwright.Test.Project` of `opts`, its `name` and the
+  options of `use/1` and the worker's, under one private key, as a map for `parameterize:`.
+  """
+  def parameters(opts) do
+    label = "Playwright.Test.parameters/1"
+    {name, use} = Keyword.pop(keyword!(label, opts), :name)
+
+    if !(name == nil or is_binary(name)),
+      do: raise(ArgumentError, "#{label}: invalid value #{inspect(name)} for name, expected a string")
+
+    # Upstream's default project name is `""`, which its reporters leave out: no name.
+    name = if name != "", do: name
+
+    %{@project_key => %Playwright.Test.Project{name: name, use: use_options!(use, label, @worker_keys)}}
+  end
+
+  @doc "The project of `parameters` (`parameters/1`'s, a module's `parameterize:` map), else `nil`."
+  def project(parameters) do
+    case parameters do
+      %{@project_key => %Playwright.Test.Project{} = project} -> project
+      _ -> nil
+    end
+  end
+
+  @doc """
+  Raises for a worker option (upstream's worker fixture, a device's `defaultBrowserType` too) in
+  `tags`, those of `scope`: upstream's `_useFixtures` (`fixtures.ts`) for a `test.use` in a
+  describe, a test's adapted ("in a test"). A module's `@moduletag` may have them, as upstream's
+  top-level `test.use`.
+  """
+  def worker_tags!(tags, scope) do
+    worker_keys =
+      for key <- [:default_browser_type | @worker_keys], do: String.to_atom(@use_prefix <> Atom.to_string(key))
+
+    for tag <- tags, {key, _value} <- List.wrap(tag), key in worker_keys do
+      name = String.replace_prefix(Atom.to_string(key), @use_prefix, "")
+
+      raise ArgumentError,
+            "Playwright.Test.use/1: Cannot use({ #{name} }) in #{scope}, because it forces a new worker.\n" <>
+              "Make it top-level in the test file or put in the configuration file."
+    end
+
+    :ok
+  end
+
   @doc "Whether `key` is a private key of `use/1`."
   def use_key?(key), do: is_atom(key) and String.starts_with?(Atom.to_string(key), @use_prefix)
 
   @doc """
-  The options of `use/1` in `map` (a test's or a module's parameters or tags), as
-  `use_options/1`'s. No other key is read.
+  The options of `use/1` in `map` (a test's or a module's tags), as `use_options/1`'s. No other
+  key is read.
   """
   def used(map) do
     Enum.reduce(map, %{}, fn {key, value}, acc ->
@@ -261,14 +294,16 @@ defmodule Playwright.Test.Options do
   end
 
   @doc """
-  The options of a test, or of a module's `setup_all`, by their layers: `project`, the `use/1`
-  options in its `parameters` (the module's `parameterize:` map, upstream's `project.use`), and
-  `module`, the module's `use_options` with the `use/1` options in its `tags` over them (`merge/2`;
-  ExUnit merged a test's `@moduletag`, `@describetag` and `@tag` per option). A `nil` option is
-  dropped from its layer (`unset_nil/1`).
+  The options of a test, or of a module's `setup_all`, by their layers: `project`, the options
+  of the project in its `parameters` (`project/1`, upstream's `project.use`), and `module`, the
+  module's `use_options` with the `use/1` options in its `tags` over them (`merge/2`; ExUnit
+  merged a test's `@moduletag`, `@describetag` and `@tag` per option). A `nil` option is dropped
+  from its layer (`unset_nil/1`).
   """
-  def layers(parameters, use_options, tags),
-    do: %{project: unset_nil(used(parameters)), module: unset_nil(merge(use_options, used(tags)))}
+  def layers(parameters, use_options, tags) do
+    project = project(parameters)
+    %{project: unset_nil((project && project.use) || %{}), module: unset_nil(merge(use_options, used(tags)))}
+  end
 
   # Upstream's `undefined` option: no value at its layer, so the layer under gives the option, in
   # the end its default. A `test.use` of it goes back to the config's and the project's
@@ -314,13 +349,13 @@ defmodule Playwright.Test.Options do
   """
   def without_ex_unit_keys(opts) do
     # A map too.
-    opts = to_keyword("use Playwright.Test", opts)
+    opts = keyword!("use Playwright.Test", opts)
     opts -- ExUnit.Case.__keys__(opts)
   end
 
   @doc """
   The recording modes of `layers` (`layers/3`): the module's and the tags' over the project's
-  over the config's. `true` is `:on`, `false` is `:off`.
+  over the config's.
   """
   def artifacts(config \\ config(), layers \\ %{project: %{}, module: %{}}), do: layered(@artifact_keys, config, layers)
 
@@ -382,19 +417,19 @@ defmodule Playwright.Test.Options do
 
   @doc """
   Upstream's `browserName` of a module's run, for its `BrowserPool.browser/1` calls without one:
-  the module's `use_options`' `browser_name`, else the `project`'s (`Playwright.Test.parameters/1`),
-  else the config's if it sets one. Else the `default_browser_type` of the module's
-  `use_options`, the project's or the config's (a spread device's; one in `context_options`
-  doesn't count, as upstream's `contextOptions`), as upstream's `browserName` defaults to its
-  `defaultBrowserType`, else the config's default, `:chromium`. Tags don't
-  count: the browser is the worker's. Whether the config sets one is the application env's:
-  `config` has the default filled in.
+  the `module`'s `browser_name` (`module_worker/2`'s: its `use`, then its `@moduletag`), else the
+  `project`'s (`Playwright.Test.parameters/1`), else the config's if it sets one. Else the
+  `default_browser_type` of the module, the project or the config (a spread device's; one in
+  `context_options` doesn't count, as upstream's `contextOptions`), as upstream's `browserName`
+  defaults to its `defaultBrowserType`, else the config's default, `:chromium`. A describe's or a
+  test's tags don't count: the browser is the worker's. Whether the config sets one is the
+  application env's: `config` has the default filled in.
   """
-  def browser_name(config \\ config(), project \\ %{}, use_options \\ %{}) do
+  def browser_name(config \\ config(), project \\ %{}, module \\ %{}) do
     env = Application.get_env(:playwright, :test, [])
     configured = if Keyword.keyword?(env) and env[:browser_name] != nil, do: config.browser_name
 
-    use_options[:browser_name] || project[:browser_name] || configured || use_options[:default_browser_type] ||
+    module[:browser_name] || project[:browser_name] || configured || module[:default_browser_type] ||
       project[:default_browser_type] || config[:default_browser_type] || config.browser_name
   end
 
@@ -407,15 +442,26 @@ defmodule Playwright.Test.Options do
 
   @doc """
   The worker options of a module's run, over the config's, for its `BrowserPool.browser/1`
-  calls: `browser_name/3`, and the `launch_options` (the module's, else the project's, as a whole)
-  and `connect_options` of the module's `use_options` (a `nil` one dropped, `unset_nil/1`) or its
-  `project` (`layers/3`'s, `nil`s dropped there).
+  calls, the same for its `setup_all` and each of its tests: `browser_name/3`, and the
+  `launch_options` (the module's, else the project's, as a whole) and `connect_options` of the
+  `module` (`module_worker/2`'s, or a module's `use_options`; a `nil` one dropped,
+  `unset_nil/1`) or its `project` (`layers/3`'s, `nil`s dropped there).
   """
-  def worker(config \\ config(), project \\ %{}, use_options \\ %{}) do
-    use_options = unset_nil(use_options)
+  def worker(config \\ config(), project \\ %{}, module \\ %{}) do
+    module = unset_nil(module)
     keys = @worker_keys -- [:browser_name]
-    options = merge(Map.take(project, keys), Map.take(use_options, keys))
-    options |> Map.put(:browser_name, browser_name(config, project, use_options)) |> Enum.to_list()
+    options = merge(Map.take(project, keys), Map.take(module, keys))
+    options |> Map.put(:browser_name, browser_name(config, project, module)) |> Enum.to_list()
+  end
+
+  @doc """
+  The module's worker options: those of its `use_options`, then of `use/1` in its `@moduletag`s
+  (`module_tags`, `ExUnit.TestModule`'s `tags`: all of them merged, the later per option), as
+  upstream's top-level `test.use` applies file-wide. A describe's or a test's tags never count (`worker_tags!/2`).
+  """
+  def module_worker(use_options, module_tags) do
+    worker_keys = [:default_browser_type | @worker_keys]
+    merge(Map.take(use_options, worker_keys), Map.take(used(module_tags), worker_keys))
   end
 
   @doc """
@@ -446,7 +492,10 @@ defmodule Playwright.Test.Options do
   @doc "The snapshots' path template (config `snapshot_path_template`, default `nil`)."
   def snapshot_path_template, do: config()[:snapshot_path_template]
 
-  @doc "Playwright Test's `testIdAttribute` (config `test_id_attribute`, default `data-testid`)."
+  @doc """
+  Playwright Test's `testIdAttribute` (config `test_id_attribute`, default `data-testid`), `nil`
+  for `""` (upstream's `if (testIdAttribute)` sets none: the selectors keep theirs).
+  """
   def test_id_attribute, do: config()[:test_id_attribute]
 
   # Option lists merge one level deep (`launch_options: [slow_mo: 50]` keeps the config's
@@ -458,25 +507,12 @@ defmodule Playwright.Test.Options do
 
   @doc "`config :playwright, :test`, validated, with each key's default (`Playwright.Test.config/0`)."
   def config do
-    config = Application.get_env(:playwright, :test, [])
-
-    if !Keyword.keyword?(config),
-      do: raise(ArgumentError, "config :playwright, :test must be a keyword list, got: #{inspect(config)}")
-
-    case Keyword.keys(config) -- (@config_keys ++ context_keys()) do
-      [] ->
-        :ok
-
-      unknown ->
-        raise ArgumentError,
-              "unknown keys #{inspect(unknown)} in config :playwright, :test, expected one of " <>
-                "#{inspect(@config_keys)} or a context option (locale, viewport, ...)"
-    end
+    config = Playwright.Application.config!(:test, @config_keys ++ context_keys())
 
     # A `nil` key is unset: its default.
     defaults()
     |> Map.merge(unset_nil(Map.new(config)))
-    |> validate!()
+    |> validate_all!(@config_label)
   end
 
   defp defaults do
@@ -498,7 +534,8 @@ defmodule Playwright.Test.Options do
       workers: max(div(System.schedulers_online(), 2), 1),
       snapshot_dir: nil,
       snapshot_path_template: nil,
-      test_id_attribute: "data-testid"
+      test_id_attribute: "data-testid",
+      report_slow_tests: [max: 5, threshold: 300_000]
     }
   end
 
@@ -510,14 +547,12 @@ defmodule Playwright.Test.Options do
   end
 
   # A context option of the config is validated with the others (`context_options/2`).
-  defp validate!(opts) do
+  defp validate_all!(opts, label) do
     context_keys = context_keys()
-    Map.new(opts, fn {key, value} -> {key, if(key in context_keys, do: value, else: validate!(key, value))} end)
+    Map.new(opts, fn {key, value} -> {key, if(key in context_keys, do: value, else: validate!(key, value, label))} end)
   end
 
-  defp validate!(:default_browser_type, nil), do: nil
-  defp validate!(:default_browser_type, name) when name in [:chromium, :firefox, :webkit], do: name
-
+  # A device of `Playwright.devices/1` (the driver's) has it as a string.
   defp validate!(:default_browser_type, name) when name in ["chromium", "firefox", "webkit"],
     do: String.to_existing_atom(name)
 
@@ -526,32 +561,15 @@ defmodule Playwright.Test.Options do
 
   defp validate!(:driver, driver) do
     driver = to_keyword(:driver, driver)
-
-    case Keyword.keys(driver) -- @driver_keys do
-      [] ->
-        driver
-
-      unknown ->
-        raise ArgumentError, "unknown driver options #{inspect(unknown)}, expected one of #{inspect(@driver_keys)}"
-    end
+    keys!(:driver, driver, @driver_keys)
+    driver
   end
 
   defp validate!(:connect_options, nil), do: nil
 
   defp validate!(:connect_options, options) do
     options = to_keyword(:connect_options, options)
-
-    case Keyword.keys(options) -- @connect_keys do
-      [] ->
-        :ok
-
-      unknown ->
-        raise ArgumentError, "unknown connect options #{inspect(unknown)}, expected one of #{inspect(@connect_keys)}"
-    end
-
-    if !is_binary(options[:ws_endpoint]),
-      do: raise(ArgumentError, "connect options need :ws_endpoint, got: #{inspect(options)}")
-
+    keys!(:connect_options, options, @connect_keys)
     Enum.sort(options)
   end
 
@@ -559,117 +577,95 @@ defmodule Playwright.Test.Options do
   defp validate!(:on_start, fun) when is_function(fun, 1), do: fun
   defp validate!(:on_start, {m, f, a} = mfa) when is_atom(m) and is_atom(f) and is_list(a), do: mfa
 
-  defp validate!(key, true) when is_map_key(@modes, key), do: artifact!(key, mode: :on)
-  defp validate!(key, false) when is_map_key(@modes, key), do: artifact!(key, mode: :off)
-
-  defp validate!(key, mode) when is_map_key(@modes, key) and is_atom(mode),
-    do: artifact!(key, mode: mode)
-
-  defp validate!(key, options) when is_map_key(@modes, key) and (is_list(options) or is_map(options)),
+  defp validate!(key, options) when key in @artifact_keys and (is_list(options) or is_map(options)),
     do: artifact!(key, to_keyword(key, options))
+
+  defp validate!(key, mode) when key in @artifact_keys, do: artifact!(key, mode: mode)
 
   defp validate!(:output_dir, dir) when is_binary(dir), do: dir
   defp validate!(:preserve_output, value) when value in [:always, :never, :failures_only], do: value
 
-  defp validate!(key, value)
-       when key in [:snapshot_dir, :snapshot_path_template] and (value == nil or is_binary(value)),
-       do: value
-
-  defp validate!(:test_id_attribute, name) when is_binary(name) and name != "", do: name
+  # Upstream's `if (testIdAttribute)` (`_setupContextOptions`): an empty one sets none (`nil`),
+  # so the selectors keep theirs.
+  defp validate!(:test_id_attribute, ""), do: nil
   defp validate!(:workers, workers) when is_integer(workers) and workers > 0, do: workers
+  # Upstream's `reportSlowTests: null`: none (a `nil` key is unset, its default).
+  defp validate!(:report_slow_tests, false), do: false
 
-  # Milliseconds, `0` or `:infinity` for none (`BrowserContext.set_default_timeout/2`'s).
-  defp validate!(key, timeout)
-       when key in [:action_timeout, :navigation_timeout] and
-              (timeout == :infinity or (is_integer(timeout) and timeout >= 0)),
-       do: timeout
+  # Upstream's `reportSlowTests` (`{ max, threshold }`), as its configLoader validates it.
+  defp validate!(:report_slow_tests, options) do
+    options = to_keyword(:report_slow_tests, options)
+    keys!(:report_slow_tests, options, [:max, :threshold])
 
-  defp validate!(key, value) when is_map_key(@modes, key),
-    do: raise(ArgumentError, "invalid #{key}: #{inspect(value)}, expected one of #{inspect(accepted(key))}")
+    for key <- [:max, :threshold] do
+      value = options[key]
 
-  defp validate!(key, value), do: raise(ArgumentError, "invalid #{key}: #{inspect(value)}")
+      if !(is_number(value) and value >= 0),
+        do:
+          raise(
+            ArgumentError,
+            "invalid value #{inspect(value)} for report_slow_tests.#{key}, expected a non-negative number"
+          )
 
-  # What a mode option accepts, for the error.
-  defp accepted(key), do: @modes[key] ++ [true, false, "[mode: _, ...]"]
+      {key, value}
+    end
+  end
 
-  # An artifact option as a keyword list in `@artifact_options` order (an atom is its `mode`),
-  # the trace's options defaulting to upstream's (`defaultTraceOptions` in
-  # `packages/playwright/src/worker/testTracing.ts`). `mode` is required, as upstream's type
-  # (`{ mode: TraceMode, ... }`) says: the option replaces the config's whole, so a list without
-  # it would record nothing.
-  defp artifact!(key, options) do
-    if !Keyword.has_key?(options, :mode),
-      do: raise(ArgumentError, "#{key} options need :mode, got: #{inspect(options)}")
+  defp validate!(key, value) when is_map_key(@expected, key),
+    do: raise(ArgumentError, "invalid value #{inspect(value)} for #{key}, expected #{Map.fetch!(@expected, key)}")
 
-    case Keyword.keys(options) -- @artifact_options[key] do
+  defp validate!(_key, value), do: value
+
+  # Raises for the keys of `options` (the option `key`'s) that are not `allowed`.
+  defp keys!(key, options, allowed) do
+    case Enum.uniq(Keyword.keys(options)) -- allowed do
       [] ->
         :ok
 
-      unknown ->
+      [unknown | _] ->
         raise ArgumentError,
-              "unknown #{key} options #{inspect(unknown)}, expected one of #{inspect(@artifact_options[key])}"
+              "unknown option #{key}.#{Playwright.Application.key_name(unknown)}, expected one of #{Playwright.Application.key_names(allowed)}"
     end
+  end
+
+  # An artifact option as a keyword list in `@artifact_options` order (an atom is its `mode`),
+  # the trace's options defaulting to upstream's (`defaultTraceOptions` in
+  # `packages/playwright/src/worker/testTracing.ts`); its values pass as given. No `mode` is
+  # `:off` (`value.mode || 'off'`), the deprecated `:retry_with_trace` and `:retry_with_video`
+  # `:on_first_retry`, as upstream's `startIfNeeded` and `normalizeVideoMode`.
+  defp artifact!(key, options) do
+    keys!(key, options, @artifact_options[key])
 
     defaults = if key == :trace, do: [snapshots: true, screenshots: true, sources: true, attachments: true], else: []
-    options = Keyword.merge(defaults, options)
+    options = defaults |> Keyword.merge(options) |> Keyword.put(:mode, mode(key, options[:mode]))
 
-    for name <- @artifact_options[key],
-        Keyword.has_key?(options, name),
-        do: {name, artifact_option!(key, name, options[name])}
+    for name <- @artifact_options[key], Keyword.has_key?(options, name), do: {name, options[name]}
   end
 
-  defp artifact_option!(key, :mode, mode), do: mode!(key, mode)
+  defp mode(_key, nil), do: :off
+  defp mode(:trace, :retry_with_trace), do: :on_first_retry
+  defp mode(:video, :retry_with_video), do: :on_first_retry
+  defp mode(_key, mode), do: mode
 
-  defp artifact_option!(_key, name, value)
-       when name in [:snapshots, :screenshots, :sources, :attachments, :full_page, :omit_background] and
-              is_boolean(value),
-       do: value
-
-  # `{ dom?, aria?, screen? }`, a map as the facade's nested objects.
-  defp artifact_option!(:trace, :snapshots, %{} = snapshots) when not is_struct(snapshots) do
-    if Enum.all?(snapshots, fn {name, value} -> name in [:dom, :aria, :screen] and is_boolean(value) end),
-      do: snapshots,
-      else: raise(ArgumentError, "invalid trace snapshots: #{inspect(snapshots)}")
-  end
-
-  # A `ViewportSize`.
-  defp artifact_option!(:video, :size, %{width: width, height: height} = size)
-       when map_size(size) == 2 and is_integer(width) and is_integer(height),
-       do: size
-
-  defp artifact_option!(:video, :fps, fps) when is_integer(fps) and fps > 0, do: fps
-
-  # `{ actions?: recordVideo.showActions, test?: { level?, position?, fontSize? } }`, maps with
-  # upstream's keys and values; `actions` goes to the context's `recordVideo` as is.
-  defp artifact_option!(:video, :show, %{} = show) when not is_struct(show) do
-    valid? =
-      Enum.all?(show, fn
-        {:actions, %{} = actions} ->
-          Map.keys(actions) -- [:duration, :position, :fontSize, :cursor, :style] == []
-
-        {:test, %{} = test} ->
-          Map.keys(test) -- [:level, :position, :fontSize] == [] and test[:level] in [nil, "file", "title", "step"]
-
-        _ ->
-          false
-      end)
-
-    if valid?, do: show, else: raise(ArgumentError, "invalid video show: #{inspect(show)}")
-  end
-
-  defp artifact_option!(key, name, value), do: raise(ArgumentError, "invalid #{key} #{name}: #{inspect(value)}")
-
-  defp mode!(key, mode) do
-    if mode in @modes[key],
-      do: mode,
-      else: raise(ArgumentError, "invalid #{key}: #{inspect(mode)}, expected one of #{inspect(accepted(key))}")
-  end
-
+  # Of a duplicated key the later wins, as in JS's spread (`{ ...a, ...b }`), before any lookup.
   defp to_keyword(key, value) do
     cond do
-      is_list(value) and Keyword.keyword?(value) -> value
-      is_map(value) and not is_struct(value) -> Enum.to_list(value)
-      true -> raise ArgumentError, "invalid #{key}: #{inspect(value)}, expected a keyword list or a map"
+      is_list(value) and Keyword.keyword?(value) ->
+        Playwright.Application.later_wins(value)
+
+      is_map(value) and not is_struct(value) ->
+        Enum.to_list(value)
+
+      true ->
+        raise ArgumentError, "invalid value #{inspect(value)} for #{key}, expected a keyword list or a map"
     end
+  end
+
+  # `opts` of the entry point `label` as a keyword list.
+  defp keyword!(label, opts) do
+    to_keyword(:options, opts)
+  rescue
+    _ in ArgumentError ->
+      reraise ArgumentError, "#{label}: expected a keyword list or a map, got: #{inspect(opts)}", __STACKTRACE__
   end
 end

@@ -52,7 +52,7 @@ defmodule Playwright.Test.SnapshotsTest do
     assert Test.snapshot_path(["a b", "c.png"], kind: :screenshot) == Path.join(snapshots, "a b/c-#{platform}.png")
 
     assert_raise ArgumentError, ~r/unknown kind "other"/, fn -> Test.snapshot_path("a.png", kind: :other) end
-    assert_raise ArgumentError, ~r/unknown options \[:path\]/, fn -> Test.snapshot_path("a.png", path: "x") end
+    assert_raise ArgumentError, ~r/unknown option path, /, fn -> Test.snapshot_path("a.png", path: "x") end
   end
 
   test "the template's tokens", %{tmp_dir: tmp_dir, platform: platform} do
@@ -73,10 +73,18 @@ defmodule Playwright.Test.SnapshotsTest do
     Application.put_env(
       :playwright,
       :expect,
-      Keyword.put(previous, :to_match_aria_snapshot, %{pathTemplate: "{arg}{ext}"})
+      Keyword.put(previous, :to_match_aria_snapshot, path_template: "{arg}{ext}")
     )
 
     assert Test.snapshot_path("body.aria.yml", kind: :aria) == Path.join(File.cwd!(), "body.aria.yml")
+  end
+
+  test "{projectName} and {-projectName}: the project's name, sanitized", %{tmp_dir: tmp_dir} do
+    put_config(snapshot_path_template: "{snapshotDir}/{projectName}/{arg}{-projectName}{ext}")
+    this = %{TestInfo.current() | project_name: TestInfo.project_name(Test.parameters(name: "Mobile Safari"))}
+
+    assert TestInfo.snapshot_path(this, "home.png", "screenshot") ==
+             Path.join(tmp_dir, "Mobile-Safari/home-Mobile-Safari.png")
   end
 
   test "a test file outside test/ resolves against it, as upstream's path.relative(testDir, file)",

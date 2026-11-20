@@ -86,14 +86,14 @@ defmodule Playwright.Browser do
   @spec close(t(), close_options()) :: :ok | {:error, Playwright.error()}
   def close(%Playwright.Browser{} = browser, options \\ []) do
     options = Facade.options!(options, @close_options, "browser.close")
-    Facade.async_void("browser.close", browser, fn -> Playwright.Client.Browser.close(browser, options) end)
+    Facade.async_void("browser.close", fn -> Playwright.Client.Browser.close(browser, options) end)
   end
 
   @doc "Like `close/2`, but returns the value and raises on error."
   @spec close!(t(), close_options()) :: :ok
   def close!(%Playwright.Browser{} = browser, options \\ []) do
     options = Facade.options!(options, @close_options, "browser.close")
-    Facade.async_void!("browser.close", browser, fn -> Playwright.Client.Browser.close(browser, options) end)
+    Facade.async_void!("browser.close", fn -> Playwright.Client.Browser.close(browser, options) end)
   end
 
   @doc ~S"""
@@ -139,17 +139,13 @@ defmodule Playwright.Browser do
   """
   @spec new_browser_cdp_session(t()) :: {:ok, Playwright.CDPSession.t()} | {:error, Playwright.error()}
   def new_browser_cdp_session(%Playwright.Browser{} = browser) do
-    Facade.async("browser.newBrowserCDPSession", browser, fn ->
-      Playwright.Client.Browser.new_browser_cdp_session(browser)
-    end)
+    Facade.async("browser.newBrowserCDPSession", fn -> Playwright.Client.Browser.new_browser_cdp_session(browser) end)
   end
 
   @doc "Like `new_browser_cdp_session/1`, but returns the value and raises on error."
   @spec new_browser_cdp_session!(t()) :: Playwright.CDPSession.t()
   def new_browser_cdp_session!(%Playwright.Browser{} = browser) do
-    Facade.async!("browser.newBrowserCDPSession", browser, fn ->
-      Playwright.Client.Browser.new_browser_cdp_session(browser)
-    end)
+    Facade.async!("browser.newBrowserCDPSession", fn -> Playwright.Client.Browser.new_browser_cdp_session(browser) end)
   end
 
   @new_context_options {:object,
@@ -582,14 +578,14 @@ defmodule Playwright.Browser do
   @spec new_context(t(), new_context_options()) :: {:ok, Playwright.BrowserContext.t()} | {:error, Playwright.error()}
   def new_context(%Playwright.Browser{} = browser, options \\ []) do
     options = Facade.options!(options, @new_context_options, "browser.newContext")
-    Facade.async("browser.newContext", browser, fn -> Playwright.Client.Browser.new_context(browser, options) end)
+    Facade.async("browser.newContext", fn -> Playwright.Client.Browser.new_context(browser, options) end)
   end
 
   @doc "Like `new_context/2`, but returns the value and raises on error."
   @spec new_context!(t(), new_context_options()) :: Playwright.BrowserContext.t()
   def new_context!(%Playwright.Browser{} = browser, options \\ []) do
     options = Facade.options!(options, @new_context_options, "browser.newContext")
-    Facade.async!("browser.newContext", browser, fn -> Playwright.Client.Browser.new_context(browser, options) end)
+    Facade.async!("browser.newContext", fn -> Playwright.Client.Browser.new_context(browser, options) end)
   end
 
   @new_page_options {:object,
@@ -1003,14 +999,14 @@ defmodule Playwright.Browser do
   @spec new_page(t(), new_page_options()) :: {:ok, Playwright.Page.t()} | {:error, Playwright.error()}
   def new_page(%Playwright.Browser{} = browser, options \\ []) do
     options = Facade.options!(options, @new_page_options, "browser.newPage")
-    Facade.async("browser.newPage", browser, fn -> Playwright.Client.Browser.new_page(browser, options) end)
+    Facade.async("browser.newPage", fn -> Playwright.Client.Browser.new_page(browser, options) end)
   end
 
   @doc "Like `new_page/2`, but returns the value and raises on error."
   @spec new_page!(t(), new_page_options()) :: Playwright.Page.t()
   def new_page!(%Playwright.Browser{} = browser, options \\ []) do
     options = Facade.options!(options, @new_page_options, "browser.newPage")
-    Facade.async!("browser.newPage", browser, fn -> Playwright.Client.Browser.new_page(browser, options) end)
+    Facade.async!("browser.newPage", fn -> Playwright.Client.Browser.new_page(browser, options) end)
   end
 
   @bind_options {:object,
@@ -1050,14 +1046,14 @@ defmodule Playwright.Browser do
   @spec bind(t(), String.t(), bind_options()) :: {:ok, %{endpoint: String.t()}} | {:error, Playwright.error()}
   def bind(%Playwright.Browser{} = browser, title, options \\ []) do
     options = Facade.options!(options, @bind_options, "browser.bind")
-    Facade.async("browser.bind", browser, fn -> Playwright.Client.Browser.bind(browser, title, options) end)
+    Facade.async("browser.bind", fn -> Playwright.Client.Browser.bind(browser, title, options) end)
   end
 
   @doc "Like `bind/3`, but returns the value and raises on error."
   @spec bind!(t(), String.t(), bind_options()) :: %{endpoint: String.t()}
   def bind!(%Playwright.Browser{} = browser, title, options \\ []) do
     options = Facade.options!(options, @bind_options, "browser.bind")
-    Facade.async!("browser.bind", browser, fn -> Playwright.Client.Browser.bind(browser, title, options) end)
+    Facade.async!("browser.bind", fn -> Playwright.Client.Browser.bind(browser, title, options) end)
   end
 
   @remove_all_listeners_options {:object,
@@ -1101,7 +1097,7 @@ defmodule Playwright.Browser do
     event = Facade.event!(event, @events, "browser.removeAllListeners")
     options = Facade.options!(options, @remove_all_listeners_options, "browser.removeAllListeners")
 
-    Facade.async_void("browser.removeAllListeners", browser, fn ->
+    Facade.async_void("browser.removeAllListeners", fn ->
       Playwright.Client.Browser.remove_all_listeners(browser, event, options)
     end)
   end
@@ -1119,7 +1115,7 @@ defmodule Playwright.Browser do
     event = Facade.event!(event, @events, "browser.removeAllListeners")
     options = Facade.options!(options, @remove_all_listeners_options, "browser.removeAllListeners")
 
-    Facade.async_void!("browser.removeAllListeners", browser, fn ->
+    Facade.async_void!("browser.removeAllListeners", fn ->
       Playwright.Client.Browser.remove_all_listeners(browser, event, options)
     end)
   end
@@ -1172,10 +1168,7 @@ defmodule Playwright.Browser do
 
   def start_tracing(%Playwright.Browser{} = browser, page, options) do
     options = Facade.options!(options, @start_tracing_options, "browser.startTracing")
-
-    Facade.async_void("browser.startTracing", browser, fn ->
-      Playwright.Client.Browser.start_tracing(browser, page, options)
-    end)
+    Facade.async_void("browser.startTracing", fn -> Playwright.Client.Browser.start_tracing(browser, page, options) end)
   end
 
   @doc "Like `start_tracing/3`, but returns the value and raises on error."
@@ -1190,9 +1183,7 @@ defmodule Playwright.Browser do
   def start_tracing!(%Playwright.Browser{} = browser, page, options) do
     options = Facade.options!(options, @start_tracing_options, "browser.startTracing")
 
-    Facade.async_void!("browser.startTracing", browser, fn ->
-      Playwright.Client.Browser.start_tracing(browser, page, options)
-    end)
+    Facade.async_void!("browser.startTracing", fn -> Playwright.Client.Browser.start_tracing(browser, page, options) end)
   end
 
   @doc ~S"""
@@ -1206,13 +1197,13 @@ defmodule Playwright.Browser do
   """
   @spec stop_tracing(t()) :: {:ok, binary()} | {:error, Playwright.error()}
   def stop_tracing(%Playwright.Browser{} = browser) do
-    Facade.async("browser.stopTracing", browser, fn -> Playwright.Client.Browser.stop_tracing(browser) end)
+    Facade.async("browser.stopTracing", fn -> Playwright.Client.Browser.stop_tracing(browser) end)
   end
 
   @doc "Like `stop_tracing/1`, but returns the value and raises on error."
   @spec stop_tracing!(t()) :: binary()
   def stop_tracing!(%Playwright.Browser{} = browser) do
-    Facade.async!("browser.stopTracing", browser, fn -> Playwright.Client.Browser.stop_tracing(browser) end)
+    Facade.async!("browser.stopTracing", fn -> Playwright.Client.Browser.stop_tracing(browser) end)
   end
 
   @doc ~S"""
@@ -1222,13 +1213,13 @@ defmodule Playwright.Browser do
   """
   @spec unbind(t()) :: :ok | {:error, Playwright.error()}
   def unbind(%Playwright.Browser{} = browser) do
-    Facade.async_void("browser.unbind", browser, fn -> Playwright.Client.Browser.unbind(browser) end)
+    Facade.async_void("browser.unbind", fn -> Playwright.Client.Browser.unbind(browser) end)
   end
 
   @doc "Like `unbind/1`, but returns the value and raises on error."
   @spec unbind!(t()) :: :ok
   def unbind!(%Playwright.Browser{} = browser) do
-    Facade.async_void!("browser.unbind", browser, fn -> Playwright.Client.Browser.unbind(browser) end)
+    Facade.async_void!("browser.unbind", fn -> Playwright.Client.Browser.unbind(browser) end)
   end
 
   @doc ~S"""

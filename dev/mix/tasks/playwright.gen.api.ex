@@ -512,11 +512,11 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
       )
 
     # A matcher with a value (`toPass`, Elixir only: its passing attempt's) returns it, but not
-    # for a negated receiver (`Facade.matcher_value/3`).
+    # for a negated receiver (`Facade.matcher_value/2`).
     {runner, runner_args, return} =
       if get_in(member, ["type", "name"]) == "void",
-        do: {"matcher", receiver, ":ok"},
-        else: {"matcher_value", "#{receiver}, info", return_spec(ctx, member)}
+        do: {"matcher", "", ":ok"},
+        else: {"matcher_value", "info, ", return_spec(ctx, member)}
 
     tuple_return = if return == ":ok", do: ":ok", else: ":ok | {:ok, #{return}}"
 
@@ -527,14 +527,14 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
     #{spec(name, m, "#{tuple_return} | {:error, Playwright.error()}")}
     #{clauses(m, name)}def #{head(name, params, m.or_options)} do
       #{conversions}
-      Facade.#{runner}(#{runner_args}, fn -> #{call} end)
+      Facade.#{runner}(#{runner_args}fn -> #{call} end)
     end
 
     #{deprecated(ctx, member)}@doc "Like `#{name}/#{length(params)}`, but raises `Playwright.ExpectError` when the expectation is not met."
     #{spec(name <> "!", m, return)}
     #{clauses(m, name <> "!")}def #{head(name <> "!", params, m.or_options)} do
       #{conversions}
-      Facade.#{runner}!(#{runner_args}, fn -> #{call} end)
+      Facade.#{runner}!(#{runner_args}fn -> #{call} end)
     end
     """
   end
@@ -744,14 +744,14 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
     #{spec(m.name, m, "#{if m.void?, do: ":ok", else: "{:ok, #{m.return}}"} | {:error, Playwright.error()}")}
     #{clauses(m, m.name)}def #{m.head} do
       #{m.conversions}
-      Facade.#{async}(#{m.api_name}, #{m.receiver}, fn -> #{m.call} end#{extra})
+      Facade.#{async}(#{m.api_name}, fn -> #{m.call} end#{extra})
     end
 
     #{m.deprecated}@doc "Like `#{m.name}/#{length(m.params)}`, but returns the value and raises on error."
     #{spec(m.name <> "!", m, m.return)}
     #{clauses(m, m.name <> "!")}def #{head(m.name <> "!", m.matched, m.function || m.or_options)} do
       #{m.conversions}
-      Facade.#{async!}(#{m.api_name}, #{m.receiver}, fn -> #{m.call} end#{extra})
+      Facade.#{async!}(#{m.api_name}, fn -> #{m.call} end#{extra})
     end
     """
   end
@@ -1160,7 +1160,7 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
   # An open object (a storage state, cookies, see `Mix.Playwright.ApiRules`): passed as it is, its
   # keys checked against those of protocol params (`Facade.protocol_type/2` when the module
   # compiles), which its validator would drop silently. Every one needs them.
-  defp schema(_ctx, %{"protocol" => {params, field}}, _mode), do: {:protocol, params, field}
+  defp schema(_ctx, %{"protocol" => {params, field, unchecked}}, _mode), do: {:protocol, params, field, unchecked}
 
   defp schema(_ctx, %{"open" => true}, _mode),
     do: Mix.raise("gen.api: an open object without protocol params (ApiRules.protocol/2, @protocol_params)")
@@ -1710,7 +1710,11 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
   # what the VM loaded before.
   defp render({:map, pairs}), do: "%{#{Enum.map_join(pairs, ", ", fn {k, v} -> "#{key(k)} #{render(v)}" end)}}"
 
-  defp render({:protocol, params, field}), do: "Facade.protocol_type(#{inspect(params)}, #{inspect(field)})"
+  defp render({:protocol, params, field, []}), do: "Facade.protocol_type(#{inspect(params)}, #{inspect(field)})"
+
+  defp render({:protocol, params, field, unchecked}),
+    do: "Facade.protocol_type(#{inspect(params)}, #{inspect(field)}, #{inspect(unchecked)})"
+
   defp render(tuple) when is_tuple(tuple), do: "{#{tuple |> Tuple.to_list() |> Enum.map_join(", ", &render/1)}}"
   defp render(list) when is_list(list), do: "[#{Enum.map_join(list, ", ", &render/1)}]"
   defp render(term), do: inspect(term)

@@ -23,11 +23,18 @@ defmodule Playwright.Matchers.Expect do
       rebaseline (an empty snapshot, or any under `:all` or a mismatch under `:changed`) the
       matcher fails with the new snapshot in its message.
     * `:ignore_snapshots` - Skip the snapshot matchers. Defaults to `false`.
-    * `:to_pass` - Defaults of `Playwright.Expect.to_pass/2`, `%{timeout: 10_000, intervals: [1000]}`. Its timeout
-      defaults to `0`, no limit of its own (the test's timeout bounds it), not `:timeout`; `:infinity` is `0`.
-    * `:to_have_screenshot`, `:to_match_aria_snapshot` - Defaults for their options, maps with
-      the JS keys (`%{maxDiffPixels: 10}`, `%{children: "equal"}`), as upstream's config, and
-      their `pathTemplate` (see "Snapshots" in `Playwright.Test`).
+    * `:to_pass` - Defaults of `Playwright.Expect.to_pass/2`'s options, `[timeout: 10_000,
+      intervals: [1000]]`. Its timeout defaults to `0`, no limit of its own (the test's timeout
+      bounds it), not `:timeout`; `:infinity` is `0`.
+    * `:to_have_screenshot` - Defaults of `Playwright.Expect.to_have_screenshot/2`'s options, as
+      it names them: `:animations`, `:caret`, `:max_diff_pixels`, `:max_diff_pixel_ratio`,
+      `:scale`, `:style_path`, `:threshold` (`[max_diff_pixels: 10]`), and the config's own
+      `:type` (`:png` or `:webp`, of an unnamed snapshot) and `:path_template`
+      (see "Snapshots" in `Playwright.Test`).
+    * `:to_match_aria_snapshot` - `:children` (`:contain`, `:equal` or `:deep_equal`: the
+      `/children` mode of a snapshot that sets none) and `:path_template`.
+
+  The keys are upstream's config keys, snake_case; each takes a keyword list or a map.
   """
   @moduledoc """
   Port of `#{@upstream}`: how a matcher is called. The generated `Playwright.Expect` is
@@ -121,50 +128,97 @@ defmodule Playwright.Matchers.Expect do
   end
 
   @config_keys [:timeout, :update_snapshots, :ignore_snapshots, :to_have_screenshot, :to_match_aria_snapshot, :to_pass]
+  @update_snapshots [:all, :changed, :missing, :none, :default]
+  @update_snapshot_names Enum.map(@update_snapshots, &Atom.to_string/1)
 
-  # Elixir only: `config :playwright, :expect, ...` as an `ExpectConfig`.
+  # Elixir only: `config :playwright, :expect, ...` as an `ExpectConfig`, its keys and those of
+  # its matchers' options snake_case, as the matchers take them.
   @doc false
   def app_env_expect_config(env) do
-    env =
-      case Keyword.validate(env, @config_keys) do
-        {:ok, env} ->
-          env
+    env = Playwright.Application.config!(:expect, @config_keys, env)
 
-        {:error, unknown} ->
-          raise ArgumentError,
-                "config :playwright, :expect: unknown keys #{inspect(unknown)}, expected one of #{inspect(@config_keys)}"
-      end
+    label = "config :playwright, :expect"
+
+    # Upstream's `validateConfig` (`updateSnapshots`) and `validateProject` (`ignoreSnapshots`).
+    if !(env[:update_snapshots] in [nil | @update_snapshots] or env[:update_snapshots] in @update_snapshot_names),
+      do:
+        raise(
+          ArgumentError,
+          "#{label}: invalid value #{inspect(env[:update_snapshots])} for update_snapshots, expected one of " <>
+            Enum.map_join(@update_snapshots, ", ", &inspect/1)
+        )
+
+    if !(env[:ignore_snapshots] in [nil, true, false]),
+      do:
+        raise(
+          ArgumentError,
+          "#{label}: invalid value #{inspect(env[:ignore_snapshots])} for ignore_snapshots, expected a boolean"
+        )
 
     config = %{
       timeout: if(env[:timeout] == :infinity, do: 0, else: env[:timeout]),
       updateSnapshots: if(env[:update_snapshots] != nil, do: to_string(env[:update_snapshots])),
       ignoreSnapshots: env[:ignore_snapshots],
-      toHaveScreenshot: env[:to_have_screenshot],
-      toMatchAriaSnapshot: env[:to_match_aria_snapshot],
-      toPass: if(env[:to_pass] != nil, do: to_pass_config(env[:to_pass]))
+      toHaveScreenshot: matcher_config(env, :to_have_screenshot),
+      toMatchAriaSnapshot: matcher_config(env, :to_match_aria_snapshot),
+      toPass: matcher_config(env, :to_pass)
     }
 
     Map.merge(@default_expect_config, Map.reject(config, fn {_key, value} -> value == nil end))
   end
 
-  @to_pass_keys [:timeout, :intervals]
+  # Upstream's config keys of each matcher (`packages/playwright/types/test.d.ts`): options of the
+  # matcher, which `Playwright.Expect`'s schema converts, and keys of the config only.
+  @matcher_config %{
+    to_have_screenshot:
+      {[:animations, :caret, :max_diff_pixels, :max_diff_pixel_ratio, :scale, :style_path, :threshold],
+       [:type, :path_template]},
+    to_match_aria_snapshot: {[], [:path_template, :children]},
+    to_pass: {[:timeout, :intervals], []}
+  }
 
-  defp to_pass_config(to_pass) do
-    pairs = if is_map(to_pass), do: Map.to_list(to_pass), else: to_pass
+  defp matcher_config(env, key) do
+    label = "config :playwright, :expect, #{inspect(key)}"
+    {option_keys, config_keys} = Map.fetch!(@matcher_config, key)
 
-    case Keyword.keyword?(pairs) && Keyword.validate(pairs, @to_pass_keys) do
-      {:ok, pairs} ->
-        Map.new(pairs, fn
-          {:timeout, :infinity} -> {:timeout, 0}
-          pair -> pair
-        end)
+    case env[key] do
+      nil ->
+        nil
 
-      _ ->
-        raise ArgumentError,
-              "config :playwright, :expect, :to_pass: expected a keyword list or map with the keys " <>
-                "#{inspect(@to_pass_keys)}, got: #{inspect(to_pass)}"
+      options when is_list(options) or (is_map(options) and not is_struct(options)) ->
+        options = Enum.to_list(options)
+
+        if !Keyword.keyword?(options),
+          do:
+            raise(ArgumentError, "#{label}: expected a keyword list or a map with atom keys, got: #{inspect(env[key])}")
+
+        allowed = option_keys ++ config_keys
+
+        options = Playwright.Application.options!(label, options, allowed, "key")
+
+        {options, config_only} = Keyword.split(options, option_keys)
+
+        options
+        |> Playwright.Runtime.Facade.options!(Playwright.Expect.__options_type__(key), label)
+        |> Map.merge(Map.new(config_only, fn {name, value} -> config_value!(label, name, value) end))
+
+      other ->
+        raise ArgumentError, "#{label}: expected a keyword list or a map with atom keys, got: #{inspect(other)}"
     end
   end
+
+  # Only the screenshot's `type` is checked, as upstream's `validateProject`; the others pass
+  # as given, an atom `children` as its wire string (`:deep_equal` is `"deep-equal"`).
+  defp config_value!(_label, :path_template, template), do: {:pathTemplate, template}
+  defp config_value!(_label, :type, type) when type in [:png, :webp, "png", "webp"], do: {:type, to_string(type)}
+
+  defp config_value!(label, :type, type),
+    do: raise(ArgumentError, "#{label}: invalid value #{inspect(type)} for type, expected one of :png, :webp")
+
+  defp config_value!(_label, :children, children) when is_atom(children) and children != nil,
+    do: {:children, children |> to_string() |> String.replace("_", "-")}
+
+  defp config_value!(_label, :children, children), do: {:children, children}
 
   @default_expect_timeout 5000
 

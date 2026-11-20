@@ -48,9 +48,8 @@ defmodule Playwright.Root do
             else: []
 
         raise ArgumentError,
-              "unknown device #{inspect(name)}" <>
-                if(closest == [], do: "", else: ", did you mean #{Enum.map_join(closest, ", ", &inspect/1)}?") <>
-                " (the docs of Playwright.devices/0 list the names)"
+              "Playwright.device/1: unknown device, expected a name of Playwright.devices/0, got: #{inspect(name)}" <>
+                if(closest == [], do: "", else: ". Did you mean #{Enum.map_join(closest, ", ", &inspect/1)}?")
     end
   end
 
@@ -99,9 +98,7 @@ defmodule Playwright.Root do
           context = Browser.new_context!(browser, iphone)
 
       Upstream's `{ ...devices['iPhone 13'], viewport: { width: 800, height: 600 } }` is
-      `Keyword.merge(iphone, viewport: %{width: 800, height: 600})`: the later options override
-      the device's. `++` is only for keys the device doesn't have: `use Playwright.Test`,
-      `Playwright.Test.use/1` and `Playwright.Test.parameters/1` raise for a duplicated key.
+      `iphone ++ [viewport: %{width: 800, height: 600}]`: a later key wins, as in JS's spread.
 
       It needs no driver, so it works at compile time. A name that isn't a device's gives
       `nil`, which `context_options:` rejects: `device/1` raises instead, naming the closest.

@@ -30,13 +30,14 @@ defmodule Playwright.Test.TestInfo do
 
   @doc """
   The test's fields: `test_pid`, `file`, `test_name` (`titlePath.slice(1).join(' ')`), `retry`
-  (`retry/2`) and `output_dir` (under `root`, config `output_dir`, with the retry's suffix).
+  (`retry/2`), `output_dir` (under `root`, config `output_dir`, with the retry's suffix) and
+  `project_name` (`project.name`: its `parameters`' `Playwright.Test.parameters/1` name, else `""`).
   """
   def new(context, root, parameters \\ nil) do
     %{module: module, file: file} = context
     parameters = parameters || elem(test_sources(context), 0)
     dir = Path.expand(output_dir(root, file, test_name(context), module, parameters))
-    retry = retry(dir)
+    retry = retry()
 
     %{
       test_pid: context.test_pid,
@@ -45,9 +46,16 @@ defmodule Playwright.Test.TestInfo do
       retry: retry,
       # `if (this.retry) testOutputDir += '-retry' + this.retry`.
       output_dir: if(retry > 0, do: "#{dir}-retry#{retry}", else: dir),
+      project_name: project_name(parameters),
       # `nextStepId = createCallIdGenerator()`: its prefix.
       step_id_prefix: for(_ <- 1..4, into: "", do: <<Enum.random(?a..?z)>>)
     }
+  end
+
+  @doc "Upstream's `project.name` of `parameters`: its project's (`Playwright.Test.parameters/1`), else `\"\"`."
+  def project_name(parameters) do
+    project = Playwright.Test.Options.project(parameters)
+    (project && project.name) || ""
   end
 
   # `_tracing`: the test's recorder, if it records artifacts.
@@ -158,46 +166,25 @@ defmodule Playwright.Test.TestInfo do
   def test_dir, do: Path.join(File.cwd!(), "test")
 
   @doc """
-  Upstream's `testInfo.retry` of the test whose output dir is `dir` (`output_dir/1`'s). ExUnit
-  has no retries, so a test under `mix test --failed` (ExUnit's `only_test_ids`) is the retry
-  after the ones it has dirs of, `<dir>-retry1` for none; any other run's is 0.
+  Upstream's `testInfo.retry`. ExUnit has no retries, so a test under `mix test --failed`
+  (ExUnit's `only_test_ids`) is retry 1, the rerun of a failure; any other run's is 0.
   """
   # deviation: upstream's retries run in the run of the failure, after its outputDir was cleared.
-  def retry(dir, only_test_ids \\ ExUnit.configuration()[:only_test_ids])
-  def retry(_dir, nil), do: 0
-  def retry(dir, _only_test_ids), do: Enum.max(Map.keys(retry_dirs(dir)), fn -> 0 end) + 1
+  def retry(only_test_ids \\ ExUnit.configuration()[:only_test_ids])
+  def retry(nil), do: 0
+  def retry(_only_test_ids), do: 1
 
   @doc """
   Deletes the test's output dir before it runs (workerMain.ts's `removeFolders([testInfo.outputDir])`),
-  and a first run's (retry 0) `-retryN` dirs too: upstream deletes all of `outputDir` at the
-  start of a run (`createRemoveOutputDirsTask`), here the dirs of the tests that run.
+  and a first run's `-retry1` dir too: upstream deletes all of `outputDir` at the start of a run
+  (`createRemoveOutputDirsTask`), here the dirs of the tests that run.
   """
   def remove_output_dirs(this) do
     # deviation: the dirs of tests not run stay, for `mix test --failed`, which needs the
-    # failures' dirs of the run before.
-    if this.retry == 0, do: for({_retry, dir} <- retry_dirs(this.output_dir), do: File.rm_rf(dir))
-    # `removeFolders` ignores errors.
+    # failures' dirs of the run before. `removeFolders` ignores errors.
+    if this.retry == 0, do: File.rm_rf(this.output_dir <> "-retry1")
     File.rm_rf(this.output_dir)
     :ok
-  end
-
-  # `%{retry => dir}` of the `<dir>-retryN` dirs: a test's dirs, as no other test's ends so
-  # (its dir ends in a hash).
-  defp retry_dirs(dir) do
-    prefix = Path.basename(dir) <> "-retry"
-
-    case File.ls(Path.dirname(dir)) do
-      {:ok, names} ->
-        for name <- names,
-            String.starts_with?(name, prefix),
-            retry = String.replace_prefix(name, prefix, ""),
-            retry =~ ~r/^[1-9][0-9]*$/,
-            into: %{},
-            do: {String.to_integer(retry), Path.join(Path.dirname(dir), name)}
-
-      {:error, _} ->
-        %{}
-    end
   end
 
   @doc "A test file relative to `test_dir/0`, else to the working directory: the output dir's name."
@@ -818,7 +805,8 @@ defmodule Playwright.Test.TestInfo do
 
   @doc "`_getOutputPath`: the path of `path_segments` in the test's output dir, which it must stay in."
   def _get_output_path(this, path_segments) do
-    joined_path = Path.join(path_segments)
+    # `path.join()` of none is `.`.
+    joined_path = if path_segments == [], do: ".", else: Path.join(path_segments)
 
     case get_contained_path(this.output_dir, joined_path) do
       nil ->
@@ -947,14 +935,14 @@ defmodule Playwright.Test.TestInfo do
     end
   end
 
-  @doc "`_applyPathTemplate`. There are no projects: `{projectName}` is empty, as upstream's default project's."
+  @doc "`_applyPathTemplate`."
   def _apply_path_template(this, template, name_argument, ext) do
     # `path.relative(testDir, file)`: `../integration/...` for a file of another `test_paths` dir.
     relative_test_file_path = Path.relative_to(this.file, test_dir(), force: true)
     parsed_dir = if Path.dirname(relative_test_file_path) == ".", do: "", else: Path.dirname(relative_test_file_path)
     parsed_base = Path.basename(relative_test_file_path)
     parsed_name = Path.rootname(parsed_base)
-    project_name_path_segment = sanitize_for_file_path("")
+    project_name_path_segment = sanitize_for_file_path(this.project_name)
     snapshot_suffix = snapshot_suffix()
     snapshot_dir = Path.expand(Playwright.Test.Options.snapshot_dir() || test_dir())
 

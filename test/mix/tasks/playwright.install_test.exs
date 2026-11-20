@@ -19,9 +19,9 @@ defmodule Mix.Tasks.Playwright.InstallTest do
       assert Install.parse_args(~w(--force)) == {true, true, ~w(--force)}
     end
 
-    test "doesn't reinstall the driver when upstream installs nothing" do
+    test "--force reinstalls the driver whatever else is given" do
       for flag <- ~w(--dry-run --list --help -h) do
-        assert Install.parse_args(["--force", "chromium", flag]) == {true, false, ["--force", "chromium", flag]}
+        assert Install.parse_args(["--force", "chromium", flag]) == {true, true, ["--force", "chromium", flag]}
       end
     end
 
@@ -46,9 +46,11 @@ defmodule Mix.Tasks.Playwright.InstallTest do
   test "a failed browser install raises with the exit status" do
     output =
       capture_io(fn ->
-        assert_raise Mix.Error, ~r/^playwright install failed with exit status [1-9]/, fn ->
-          Install.run(["no-such-browser"])
-        end
+        assert_raise Mix.Error,
+                     ~r/^Playwright.Driver.install_browsers\/2: playwright install failed, expected exit status 0, got: [1-9]/,
+                     fn ->
+                       Install.run(["no-such-browser"])
+                     end
       end)
 
     assert output =~ "no-such-browser"

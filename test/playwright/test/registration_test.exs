@@ -132,7 +132,10 @@ defmodule Playwright.Test.RegistrationTest do
     spawn(fn -> send(test_pid, {:raised, catch_error(Playwright.Test.info())}) end)
 
     assert_receive {:raised,
-                    %RuntimeError{message: "Playwright.Test.info() can only be called while a test or its module" <> _}}
+                    %RuntimeError{
+                      message:
+                        "Playwright.Test.info/0 can only be called while test or its module's setup_all is running"
+                    }}
   end
 
   # Upstream's `testInfo.timeout`: ExUnit's timeout of the test, none (`:infinity`) under `--trace`.
@@ -148,30 +151,28 @@ defmodule Playwright.Test.RegistrationTest do
     assert Playwright.Test.info(self()).timeout == Playwright.Test.info().timeout
   end
 
-  # ExUnit's kill time: the test's start (its first setup callback) plus its timeout. And the
-  # contexts' close before it, upstream's internal `testInfo._deadline()`. The same from any
-  # process.
+  # Upstream's internal `testInfo._deadline()`: the contexts' close, `min(1000, timeout / 20)` ms
+  # before ExUnit's kill time (the test's start, its first setup callback, plus its timeout).
+  # The same from any process.
   @tag timeout: 12_345
-  test "info: the deadline is the test's start plus its timeout, the contexts close before it" do
-    %{deadline: deadline, close_deadline: close_deadline} = Playwright.Test.info()
+  test "info: the deadline is the test's start plus its timeout, less the contexts' close margin" do
+    %{deadline: deadline} = info = Playwright.Test.info()
+    refute Map.has_key?(info, :close_deadline)
 
     if ExUnit.configuration()[:trace] do
       assert deadline == :infinity
-      assert close_deadline == :infinity
     else
       now = System.monotonic_time(:millisecond)
-      assert deadline > now and deadline <= now + 12_345
       # `min(1000, 12_345 / 20)`
-      assert close_deadline == deadline - 617
-      info = Task.await(Task.async(fn -> Playwright.Test.info() end))
-      assert {info.deadline, info.close_deadline} == {deadline, close_deadline}
-      assert Playwright.Test.info(self()).close_deadline == close_deadline
+      assert deadline > now and deadline <= now + 12_345 - 617
+      assert Task.await(Task.async(fn -> Playwright.Test.info() end)).deadline == deadline
+      assert Playwright.Test.info(self()).deadline == deadline
     end
   end
 
   @tag timeout: :infinity
   test "info: no deadline without a timeout" do
-    assert %{deadline: :infinity, close_deadline: :infinity} = Playwright.Test.info()
+    assert %{deadline: :infinity} = Playwright.Test.info()
   end
 
   test "in_registered_scope?: in the test and its Tasks, not in other processes" do
@@ -187,7 +188,16 @@ defmodule Playwright.Test.RegistrationTest do
     on_exit(fn -> File.rm_rf!(dir) end)
     assert Playwright.Test.output_path("export.csv") == Path.join(dir, "export.csv")
     assert File.dir?(dir)
-    assert_raise ArgumentError, ~r/outside of the output dir/, fn -> Playwright.Test.output_path("../export.csv") end
+
+    assert Playwright.Test.output_path(["sub", "export.csv"]) == Path.join([dir, "sub", "export.csv"])
+    assert Playwright.Test.output_path("") == dir
+    # `path.join()` of none.
+    assert Playwright.Test.output_path([]) == dir
+
+    # Upstream's message.
+    assert_raise RuntimeError, ~r/^The outputPath is not allowed outside of the parent directory/, fn ->
+      Playwright.Test.output_path("../export.csv")
+    end
   end
 
   test "with every artifact off, nothing is written and no recorder runs for a test without contexts" do
@@ -317,7 +327,7 @@ defmodule Playwright.Test.RegistrationTest.LateTest do
         try do
           Playwright.Test.__setup__(%{test_pid: self()})
         rescue
-          e in ArgumentError -> e.message
+          e in RuntimeError -> e.message
         end
 
       Playwright.BrowserContext.close!(context)
@@ -345,7 +355,7 @@ defmodule Playwright.Test.RegistrationTest.LateTest do
         try do
           Playwright.Test.__setup_all__(%{module: __MODULE__})
         rescue
-          e in ArgumentError -> e.message
+          e in RuntimeError -> e.message
         end
 
       Playwright.BrowserContext.close!(context)
@@ -365,7 +375,7 @@ defmodule Playwright.Test.RegistrationTest.LateTest do
   test "a browser before the registration makes it raise, with the fix" do
     Playwright.Test.BrowserPool.browser()
 
-    message = assert_raise(ArgumentError, fn -> Playwright.Test.__setup__(%{test_pid: self()}) end).message
+    message = assert_raise(RuntimeError, fn -> Playwright.Test.__setup__(%{test_pid: self()}) end).message
 
     assert message =~
              "this test fetched a browser (`BrowserPool.browser/1`) or created a context before `use Playwright.Test` registered it"
@@ -377,7 +387,7 @@ defmodule Playwright.Test.RegistrationTest.LateTest do
   test "a browser of setup_all before the module's registration makes it raise, with the fix" do
     Playwright.Test.BrowserPool.browser()
 
-    message = assert_raise(ArgumentError, fn -> Playwright.Test.__setup_all__(%{module: __MODULE__}) end).message
+    message = assert_raise(RuntimeError, fn -> Playwright.Test.__setup_all__(%{module: __MODULE__}) end).message
 
     assert message =~
              "this module's setup_all fetched a browser (`BrowserPool.browser/1`) or created a context before `use Playwright.Test` registered it"
@@ -389,7 +399,7 @@ defmodule Playwright.Test.RegistrationTest.LateTest do
   test "a second early call keeps one note and one error" do
     context = Playwright.Browser.new_context!(Playwright.Test.BrowserPool.browser())
     on_exit(fn -> Playwright.BrowserContext.close!(context) end)
-    message = assert_raise(ArgumentError, fn -> Playwright.Test.__setup__(%{test_pid: self()}) end).message
+    message = assert_raise(RuntimeError, fn -> Playwright.Test.__setup__(%{test_pid: self()}) end).message
 
     assert message =~
              "this test fetched a browser (`BrowserPool.browser/1`) or created a context before `use Playwright.Test` registered it"
