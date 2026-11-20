@@ -431,6 +431,8 @@ defmodule Playwright.Test do
     * Each attempt of `Playwright.Expect.poll/3` is its assertion's own steps, under the poll's
       step (as upstream's attempts are its matcher's): an assertion that isn't one of these
       `assert`s (ExUnit's, or a raise of its own) leaves no attempt step when it passes.
+    * A failed assertion's expression shows a capture's argument as ExUnit's error has it
+      (`_& == 2` for `&assert(&1 == 2)`); a passed one's is `&1 == 2`.
 
   ## Config
 
@@ -485,8 +487,6 @@ defmodule Playwright.Test do
   @reraised {__MODULE__, :reraised}
   # When the test's first `setup` callback ran (`__started__/1`), in its process.
   @started {__MODULE__, :started}
-  # The arity of the capture of the latest assertion in one (`code_string/1`).
-  @capture_arity {__MODULE__, :capture_arity}
   @assertion_titles Map.new(
                       [:assert, :refute],
                       &{&1, "Expect #{Playwright.Isomorphic.StringUtils.escape_with_quotes(to_string(&1), "\"")}"}
@@ -502,6 +502,8 @@ defmodule Playwright.Test do
       # its import replaced ExUnit.Case's `test`.
       {:test, 3} in Keyword.get(macros, ExUnit.Case, []) or {:test, 3} in Keyword.get(macros, __MODULE__, []) ->
         {assert_steps, opts} = assert_steps!(opts, __CALLER__)
+        # At expansion, for a later `use` in the module (`assert_steps!/2`) and `__before_compile__/1`.
+        Module.put_attribute(__CALLER__.module, :playwright_assert_steps, assert_steps)
 
         imports =
           if assert_steps do
@@ -521,7 +523,6 @@ defmodule Playwright.Test do
           import ExUnit.Case, only: [describe: 2]
           unquote(imports)
           require Playwright.Test
-          @playwright_assert_steps unquote(assert_steps)
 
           if Playwright.Test.__use__(__MODULE__, unquote(opts)) do
             Playwright.Test.__clock__(__MODULE__)
@@ -605,9 +606,9 @@ defmodule Playwright.Test do
         raise ArgumentError,
               "use Playwright.Test: invalid value #{Macro.to_string(given)} for assert_steps, expected a literal boolean"
 
-      # An earlier `use`'s (a case template's `using`), as the other options merge: its import.
-      {:test, 3} in Keyword.get(caller.macros, __MODULE__, []) ->
-        {{:assert, 1} in Keyword.get(caller.macros, __MODULE__, []), opts}
+      # An earlier `use`'s (a case template's `using`), as the other options merge.
+      is_boolean(earlier = Module.get_attribute(caller.module, :playwright_assert_steps)) ->
+        {earlier, opts}
 
       true ->
         # A `nil` key is unset: its default, as `config/0` reads it.
@@ -745,15 +746,7 @@ defmodule Playwright.Test do
     {:ok, env} = Macro.Env.define_require(caller, [], ExUnit.Assertions)
     expansion = Macro.expand_once(quote(do: ExUnit.Assertions.unquote(kind)(unquote(assertion))), env)
 
-    # A capture's arity, for the source of its failed assertion's step (`code_string/1`).
-    arity =
-      case capture_arity(assertion) do
-        0 -> nil
-        arity -> quote(do: Process.put(unquote(@capture_arity), unquote(arity)))
-      end
-
     quote do
-      unquote(arity)
       value = unquote(expansion)
       Playwright.Test.__assertion__(unquote(kind), unquote(code), nil, nil, unquote(right_var(expansion)))
       value
@@ -762,33 +755,14 @@ defmodule Playwright.Test do
 
   # Elixir only: the assertion's source, a capture's argument as written (`&1`, not its variable,
   # `_&`), as in `Expect.poll!(fn, &assert(&1 == 2))`. A failed one's `expr` has no metadata (no
-  # `capture:` index): its capture variables are `&1` if its capture has one argument (as the
-  # assertion noted before it ran, `plain_assertion_ast/3`), else stay ExUnit's `_&`.
+  # `capture:` index): it keeps ExUnit's `_&`.
   defp code_string(quoted) do
     quoted
     |> Macro.prewalk(fn
-      {:"_&", meta, :elixir_fn} = var ->
-        cond do
-          index = meta[:capture] -> {:&, [], [index]}
-          Process.get(@capture_arity) == 1 -> {:&, [], [1]}
-          true -> var
-        end
-
-      node ->
-        node
+      {:"_&", meta, :elixir_fn} = var -> if index = meta[:capture], do: {:&, [], [index]}, else: var
+      node -> node
     end)
     |> Macro.to_string()
-  end
-
-  # The highest capture argument (`&2`) of `quoted`, 0 for none.
-  defp capture_arity(quoted) do
-    {_quoted, arity} =
-      Macro.prewalk(quoted, 0, fn
-        {:"_&", meta, :elixir_fn} = var, arity -> {var, max(arity, meta[:capture] || 0)}
-        node, arity -> {node, arity}
-      end)
-
-    arity
   end
 
   # The `right` ExUnit's expansion binds in the caller's scope: `right = ...` at the top of its

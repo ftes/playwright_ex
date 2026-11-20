@@ -399,8 +399,12 @@ defmodule Playwright.Test.AssertionsTest do
       attempts = for %{"parentId" => id} = event <- befores(events), id == poll["callId"], do: event
       assert [failed, passed] = attempts
 
+      # A failed one's expression as ExUnit's error has it.
+      assert failed["params"]["expression"] == "_& == 2"
+      assert passed["params"]["expression"] == "&1 == 2"
+
       for attempt <- attempts do
-        assert %{"title" => ~s(Expect "assert"), "params" => %{"expression" => "&1 == 2", "expected" => "2"}} = attempt
+        assert %{"title" => ~s(Expect "assert"), "params" => %{"expected" => "2"}} = attempt
         assert located_at(attempt, "Expect.poll!(")
         refute Enum.any?(befores(events), &(&1["parentId"] == attempt["callId"]))
       end
@@ -505,5 +509,16 @@ defmodule Playwright.Test.AssertionsOptOutTest do
     assert_raise ArgumentError, ~r"^use Playwright.Test: assert_steps must be a literal boolean", fn ->
       Playwright.Test.Options.use_options(assert_steps: false)
     end
+  end
+end
+
+defmodule Playwright.Test.AssertionsImportTest do
+  # A module's own `import Playwright.Test` before its `use`: the config's default.
+  use ExUnit.Case, async: true
+  import Playwright.Test, only: [test: 3], warn: false
+  use Playwright.Test
+
+  test "assert and refute are this module's" do
+    assert Macro.Env.lookup_import(__ENV__, {:assert, 1}) == [macro: Playwright.Test]
   end
 end
