@@ -655,6 +655,15 @@ defmodule Playwright.Test.ContextOptionsTest.DeviceBrowserTest do
 
     assert Options.browser_name(Options.config()) == :firefox
     assert Options.context_options().userAgent == Playwright.device("Desktop Firefox")[:user_agent]
+
+    # The later of a duplicated key: a `nil` one unsets it.
+    Application.put_env(
+      :playwright,
+      :test,
+      [browser_name: :webkit, browser_name: nil] ++ Playwright.device("Desktop Firefox")
+    )
+
+    assert Options.browser_name(Options.config()) == :firefox
   end
 
   test "the config takes a device as it is" do

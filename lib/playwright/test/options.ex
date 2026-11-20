@@ -427,7 +427,10 @@ defmodule Playwright.Test.Options do
   """
   def browser_name(config \\ config(), project \\ %{}, module \\ %{}) do
     env = Application.get_env(:playwright, :test, [])
-    configured = if Keyword.keyword?(env) and env[:browser_name] != nil, do: config.browser_name
+    # The later of a duplicated key, as `config/0` takes it.
+    configured =
+      if Keyword.keyword?(env) and Playwright.Application.later_wins(env)[:browser_name] != nil,
+        do: config.browser_name
 
     module[:browser_name] || project[:browser_name] || configured || module[:default_browser_type] ||
       project[:default_browser_type] || config[:default_browser_type] || config.browser_name
@@ -499,9 +502,9 @@ defmodule Playwright.Test.Options do
   def test_id_attribute, do: config()[:test_id_attribute]
 
   # Option lists merge one level deep (`launch_options: [slow_mo: 50]` keeps the config's
-  # `headless`).
+  # `headless`). The call's is checked first, so its error names the function.
   defp merge_value(key, config, value) when key in [:launch_options, :driver],
-    do: Keyword.merge(to_keyword(key, config), to_keyword(key, value))
+    do: Keyword.merge(to_keyword(key, config), validate!(key, value, @pool_label))
 
   defp merge_value(_key, _config, value), do: value
 
