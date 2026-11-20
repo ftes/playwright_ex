@@ -88,19 +88,21 @@ status 2 into 1, so the retry never fires. In CI, with `--partitions` and annota
 [Annotations](debugging-and-ci.md#annotations).
 
 <!-- remove with Elixir 1.21: ftes/playwright_ex#319 -->
-On Elixir 1.20 and earlier (remove this once the minimum Elixir is 1.21), `--failed` loses two
-kinds of failure, so the retry can pass, or find nothing to run and exit 0:
+On Elixir 1.20 and earlier, `--failed` loses two kinds of failure, so the retry can pass, or
+find nothing to run and exit 0:
 
-- A project's failure in a `parameterize:` module ([Projects](test-options.md#projects)): the
-  failures manifest keys a test by its module and name, and the last result wins, so the same
-  test passing in a project that finishes later erases it. Fixed in Elixir 1.21
+- A failure in a `parameterize:` module ([Projects](test-options.md#projects)): the failures
+  manifest keys a test by its module and name, and the last result wins, so the same test
+  passing with another parameter set (a project, or a parameter list of your own) that finishes
+  later erases it. Fixed in Elixir 1.21
   ([elixir-lang/elixir#15820](https://github.com/elixir-lang/elixir/issues/15820)).
 - A `setup_all`'s `on_exit` that fails after its tests passed. Fixed in Elixir 1.21
   ([elixir-lang/elixir@0f654791](https://github.com/elixir-lang/elixir/commit/0f654791)).
 
-Run one project per `mix test`, so a test's name is unique in the run (a CI matrix, or a loop
-over the env var the project list reads), and retry right after each run. This bash `retry`
-fails the job when a failed run's retry finds nothing to rerun; it catches only the total loss:
+Run one project per `mix test` (a CI matrix, or a loop over the env var the project list reads),
+and retry right after each run. That removes only the project dimension: a module's other
+parameter lists in one run can still lose failures. This bash `retry` fails the job when a failed
+run's retry finds nothing to rerun, the total loss:
 
 ```bash
 retry() {
@@ -113,7 +115,8 @@ retry() {
 
 status=0
 for project in "Desktop Chrome" "Desktop Firefox"; do
-  PROJECTS="$project" mix test || { [ $? -eq 2 ] && retry; } || status=1
+  export PROJECTS="$project"
+  mix test || { [ $? -eq 2 ] && retry; } || status=1
 done
 exit $status
 ```
