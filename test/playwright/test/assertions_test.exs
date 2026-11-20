@@ -9,6 +9,19 @@ defmodule Playwright.Test.AssertionsTest.Helper do
   end
 end
 
+defmodule Playwright.Test.AssertionsTest.OwnOperator do
+  # An `==` that isn't Kernel's, which ExUnit's `assert` doesn't translate (no `right`).
+  import Kernel, except: [==: 2]
+  import Playwright.Test, only: [assert: 1]
+
+  def left == right, do: Kernel.==(left, right)
+
+  def check(value) do
+    assert value == :ok
+    true
+  end
+end
+
 defmodule Playwright.Test.AssertionsTest do
   # `use Playwright.Test`'s `assert` and `refute`: ExUnit's, each also an `expect` step of the
   # test's `test.trace`. A failure in the test's body as ExUnit reports it: `Playwright.Test.EndToEndTest`.
@@ -133,54 +146,66 @@ defmodule Playwright.Test.AssertionsTest do
     error in ExUnit.AssertionError -> %{error: error, stacktrace: __STACKTRACE__}
   end
 
-  test "a failed one is a step with its error, once, in the step that caught it; again when it fails again" do
+  test "a failed one is a step where its error ends, the test's catch, with its error; none if rescued" do
     on_trace(fn events ->
-      [outer | _] = for %{"title" => "outer"} = event <- befores(events), do: event
-      inners = for %{"title" => "inner"} = event <- befores(events), do: event
-      failed = for %{"title" => ~s(Expect "assert")} = event <- befores(events), do: event
-      assert [first, again, other] = failed
+      assert [failed, other, refuted, messaged] = Enum.filter(befores(events), &(&1["method"] == "expect"))
+      refute Map.has_key?(failed, "parentId")
+      assert %{"params" => %{"expression" => "Process.get(:attempt) == 2", "expected" => "2"}} = failed
+      assert located_at(failed, "assert Process.get(:attempt) == 2")
+      assert after_of(events, failed)["error"]["message"] =~ "Assertion with == failed"
 
-      assert Enum.map([first, again], & &1["parentId"]) == Enum.map(inners, & &1["callId"])
-      assert hd(inners)["parentId"] == outer["callId"]
-      assert %{"params" => %{"expression" => "Process.get(:attempt) == 2"}} = first
-      assert located_at(first, "assert Process.get(:attempt) == 2")
-      assert after_of(events, first)["error"]["message"] =~ "Assertion with == failed"
-      assert after_of(events, hd(inners))["error"]["message"] == after_of(events, first)["error"]["message"]
-      assert after_of(events, outer)["error"]
-      assert after_of(events, again)["error"]
-
-      assert %{"params" => %{"expression" => "String.length(string) > 1"}} = other
+      assert %{"params" => %{"expression" => "String.length(string) > 1", "expected" => "1"}} = other
       assert located_at(other, "ExUnit.Assertions.assert(String.length(string) > 1)")
       assert after_of(events, other)["error"]["message"] =~ "Assertion with > failed"
 
-      assert %{"title" => ~s(Expect "refute")} = refuted = before(events, ~s(Expect "refute"))
+      assert %{"title" => ~s(Expect "refute")} = refuted
       assert located_at(refuted, ~s(refute "x" =~ "x"))
       assert after_of(events, refuted)["error"]["message"] =~ "Refute with =~ failed"
 
-      assert %{"params" => %{"expression" => "false"}} = messaged = before(events, "never")
+      # `assert/2`'s own `try` records it, in its step, rescued or not.
+      assert %{"title" => "never", "params" => %{"expression" => "false"}} = messaged
+      assert messaged["parentId"] == before(events, "with a message")["callId"]
       assert located_at(messaged, ~s(assert false, "never"))
       assert after_of(events, messaged)["error"]["message"] =~ "never"
     end)
 
     Process.put(:attempt, 1)
 
-    for _attempt <- 1..2 do
-      assertion_error(fn ->
-        Test.step "outer" do
-          Test.step "inner" do
-            assert Process.get(:attempt) == 2
-          end
+    # As the test's catch (`__failed__/3`) records it: nested steps fail with it, it ends there.
+    test_failure(fn ->
+      Test.step "outer" do
+        Test.step "inner" do
+          assert Process.get(:attempt) == 2
         end
-      end)
-    end
+      end
+    end)
 
-    assertion_error(fn -> Test.step("other", fn -> helper_assert("x") end) end)
-    assertion_error(fn -> Test.step("refutes", fn -> refute "x" =~ "x" end) end)
-    assertion_error(fn -> Test.step("with a message", fn -> assert false, "never" end) end)
+    # Rescued by the test itself: no step.
+    assertion_error(fn -> Test.step("rescued", fn -> assert 1 == 2 end) end)
+    test_failure(fn -> Test.step("other", fn -> helper_assert("x") end) end)
+    test_failure(fn -> Test.step("refutes", fn -> refute "x" =~ "x" end) end)
+    test_failure(fn -> Test.step("with a message", fn -> assert false, "never" end) end)
+  end
+
+  # A failure of `fun`, recorded as the test's catch records it (`Playwright.Test.__failed__/3`).
+  defp test_failure(fun) do
+    error =
+      try do
+        fun.()
+        nil
+      catch
+        kind, reason -> {kind, reason, __STACKTRACE__}
+      end
+
+    Playwright.Test.__assertion_error__(TestInfo.current(), error || flunk("passed"))
   end
 
   # A helper module's assertion, without the import: its failure is a step too.
-  defp helper_assert(string), do: ExUnit.Assertions.assert(String.length(string) > 1)
+  # Not a tail call, so its frame is in the stacktrace on each OTP.
+  defp helper_assert(string) do
+    ExUnit.Assertions.assert(String.length(string) > 1)
+    :ok
+  end
 
   test "match?: one step each, passed or failed" do
     on_trace(fn events ->
@@ -197,27 +222,7 @@ defmodule Playwright.Test.AssertionsTest do
     ok = Process.get(:not_set, {:ok, 1})
     assert match?({:ok, _}, ok)
     refute match?({:error, _}, ok)
-    assertion_error(fn -> Test.step("refutes", fn -> refute match?({:ok, _}, ok) end) end)
-  end
-
-  test "a failed one is recorded once, also when a step runs while its error is raised on" do
-    on_trace(fn events ->
-      assert [failed] = for(%{"title" => ~s(Expect "assert")} = event <- befores(events), do: event)
-      assert failed["parentId"] == before(events, "inner")["callId"]
-      assert before(events, "while raised on")["parentId"] == before(events, "outer")["callId"]
-    end)
-
-    assertion_error(fn ->
-      Test.step "outer" do
-        try do
-          Test.step("inner", fn -> assert 1 == 2 end)
-        rescue
-          error ->
-            Test.step("while raised on", fn -> :screenshot end)
-            reraise error, __STACKTRACE__
-        end
-      end
-    end)
+    test_failure(fn -> refute match?({:ok, _}, ok) end)
   end
 
   test "a failed one in a to_pass attempt is a step of the toPass step, each attempt's" do
@@ -236,12 +241,138 @@ defmodule Playwright.Test.AssertionsTest do
     Expect.to_pass!(fn -> assert Agent.get_and_update(agent, &{&1, &1 + 1}) >= 2 end, intervals: [0])
   end
 
+  test "a to_pass or poll that times out records its attempts' failed asserts, not again at the test's level" do
+    on_trace(fn events ->
+      to_pass = before(events, ~s(Expect "toPass"))
+      attempts = for %{"parentId" => id} = event <- befores(events), id == to_pass["callId"], do: event
+      assert [_ | _] = attempts
+      assert Enum.all?(attempts, &(&1["title"] == ~s(Expect "assert") and after_of(events, &1)["error"]))
+      # Each failed `assert` is an attempt's, or the poll's matcher (no step of its own).
+      assert Enum.filter(befores(events), &(&1["title"] == ~s(Expect "assert"))) |> Enum.all?(& &1["parentId"])
+    end)
+
+    test_failure(fn -> Expect.to_pass!(fn -> assert 1 == 2 end, intervals: [10], timeout: 50) end)
+    test_failure(fn -> Expect.poll!(fn -> 1 end, &assert(&1 == 2), intervals: [10], timeout: 50) end)
+  end
+
   test "a helper module with the import alone records its passed assertions" do
     on_trace(fn events ->
       assert [~s(Expect "assert"), ~s(Expect "refute")] = Enum.map(befores(events), & &1["title"])
     end)
 
     Playwright.Test.AssertionsTest.Helper.check(:ok)
+  end
+
+  test "the right side ExUnit binds is the step's expected, evaluated once, as upstream's toEqual(expected)" do
+    on_trace(fn events ->
+      params = for %{"method" => "expect"} = event <- befores(events), do: event["params"]
+
+      assert params == [
+               %{"expression" => "next.() < next.()", "expected" => "2"},
+               %{"expression" => "Agent.get(agent, & &1) == 2", "expected" => "2"},
+               %{"expression" => "length([1, 2]) != 3", "expected" => "3"},
+               %{"expression" => "\"abc\" =~ ~r/b/", "expected" => "Object"},
+               %{"expression" => "[1, 2] == [1, 2]", "expected" => "[1, 2]"},
+               %{"expression" => "1 + 1 == 3", "expected" => "3"},
+               %{"expression" => "refute(1 + 1 == 3) == false"},
+               %{"expression" => "{:ok, _} = {:ok, 1}", "expected" => "{:ok, 1}"},
+               %{"expression" => "match?({:ok, _}, {:ok, 1})", "expected" => "{:ok, 1}"},
+               %{"expression" => "match?({:error, _}, Process.get(:not_set, {:ok, 1}))", "expected" => "{:ok, 1}"},
+               # None for a falsy one (`if (args[0])`), a truthy assert, or an expansion that binds
+               # no `right` (an operator that isn't Kernel's).
+               %{"expression" => "0 == 0"},
+               %{"expression" => "Enum.any?([1])"},
+               %{"expression" => "value == :ok"},
+               %{"expression" => "Playwright.Test.AssertionsTest.OwnOperator.check(:ok)"},
+               # A failed one's, from its error: its `right`, or its `left` if both sides are equal.
+               %{"expression" => "1 + 1 == 4", "expected" => "4"},
+               %{"expression" => "1 != 1", "expected" => "1"},
+               %{"expression" => "{:error, _} = {:ok, 2}", "expected" => "{:ok, 2}"}
+             ]
+    end)
+
+    {:ok, agent} = Agent.start_link(fn -> 0 end)
+    next = fn -> Agent.get_and_update(agent, &{&1 + 1, &1 + 1}) end
+    # Each side once: 1 (left), then 2 (right).
+    assert next.() < next.()
+    assert Agent.get(agent, & &1) == 2
+    assert length([1, 2]) != 3
+    assert "abc" =~ ~r/b/
+    assert [1, 2] == [1, 2]
+    assert refute(1 + 1 == 3) == false
+    assert {:ok, _} = {:ok, 1}
+    assert match?({:ok, _}, {:ok, 1})
+    refute match?({:error, _}, Process.get(:not_set, {:ok, 1}))
+    assert 0 == 0
+    assert Enum.any?([1])
+    assert Playwright.Test.AssertionsTest.OwnOperator.check(:ok)
+    test_failure(fn -> Test.step("fails", fn -> assert 1 + 1 == 4 end) end)
+    test_failure(fn -> Test.step("equal", fn -> assert 1 != 1 end) end)
+    test_failure(fn -> Test.step("match", fn -> assert {:error, _} = {:ok, 2} end) end)
+  end
+
+  test "a comparison fails with ExUnit's error, message and diff" do
+    for {ours, exunit} <- [
+          {fn -> assert 1 + 1 == 3 end, fn -> ExUnit.Assertions.assert(1 + 1 == 3) end},
+          {fn -> assert [1, 2] === [1, 3] end, fn -> ExUnit.Assertions.assert([1, 2] === [1, 3]) end},
+          {fn -> assert 1 != 1 end, fn -> ExUnit.Assertions.assert(1 != 1) end},
+          {fn -> assert "abc" =~ ~r/x/ end, fn -> ExUnit.Assertions.assert("abc" =~ ~r/x/) end},
+          {fn -> refute 2 > 1 end, fn -> ExUnit.Assertions.refute(2 > 1) end},
+          {fn -> refute 1 == 1 end, fn -> ExUnit.Assertions.refute(1 == 1) end},
+          {fn -> assert {:error, _} = Process.get(:not_set, {:ok, 1}) end,
+           fn -> ExUnit.Assertions.assert({:error, _} = Process.get(:not_set, {:ok, 1})) end},
+          {fn -> assert match?({:error, _}, Process.get(:not_set, {:ok, 1})) end,
+           fn -> ExUnit.Assertions.assert(match?({:error, _}, Process.get(:not_set, {:ok, 1}))) end},
+          {fn -> refute match?({:ok, _}, {:ok, 1}) end, fn -> ExUnit.Assertions.refute(match?({:ok, _}, {:ok, 1})) end}
+        ] do
+      ours = assertion_error(ours)
+      exunit = assertion_error(exunit)
+      # `inspect`: a regex's compiled form differs between two sigils; the code's lines differ.
+      assert inspect(without_meta(ours.error)) == inspect(without_meta(exunit.error))
+      assert Exception.message(ours.error) == Exception.message(exunit.error)
+
+      assert ExUnit.Formatter.format_assertion_diff(ours.error, 0, :infinity, &diff_formatter/2) ==
+               ExUnit.Formatter.format_assertion_diff(exunit.error, 0, :infinity, &diff_formatter/2)
+
+      assert elem(hd(ours.stacktrace), 0) == elem(hd(exunit.stacktrace), 0)
+    end
+  end
+
+  defp diff_formatter(_key, value), do: value
+
+  defp without_meta(error) do
+    strip =
+      &Macro.prewalk(&1, fn
+        {name, meta, args} when is_list(meta) -> {name, [], args}
+        node -> node
+      end)
+
+    %{error | expr: strip.(error.expr), left: strip.(error.left)}
+  end
+
+  test "a large expected is previewed short and fast" do
+    on_trace(fn events ->
+      [binary, list] =
+        for %{"params" => %{"expression" => expression, "expected" => expected}} <- befores(events),
+            expression in ["binary == same_binary", "list == same_list"],
+            do: expected
+
+      assert byte_size(binary) < 1100
+      assert String.ends_with?(binary, "…")
+      assert byte_size(list) < 1100
+      assert String.starts_with?(list, "[0, 1, 2")
+      assert String.ends_with?(list, ", …]")
+    end)
+
+    binary = String.duplicate("x", 1_000_000)
+    same_binary = :binary.copy(binary)
+    list = Enum.to_list(0..99_999)
+    same_list = Enum.to_list(0..99_999)
+    {binary_us, _} = :timer.tc(fn -> assert binary == same_binary end)
+    {list_us, _} = :timer.tc(fn -> assert list == same_list end)
+    # The comparison itself is ExUnit's; the preview walks a bounded part (ms under load).
+    assert binary_us < 50_000
+    assert list_us < 50_000
   end
 
   test "no step of its own for expect.poll's assertion, nor outside a test" do

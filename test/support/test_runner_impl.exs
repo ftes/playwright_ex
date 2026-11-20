@@ -373,6 +373,54 @@ case mode do
         # (the failing assert)
         assert value + 1 == 3
       end
+
+      test "fails in a nested step" do
+        Test.step "outer" do
+          Test.step "inner" do
+            # (the nested assert)
+            assert 1 + 1 == 3
+          end
+        end
+      end
+
+      test "fails raised again from a rescue" do
+        Test.step "outer" do
+          try do
+            Test.step("inner", fn -> assert 1 == 2 end)
+          rescue
+            error ->
+              Test.step("while raised on", fn -> :screenshot end)
+              # credo:disable-for-lines:2 Credo.Check.Warning.RaiseInsideRescue
+              # (raised again)
+              raise error
+          end
+        end
+      end
+
+      test "fails reraised from a rescue" do
+        Test.step "outer" do
+          try do
+            # (the reraised assert)
+            Test.step("inner", fn -> assert 1 == 2 end)
+          rescue
+            error ->
+              try do
+                assert 3 == 4
+              rescue
+                _rescued -> :ok
+              end
+
+              reraise error, __STACKTRACE__
+          end
+        end
+      end
+
+      test "fails with a message" do
+        Test.step "outer" do
+          # (the message assert)
+          assert 1 == 2, "never"
+        end
+      end
     end
 
   # Each fails at once, as the callback's error stops it; it would hang past its timeout.

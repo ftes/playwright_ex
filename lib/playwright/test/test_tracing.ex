@@ -288,6 +288,65 @@ defmodule Playwright.Test.TestTracing do
     end
   end
 
+  # Elixir only: bound trace size. The most list elements and characters of `bounded_preview/1`.
+  @preview_items 100
+  @preview_length 1000
+
+  @doc """
+  Elixir only: bound trace size. `generate_preview/1` of `value` (an `assert`'s `expected`) at
+  most #{@preview_items} list elements and #{@preview_length} characters long, a cut shown as
+  `…`, walking no more of `value` than that: upstream's previews are whole, and each step of an
+  `assert` of a large value would carry all of it. Lists and maps are previewed each time they
+  occur (upstream's arrays and objects are distinct unless the same one), other values once, as
+  `generate_preview/1` does.
+  """
+  def bounded_preview(value) do
+    {preview, _visited, _budget} = bounded(value, MapSet.new(), @preview_items)
+    cut(preview)
+  end
+
+  defp bounded(value, visited, budget) when is_map(value), do: {"Object", visited, budget}
+
+  defp bounded(value, visited, budget) when is_list(value) do
+    {previews, visited, budget} = bounded_list(value, visited, budget, [])
+    {"[" <> Enum.join(previews, ", ") <> "]", visited, budget}
+  end
+
+  defp bounded(value, visited, budget) when is_binary(value) and byte_size(value) > @preview_length,
+    do: {cut(value), visited, budget}
+
+  defp bounded(value, visited, budget)
+       when is_binary(value) or is_number(value) or is_atom(value) do
+    {preview, visited} = generate_preview(value, visited)
+    {preview, visited, budget}
+  end
+
+  defp bounded(value, visited, budget),
+    do: {cut(inspect(value, limit: @preview_items, printable_limit: @preview_length)), visited, budget}
+
+  defp bounded_list([], visited, budget, previews), do: {Enum.reverse(previews), visited, budget}
+  defp bounded_list([_ | _], visited, 0, previews), do: {Enum.reverse(["…" | previews]), visited, 0}
+
+  defp bounded_list([item | rest], visited, budget, previews) do
+    {preview, visited, budget} = bounded(item, visited, budget - 1)
+    bounded_list(rest, visited, budget, [preview | previews])
+  end
+
+  # An improper list's tail.
+  defp bounded_list(tail, visited, budget, previews) do
+    {preview, visited, budget} = bounded(tail, visited, budget)
+    {Enum.reverse([preview | previews]), visited, budget}
+  end
+
+  defp cut(text) when byte_size(text) <= @preview_length, do: text
+
+  defp cut(text) do
+    case String.slice(text, 0, @preview_length) do
+      ^text -> text
+      prefix -> prefix <> "…"
+    end
+  end
+
   @doc """
   `mergeTraceFiles`: one trace of all of the test's chunks, each cut to its own stacks
   (`own_stacks/2`). With several chunks, newest first, `*trace.<ext>` entries get their chunk's

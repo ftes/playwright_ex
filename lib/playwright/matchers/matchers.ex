@@ -31,7 +31,6 @@ defmodule Playwright.Matchers.Matchers do
   alias Playwright.RegExp
   alias Playwright.Runtime.Heap
   alias Playwright.Runtime.Promise
-  alias Playwright.Runtime.Zones
   alias Playwright.Test.TestInfo
 
   defp serialize_expected_text_values(items, options \\ %{}) do
@@ -852,9 +851,10 @@ defmodule Playwright.Matchers.Matchers do
               # `{kind, reason, stacktrace}`: whatever the callback raises, exits or throws.
               kind, reason ->
                 # Elixir only: a failed `assert/1`'s step, as upstream's failed `expect` in the
-                # callback records its own (`Playwright.Test.__assertion_error__/4`).
+                # callback records its own; the attempt's error ends here, the timeout raises
+                # the matcher's (`Playwright.Test.__assertion_error__/2`).
                 error = {kind, reason, __STACKTRACE__}
-                Playwright.Test.__assertion_error__(test_info, error, Zones.data(:stepZone), nil)
+                Playwright.Test.__assertion_error__(test_info, error)
                 %{continuePolling: !this.isNot, result: error}
             end
           end

@@ -551,6 +551,7 @@ defmodule Playwright.Test.TestInfo do
 
   # The library, ExUnit, and OTP's and Elixir's own apps (`ClientStackTrace`'s internal ones).
   @runner_apps [{:ok, :playwright}, {:ok, :ex_unit}, {:ok, :elixir}, {:ok, :stdlib}, {:ok, :kernel}]
+  @runner_app_names for {:ok, app} <- @runner_apps, do: app
 
   @doc "utils `captureRawStack`: the caller's stacktrace (from its caller's frame)."
   def capture_raw_stack do
@@ -580,7 +581,7 @@ defmodule Playwright.Test.TestInfo do
   # release without ExUnit) is read again on each call until it is.
   defp runner_modules do
     {modules, missing} =
-      :persistent_term.get({__MODULE__, :runner_modules}, {%{}, Enum.map(@runner_apps, &elem(&1, 1))})
+      :persistent_term.get({__MODULE__, :runner_modules}, {%{}, @runner_app_names})
 
     case Enum.filter(missing, &Application.spec(&1, :vsn)) do
       [] ->

@@ -235,7 +235,7 @@ defmodule Playwright.Test.EndToEndTest do
     child = start("steps", tmp_dir)
     assert ChildProcess.exit_code(child, 60_000) == 0
     output = ChildProcess.output(child)
-    assert output =~ ~r"2 tests, 2 failures|Result: 0/2 passed"
+    assert output =~ ~r"6 tests, 6 failures|Result: 0/6 passed"
 
     script = Path.join([__DIR__, "..", "..", "support", "test_runner_impl.exs"]) |> File.read!() |> String.split("\n")
     line = fn marker -> Enum.find_index(script, &(&1 =~ marker)) + 2 end
@@ -299,6 +299,37 @@ defmodule Playwright.Test.EndToEndTest do
 
     assert Enum.find_index(events, &(&1["callId"] == id and &1["type"] == "after")) <
              Enum.find_index(events, &(&1["type"] == "error"))
+
+    # Once, at the test's level: after the steps it failed in, which fail with its error.
+    expects = fn events -> for %{"type" => "before", "method" => "expect"} = event <- events, do: event end
+    after_of = fn events, %{"callId" => id} -> Enum.find(events, &(&1["type"] == "after" and &1["callId"] == id)) end
+    events = trace_events.("fails-in-a-nested-step")
+    assert [nested] = expects.(events)
+    refute Map.has_key?(nested, "parentId")
+    assert %{"params" => %{"expression" => "1 + 1 == 3", "expected" => "3"}, "stack" => [frame | _]} = nested
+    assert frame["line"] == line.("(the nested assert)")
+    message = after_of.(events, nested)["error"]["message"]
+    assert message =~ "Assertion with == failed"
+
+    for %{"type" => "before", "title" => title} = step <- events,
+        title in ["outer", "inner"],
+        do: assert(after_of.(events, step)["error"]["message"] == message)
+
+    # Raised again from a rescue (its own stacktrace: there), or reraised; an assert the rescue
+    # rescues itself is none.
+    assert [again] = expects.(trace_events.("fails-raised-again"))
+    assert %{"params" => %{"expression" => "1 == 2", "expected" => "2"}, "stack" => [frame | _]} = again
+    assert frame["line"] == line.("(raised again)")
+    assert [reraised] = expects.(trace_events.("fails-reraised"))
+    assert %{"params" => %{"expression" => "1 == 2"}, "stack" => [frame | _]} = reraised
+    assert frame["line"] == line.("(the reraised assert)")
+
+    # A message's, by its own `try`, in its step: once.
+    events = trace_events.("with-a-message")
+    assert [messaged] = expects.(events)
+    assert %{"title" => "never", "parentId" => parent_id, "stack" => [frame | _]} = messaged
+    assert parent_id == Enum.find(events, &(&1["title"] == "outer"))["callId"]
+    assert frame["line"] == line.("(the message assert)")
   end
 
   test "a test past its timeout: a hanging Playwright call fails with the call log, other code as ExUnit's",
