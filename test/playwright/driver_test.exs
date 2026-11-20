@@ -88,7 +88,7 @@ defmodule Playwright.DriverConfigTest do
     Application.put_env(:playwright, :driver, cachedir: "/c")
 
     assert_raise ArgumentError,
-                 "config :playwright, :driver: unknown keys, expected one of [:executable, :node, :cache_dir], got: [:cachedir]",
+                 "config :playwright, :driver: unknown key cachedir, expected one of executable, node, cache_dir",
                  fn ->
                    Driver.cache_dir()
                  end

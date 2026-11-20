@@ -112,7 +112,7 @@ defmodule Playwright.FileChooser do
           set_files_options()
         ) :: :ok | {:error, Playwright.error()}
   def set_files(%Playwright.FileChooser{} = file_chooser, files, options \\ []) do
-    files = Facade.arg!(files, @set_files_files, "fileChooser.setFiles", "files")
+    files = Facade.arg!(files, @set_files_files, "fileChooser.setFiles", :files)
     options = Facade.options!(options, @set_files_options, "fileChooser.setFiles")
 
     Facade.async_void("fileChooser.setFiles", fn ->
@@ -130,7 +130,7 @@ defmodule Playwright.FileChooser do
           set_files_options()
         ) :: :ok
   def set_files!(%Playwright.FileChooser{} = file_chooser, files, options \\ []) do
-    files = Facade.arg!(files, @set_files_files, "fileChooser.setFiles", "files")
+    files = Facade.arg!(files, @set_files_files, "fileChooser.setFiles", :files)
     options = Facade.options!(options, @set_files_options, "fileChooser.setFiles")
 
     Facade.async_void!("fileChooser.setFiles", fn ->

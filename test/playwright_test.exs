@@ -1,6 +1,8 @@
 defmodule PlaywrightTest do
   use ExUnit.Case, async: true
 
+  alias Playwright.APIRequest
+  alias Playwright.APIRequestContext
   alias Playwright.Browser
   alias Playwright.BrowserContext
   alias Playwright.BrowserType
@@ -94,11 +96,11 @@ defmodule PlaywrightTest do
 
     Browser.close!(browser)
 
-    assert_raise ArgumentError, ~r/browserType\.launch: unknown field :proxy\.servr, expected one of :bypass/, fn ->
+    assert_raise ArgumentError, ~r/browserType\.launch: unknown field proxy\.servr, expected one of bypass, /, fn ->
       BrowserType.launch(browser_type, proxy: %{servr: "x"})
     end
 
-    assert_raise ArgumentError, ~r/browserType\.launch: unknown option :chromiumSandbox/, fn ->
+    assert_raise ArgumentError, ~r/browserType\.launch: unknown option chromiumSandbox/, fn ->
       BrowserType.launch(browser_type, chromiumSandbox: false)
     end
   end
@@ -112,7 +114,7 @@ defmodule PlaywrightTest do
 
     # The protocol validator would drop `http_only` silently, leaving the cookie readable.
     assert_raise ArgumentError,
-                 ~r/^browserContext\.addCookies: unknown field cookies\[1\]\.http_only, expected one of :_crHasCrossSiteAncestor, :domain, :expires, :httpOnly, /,
+                 ~r/^browserContext\.addCookies: unknown field cookies\[1\]\.http_only, expected one of _crHasCrossSiteAncestor, domain, expires, httpOnly, /,
                  fn ->
                    BrowserContext.add_cookies(context, [
                      %{name: "a", value: "b", url: url},
@@ -133,18 +135,28 @@ defmodule PlaywrightTest do
     assert %{cookies: [_], origins: []} = state
     assert BrowserContext.cookies!(Browser.new_context!(browser, storage_state: state)) == [cookie]
     BrowserContext.set_storage_state!(context, state)
+    request = APIRequest.new_context!(Playwright.request(playwright), storage_state: state)
+    APIRequestContext.dispose!(request)
+
+    # Any storage state, as in JS: a request context has no credentials, the validator drops them.
+    with_credentials = BrowserContext.storage_state!(context, credentials: true)
+    assert Map.has_key?(with_credentials, :credentials)
+    request = APIRequest.new_context!(Playwright.request(playwright), storage_state: with_credentials)
+    APIRequestContext.dispose!(request)
 
     # A storage state from JSON has string keys, as the protocol validator reads them.
     decoded = state |> JSON.encode!() |> JSON.decode!()
     assert %{"cookies" => [%{"httpOnly" => true}]} = decoded
     assert BrowserContext.cookies!(Browser.new_context!(browser, storage_state: decoded)) == [cookie]
 
-    assert_raise ArgumentError, ~r/^browser\.newContext: unknown field :storage_state\."cookie", /, fn ->
-      Browser.new_context(browser, storage_state: %{"cookie" => []})
-    end
+    assert_raise ArgumentError,
+                 ~s(browser.newContext: unknown field storage_state."cookie", expected one of "cookies", "credentials", "origins"),
+                 fn ->
+                   Browser.new_context(browser, storage_state: %{"cookie" => []})
+                 end
 
     assert_raise ArgumentError,
-                 ~r/^browser\.newContext: unknown field :storage_state\.cookies\[0\]\.http_only, /,
+                 ~r/^browser\.newContext: unknown field storage_state\.cookies\[0\]\.http_only, /,
                  fn ->
                    Browser.new_context(browser, storage_state: %{cookies: [%{name: "a", value: "b", http_only: true}]})
                  end

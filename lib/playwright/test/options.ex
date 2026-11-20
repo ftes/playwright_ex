@@ -111,11 +111,11 @@ defmodule Playwright.Test.Options do
 
   # What `validate!/2` takes, for its error.
   @expected %{
-    default_browser_type: "nil or one of [:chromium, :firefox, :webkit]",
-    browser_name: "one of [:chromium, :firefox, :webkit]",
+    default_browser_type: "nil or one of :chromium, :firefox, :webkit",
+    browser_name: "one of :chromium, :firefox, :webkit",
     on_start: "nil, a 1-arity function or an {m, f, a} tuple",
     output_dir: "a string",
-    preserve_output: "one of [:always, :never, :failures_only]",
+    preserve_output: "one of :always, :never, :failures_only",
     snapshot_dir: "nil or a string",
     snapshot_path_template: "nil or a string",
     test_id_attribute: "a non-empty string",
@@ -146,14 +146,7 @@ defmodule Playwright.Test.Options do
     if !(is_list(opts) and Keyword.keyword?(opts)),
       do: raise(ArgumentError, "#{@pool_label}: expected a keyword list, got: #{inspect(opts)}")
 
-    case Keyword.keys(opts) -- @pool_keys do
-      [] ->
-        :ok
-
-      unknown ->
-        raise ArgumentError,
-              "#{@pool_label}: unknown options, expected one of #{inspect(@pool_keys)}, got: #{inspect(unknown)}"
-    end
+    Playwright.Application.unknown_key!(@pool_label, "option", Keyword.keys(opts), @pool_keys)
 
     config = config()
 
@@ -206,21 +199,18 @@ defmodule Playwright.Test.Options do
 
     case keys -- Enum.uniq(keys) do
       [] -> :ok
-      [key | _] -> raise ArgumentError, "#{label}: duplicated option, expected each option once, got: #{inspect(key)}"
+      [key | _] -> raise ArgumentError, "#{label}: duplicated option #{Playwright.Application.key_name(key)}"
     end
 
     # A device's, with its other keys: upstream's worker-scoped `defaultBrowserType`, which a
     # describe's or a test's `use/1` drops (`use/1`).
     known = @use_keys ++ [:default_browser_type] ++ worker_keys
 
-    case Keyword.keys(opts) -- known do
-      [] ->
-        :ok
+    with [_ | _] = unknown <- Keyword.keys(opts) -- known do
+      hint =
+        " or a context option (#{Playwright.Application.key_names(Enum.sort(context_keys()))}). #{unknown_hint(unknown)}"
 
-      unknown ->
-        raise ArgumentError,
-              "#{label}: unknown options, expected one of #{inspect(known)} or a context option as " <>
-                "#{inspect(Enum.sort(context_keys()))}, got: #{inspect(unknown)}. #{unknown_hint(unknown)}"
+      Playwright.Application.unknown_key!(label, "option", unknown, known, hint)
     end
 
     options =
@@ -283,9 +273,9 @@ defmodule Playwright.Test.Options do
     {name, use} = Keyword.pop(keyword!(label, opts), :name)
 
     if !(name == nil or is_binary(name)),
-      do: raise(ArgumentError, "#{label}: invalid name, expected a string, got: #{inspect(name)}")
+      do: raise(ArgumentError, "#{label}: invalid value #{inspect(name)} for name, expected a string")
 
-    %{@project_key => %Playwright.Test.Project{name: name, use: use, options: use_options!(use, label, @worker_keys)}}
+    %{@project_key => %Playwright.Test.Project{name: name, use: use_options!(use, label, @worker_keys)}}
   end
 
   @doc "The project of `parameters` (`parameters/1`'s, a module's `parameterize:` map), else `nil`."
@@ -327,7 +317,7 @@ defmodule Playwright.Test.Options do
   """
   def layers(parameters, use_options, tags) do
     project = project(parameters)
-    %{project: unset_nil((project && project.options) || %{}), module: unset_nil(merge(use_options, used(tags)))}
+    %{project: unset_nil((project && project.use) || %{}), module: unset_nil(merge(use_options, used(tags)))}
   end
 
   # Upstream's `undefined` option: no value at its layer, so the layer under gives the option, in
@@ -585,7 +575,7 @@ defmodule Playwright.Test.Options do
     keys!(:connect_options, options, @connect_keys)
 
     if !is_binary(options[:ws_endpoint]),
-      do: raise(ArgumentError, "invalid connect_options, expected a :ws_endpoint string, got: #{inspect(options)}")
+      do: raise(ArgumentError, "invalid value #{inspect(options)} for connect_options, expected a :ws_endpoint string")
 
     Enum.sort(options)
   end
@@ -627,7 +617,7 @@ defmodule Playwright.Test.Options do
         do:
           raise(
             ArgumentError,
-            "invalid report_slow_tests #{key}, expected a non-negative number, got: #{inspect(value)}"
+            "invalid value #{inspect(value)} for report_slow_tests.#{key}, expected a non-negative number"
           )
 
       {key, value}
@@ -643,7 +633,7 @@ defmodule Playwright.Test.Options do
   defp validate!(key, value) when is_map_key(@modes, key), do: mode!(key, value)
 
   defp validate!(key, value),
-    do: raise(ArgumentError, "invalid #{key}, expected #{Map.fetch!(@expected, key)}, got: #{inspect(value)}")
+    do: raise(ArgumentError, "invalid value #{inspect(value)} for #{key}, expected #{Map.fetch!(@expected, key)}")
 
   # Raises for the keys of `options` (the option `key`'s) that are not `allowed`.
   defp keys!(key, options, allowed) do
@@ -651,13 +641,14 @@ defmodule Playwright.Test.Options do
       [] ->
         :ok
 
-      unknown ->
-        raise ArgumentError, "unknown #{key} keys, expected one of #{inspect(allowed)}, got: #{inspect(unknown)}"
+      [unknown | _] ->
+        raise ArgumentError,
+              "unknown option #{key}.#{Playwright.Application.key_name(unknown)}, expected one of #{Playwright.Application.key_names(allowed)}"
     end
   end
 
   # What a mode option accepts, for the error.
-  defp accepted(key), do: @modes[key] ++ [true, false, "[mode: _, ...]"]
+  defp accepted(key), do: "one of #{Enum.map_join(@modes[key] ++ [true, false], ", ", &inspect/1)} or [mode: _, ...]"
 
   # An artifact option as a keyword list in `@artifact_options` order (an atom is its `mode`),
   # the trace's options defaulting to upstream's (`defaultTraceOptions` in
@@ -666,7 +657,11 @@ defmodule Playwright.Test.Options do
   # it would record nothing.
   defp artifact!(key, options) do
     if !Keyword.has_key?(options, :mode),
-      do: raise(ArgumentError, "invalid #{key}, expected a :mode, got: #{inspect(options)}")
+      do:
+        raise(
+          ArgumentError,
+          "invalid value #{inspect(options)} for #{key}, expected a keyword list or a map with :mode"
+        )
 
     keys!(key, options, @artifact_options[key])
 
@@ -692,7 +687,7 @@ defmodule Playwright.Test.Options do
       else:
         raise(
           ArgumentError,
-          "invalid trace snapshots, expected a map of :dom, :aria and :screen booleans, got: #{inspect(snapshots)}"
+          "invalid value #{inspect(snapshots)} for trace.snapshots, expected a map of :dom, :aria and :screen booleans"
         )
   end
 
@@ -723,24 +718,24 @@ defmodule Playwright.Test.Options do
       else:
         raise(
           ArgumentError,
-          "invalid video show, expected a map of :actions and :test as upstream's, got: #{inspect(show)}"
+          "invalid value #{inspect(show)} for video.show, expected a map of :actions and :test as upstream's"
         )
   end
 
   defp artifact_option!(key, name, value),
-    do: raise(ArgumentError, "invalid #{key} #{name}, expected #{@artifact_expected[name]}, got: #{inspect(value)}")
+    do: raise(ArgumentError, "invalid value #{inspect(value)} for #{key}.#{name}, expected #{@artifact_expected[name]}")
 
   defp mode!(key, mode) do
     if mode in @modes[key],
       do: mode,
-      else: raise(ArgumentError, "invalid #{key}, expected one of #{inspect(accepted(key))}, got: #{inspect(mode)}")
+      else: raise(ArgumentError, "invalid value #{inspect(mode)} for #{key}, expected #{accepted(key)}")
   end
 
   defp to_keyword(key, value) do
     cond do
       is_list(value) and Keyword.keyword?(value) -> value
       is_map(value) and not is_struct(value) -> Enum.to_list(value)
-      true -> raise ArgumentError, "invalid #{key}, expected a keyword list or a map, got: #{inspect(value)}"
+      true -> raise ArgumentError, "invalid value #{inspect(value)} for #{key}, expected a keyword list or a map"
     end
   end
 

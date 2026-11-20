@@ -37,43 +37,43 @@ defmodule Playwright.Runtime.FacadeTest do
   end
 
   test "rejects unknown options, fields and enum values" do
-    assert_raise ArgumentError, ~r/^x\.y: unknown option :colour_scheme, expected one of :color_scheme, /, fn ->
+    assert_raise ArgumentError, ~r/^x\.y: unknown option colour_scheme, expected one of color_scheme, /, fn ->
       Facade.options!([colour_scheme: :light], @schema, "x.y")
     end
 
-    assert_raise ArgumentError, ~r/^x\.y: unknown option :colorScheme, /, fn ->
+    assert_raise ArgumentError, ~r/^x\.y: unknown option colorScheme, /, fn ->
       Facade.options!([colorScheme: "light"], @schema, "x.y")
     end
 
     assert_raise ArgumentError,
-                 "x.y: invalid value :dark for :color_scheme, expected one of :light, :no_preference",
+                 "x.y: invalid value :dark for color_scheme, expected one of :light, :no_preference",
                  fn ->
                    Facade.options!([color_scheme: :dark], @schema, "x.y")
                  end
 
-    assert_raise ArgumentError, "x.y: unknown field :viewport.depth, expected one of :height, :width", fn ->
+    assert_raise ArgumentError, "x.y: unknown field viewport.depth, expected one of height, width", fn ->
       Facade.options!([viewport: %{depth: 1}], @schema, "x.y")
     end
 
-    assert_raise ArgumentError, "x.y: unknown field :cookies[1].same_site, expected one of :sameSite", fn ->
+    assert_raise ArgumentError, "x.y: unknown field cookies[1].same_site, expected one of sameSite", fn ->
       Facade.options!([cookies: [%{sameSite: "Lax"}, %{same_site: "Lax"}]], @schema, "x.y")
     end
   end
 
   test "positional arguments: errors name the argument, with the index in an array" do
     fields = {:fields, %{name: nil, origin: {:fields, %{url: nil}}}}
-    assert Facade.arg!([%{name: "a"}, "b"], {:union, [{:array, fields}]}, "x.y", "items") == [%{name: "a"}, "b"]
+    assert Facade.arg!([%{name: "a"}, "b"], {:union, [{:array, fields}]}, "x.y", :items) == [%{name: "a"}, "b"]
 
-    assert_raise ArgumentError, "x.y: unknown field cookies[0].http_only, expected one of :name, :origin", fn ->
-      Facade.arg!([%{http_only: true}], {:array, fields}, "x.y", "cookies")
+    assert_raise ArgumentError, "x.y: unknown field cookies[0].http_only, expected one of name, origin", fn ->
+      Facade.arg!([%{http_only: true}], {:array, fields}, "x.y", :cookies)
     end
 
-    assert_raise ArgumentError, "x.y: unknown field item.origin.uri, expected one of :url", fn ->
-      Facade.arg!(%{origin: %{uri: "u"}}, fields, "x.y", "item")
+    assert_raise ArgumentError, "x.y: unknown field item.origin.uri, expected one of url", fn ->
+      Facade.arg!(%{origin: %{uri: "u"}}, fields, "x.y", :item)
     end
 
     assert_raise ArgumentError, "x.y: invalid value :dark for scheme, expected one of :light", fn ->
-      Facade.arg!(:dark, {:enum, %{light: "light"}}, "x.y", "scheme")
+      Facade.arg!(:dark, {:enum, %{light: "light"}}, "x.y", :scheme)
     end
   end
 
@@ -87,55 +87,49 @@ defmodule Playwright.Runtime.FacadeTest do
   end
 
   test "result options: unknown keys still raise" do
-    assert_raise ArgumentError, ~r/^x\.y: unknown option :bogus, /, fn ->
+    assert_raise ArgumentError, ~r/^x\.y: unknown option bogus, /, fn ->
       Facade.result_options!(%{privateKey: "k", bogus: 1}, @result_schema, [:rpId], "x.y")
     end
 
-    assert_raise ArgumentError, ~r/^x\.y: unknown option :rpId, /, fn ->
+    assert_raise ArgumentError, ~r/^x\.y: unknown option rpId, /, fn ->
       Facade.result_options!([rpId: "example.com"], @result_schema, [:rpId], "x.y")
     end
 
     # The generated facade checks before calling the client.
-    assert_raise ArgumentError, ~r/^credentials\.create: unknown option :bogus, /, fn ->
+    assert_raise ArgumentError, ~r/^credentials\.create: unknown option bogus, /, fn ->
       Playwright.Credentials.create!(%Playwright.Credentials{}, "example.com", %{id: "a", bogus: 1})
     end
   end
 
-  test "objects passed on to the protocol take its keys as atoms or strings" do
-    type = {:array, {:protocol, %{name: nil, httpOnly: nil}}}
-    cookies = [%{"name" => "a", "httpOnly" => true}, %{name: "b"}]
-    assert Facade.arg!(cookies, type, "x.y", "cookies") == cookies
+  test "objects passed on to the protocol have the keys of its params, as atoms or strings" do
+    type = Facade.protocol_type("BrowserContextAddCookiesParams", :cookies)
+    cookies = [%{"name" => "a", "httpOnly" => true}, %{name: "b", _crHasCrossSiteAncestor: false}]
+    assert Facade.arg!(cookies, type, "x.y", :cookies) == cookies
 
-    assert_raise ArgumentError, ~s(x.y: unknown field cookies[0]."http_only", expected one of :httpOnly, :name), fn ->
-      Facade.arg!([%{"name" => "a", "http_only" => true}], type, "x.y", "cookies")
-    end
+    assert_raise ArgumentError,
+                 ~r/^x\.y: unknown field cookies\[0\]\."http_only", expected one of "_crHasCrossSiteAncestor", "domain", /,
+                 fn ->
+                   Facade.arg!([%{"name" => "a", "http_only" => true}], type, "x.y", :cookies)
+                 end
 
     # Other nested objects: atom keys, as the client reads them.
-    assert_raise ArgumentError, ~s(x.y: unknown field cookies[0]."name", expected one of :httpOnly, :name), fn ->
-      Facade.arg!([%{"name" => "a"}], {:array, {:fields, %{name: nil, httpOnly: nil}}}, "x.y", "cookies")
+    assert_raise ArgumentError, ~s(x.y: unknown field cookies[0]."name", expected one of httpOnly, name), fn ->
+      Facade.arg!([%{"name" => "a"}], {:array, {:fields, %{name: nil, httpOnly: nil}}}, "x.y", :cookies)
     end
   end
 
-  test "dictionaries: keys are data, object values are checked" do
-    type = {:values, {:fields, %{name: nil, mimeType: nil, buffer: nil}}}
-    file = %{name: "a.txt", mimeType: "text/plain", buffer: "a"}
+  test "keys that need quoting are quoted, so a key with a dot is no path" do
+    assert_raise ArgumentError, ~s(x.y: unknown field viewport.:"proxy.server", expected one of height, width), fn ->
+      Facade.options!([viewport: %{"proxy.server": 1}], @schema, "x.y")
+    end
 
-    assert Facade.options!([multipart: %{"file" => file, "n" => 1}], {:object, %{multipart: {:multipart, type}}}, "x.y") ==
-             %{multipart: %{"file" => file, "n" => 1}}
-
-    assert_raise ArgumentError,
-                 ~s(x.y: unknown field :multipart.file.mime_type, expected one of :buffer, :mimeType, :name),
-                 fn ->
-                   Facade.options!(
-                     [multipart: [file: %{name: "a", mime_type: "t", buffer: "a"}]],
-                     {:object, %{multipart: {:multipart, type}}},
-                     "x.y"
-                   )
-                 end
+    assert_raise ArgumentError, ~r/^x\.y: unknown option :"proxy\.server", expected one of color_scheme, /, fn ->
+      Facade.options!(["proxy.server": 1], @schema, "x.y")
+    end
   end
 
   # The generated facade checks every object argument before calling the client.
-  test "generated: object arguments in lists, unions, dictionaries and storage states" do
+  test "generated: object arguments in lists, unions and storage states" do
     context = %Playwright.BrowserContext{}
     locator = %Playwright.Locator{}
 
@@ -155,12 +149,13 @@ defmodule Playwright.Runtime.FacadeTest do
                    Playwright.BrowserContext.set_storage_state(context, %{origins: [%{origin: "o", local_storage: []}]})
                  end
 
-    assert_raise ArgumentError, ~r/^browser\.newContext: unknown field :storage_state\.cookies\[0\]\.http_only, /, fn ->
+    assert_raise ArgumentError, ~r/^browser\.newContext: unknown field storage_state\.cookies\[0\]\.http_only, /, fn ->
       Playwright.Browser.new_context(%Playwright.Browser{}, storage_state: %{cookies: [%{http_only: true}]})
     end
 
+    # Any storage state, as JS takes one (the validator drops credentials there).
     assert_raise ArgumentError,
-                 ~r/^apiRequest\.newContext: unknown field :storage_state\.credentials\[0\]\.rp_id, /,
+                 ~r/^apiRequest\.newContext: unknown field storage_state\.credentials\[0\]\.rp_id, expected one of id, privateKey, publicKey, rpId, /,
                  fn ->
                    Playwright.APIRequest.new_context(%Playwright.APIRequest{},
                      storage_state: %{credentials: [%{rp_id: "x"}]}
@@ -179,12 +174,6 @@ defmodule Playwright.Runtime.FacadeTest do
     # Nested in an option object.
     assert_raise ArgumentError, ~r/^locator\.drop: unknown field payload\.files\[0\]\.mime_type, /, fn ->
       Playwright.Locator.drop(locator, %{files: [%{name: "a", mime_type: "t", buffer: "b"}]})
-    end
-
-    assert_raise ArgumentError, ~r/^apiRequestContext\.post: unknown field :multipart\."file"\.mime_type, /, fn ->
-      Playwright.APIRequestContext.post(%Playwright.APIRequestContext{}, "/",
-        multipart: %{"file" => %{name: "a", mime_type: "t", buffer: "b"}}
-      )
     end
   end
 
@@ -216,7 +205,7 @@ defmodule Playwright.Runtime.FacadeTest do
     locator = %Playwright.Locator{}
 
     assert_raise ArgumentError,
-                 ~r/^expect\.toBeVisible: unknown option :message, expected one of .*\. A matcher's custom message goes with Playwright\.Expect\.message\/2 \(JS expect\(actual, message\)\), for Expect\.to_be_visible!: x \|> Expect\.message\("\.\.\."\) \|> Expect\.to_be_visible!\(\.\.\.\)$/,
+                 ~r/^expect\.toBeVisible: unknown option message, expected one of .*\. A matcher's custom message goes with Playwright\.Expect\.message\/2 \(JS expect\(actual, message\)\), for Expect\.to_be_visible!: x \|> Expect\.message\("\.\.\."\) \|> Expect\.to_be_visible!\(\.\.\.\)$/,
                  fn -> Playwright.Expect.to_be_visible!(locator, message: "visible") end
 
     assert_raise ArgumentError,
@@ -226,7 +215,7 @@ defmodule Playwright.Runtime.FacadeTest do
                  end
 
     # Elsewhere, no hint.
-    assert_raise ArgumentError, ~r/^x\.y: unknown option :message, expected one of [^.]*$/, fn ->
+    assert_raise ArgumentError, ~r/^x\.y: unknown option message, expected one of [^.]*$/, fn ->
       Facade.options!([message: "m"], @schema, "x.y")
     end
   end

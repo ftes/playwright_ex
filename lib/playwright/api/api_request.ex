@@ -56,75 +56,7 @@ defmodule Playwright.APIRequest do
                           max_redirects: {:maxRedirects, nil},
                           proxy: {:proxy, {:fields, %{server: nil, bypass: nil, username: nil, password: nil}}},
                           storage_state:
-                            {:storageState,
-                             {:protocol,
-                              %{
-                                cookies:
-                                  {:array,
-                                   {:protocol,
-                                    %{
-                                      name: nil,
-                                      value: nil,
-                                      url: nil,
-                                      domain: nil,
-                                      path: nil,
-                                      expires: nil,
-                                      httpOnly: nil,
-                                      secure: nil,
-                                      sameSite: nil,
-                                      partitionKey: nil,
-                                      _crHasCrossSiteAncestor: nil
-                                    }}},
-                                origins:
-                                  {:array,
-                                   {:protocol,
-                                    %{
-                                      origin: nil,
-                                      localStorage: {:array, {:protocol, %{name: nil, value: nil}}},
-                                      indexedDB:
-                                        {:array,
-                                         {:protocol,
-                                          %{
-                                            name: nil,
-                                            version: nil,
-                                            stores:
-                                              {:array,
-                                               {:protocol,
-                                                %{
-                                                  name: nil,
-                                                  autoIncrement: nil,
-                                                  keyPath: nil,
-                                                  keyPathArray: nil,
-                                                  records:
-                                                    {:array,
-                                                     {:protocol,
-                                                      %{key: nil, keyEncoded: nil, value: nil, valueEncoded: nil}}},
-                                                  indexes:
-                                                    {:array,
-                                                     {:protocol,
-                                                      %{
-                                                        name: nil,
-                                                        keyPath: nil,
-                                                        keyPathArray: nil,
-                                                        multiEntry: nil,
-                                                        unique: nil
-                                                      }}}
-                                                }}}
-                                          }}},
-                                      opfs: {:array, {:protocol, %{path: nil, type: nil, base64: nil}}}
-                                    }}},
-                                credentials:
-                                  {:array,
-                                   {:protocol,
-                                    %{
-                                      id: nil,
-                                      rpId: nil,
-                                      userHandle: nil,
-                                      privateKey: nil,
-                                      publicKey: nil,
-                                      signCount: nil
-                                    }}}
-                              }}},
+                            {:storageState, Facade.protocol_type("BrowserContextSetStorageStateParams", :storageState)},
                           timeout: {:timeout, nil},
                           user_agent: {:userAgent, nil}
                         }}
@@ -170,33 +102,7 @@ defmodule Playwright.APIRequest do
               optional(:username) => String.t(),
               optional(:password) => String.t()
             },
-            storage_state:
-              String.t()
-              | %{
-                  required(:cookies) => [
-                    %{
-                      required(:name) => String.t(),
-                      required(:value) => String.t(),
-                      required(:domain) => String.t(),
-                      required(:path) => String.t(),
-                      required(:expires) => number(),
-                      required(:httpOnly) => boolean(),
-                      required(:secure) => boolean(),
-                      required(:sameSite) => String.t(),
-                      optional(atom()) => term()
-                    }
-                  ],
-                  required(:origins) => [
-                    %{
-                      required(:origin) => String.t(),
-                      required(:localStorage) => [
-                        %{required(:name) => String.t(), required(:value) => String.t(), optional(atom()) => term()}
-                      ],
-                      optional(atom()) => term()
-                    }
-                  ],
-                  optional(atom()) => term()
-                },
+            storage_state: String.t() | map(),
             timeout: number() | :infinity,
             user_agent: String.t()
           ]
@@ -239,33 +145,7 @@ defmodule Playwright.APIRequest do
                 optional(:username) => String.t(),
                 optional(:password) => String.t()
               },
-              optional(:storage_state) =>
-                String.t()
-                | %{
-                    required(:cookies) => [
-                      %{
-                        required(:name) => String.t(),
-                        required(:value) => String.t(),
-                        required(:domain) => String.t(),
-                        required(:path) => String.t(),
-                        required(:expires) => number(),
-                        required(:httpOnly) => boolean(),
-                        required(:secure) => boolean(),
-                        required(:sameSite) => String.t(),
-                        optional(atom()) => term()
-                      }
-                    ],
-                    required(:origins) => [
-                      %{
-                        required(:origin) => String.t(),
-                        required(:localStorage) => [
-                          %{required(:name) => String.t(), required(:value) => String.t(), optional(atom()) => term()}
-                        ],
-                        optional(atom()) => term()
-                      }
-                    ],
-                    optional(atom()) => term()
-                  },
+              optional(:storage_state) => String.t() | map(),
               optional(:timeout) => number() | :infinity,
               optional(:user_agent) => String.t()
             }
@@ -472,36 +352,7 @@ defmodule Playwright.APIRequest do
         doc:
           "Populates context with given storage state. This option can be used to initialize context with logged-in information obtained via `Playwright.BrowserContext.storage_state/2` or `Playwright.APIRequestContext.storage_state/2`. Either a path to the file with saved storage, or the value returned by one of `Playwright.BrowserContext.storage_state/2` or `Playwright.APIRequestContext.storage_state/2` methods.",
         since: nil,
-        spec:
-          quote(
-            do:
-              String.t()
-              | %{
-                  required(:cookies) => [
-                    %{
-                      required(:name) => String.t(),
-                      required(:value) => String.t(),
-                      required(:domain) => String.t(),
-                      required(:path) => String.t(),
-                      required(:expires) => number(),
-                      required(:httpOnly) => boolean(),
-                      required(:secure) => boolean(),
-                      required(:sameSite) => String.t(),
-                      optional(atom()) => term()
-                    }
-                  ],
-                  required(:origins) => [
-                    %{
-                      required(:origin) => String.t(),
-                      required(:localStorage) => [
-                        %{required(:name) => String.t(), required(:value) => String.t(), optional(atom()) => term()}
-                      ],
-                      optional(atom()) => term()
-                    }
-                  ],
-                  optional(atom()) => term()
-                }
-          )
+        spec: quote(do: String.t() | map())
       },
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",

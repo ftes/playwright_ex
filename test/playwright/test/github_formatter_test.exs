@@ -208,20 +208,22 @@ defmodule Playwright.Test.GitHubFormatterTest do
     assert report_slow_tests(config, %{threshold: 1, max: 0}) == [max: 0, threshold: 1]
 
     assert_raise ArgumentError,
-                 "config :playwright, :test: invalid report_slow_tests max, expected a non-negative number, got: -1",
+                 "config :playwright, :test: invalid value -1 for report_slow_tests.max, expected a non-negative number",
                  fn -> report_slow_tests(config, max: -1, threshold: 1) end
 
-    assert_raise ArgumentError, ~r/report_slow_tests threshold, expected a non-negative number, got: nil$/, fn ->
-      report_slow_tests(config, max: 1)
-    end
+    assert_raise ArgumentError,
+                 ~r/invalid value nil for report_slow_tests.threshold, expected a non-negative number$/,
+                 fn ->
+                   report_slow_tests(config, max: 1)
+                 end
 
     assert_raise ArgumentError,
-                 ~r/unknown report_slow_tests keys, expected one of \[:max, :threshold\], got: \[:top\]$/,
+                 ~r/unknown option report_slow_tests.top, expected one of max, threshold$/,
                  fn ->
                    report_slow_tests(config, top: 1)
                  end
 
-    assert_raise ArgumentError, ~r/invalid report_slow_tests, expected a keyword list or a map, got: true$/, fn ->
+    assert_raise ArgumentError, ~r/invalid value true for report_slow_tests, expected a keyword list or a map$/, fn ->
       report_slow_tests(config, true)
     end
   end

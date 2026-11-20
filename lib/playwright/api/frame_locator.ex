@@ -506,7 +506,7 @@ defmodule Playwright.FrameLocator do
           get_by_role_options()
         ) :: Playwright.Locator.t()
   def get_by_role(%Playwright.FrameLocator{} = frame_locator, role, options \\ []) do
-    role = Facade.arg!(role, @get_by_role_role, "frameLocator.getByRole", "role")
+    role = Facade.arg!(role, @get_by_role_role, "frameLocator.getByRole", :role)
     options = Facade.options!(options, @get_by_role_options, "frameLocator.getByRole")
     Playwright.Client.FrameLocator.get_by_role(frame_locator, role, options)
   end

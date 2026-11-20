@@ -132,8 +132,8 @@ defmodule Playwright.Matchers.Expect do
   # What a matcher's config-only key takes, for its error.
   @config_expected %{
     path_template: "a string",
-    type: "one of [:png, :webp]",
-    children: "one of [:contain, :equal, :deep_equal]"
+    type: "one of :png, :webp",
+    children: "one of :contain, :equal, :deep_equal"
   }
 
   # Elixir only: `config :playwright, :expect, ...` as an `ExpectConfig`, its keys and those of
@@ -180,13 +180,7 @@ defmodule Playwright.Matchers.Expect do
 
         allowed = option_keys ++ config_keys
 
-        case Keyword.keys(options) -- allowed do
-          [] ->
-            :ok
-
-          unknown ->
-            raise ArgumentError, "#{label}: unknown keys, expected one of #{inspect(allowed)}, got: #{inspect(unknown)}"
-        end
+        Playwright.Application.unknown_key!(label, "key", Keyword.keys(options), allowed)
 
         {options, config_only} = Keyword.split(options, option_keys)
 
@@ -209,7 +203,8 @@ defmodule Playwright.Matchers.Expect do
     do: {:children, children}
 
   defp config_value!(label, name, value),
-    do: raise(ArgumentError, "#{label}: invalid #{name}, expected #{@config_expected[name]}, got: #{inspect(value)}")
+    do:
+      raise(ArgumentError, "#{label}: invalid value #{inspect(value)} for #{name}, expected #{@config_expected[name]}")
 
   @default_expect_timeout 5000
 
