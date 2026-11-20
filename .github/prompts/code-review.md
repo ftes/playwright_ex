@@ -22,8 +22,10 @@ review.
    formatting nits. Don't ask for handling of edge cases outside the PR's issue; list them in
    the summary as follow-ups. Ported code (`@upstream`) marks only its deviations: an edge case
    it shares with upstream is not a defect of this PR, but a new deviation nothing requires is.
-   CI runs `mix check` (AGENTS.md): don't run or approximate it, and don't comment on what it
-   covers. Review what CI cannot catch: correctness, design, upstream fidelity and docs.
+   CI runs `mix lint` (format, credo, compile warnings, docs, Dialyzer), the parity check and
+   the browser tests (.github/workflows/elixir.yml): don't run or approximate them, and don't
+   comment on what they cover. Review what CI cannot catch: correctness, design, upstream
+   fidelity and docs.
 5. Don't repeat findings already posted on this PR (`gh api repos/REPO/pulls/PR/comments`,
    `gh pr view PR --comments`).
 
