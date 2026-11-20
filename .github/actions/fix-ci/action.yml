@@ -50,6 +50,9 @@ runs:
           REPO: ${{ github.repository }}
           PR: ${{ inputs.pr }} (${{ inputs.kind == 'nightly' && 'a simplification by the nightly workflow' || 'a draft porting a Playwright release' }})
           BRANCH: ${{ inputs.branch }} (already checked out)
+          SUBJECT: ${{ inputs.kind == 'nightly' && 'one imperative sentence (match `git log`)' || '"Fix CI: <one imperative sentence>"' }}
+          GIVE UP WHEN: ${{ inputs.kind == 'nightly' && 'It can''t be fixed without redesigning the change' || 'It needs a redesign of the change, a decision or a skip' }}
           GIVE UP: ${{ inputs.kind == 'nightly' && format('gh pr close {0} --delete-branch --comment "<one sentence on why>"', inputs.pr) || format('gh pr comment {0} --body "Needs a human: <one sentence on why>"', inputs.pr) }}
-        max-turns: "150"
-        allowed-tools: "Skill,Read,Grep,Glob,Edit,Write,Agent,Task,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix credo:*),Bash(mix playwright.parity:*),Bash(mix playwright.gen.api:*),Bash(mix playwright.gen.protocol:*),Bash(gh pr view ${{ inputs.pr }}:*),Bash(gh pr diff ${{ inputs.pr }}:*),Bash(git push origin ${{ inputs.branch }}),${{ inputs.kind == 'nightly' && format('Bash(gh pr close {0} *)', inputs.pr) || format('Bash(gh pr comment {0} *)', inputs.pr) }}"
+        # The nightly fix as main's nightly job had it: fewer turns, no subagents.
+        max-turns: ${{ inputs.kind == 'nightly' && '60' || '150' }}
+        allowed-tools: "Skill,Read,Grep,Glob,Edit,Write,${{ inputs.kind != 'nightly' && 'Agent,Task,' || '' }}Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix credo:*),Bash(mix playwright.parity:*),Bash(mix playwright.gen.api:*),Bash(mix playwright.gen.protocol:*),Bash(gh pr view ${{ inputs.pr }}:*),Bash(gh pr diff ${{ inputs.pr }}:*),Bash(git push origin ${{ inputs.branch }}),${{ inputs.kind == 'nightly' && format('Bash(gh pr close {0} *)', inputs.pr) || format('Bash(gh pr comment {0} *)', inputs.pr) }}"
