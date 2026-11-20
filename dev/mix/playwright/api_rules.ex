@@ -22,8 +22,8 @@ defmodule Mix.Playwright.ApiRules do
       object (`"open"`): it has more fields than the docs list (`credentials`, IndexedDB), so the
       facade passes it back as it is. So are `addCookies(cookies)`: `cookies()` results carry
       protocol-only fields (`_crHasCrossSiteAncestor`) and must round-trip. Their keys are
-      checked against the protocol's (`"protocol"`: `SetNetworkCookie`, the widest storage
-      state), which its validator would drop silently.
+      checked against those of the protocol params they are sent in (`"protocol"`,
+      `@protocol_params`), which its validator would drop silently.
     * A positional `timeout` is a duration (`"duration"`: `waitForTimeout(timeout)`, no `:infinity`)
       unless its member sets a default timeout (`@timeout_args`: `setDefaultTimeout(timeout)`).
     * Documents the Elixir forms of `timeout` and `signal` (a `Playwright.AbortSignal`), and
@@ -156,6 +156,11 @@ defmodule Mix.Playwright.ApiRules do
   @timeout_doc_from "The default value can be changed by using the [`method: BrowserContext.setDefaultTimeout`]."
   @page_timeout_doc "[`method: Page.setDefaultTimeout`] or [`method: BrowserContext.setDefaultTimeout`]."
   @set_input_files [{"`filePaths`", "`files`"}]
+  # A duration, not a timeout: `:infinity` would never return.
+  @wait_for_timeout [
+    {"Waits for the given `timeout` in milliseconds.",
+     "Waits for the given `timeout` in milliseconds. It rejects `:infinity`."}
+  ]
   @prose_overrides %{
     # JS calls with arguments: the generic rule links only `receiver.member()`.
     "APIRequestContext" => [
@@ -167,15 +172,8 @@ defmodule Mix.Playwright.ApiRules do
       {"`page.pdf({width: '100px'})`", "`Page.pdf(page, width: \"100px\")`"},
       {"`page.pdf({width: '10cm'})`", "`Page.pdf(page, width: \"10cm\")`"}
     ],
-    # A duration, not a timeout: `:infinity` would never return.
-    "Page.waitForTimeout" => [
-      {"Waits for the given `timeout` in milliseconds.",
-       "Waits for the given `timeout` in milliseconds. It rejects `:infinity`: to check without waiting, read once (`Locator.is_visible/2`, `Locator.count/1`) or pass a short timeout."}
-    ],
-    "Frame.waitForTimeout" => [
-      {"Waits for the given `timeout` in milliseconds.",
-       "Waits for the given `timeout` in milliseconds. It rejects `:infinity`: to check without waiting, read once (`Locator.is_visible/2`, `Locator.count/1`) or pass a short timeout."}
-    ],
+    "Page.waitForTimeout" => @wait_for_timeout,
+    "Frame.waitForTimeout" => @wait_for_timeout,
     "Locator.within" => [
       {"`page.getByRole('cell').nth(2)`", "`Page.get_by_role(page, :cell) |> Locator.nth(2)`"}
     ],
@@ -226,7 +224,10 @@ defmodule Mix.Playwright.ApiRules do
   @notes %{
     # The client returns `Map<string, JSHandle>` as a map (`# deviation:` in its `get_properties`).
     "JSHandle.getProperties" =>
-      "In Elixir, the result is a map of property name to handle; unlike JS's `Map`, it does not keep the property order."
+      "In Elixir, the result is a map of property name to handle; unlike JS's `Map`, it does not keep the property order.",
+    # The facade checks a storage state against `PlaywrightNewRequestParams` (`@protocol_params`).
+    "APIRequest.newContext" =>
+      "In Elixir, a storage state with `credentials` (`BrowserContext.storage_state!(context, credentials: true)`) raises here: drop them first, `Map.delete(state, :credentials)`."
   }
 
   # Class => an Elixir introduction to its module docs, before upstream's: the root module
@@ -259,6 +260,17 @@ defmodule Mix.Playwright.ApiRules do
   # Member name => inline code the prose rules leave alone: `getByRole`'s `disabled` is also the
   # HTML attribute.
   @prose_keep %{"getByRole" => ~w(disabled)}
+
+  # The protocol params each member sends its open objects in (`"protocol"`): `newPage` creates
+  # a context, `APIRequest.newContext` is `Playwright.newRequest`.
+  @protocol_params %{
+    "APIRequest.newContext" => "PlaywrightNewRequestParams",
+    "APIRequestContext.addCookies" => "APIRequestContextAddCookiesParams",
+    "Browser.newContext" => "BrowserNewContextParams",
+    "Browser.newPage" => "BrowserNewContextParams",
+    "BrowserContext.addCookies" => "BrowserContextAddCookiesParams",
+    "BrowserContext.setStorageState" => "BrowserContextSetStorageStateParams"
+  }
 
   # "Class.member.arg" that an overload without it makes optional.
   @optional_args ~w(LocatorAssertions.toHaveAttribute.value)
@@ -294,6 +306,7 @@ defmodule Mix.Playwright.ApiRules do
               |> notes("#{class["name"]}.#{member["name"]}")
               |> Map.update("spec", nil, &runner_notes/1)
               |> member("#{class["name"]}.#{member["name"]}" in @dropped_options)
+              |> protocol("#{class["name"]}.#{member["name"]}")
               |> or_options(class_names)
               |> prose("#{class["name"]}.#{member["name"]}")
 
@@ -1165,6 +1178,20 @@ defmodule Mix.Playwright.ApiRules do
     }
   end
 
+  # An open object in an argument or option (`cookies`, `storageState`): `"protocol"`, the protocol
+  # params and field it is sent in, whose keys the facade checks.
+  defp protocol(member, name) do
+    %{member | "args" => Enum.map(member["args"], &protocol_arg(&1, name))}
+  end
+
+  defp protocol_arg(%{"name" => "options", "type" => %{"properties" => props} = type} = arg, name),
+    do: %{arg | "type" => %{type | "properties" => Enum.map(props, &protocol_arg(&1, name))}}
+
+  defp protocol_arg(%{"name" => field, "type" => type} = arg, name) when field in ~w(cookies storageState),
+    do: %{arg | "type" => Map.put(type, "protocol", {Map.fetch!(@protocol_params, name), String.to_atom(field)})}
+
+  defp protocol_arg(arg, _name), do: arg
+
   # Nested objects too (an origin has `indexedDB`).
   defp open(%{"union" => union} = type) when is_list(union), do: %{type | "union" => Enum.map(union, &open/1)}
   defp open(%{"name" => "Array", "templates" => [item]} = type), do: %{type | "templates" => [open(item)]}
@@ -1228,16 +1255,8 @@ defmodule Mix.Playwright.ApiRules do
   defp property(%{"name" => name, "type" => %{"name" => "function"}} = property) when name in @exception_classes,
     do: %{property | "type" => %{"name" => "typeof", "templates" => [%{"name" => name}]}}
 
-  # Their keys are checked against the protocol's: the widest storage state (`setStorageState`, also
-  # with `credentials`), so a state of any member round-trips to any other.
-  defp property(%{"name" => "storageState", "type" => type} = property) do
-    {:object, params} = Playwright.Protocol.Validator.scheme("BrowserContextSetStorageStateParams")
-    type(%{property | "type" => Map.put(open(type), "protocol", Keyword.fetch!(params, :storageState))})
-  end
-
-  defp property(%{"name" => "cookies", "type" => type} = property),
-    do: type(%{property | "type" => Map.put(open(type), "protocol", {:array, {:type, "SetNetworkCookie"}})})
-
+  defp property(%{"name" => "storageState", "type" => type} = property), do: type(%{property | "type" => open(type)})
+  defp property(%{"name" => "cookies", "type" => type} = property), do: type(%{property | "type" => open(type)})
   defp property(property), do: type(property)
 
   defp type(%{"type" => type} = property) when is_map(type), do: %{property | "type" => type_of(type)}

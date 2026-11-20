@@ -37,12 +37,36 @@ defmodule Playwright.Application do
     if !(is_list(env) and Keyword.keyword?(env)),
       do: raise(ArgumentError, "#{label}: expected a keyword list, got: #{inspect(env)}")
 
-    case Keyword.keys(env) -- allowed do
-      [] ->
-        env
+    unknown_key!(label, "key", Keyword.keys(env), allowed)
+    env
+  end
 
-      unknown ->
-        raise ArgumentError, "#{label}: unknown keys, expected one of #{inspect(allowed)}, got: #{inspect(unknown)}"
+  @doc false
+  # Raises `ArgumentError` for the first of `keys` that is not `allowed`, as the facade does for
+  # an unknown option: `<label>: unknown <noun> <key>, expected one of <allowed>`.
+  def unknown_key!(label, noun, keys, allowed, hint \\ "") do
+    case keys -- allowed do
+      [] ->
+        :ok
+
+      [key | _] ->
+        raise ArgumentError, "#{label}: unknown #{noun} #{key_name(key)}, expected one of #{key_names(allowed)}#{hint}"
     end
   end
+
+  @doc false
+  # Keys as an error names them, as the facade does: bare, quoted only where they must be, an
+  # atom as `:"proxy.server"`, a string key as `"http_only"`.
+  def key_names(keys), do: Enum.map_join(keys, ", ", &key_name/1)
+
+  @doc false
+  def key_name(key) when is_atom(key) do
+    case inspect(key) do
+      ":\"" <> _ = quoted -> quoted
+      ":" <> bare -> bare
+      alias -> alias
+    end
+  end
+
+  def key_name(key), do: inspect(key)
 end

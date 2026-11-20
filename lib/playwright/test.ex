@@ -153,8 +153,7 @@ defmodule Playwright.Test do
   (`info/0`'s `retry`, 1 after the first run), and writes to `<dir>-retry1` (`-retry2` on the
   next `--failed`, ...), next to the dirs of its earlier runs. So with `trace: :on_first_retry`,
   `mix test || { [ $? -eq 2 ] && mix test --failed; }` traces the failures' rerun and keeps the
-  first run's files (exit status 2 means tests failed; anything else isn't retried; with
-  `--partitions`, rerun without it, see the Debugging and CI guide). A run
+  first run's files (exit status 2 means tests failed; anything else isn't retried). A run
   without `--failed` deletes the test's `-retryN` dirs too, where
   upstream deletes all of `output_dir` at the start of a run: here the dirs of tests that didn't
   run stay. Config `preserve_output` is upstream's `preserveOutput`: `:always` (default) keeps
@@ -257,17 +256,8 @@ defmodule Playwright.Test do
   `timeout:` the `action_timeout` (`0`, no limit, for `:infinity`) and no navigation timeout. Not
   the video, as upstream's comes with the `context` fixture.
 
-  `info/0` there returns the module's `file`, `timeout` and `use`: the module's options as
-  resolved for a test of it without describe or test tags, so its contexts' context options and
-  timeouts, and
-  the worker options (`Playwright.Case` reads the `browser_name` from it); the recording modes
-  too, which no `setup_all` context records. A library that also runs outside these scopes reads
-  the config there: `if Playwright.Test.in_registered_scope?(), do: Playwright.Test.info().use,
-  else: Playwright.Test.config()`. The two differ in shape: `config/0` is the config alone, with
-  the context options set as keys of their own (none of Playwright Test's defaults, nor those only
-  in its `context_options` bag) and its config-only keys (`workers`, `output_dir`, ...). Read the
-  keys both have with Access, `use[:base_url]` (`nil` when unset), not `use.base_url`, which
-  raises for an unset key.
+  `info/0` there returns the module's `file`, `timeout` and `use` (`Playwright.Case` reads the
+  `browser_name` from it): see `info/0`, also for reading the config outside these scopes.
 
   Only processes with `$callers` count: a `Task`, the client's callback processes (route
   handlers, listeners, exposed bindings registered in `setup_all` carry its `$callers`, see
@@ -543,6 +533,7 @@ defmodule Playwright.Test do
     quote do
       @doc false
       def __playwright_test__(:options), do: unquote(Macro.escape(options))
+      def __playwright_test__(:file), do: unquote(env.file)
 
       unquote(setup_all_timeout)
     end
@@ -710,14 +701,14 @@ defmodule Playwright.Test do
 
       config = Options.config()
       {parameters, tags} = TestInfo.module_sources(context)
-      use_options = use_options(context[:module])
+      use_options = compiled(context[:module], :options, %{})
       layers = Options.layers(parameters, use_options, tags)
 
       # `info/0`'s fields that apply to the module (`setup_all_info/1`).
       module =
         config
         |> context_defaults(layers, use_options)
-        |> Map.merge(%{file: module_file(context[:module]), timeout: Options.ex_unit_timeout(context)})
+        |> Map.merge(%{file: compiled(context[:module], :file, nil), timeout: Options.ex_unit_timeout(context)})
         # Also its steps' `testInfo` (`step_test_info!/0`): never started, so not running.
         |> Map.merge(%{test_pid: self(), step_id_prefix: "setup_all", project_name: TestInfo.project_name(parameters)})
         |> Map.put(:use_modes, Options.artifacts(config, layers))
@@ -770,7 +761,7 @@ defmodule Playwright.Test do
     config = Options.config()
     {parameters, tags} = TestInfo.test_sources(context)
     test_info = TestInfo.new(context, config.output_dir, parameters)
-    use_options = use_options(context[:module])
+    use_options = compiled(context[:module], :options, %{})
     layers = Options.layers(parameters, use_options, tags)
     # As given, for `info/0`'s `use`.
     use_modes = Options.artifacts(config, layers)
@@ -825,20 +816,12 @@ defmodule Playwright.Test do
     }
   end
 
-  # The module's file, absolute, as a test's `file`: the `file` of ExUnit's `%ExUnit.TestModule{}`
-  # (`__ex_unit__/0`, its internal API, the `__ENV__.file` of the module's `use ExUnit.Case`), as
-  # the compile info's `:source` is absent under `ERL_COMPILER_OPTIONS=deterministic`. `nil` for a
-  # `setup_all` run by hand, or if ExUnit's internals changed (no `__ex_unit__/0`): not checked at
-  # compile time, as a case template, which also runs `__before_compile__/1`, has none.
-  defp module_file(module) do
-    if module && function_exported?(module, :__ex_unit__, 0), do: module.__ex_unit__().file
-  end
-
-  # The merged options of a module's `use Playwright.Test` (`__before_compile__/1`).
-  defp use_options(module) do
+  # What the module's `use Playwright.Test` compiled in (`__before_compile__/1`): its merged
+  # `:options` and its `:file` (absolute, as a test's `file`). None for a `setup_all` run by hand.
+  defp compiled(module, key, default) do
     if module && function_exported?(module, :__playwright_test__, 1),
-      do: module.__playwright_test__(:options),
-      else: %{}
+      do: module.__playwright_test__(key),
+      else: default
   end
 
   # ExUnit's clock starts as it spawns the test process: the test's first `setup` callback
@@ -935,20 +918,28 @@ defmodule Playwright.Test do
   stop 250 ms before it, as upstream's stop 250 ms before its test deadline.
 
   In the module's `setup_all` (and processes with it in `$callers`), it returns the fields that
-  apply to the module, with the same meaning: `file` (`nil` for a module without ExUnit's
-  internal `__ex_unit__/0`, or a `setup_all` run by hand), `timeout` (ExUnit's timeout of the module,
+  apply to the module, with the same meaning: `file`, `timeout` (ExUnit's timeout of the module,
   `@moduletag timeout:` or ExUnit's, the one "Timeouts" in the moduledoc applies to its
   `setup_all` callbacks) and `use`, the module's options as resolved from the config, its
   project and the module itself (its `use` and `@moduletag`): a describe's and a test's options
   never reach `setup_all`. The test's fields (`test_pid`, `test_name`, `output_dir`, `retry`,
-  `deadline`, `close_deadline`) are absent. A deviation: upstream runs `beforeAll` hooks with the
-  first test's `testInfo`, which ExUnit's `setup_all`, run before any test, has none of. A
+  `deadline`, `close_deadline`) are absent. Deviations: upstream runs `beforeAll` hooks with the
+  first test's `testInfo`, which ExUnit's `setup_all`, run before any test, has none of; and a
+  long-lived process or handler of `setup_all`'s (with it in `$callers`) gets the module's fields
+  during a test too, as its contexts get the module's defaults (see "Contexts of `setup_all`"),
+  until the runner cleans up after it, where upstream's `test.info()` is the current test's. A
   `setup_all` that runs before `use Playwright.Test` registers the module (a case template's
-  own, or one above the module's `use`) gets none: there it raises. Deviation: a long-lived
-  process or handler of `setup_all`'s (with it in `$callers`) gets the module's fields during a
-  test too, as its contexts get the module's defaults (see "Contexts of `setup_all`"), where
-  upstream's `test.info()` is the current test's. Such a process that outlives its test or
-  `setup_all` may still get its fields until the runner cleans up after it.
+  own, or one above the module's `use`) isn't registered: there it raises.
+
+  A library that also runs outside these scopes reads the config there:
+
+      alias Playwright.Test
+      use = if Test.in_registered_scope?(), do: Test.info().use, else: Test.config()
+
+  `config/0` has another shape: the config alone, with the context options set as keys of their
+  own (none of Playwright Test's defaults, nor those only in its `context_options` bag) and its
+  config-only keys (`workers`, `output_dir`, ...). Read the keys both have with Access,
+  `use[:base_url]` (`nil` when unset), not `use.base_url`, which raises for an unset key.
 
   Raises elsewhere (see `in_registered_scope?/0`), and in `on_exit` callbacks (ExUnit runs them
   in a process of their own, without `$callers`, `setup_all`'s too): there, use `info/1` for a
@@ -968,7 +959,7 @@ defmodule Playwright.Test do
             close_deadline: integer() | :infinity,
             use: map()
           }
-          | %{file: Path.t() | nil, timeout: timeout(), use: map()}
+          | %{file: Path.t(), timeout: timeout(), use: map()}
   def info do
     case Recorder.scope() do
       {:test, test} ->
@@ -980,8 +971,7 @@ defmodule Playwright.Test do
       nil ->
         raise "Playwright.Test.info/0: no test or setup_all running, expected a call from a test or its module's " <>
                 "setup_all in a module with `use Playwright.Test` (the test's or setup_all's process, or one with it " <>
-                "in $callers), after `use Playwright.Test` registered it (a case template's own setup_all, or one " <>
-                "above the module's `use Playwright.Test`, runs before)"
+                "in $callers), after `use Playwright.Test` registered it"
     end
   end
 
@@ -1006,27 +996,9 @@ defmodule Playwright.Test do
   end
 
   @doc """
-  Whether the calling process runs a registered test, as `info/0` finds it: the test's process,
-  or a process with it in `$callers` (a `Task`), of a module with `use Playwright.Test`, from
-  the test's setup to the end of its body. For a library that also runs outside such tests.
-  `false` in a module's `setup_all`, where `info/0` works too: see `in_registered_scope?/0`.
-
-      if Playwright.Test.in_registered_test?(), do: Playwright.Test.info().deadline, else: :infinity
-  """
-  @spec in_registered_test?() :: boolean()
-  def in_registered_test?, do: Recorder.registration() != nil
-
-  @doc """
-  Whether `info/0` works in the calling process: it runs a registered test or its module's
-  `setup_all`, or has either in its `$callers` (a `Task`). For a library that reads the resolved
-  options where they exist, and the config elsewhere:
-
-      alias Playwright.Test
-      use = if Test.in_registered_scope?(), do: Test.info().use, else: Test.config()
-
-  `config/0` has another shape (see "Contexts of `setup_all`" in the moduledoc): read the keys
-  both have with Access (`use[:base_url]`, `nil` when unset). `false` in a `setup_all` before `use Playwright.Test` registered the module
-  (a case template's own, or one above the module's `use`).
+  Whether `info/0` works in the calling process: a registered test or module `setup_all`, or a
+  process with either in its `$callers`. `info/0` has `test_pid` only in a test. See `info/0` for
+  reading the config elsewhere.
   """
   @spec in_registered_scope?() :: boolean()
   def in_registered_scope?, do: Recorder.scope() != nil
@@ -1206,13 +1178,13 @@ defmodule Playwright.Test do
   """
   @spec attach(String.t(), keyword()) :: :ok
   def attach(name, options \\ []) when is_binary(name) do
-    options = Keyword.validate!(options, [:path, :body, :content_type])
+    Playwright.Application.unknown_key!("Playwright.Test.attach/2", "option", Keyword.keys(options), [
+      :path,
+      :body,
+      :content_type
+    ])
 
-    test_info =
-      TestInfo.current() ||
-        raise "Playwright.Test.attach/2: no test running, expected a call from a test of a module with " <>
-                "`use Playwright.Test` (its process, or one with it in $callers)"
-
+    test_info = running_test!("attach/2", &TestInfo.current/0)
     TestInfo.attach(test_info, name, %{path: options[:path], body: options[:body], contentType: options[:content_type]})
   end
 
@@ -1228,20 +1200,15 @@ defmodule Playwright.Test do
   def snapshot_path(name, options \\ []) when is_binary(name) or is_list(name) do
     {kind, options} = Keyword.pop(options, :kind, :snapshot)
 
-    if options != [],
-      do:
-        raise(
-          ArgumentError,
-          "Playwright.Test.snapshot_path/2: unknown options, expected one of [:kind], got: #{inspect(Keyword.keys(options))}"
-        )
+    Playwright.Application.unknown_key!("Playwright.Test.snapshot_path/2", "option", Keyword.keys(options), [:kind])
 
     TestInfo.snapshot_path(running_test!("snapshot_path/2"), name, to_string(kind))
   end
 
   # The running test's registration (as `info/0` finds it), for a function of the test only: it
   # raises in `setup_all`, which has no output dir or snapshot names.
-  defp running_test!(function) do
-    Recorder.registration() ||
+  defp running_test!(function, lookup \\ &Recorder.registration/0) do
+    lookup.() ||
       raise "Playwright.Test.#{function}: no test running, expected a call from a test of a module with " <>
               "`use Playwright.Test` (its process, or one with it in $callers)"
   end
@@ -1326,11 +1293,18 @@ defmodule Playwright.Test do
       do:
         raise(
           ArgumentError,
-          "Playwright.Test.step/3: unsupported option :timeout, expected none (a step body can't be interrupted " <>
+          "Playwright.Test.step/3: unsupported option timeout (a step body can't be interrupted " <>
             "in its own process; the test's timeout bounds it)"
         )
 
-    options = Map.new(Keyword.validate!(options, [:box, :location, :params, :subtitle]))
+    Playwright.Application.unknown_key!("Playwright.Test.step/3", "option", Keyword.keys(options), [
+      :box,
+      :location,
+      :params,
+      :subtitle
+    ])
+
+    options = Map.new(options)
     call_site = call_site || (options[:location] && Map.take(options.location, [:file, :line]))
     test_info = step_test_info!()
     Recorder.on_user_step(test_info.test_pid, {:begin, title})

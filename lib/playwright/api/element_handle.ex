@@ -1442,7 +1442,7 @@ defmodule Playwright.ElementHandle do
           select_option_options()
         ) :: {:ok, [String.t()]} | {:error, Playwright.error()}
   def select_option(%Playwright.ElementHandle{} = element_handle, values, options \\ []) do
-    values = Facade.arg!(values, @select_option_values, "elementHandle.selectOption", "values")
+    values = Facade.arg!(values, @select_option_values, "elementHandle.selectOption", :values)
     options = Facade.options!(options, @select_option_options, "elementHandle.selectOption")
 
     Facade.async("elementHandle.selectOption", fn ->
@@ -1475,7 +1475,7 @@ defmodule Playwright.ElementHandle do
           select_option_options()
         ) :: [String.t()]
   def select_option!(%Playwright.ElementHandle{} = element_handle, values, options \\ []) do
-    values = Facade.arg!(values, @select_option_values, "elementHandle.selectOption", "values")
+    values = Facade.arg!(values, @select_option_values, "elementHandle.selectOption", :values)
     options = Facade.options!(options, @select_option_options, "elementHandle.selectOption")
 
     Facade.async!("elementHandle.selectOption", fn ->
@@ -1696,7 +1696,7 @@ defmodule Playwright.ElementHandle do
           set_input_files_options()
         ) :: :ok | {:error, Playwright.error()}
   def set_input_files(%Playwright.ElementHandle{} = element_handle, files, options \\ []) do
-    files = Facade.arg!(files, @set_input_files_files, "elementHandle.setInputFiles", "files")
+    files = Facade.arg!(files, @set_input_files_files, "elementHandle.setInputFiles", :files)
     options = Facade.options!(options, @set_input_files_options, "elementHandle.setInputFiles")
 
     Facade.async_void("elementHandle.setInputFiles", fn ->
@@ -1714,7 +1714,7 @@ defmodule Playwright.ElementHandle do
           set_input_files_options()
         ) :: :ok
   def set_input_files!(%Playwright.ElementHandle{} = element_handle, files, options \\ []) do
-    files = Facade.arg!(files, @set_input_files_files, "elementHandle.setInputFiles", "files")
+    files = Facade.arg!(files, @set_input_files_files, "elementHandle.setInputFiles", :files)
     options = Facade.options!(options, @set_input_files_options, "elementHandle.setInputFiles")
 
     Facade.async_void!("elementHandle.setInputFiles", fn ->
@@ -2062,7 +2062,7 @@ defmodule Playwright.ElementHandle do
           wait_for_element_state_options()
         ) :: :ok | {:error, Playwright.error()}
   def wait_for_element_state(%Playwright.ElementHandle{} = element_handle, state, options \\ []) do
-    state = Facade.arg!(state, @wait_for_element_state_state, "elementHandle.waitForElementState", "state")
+    state = Facade.arg!(state, @wait_for_element_state_state, "elementHandle.waitForElementState", :state)
     options = Facade.options!(options, @wait_for_element_state_options, "elementHandle.waitForElementState")
 
     Facade.async_void("elementHandle.waitForElementState", fn ->
@@ -2077,7 +2077,7 @@ defmodule Playwright.ElementHandle do
           wait_for_element_state_options()
         ) :: :ok
   def wait_for_element_state!(%Playwright.ElementHandle{} = element_handle, state, options \\ []) do
-    state = Facade.arg!(state, @wait_for_element_state_state, "elementHandle.waitForElementState", "state")
+    state = Facade.arg!(state, @wait_for_element_state_state, "elementHandle.waitForElementState", :state)
     options = Facade.options!(options, @wait_for_element_state_options, "elementHandle.waitForElementState")
 
     Facade.async_void!("elementHandle.waitForElementState", fn ->

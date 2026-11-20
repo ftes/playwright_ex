@@ -5,7 +5,7 @@ defmodule Playwright.Matchers.ExpectTest do
 
   test "unknown keys of the app env config raise, naming the valid ones" do
     assert_raise ArgumentError,
-                 ~r/^config :playwright, :expect: unknown keys, expected one of \[:timeout, .*\], got: \[:timout\]$/,
+                 ~r/^config :playwright, :expect: unknown key timout, expected one of timeout, /,
                  fn -> Expect.app_env_expect_config(timout: 1_000) end
   end
 
@@ -32,19 +32,19 @@ defmodule Playwright.Matchers.ExpectTest do
 
   test "a matcher's config: upstream's keys, snake_case; others raise" do
     assert_raise ArgumentError,
-                 ~r/^config :playwright, :expect, :to_have_screenshot: unknown keys, .*got: \[:maxDiffPixels\]$/,
+                 ~r/^config :playwright, :expect, :to_have_screenshot: unknown key maxDiffPixels, /,
                  fn ->
                    Expect.app_env_expect_config(to_have_screenshot: %{maxDiffPixels: 10})
                  end
 
     assert_raise ArgumentError,
-                 ~r/^config :playwright, :expect, :to_have_screenshot: unknown keys, .*got: \[:mask\]$/,
+                 ~r/^config :playwright, :expect, :to_have_screenshot: unknown key mask, /,
                  fn ->
                    Expect.app_env_expect_config(to_have_screenshot: [mask: []])
                  end
 
     assert_raise ArgumentError,
-                 "config :playwright, :expect, :to_match_aria_snapshot: invalid children, expected one of [:contain, :equal, :deep_equal], got: :all",
+                 "config :playwright, :expect, :to_match_aria_snapshot: invalid value :all for children, expected one of :contain, :equal, :deep_equal",
                  fn -> Expect.app_env_expect_config(to_match_aria_snapshot: [children: :all]) end
   end
 
@@ -56,7 +56,7 @@ defmodule Playwright.Matchers.ExpectTest do
                  "config :playwright, :expect, :to_pass: expected a keyword list or a map, got: 5000",
                  fn -> Expect.app_env_expect_config(to_pass: 5000) end
 
-    assert_raise ArgumentError, ~r/^config :playwright, :expect, :to_pass: unknown keys, .*got: \[:timout\]$/, fn ->
+    assert_raise ArgumentError, ~r/^config :playwright, :expect, :to_pass: unknown key timout, /, fn ->
       Expect.app_env_expect_config(to_pass: [timout: 1_000])
     end
   end

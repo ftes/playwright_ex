@@ -43,7 +43,7 @@ upstream minor, so `~> 1.65.0` is safe.
 ### Added
 
 - `Playwright.Test.info/0` in `setup_all`: the module's `file`, `timeout` and resolved `use`
-  options (config, project, module), and `Playwright.Test.in_registered_scope?/0`.
+  options (config, project, module).
 - `Playwright.Test.step/2,3` and `step_skip/2,3` in `setup_all`, as `test.step` in
   `beforeAll`: a step returns its body's value and raises its error (a boxed step's where its
   helper is called), unrecorded.
@@ -63,33 +63,32 @@ upstream minor, so `~> 1.65.0` is safe.
   `:to_match_aria_snapshot` and `:to_pass` take the matchers' snake_case keys
   (`max_diff_pixels:`, `path_template:`, `children: :equal`), not JS keys.
 - **RC only:** **Breaking:** `Playwright.Test.parameters/1` returns one private key,
-  `:"playwright.project"`, holding a `Playwright.Test.Project`, not a key per option.
+  `:"playwright.project"`, holding a `Playwright.Test.Project` (`name`, `use`), not a key per
+  option.
 - **RC only:** **Breaking:** `Playwright.Driver.install_browsers/2` raises on a failed install,
   as `install/1` does, instead of returning `{:error, {:exit_status, n}}`.
 - **RC only:** **Breaking:** `mix playwright.install --force` reinstalls the driver with every
   flag, `--dry-run`, `--list` and `--help` too.
 - **RC only:** **Breaking:** errors of the runner, the pool, the driver and the config read
-  `<Module.function/arity or config path>: <problem>, expected ..., got: ...`; a call outside
-  its scope (`BrowserPool.browser/1` past its test, a context before the registration) raises
+  `<Module.function/arity or config path>: <problem>, expected ...`, keys and values as the
+  facade's errors name them (`config :playwright, :test: unknown key tracing, expected one of
+  browser_name, ...`, `invalid value :sometimes for trace, expected ...`); a call outside its
+  scope (`BrowserPool.browser/1` past its test, a context before the registration) raises
   `RuntimeError`, bad input `ArgumentError`.
 - **RC only:** `Playwright.Runtime.Api.call/3` is `Playwright.Runtime.Facade.call/2`, without
   the unused receiver, as are the facade's `async`, `expect` and `matcher` runners.
 - **RC only:** `priv/driver_checksums.exs` no longer repeats the driver and Node versions:
   `DRIVER_VERSION` and `NODE_VERSION` alone hold them.
+- **RC only:** `Playwright.Test.in_registered_test?/0` is replaced by `in_registered_scope?/0`,
+  true in a test or `setup_all`; `info/0` has `test_pid` only in a test.
 
 ### Fixed
 
-- Cookies (`add_cookies`) and storage states (`storage_state:`, `set_storage_state`) check
-  their keys, as other nested objects do, against the protocol's (results round-trip, string
-  keys from `JSON.decode!/1` too): a snake_case `http_only:` raises instead of being dropped.
-  So do `multipart` file payloads. Errors name the positional argument and the index in a
-  list (`unknown field cookies[0].http_only`).
-
-### Docs
-
-- CI retries with `--partitions` rerun `mix test --failed` without it; Playwright's Docker image
-  tag is the driver's version; porting notes for `expect` messages, the `github` reporter, tags
-  and ExUnit's random module order; accessibility testing with axe-core.
+- **RC only:** `add_cookies`, `storage_state:` and `set_storage_state` check their keys
+  against the protocol's: a snake_case `http_only:` raises instead of being dropped. Errors
+  name the argument and list index (`cookies[0].http_only`).
+- **RC only:** `mix playwright.install` forwards a `--` to `playwright install` (rc.2 raised on
+  it).
 
 ## [1.65.0-rc.2] 2026-11-18
 
@@ -197,8 +196,6 @@ Node 26.13.1. No upstream API changes.
 
 ### Fixed
 
-- **RC only:** `mix playwright.install` forwards a `--` to `playwright install` again (rc.2
-  raised on it).
 - **RC only:** `mix playwright.install` and `mix playwright.cli` failed with "module :public_key
   is not available" when run before the project was compiled (e.g. right after `mix deps.get` in
   CI).
@@ -206,9 +203,6 @@ Node 26.13.1. No upstream API changes.
 ## [1.65.0-rc.1] 2026-11-16
 
 Drives [Playwright 1.65.0](https://github.com/microsoft/playwright/releases/tag/v1.65.0).
-
-Upgrading from 0.16: see the renames under Changed below (`PlaywrightEx` to `Playwright`,
-`:playwright_ex` to `:playwright`, guids to structs).
 
 ### Changed
 - **Breaking:** rewritten as a port of Playwright's JS client, its API generated from Playwright's

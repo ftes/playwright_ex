@@ -3478,7 +3478,7 @@ defmodule Playwright.Expect do
         ) :: :ok | {:error, Playwright.error()}
   def to_have_role(locator, role, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveRole")
-    role = Facade.arg!(role, @to_have_role_role, "expect.toHaveRole", "role")
+    role = Facade.arg!(role, @to_have_role_role, "expect.toHaveRole", :role)
     options = Facade.options!(options, @to_have_role_options, "expect.toHaveRole", __ENV__.function)
 
     Facade.matcher(fn ->
@@ -3580,7 +3580,7 @@ defmodule Playwright.Expect do
         ) :: :ok
   def to_have_role!(locator, role, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, false, "expect.toHaveRole")
-    role = Facade.arg!(role, @to_have_role_role, "expect.toHaveRole", "role")
+    role = Facade.arg!(role, @to_have_role_role, "expect.toHaveRole", :role)
     options = Facade.options!(options, @to_have_role_options, "expect.toHaveRole", __ENV__.function)
 
     Facade.matcher!(fn ->
@@ -3794,7 +3794,7 @@ defmodule Playwright.Expect do
         ) :: :ok | {:error, Playwright.error()}
   def not_to_have_role(locator, role, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveRole")
-    role = Facade.arg!(role, @not_to_have_role_role, "expect.notToHaveRole", "role")
+    role = Facade.arg!(role, @not_to_have_role_role, "expect.notToHaveRole", :role)
     options = Facade.options!(options, @not_to_have_role_options, "expect.notToHaveRole", __ENV__.function)
 
     Facade.matcher(fn ->
@@ -3896,7 +3896,7 @@ defmodule Playwright.Expect do
         ) :: :ok
   def not_to_have_role!(locator, role, options \\ []) do
     {locator, info} = Facade.matcher_info(locator, true, "expect.notToHaveRole")
-    role = Facade.arg!(role, @not_to_have_role_role, "expect.notToHaveRole", "role")
+    role = Facade.arg!(role, @not_to_have_role_role, "expect.notToHaveRole", :role)
     options = Facade.options!(options, @not_to_have_role_options, "expect.notToHaveRole", __ENV__.function)
 
     Facade.matcher!(fn ->

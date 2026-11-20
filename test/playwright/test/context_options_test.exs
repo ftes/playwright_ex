@@ -68,7 +68,7 @@ defmodule Playwright.Test.ContextOptionsTest do
           {"Capture", "&Playwright.Test.ContextOptionsTest.language/1"}
         ] do
       assert_raise ArgumentError,
-                   ~r/invalid context_options, expected a keyword list or a map, got: (#Function<|&).*/,
+                   ~r/invalid value (#Function<|&).* for context_options, expected a keyword list or a map/,
                    fn ->
                      compile(name, "use Playwright.Case, context_options: #{function}")
                    end
@@ -78,13 +78,15 @@ defmodule Playwright.Test.ContextOptionsTest do
       compile("Unknown", "use Playwright.Test, lokale: \"de-DE\"")
     end
 
-    assert_raise ArgumentError, ~r/invalid context_options, expected a keyword list or a map, got: :dark/, fn ->
+    assert_raise ArgumentError, ~r/invalid value :dark for context_options, expected a keyword list or a map/, fn ->
       compile("Invalid", "use Playwright.Test, context_options: :dark")
     end
 
-    assert_raise ArgumentError, ~r/invalid context_options, expected a keyword list or a map, got: \{Mod, :fun\}/, fn ->
-      compile("Tuple", "use Playwright.Test, context_options: {Mod, :fun}")
-    end
+    assert_raise ArgumentError,
+                 ~r/invalid value \{Mod, :fun\} for context_options, expected a keyword list or a map/,
+                 fn ->
+                   compile("Tuple", "use Playwright.Test, context_options: {Mod, :fun}")
+                 end
   end
 
   test "Test.use validates as the use option, when the module compiles" do
@@ -106,9 +108,9 @@ defmodule Playwright.Test.ContextOptionsTest do
 
     for {message, options} <- [
           {~r/Playwright.Test.(use|parameters)\/1: .*lokale/, ~s(context_options: [lokale: "de-DE"])},
-          {~r/Playwright.Test.(use|parameters).*: unknown options, .*got: \[:lokale\]/, ~s(lokale: "de-DE")},
-          {~r/invalid trace, .*got: :sometimes/, "trace: :sometimes"},
-          {~r/duplicated option, .*got: :trace/, "trace: :on, trace: :off"}
+          {~r/Playwright.Test.(use|parameters).*: unknown option lokale, /, ~s(lokale: "de-DE")},
+          {~r/invalid value :sometimes for trace, /, "trace: :sometimes"},
+          {~r/duplicated option trace/, "trace: :on, trace: :off"}
         ] do
       assert_raise ArgumentError, message, fn ->
         compile("Tag", "use Playwright.Case\n@tag Playwright.Test.use(#{options})\ntest \"t\", do: :ok")
@@ -135,12 +137,12 @@ defmodule Playwright.Test.ContextOptionsTest do
     # Against the facade's types of `Browser.new_context/2`'s options, as that call checks them.
     values = [
       {"color_scheme: :purple",
-       "invalid value :purple for :color_scheme, expected one of :dark, :light, :no_preference"},
-      {"color_scheme: :purple", "invalid value :purple for :color_scheme, expected one of"},
+       "invalid value :purple for color_scheme, expected one of :dark, :light, :no_preference"},
+      {"color_scheme: :purple", "invalid value :purple for color_scheme, expected one of"},
       {"viewport: %{wide: 1}", "wide"},
-      {"video: :sometimes", "invalid video, expected one of"},
-      {"action_timeout: -1", "invalid action_timeout, expected a non-negative integer or :infinity, got: -1"},
-      {"lokale: 1", ": unknown options, expected one of"}
+      {"video: :sometimes", "for video, expected one of"},
+      {"action_timeout: -1", "invalid value -1 for action_timeout, expected a non-negative integer or :infinity"},
+      {"lokale: 1", ": unknown option lokale, expected one of"}
     ]
 
     for {label, source} <- entries, {options, message} <- values do
@@ -151,13 +153,7 @@ defmodule Playwright.Test.ContextOptionsTest do
   end
 
   test "browser_name is the module's or the project's: a tag's raises" do
-    assert %{
-             "playwright.project": %Playwright.Test.Project{
-               name: nil,
-               use: [browser_name: :webkit, trace: :on],
-               options: options
-             }
-           } =
+    assert %{"playwright.project": %Playwright.Test.Project{name: nil, use: options}} =
              Playwright.Test.parameters(browser_name: :webkit, trace: :on)
 
     assert options == %{
@@ -167,12 +163,12 @@ defmodule Playwright.Test.ContextOptionsTest do
 
     assert %{browser_name: :firefox} = Options.use_options(browser_name: :firefox, async: true)
 
-    assert_raise ArgumentError, ~r/invalid browser_name, .*got: :chrome/, fn ->
+    assert_raise ArgumentError, ~r/invalid value :chrome for browser_name, /, fn ->
       Options.use_options(browser_name: :chrome)
     end
 
     assert_raise ArgumentError,
-                 ~r/Playwright.Test.use.*: unknown options, .*got: \[:browser_name\].*forces a new worker/,
+                 ~r/Playwright.Test.use.*: unknown option browser_name, .*forces a new worker/,
                  fn ->
                    compile("BrowserTag", "use Playwright.Case\n@tag Playwright.Test.use(browser_name: :webkit)")
                  end
@@ -193,7 +189,7 @@ defmodule Playwright.Test.ContextOptionsTest do
   end
 
   test "the worker options: the module's use over its project's over the config's, launch_options as a whole" do
-    project = Options.project(Playwright.Test.parameters(launch_options: [slow_mo: 1, timeout: 5000])).options
+    project = Options.project(Playwright.Test.parameters(launch_options: [slow_mo: 1, timeout: 5000])).use
     use_options = Options.use_options(launch_options: %{slow_mo: 2}, connect_options: [ws_endpoint: "ws://localhost"])
     worker = Options.worker(Options.config(), project, use_options)
 
@@ -210,8 +206,8 @@ defmodule Playwright.Test.ContextOptionsTest do
 
   test "the browser: an explicit browser_name (use, project, config), else a device's, else the default" do
     iphone = Playwright.Test.Options.use_options(Playwright.device("iPhone 13"))
-    pixel = Options.project(Playwright.Test.parameters(Playwright.device("Pixel 7"))).options
-    firefox = Options.project(Playwright.Test.parameters(browser_name: :firefox)).options
+    pixel = Options.project(Playwright.Test.parameters(Playwright.device("Pixel 7"))).use
+    firefox = Options.project(Playwright.Test.parameters(browser_name: :firefox)).use
     config = Options.config()
     env = Application.get_env(:playwright, :test)
     # This suite's config sets one (`BROWSER`).
@@ -238,8 +234,8 @@ defmodule Playwright.Test.ContextOptionsTest do
     device = Playwright.device("iPhone 13")
     refute Enum.any?(Playwright.Test.use(device), fn {key, _value} -> to_string(key) =~ "rowser" end)
     project = Options.project(Playwright.Test.parameters(device))
-    assert project.options.default_browser_type == :webkit
-    assert project.options.context.userAgent == device[:user_agent]
+    assert project.use.default_browser_type == :webkit
+    assert project.use.context.userAgent == device[:user_agent]
     assert %{default_browser_type: :webkit, context: %{isMobile: true}} = Options.use_options(device)
 
     config = %{context_options: [locale: "it-IT", color_scheme: :dark], timezone_id: "Europe/Rome"}
@@ -617,7 +613,7 @@ defmodule Playwright.Test.ContextOptionsTest.DeviceBrowserTest do
 
   test "the module's device, else the project's, else the config's, else chromium", %{env: env} do
     iphone = Options.use_options(Playwright.device("iPhone 13"))
-    firefox = Options.project(Playwright.Test.parameters(Playwright.device("Desktop Firefox"))).options
+    firefox = Options.project(Playwright.Test.parameters(Playwright.device("Desktop Firefox"))).use
     # A device in `context_options` is no worker option.
     assert Options.browser_name(
              Options.config(),

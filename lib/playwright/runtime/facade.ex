@@ -13,20 +13,20 @@ defmodule Playwright.Runtime.Facade do
       the Python client: maps with the JS keys (`%{sameSite: "Lax"}`), passed as they are, so
       values returned by the client round-trip. Only their keys are checked: an unknown one
       raises `ArgumentError` naming where it is (`cookies[0].http_only`). Cookies and storage
-      states have the protocol's keys, also those the docs leave out, which results carry.
-      Only these, passed on to the protocol as they are, take string keys too (a storage state
-      from `JSON.decode!/1`); other nested objects take atoms, as the client reads them.
+      states, which the client passes on, have the keys of the protocol params they are sent in
+      (results carry some the docs leave out), as atoms or strings (`JSON.decode!/1`); a storage
+      state given as a file path is passed unchecked.
     * Enums of options and positional arguments: atoms (`:no_preference`) become the wire
       strings (`"no-preference"`); strings pass through.
     * `timeout: :infinity` is `timeout: 0` (no timeout, as in JS), likewise a positional
       `timeout` (`set_default_timeout(context, :infinity)`).
 
   A type is `nil` (passed through), `:timeout` (a positional timeout), `{:object, %{key => {js_key, type}}}`
-  (options), `{:fields, %{js_key => type}}` (a nested object), `{:protocol, %{js_key => type}}` (one
-  the client passes on as it is: string keys too, as the protocol validator reads them),
-  `{:array, type}`, `{:values, type}` (a dictionary's values), `{:enum, %{atom => string}}` or
-  `{:union, [type]}`.
+  (options), `{:fields, %{js_key => type}}` (a nested object), `{:protocol, params, field}` (one the
+  client passes on, `field` of the protocol's `params`), `{:array, type}`, `{:enum, %{atom => string}}`
+  or `{:union, [type]}`.
   """
+  alias Playwright.Protocol.Validator
   alias Playwright.Runtime.Promise
   alias Playwright.Runtime.Zones
   alias Playwright.TargetClosedError
@@ -244,7 +244,7 @@ defmodule Playwright.Runtime.Facade do
   end
 
   @doc "Converts the positional argument `name` (its Elixir name, for errors) of `type`."
-  def arg!(value, type, api_name, name), do: convert!(value, type, api_name, [{:argument, name}])
+  def arg!(value, type, api_name, name), do: convert!(value, type, api_name, [name])
 
   @doc """
   The JS event name for `event` (atom, or the JS name as a string) in `events`; `nil` (an optional
@@ -265,14 +265,13 @@ defmodule Playwright.Runtime.Facade do
   defp convert!(value, :timeout, _api_name, _path), do: timeout(:timeout, value)
 
   defp convert!(value, {:fields, fields}, api_name, path) do
-    if object?(value), do: fields!(value, fields, api_name, path, false)
+    if object?(value), do: fields!(value, fields, api_name, path)
     value
   end
 
-  # Passed on to the protocol as it is, whose validator reads string keys too (a storage state
-  # from `JSON.decode!/1`).
-  defp convert!(value, {:protocol, fields}, api_name, path) do
-    if object?(value), do: fields!(value, fields, api_name, path, true)
+  defp convert!(value, {:protocol, params, field}, api_name, path) do
+    {:object, fields} = Validator.scheme(params)
+    protocol!(value, Keyword.fetch!(fields, field), api_name, path)
     value
   end
 
@@ -281,13 +280,6 @@ defmodule Playwright.Runtime.Facade do
       value
       |> Enum.with_index()
       |> Enum.map(fn {item, index} -> convert!(item, type, api_name, [{:index, index} | path]) end)
-
-  # A dictionary: a map, or a keyword list (`FormData`).
-  defp convert!(value, {:values, type}, api_name, path)
-       when is_list(value) or (is_map(value) and not is_struct(value)) do
-    for {key, item} <- value, do: convert!(item, type, api_name, [key | path])
-    value
-  end
 
   defp convert!(value, {:enum, literals}, api_name, path) when is_atom(value) and value not in [:null, true, false] do
     case literals do
@@ -303,7 +295,7 @@ defmodule Playwright.Runtime.Facade do
   defp convert!(value, {:union, types}, api_name, path) do
     type =
       cond do
-        object?(value) -> Enum.find(types, &match?({tag, _} when tag in [:fields, :protocol], &1))
+        object?(value) -> Enum.find(types, &match?({:fields, _}, &1))
         is_list(value) -> Enum.find(types, &match?({:array, _}, &1))
         is_atom(value) -> Enum.find(types, &match?({:enum, _}, &1))
         true -> nil
@@ -337,40 +329,61 @@ defmodule Playwright.Runtime.Facade do
 
   defp hint(_function, _path), do: ""
 
-  defp fields!(value, fields, api_name, path, string_keys?) do
+  defp fields!(value, fields, api_name, path) do
     for {key, value} <- value do
-      case field(fields, key, string_keys?) do
-        {:ok, type} ->
-          convert!(value, type, api_name, [key | path])
-
-        :error ->
-          raise ArgumentError, "#{api_name}: unknown field #{name([key | path])}, expected one of #{keys(fields)}"
+      case fields do
+        %{^key => type} -> convert!(value, type, api_name, [key | path])
+        _ -> unknown_field!(api_name, [key | path], fields)
       end
     end
   end
 
-  defp field(fields, key, true) when is_binary(key),
-    do: Enum.find_value(fields, :error, fn {field, type} -> if Atom.to_string(field) == key, do: {:ok, type} end)
+  # A value passed on to the protocol as it is (cookies, storage states): the keys of its objects
+  # are the scheme's (`Playwright.Protocol.Validator`), atoms or strings as the validator reads them.
+  defp protocol!(value, {:optional, scheme}, api_name, path), do: protocol!(value, scheme, api_name, path)
+  defp protocol!(value, {:type, name}, api_name, path), do: protocol!(value, Validator.scheme(name), api_name, path)
 
-  defp field(fields, key, _string_keys?), do: Map.fetch(fields, key)
+  defp protocol!(value, {:array, scheme}, api_name, path) when is_list(value) do
+    for {item, index} <- Enum.with_index(value), do: protocol!(item, scheme, api_name, [{:index, index} | path])
+  end
+
+  defp protocol!(value, {:object, fields}, api_name, path) when is_map(value) and not is_struct(value) do
+    atoms = Map.new(fields)
+
+    strings =
+      if Enum.any?(value, fn {key, _} -> is_binary(key) end),
+        do: Map.new(fields, fn {k, s} -> {Atom.to_string(k), s} end)
+
+    for {key, item} <- value do
+      known = if is_binary(key), do: strings, else: atoms
+
+      case known do
+        %{^key => scheme} -> protocol!(item, scheme, api_name, [key | path])
+        _ -> unknown_field!(api_name, [key | path], known)
+      end
+    end
+  end
+
+  defp protocol!(_value, _scheme, _api_name, _path), do: :ok
+
+  defp unknown_field!(api_name, path, keys),
+    do: raise(ArgumentError, "#{api_name}: unknown field #{name(path)}, expected one of #{keys(keys)}")
 
   defp timeout(:timeout, :infinity), do: 0
   defp timeout(_key, value), do: value
 
   defp object?(value), do: is_map(value) and not is_struct(value)
 
-  # [:server, :proxy] is ":proxy.server" (an option), [:httpOnly, {:index, 0}, {:argument, "cookies"}]
-  # is "cookies[0].httpOnly" (a positional argument, by its name).
+  # [:server, :proxy] is `proxy.server`, ["httpOnly", {:index, 0}, :cookies] `cookies[0]."httpOnly"`.
   defp name(path) do
     path
     |> Enum.reverse()
-    |> Enum.reduce("", fn
-      {:argument, name}, "" -> name
-      {:index, index}, name -> "#{name}[#{index}]"
-      option, "" -> inspect(option)
-      key, name when is_atom(key) -> "#{name}.#{key}"
-      key, name -> "#{name}.#{inspect(key)}"
+    |> Enum.map_join(fn
+      {:index, index} -> "[#{index}]"
+      key when is_atom(key) -> ".#{key}"
+      key -> ".#{inspect(key)}"
     end)
+    |> String.trim_leading(".")
   end
 
   defp keys(map), do: map |> Map.keys() |> Enum.sort() |> Enum.map_join(", ", &inspect/1)

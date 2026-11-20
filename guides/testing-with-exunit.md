@@ -618,12 +618,6 @@ and rerun the failures in CI, only on exit status 2 (tests failed; a crash or a 
 mix test || { [ $? -eq 2 ] && mix test --failed; }
 ```
 
-On Elixir 1.20 and earlier, `--failed` doesn't rerun a module whose `setup_all` cleanup
-(`on_exit`) failed after its tests passed, so such a failure can be retried green; Elixir 1.21
-fixes this ([elixir-lang/elixir@0f654791](https://github.com/elixir-lang/elixir/commit/0f654791)).
-
-With `--partitions`, rerun without it (see [CI](debugging-and-ci.md#annotations)).
-
 The other retry modes are Playwright Test's too: `:on_all_retries` traces every rerun,
 `:retain_on_first_failure` the first run's failures, `:retain_on_failure_and_retries` both;
 `video` takes them as well, and `screenshot` has `:on_first_failure`.
@@ -889,25 +883,11 @@ test (an Ecto sandbox owner, a session) finds the test from a `Task` with it:
 `Playwright.Test.info().test_pid`.
 
 In the module's `setup_all`, and processes with it in `$callers`, `info/0` returns the module's
-fields: `file`, `timeout` (the module's, which bounds `setup_all`) and `use`, the options
-resolved from the config, the project and the module, as its `setup_all` contexts get them (a
-describe's or a test's never reach `setup_all`). The test's fields (`test_pid`, `test_name`,
-`output_dir`, `retry`, `deadline`, `close_deadline`) are absent there, and `output_path/1`,
-`snapshot_path/2` and `attach/2` raise; `step/2,3` and `step_skip/2,3` work, unrecorded (see
-"Steps"). Playwright Test runs `beforeAll` with the first test's `testInfo`; ExUnit runs
-`setup_all` before any test. A `setup_all` that runs before `use Playwright.Test` (a case
-template's own, or one above the module's `use`) isn't registered yet, and a process or handler
-that `setup_all` started, with it in `$callers`, gets the module's fields also during a test,
-and its steps stay unrecorded.
-
-Elsewhere `info/0` raises, also in `on_exit` callbacks. `Playwright.Test.in_registered_test?/0`
-tells whether a test is running, `Playwright.Test.in_registered_scope?/0` whether `info/0` works
-(a test or a `setup_all`). A library that also runs outside them reads the config there: `if
-Playwright.Test.in_registered_scope?(), do: Playwright.Test.info().use, else:
-Playwright.Test.config()`. The config is another shape: only the context options it sets as keys
-of their own (no Playwright Test defaults, not those only in its `context_options` bag), plus
-config-only keys (`workers`, `output_dir`, ...). So read the keys both have with Access,
-`use[:base_url]` (`nil` when unset), not `use.base_url`, which raises for an unset key.
+`file`, `timeout` and `use` (the options its `setup_all` contexts get), without the test's
+fields; `output_path/1`, `snapshot_path/2` and `attach/2` raise there, `step/2,3` and
+`step_skip/2,3` work unrecorded (see "Steps"). Elsewhere `info/0` raises, also in `on_exit`
+callbacks: `Playwright.Test.in_registered_scope?/0` tells whether `info/0` works (its `test_pid`
+is there only in a test), and `Playwright.Test.info/0` shows how to read the config outside them.
 
 ## Polling and waiting
 

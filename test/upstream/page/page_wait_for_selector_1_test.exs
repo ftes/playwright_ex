@@ -27,7 +27,7 @@ defmodule Playwright.Page.PageWaitForSelector1Test do
   test "WA-027 should throw on waitFor", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     # `waitFor` is not an option of the facade: it rejects it before the driver does.
-    assert_raise ArgumentError, ~r/unknown option :wait_for/, fn ->
+    assert_raise ArgumentError, ~r/unknown option wait_for/, fn ->
       Page.wait_for_selector(page, "*", wait_for: "attached")
     end
   end
@@ -35,7 +35,7 @@ defmodule Playwright.Page.PageWaitForSelector1Test do
   test "WA-028 should tolerate waitFor=visible", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     # `waitFor` is not an option of the facade: it rejects it before the driver tolerates it.
-    assert_raise ArgumentError, ~r/unknown option :wait_for/, fn ->
+    assert_raise ArgumentError, ~r/unknown option wait_for/, fn ->
       Page.wait_for_selector(page, "*", wait_for: "visible")
     end
   end

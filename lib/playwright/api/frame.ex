@@ -1563,7 +1563,7 @@ defmodule Playwright.Frame do
           get_by_role_options()
         ) :: Playwright.Locator.t()
   def get_by_role(%Playwright.Frame{} = frame, role, options \\ []) do
-    role = Facade.arg!(role, @get_by_role_role, "frame.getByRole", "role")
+    role = Facade.arg!(role, @get_by_role_role, "frame.getByRole", :role)
     options = Facade.options!(options, @get_by_role_options, "frame.getByRole")
     Playwright.Client.Frame.get_by_role(frame, role, options)
   end
@@ -2728,7 +2728,7 @@ defmodule Playwright.Frame do
           select_option_options()
         ) :: {:ok, [String.t()]} | {:error, Playwright.error()}
   def select_option(%Playwright.Frame{} = frame, selector, values, options \\ []) do
-    values = Facade.arg!(values, @select_option_values, "frame.selectOption", "values")
+    values = Facade.arg!(values, @select_option_values, "frame.selectOption", :values)
     options = Facade.options!(options, @select_option_options, "frame.selectOption")
 
     Facade.async("frame.selectOption", fn -> Playwright.Client.Frame.select_option(frame, selector, values, options) end)
@@ -2760,7 +2760,7 @@ defmodule Playwright.Frame do
           select_option_options()
         ) :: [String.t()]
   def select_option!(%Playwright.Frame{} = frame, selector, values, options \\ []) do
-    values = Facade.arg!(values, @select_option_values, "frame.selectOption", "values")
+    values = Facade.arg!(values, @select_option_values, "frame.selectOption", :values)
     options = Facade.options!(options, @select_option_options, "frame.selectOption")
 
     Facade.async!("frame.selectOption", fn ->
@@ -3019,7 +3019,7 @@ defmodule Playwright.Frame do
           set_input_files_options()
         ) :: :ok | {:error, Playwright.error()}
   def set_input_files(%Playwright.Frame{} = frame, selector, files, options \\ []) do
-    files = Facade.arg!(files, @set_input_files_files, "frame.setInputFiles", "files")
+    files = Facade.arg!(files, @set_input_files_files, "frame.setInputFiles", :files)
     options = Facade.options!(options, @set_input_files_options, "frame.setInputFiles")
 
     Facade.async_void("frame.setInputFiles", fn ->
@@ -3038,7 +3038,7 @@ defmodule Playwright.Frame do
           set_input_files_options()
         ) :: :ok
   def set_input_files!(%Playwright.Frame{} = frame, selector, files, options \\ []) do
-    files = Facade.arg!(files, @set_input_files_files, "frame.setInputFiles", "files")
+    files = Facade.arg!(files, @set_input_files_files, "frame.setInputFiles", :files)
     options = Facade.options!(options, @set_input_files_options, "frame.setInputFiles")
 
     Facade.async_void!("frame.setInputFiles", fn ->
@@ -3553,7 +3553,7 @@ defmodule Playwright.Frame do
       do: wait_for_load_state(frame, nil, options)
 
   def wait_for_load_state(%Playwright.Frame{} = frame, state, options) do
-    state = Facade.arg!(state, @wait_for_load_state_state, "frame.waitForLoadState", "state")
+    state = Facade.arg!(state, @wait_for_load_state_state, "frame.waitForLoadState", :state)
     options = Facade.options!(options, @wait_for_load_state_options, "frame.waitForLoadState")
 
     Facade.async_void("frame.waitForLoadState", fn ->
@@ -3571,7 +3571,7 @@ defmodule Playwright.Frame do
       do: wait_for_load_state!(frame, nil, options)
 
   def wait_for_load_state!(%Playwright.Frame{} = frame, state, options) do
-    state = Facade.arg!(state, @wait_for_load_state_state, "frame.waitForLoadState", "state")
+    state = Facade.arg!(state, @wait_for_load_state_state, "frame.waitForLoadState", :state)
     options = Facade.options!(options, @wait_for_load_state_options, "frame.waitForLoadState")
 
     Facade.async_void!("frame.waitForLoadState", fn ->
@@ -3811,7 +3811,7 @@ defmodule Playwright.Frame do
   end
 
   @doc ~S"""
-  Waits for the given `timeout` in milliseconds. It rejects `:infinity`: to check without waiting, read once (`Locator.is_visible/2`, `Locator.count/1`) or pass a short timeout.
+  Waits for the given `timeout` in milliseconds. It rejects `:infinity`.
 
   Note that `Playwright.Frame.wait_for_timeout/2` should only be used for debugging. Tests using the timer in production are going to
   be flaky. Use signals such as network events, selectors becoming visible and others instead.

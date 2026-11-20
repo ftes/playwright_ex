@@ -61,7 +61,10 @@ The library's own functions, those with no JS counterpart (the runner's `Playwri
 one form, without a bang, that takes its options as a keyword list (`Test.use/1` and
 `Test.parameters/1` a map too) and raises on failure. Bad input raises `ArgumentError`, a call
 outside its scope (`Playwright.Test.info/0` outside a test) `RuntimeError`, with a message
-`<Module.function/arity or config path>: <problem>, expected ..., got: ...`.
+`<Module.function/arity or config path>: <problem>, expected ...`, `got: ...` when the problem
+doesn't name the value. Keys and values read as the facade's errors
+(`Playwright.Test.use/1: unknown option headless, expected one of trace, ...`,
+`invalid value :sometimes for trace, expected one of :off, :on, ...`).
 
 ## Options
 
@@ -226,5 +229,5 @@ Page.locator(page, "button") |> Locator.evaluate!("el => el.textContent")
 ```
 
 Values cross as Elixir terms: JS objects come back as maps with string keys, `Date` is
-`DateTime`, `RegExp` is `Playwright.RegExp`, `NaN`, `Infinity` and `-Infinity` are `:nan`, `:infinity` and `:neg_infinity`, `-0` is `-0.0`,
-`undefined` is `nil` and `null` is `:null`.
+`DateTime`, `RegExp` is `Playwright.RegExp`, `NaN`, `Infinity` and `-Infinity` are `:nan`,
+`:infinity` and `:neg_infinity`, `-0` is `-0.0`, `undefined` is `nil` and `null` is `:null`.

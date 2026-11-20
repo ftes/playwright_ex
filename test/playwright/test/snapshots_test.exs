@@ -52,7 +52,7 @@ defmodule Playwright.Test.SnapshotsTest do
     assert Test.snapshot_path(["a b", "c.png"], kind: :screenshot) == Path.join(snapshots, "a b/c-#{platform}.png")
 
     assert_raise ArgumentError, ~r/unknown kind "other"/, fn -> Test.snapshot_path("a.png", kind: :other) end
-    assert_raise ArgumentError, ~r/unknown options, .*got: \[:path\]/, fn -> Test.snapshot_path("a.png", path: "x") end
+    assert_raise ArgumentError, ~r/unknown option path, /, fn -> Test.snapshot_path("a.png", path: "x") end
   end
 
   test "the template's tokens", %{tmp_dir: tmp_dir, platform: platform} do

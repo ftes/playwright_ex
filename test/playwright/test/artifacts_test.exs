@@ -830,8 +830,7 @@ defmodule Playwright.Test.ArtifactsTest.TagsTest do
   test "an invalid value raises in Test.use, with the accepted values" do
     for {key, value} <- [trace: :retry_with_trace, screenshot: :retain_on_failure, video: "on"] do
       message = assert_raise(ArgumentError, fn -> Playwright.Test.use([{key, value}]) end).message
-      assert message =~ "invalid #{key}, expected one of"
-      assert message =~ "got: #{inspect(value)}"
+      assert message =~ "invalid value #{inspect(value)} for #{key}, expected one of"
       assert message =~ "true, false"
     end
   end
@@ -874,25 +873,25 @@ defmodule Playwright.Test.ArtifactsTest.UseOptionsTest do
   end
 
   test "an unknown option or an invalid value raises at compile time" do
-    assert_raise ArgumentError, ~r/use Playwright.Test: unknown options, expected one of .*got: \[:headless\]/, fn ->
+    assert_raise ArgumentError, ~r/use Playwright.Test: unknown option headless, /, fn ->
       compile("headless: false")
     end
 
-    assert_raise ArgumentError, ~r/invalid trace, expected one of .*got: :retry_with_trace/, fn ->
+    assert_raise ArgumentError, ~r/invalid value :retry_with_trace for trace, /, fn ->
       compile("trace: :retry_with_trace")
     end
 
-    assert_raise ArgumentError, ~r/unknown video keys, .*got: \[:full_page\]/, fn ->
+    assert_raise ArgumentError, ~r/unknown option video.full_page, /, fn ->
       compile("video: [mode: :on, full_page: true]")
     end
 
-    assert_raise ArgumentError, ~r/use Playwright.Test: duplicated option, .*got: :trace/, fn ->
+    assert_raise ArgumentError, ~r/use Playwright.Test: duplicated option trace/, fn ->
       compile("trace: :on, trace: :off")
     end
   end
 
   test "a typo through a case template raises at compile time" do
-    assert_raise ArgumentError, ~r/use Playwright.Test.*: unknown options, .*got: \[:screnshot\]/, fn ->
+    assert_raise ArgumentError, ~r/use Playwright.Test.*: unknown option screnshot, /, fn ->
       Code.compile_string("""
       defmodule Playwright.Test.ArtifactsTest.UseOptionsTest.Typo do
         use Playwright.Test.ArtifactsTest.UseOptionsCase, async: true, screnshot: :on

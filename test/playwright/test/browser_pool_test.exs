@@ -59,14 +59,14 @@ defmodule Playwright.Test.BrowserPoolTest do
   defp passed, do: &{:passed, &1}
 
   # A fake test that holds a browser of `opts` and passes.
-  defp finish_leased(opts) do
+  defp finish_held(opts) do
     t = fake_test()
     hold(t, opts)
     finish(t, [passed()], :shutdown)
   end
 
   # The same, its browser.
-  defp finish_leased_browser(opts) do
+  defp finish_held_browser(opts) do
     t = fake_test()
     held = hold(t, opts)
     finish(t, [passed()], :shutdown)
@@ -175,11 +175,11 @@ defmodule Playwright.Test.BrowserPoolTest do
     end
 
     test "unknown options and bad values raise" do
-      assert_raise ArgumentError, ~r/unknown options, .*got: \[:headless\]/, fn ->
+      assert_raise ArgumentError, ~r/unknown option headless, /, fn ->
         BrowserPool.browser(headless: true)
       end
 
-      assert_raise ArgumentError, ~r/invalid browser_name, .*got: :chrome/, fn ->
+      assert_raise ArgumentError, ~r/invalid value :chrome for browser_name, /, fn ->
         BrowserPool.browser(browser_name: :chrome)
       end
     end
@@ -335,7 +335,7 @@ defmodule Playwright.Test.BrowserPoolTest do
       @tag :capture_log
       test "a #{failed} setup_all resets its worker: the next scope of its options gets a fresh browser, without its contexts" do
         opts = opts()
-        warm = finish_leased_browser(opts)
+        warm = finish_held_browser(opts)
         held = failed_setup_all(opts, unquote(failed))
         assert held.playwright == warm.playwright
 
@@ -416,10 +416,10 @@ defmodule Playwright.Test.BrowserPoolTest do
       :erlang.trace_pattern({Options, :workers, 0}, true, [:call_count])
 
       try do
-        for _ <- 1..3, do: finish_leased(opts)
+        for _ <- 1..3, do: finish_held(opts)
         assert {:call_count, 1} = :erlang.trace_info({Options, :workers, 0}, :call_count)
         put_workers(1)
-        finish_leased(opts)
+        finish_held(opts)
         assert {:call_count, 2} = :erlang.trace_info({Options, :workers, 0}, :call_count)
       after
         :erlang.trace_pattern({Options, :workers, 0}, false, [:call_count])
