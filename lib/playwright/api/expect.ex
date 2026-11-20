@@ -3378,6 +3378,8 @@ defmodule Playwright.Expect do
 
   * `role` - Required aria role.
 
+    In Elixir, a role is an atom of the typespec (`:button`) or a string, also one the typespec lacks (`"mark"`): the JS client takes any string.
+
   ## Options
 
   * `:signal` (`t:Playwright.AbortSignal.t/0`) - *Since Playwright 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
@@ -3473,7 +3475,8 @@ defmodule Playwright.Expect do
           | :tooltip
           | :tree
           | :treegrid
-          | :treeitem,
+          | :treeitem
+          | String.t(),
           to_have_role_options()
         ) :: :ok | {:error, Playwright.error()}
   def to_have_role(locator, role, options \\ []) do
@@ -3575,7 +3578,8 @@ defmodule Playwright.Expect do
           | :tooltip
           | :tree
           | :treegrid
-          | :treeitem,
+          | :treeitem
+          | String.t(),
           to_have_role_options()
         ) :: :ok
   def to_have_role!(locator, role, options \\ []) do
@@ -3694,6 +3698,8 @@ defmodule Playwright.Expect do
 
   * `role` - Required aria role.
 
+    In Elixir, a role is an atom of the typespec (`:button`) or a string, also one the typespec lacks (`"mark"`): the JS client takes any string.
+
   ## Options
 
   * `:signal` (`t:Playwright.AbortSignal.t/0`) - *Since Playwright 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
@@ -3789,7 +3795,8 @@ defmodule Playwright.Expect do
           | :tooltip
           | :tree
           | :treegrid
-          | :treeitem,
+          | :treeitem
+          | String.t(),
           not_to_have_role_options()
         ) :: :ok | {:error, Playwright.error()}
   def not_to_have_role(locator, role, options \\ []) do
@@ -3891,7 +3898,8 @@ defmodule Playwright.Expect do
           | :tooltip
           | :tree
           | :treegrid
-          | :treeitem,
+          | :treeitem
+          | String.t(),
           not_to_have_role_options()
         ) :: :ok
   def not_to_have_role!(locator, role, options \\ []) do
@@ -7124,4 +7132,11 @@ defmodule Playwright.Expect do
   def __options_type__(:to_pass), do: @to_pass_options
   def __options_type__(:not_to_pass), do: @not_to_pass_options
   def __options_type__(:poll), do: @poll_options
+
+  @doc false
+  # The enum of `function`'s positional argument `arg`, as `Facade.arg!/4` checks it.
+  def __arg_type__(function, arg)
+
+  def __arg_type__(:to_have_role, :role), do: @to_have_role_role
+  def __arg_type__(:not_to_have_role, :role), do: @not_to_have_role_role
 end
