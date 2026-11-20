@@ -1,6 +1,7 @@
 # Pushes a fix for a PR whose CI failed, for claude-nightly.yml (simplification PRs) and
 # upstream-update.yml (ports). The caller checks out the PR's branch with `persist-credentials:
-# false` and gives the job `contents: read`, `actions: read` (the failed log) and `id-token: write`.
+# false`, gives the job `contents: read`, `actions: read` (the failed log) and `id-token: write`,
+# and takes this action from main's copy in tmp/default-branch, as .github/actions/claude says.
 # Only new commits, nothing merged from main, so no workflow files (the app can't push those).
 name: Fix CI
 description: Has Claude fix, re-run or give up on a PR whose CI failed.
@@ -39,7 +40,7 @@ runs:
         run=$(gh run list --branch "$BRANCH" --workflow elixir.yml --event pull_request --limit 1 --json databaseId --jq '.[0].databaseId')
         mkdir -p tmp
         gh run view "$run" --log-failed | tail -n 5000 > tmp/ci-failed.log
-    - uses: ./.github/actions/claude
+    - uses: ./tmp/default-branch/.github/actions/claude
       with:
         token: ${{ inputs.token }}
         prompt: fix-ci

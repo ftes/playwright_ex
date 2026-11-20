@@ -36,9 +36,18 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: ./.github/actions/claude
+      # The Claude actions and prompts from main, not from the ref checked out above
+      # (.github/actions/claude): into a gitignored path, after that checkout, which would clean it.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          path: tmp/default-branch
+          sparse-checkout: .github
+          persist-credentials: false
+      - uses: ./tmp/default-branch/.github/actions/claude
         with:
           token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          setup: best-effort
           allowed-bots: claude[bot]
           prompt: code-review
           context: |

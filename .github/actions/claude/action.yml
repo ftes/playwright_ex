@@ -1,9 +1,11 @@
 # What every Claude job shares: the toolchain, claude-code-action with this repo's settings, and
 # a step summary safe for a public repo. The caller checks out the code Claude works on and gives
 # the job `id-token: write`: the action exchanges the job's OIDC token for the Claude GitHub App's
-# token. That exchange checks the calling workflow file against the default branch's, not this
-# file, which comes from the job's checkout: on a PR's branch it is the branch's copy, no more
-# trust than the setup's `mix` already gives that branch.
+# token. That exchange checks only the calling workflow file against the default branch's, so
+# this action, its prompts (.github/prompts) and summary.jq come from main: a job that checks out
+# main uses ./.github/actions/claude, any other also checks out main's .github into
+# tmp/default-branch (gitignored) and uses ./tmp/default-branch/.github/actions/claude. Not
+# `owner/repo/...@main`: the repo only allows actions pinned to a commit SHA.
 name: Claude
 description: Runs Claude Code with this repo's model, tool rules and settings.
 
@@ -12,8 +14,8 @@ inputs:
     description: The CLAUDE_CODE_OAUTH_TOKEN secret.
     required: true
   setup:
-    description: "\"false\" skips the toolchain, the deps and the upstream sources (best effort: a branch that doesn't compile gets Claude without them)."
-    default: "true"
+    description: "The toolchain, the deps and the upstream sources: `required` (the deps must install; the sources are best effort, as a branch that doesn't compile can't download them), `best-effort` (Claude runs without what fails) or `none`."
+    default: required
   prompt:
     description: "A prompt in .github/prompts, by name (`fix-ci`). None: Claude follows the comment that tagged it."
     default: ""
@@ -45,16 +47,29 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Check inputs
+      shell: bash
+      env:
+        SETUP: ${{ inputs.setup }}
+        PROMPT: ${{ inputs.prompt }}
+      run: |
+        if [[ ! $SETUP =~ ^(required|best-effort|none)$ ]]; then echo "::error::setup: required, best-effort or none, got: $SETUP"; exit 1; fi
+        if [[ -n $PROMPT && ! $PROMPT =~ ^[a-z0-9-]+$ ]]; then echo "::error::prompt: a name, got: $PROMPT"; exit 1; fi
     - name: Setup languages
-      if: inputs.setup == 'true'
+      if: inputs.setup != 'none'
       uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
-    - name: Install dependencies and upstream sources
-      if: inputs.setup == 'true'
+    - name: Install dependencies
+      if: inputs.setup != 'none'
+      continue-on-error: ${{ inputs.setup == 'best-effort' }}
+      shell: bash
+      run: mix "do" deps.get, deps.compile
+    - name: Download upstream sources
+      if: inputs.setup != 'none'
       continue-on-error: true
       shell: bash
-      run: mkdir -p ~/.cache/playwright && mix "do" deps.get, deps.compile, playwright.upstream
-    # Before Claude runs, which may edit the checkout: the summary filter from the run's commit (a
-    # failed `git show` stops the job) and the prompt.
+      run: mkdir -p ~/.cache/playwright && mix playwright.upstream
+    # Before Claude runs: the summary filter and the prompt from this action's copy (main's), and
+    # the system prompt's line on the upstream sources when they are there.
     - name: Build the prompt
       id: prompt
       shell: bash
@@ -62,12 +77,14 @@ runs:
         PROMPT: ${{ inputs.prompt }}
         CONTEXT: ${{ inputs.context }}
       run: |
-        if [[ -n $PROMPT && ! $PROMPT =~ ^[a-z0-9-]+$ ]]; then echo "::error::bad prompt name: $PROMPT"; exit 1; fi
         mkdir -p ~/.cache/playwright
-        filter=$(git show "$GITHUB_SHA:.github/actions/claude/summary.jq")
+        filter=$(cat "$GITHUB_ACTION_PATH/summary.jq")
         eof="EOF_$(openssl rand -hex 16)"
         {
           printf 'summary<<%s\n%s\n%s\n' "$eof" "$filter" "$eof"
+          if compgen -G "$HOME/.cache/playwright/*/upstream" > /dev/null; then
+            echo "sources=Upstream's sources at the pin are under ~/.cache/playwright/<version>/upstream."
+          fi
           if [[ -n $PROMPT ]]; then
             echo "prompt<<$eof"
             if [[ -n $CONTEXT ]]; then printf '%s\n\n' "$CONTEXT"; fi
@@ -95,10 +112,10 @@ runs:
           --model claude-opus-5-5
           --max-turns ${{ inputs.max-turns }}
           --add-dir /home/runner/.cache/playwright ${{ inputs.add-dir }}
-          --append-system-prompt "${{ inputs.system-prompt }} Upstream's sources at the pin are under ~/.cache/playwright/<version>/upstream. Prefer your file tools over Bash to read, search and edit files, and keep any scratch files under tmp/; run each allowed Bash command on its own, without cd, git -C, semicolons, &&, pipes or heredocs (you are already in the repository). Give any subagent you start these same rules."
+          --append-system-prompt "${{ inputs.system-prompt }} ${{ steps.prompt.outputs.sources }} Prefer your file tools over Bash to read, search and edit files, and keep any scratch files under tmp/; run each allowed Bash command on its own, without cd, git -C, semicolons, &&, pipes or heredocs (you are already in the repository). Give any subagent you start these same rules."
           --allowedTools "${{ inputs.allowed-tools }}"
           ${{ inputs.disallowed-tools != '' && format('--disallowedTools "{0}"', inputs.disallowed-tools) || '' }}
-    # .github/actions/claude/summary.jq: only the final message and the denied calls.
+    # summary.jq: only the final message and the denied calls.
     - name: Summarize Claude's result
       if: ${{ !cancelled() && steps.claude.outputs.execution_file != '' }}
       shell: bash
