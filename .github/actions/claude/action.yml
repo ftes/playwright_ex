@@ -14,7 +14,7 @@ inputs:
     description: The CLAUDE_CODE_OAUTH_TOKEN secret.
     required: true
   setup:
-    description: "The toolchain, the deps and the upstream sources: `required` (the deps must install; the sources are best effort, as a branch that doesn't compile can't download them), `best-effort` (Claude runs without what fails) or `none`."
+    description: "The toolchain, the deps and the upstream sources: `required` (the deps must install; the sources are best effort, as a branch that doesn't compile can't download them), `best-effort` (Claude runs without whatever fails: the toolchain, the deps or the sources) or `none`."
     default: required
   prompt:
     description: "A prompt in .github/prompts, by name (`fix-ci`). None: Claude follows the comment that tagged it."
@@ -55,8 +55,29 @@ runs:
       run: |
         if [[ ! $SETUP =~ ^(required|best-effort|none)$ ]]; then echo "::error::setup: required, best-effort or none, got: $SETUP"; exit 1; fi
         if [[ -n $PROMPT && ! $PROMPT =~ ^[a-z0-9-]+$ ]]; then echo "::error::prompt: a name, got: $PROMPT"; exit 1; fi
+    # The summary filter and the prompt from this action's copy (main's), read before the setup
+    # runs the checked-out branch's mix.exs, which could rewrite them.
+    - name: Read the prompt
+      id: prompt
+      shell: bash
+      env:
+        PROMPT: ${{ inputs.prompt }}
+        CONTEXT: ${{ inputs.context }}
+      run: |
+        filter=$(cat "$GITHUB_ACTION_PATH/summary.jq")
+        eof="EOF_$(openssl rand -hex 16)"
+        {
+          printf 'summary<<%s\n%s\n%s\n' "$eof" "$filter" "$eof"
+          if [[ -n $PROMPT ]]; then
+            echo "prompt<<$eof"
+            if [[ -n $CONTEXT ]]; then printf '%s\n\n' "$CONTEXT"; fi
+            cat "$GITHUB_ACTION_PATH/../../prompts/$PROMPT.md"
+            echo "$eof"
+          fi
+        } >> "$GITHUB_OUTPUT"
     - name: Setup languages
       if: inputs.setup != 'none'
+      continue-on-error: ${{ inputs.setup == 'best-effort' }}
       uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
     - name: Install dependencies
       if: inputs.setup != 'none'
@@ -68,30 +89,15 @@ runs:
       continue-on-error: true
       shell: bash
       run: mkdir -p ~/.cache/playwright && mix playwright.upstream
-    # Before Claude runs: the summary filter and the prompt from this action's copy (main's), and
-    # the system prompt's line on the upstream sources when they are there.
-    - name: Build the prompt
-      id: prompt
+    # The system prompt's line on the upstream sources, only when they are there.
+    - name: Find the upstream sources
+      id: sources
       shell: bash
-      env:
-        PROMPT: ${{ inputs.prompt }}
-        CONTEXT: ${{ inputs.context }}
       run: |
         mkdir -p ~/.cache/playwright
-        filter=$(cat "$GITHUB_ACTION_PATH/summary.jq")
-        eof="EOF_$(openssl rand -hex 16)"
-        {
-          printf 'summary<<%s\n%s\n%s\n' "$eof" "$filter" "$eof"
-          if compgen -G "$HOME/.cache/playwright/*/upstream" > /dev/null; then
-            echo "sources=Upstream's sources at the pin are under ~/.cache/playwright/<version>/upstream."
-          fi
-          if [[ -n $PROMPT ]]; then
-            echo "prompt<<$eof"
-            if [[ -n $CONTEXT ]]; then printf '%s\n\n' "$CONTEXT"; fi
-            cat "$GITHUB_ACTION_PATH/../../prompts/$PROMPT.md"
-            echo "$eof"
-          fi
-        } >> "$GITHUB_OUTPUT"
+        if compgen -G "$HOME/.cache/playwright/*/upstream" > /dev/null; then
+          echo "line=Upstream's sources at the pin are under ~/.cache/playwright/<version>/upstream." >> "$GITHUB_OUTPUT"
+        fi
     # The tool rules steer Claude off the Bash habits (cd, pipes, heredocs) that miss the allowlist.
     - name: Run Claude
       id: claude
@@ -112,7 +118,7 @@ runs:
           --model claude-opus-5-5
           --max-turns ${{ inputs.max-turns }}
           --add-dir /home/runner/.cache/playwright ${{ inputs.add-dir }}
-          --append-system-prompt "${{ inputs.system-prompt }} ${{ steps.prompt.outputs.sources }} Prefer your file tools over Bash to read, search and edit files, and keep any scratch files under tmp/; run each allowed Bash command on its own, without cd, git -C, semicolons, &&, pipes or heredocs (you are already in the repository). Give any subagent you start these same rules."
+          --append-system-prompt "${{ inputs.system-prompt }} ${{ steps.sources.outputs.line }} Prefer your file tools over Bash to read, search and edit files, and keep any scratch files under tmp/; run each allowed Bash command on its own, without cd, git -C, semicolons, &&, pipes or heredocs (you are already in the repository). Give any subagent you start these same rules."
           --allowedTools "${{ inputs.allowed-tools }}"
           ${{ inputs.disallowed-tools != '' && format('--disallowedTools "{0}"', inputs.disallowed-tools) || '' }}
     # summary.jq: only the final message and the denied calls.

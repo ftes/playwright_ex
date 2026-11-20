@@ -46,6 +46,8 @@ jobs:
         if: steps.list.outputs.numbers != ''
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # Main's Claude action, also on a workflow_dispatch from another branch.
+          ref: main
           persist-credentials: false
           fetch-depth: 0
       - if: steps.list.outputs.numbers != ''
@@ -169,6 +171,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # Main's Claude action and code, also on a workflow_dispatch from another branch.
+          ref: main
           # Else checkout's read-only token can override the app token Claude pushes with: from v6
           # it sits in an includeIf file claude-code-action doesn't clear, so the push gets a 403.
           persist-credentials: false
@@ -244,6 +248,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # Main's Claude action and code, also on a workflow_dispatch from another branch.
+          ref: main
           # Else checkout's read-only token can override the app token Claude pushes with: from v6
           # it sits in an includeIf file claude-code-action doesn't clear, so the push gets a 403.
           persist-credentials: false

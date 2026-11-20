@@ -43,6 +43,8 @@ runs:
     - uses: ./tmp/default-branch/.github/actions/claude
       with:
         token: ${{ inputs.token }}
+        # A branch whose deps don't install still gets fixed or given up on.
+        setup: best-effort
         prompt: fix-ci
         context: |
           REPO: ${{ github.repository }}
