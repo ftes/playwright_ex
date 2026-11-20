@@ -44,6 +44,9 @@ upstream minor, so `~> 1.65.0` is safe.
 
 - `Playwright.Test.info/0` in `setup_all`: the module's `file`, `timeout` and resolved `use`
   options (config, project, module).
+- `Playwright.Test.step/2,3` and `step_skip/2,3` in `setup_all`, as `test.step` in
+  `beforeAll`: a step returns its body's value and raises its error (a boxed step's where its
+  helper is called), unrecorded.
 - **RC only:** `Playwright.Test.in_registered_test?/0` is replaced by `in_registered_scope?/0`,
   true in a test or `setup_all`; `info/0` has `test_pid` only in a test.
 

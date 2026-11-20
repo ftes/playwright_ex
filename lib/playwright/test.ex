@@ -67,8 +67,9 @@ defmodule Playwright.Test do
   (`info/1` in `on_exit`, with the test's result), `output_path/1`, `attach/2`, `snapshot_path/2`, `step/2,3` and `step_skip/2,3`. They work in the test's
   process and in processes with it in `$callers` (a `Task`, and the client's callback
   processes, see "Route handlers and listeners" in the Testing with ExUnit guide); outside a
-  test they raise. `info/0` also works in the module's `setup_all`, with the module's fields (see
-  "Contexts of `setup_all`").
+  test they raise. `info/0`, `step/2,3` and `step_skip/2,3` also work in the module's
+  `setup_all`: `info/0` with the module's fields (see "Contexts of `setup_all`"), the steps
+  unrecorded (see "Steps").
 
   An error a listener or route handler of the test raises fails the test and stops it at once,
   as upstream's worker does (`unhandledError`): the test's process exits with the error, and
@@ -356,6 +357,14 @@ defmodule Playwright.Test do
   leaves the attachments out). Not ported: the test's stdout and stderr in the trace, hooks and
   fixtures as steps, the step's `TestStepInfo` (the body takes no argument, so no
   `step.attach`) and its `timeout` (the test's timeout bounds a step).
+
+  A step also works in the module's `setup_all` (and processes with it in `$callers`), as
+  upstream's in a `beforeAll` hook: it returns its body's value, nests, and raises its error on,
+  a boxed step's where its helper is called. Deviation: it is recorded nowhere (no trace, no
+  video overlay), also in a long-lived process or handler of `setup_all`'s during a test, where
+  upstream records a `beforeAll` step in the first test (its trace's "Before Hooks") and a
+  handler's in the current test: ExUnit runs `setup_all` before any test, and hooks aren't
+  steps here.
 
   ## Config
 
@@ -699,6 +708,8 @@ defmodule Playwright.Test do
         config
         |> context_defaults(layers, use_options)
         |> Map.merge(%{file: compiled(context[:module], :file, nil), timeout: Options.ex_unit_timeout(context)})
+        # Also its steps' `testInfo` (`step_test_info!/0`): never started, so not running.
+        |> Map.merge(%{test_pid: self(), step_id_prefix: "setup_all"})
         |> Map.put(:use_modes, Options.artifacts(config, layers))
 
       Results.register_module(self(), module)
@@ -1193,7 +1204,9 @@ defmodule Playwright.Test do
   @doc """
   Upstream's `test.step(title, body, options)`: runs the body as a step of the running test
   and returns its value, also from a process with the test in its `$callers` (a `Task`); steps
-  nest. A step's error is raised on after the step records it. Outside a test it raises.
+  nest. A step's error is raised on after the step records it. In the module's `setup_all`
+  (and processes with it in `$callers`) it runs too, recorded nowhere (see "Steps" in the
+  moduledoc); elsewhere it raises.
 
       step "log in" do
         ...
@@ -1273,8 +1286,7 @@ defmodule Playwright.Test do
 
     options = Map.new(Keyword.validate!(options, [:box, :location, :params, :subtitle]))
     call_site = call_site || (options[:location] && Map.take(options.location, [:file, :line]))
-    test_info = TestInfo.current()
-    if !test_info, do: raise("test.step() can only be called from a test")
+    test_info = step_test_info!()
     Recorder.on_user_step(test_info.test_pid, {:begin, title})
 
     step =
@@ -1311,5 +1323,21 @@ defmodule Playwright.Test do
         Recorder.on_user_step(test_info.test_pid, :end)
       end
     end)
+  end
+
+  # `currentTestInfo()`. deviation: in a module's `setup_all` (or a process with it in
+  # `$callers`), its registration (`__setup_all__/1`), as upstream's `beforeAll` runs with the
+  # first test's and ExUnit's `setup_all` before any test. It isn't a running test's
+  # (`TestInfo.start/1`), so its steps nest and box, but `TestInfo.put_row/3` drops their rows,
+  # and it has no recorder (no trace) nor a test's registration (`Recorder.on_user_step/2`).
+  defp step_test_info! do
+    TestInfo.current() || setup_all_scope() || raise("test.step() can only be called from a test")
+  end
+
+  defp setup_all_scope do
+    case Recorder.scope() do
+      {:module, module} -> module
+      _test_or_nil -> nil
+    end
   end
 end

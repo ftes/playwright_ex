@@ -699,6 +699,12 @@ A step runs in the calling process, so `assert_receive` works in it. It takes no
 running body can't be interrupted: the test's timeout bounds it. `step_skip` declares a step
 without running it. `Test` is `Playwright.Test`, which `Playwright.Case` aliases.
 
+A step works in `setup_all` too, as Playwright Test's in `beforeAll`: it returns its body's value
+and raises its error, a boxed step's where its helper is called, so the same helpers serve both.
+It isn't recorded, as no test runs yet: Playwright Test shows a `beforeAll` hook's steps in the
+first test's trace, ExUnit runs `setup_all` before any test. A process or handler that
+`setup_all` started (with it in `$callers`) records none either, also during a test.
+
 ## Route handlers and listeners
 
 Route handlers (`Page.route/3`, `route_web_socket/3` and their WebSocket `on_message` and
@@ -878,10 +884,10 @@ test (an Ecto sandbox owner, a session) finds the test from a `Task` with it:
 
 In the module's `setup_all`, and processes with it in `$callers`, `info/0` returns the module's
 `file`, `timeout` and `use` (the options its `setup_all` contexts get), without the test's
-fields; `output_path/1`, `snapshot_path/2`, `attach/2` and `step/2,3` raise there. Elsewhere
-`info/0` raises, also in `on_exit` callbacks: `Playwright.Test.in_registered_scope?/0` tells
-whether `info/0` works (its `test_pid` is there only in a test), and `Playwright.Test.info/0`
-shows how to read the config outside them.
+fields; `output_path/1`, `snapshot_path/2` and `attach/2` raise there, `step/2,3` and
+`step_skip/2,3` work unrecorded (see "Steps"). Elsewhere `info/0` raises, also in `on_exit`
+callbacks: `Playwright.Test.in_registered_scope?/0` tells whether `info/0` works (its `test_pid`
+is there only in a test), and `Playwright.Test.info/0` shows how to read the config outside them.
 
 ## Polling and waiting
 

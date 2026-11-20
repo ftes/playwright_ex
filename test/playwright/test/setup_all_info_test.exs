@@ -59,8 +59,7 @@ defmodule Playwright.Test.SetupAllInfoTest do
         task: in_task,
         output_path: raised.(fn -> Test.output_path("x.txt") end),
         snapshot_path: raised.(fn -> Test.snapshot_path("x.png") end),
-        attach: raised.(fn -> Test.attach("x", body: "x") end),
-        step: raised.(fn -> Test.step("x", do: :ok) end)
+        attach: raised.(fn -> Test.attach("x", body: "x") end)
       }
     }
   end
@@ -118,8 +117,6 @@ defmodule Playwright.Test.SetupAllInfoTest do
 
     assert "Playwright.Test.attach/2 can only be called while a test is running: in a test of a module" <> _ =
              setup_all.attach
-
-    assert setup_all.step == "test.step() can only be called from a test"
   end
 
   test "in_registered_scope?: in the test and its Tasks, not in other processes" do
