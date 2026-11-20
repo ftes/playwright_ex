@@ -824,3 +824,37 @@ defmodule Playwright.Test.ContextOptionsTest.NilThenOption do
   use Playwright.Test, locale: nil
   use Playwright.Test, locale: "it-IT"
 end
+
+defmodule Playwright.Test.ContextOptionsTest.ModuleWorkerTest do
+  # A test's worker is its module's: the `use`, then the final `@moduletag`, also for a test
+  # defined before that line (upstream's top-level `test.use` applies file-wide), and a test
+  # whose own tag skipped the `test` macro's check gets none of its tag's.
+  use ExUnit.Case, async: true
+  use Playwright.Test, launch_options: [slow_mo: 1]
+
+  alias Playwright.Test.Recorder
+
+  setup_all do
+    %{setup_all_worker: Recorder.worker_options()}
+  end
+
+  test "before the @moduletag: the module's worker, as setup_all's", %{setup_all_worker: setup_all_worker} do
+    assert Recorder.worker_options() == setup_all_worker
+    assert setup_all_worker[:launch_options] == [slow_mo: 2]
+    assert setup_all_worker[:connect_options] == nil
+  end
+
+  @moduletag Playwright.Test.use(launch_options: [slow_mo: 2])
+
+  # `ExUnit.Case.test/3` itself: no check, and its tag's worker options don't count.
+  @tag Playwright.Test.use(connect_options: [ws_endpoint: "ws://tag"])
+  ExUnit.Case.test "a bare ExUnit test's tag", %{setup_all_worker: setup_all_worker} do
+    assert Recorder.worker_options() == setup_all_worker
+  end
+
+  # A module-level `@describetag` applies to nothing: no "in a describe group" error.
+  @describetag Playwright.Test.use(browser_name: :webkit)
+  test "a module-level @describetag", %{setup_all_worker: setup_all_worker} do
+    assert Recorder.worker_options() == setup_all_worker
+  end
+end

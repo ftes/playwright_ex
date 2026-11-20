@@ -37,19 +37,25 @@ defmodule Playwright.Application do
 
   @doc false
   # `opts` of `label`, checked: a keyword list of `allowed` keys (`noun`s), else `ArgumentError`.
+  # Returned with the later of a duplicated key only, as JS's spread keeps it, so a reader's
+  # `opts[key]` gets it.
   def options!(label, opts, allowed, noun \\ "option") do
     if !(is_list(opts) and Keyword.keyword?(opts)),
       do: raise(ArgumentError, "#{label}: expected a keyword list, got: #{inspect(opts)}")
 
     unknown_key!(label, noun, Keyword.keys(opts), allowed)
-    opts
+    later_wins(opts)
   end
+
+  @doc false
+  # A keyword list with the later of each duplicated key only, in the order of those.
+  def later_wins(keyword), do: keyword |> Enum.reverse() |> Enum.uniq_by(&elem(&1, 0)) |> Enum.reverse()
 
   @doc false
   # Raises `ArgumentError` for the first of `keys` that is not `allowed`, as the facade does for
   # an unknown option: `<label>: unknown <noun> <key>, expected one of <allowed>`.
   def unknown_key!(label, noun, keys, allowed, hint \\ "") do
-    # A duplicated key is no unknown one: of those the later wins.
+    # `--` removes one of each: a duplicated allowed key isn't unknown.
     case Enum.uniq(keys) -- allowed do
       [] ->
         :ok

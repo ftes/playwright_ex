@@ -43,6 +43,11 @@ defmodule Playwright.Matchers.ExpectTest do
                    Expect.app_env_expect_config(to_have_screenshot: [mask: []])
                  end
 
+    # Of a duplicated key the later wins, as JS's spread, in the matchers' configs too.
+    assert Expect.app_env_expect_config(timeout: 1, timeout: 2).timeout == 2
+    assert Expect.app_env_expect_config(to_pass: [timeout: 1, timeout: 2]).toPass == %{timeout: 2}
+    assert Playwright.Application.options!("x", [a: 1, b: 2, a: 3], [:a, :b]) == [b: 2, a: 3]
+
     # Upstream's validateConfig and validateProject check these values.
     for value <- [:all, :changed, :missing, :none, :default, "missing"],
         do: assert(Expect.app_env_expect_config(update_snapshots: value).updateSnapshots == to_string(value))

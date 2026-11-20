@@ -194,7 +194,7 @@ defmodule Playwright.Matchers.Expect do
 
         allowed = option_keys ++ config_keys
 
-        Playwright.Application.unknown_key!(label, "key", Keyword.keys(options), allowed)
+        options = Playwright.Application.options!(label, options, allowed, "key")
 
         {options, config_only} = Keyword.split(options, option_keys)
 

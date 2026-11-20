@@ -235,11 +235,13 @@ defmodule Playwright.Test do
   `launch_options` (its `use`'s, else its project's, else the config's, each as a whole) and
   `connect_options` are that call's defaults too, upstream's `launchOptions` and
   `connectOptions`: a project with `launch_options: [channel: "chrome"]` gets a worker of its
-  own. These four are the worker's, as upstream's: the module's (its `use`, then its
-  `@moduletag Test.use(...)`, upstream's top-level `test.use`) or its project's. In a
-  `@describetag` or a `@tag` they raise when the test registers, as upstream's `test.use` in a
-  describe, a device's `default_browser_type` too. For a browser or a device per run, make each
-  a project (`parameters/1`) in the module's `parameterize:`.
+  own. These four are the worker's, as upstream's: the module's (its `use`, then its final
+  `@moduletag Test.use(...)`, upstream's top-level `test.use`, for every test of the module,
+  also those above that line) or its project's. In a `@describetag` or a `@tag` of a test of
+  the `test` macro they raise when the module compiles, as upstream's `test.use` in a describe
+  when the file loads, a device's `default_browser_type` too; other tests (a doctest, a bare
+  `ExUnit.Case.test`) get the module's worker regardless. For a browser or a device per run,
+  make each a project (`parameters/1`) in the module's `parameterize:`.
 
   `action_timeout` and `navigation_timeout` (see "Timeouts") are options of every level, as
   the context options. `test_id_attribute` is config only, a deviation: upstream's is an
@@ -599,7 +601,10 @@ defmodule Playwright.Test do
   # When a test registers, its describe's and its own tags have no worker option of `use/1`, as
   # upstream's `test.use` in a describe raises when it loads; the module's `@moduletag` may.
   def __worker_tags__!(module) do
-    Options.worker_tags!(Module.get_attribute(module, :describetag) || [], "a describe group")
+    # ExUnit's `@describetag` outside a describe (`@ex_unit_describe` unset) applies to nothing.
+    if Module.get_attribute(module, :ex_unit_describe),
+      do: Options.worker_tags!(Module.get_attribute(module, :describetag) || [], "a describe group")
+
     Options.worker_tags!(Module.get_attribute(module, :tag) || [], "a test")
   end
 
@@ -719,7 +724,7 @@ defmodule Playwright.Test do
       # `info/0`'s fields that apply to the module (`setup_all_info/1`).
       module =
         config
-        |> context_defaults(layers)
+        |> context_defaults(layers, module_worker(context[:module], use_options, tags))
         |> Map.merge(%{file: compiled(context[:module], :file, nil), timeout: Options.ex_unit_timeout(context)})
         # Also its steps' `testInfo` (`step_test_info!/0`): never started, so not running.
         |> Map.merge(%{test_pid: self(), step_id_prefix: "setup_all", project_name: TestInfo.project_name(parameters)})
@@ -802,7 +807,7 @@ defmodule Playwright.Test do
         preserve_output: Options.preserve_output(config),
         tmp: Path.join(System.tmp_dir!(), "playwright-test-#{System.unique_integer([:positive])}")
       })
-      |> Map.merge(context_defaults(config, layers))
+      |> Map.merge(context_defaults(config, layers, module_worker(context[:module], use_options, %{})))
       |> Map.put(:use_modes, use_modes)
 
     TestInfo.remove_output_dirs(test)
@@ -818,14 +823,22 @@ defmodule Playwright.Test do
 
   # What a test's or a module's `setup_all`'s contexts get: the `context_options` and timeouts
   # of `config` and of its `layers` (`Playwright.Test.Options.layers/3`). And the worker options
-  # of its `BrowserPool.browser/1` calls: the module's (its `use`, then its `@moduletag`; a
-  # describe's or a test's tag has none, `__worker_tags__!/1`) and its project's.
-  defp context_defaults(config, layers) do
+  # of its `BrowserPool.browser/1` calls: its project's and the `module`'s (`module_worker/3`),
+  # the same for the module's `setup_all` and each of its tests.
+  defp context_defaults(config, layers, module) do
     %{
       context_options: Options.context_options(config, layers),
       timeouts: Options.timeouts(config, layers),
-      worker: Options.worker(config, layers.project, layers.module)
+      worker: Options.worker(config, layers.project, module)
     }
+  end
+
+  # The module's worker options: its `use`, then its final `@moduletag` (`ExUnit.TestModule`'s
+  # `tags`), never a describe's or a test's tags, as upstream's top-level `test.use` applies to the
+  # whole file. `tags` without ExUnit's `__ex_unit__/0`.
+  defp module_worker(module, use_options, tags) do
+    tags = if module && function_exported?(module, :__ex_unit__, 0), do: module.__ex_unit__().tags, else: tags
+    Options.module_worker(use_options, tags)
   end
 
   # What the module's `use Playwright.Test` compiled in (`__before_compile__/1`): its merged
@@ -1099,10 +1112,12 @@ defmodule Playwright.Test do
 
   An unknown option raises `ArgumentError`, when the test module compiles. So do
   `browser_name`, `default_browser_type` (a device's), `launch_options` and `connect_options` in
-  a `@describetag` or a `@tag`, when its test registers, with upstream's message ("Cannot use({
+  a `@describetag` or a `@tag`, when the module compiles a test of the `test` macro under it,
+  with upstream's message ("Cannot use({
   browser_name }) in a describe group, because it forces a new worker.\nMake it top-level in the
   test file or put in the configuration file.", "in a test" for a `@tag`): they are the
-  worker's. They are options of the module's `use`, its `@moduletag` and `parameters/1`. For a
+  worker's (a test the check doesn't see gets the module's worker regardless). They are options
+  of the module's `use`, its `@moduletag` and `parameters/1`. For a
   project in `parameterize:`, which takes maps, see `parameters/1`. See "Context defaults",
   "Browser" and "Artifacts" in the moduledoc for the layers.
   """
@@ -1185,11 +1200,12 @@ defmodule Playwright.Test do
   """
   @spec attach(String.t(), keyword()) :: :ok
   def attach(name, options \\ []) when is_binary(name) do
-    Playwright.Application.options!("Playwright.Test.attach/2", options, [
-      :path,
-      :body,
-      :content_type
-    ])
+    options =
+      Playwright.Application.options!("Playwright.Test.attach/2", options, [
+        :path,
+        :body,
+        :content_type
+      ])
 
     test_info = running_test!("attach/2", &TestInfo.current/0)
     TestInfo.attach(test_info, name, %{path: options[:path], body: options[:body], contentType: options[:content_type]})
@@ -1205,7 +1221,7 @@ defmodule Playwright.Test do
   """
   @spec snapshot_path(String.t() | [String.t()], keyword()) :: Path.t()
   def snapshot_path(name, options \\ []) when is_binary(name) or is_list(name) do
-    Playwright.Application.options!("Playwright.Test.snapshot_path/2", options, [:kind])
+    options = Playwright.Application.options!("Playwright.Test.snapshot_path/2", options, [:kind])
     kind = Keyword.get(options, :kind, :snapshot)
 
     TestInfo.snapshot_path(running_test!("snapshot_path/2"), name, to_string(kind))
@@ -1302,12 +1318,13 @@ defmodule Playwright.Test do
             "in its own process; the test's timeout bounds it)"
         )
 
-    Playwright.Application.options!("Playwright.Test.step/3", options, [
-      :box,
-      :location,
-      :params,
-      :subtitle
-    ])
+    options =
+      Playwright.Application.options!("Playwright.Test.step/3", options, [
+        :box,
+        :location,
+        :params,
+        :subtitle
+      ])
 
     options = Map.new(options)
     call_site = call_site || (options[:location] && Map.take(options.location, [:file, :line]))
