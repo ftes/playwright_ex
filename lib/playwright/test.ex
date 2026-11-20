@@ -403,6 +403,13 @@ defmodule Playwright.Test do
   Outside a test, and in the module's `setup_all` (as a step there), nothing is recorded. The
   other assertions (`assert_receive`, `assert_raise`, ...) are ExUnit's, no steps.
 
+  They are on by default. `use Playwright.Test, assert_steps: false` keeps ExUnit's own
+  `assert` and `refute` (its plain `import ExUnit.Assertions`) and records none in its tests,
+  passed or failed, a helper module's either; `config :playwright, :test, assert_steps: false` makes that the default,
+  which a module's `assert_steps: true` overrides. As it decides the import, it is read when the
+  module compiles: set it in `config/config.exs` or `config/test.exs`, not `config/runtime.exs`
+  (Mix recompiles the modules when it changes). The option takes a literal boolean.
+
   Limits:
 
     * A passed assertion is recorded only where the import is: a helper module opts in with
@@ -421,7 +428,9 @@ defmodule Playwright.Test do
       `reraise`) is located at that `raise`.
     * A failed `assert/1` or `refute/1` in a process of its own (a `Task`, a listener, a route
       handler) or in a `setup` callback leaves no step: the test body's catch doesn't see it.
-    * `Playwright.Expect.poll/3`'s assertion is no step of its own: each attempt is.
+    * Each attempt of `Playwright.Expect.poll/3` is its assertion's own steps, under the poll's
+      step (as upstream's attempts are its matcher's): an assertion that isn't one of these
+      `assert`s (ExUnit's, or a raise of its own) leaves no attempt step when it passes.
 
   ## Config
 
@@ -445,7 +454,8 @@ defmodule Playwright.Test do
         snapshot_dir: nil,            # upstream's testDir: test/
         snapshot_path_template: nil,  # upstream's defaults, see Snapshots
         test_id_attribute: "data-testid",
-        report_slow_tests: [max: 5, threshold: 300_000]  # Playwright.Test.GitHubFormatter's, ms; false: none
+        report_slow_tests: [max: 5, threshold: 300_000], # Playwright.Test.GitHubFormatter's, ms; false: none
+        assert_steps: true            # assert/refute as steps, at compile time (see Assertions)
 
   Each context option (`base_url`, `locale`, `viewport`, `storage_state`, ...) is a config key of
   its own, over the `context_options` bag, as under every other level, and in `config/0` only
@@ -456,7 +466,7 @@ defmodule Playwright.Test do
   `test_id_attribute` is upstream's `testIdAttribute`, set on each pooled driver: the client's
   value is global to the VM, so set it here, not per module. `config/0` returns the config
   resolved. An unknown key raises at application start (and when the runner reads a config
-  changed since), and so does a bad value of the keys upstream checks: `workers`, `preserve_output`, `output_dir`, `browser_name`, `on_start`, `report_slow_tests` and the context options (as `Browser.new_context/2` checks them).
+  changed since), and so does a bad value of the keys upstream checks: `workers`, `preserve_output`, `output_dir`, `browser_name`, `on_start`, `report_slow_tests` and the context options, and `assert_steps` (a boolean) (as `Browser.new_context/2` checks them).
   Other values pass as given, as upstream's: an unknown artifact mode records nothing.
   """
 
@@ -489,12 +499,27 @@ defmodule Playwright.Test do
       # A test module, also when `use Playwright.Test` came before (from a template's `using`):
       # its import replaced ExUnit.Case's `test`.
       {:test, 3} in Keyword.get(macros, ExUnit.Case, []) or {:test, 3} in Keyword.get(macros, __MODULE__, []) ->
+        {assert_steps, opts} = assert_steps!(opts, __CALLER__)
+
+        imports =
+          if assert_steps do
+            quote do
+              # Replaces `use ExUnit.Case`'s import: `assert` and `refute` are this module's.
+              import ExUnit.Assertions, except: [assert: 1, assert: 2, refute: 1, refute: 2]
+              import Playwright.Test, only: [test: 1, test: 2, test: 3, assert: 1, assert: 2, refute: 1, refute: 2]
+            end
+          else
+            quote do
+              import ExUnit.Assertions
+              import Playwright.Test, only: [test: 1, test: 2, test: 3]
+            end
+          end
+
         quote do
           import ExUnit.Case, only: [describe: 2]
-          # Replaces `use ExUnit.Case`'s import: `assert` and `refute` are this module's.
-          import ExUnit.Assertions, except: [assert: 1, assert: 2, refute: 1, refute: 2]
-          import Playwright.Test, only: [test: 1, test: 2, test: 3, assert: 1, assert: 2, refute: 1, refute: 2]
+          unquote(imports)
           require Playwright.Test
+          @playwright_assert_steps unquote(assert_steps)
 
           if Playwright.Test.__use__(__MODULE__, unquote(opts)) do
             Playwright.Test.__clock__(__MODULE__)
@@ -563,6 +588,27 @@ defmodule Playwright.Test do
     end
   end
 
+  # Elixir only: whether `assert` and `refute` are steps (see "Assertions"), at compile time, as
+  # it decides the import: the literal `assert_steps:` of `opts` (taken out of them), else
+  # `config :playwright, :test`'s, read with `Application.compile_env/4`, so Mix recompiles the
+  # module when it changes.
+  defp assert_steps!(opts, caller) do
+    {given, opts} = if Keyword.keyword?(opts), do: Keyword.pop(opts, :assert_steps), else: {nil, opts}
+
+    cond do
+      is_boolean(given) ->
+        {given, opts}
+
+      given != nil ->
+        raise ArgumentError,
+              "use Playwright.Test: invalid value #{Macro.to_string(given)} for assert_steps, expected a literal boolean"
+
+      true ->
+        configured = Application.compile_env(caller, :playwright, [:test, :assert_steps], true)
+        {Options.validate_key!(:assert_steps, configured, "config :playwright, :test"), opts}
+    end
+  end
+
   @doc false
   # The module's merged `use` options, for its registration (`__register__/1`): a function, so the
   # test's context stays the test author's. And the timeout of its `setup_all` callbacks
@@ -570,6 +616,7 @@ defmodule Playwright.Test do
   # compiled them into `__ex_unit__/2`.
   defmacro __before_compile__(env) do
     options = Module.get_attribute(env.module, :playwright_test)
+    assert_steps = Module.get_attribute(env.module, :playwright_assert_steps, true)
 
     # Without ExUnit's `__ex_unit__/2` (its internals changed), no `setup_all` timeout: said at
     # compile time.
@@ -598,6 +645,7 @@ defmodule Playwright.Test do
       @doc false
       def __playwright_test__(:options), do: unquote(Macro.escape(options))
       def __playwright_test__(:file), do: unquote(env.file)
+      def __playwright_test__(:assert_steps), do: unquote(assert_steps)
 
       unquote(setup_all_timeout)
     end
@@ -685,7 +733,7 @@ defmodule Playwright.Test do
   # reads that variable after it (`right_var/1`), so nothing is evaluated twice and ExUnit's
   # code is unchanged; an expansion that binds none (a truthy `assert x`) records none.
   defp plain_assertion_ast(kind, assertion, caller) do
-    code = Macro.to_string(assertion)
+    code = code_string(assertion)
     {:ok, env} = Macro.Env.define_require(caller, [], ExUnit.Assertions)
     expansion = Macro.expand_once(quote(do: ExUnit.Assertions.unquote(kind)(unquote(assertion))), env)
 
@@ -694,6 +742,31 @@ defmodule Playwright.Test do
       Playwright.Test.__assertion__(unquote(kind), unquote(code), nil, nil, unquote(right_var(expansion)))
       value
     end
+  end
+
+  # Elixir only: the assertion's source, a capture's argument as written (`&1`, not its variable,
+  # `_&`), as in `Expect.poll!(fn, &assert(&1 == 2))`. A failed one's `expr` has no metadata (no
+  # `capture:` index): its one capture variable is `&1`, several stay ExUnit's `_&`.
+  defp code_string(quoted) do
+    {_quoted, pruned} =
+      Macro.prewalk(quoted, 0, fn
+        {:"_&", meta, :elixir_fn} = var, count -> {var, if(meta[:capture], do: count, else: count + 1)}
+        node, count -> {node, count}
+      end)
+
+    quoted
+    |> Macro.prewalk(fn
+      {:"_&", meta, :elixir_fn} = var ->
+        cond do
+          index = meta[:capture] -> {:&, [], [index]}
+          pruned == 1 -> {:&, [], [1]}
+          true -> var
+        end
+
+      node ->
+        node
+    end)
+    |> Macro.to_string()
   end
 
   # The `right` ExUnit's expansion binds in the caller's scope: `right = ...` at the top of its
@@ -729,7 +802,7 @@ defmodule Playwright.Test do
   # a `try` around the call alone binds nothing and keeps its stacktrace. A failure is recorded
   # there, also when the test rescues it.
   defp message_assertion_ast(kind, value, message) do
-    code = Macro.to_string(value)
+    code = code_string(value)
 
     quote do
       require ExUnit.Assertions
@@ -755,18 +828,25 @@ defmodule Playwright.Test do
   # The step of an `assert` or `refute` (`kind`) of `code` with `message`: passed, or failed
   # with `error` (`{kind, reason, stacktrace}`), with its `expected` (`plain_assertion_ast/3`). The shape of
   # `Playwright.Matchers.Expect.call_matcher_as_step/6`'s: none outside a test, and none in the
-  # module's `setup_all`, where `step/3` records nowhere. Elixir only: none for `expect.poll`'s
-  # assertion, whose attempt is the step (`Playwright.Matchers.Expect.poll/3`).
+  # module's `setup_all`, where `step/3` records nowhere, nor in a test of a module with
+  # `assert_steps: false` (a helper's assertion there).
   def __assertion__(kind, code, message, error, expected) do
-    matcher_step = Zones.data(:matcherAssertion)
-
-    with false <- matcher_step != nil and matcher_step == Zones.data(:stepZone),
-         %{} = test_info <- TestInfo.current() do
+    with %{} = test_info <- current_test_info(),
+         true <- Map.get(test_info, :assert_steps, true) do
       stack = if error, do: elem(error, 2), else: TestInfo.capture_raw_stack()
       add_assertion_step(test_info, kind, code, message, stack, error, expected)
     end
 
     :ok
+  end
+
+  # The running test: in a matcher's callback (a `to_pass` or `poll` attempt) the one the matcher
+  # call found (`Playwright.Matchers.Expect.expect_config/1`'s), else looked up.
+  defp current_test_info do
+    case Zones.data(:expectTestInfo) do
+      {test_info} -> test_info
+      nil -> TestInfo.current()
+    end
   end
 
   @doc false
@@ -783,8 +863,13 @@ defmodule Playwright.Test do
         test_info,
         {:error, %ExUnit.AssertionError{expr: {kind, _, [expr]}} = reason, stacktrace} = error
       )
-      when kind in [:assert, :refute] and not is_nil(test_info),
-      do: add_assertion_step(test_info, kind, Macro.to_string(expr), nil, stacktrace, error, expected(expr, reason))
+      when kind in [:assert, :refute] and is_map(test_info) do
+    # None in a module with `assert_steps: false`.
+    if Map.get(test_info, :assert_steps, true),
+      do: add_assertion_step(test_info, kind, code_string(expr), nil, stacktrace, error, expected(expr, reason))
+
+    :ok
+  end
 
   def __assertion_error__(_test_info, _error), do: :ok
 
@@ -1040,6 +1125,8 @@ defmodule Playwright.Test do
       })
       |> Map.merge(context_defaults(config, layers, module_worker(context[:module], use_options, %{})))
       |> Map.put(:use_modes, use_modes)
+      # Elixir only: the module's `assert_steps` (`__assertion_error__/2`).
+      |> Map.put(:assert_steps, compiled(context[:module], :assert_steps, true))
 
     TestInfo.remove_output_dirs(test)
     # The failure of a marked test that raised nothing in its body.

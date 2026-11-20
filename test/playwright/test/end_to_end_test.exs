@@ -332,6 +332,28 @@ defmodule Playwright.Test.EndToEndTest do
     assert frame["line"] == line.("(the message assert)")
   end
 
+  test "config assert_steps: false: ExUnit's assert, no steps; a module's use assert_steps: true wins",
+       %{tmp_dir: tmp_dir} do
+    child = start("assert_steps", tmp_dir)
+    assert ChildProcess.exit_code(child, 60_000) == 0
+    output = ChildProcess.output(child)
+    assert output =~ ~r"2 tests, 2 failures|Result: 0/2 passed"
+    assert output =~ "(config_off=>[macro: ExUnit.Assertions])"
+    assert output =~ "(use_on=>[macro: Playwright.Test])"
+
+    expects = fn name ->
+      output_dir = Path.join(tmp_dir, "test-results")
+      [dir] = output_dir |> File.ls!() |> Enum.filter(&(&1 =~ name))
+      {:ok, files} = :zip.unzip(String.to_charlist(Path.join([output_dir, dir, "trace.zip"])), [:memory])
+      {_, trace} = List.keyfind(files, ~c"test.trace", 0)
+      events = for event <- String.split(trace, "\n"), do: JSON.decode!(event)
+      for %{"type" => "before", "method" => "expect"} = event <- events, do: event["params"]["expression"]
+    end
+
+    assert expects.("config-off") == []
+    assert expects.("use-on") == ["1 + 1 == 2", "Process.get(:not_set, 1) == 2"]
+  end
+
   test "a test past its timeout: a hanging Playwright call fails with the call log, other code as ExUnit's",
        %{tmp_dir: tmp_dir} do
     child = start("timeouts", tmp_dir)

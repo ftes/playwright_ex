@@ -389,7 +389,9 @@ comments. They have no `@upstream`, as parity tracks the client API, not the run
 upstream's specs and suites ported onto `Playwright.Test` (LiveView's e2e) use them often
 and a helper per suite drifted from upstream's intervals, deadlines and steps. Being matchers,
 they get `expect.soft`, steps and the expect config for free; `poll`'s matcher is an ExUnit
-assertion (`Expect.poll(fn -> v end, &assert(&1 == 3))`), as the jest matchers are not ported. Their
+assertion (`Expect.poll(fn -> v end, &assert(&1 == 3))`), as the jest matchers are not ported, and
+an attempt's step is that `assert`'s own (its expression and `expected`, as upstream's attempt is
+`toEqual(x)`'s), not a matcher step around it. Their
 callbacks run in the calling process, not raced against the deadline (a running callback overruns
 it), for the reason a step has no timeout. `to_pass` returns the passing attempt's value (`{:ok,
 value}`, the bang form the value), where upstream resolves to `void`: a JS callback assigns what the
@@ -401,7 +403,8 @@ the `right` ExUnit's expansion binds, read after it). A failed one is recorded o
 `ExUnit.AssertionError` ends: a `to_pass` attempt's or the test body's `catch`, so a step of the
 test's, not of the step it failed in (which fails with it); one the test rescues, or raised in a
 Task, listener or `setup`, is none. The message forms, functions in ExUnit, wrap only the call in
-a `try` and record their failure there. Rejected: recording a failure in each step's `catch` (a
+a `try` and record their failure there. As it wraps ExUnit's macro, a module or the config can
+opt out (`assert_steps: false`, at compile time, as it decides the import). Rejected: recording a failure in each step's `catch` (a
 step can't tell whether its parent's records it again, after `raise e` or a rescue), a `try`
 around the assertion (it scopes the bindings of `assert {:ok, x} = f()` and `assert (y = f()) >
 0`), recording failures only (the passed ones are the trace's), and an explicit

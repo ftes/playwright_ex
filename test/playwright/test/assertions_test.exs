@@ -390,17 +390,30 @@ defmodule Playwright.Test.AssertionsTest do
     test_failure(fn -> assert frame == <<0x89, 0xFE>> end)
   end
 
-  test "no step of its own for expect.poll's assertion, nor outside a test" do
+  test "a poll's attempt is its assertion's own step, with its expression and expected; none outside a test" do
     on_trace(fn events ->
       poll = before(events, ~s(Expect "poll assert"))
-      [attempt] = for %{"parentId" => id} = event <- befores(events), id == poll["callId"], do: event
-      assert attempt["title"] == ~s(Expect "assert")
-      refute Enum.any?(befores(events), &(&1["parentId"] == attempt["callId"]))
-      # The poll's, its attempt's and the Task's.
-      assert length(befores(events)) == 3
+      # No function as its `expected`, nor as `toPass`'s.
+      refute Map.has_key?(poll["params"] || %{}, "expected")
+      refute Map.has_key?(before(events, ~s(Expect "toPass"))["params"] || %{}, "expected")
+      attempts = for %{"parentId" => id} = event <- befores(events), id == poll["callId"], do: event
+      assert [failed, passed] = attempts
+
+      for attempt <- attempts do
+        assert %{"title" => ~s(Expect "assert"), "params" => %{"expression" => "&1 == 2", "expected" => "2"}} = attempt
+        assert located_at(attempt, "Expect.poll!(")
+        refute Enum.any?(befores(events), &(&1["parentId"] == attempt["callId"]))
+      end
+
+      assert after_of(events, failed)["error"]["message"] =~ "Assertion with == failed"
+      refute after_of(events, passed)["error"]
+      # The poll's, its attempts, `toPass`'s (its attempt asserts nothing), and the Task's.
+      assert length(befores(events)) == 5
     end)
 
-    Expect.poll!(fn -> 1 end, &assert(&1 == 1))
+    {:ok, agent} = Agent.start_link(fn -> 0 end)
+    Expect.poll!(fn -> Agent.get_and_update(agent, &{&1 + 1, &1 + 1}) end, &assert(&1 == 2), intervals: [0])
+    Expect.to_pass!(fn -> :ok end)
 
     Task.async(fn ->
       assert TestInfo.current()
@@ -409,5 +422,70 @@ defmodule Playwright.Test.AssertionsTest do
       refute TestInfo.current()
     end)
     |> Task.await()
+  end
+end
+
+defmodule Playwright.Test.AssertionsOptOutTest do
+  # `use Playwright.Test, assert_steps: false`: ExUnit's own `assert` and `refute`, no steps.
+  use ExUnit.Case, async: true
+
+  alias Playwright.Test.TestInfo
+
+  @moduletag Playwright.Test.use(trace: :on)
+
+  setup _ctx do
+    test_pid = self()
+
+    on_exit(fn ->
+      dir = Playwright.Test.info(test_pid).output_dir
+      {:ok, files} = :zip.unzip(String.to_charlist(Path.join(dir, "trace.zip")), [:memory])
+      {_, trace} = List.keyfind(files, ~c"test.trace", 0)
+      events = for line <- String.split(trace, "\n"), do: JSON.decode!(line)
+      File.rm_rf!(dir)
+      refute Enum.any?(events, &(&1["method"] == "expect"))
+    end)
+  end
+
+  use Playwright.Test, assert_steps: false
+
+  test "assert and refute are ExUnit's, and record no step, passed or failed" do
+    assert Macro.Env.lookup_import(__ENV__, {:assert, 1}) == [macro: ExUnit.Assertions]
+    assert Macro.Env.lookup_import(__ENV__, {:refute, 2}) == [function: ExUnit.Assertions]
+    assert 1 + 1 == 2
+    refute 1 + 1 == 3
+
+    error =
+      try do
+        assert Process.get(:not_set, 1) == 2
+      catch
+        kind, reason -> {kind, reason, __STACKTRACE__}
+      end
+
+    # ExUnit's error and frames; the test's catch records none for this module.
+    assert {:error, %ExUnit.AssertionError{message: "Assertion with == failed"},
+            [{ExUnit.Assertions, :assert, 2, _} | _]} =
+             error
+
+    Playwright.Test.__assertion_error__(TestInfo.current(), error)
+  end
+
+  test "the option takes a literal boolean, the config a boolean" do
+    assert_raise ArgumentError,
+                 ~r"^config :playwright, :test: invalid value :yes for assert_steps, expected a boolean",
+                 fn ->
+                   Playwright.Test.Options.validate_key!(:assert_steps, :yes, "config :playwright, :test")
+                 end
+
+    quoted =
+      quote do
+        defmodule Playwright.Test.AssertionsOptOutTest.Invalid do
+          use ExUnit.Case
+          use Playwright.Test, assert_steps: :yes
+        end
+      end
+
+    assert_raise ArgumentError, ~r"^use Playwright.Test: invalid value :yes for assert_steps", fn ->
+      Code.eval_quoted(quoted)
+    end
   end
 end

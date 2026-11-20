@@ -55,7 +55,8 @@ upstream minor, so `~> 1.65.0` is safe.
   right side of a comparison or match as its `expected`), as upstream's `expect` is; a failed one
   with its error, at the test's level. A module that imports `ExUnit.Assertions` again after the
   `use` no longer compiles (an ambiguous `assert`), and a function that ends in a failing
-  assertion keeps its frame in the stacktrace.
+  assertion keeps its frame in the stacktrace. Opt out with `use Playwright.Test, assert_steps: false` or
+  `config :playwright, :test, assert_steps: false` (compile time).
 
 ### Changed
 

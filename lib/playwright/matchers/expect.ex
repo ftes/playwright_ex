@@ -291,10 +291,9 @@ defmodule Playwright.Matchers.Expect do
   end
 
   # Elixir only: the `assert` matcher of `expect.poll`, a jest matcher's place (`toBe`): the
-  # assertion raises when it fails. Its `Playwright.Test.assert/1` is no step of its own: this
-  # attempt's step is the jest matcher's (`Playwright.Test.__assertion__/4`).
+  # assertion raises when it fails.
   defp assert_matcher(_this, actual, assertion) do
-    Zones.with(:matcherAssertion, Zones.data(:stepZone), fn -> assertion.(actual) end)
+    assertion.(actual)
     %{pass: true, message: fn -> "" end}
   end
 
@@ -321,9 +320,12 @@ defmodule Playwright.Matchers.Expect do
     # out all the frames that belong to the test runner from caught runtime errors.
     stack_frames = TestInfo.stack_frames(TestInfo.filtered_stack_trace(TestInfo.capture_raw_stack()))
     params = suffixes[:params] || %{}
-    # Elixir only: the facade passes the options it got, `%{}` for none (JS `undefined`).
+    # Elixir only: the facade passes the options it got, `%{}` for none (JS `undefined`), and a
+    # function (`toPass`'s callback, `poll`'s assertion) is no value to expect.
     params =
-      if truthy?(Enum.at(args, 0)) and Enum.at(args, 0) != %{}, do: Map.put(params, :expected, hd(args)), else: params
+      if truthy?(Enum.at(args, 0)) and Enum.at(args, 0) != %{} and not is_function(Enum.at(args, 0)),
+        do: Map.put(params, :expected, hd(args)),
+        else: params
 
     step_data = %{
       category: "expect",
@@ -485,10 +487,21 @@ defmodule Playwright.Matchers.Expect do
             value = actual.()
 
             try do
-              call_matcher_as_step(matcher_name, %{info | poll: nil, isSoft: false}, value, matcher, args)
+              # Elixir only: the `assert` matcher's attempt is no matcher step around its
+              # assertion, whose own step (`Playwright.Test.assert/1`, with its expression and
+              # `expected`) is the attempt's, as upstream's attempt is `toEqual(expected)`'s.
+              if matcher_name == "assert",
+                do: invoke_matcher(matcher_name, %{info | poll: nil, isSoft: false}, matcher, value, args, nil, nil),
+                else: call_matcher_as_step(matcher_name, %{info | poll: nil, isSoft: false}, value, matcher, args)
+
               %{continuePolling: false, result: nil}
             catch
-              kind, reason -> %{continuePolling: true, result: {kind, reason, __STACKTRACE__}}
+              kind, reason ->
+                # Elixir only: a failed `assert/1`'s step, as for a `to_pass` attempt
+                # (`Playwright.Test.__assertion_error__/2`).
+                error = {kind, reason, __STACKTRACE__}
+                if matcher_name == "assert", do: Playwright.Test.__assertion_error__(test_info, error)
+                %{continuePolling: true, result: error}
             end
           end
         end,

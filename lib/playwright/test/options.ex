@@ -62,7 +62,8 @@ defmodule Playwright.Test.Options do
     :snapshot_dir,
     :snapshot_path_template,
     :test_id_attribute,
-    :report_slow_tests
+    :report_slow_tests,
+    :assert_steps
   ]
   @config_keys @pool_keys ++ @artifact_keys ++ @config_only_keys
 
@@ -105,6 +106,7 @@ defmodule Playwright.Test.Options do
   # `workers`, `outputDir`), its browser fixture's (`browserName`), and `on_start`'s (Elixir only).
   # Other values pass as given, as upstream's do.
   @expected %{
+    assert_steps: "a boolean",
     browser_name: "one of :chromium, :firefox, :webkit",
     on_start: "nil, a 1-arity function or an {m, f, a} tuple",
     output_dir: "a string",
@@ -535,9 +537,13 @@ defmodule Playwright.Test.Options do
       snapshot_dir: nil,
       snapshot_path_template: nil,
       test_id_attribute: "data-testid",
-      report_slow_tests: [max: 5, threshold: 300_000]
+      report_slow_tests: [max: 5, threshold: 300_000],
+      assert_steps: true
     }
   end
+
+  @doc "`key`'s value of the config or `use` (`label`) validated, as `config/0` validates it."
+  def validate_key!(key, value, label), do: validate!(key, value, label)
 
   # `validate!/2`, its error naming the entry point `label`.
   defp validate!(key, value, label) do
@@ -587,6 +593,7 @@ defmodule Playwright.Test.Options do
 
   # Upstream's `if (testIdAttribute)` (`_setupContextOptions`): an empty one sets none (`nil`),
   # so the selectors keep theirs.
+  defp validate!(:assert_steps, value) when is_boolean(value), do: value
   defp validate!(:test_id_attribute, ""), do: nil
   defp validate!(:workers, workers) when is_integer(workers) and workers > 0, do: workers
   # Upstream's `reportSlowTests: null`: none (a `nil` key is unset, its default).
