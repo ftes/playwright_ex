@@ -16,7 +16,9 @@ defmodule Playwright.Client.ClientStackTrace do
   code path, `internal_frame?/1`), and the boxed prefixes are modules
   (`set_boxed_stack_prefixes/1`). A call without frames of the caller's in an async
   function's process (`Playwright.Runtime.Promise.async/2`) before its first yield has those of
-  the caller blocked on it, as JS runs that part on the caller's stack.
+  the caller blocked on it, followed through nested async functions, as JS runs that part on the
+  caller's stack. The chain ends at a process nothing is blocked on (a `Task`, a listener's, whose
+  connection doesn't block on it).
   """
   @library Enum.map(~w(Client Isomorphic Protocol Runtime Transport), &"Elixir.Playwright.#{&1}.")
   @internal_apps [:kernel, :stdlib, :elixir]
@@ -78,21 +80,20 @@ defmodule Playwright.Client.ClientStackTrace do
   end
 
   # Elixir only: JS runs an async function on its caller's stack until its first `await`; here it
-  # runs in a process of its own while the caller waits (`Playwright.Runtime.Invocation`). Without
-  # frames of its own, a call has those of the caller blocked on its process, or on that caller's.
+  # runs in a process of its own while the caller waits (`Playwright.Runtime.Invocation`'s
+  # `:pw_caller`). Without frames of its own, a call has those of the caller blocked on its
+  # process, or of the one blocked on that caller, and so on. A listener's waiting connection
+  # isn't blocked on it and has no `:pw_caller`, so it ends the chain unread.
   defp waiting_frames(library, boxed, show_internal) do
-    case Process.get(:pw_inv) do
-      {waiting, _inv} -> waiting_frames(waiting, library, boxed, show_internal)
-      nil -> []
-    end
+    if caller = Process.get(:pw_caller), do: waiting_frames(caller, library, boxed, show_internal), else: []
   end
 
   defp waiting_frames(pid, library, boxed, show_internal) do
-    with [{:current_stacktrace, stack}, {{:dictionary, :pw_inv}, inv}] <-
-           Process.info(pid, [:current_stacktrace, {:dictionary, :pw_inv}]),
+    with [{:current_stacktrace, stack}, {{:dictionary, :pw_caller}, caller}] <-
+           Process.info(pid, [:current_stacktrace, {:dictionary, :pw_caller}]),
          [] <- user_frames(parse_frames(stack, show_internal), library, boxed, show_internal),
-         {waiting, _inv} <- inv do
-      waiting_frames(waiting, library, boxed, show_internal)
+         true <- is_pid(caller) do
+      waiting_frames(caller, library, boxed, show_internal)
     else
       [_ | _] = frames -> frames
       _ -> []
