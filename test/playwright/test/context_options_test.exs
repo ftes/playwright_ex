@@ -196,10 +196,15 @@ defmodule Playwright.Test.ContextOptionsTest do
     # upstream's top-level `test.use`.
     assert Playwright.Test.use(Keyword.delete(Playwright.device("iPhone 13"), :default_browser_type)) != []
     tags = Map.new(Playwright.Test.use(Playwright.device("iPhone 13") ++ [launch_options: [slow_mo: 1]]))
-    layers = Options.layers(%{}, Options.use_options(browser_name: :chromium), tags)
-    # The `@moduletag` over the module's `use`; a configured browser_name (`BROWSER`) wins over a device's.
-    assert %{default_browser_type: :webkit, launch_options: [slow_mo: 1]} = layers.module
-    assert Options.worker(Options.config(), layers.project, layers.module)[:launch_options] == [slow_mo: 1]
+    use_options = Options.use_options(browser_name: :chromium)
+    assert %{default_browser_type: :webkit} = Options.layers(%{}, use_options, tags).module
+    # The worker of the `@moduletag` over the module's `use`, as `Playwright.Test` takes it; the
+    # `use`'s browser_name wins over the device's.
+    module = Options.module_worker(use_options, tags)
+    assert %{browser_name: :chromium, default_browser_type: :webkit, launch_options: [slow_mo: 1]} = module
+
+    assert %{browser_name: :chromium, launch_options: [slow_mo: 1]} =
+             Map.new(Options.worker(Options.config(), %{}, module))
 
     for call <- [&Playwright.Test.use/1, &Playwright.Test.parameters/1, &Options.use_options/1] do
       assert_raise ArgumentError, ~r/test_id_attribute is config only: .*global to the VM/, fn ->
@@ -851,9 +856,13 @@ defmodule Playwright.Test.ContextOptionsTest.ModuleWorkerTest do
     assert Recorder.worker_options() == setup_all_worker
     assert setup_all_worker[:launch_options] == [slow_mo: 2]
     assert setup_all_worker[:connect_options] == nil
+    # The `@moduletag`'s browser_name, over the config's (`BROWSER`) and its own device's.
+    assert setup_all_worker[:browser_name] == :firefox
+    assert Playwright.Test.Options.module_worker(%{}, __MODULE__.__ex_unit__().tags).default_browser_type == :webkit
   end
 
-  @moduletag Playwright.Test.use(launch_options: [slow_mo: 2])
+  @moduletag Playwright.Test.use(launch_options: [slow_mo: 2], default_browser_type: :webkit)
+  @moduletag Playwright.Test.use(browser_name: :firefox)
 
   # `ExUnit.Case.test/3` itself: no check, and its tag's worker options don't count.
   @tag Playwright.Test.use(connect_options: [ws_endpoint: "ws://tag"])
