@@ -47,7 +47,7 @@ defmodule Playwright.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:ex_doc, ">= 0.39.0 and < 1.0.0", only: :dev, runtime: false},
+      {:ex_doc, ">= 0.39.0 and < 1.0.0", only: [:dev, :test], runtime: false},
       {:usage_rules, "~> 1.3", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
@@ -78,7 +78,8 @@ defmodule Playwright.MixProject do
       preferred_envs: [
         format: :test,
         setup: :test,
-        check: :test
+        check: :test,
+        lint: :test
       ]
     ]
   end
@@ -200,13 +201,14 @@ defmodule Playwright.MixProject do
     ]
   end
 
-  # Internals and the maintainer tooling (dev/, compiled in :dev and :test only): in the source
-  # with their moduledocs, not in hexdocs. All of dev/, at any depth, by the path relative to
-  # this project, so a parent directory named dev (say ~/dev/playwright_ex) can't match; a _build
-  # compiled at another absolute path than `mix docs` runs from would show dev/. The lib/
-  # internals by the end of the source path, down to the file name, for the same reason.
+  # Internals, the maintainer tooling (dev/) and the test support (test/support, compiled in
+  # :test): in the source with their moduledocs, not in hexdocs. All of dev/ and test/, at any
+  # depth, by the path relative to this project, so a parent directory named dev (say
+  # ~/dev/playwright_ex) can't match; a _build compiled at another absolute path than `mix docs`
+  # runs from would show them. The lib/ internals by the end of the source path, down to the file
+  # name, for the same reason.
   defp internal_source?(path) do
-    String.starts_with?(Path.relative_to(path, __DIR__), "dev/") or
+    String.starts_with?(Path.relative_to(path, __DIR__), ["dev/", "test/"]) or
       Enum.any?(
         [
           ~r"/lib/playwright/(client|matchers|protocol|runtime|transport|isomorphic)/[^/]+\.ex$",
@@ -237,15 +239,23 @@ defmodule Playwright.MixProject do
   defp aliases do
     [
       setup: ["deps.get", "playwright.install chromium", "playwright.upstream"],
-      check: [
+      # What CI's build job runs (`mix lint`); `check` adds the parity check and the tests.
+      lint: [
         "format --check-formatted",
         "credo",
         "compile --warnings-as-errors",
         "usage_rules.sync --check",
-        "dialyzer --format github --format dialyxir",
-        "playwright.parity",
-        "test --warnings-as-errors"
-      ]
+        # As a Hex install does: from the package's files only (DRIVER_VERSION etc. are read when
+        # compiling). Under the checkout, so mise's .tool-versions applies; removed first, so a
+        # stale file of an earlier build can't hide a missing one in `package/0`'s files. A
+        # subprocess: after `compile`, a task of the Hex archive is no longer found.
+        "cmd rm -rf tmp/hex-package",
+        "cmd mix hex.build --unpack --output tmp/hex-package",
+        "cmd --cd tmp/hex-package env MIX_ENV=prod mix compile --warnings-as-errors",
+        "docs --warnings-as-errors",
+        "dialyzer --format github --format dialyxir"
+      ],
+      check: ["lint", "playwright.parity", "test --warnings-as-errors"]
     ]
   end
 end

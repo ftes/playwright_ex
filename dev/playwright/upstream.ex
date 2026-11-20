@@ -11,7 +11,8 @@ defmodule Playwright.Upstream do
 
   # packages/injected/src for reading: the driver bundles the injected script as one escaped string.
   @paths ~w(
-    packages/playwright-core/src packages/playwright/src packages/protocol packages/isomorphic packages/utils
+    packages/playwright-core/src packages/playwright/src packages/playwright/types packages/protocol
+    packages/isomorphic packages/utils
     packages/injected/src utils docs/src/api tests/page tests/library tests/config tests/assets
   )
 

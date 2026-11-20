@@ -8,10 +8,11 @@ defmodule Mix.Tasks.Playwright.Parity do
 
   Sources: `Playwright.Upstream.ensure!/0` (the pinned upstream release).
 
-    * Completeness: every upstream client file (`packages/playwright-core/src/client/*.ts`) needs a
-      module with `@upstream` for it (in `lib`, `dev` or `test/support`), unless listed with a reason in
-      `@unported_client_files` in this module. An exclusion for a file that is not upstream, or
-      that has a module after all, is stale. Review the list on a version roll.
+    * Completeness: every upstream client and matcher file (`packages/playwright-core/src/client/*.ts`,
+      `packages/playwright/src/matchers/*.ts`) needs a module with `@upstream` for it (in `lib`,
+      `dev` or `test/support`), unless listed with a reason in `@unported_files` in this module. An
+      exclusion for a file that is not upstream, or that has a module after all, is stale. Review
+      the list on a version roll.
     * Test registry (`Mix.Playwright.TestRegistry`, as playwright-python's
       `check_test_registry.py`): every test of `test/upstream_registry.md` that is at the pin is
       ported (a mirrored test with a body), bodiless under a static `upstream ...` skip (upstream
@@ -45,6 +46,11 @@ defmodule Mix.Tasks.Playwright.Parity do
     * Copyright headers (`Mix.Playwright.Notices`): every file derived from upstream starts
       with its upstream files' copyright lines and license, as `mix playwright.notices` and the
       generators write them, and `NOTICE` names its MIT sources.
+    * Runner sources (`Mix.Playwright.Notices.runner_sources/0`, `mix playwright.runner_sources`,
+      which a bump diffs): every `packages/playwright/{src,types}/...` file cited in
+      `lib/playwright/test.ex`, `lib/playwright/test/` or `lib/playwright/case.ex` (outside
+      `src/matchers/`) must be listed, in its `@derived` or `@watched`; a listed file that is not
+      upstream is stale.
     * The generated facade (`mix playwright.gen.api --check`): regenerating it from
       `api.json` must give the committed files. It has every member, so a client function it
       calls that is missing is a compile warning.
@@ -77,13 +83,17 @@ defmodule Mix.Tasks.Playwright.Parity do
 
   # Upstream files with no module or test module on purpose, path => reason. Review on a version
   # roll: new upstream files show up as missing, removed or since-ported ones as stale.
-  @unported_client_files %{
+  @unported_files %{
     "packages/playwright-core/src/client/android.ts" =>
       "not in the JS api.json at this pin (Connection maps Android* to DummyChannelOwner)",
     "packages/playwright-core/src/client/channels.d.ts" => "type-only (protocol channel types)",
     "packages/playwright-core/src/client/electron.ts" =>
       "not in the JS api.json at this pin (Connection maps Electron* to DummyChannelOwner)",
-    "packages/playwright-core/src/client/types.ts" => "type-only"
+    "packages/playwright-core/src/client/types.ts" => "type-only",
+    "packages/playwright/src/matchers/expectLibrary.ts" =>
+      "jest's `expect` merged into one file (MIT): its generic and asymmetric matchers are not ported; " <>
+        "the matchers' `this.utils` are `Playwright.Matchers.MatcherUtils`, from jest-matcher-utils " <>
+        "(`@jest` in Mix.Playwright.Notices)"
   }
 
   # Every function-typed parameter of the facade (`function_params/1`), by where the client calls
@@ -163,10 +173,10 @@ defmodule Mix.Tasks.Playwright.Parity do
 
     problems =
       check_files(
-        upstream_files(upstream, ["packages/playwright-core/src/client/*.ts"]),
+        upstream_files(upstream, ["packages/playwright-core/src/client/*.ts", "packages/playwright/src/matchers/*.ts"]),
         claimed(lib_modules),
-        @unported_client_files,
-        "no module with `@upstream` for it (port it or list it in @unported_client_files)"
+        @unported_files,
+        "no module with `@upstream` for it (port it or list it in @unported_files)"
       ) ++
         check_modules(upstream, lib_modules, opts[:extra]) ++
         check_tests(upstream, test_modules) ++

@@ -78,4 +78,36 @@ defmodule Mix.Playwright.NoticesTest do
     assert once =~ "# Copyright (c) Microsoft Corporation.\n"
     assert Notices.put(upstream, "lib/a.ex", once) == once
   end
+
+  test "check_runner_sources/3: unlisted runner citations outside src/matchers, and stale listed paths",
+       %{tmp_dir: upstream} do
+    File.mkdir_p!(Path.join(upstream, "packages/playwright/src/worker"))
+    File.write!(Path.join(upstream, "packages/playwright/src/worker/testInfo.ts"), "")
+
+    files = [
+      {"lib/playwright/test.ex",
+       """
+       # `packages/playwright/src/worker/testInfo.ts` and `packages/playwright/types/test.d.ts`,
+       # `packages/playwright/src/matchers/expect.ts`, `packages/playwright-core/src/client/page.ts`,
+       # again `packages/playwright/types/test.d.ts`, and a bare `dispatcher.ts`.
+       """}
+    ]
+
+    listed = ["packages/playwright/src/worker/testInfo.ts", "packages/playwright/src/gone.ts"]
+
+    assert Notices.check_runner_sources(upstream, files, listed) == [
+             "lib/playwright/test.ex: cites packages/playwright/types/test.d.ts, " <>
+               "list it in Mix.Playwright.Notices @watched with a reason",
+             "packages/playwright/src/gone.ts: a runner source in Mix.Playwright.Notices, but not found upstream, drop it"
+           ]
+  end
+
+  test "runner_sources/0: sorted, unique, the runner's (not the matchers' or the client's)" do
+    sources = Notices.runner_sources()
+    assert sources == sources |> Enum.uniq() |> Enum.sort()
+    assert "packages/playwright/src/worker/testInfo.ts" in sources
+    assert "packages/playwright/src/worker/timeoutManager.ts" in sources
+    assert Enum.all?(sources, &String.starts_with?(&1, "packages/playwright/"))
+    refute Enum.any?(sources, &String.starts_with?(&1, "packages/playwright/src/matchers/"))
+  end
 end

@@ -26,7 +26,8 @@ Read them before changing ported code. When reviewing a change or fixing review 
   an RC. Upstream driver bumps and changes ported from upstream are never RC only. At the first
   non-RC release, drop the RC-only entries and merge the RC sections into that release's notes,
   keeping the latest `Drives Playwright` line.
-- `mix check` is the full verification (format, credo, compile, dialyzer, parity, tests).
+- `mix check` is the full verification: `mix lint` (format, credo, compile, usage rules, Hex package
+  compile, docs, dialyzer), then parity and the tests.
 - Files marked "do not edit manually" are generated: run `mix playwright.gen.api`
   (`mix playwright.gen.protocol` for the protocol) instead of editing them.
 - `.agents/skills` (linked from `.claude/skills`) is generated: after updating deps run

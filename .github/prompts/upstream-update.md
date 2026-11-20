@@ -14,7 +14,7 @@ the existing ported code next to whatever you port.
    message>"`), and once the PR exists (step 3.2) run `git push origin BRANCH` after every commit,
    so partial work survives and is visible.
 2. Fetch upstream at both tags (shallow; `git diff` needs only the two trees). This prompt's
-   `git -C /tmp/playwright` commands are the one exception to the tool hint at the end:
+   `git -C /tmp/playwright` commands are the one exception to your tool rules:
    ```
    git init -q /tmp/playwright
    git -C /tmp/playwright fetch --depth=1 https://github.com/microsoft/playwright tag vFROM tag vTO
@@ -22,13 +22,13 @@ the existing ported code next to whatever you port.
    ```
    Read the RELEASE notes too (`gh release view vTO --repo microsoft/playwright`).
 3. Follow PORTING.md "Bumping the pinned version", step by step:
-   1. Run `mix playwright.checksums TO NODE`: it writes `DRIVER_VERSION`, `NODE_VERSION` and
-      the checksums. NODE is the current `NODE_VERSION`, or playwright-python's `NODE_VERSION`
-      for TO if that changed (look it up in microsoft/playwright-python with `gh` or `curl`). Then
-      `mix playwright.install chromium` (driver and browser for TO).
-   2. `mix playwright.gen.protocol` and `mix playwright.gen.api`; commit the bump and the
-      generated diff (often none for a patch release) on their own. Then publish, before porting
-      anything, so a run that stops early still leaves its work on a PR:
+   1. PORTING step 1 with `mix playwright.checksums TO NODE`: NODE is the current
+      `NODE_VERSION`, or playwright-python's `NODE_VERSION` for TO if that changed (look it up in
+      microsoft/playwright-python with `gh` or `curl`). Then `mix playwright.install chromium`
+      (driver and browser for TO).
+   2. PORTING step 2; commit the bump and the generated diff (often none for a patch release) on
+      their own. Then publish, before porting anything, so a run that stops early still leaves
+      its work on a PR:
       ```
       git push -u origin BRANCH
       gh pr create --draft --base main --head BRANCH --title "Update to Playwright TO" --body "Port in progress."
@@ -36,34 +36,17 @@ the existing ported code next to whatever you port.
       Always publish, even when the diffs below hold nothing to port: the bump itself (new
       driver, Node and browsers) is the PR, and its CI is the check. If the push or
       `gh pr create` fails, stop and end with the command and its error.
-   3. Port every hunk of `git -C /tmp/playwright diff vFROM vTO -- packages/playwright-core/src/client
-      packages/playwright/src/matchers tests/page tests/library` 1:1, per PORTING's rules: same module per class, upstream order
-      and names, `-- not ported: <reason>` / `-- ported as <name>` markers, specs mirrored with
-      identical names and order. Never edit the generated facade (`lib/playwright/api/`) by
-      hand. Use subagents for independent files when the diff is large.
-   4. Read the runner's diff, which is watched rather than ported 1:1 (PORTING step 3):
-      ```
-      git -C /tmp/playwright diff vFROM vTO -- packages/playwright/src/index.ts packages/playwright/src/common/config.ts packages/playwright/src/common/testType.ts packages/playwright/src/worker/testInfo.ts packages/playwright/src/worker/testTracing.ts packages/playwright/types/test.d.ts
-      ```
-      - Port the hunks that touch what `Playwright.Test` ports: `lib/playwright/test.ex`
-        and `lib/playwright/test/{test_info,test_tracing,recorder,error_context}.ex`.
-      - Don't port the rest: reporters, retries, projects, fixtures and the CLI.
-      - New options, fixtures or defaults go into the PR body under "Runner" as features to
-        adopt or skip.
-   5. `mix playwright.parity` until it prints `parity: ok`, handling new, removed and renamed
-      upstream files as PORTING says, and refresh `test/upstream_registry.md`.
-   6. Read `git -C /tmp/playwright diff vFROM vTO -- 'docs/src/*.md' ':!docs/src/api'` (upstream's
-      guides) and update `guides/` where it adds a pattern or caveat they should mention, and
-      `usage-rules.md`'s locator order where upstream's priority changed, and do PORTING step 5's
-      other checks; list
-      anything you left out in the PR body.
-   7. Re-check the `env:`/`flaky:` skips and PORTING's "Upstream issues to re-check" as PORTING
-      step 6 says; drop skips that pass and list them in the PR body.
-4. Leave `@version` in `mix.exs` alone: the release PR sets it to VERSION (an upstream minor
-   gives X.Y.0, a patch bump our patch + 1; PORTING step 7). Under `## [Unreleased]` in
-   `CHANGELOG.md`, in the style of the existing entries: "Drives Playwright TO" with the RELEASE
-   link, then the API added or changed by the port.
-   Follow AGENTS.md's `**RC only:**` rule for entries.
+   3. PORTING step 3, diffing with `git -C /tmp/playwright diff vFROM vTO -- <paths>`: port
+      every hunk of the client, matchers and specs, then read the runner's diff
+      (`mix playwright.runner_sources` prints its paths). Use subagents for independent files
+      when the diff is large. New runner options, fixtures or defaults go into the PR body under
+      "Runner" as features to adopt or skip.
+   4. PORTING step 4, until `mix playwright.parity` prints `parity: ok`.
+   5. PORTING step 5, diffing in /tmp/playwright; list anything you left out in the PR body.
+   6. PORTING step 6; list the skips you dropped in the PR body.
+4. Leave `@version` in `mix.exs` alone: the release PR sets it to VERSION (PORTING step 7).
+   Under `## [Unreleased]` in `CHANGELOG.md`, in the style of the existing entries: "Drives
+   Playwright TO" with the RELEASE link, then the API added or changed by the port.
 5. Verify; all must pass (CI on the PR runs Dialyzer, the docs build and the other browsers):
    ```
    mix format
@@ -95,7 +78,5 @@ checklist. A draft PR with a green partial port beats no PR.
 - Never merge, never push to `main` or any branch but BRANCH, never force-push, never edit
   `.github/`.
 - List non-obvious decisions in the PR checklist.
-- No attribution anywhere: no `Co-Authored-By` trailers, no "Generated with Claude Code" lines,
-  in commits, the PR or comments. The repo owner forbids it.
 - Upstream sources come from the release at the pin (`Playwright.Upstream`, re-downloaded for
   TO by the mix tasks) and `/tmp/playwright`; nothing else is a reference for TO.

@@ -1,14 +1,18 @@
 defmodule Playwright.DriverCleanup do
   @moduledoc """
-  The suite's cleanup on `Playwright.Test`'s pooled drivers (`UpstreamCase`, `ExampleCase`),
-  which a passing module hands on, warm, to the next: it touches only what a test or module
-  created.
+  The suite's cleanup of browsers on `Playwright.Test`'s pooled drivers (`UpstreamCase`,
+  `ExampleCase`), which a passing module hands on, warm, to the next: it touches only what a test
+  or module created.
+
+  The contexts of a test and its `Task`s are not closed here: `Playwright.Test.Recorder` records
+  them and closes the leftovers when the test finishes. Nor are a module `setup_all`'s contexts
+  (they are unrecorded), which `track_module/2` closes.
 
   `track_test/2` (in `setup`) follows the test's processes (the test and its `Task`s) with a
-  `ClientInstrumentation` listener: the contexts they create and the browsers they launch are
-  closed after the test. `track_module/2` (in `setup_all`) does the same for the module's own
-  process (a `setup_all` that launches a browser). Upstream leaves both to the worker's end;
-  here a worker outlives its module. Option `:keep`: the browsers not to close, the module's.
+  `ClientInstrumentation` listener: the browsers they launch are closed after the test.
+  `track_module/2` (in `setup_all`) closes the browsers and contexts of the module's own process
+  (a `setup_all` that launches a browser). Upstream leaves both to the worker's end; here a
+  worker outlives its module. Option `:keep`: the browsers not to close, the module's.
   """
   alias Playwright.Browser
   alias Playwright.BrowserContext
@@ -19,12 +23,12 @@ defmodule Playwright.DriverCleanup do
   require Logger
 
   @doc """
-  Closes what the test's processes create on `playwright`'s driver, after its `on_exit`
+  Closes the browsers the test's processes launch on `playwright`'s driver, after its `on_exit`
   callbacks (call it before the fixtures' setups).
   """
   def track_test(playwright, opts) do
     test_pid = self()
-    {:ok, created} = Agent.start(fn -> %{contexts: [], pids: MapSet.new([test_pid])} end)
+    {:ok, created} = Agent.start(fn -> %{pids: MapSet.new([test_pid])} end)
     instrumentation = Heap.get(playwright, :_instrumentation)
     listener = listener(test_pid, created)
     Heap.update(instrumentation, :listeners, &(&1 ++ [listener]))
@@ -32,9 +36,8 @@ defmodule Playwright.DriverCleanup do
     ExUnit.Callbacks.on_exit(fn ->
       # Exactly this listener: the ported `remove_listener` removes the last one for an unknown one.
       if Heap.readable?(instrumentation), do: Heap.update(instrumentation, :listeners, &List.delete(&1, listener))
-      %{contexts: contexts, pids: pids} = Agent.get(created, & &1)
+      %{pids: pids} = Agent.get(created, & &1)
       Agent.stop(created)
-      for context <- contexts, do: BrowserContext.close(context)
       close_browsers(playwright, pids, opts[:keep] || [])
     end)
 
@@ -42,22 +45,18 @@ defmodule Playwright.DriverCleanup do
   end
 
   # Runs in the process that calls the API, for every caller on the driver: records what the
-  # test and its `Task`s (`$callers`) create.
+  # test and its `Task`s (`$callers`) launch.
   defp listener(test_pid, created) do
-    ours? = fn -> self() == test_pid or test_pid in List.wrap(Process.get(:"$callers")) end
-
     %{
       ref: make_ref(),
       # A `Task` of the test that calls the API may launch a browser: its pid, once.
       onApiCallBegin: fn _api_call, _channel ->
-        if self() != test_pid and Process.get({__MODULE__, created}) == nil and ours?.() do
+        if self() != test_pid and Process.get({__MODULE__, created}) == nil and
+             test_pid in List.wrap(Process.get(:"$callers")) do
           Process.put({__MODULE__, created}, true)
           pid = self()
           safe_update(created, &%{&1 | pids: MapSet.put(&1.pids, pid)})
         end
-      end,
-      runAfterCreateBrowserContext: fn context ->
-        if ours?.(), do: safe_update(created, &%{&1 | contexts: [context | &1.contexts]})
       end
     }
   end

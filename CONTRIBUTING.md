@@ -1,7 +1,8 @@
 # Contributing
 
 1. `mix setup` installs dependencies, the pinned Playwright driver and Chromium.
-2. `mix test`, or `mix check` for the full verification.
+2. `mix test`, or `mix check` for CI's lint and one browser's tests (`BROWSER`); CI also runs the
+   other browsers, partitioned, and the Selenium and headed tests.
 3. Porting rules: [`PORTING.md`](PORTING.md); the why behind the design:
    [`docs/architecture.md`](docs/architecture.md); agent instructions: [`AGENTS.md`](AGENTS.md).
 
