@@ -99,7 +99,7 @@ upstream minor, so `~> 1.65.0` is safe.
   module compiles a test of the `test` macro under it, with upstream's "Cannot use({ ... }) in
   a describe group, because it forces a new worker" message ("in a test" for a `@tag`), instead
   of dropping a device's browser. `@moduletag Test.use(...)` takes them, as upstream's top-level
-  `test.use`. A test's worker is its module's (its `use`, then its final `@moduletag`), so a
+  `test.use`. A test's worker is its module's (its `use`, then its `@moduletag`s, the later per option), so a
   test the check doesn't see (a doctest, a bare `ExUnit.Case.test`) gets the module's too.
 - **RC only:** **Breaking:** `info/0`, `output_path/1`, `attach/2` and `snapshot_path/2`
   outside their scope raise upstream's "... can only be called while test is running";
