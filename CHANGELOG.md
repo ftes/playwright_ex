@@ -53,6 +53,9 @@ upstream minor, so `~> 1.65.0` is safe.
 
 ### Changed
 
+- `Playwright.Test.GitHubFormatter` annotates a `mix test --failed` rerun too, as upstream's
+  `github` reporter annotates every attempt: a test passing there counts as flaky in the rerun's
+  summary, and one failing again gets its error under `Retry #1`. Pass it to both runs.
 - **RC only:** **Breaking:** `config :playwright, Playwright.Test.GitHubFormatter,
   report_slow_tests: ...` is `config :playwright, :test, report_slow_tests: ...`, as upstream's
   top-level `reportSlowTests`, with `false` for none (`nil` is the default there, as for every
@@ -279,8 +282,7 @@ Drives [Playwright 1.65.0](https://github.com/microsoft/playwright/releases/tag/
 - `Playwright.Test`: Playwright Test's runner for ExUnit, with pooled worker browsers
   (`Playwright.Test.BrowserPool`), context defaults, traces, screenshots and videos, steps,
   snapshot paths, soft assertions, timeouts and `info/0`. `Playwright.Case` gives each test a
-  `page`; `Playwright.Test.GitHubFormatter` is the `github` reporter, on a `mix test --failed`
-  rerun too (flaky tests, `Retry #1`).
+  `page`; `Playwright.Test.GitHubFormatter` is the `github` reporter.
 - `Expect.to_pass/2`, `Expect.poll/3`, `Expect.soft/1` and `Expect.message/2`, beside upstream's
   matchers.
 - `mix playwright.install` (`--no-browsers` for the driver only) and `mix playwright.cli`.
