@@ -826,7 +826,7 @@ defmodule Playwright.Test.ContextOptionsTest.NilThenOption do
 end
 
 defmodule Playwright.Test.ContextOptionsTest.ModuleWorkerTest do
-  # A test's worker is its module's: the `use`, then the final `@moduletag`, also for a test
+  # A test's worker is its module's: the `use`, then the `@moduletag`s, also for a test
   # defined before that line (upstream's top-level `test.use` applies file-wide), and a test
   # whose own tag skipped the `test` macro's check gets none of its tag's.
   use ExUnit.Case, async: true

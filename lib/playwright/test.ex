@@ -235,9 +235,9 @@ defmodule Playwright.Test do
   `launch_options` (its `use`'s, else its project's, else the config's, each as a whole) and
   `connect_options` are that call's defaults too, upstream's `launchOptions` and
   `connectOptions`: a project with `launch_options: [channel: "chrome"]` gets a worker of its
-  own. These four are the worker's, as upstream's: the module's (its `use`, then its final
-  `@moduletag Test.use(...)`, upstream's top-level `test.use`, for every test of the module,
-  also those above that line) or its project's. In a `@describetag` or a `@tag` of a test of
+  own. These four are the worker's, as upstream's: the module's (its `use`, then all of its
+  `@moduletag Test.use(...)`s merged, the later per option, upstream's top-level `test.use`, for
+  every test of the module, also those above such a line) or its project's. In a `@describetag` or a `@tag` of a test of
   the `test` macro they raise when the module compiles, as upstream's `test.use` in a describe
   when the file loads, a device's `default_browser_type` too; other tests (a doctest, a bare
   `ExUnit.Case.test`) get the module's worker regardless. For a browser or a device per run,
@@ -245,7 +245,7 @@ defmodule Playwright.Test do
 
   Where each option can be set:
 
-  | Option | Config | Project (`parameters/1`) | Module (`use`, `@moduletag use/1`) | Describe, test (`@describetag`, `@tag use/1`) |
+  | Option | Config | Project (`parameters/1`) | Module (`use`, then its `@moduletag use/1`s, merged) | Describe, test (`@describetag`, `@tag use/1`) |
   |---|---|---|---|---|
   | the context options, `context_options`, `action_timeout`, `navigation_timeout` | yes | yes | yes | yes |
   | `trace`, `screenshot`, `video` | yes | yes | yes | yes (an addition: upstream's are the worker's; they work fully per test, as the recorder records per test and touches no browser) |
@@ -839,8 +839,8 @@ defmodule Playwright.Test do
     }
   end
 
-  # The module's worker options: its `use`, then its final `@moduletag` (`ExUnit.TestModule`'s
-  # `tags`), never a describe's or a test's tags, as upstream's top-level `test.use` applies to the
+  # The module's worker options: its `use`, then its `@moduletag`s, merged, the later per option
+  # (`ExUnit.TestModule`'s `tags`), never a describe's or a test's tags, as upstream's top-level `test.use` applies to the
   # whole file. `tags` without ExUnit's `__ex_unit__/0`.
   defp module_worker(module, use_options, tags) do
     tags = if module && function_exported?(module, :__ex_unit__, 0), do: module.__ex_unit__().tags, else: tags

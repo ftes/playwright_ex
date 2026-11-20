@@ -455,9 +455,9 @@ defmodule Playwright.Test.Options do
   end
 
   @doc """
-  The module's worker options: those of its `use_options`, then of `use/1` in its final
-  `@moduletag` (`module_tags`, `ExUnit.TestModule`'s `tags`), as upstream's top-level `test.use`
-  applies file-wide. A describe's or a test's tags never count (`worker_tags!/2`).
+  The module's worker options: those of its `use_options`, then of `use/1` in its `@moduletag`s
+  (`module_tags`, `ExUnit.TestModule`'s `tags`: all of them merged, the later per option), as
+  upstream's top-level `test.use` applies file-wide. A describe's or a test's tags never count (`worker_tags!/2`).
   """
   def module_worker(use_options, module_tags) do
     worker_keys = [:default_browser_type | @worker_keys]
@@ -494,7 +494,7 @@ defmodule Playwright.Test.Options do
 
   @doc """
   Playwright Test's `testIdAttribute` (config `test_id_attribute`, default `data-testid`), `nil`
-  for `""` (upstream's `if (testIdAttribute)` sets none, so a fresh worker has the default).
+  for `""` (upstream's `if (testIdAttribute)` sets none: the selectors keep theirs).
   """
   def test_id_attribute, do: config()[:test_id_attribute]
 

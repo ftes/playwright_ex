@@ -117,7 +117,8 @@ The browser is the module's, as in Playwright Test, which rejects a browser opti
 describe because it forces a new worker: a `@describetag` or `@tag` with `browser_name`,
 `launch_options`, `connect_options` or `default_browser_type` raises when the module compiles a
 `test` under it, so does one with a device (`@tag Test.use(Playwright.device("Pixel 7"))`). The
-module takes them, in its `use` or its final `@moduletag Test.use(...)`, for all its tests. For a device's emulation alone in a describe, drop its
+module takes them, in its `use` or its `@moduletag Test.use(...)`s (merged, the later winning per
+option), for all its tests. For a device's emulation alone in a describe, drop its
 browser: `Test.use(Keyword.delete(Playwright.device("Pixel 7"), :default_browser_type))`. To run
 a module once per device, make each device a project ([Projects](#projects)), as Playwright
 Test's `projects: [{ name, use: { ...devices[name] } }]`:
