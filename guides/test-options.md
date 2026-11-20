@@ -119,8 +119,8 @@ describe because it forces a new worker: a `@describetag` or `@tag` with `browse
 does one with a device (`@tag Test.use(Playwright.device("Pixel 7"))`). The module takes them, in
 its `use` or a `@moduletag Test.use(...)`. For a device's emulation alone in a describe, drop its
 browser: `Test.use(Keyword.delete(Playwright.device("Pixel 7"), :default_browser_type))`. To run
-a module once per device, Playwright Test's loop over `test.describe` blocks with a device each,
-make each device a project ([Projects](#projects)):
+a module once per device, make each device a project ([Projects](#projects)), as Playwright
+Test's `projects: [{ name, use: { ...devices[name] } }]`:
 
 ```elixir
 use Playwright.Case,
@@ -163,9 +163,10 @@ and parameters of your own go next to them: `Map.put(Test.parameters(...), :role
 `name` is upstream's `project.name`: a failure prints it as ExUnit's parameters
 (`Parameters: %{"playwright.project": #Playwright.Test.Project<"de">}`), the GitHub annotations of
 `Playwright.Test.GitHubFormatter` start with it (`[de] › ...`), and it fills a snapshot template's
-`{projectName}`. Without one (`""` is none), as upstream, a failure prints the project's
-options, the annotations have no `[...] ›` prefix, and `{projectName}` is empty: name every
-project of a module that has more than one, as
+`{projectName}`. Without one (`""` is none), the annotations have no `[...] ›` prefix and
+`{projectName}` is empty, as upstream; ExUnit's `Parameters:` line of a failure prints the
+project's options (`Playwright.Test.Project`'s `Inspect`). Name every project of a module that
+has more than one, as
 `Test.parameters([name: "de", locale: "de-DE"] ++ Playwright.device("Desktop Chrome"))`. ExUnit's
 filters don't see `parameterize:` values, so to run one project, read an env var where the list is
 built, as above.
@@ -248,7 +249,8 @@ end
 ## The running test
 
 `Playwright.Test.info/0` is Playwright Test's `test.info()`: the running test's `test_pid`,
-`file`, `test_name`, `output_dir`, `timeout`, `deadline` and its resolved options, `use`, in the
+`file`, `test_name`, `output_dir`, `retry` (0, or 1 under `mix test --failed`), `timeout`,
+`deadline` and its resolved options, `use`, in the
 test's process and in processes with it in `$callers` (a `Task`, a route handler). `deadline` is
 monotonic milliseconds (compare with `System.monotonic_time(:millisecond)`) by which the test
 must be done: after it, the test's contexts are closed and Playwright calls fail; `:infinity`
