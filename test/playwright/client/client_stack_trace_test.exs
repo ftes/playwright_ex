@@ -58,21 +58,21 @@ defmodule Playwright.ClientStackTraceTest do
     assert Enum.all?(frames, &(&1.file == __ENV__.file and &1.function =~ "Playwright.ClientStackTraceTest."))
   end
 
-  # Elixir only: a call without frames of its own (an async function's, a `Task`'s, a callback's,
-  # a fun's tail call) has those of the first of its `$callers` with any, as JS's stack runs
-  # through the code awaiting it. The location is the one sent with the call (`metadata`).
-  test "a Task's tail call has the line of its caller, which awaits it" do
+  # Elixir only: a call without frames of its own in an async function's process
+  # (`Promise.async/2`) before its first yield has those of the caller blocked on it, as JS runs
+  # that part on the caller's stack. Elsewhere it has none: a fun's tail call drops its frame, and
+  # a process's caller (a `Task`'s) has moved on. The location is the one sent with the call.
+  test "a Task's tail call has no location" do
     page = new_page()
     restore = send_locations(page, ~w(setContent))
     Task.await(Task.async(fn -> Page.set_content!(page, "task") end))
     restore.()
 
-    assert_receive {:location, "setContent", %{file: @this_file, line: line}}
-    assert source(line) =~ ~s[Task.await(Task.async(fn -> Page.set_content!(page, "task") end))]
+    assert_receive {:location, "setContent", nil}
   end
 
-  # `fulfill` and `abort` run their channel call in an async function (`Promise.async/2`).
-  test "a route handler's call has its line, or with a tail call the line of the test's call it handles" do
+  # `fulfill` and `abort` send their channel call from an async function (`Route`).
+  test "a route handler's call through an async function has its line, a tail call none" do
     page = new_page()
     restore = send_locations(page, ~w(fulfill abort))
 
@@ -88,11 +88,10 @@ defmodule Playwright.ClientStackTraceTest do
 
     assert_receive {:location, "fulfill", %{file: @this_file, line: line}}
     assert source(line) =~ ~s[Route.fulfill!(route, body: "fulfilled")]
-    assert_receive {:location, "abort", %{file: @this_file, line: line}}
-    assert source(line) =~ ~s[Page.goto(page, "http://localhost:1/abort")]
+    assert_receive {:location, "abort", nil}
   end
 
-  # ExUnit's `on_exit` process has no `$callers`: there, a tail call has no frames.
+  # A tail call there has none.
   test "an on_exit callback's call has its line" do
     page = new_page()
 

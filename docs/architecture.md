@@ -140,16 +140,16 @@ the connection process of what it awaits (a latch, a call, an event): if that ex
 rejects with `TargetClosedError` instead of hanging. `async/2` runs a
 function in a process of its own and settles a local promise, or a latch (`owner:` an object,
 `shared: true` the calling process). `void/1` fires and forgets. `then_`/`catch_` are lazy and
-run in the awaiter; `race`/`all` are selective receives.
+run in the awaiter; `race`/`all` are selective receives. The caller waits for an async
+function until its first yield (`Invocation`), as JS runs that part on the caller's stack, so a
+call there without frames of its own has the caller's (`ClientStackTrace`).
 
 A process the client starts on one caller's behalf carries that caller's `$callers`, as a `Task`
 does (`Playwright.Runtime.Callers`): an async function's (`Promise.start`), a user listener's
 subscription process, and the listener processes that run a user callback (routes, WebSocket
 routes and their handlers and URL matchers, bindings, locator handlers, screencast frames),
 which adopt the registrant's `$callers`, captured at registration as `RouteHandler` captures its
-zone. So `testInfo`, the Ecto sandbox and Mox find the test there, a call without frames of its
-own (BEAM drops a tail call's) takes its stack from the first of them with any
-(`ClientStackTrace`), and an error nothing handles
+zone. So `testInfo`, the Ecto sandbox and Mox find the test there, and an error nothing handles
 (the listener sink) fails the test of the process's `$callers` and stops it, as upstream's worker
 fails its current test with its first one and `_stop()`s it (`workerMain.ts` `unhandledError`):
 the test's process exits with a reason that carries the error (`Process.exit/2`), which ExUnit
