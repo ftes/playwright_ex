@@ -622,9 +622,7 @@ defmodule Playwright.Test do
 
       true ->
         # A `nil` key is unset: its default, as `config/0` reads it.
-        # A duplicated key's later, as `config/0` reads it.
-        configured = Application.compile_env(caller, :playwright, :test, [])
-        configured = if Keyword.keyword?(configured), do: Playwright.Application.later_wins(configured)[:assert_steps]
+        configured = Application.compile_env(caller, :playwright, [:test, :assert_steps], nil)
         configured = if configured == nil, do: true, else: configured
         {Options.validate_key!(:assert_steps, configured, "config :playwright, :test"), opts}
     end
