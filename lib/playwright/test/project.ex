@@ -4,9 +4,8 @@ defmodule Playwright.Test.Project do
   `name` and its `use` options, validated. It is the value of one private parameter, and
   inspects as its `title/1`, so a failed test prints a short name, as upstream's reporters print
   the project's: `Parameters: %{"playwright.project": #Playwright.Test.Project<"Mobile Safari">}`.
+  An unnamed project, as upstream's, has no title: it inspects as its options.
   """
-
-  alias Playwright.Test.Options
 
   @enforce_keys [:name, :use]
   defstruct [:name, :use]
@@ -14,25 +13,14 @@ defmodule Playwright.Test.Project do
   @typedoc "`name` (`nil` when not given) and `use`, the options as `Playwright.Test` reads them."
   @type t :: %__MODULE__{name: String.t() | nil, use: map()}
 
-  @doc """
-  The project's title: its `name`, else, for a project that picks a browser (its `browser_name`
-  or a device's `default_browser_type`), the browser it runs on, over the config as
-  `BrowserPool.browser/1` resolves it (a configured `browser_name` beats a device's
-  `default_browser_type`); `nil` for a project with neither.
-  """
+  @doc "The project's title: its `name`, upstream's `project.name`; `nil` for an unnamed project."
   @spec title(t()) :: String.t() | nil
-  def title(%__MODULE__{name: name, use: use}) do
-    cond do
-      name -> name
-      use[:browser_name] || use[:default_browser_type] -> to_string(Options.browser_name(Options.config(), use))
-      true -> nil
-    end
-  end
+  def title(%__MODULE__{name: name}), do: name
 
   defimpl Inspect do
     import Inspect.Algebra
 
-    # Its title; a project with neither a name nor a browser has only its options to tell it by.
+    # Its title; an unnamed project has only its options to tell it by.
     def inspect(project, opts) do
       doc = to_doc(Playwright.Test.Project.title(project) || project.use, opts)
       concat(["#Playwright.Test.Project<", doc, ">"])

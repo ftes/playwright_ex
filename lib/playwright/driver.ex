@@ -35,8 +35,8 @@ defmodule Playwright.Driver do
   (`mix playwright.install` doesn't compile the project, so it doesn't read it). Mix evaluates
   `config/config.exs` on every run, so an environment variable read there takes effect each time,
   locally and in CI. No option has an environment variable: the library reads only those
-  upstream's client and reporters read (such as `PWDEBUG`, `PWDEBUGIMPL`, `GITHUB_WORKSPACE`), `HTTPS_PROXY` and
-  `HTTP_PROXY` (or `https_proxy`, `http_proxy`) for the driver download and, on Windows,
+  upstream's client and reporters read (such as `PWDEBUG`, `PWDEBUGIMPL`, `GITHUB_WORKSPACE`),
+  `HTTPS_PROXY` (or `https_proxy`) for the driver download and, on Windows,
   `PROCESSOR_ARCHITECTURE` for its platform; the Playwright CLI reads its own, such as
   `PLAYWRIGHT_BROWSERS_PATH`. To take an option from one of your choice (an empty one counts as
   unset):
@@ -154,7 +154,7 @@ defmodule Playwright.Driver do
   @spec install([option() | {:force, boolean()}]) :: :ok
   def install(opts \\ []) do
     platform = opts[:platform] || platform!()
-    platform in @platforms || unsupported!(platform)
+    platform in @platforms || unsupported!("Playwright.Driver.install/1", platform)
     target = install_dir(Keyword.put(opts, :platform, platform))
     force = Keyword.get(opts, :force, false)
 
@@ -334,13 +334,13 @@ defmodule Playwright.Driver do
   def platform! do
     case platform() do
       {:ok, p} -> p
-      {:error, desc} -> unsupported!(desc)
+      {:error, desc} -> unsupported!("Playwright.Driver.platform!/0", desc)
     end
   end
 
-  defp unsupported!(desc) do
+  defp unsupported!(label, desc) do
     raise """
-    Playwright.Driver.platform!/0: no driver download for this platform, expected one of #{Enum.join(@platforms, ", ")}, got: #{desc}.
+    #{label}: no driver download for this platform, expected one of #{Enum.join(@platforms, ", ")}, got: #{desc}.
     Install Playwright yourself (`npm i playwright@#{@driver_version}`) and pass
     `executable: "node_modules/.bin/playwright"` (or `config :playwright, :driver, executable: ...`),
     or point `node:` at a Node.js binary.\
@@ -381,7 +381,7 @@ defmodule Playwright.Driver do
   @doc false
   def download!(url, dest) do
     for app <- [:inets, :ssl], do: {:ok, _} = Application.ensure_all_started(app)
-    set_proxies(url)
+    set_proxies()
 
     http_opts = [
       ssl: [
@@ -410,17 +410,11 @@ defmodule Playwright.Driver do
     end
   end
 
-  defp set_proxies(url) do
-    scheme = if String.starts_with?(url, "https"), do: :https_proxy, else: :proxy
-
-    var =
-      if scheme == :https_proxy,
-        do: ["HTTPS_PROXY", "https_proxy"],
-        else: ["HTTP_PROXY", "http_proxy"]
-
-    with proxy when is_binary(proxy) <- Enum.find_value(var, &System.get_env/1),
+  # Every download is https: the proxy is `HTTPS_PROXY`'s, else `https_proxy`'s.
+  defp set_proxies do
+    with proxy when is_binary(proxy) <- Enum.find_value(["HTTPS_PROXY", "https_proxy"], &System.get_env/1),
          %URI{host: host, port: port} when is_binary(host) <- URI.parse(proxy) do
-      :httpc.set_options([{scheme, {{String.to_charlist(host), port}, []}}])
+      :httpc.set_options([{:https_proxy, {{String.to_charlist(host), port}, []}}])
     end
   end
 

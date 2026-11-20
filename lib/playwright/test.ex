@@ -1111,12 +1111,13 @@ defmodule Playwright.Test do
               do: Playwright.Test.parameters([name: device] ++ Playwright.device(device))
 
   The project's options are under the module's `use` and over the config's, for every context
-  of the module's run, `setup_all`'s included. Its browser is its `browser_name`, else its
-  `default_browser_type` (a device's), see "Browser" in the moduledoc. A failed test prints the
-  project as its name (`Parameters: %{"playwright.project": #Playwright.Test.Project<"Desktop
-  Safari">}`), else its browser (`Playwright.Test.Project.title/1`); the name is also the
-  snapshot templates' `{projectName}`. For parameters of your own next to it:
-  `Map.put(Test.parameters(...), :role, :admin)`.
+  of the module's run, `setup_all`'s included. Its browser is its `browser_name`, else the
+  config's, else its `default_browser_type` (a device's), see "Browser" in the moduledoc. A failed
+  test prints the project as its name (`Parameters: %{"playwright.project":
+  #Playwright.Test.Project<"Desktop Safari">}`, `[Desktop Safari] ›` in
+  `Playwright.Test.GitHubFormatter`); the name is also the snapshot templates' `{projectName}`.
+  An unnamed project, as upstream's, has no label: it prints as its options, so name each one.
+  For parameters of your own next to it: `Map.put(Test.parameters(...), :role, :admin)`.
   """
   @spec parameters(keyword() | map()) :: %{optional(atom()) => Playwright.Test.Project.t()}
   def parameters(opts), do: Options.parameters(opts)
