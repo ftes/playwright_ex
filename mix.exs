@@ -168,6 +168,7 @@ defmodule Playwright.MixProject do
         Testing: [
           Playwright.Case,
           Playwright.Test,
+          Playwright.Test.Assertions,
           Playwright.Test.BrowserPool,
           Playwright.Test.Project,
           Playwright.Test.GitHubFormatter

@@ -50,7 +50,8 @@ upstream minor, so `~> 1.65.0` is safe.
 - `Playwright.Test.parameters/1` takes `name:`, upstream's `project.name`: a failed test prints
   the project as `#Playwright.Test.Project<"Mobile Safari">`, not the whole device, and the
   name is the snapshot templates' `{projectName}`.
-- `use Playwright.Test` imports its own `assert/1,2` and `refute/1,2`: ExUnit's, each also an
+- `use Playwright.Test` imports `Playwright.Test.Assertions`' `assert/1,2` and `refute/1,2`
+  (a helper module imports it itself): ExUnit's, each also an
   `expect` step of the test's trace (`Expect "assert"`, the expression as its subtitle, the
   right side of a comparison or match as its `expected`), as upstream's `expect` is; a failed one
   with its error, at the test's level. A module that imports `ExUnit.Assertions` again after the

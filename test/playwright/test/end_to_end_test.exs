@@ -339,7 +339,7 @@ defmodule Playwright.Test.EndToEndTest do
     output = ChildProcess.output(child)
     assert output =~ ~r"2 tests, 2 failures|Result: 0/2 passed"
     assert output =~ "(config_off=>[macro: ExUnit.Assertions])"
-    assert output =~ "(use_on=>[macro: Playwright.Test])"
+    assert output =~ "(use_on=>[macro: Playwright.Test.Assertions])"
 
     expects = fn name ->
       output_dir = Path.join(tmp_dir, "test-results")
@@ -426,7 +426,7 @@ defmodule Playwright.Test.EndToEndTest do
     assert Enum.sort(File.ls!(Path.join(output_dir, dir))) == ["error-context.md", "test-failed-1.png", "trace.zip"]
     error_context = File.read!(Path.join([output_dir, dir, "error-context.md"]))
     assert length(String.split(error_context, "```\nExUnit.AssertionError: Assertion with == failed")) == 2
-    # The listener's frame (its `assert` is no tail call, `Playwright.Test.assert/1`): its source.
+    # The listener's frame (its `assert` is no tail call, `Playwright.Test.Assertions.assert/1`): its source.
     assert error_context =~ ~r/^> \d+ \| .*Page.on\(page, :console, fn message -> assert/m
     assert error_context =~ ~s(heading "Logs")
     {:ok, zip} = :zip.unzip(String.to_charlist(Path.join([output_dir, dir, "trace.zip"])), [:memory])

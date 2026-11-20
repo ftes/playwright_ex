@@ -381,8 +381,8 @@ defmodule Playwright.Test do
 
   ## Assertions
 
-  `use Playwright.Test` imports its own `assert/1,2` and `refute/1,2` in place of
-  `ExUnit.Assertions`' (it imports that module again without them). Each is ExUnit's, also a
+  `use Playwright.Test` imports `Playwright.Test.Assertions`' `assert/1,2` and `refute/1,2` in
+  place of `ExUnit.Assertions`' (it imports that module again without them). Each is ExUnit's, also a
   step of the running test, as upstream's `expect(value).toBe(...)` is: `category: 'expect'`,
   titled `Expect "assert"` or `Expect "refute"`, with the expression as its subtitle and its
   `expression` param, located at the call. Its `expected` param, as upstream's
@@ -416,9 +416,10 @@ defmodule Playwright.Test do
   Limits:
 
     * A passed assertion is recorded only where the import is: a helper module opts in with
-      `import Playwright.Test, only: [assert: 1, assert: 2, refute: 1, refute: 2]`, and, if it
-      imports `ExUnit.Assertions` too, `import ExUnit.Assertions, except: [assert: 1, assert: 2,
-      refute: 1, refute: 2]`. A failed `assert/1` or `refute/1` is recorded wherever it was
+      `import Playwright.Test.Assertions`, and, if it imports `ExUnit.Assertions` too,
+      `import ExUnit.Assertions, except: [assert: 1, assert: 2, refute: 1, refute: 2]`. A library
+      with its own `assert/2` takes `import Playwright.Test.Assertions, except: [assert: 2,
+      refute: 2]`. A failed `assert/1` or `refute/1` is recorded wherever it was
       written.
     * A test module that imports `ExUnit.Assertions` again after `use Playwright.Test` fails to
       compile, with an ambiguous call of `assert`: drop that import, or add the same `except:`.
@@ -513,9 +514,10 @@ defmodule Playwright.Test do
         imports =
           if assert_steps do
             quote do
-              # Replaces `use ExUnit.Case`'s import: `assert` and `refute` are this module's.
+              # Replaces `use ExUnit.Case`'s import: `assert` and `refute` are `Playwright.Test.Assertions`'.
               import ExUnit.Assertions, except: [assert: 1, assert: 2, refute: 1, refute: 2]
-              import Playwright.Test, only: [test: 1, test: 2, test: 3, assert: 1, assert: 2, refute: 1, refute: 2]
+              import Playwright.Test.Assertions
+              import Playwright.Test, only: [test: 1, test: 2, test: 3]
             end
           else
             quote do
@@ -719,115 +721,9 @@ defmodule Playwright.Test do
     end
   end
 
-  @doc """
-  `ExUnit.Assertions.assert/1`, also a step of the running test (`category: 'expect'`), as
-  upstream's `expect(value).toBe(...)` is: `Expect "assert"`, with the expression as its
-  subtitle and its `expression` param. It expands to ExUnit's `assert`, then records the step,
-  so the assertion binds and fails as ExUnit's (see "Assertions" in the moduledoc).
-  """
-  defmacro assert(assertion), do: plain_assertion_ast(:assert, assertion, __CALLER__)
-
-  @doc """
-  `ExUnit.Assertions.assert/2`, also a step of the running test, titled by the `message`, as
-  upstream's `expect(value, message)` is. See `assert/1`.
-  """
-  defmacro assert(value, message), do: assertion_ast(:assert, value, message)
-
-  @doc "`ExUnit.Assertions.refute/1`, also a step of the running test: `Expect \"refute\"`. See `assert/1`."
-  defmacro refute(assertion), do: plain_assertion_ast(:refute, assertion, __CALLER__)
-
-  @doc "`ExUnit.Assertions.refute/2`, also a step of the running test, titled by the `message`. See `assert/1`."
-  defmacro refute(value, message), do: assertion_ast(:refute, value, message)
-
-  # Elixir only: ExUnit's macro as it is (no `fn` or `try` around it, which would scope its
-  # bindings), then the passed assertion's step. A failed one is recorded where its error is
-  # caught (`__assertion_error__/2`). The step's `expected`, as upstream's `toEqual(expected)`, is
-  # the value ExUnit's expansion binds to its `right` (of `left == right` and the other operators,
-  # `pattern = right`, `match?(pattern, right)`): this expands ExUnit's macro once, here, and
-  # reads that variable after it (`right_var/1`), so nothing is evaluated twice and ExUnit's
-  # code is unchanged; an expansion that binds none (a truthy `assert x`) records none.
-  defp plain_assertion_ast(kind, assertion, caller) do
-    code = code_string(assertion)
-    {:ok, env} = Macro.Env.define_require(caller, [], ExUnit.Assertions)
-    expansion = Macro.expand_once(quote(do: ExUnit.Assertions.unquote(kind)(unquote(assertion))), env)
-
-    quote do
-      value = unquote(expansion)
-      Playwright.Test.__assertion__(unquote(kind), unquote(code), nil, nil, unquote(right_var(expansion)))
-      value
-    end
-  end
-
-  # Elixir only: the assertion's source, a capture's argument as written (`&1`, not its variable,
-  # `_&`), as in `Expect.poll!(fn, &assert(&1 == 2))`. A failed one's `expr` has no metadata (no
-  # `capture:` index): it keeps ExUnit's `_&`.
-  defp code_string(quoted) do
-    quoted
-    |> Macro.prewalk(fn
-      {:"_&", meta, :elixir_fn} = var -> if index = meta[:capture], do: {:&, [], [index]}, else: var
-      node -> node
-    end)
-    |> Macro.to_string()
-  end
-
-  # The `right` ExUnit's expansion binds in the caller's scope: `right = ...` at the top of its
-  # block, or of the block `refute` negates (`!`, whose argument's bindings stay bound). That
-  # variable itself, with its hygiene counter, as `Macro.var(:right, ExUnit.Assertions)` is
-  # another; `nil` for any other expansion (also a future ExUnit's that binds it otherwise).
-  defp right_var({:__block__, _meta, exprs}) do
-    Enum.find_value(exprs, fn
-      {:=, _, [{:right, _, ExUnit.Assertions} = var, _value]} -> var
-      _expr -> nil
-    end)
-  end
-
-  defp right_var({:!, _meta, [expansion]}), do: right_var(expansion)
-  defp right_var(_expansion), do: nil
-
-  # ExUnit's own options (its `refute match?(...)` calls an unquoted `refute/2` with them, which
-  # resolves to this one): ExUnit's function, as the assertion that expands to it is the step.
-  defp assertion_ast(kind, value, opts) when is_list(opts) and opts != [] do
-    if Keyword.keyword?(opts) and Keyword.has_key?(opts, :expr) do
-      quote do
-        require ExUnit.Assertions
-        ExUnit.Assertions.unquote(kind)(unquote(value), unquote(opts))
-      end
-    else
-      message_assertion_ast(kind, value, opts)
-    end
-  end
-
-  defp assertion_ast(kind, value, message), do: message_assertion_ast(kind, value, message)
-
-  # ExUnit's `assert/2` and `refute/2` are functions: their arguments are evaluated first, so
-  # a `try` around the call alone binds nothing and keeps its stacktrace. A failure is recorded
-  # there, also when the test rescues it.
-  defp message_assertion_ast(kind, value, message) do
-    code = code_string(value)
-
-    quote do
-      require ExUnit.Assertions
-      value = unquote(value)
-      message = unquote(message)
-
-      result =
-        try do
-          ExUnit.Assertions.unquote(kind)(value, message)
-        catch
-          class, reason ->
-            error = {class, reason, __STACKTRACE__}
-            Playwright.Test.__assertion__(unquote(kind), unquote(code), message, error, nil)
-            :erlang.raise(class, reason, __STACKTRACE__)
-        end
-
-      Playwright.Test.__assertion__(unquote(kind), unquote(code), message, nil, nil)
-      result
-    end
-  end
-
   @doc false
   # The step of an `assert` or `refute` (`kind`) of `code` with `message`: passed, or failed
-  # with `error` (`{kind, reason, stacktrace}`), with its `expected` (`plain_assertion_ast/3`). The shape of
+  # with `error` (`{kind, reason, stacktrace}`), with its `expected` (`Playwright.Test.Assertions`). The shape of
   # `Playwright.Matchers.Expect.call_matcher_as_step/6`'s: none outside a test, and none in the
   # module's `setup_all`, where `step/3` records nowhere, nor in a test of a module with
   # `assert_steps: false` (a helper's assertion there).
@@ -867,7 +763,16 @@ defmodule Playwright.Test do
       when kind in [:assert, :refute] and is_map(test_info) do
     # None in a module with `assert_steps: false`.
     if Map.get(test_info, :assert_steps, true),
-      do: add_assertion_step(test_info, kind, code_string(expr), nil, stacktrace, error, expected(expr, reason))
+      do:
+        add_assertion_step(
+          test_info,
+          kind,
+          Playwright.Test.Assertions.__code_string__(expr),
+          nil,
+          stacktrace,
+          error,
+          expected(expr, reason)
+        )
 
     true
   end

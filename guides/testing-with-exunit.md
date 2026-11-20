@@ -214,9 +214,10 @@ the expression next to it and its right side as `expected`, and a failed one wit
 at the test's level. They are ExUnit's otherwise, with
 the same bindings, messages and stacktraces (a function that ends in one keeps its frame).
 Don't `import ExUnit.Assertions` again after `use Playwright.Test`, which makes `assert`
-ambiguous. A helper module without `use Playwright.Test` needs `import Playwright.Test, only:
-[assert: 1, assert: 2, refute: 1, refute: 2]` (and, if it imports `ExUnit.Assertions` too,
-`except:` those four there), else its passed asserts silently leave no step
+ambiguous. A helper module without `use Playwright.Test` needs `import Playwright.Test.Assertions`
+(and, if it imports `ExUnit.Assertions` too, `except: [assert: 1, assert: 2, refute: 1, refute: 2]`
+there), else its passed asserts silently leave no step. A library with its own `assert/2` imports
+`Playwright.Test.Assertions, except: [assert: 2, refute: 2]`
 ([Assertions](Playwright.Test.html#module-assertions)).
 Assert steps are on by default: `use Playwright.Test, assert_steps: false` keeps ExUnit's own for a
 module, and `config :playwright, :test, assert_steps: false` (in `config/test.exs`, as it is

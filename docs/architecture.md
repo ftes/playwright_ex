@@ -407,7 +407,7 @@ value}`, the bang form the value), where upstream resolves to `void`: a JS callb
 test reads after it to an outer `let`, which an Elixir closure can't rebind.
 
 ExUnit's `assert` and `refute` are steps, as upstream's `expect` (#318): `use Playwright.Test`
-imports its own, which expand to ExUnit's macro and then record a passed step (its `expected`
+imports `Playwright.Test.Assertions` (a module of its own, so helpers and libraries import it alone), whose macros expand to ExUnit's macro and then record a passed step (its `expected`
 the `right` ExUnit's expansion binds, read after it). A failed one is recorded once, where its
 `ExUnit.AssertionError` ends: a `to_pass` attempt's or the test body's `catch`, so a step of the
 test's, not of the step it failed in (which fails with it); one the test rescues, or raised in a
@@ -416,8 +416,8 @@ a `try` and record their failure there. As it wraps ExUnit's macro, a module or 
 opt out (`assert_steps: false`, at compile time, as it decides the import). Rejected: recording a failure in each step's `catch` (a
 step can't tell whether its parent's records it again, after `raise e` or a rescue), a `try`
 around the assertion (it scopes the bindings of `assert {:ok, x} = f()` and `assert (y = f()) >
-0`), recording failures only (the passed ones are the trace's), and an explicit
-`Playwright.Test.assert` (ported suites wouldn't use it).
+0`), recording failures only (the passed ones are the trace's), and explicit calls
+(`Playwright.Test.Assertions.assert`, which ported suites wouldn't write).
 
 Rejected: porting the rest of Playwright Test, `createExpect` (`expect.configure`; `expect.soft`
 and `expect(x, message)` are fields of the receiver, `soft/1` and `message/2`, not a configured
