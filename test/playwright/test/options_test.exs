@@ -51,22 +51,6 @@ defmodule Playwright.Test.OptionsTest do
         Options.pool(browser_name: :chrome)
       end
 
-      assert_raise ArgumentError, ~r/invalid value :retry_with_trace for trace, /, fn ->
-        artifacts(%{trace: :retry_with_trace})
-      end
-
-      assert_raise ArgumentError, ~r/invalid value :on_first_retry for screenshot, /, fn ->
-        artifacts(%{screenshot: :on_first_retry})
-      end
-
-      assert_raise ArgumentError, ~r/invalid value :retain_on_failure for screenshot, /, fn ->
-        artifacts(%{screenshot: :retain_on_failure})
-      end
-
-      assert_raise ArgumentError, ~r/invalid value :only_on_failure for video, /, fn ->
-        artifacts(%{video: :only_on_failure})
-      end
-
       assert_raise ArgumentError, ~r/invalid value .* for on_start, /, fn -> Options.pool(on_start: fn -> :ok end) end
 
       assert_raise ArgumentError, ~r/invalid value "x" for launch_options, /, fn ->
@@ -76,7 +60,7 @@ defmodule Playwright.Test.OptionsTest do
       assert_raise ArgumentError, ~r/expected a keyword list/, fn -> Options.pool([:driver]) end
     end
 
-    test "connect options: BrowserType.connect's and ws_endpoint, which is required" do
+    test "connect options: BrowserType.connect's and ws_endpoint" do
       assert %{connect_options: [headers: %{"a" => "b"}, slow_mo: 1, ws_endpoint: "ws://x"]} =
                Options.pool(connect_options: %{ws_endpoint: "ws://x", slow_mo: 1, headers: %{"a" => "b"}})
 
@@ -86,17 +70,26 @@ defmodule Playwright.Test.OptionsTest do
         Options.pool(connect_options: [ws_endpoint: "ws://x", launch_options: []])
       end
 
-      assert_raise ArgumentError, ~r/expected a :ws_endpoint/, fn ->
-        Options.pool(connect_options: [timeout: 1])
-      end
+      # Its value isn't checked, as upstream's.
+      assert %{connect_options: [timeout: 1]} = Options.pool(connect_options: [timeout: 1])
     end
 
-    test "options are as given, keyword lists or maps; tags true and false are :on and :off" do
+    test "options are as given, keyword lists or maps; modes unchecked, as upstream's" do
       assert %{launch_options: [slow_mo: 50], on_start: {M, :f, []}} =
                Options.pool(launch_options: %{slow_mo: 50}, on_start: {M, :f, []})
 
-      assert %{trace: [mode: :on] ++ _, screenshot: [mode: :off], video: [mode: :retain_on_failure]} =
-               artifacts(%{trace: true, screenshot: false, video: :retain_on_failure})
+      # An unknown mode records nothing, as upstream's; its deprecated retry modes are
+      # `:on_first_retry`, and an object without a mode is `:off`.
+      assert %{trace: [mode: true] ++ _, screenshot: [mode: :on_first_retry], video: [mode: :retain_on_failure]} =
+               artifacts(%{trace: true, screenshot: :on_first_retry, video: :retain_on_failure})
+
+      assert %{trace: [mode: :on_first_retry] ++ _, video: [mode: :on_first_retry]} =
+               artifacts(%{trace: :retry_with_trace, video: [mode: :retry_with_video]})
+
+      assert %{trace: [mode: :off, snapshots: true, screenshots: true, sources: false, attachments: true]} =
+               artifacts(%{trace: [sources: false]})
+
+      assert %{video: [mode: :off, size: %{width: 320}]} = artifacts(%{video: %{size: %{width: 320}}})
 
       # Upstream's retry modes.
       for mode <- [:on_first_retry, :on_all_retries, :retain_on_first_failure, :retain_on_failure_and_retries] do
@@ -135,28 +128,18 @@ defmodule Playwright.Test.OptionsTest do
              }
     end
 
-    test "unknown keys and bad values of the object forms raise" do
+    test "unknown keys of the object forms raise, their values pass as given" do
       for {option, message} <- [
             {%{trace: [mode: :on, live: true]}, ~r/unknown option trace.live, expected one of /},
-            {%{trace: [mode: :on, attachments: 1]}, ~r/invalid value 1 for trace.attachments, /},
             {%{video: [mode: :on, audio: true]}, ~r/unknown option video.audio, /},
-            {%{video: [mode: :on, fps: 0]}, ~r/invalid value 0 for video.fps, /},
-            {%{video: [mode: :on, show: %{test: %{level: "line"}}]}, ~r/invalid value .* for video.show, /},
-            {%{video: [mode: :on, show: %{actions: %{color: "red"}}]}, ~r/invalid value .* for video.show, /},
-            {%{screenshot: [mode: :on, path: "x.png"]}, ~r/unknown option screenshot.path, /},
-            {%{trace: [sources: false]}, ~r/invalid value .* for trace, expected a keyword list or a map with :mode/},
-            {%{video: %{size: %{width: 320, height: 240}}},
-             ~r/invalid value .* for video, expected a keyword list or a map with :mode/},
-            {%{trace: [mode: :retry_with_trace]}, ~r/invalid value :retry_with_trace for trace, /},
-            {%{trace: [mode: :on, snapshots: 1]}, ~r/invalid value 1 for trace.snapshots, /},
-            {%{trace: [mode: :on, snapshots: %{dom: true, network: true}]}, ~r/invalid value .* for trace.snapshots, /},
-            {%{trace: [mode: :on, sources: nil]}, ~r/invalid value nil for trace.sources, /},
-            {%{screenshot: [mode: :on, full_page: "yes"]}, ~r/invalid value "yes" for screenshot.full_page, /},
-            {%{video: [mode: :on, size: [width: 320, height: 240]]}, ~r/invalid value .* for video.size, /},
-            {%{video: [mode: :on, size: %{width: 320}]}, ~r/invalid value %{width: 320} for video.size, /},
-            {%{trace: "on"}, ~r/invalid value "on" for trace, /}
+            {%{screenshot: [mode: :on, path: "x.png"]}, ~r/unknown option screenshot.path, /}
           ],
           do: assert_raise(ArgumentError, message, fn -> artifacts(option) end)
+
+      assert %{video: [mode: :on, fps: 0, show: %{test: %{level: "line"}}]} =
+               artifacts(%{video: [mode: :on, fps: 0, show: %{test: %{level: "line"}}]})
+
+      assert %{trace: [mode: :on, snapshots: 1] ++ _} = artifacts(%{trace: [mode: :on, snapshots: 1]})
     end
   end
 end
@@ -286,7 +269,7 @@ defmodule Playwright.Test.ConfigTest do
 
     assert %{launch_options: [headless: false, slow_mo: 50]} = Options.pool(launch_options: [slow_mo: 50])
     assert %{trace: [mode: :on] ++ _, video: [mode: :on]} = artifacts(%{video: :on})
-    assert %{trace: [mode: :off] ++ _} = artifacts(%{trace: false})
+    assert %{trace: [mode: :off] ++ _} = artifacts(%{trace: :off})
   end
 
   test "connect_options: the call's over the config's, nil launches", %{config: config} do
@@ -550,28 +533,16 @@ defmodule Playwright.Test.ConfigTest do
     Application.put_env(:playwright, :test, config ++ [error_context: true])
     assert_raise ArgumentError, ~r/unknown key error_context, /, fn -> Options.pool([]) end
 
+    # Upstream's `testIdAttribute: ''` is unset.
     Application.put_env(:playwright, :test, config ++ [test_id_attribute: ""])
-    assert_raise ArgumentError, ~r/invalid value "" for test_id_attribute, /, fn -> Options.test_id_attribute() end
+    assert Options.test_id_attribute() == "data-testid"
 
     Application.put_env(:playwright, :test, config ++ [preserve_output: :on_failure])
     assert_raise ArgumentError, ~r/invalid value :on_failure for preserve_output, /, fn -> Options.preserve_output() end
 
-    Application.put_env(:playwright, :test, config ++ [trace: :sometimes])
-    assert_raise ArgumentError, ~r/invalid value :sometimes for trace, /, fn -> artifacts(%{}) end
-
     Application.put_env(:playwright, :test, config ++ [context_options: [lokale: "x"]])
     assert_raise ArgumentError, fn -> Options.context_options() end
 
-    for value <- [-1, 1.5, "1000"] do
-      Application.put_env(:playwright, :test, config ++ [action_timeout: value])
-
-      assert_raise ArgumentError, ~r/invalid value #{Regex.escape(inspect(value))} for action_timeout, /, fn ->
-        Options.timeouts()
-      end
-    end
-
-    Application.put_env(:playwright, :test, config ++ [navigation_timeout: :none])
-    assert_raise ArgumentError, ~r/invalid value :none for navigation_timeout, /, fn -> Options.timeouts() end
     Application.put_env(:playwright, :test, config ++ [action_timeout: 0, navigation_timeout: 5000])
     assert Options.timeouts() == %{action_timeout: 0, navigation_timeout: 5000}
   end

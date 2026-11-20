@@ -143,7 +143,7 @@ defmodule Playwright.Guides.TestingWithExUnit.SignUpTest do
   test "on a phone" do
     browser = BrowserPool.browser()
     iphone = Playwright.device("iPhone 13")
-    page = BrowserContext.new_page!(Browser.new_context!(browser, Keyword.merge(iphone, locale: "de-DE")))
+    page = BrowserContext.new_page!(Browser.new_context!(browser, iphone ++ [locale: "de-DE"]))
     assert iphone[:default_browser_type] == "webkit"
     assert Playwright.devices()["iPhone 13"] == iphone
     assert_raise ArgumentError, ~r/"iPhone 13"/, fn -> Playwright.device("iPhone13") end
@@ -572,14 +572,11 @@ defmodule Playwright.Guides.TestingWithExUnit.DeviceLevelsTest do
     assert [mode: :retain_on_failure] ++ _ = Playwright.Test.Recorder.registration(self()).trace
   end
 
-  for name <- ["iPhone 13", "Pixel 7"] do
-    @tag Test.use(Playwright.device(name))
-    test "the menu collapses on #{name}", %{page: page, browser: browser} do
-      device = Playwright.device(unquote(name))
-      assert Page.evaluate!(page, "navigator.userAgent") == device[:user_agent]
-      assert Page.viewport_size(page) == device[:viewport]
-      # A tag's device doesn't switch the browser: its `default_browser_type` is ignored.
-      assert Playwright.BrowserType.name(Browser.browser_type(browser)) == Playwright.TestBrowser.name()
+  # A device per test is a project (see the projects module above): `Test.use/1` raises for a
+  # device's `default_browser_type`, as upstream's `test.use` in a describe.
+  test "a tag's device raises" do
+    assert_raise ArgumentError, ~r/Cannot use\(\{ default_browser_type \}\) in a describe group/, fn ->
+      Test.use(Playwright.device("iPhone 13"))
     end
   end
 end

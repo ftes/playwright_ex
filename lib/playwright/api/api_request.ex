@@ -56,7 +56,8 @@ defmodule Playwright.APIRequest do
                           max_redirects: {:maxRedirects, nil},
                           proxy: {:proxy, {:fields, %{server: nil, bypass: nil, username: nil, password: nil}}},
                           storage_state:
-                            {:storageState, Facade.protocol_type("BrowserContextSetStorageStateParams", :storageState)},
+                            {:storageState,
+                             Facade.protocol_type("BrowserContextSetStorageStateParams", :storageState, [:credentials])},
                           timeout: {:timeout, nil},
                           user_agent: {:userAgent, nil}
                         }}

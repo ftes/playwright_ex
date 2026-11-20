@@ -146,8 +146,8 @@ defmodule Playwright.Test.GitHubFormatter do
   end
 
   defp print_slow_test_annotations(this) do
-    # deviation: the file without its project (upstream joins `[project] › file` to the cwd).
-    Enum.each(get_slow_tests(this), fn {{_project, file}, duration} ->
+    # The `[project] › file` key joined to the cwd, as upstream's.
+    Enum.each(get_slow_tests(this), fn {file, duration} ->
       file_path = workspace_relative_path(Path.join(File.cwd!(), file))
       log("#{file_path} took #{ms_to_string(duration)}", :warning, title: "Slow Test", file: file_path)
     end)
@@ -183,8 +183,7 @@ defmodule Playwright.Test.GitHubFormatter do
     # ++this._failureCount  -- not ported: only the line and dot reporters read it
     project_name = project_name(test)
     relative_path = relative_test_path(test)
-    # `(projectName ? `[${projectName}] › ` : '') + relativePath`, as a pair.
-    file_and_project = {project_name, relative_path}
+    file_and_project = if(project_name, do: "[#{project_name}] › ", else: "") <> relative_path
     {duration, workers} = Map.get(this.file_durations, file_and_project, {0, MapSet.new()})
     # A module's tests run one at a time, as a worker's: the module is the worker.
     entry = {duration + test.time / 1000, MapSet.put(workers, test.module)}
@@ -245,7 +244,7 @@ defmodule Playwright.Test.GitHubFormatter do
   end
 
   # formatTestTitle: `test.titlePath()` is `Playwright.Test`'s (the file, the describe block,
-  # the test), the project a module's `parameterize:` parameters (the guide's projects).
+  # the test), the project its `Playwright.Test.parameters/1` name.
   defp format_test_title(test) do
     [_file | titles] = TestInfo.title_path(Map.put(test.tags, :test, test.name))
     # ExUnit has no column.
@@ -352,20 +351,12 @@ defmodule Playwright.Test.GitHubFormatter do
 
   defp relative_test_path(test), do: Path.relative_to(Path.expand(test.tags.file), File.cwd!(), force: true)
 
-  # A project's name: the `parameterize:` values, by key, as `[chromium]` for
-  # `%{browser_name: :chromium}`, the `Playwright.Test.parameters/1` project's as its name
-  # (`Playwright.Test.Project.title/1`), none for an unnamed one, as upstream's.
+  # `test.titlePath()[1]`: the name of the module's `Playwright.Test.parameters/1` project, `nil`
+  # for an unnamed one or none (upstream's `""`).
   defp project_name(%ExUnit.Test{parameters: parameters}) do
-    parameters
-    |> Enum.sort()
-    |> Enum.flat_map(fn
-      {_key, %Playwright.Test.Project{} = project} -> List.wrap(Playwright.Test.Project.title(project))
-      {_key, value} when is_binary(value) or (is_atom(value) and value != nil) or is_number(value) -> [to_string(value)]
-      {_key, value} -> [inspect(value)]
-    end)
-    |> case do
-      [] -> nil
-      names -> Enum.join(names, ", ")
+    case TestInfo.project_name(parameters) do
+      "" -> nil
+      name -> name
     end
   end
 

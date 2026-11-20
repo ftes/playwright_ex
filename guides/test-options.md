@@ -36,14 +36,14 @@ context options as a keyword list, static data of the pinned Playwright version,
 driver and works at compile time. An unknown name raises, naming the closest;
 `Playwright.devices/0` is the map of all of them, and its docs list the names.
 `Browser.new_context!/2` takes a device as it is or with more. Playwright Test's
-`{ ...devices['iPhone 13'], locale: 'de-DE' }` is `Keyword.merge/2`, whose later options
-override the device's:
+`{ ...devices['iPhone 13'], locale: 'de-DE' }` is `++`, where a later key wins, as in JS's
+spread:
 
 ```elixir
 test "on a phone" do
   browser = BrowserPool.browser(browser_name: :webkit)
   iphone = Playwright.device("iPhone 13")
-  page = BrowserContext.new_page!(Browser.new_context!(browser, Keyword.merge(iphone, locale: "de-DE")))
+  page = BrowserContext.new_page!(Browser.new_context!(browser, iphone ++ [locale: "de-DE"]))
   # ...
 end
 ```
@@ -54,8 +54,8 @@ over the 1280x720 one), and its `default_browser_type` (`"webkit"`) names its br
 
 For a module, Playwright Test's `test.use({ ...devices['iPhone 13'] })` at a file's top, give the
 device to a `use Playwright.Test` (a module's `use`s add up; in one `use`, it is
-`use Playwright.Case, [async: true] ++ Playwright.device("iPhone 13")`; `++` is only for keys
-the device doesn't have, as a duplicated option raises):
+`use Playwright.Case, [async: true] ++ Playwright.device("iPhone 13")`, where a later key
+wins):
 
 ```elixir
 defmodule MyApp.PhoneTest do
@@ -113,20 +113,18 @@ test "is readable in the dark", %{page: page} do
 end
 ```
 
-To run one test per device, generate them, as Playwright Test's loop over `test.describe`
-blocks with a `test.use`:
+The browser is the module's, as in Playwright Test, which rejects a browser option in a
+describe because it forces a new worker: `Test.use/1` raises for `browser_name`,
+`launch_options`, `connect_options` and `default_browser_type`, so for a device's too
+(`@tag Test.use(Playwright.device("Pixel 7"))`). To run a module once per device, Playwright
+Test's loop over `test.describe` blocks with a device each, make each device a project
+([Projects](#projects)):
 
 ```elixir
-for name <- ["iPhone 13", "Pixel 7"] do
-  @tag Test.use(Playwright.device(name))
-  test "the menu collapses on #{name}", %{page: page} do
-    # ...
-  end
-end
+use Playwright.Case,
+  parameterize: for(name <- ["iPhone 13", "Pixel 7"], do: Playwright.Test.parameters([name: name] ++ Playwright.device(name)))
 ```
 
-The browser is the module's, as in Playwright Test, where a describe with another one starts a
-new worker: `Test.use(browser_name: _)` raises, and a tag's device doesn't switch the browser.
 Plain tags named like options (`@tag trace: :on`) set nothing: only `Test.use/1`'s keys are read.
 
 ## Projects
@@ -164,7 +162,7 @@ and parameters of your own go next to them: `Map.put(Test.parameters(...), :role
 (`Parameters: %{"playwright.project": #Playwright.Test.Project<"de">}`), the GitHub annotations of
 `Playwright.Test.GitHubFormatter` start with it (`[de] › ...`), and it fills a snapshot template's
 `{projectName}`. Without one (`""` is none), as upstream, a failure prints the project's
-options, the annotations' `[...] ›` leaves it out, and `{projectName}` is empty: name every
+options, the annotations have no `[...] ›` prefix, and `{projectName}` is empty: name every
 project of a module that has more than one, as
 `Test.parameters([name: "de", locale: "de-DE"] ++ Playwright.device("Desktop Chrome"))`. ExUnit's
 filters don't see `parameterize:` values, so to run one project, read an env var where the list is
@@ -249,7 +247,10 @@ end
 
 `Playwright.Test.info/0` is Playwright Test's `test.info()`: the running test's `test_pid`,
 `file`, `test_name`, `output_dir`, `timeout`, `deadline` and its resolved options, `use`, in the
-test's process and in processes with it in `$callers` (a `Task`, a route handler). A library
+test's process and in processes with it in `$callers` (a `Task`, a route handler). `deadline` is
+monotonic milliseconds (compare with `System.monotonic_time(:millisecond)`) by which the test
+must be done: after it, the test's contexts are closed and Playwright calls fail; `:infinity`
+without a test timeout. A library that waits or retries on its own stops by it. A library
 that owns resources per test (an Ecto sandbox owner, a session) finds the test from a `Task` with
 it: `Playwright.Test.info().test_pid`. In the module's `setup_all`, `info/0` returns the module's
 fields (`file`, `timeout`, `use`); elsewhere it raises, also in `on_exit` callbacks, where

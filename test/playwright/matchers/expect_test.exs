@@ -43,9 +43,14 @@ defmodule Playwright.Matchers.ExpectTest do
                    Expect.app_env_expect_config(to_have_screenshot: [mask: []])
                  end
 
+    # Only the screenshot's type is checked, as upstream's validateProject.
     assert_raise ArgumentError,
-                 "config :playwright, :expect, :to_match_aria_snapshot: invalid value :all for children, expected one of :contain, :equal, :deep_equal",
-                 fn -> Expect.app_env_expect_config(to_match_aria_snapshot: [children: :all]) end
+                 "config :playwright, :expect, :to_have_screenshot: invalid value :gif for type, expected one of :png, :webp",
+                 fn -> Expect.app_env_expect_config(to_have_screenshot: [type: :gif]) end
+
+    assert Expect.app_env_expect_config(to_match_aria_snapshot: [children: :all]).toMatchAriaSnapshot == %{
+             children: "all"
+           }
   end
 
   test "to_pass: a timeout of :infinity is 0, as :timeout's; other values raise" do

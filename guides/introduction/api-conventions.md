@@ -64,7 +64,7 @@ outside its scope (`Playwright.Test.info/0` outside a test) `RuntimeError`, with
 `<Module.function/arity or config path>: <problem>, expected ...`, `got: ...` when the problem
 doesn't name the value. Keys and values read as the facade's errors
 (`Playwright.Test.use/1: unknown option headless, expected one of trace, ...`,
-`invalid value :sometimes for trace, expected one of :off, :on, ...`).
+`invalid value 0 for workers, expected a positive integer`).
 
 ## Options
 
