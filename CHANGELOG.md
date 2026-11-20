@@ -123,6 +123,10 @@ upstream minor, so `~> 1.65.0` is safe.
   y, z` (was `unknown option :x, expected one of :y, :z`), `for opt` (was `for :opt`).
 - **RC only:** `mix playwright.install` forwards a `--` to `playwright install` (rc.2 raised on
   it).
+- **RC only:** calls in a `Task`, a route handler or another callback have the user's file:line
+  in the trace: a call without frames of its own (a fun's tail call, `Route.fulfill`'s async
+  channel call) takes those of the first of its `$callers` with any. A tail call in `on_exit`
+  still has none.
 
 ## [1.65.0-rc.2] 2026-11-18
 

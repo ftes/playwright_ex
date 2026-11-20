@@ -14,7 +14,9 @@ defmodule Playwright.Client.ClientStackTrace do
   runtime) frames. Frames are told apart by module, not by file: Node's internals (`internal/`,
   `node:`) are the runtime's own library, OTP's `kernel` and `stdlib` and Elixir's `elixir` (by
   code path, `internal_frame?/1`), and the boxed prefixes are modules
-  (`set_boxed_stack_prefixes/1`).
+  (`set_boxed_stack_prefixes/1`). A call without frames of the caller's (from an async
+  function's process, a `Task`, a callback's, or a fun's tail call: BEAM drops its frame) has
+  those of the first of its `$callers` with any, as JS's stack runs through the code awaiting it.
   """
   @library Enum.map(~w(Client Isomorphic Protocol Runtime Transport), &"Elixir.Playwright.#{&1}.")
   @internal_apps [:kernel, :stdlib, :elixir]
@@ -23,26 +25,7 @@ defmodule Playwright.Client.ClientStackTrace do
     {:current_stacktrace, [_process_info | stack]} = Process.info(self(), :current_stacktrace)
     boxed = boxed_stack_prefixes()
     show_internal = show_internal_stack_frames()
-
-    parsed_frames =
-      stack
-      |> Enum.map(fn {module, function, arity, location} ->
-        frame = %{
-          # JS stack frames carry absolute paths (metadata.location.file): see `source_file/2`.
-          file: if(file = location[:file], do: to_string(file), else: ""),
-          line: location[:line] || 0,
-          column: 0,
-          function: Exception.format_mfa(module, function, arity)
-        }
-
-        is_playwright_library =
-          String.starts_with?(Atom.to_string(module), @library)
-
-        %{frame: frame, mfa: {module, function, arity}, isPlaywrightLibrary: is_playwright_library}
-      end)
-      # utils/stackTrace.ts `parseStackFrame`: `if (!showInternalStackFrames() &&
-      # (file.startsWith('internal') || file.startsWith('node:'))) return null;`
-      |> Enum.reject(&(!show_internal and !&1.isPlaywrightLibrary and internal_frame?(elem(&1.mfa, 0))))
+    parsed_frames = parse_frames(stack, show_internal)
 
     # Deepest transition between non-client code calling into client code is the api entry.
     # (BEAM drops tail-call frames, so the entry point recorded by `Runtime.Facade.call/2` wins.)
@@ -55,18 +38,57 @@ defmodule Playwright.Client.ClientStackTrace do
             do: normalize_api_name(parsed_frame.mfa)
         end)
 
-    # This is for the inspector so that it did not include the test runner stack frames.
     library = library_modules()
 
-    parsed_frames =
-      Enum.filter(
-        parsed_frames,
-        &(&1.frame.file != "" and filter_stack_file(&1, library, boxed, show_internal))
-      )
-
-    frames = Enum.map(parsed_frames, &%{&1.frame | file: source_file(elem(&1.mfa, 0), &1.frame.file)})
+    frames =
+      case user_frames(parsed_frames, library, boxed, show_internal) do
+        [] -> callers_frames(library, boxed, show_internal)
+        frames -> frames
+      end
 
     %{frames: frames, apiName: api_name}
+  end
+
+  defp parse_frames(stack, show_internal) do
+    stack
+    |> Enum.map(fn {module, function, arity, location} ->
+      frame = %{
+        # JS stack frames carry absolute paths (metadata.location.file): see `source_file/2`.
+        file: if(file = location[:file], do: to_string(file), else: ""),
+        line: location[:line] || 0,
+        column: 0,
+        function: Exception.format_mfa(module, function, arity)
+      }
+
+      is_playwright_library =
+        String.starts_with?(Atom.to_string(module), @library)
+
+      %{frame: frame, mfa: {module, function, arity}, isPlaywrightLibrary: is_playwright_library}
+    end)
+    # utils/stackTrace.ts `parseStackFrame`: `if (!showInternalStackFrames() &&
+    # (file.startsWith('internal') || file.startsWith('node:'))) return null;`
+    |> Enum.reject(&(!show_internal and !&1.isPlaywrightLibrary and internal_frame?(elem(&1.mfa, 0))))
+  end
+
+  defp user_frames(parsed_frames, library, boxed, show_internal) do
+    # This is for the inspector so that it did not include the test runner stack frames.
+    parsed_frames
+    |> Enum.filter(&(&1.frame.file != "" and filter_stack_file(&1, library, boxed, show_internal)))
+    |> Enum.map(&%{&1.frame | file: source_file(elem(&1.mfa, 0), &1.frame.file)})
+  end
+
+  # Elixir only: JS has one stack for a call and the code awaiting it; here an async function
+  # (`Promise.async/2`, the caller waits until its first yield), a `Task` or a callback's process
+  # runs apart from it, and a fun's tail call drops its frame. Without frames of its own, a call
+  # has those of the first of its `$callers` with any, at the time of the call.
+  defp callers_frames(library, boxed, show_internal) do
+    Enum.find_value(List.wrap(Process.get(:"$callers")), [], fn caller ->
+      with true <- is_pid(caller) and node(caller) == node(),
+           {:current_stacktrace, stack} <- Process.info(caller, :current_stacktrace),
+           [_ | _] = frames <- user_frames(parse_frames(stack, show_internal), library, boxed, show_internal),
+           do: frames,
+           else: (_ -> nil)
+    end)
   end
 
   # utils/stackTrace.ts `filterStackFile`, of a parsed frame's module: `_coreDir` is the client's

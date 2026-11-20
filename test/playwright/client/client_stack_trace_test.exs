@@ -8,7 +8,21 @@ defmodule Playwright.ClientStackTraceTest do
   use ExUnit.Case, async: false
   use Playwright.Test
 
+  import Playwright.Runtime.Heap, only: [get: 2, put: 3]
+
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
   alias Playwright.Client.ClientStackTrace
+  alias Playwright.Page
+  alias Playwright.Route
+  alias Playwright.Test.BrowserPool
+
+  @this_file __ENV__.file
+
+  setup_all do
+    BrowserPool.browser()
+    :ok
+  end
 
   test "the caller's frame is its module's absolute source" do
     %{frames: [frame | _]} = ClientStackTrace.capture_library_stack_trace()
@@ -43,4 +57,73 @@ defmodule Playwright.ClientStackTraceTest do
     assert [_, _] = frames
     assert Enum.all?(frames, &(&1.file == __ENV__.file and &1.function =~ "Playwright.ClientStackTraceTest."))
   end
+
+  # Elixir only: a call without frames of its own (an async function's, a `Task`'s, a callback's,
+  # a fun's tail call) has those of the first of its `$callers` with any, as JS's stack runs
+  # through the code awaiting it. The location is the one sent with the call (`metadata`).
+  test "a Task's tail call has the line of its caller, which awaits it" do
+    page = new_page()
+    restore = send_locations(page, ~w(setContent))
+    Task.await(Task.async(fn -> Page.set_content!(page, "task") end))
+    restore.()
+
+    assert_receive {:location, "setContent", %{file: @this_file, line: line}}
+    assert source(line) =~ ~s[Task.await(Task.async(fn -> Page.set_content!(page, "task") end))]
+  end
+
+  # `fulfill` and `abort` run their channel call in an async function (`Promise.async/2`).
+  test "a route handler's call has its line, or with a tail call the line of the test's call it handles" do
+    page = new_page()
+    restore = send_locations(page, ~w(fulfill abort))
+
+    Page.route!(page, "**/fulfill", fn route ->
+      Route.fulfill!(route, body: "fulfilled")
+      :ok
+    end)
+
+    Page.route!(page, "**/abort", fn route -> Route.abort!(route) end)
+    Page.goto!(page, "http://localhost:1/fulfill")
+    {:error, _} = Page.goto(page, "http://localhost:1/abort")
+    restore.()
+
+    assert_receive {:location, "fulfill", %{file: @this_file, line: line}}
+    assert source(line) =~ ~s[Route.fulfill!(route, body: "fulfilled")]
+    assert_receive {:location, "abort", %{file: @this_file, line: line}}
+    assert source(line) =~ ~s[Page.goto(page, "http://localhost:1/abort")]
+  end
+
+  # ExUnit's `on_exit` process has no `$callers`: there, a tail call has no frames.
+  test "an on_exit callback's call has its line" do
+    page = new_page()
+
+    on_exit(fn ->
+      restore = send_locations(page, ~w(setContent))
+      Page.set_content!(page, "on_exit")
+      restore.()
+
+      assert_receive {:location, "setContent", %{file: @this_file, line: line}}
+      assert source(line) =~ ~s[Page.set_content!(page, "on_exit")]
+    end)
+  end
+
+  defp new_page, do: BrowserPool.browser() |> Browser.new_context!() |> BrowserContext.new_page!()
+
+  # Sends `{:location, method, location}` of each call of `methods` on the connection of `page` to
+  # the calling process; returns a fun that stops it.
+  defp send_locations(page, methods) do
+    pid = self()
+    connection = get(page, :_connection)
+    onmessage = get(connection, :onmessage)
+
+    put(connection, :onmessage, fn message ->
+      method = to_string(message.method)
+      if method in methods, do: send(pid, {:location, method, message.metadata.location})
+      onmessage.(message)
+    end)
+
+    fn -> put(connection, :onmessage, onmessage) end
+  end
+
+  # The source line `line` of this file.
+  defp source(line), do: @this_file |> File.read!() |> String.split("\n") |> Enum.at(line - 1)
 end
