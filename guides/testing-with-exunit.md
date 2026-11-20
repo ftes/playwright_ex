@@ -211,9 +211,11 @@ clash.
 
 Each `assert` and `refute` is a step too, as Playwright Test's `expect`: `Expect "assert"`, with
 the expression next to it, and a failed one with its error. They are ExUnit's otherwise, with
-the same bindings, messages and stacktraces (a function that ends in one keeps its frame). Don't `import ExUnit.Assertions` again after `use
-Playwright.Test`, which makes `assert` ambiguous; a helper module's own asserts are steps when
-they pass only with the same imports ([Assertions](Playwright.Test.html#module-assertions)).
+the same bindings, messages and stacktraces (a function that ends in one keeps its frame).
+Don't `import ExUnit.Assertions` again after `use Playwright.Test`, which makes `assert`
+ambiguous. A helper module's own asserts are steps when they pass only with `import
+Playwright.Test, only: [assert: 1, assert: 2, refute: 1, refute: 2]`
+([Assertions](Playwright.Test.html#module-assertions)).
 
 ## Route handlers and listeners
 

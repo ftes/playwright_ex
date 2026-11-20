@@ -576,17 +576,19 @@ defmodule Playwright.Test.TestInfo do
   end
 
   # Elixir only: the modules of `@runner_apps`, read once (`:application.get_application/1` scans
-  # every loaded app, ~5 us per frame, which each `assert` would pay). Not kept until all are
-  # loaded.
+  # every loaded app, ~5 us per frame, which each `assert` would pay). An app not loaded yet (a
+  # release without ExUnit) is read again on each call until it is.
   defp runner_modules do
-    case :persistent_term.get({__MODULE__, :runner_modules}, nil) do
-      nil ->
-        specs = for {:ok, app} <- @runner_apps, do: Application.spec(app, :modules)
-        modules = specs |> Enum.flat_map(&(&1 || [])) |> Map.new(&{&1, true})
-        if nil not in specs, do: :persistent_term.put({__MODULE__, :runner_modules}, modules)
+    {modules, missing} =
+      :persistent_term.get({__MODULE__, :runner_modules}, {%{}, Enum.map(@runner_apps, &elem(&1, 1))})
+
+    case Enum.filter(missing, &Application.spec(&1, :vsn)) do
+      [] ->
         modules
 
-      modules ->
+      loaded ->
+        modules = Map.merge(modules, Map.new(Enum.flat_map(loaded, &Application.spec(&1, :modules)), &{&1, true}))
+        :persistent_term.put({__MODULE__, :runner_modules}, {modules, missing -- loaded})
         modules
     end
   end

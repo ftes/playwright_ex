@@ -1,3 +1,14 @@
+defmodule Playwright.Test.AssertionsTest.Helper do
+  # A helper module that opts in with the import alone (no `ExUnit.Assertions`).
+  import Playwright.Test, only: [assert: 1, assert: 2, refute: 1, refute: 2]
+
+  def check(value) do
+    assert value == :ok
+    refute match?({:error, _}, value)
+    value
+  end
+end
+
 defmodule Playwright.Test.AssertionsTest do
   # `use Playwright.Test`'s `assert` and `refute`: ExUnit's, each also an `expect` step of the
   # test's `test.trace`. A failure in the test's body as ExUnit reports it: `Playwright.Test.EndToEndTest`.
@@ -170,6 +181,68 @@ defmodule Playwright.Test.AssertionsTest do
 
   # A helper module's assertion, without the import: its failure is a step too.
   defp helper_assert(string), do: ExUnit.Assertions.assert(String.length(string) > 1)
+
+  test "match?: one step each, passed or failed" do
+    on_trace(fn events ->
+      assert [passed, refuted, failed] = befores(events) |> Enum.filter(&(&1["method"] == "expect"))
+      assert %{"title" => ~s(Expect "assert"), "subtitle" => "match?({:ok, _}, ok)"} = passed
+      assert %{"title" => ~s(Expect "refute"), "subtitle" => "match?({:error, _}, ok)"} = refuted
+      refute after_of(events, refuted)["error"]
+      assert %{"title" => ~s(Expect "refute"), "subtitle" => "match?({:ok, _}, ok)"} = failed
+      assert located_at(failed, "refute match?({:ok, _}, ok)")
+      assert after_of(events, failed)["error"]["message"] =~ "match (match?) succeeded, but should have failed"
+    end)
+
+    # Not a literal, which the type checker would flag.
+    ok = Process.get(:not_set, {:ok, 1})
+    assert match?({:ok, _}, ok)
+    refute match?({:error, _}, ok)
+    assertion_error(fn -> Test.step("refutes", fn -> refute match?({:ok, _}, ok) end) end)
+  end
+
+  test "a failed one is recorded once, also when a step runs while its error is raised on" do
+    on_trace(fn events ->
+      assert [failed] = for(%{"title" => ~s(Expect "assert")} = event <- befores(events), do: event)
+      assert failed["parentId"] == before(events, "inner")["callId"]
+      assert before(events, "while raised on")["parentId"] == before(events, "outer")["callId"]
+    end)
+
+    assertion_error(fn ->
+      Test.step "outer" do
+        try do
+          Test.step("inner", fn -> assert 1 == 2 end)
+        rescue
+          error ->
+            Test.step("while raised on", fn -> :screenshot end)
+            reraise error, __STACKTRACE__
+        end
+      end
+    end)
+  end
+
+  test "a failed one in a to_pass attempt is a step of the toPass step, each attempt's" do
+    on_trace(fn events ->
+      to_pass = before(events, ~s(Expect "toPass"))
+      attempts = for %{"parentId" => id} = event <- befores(events), id == to_pass["callId"], do: event
+      assert [first, second, third] = attempts
+      assert Enum.all?(attempts, &(&1["title"] == ~s(Expect "assert")))
+      assert after_of(events, first)["error"]["message"] =~ "Assertion with >= failed"
+      assert after_of(events, second)["error"]
+      refute after_of(events, third)["error"]
+      assert located_at(first, "assert Agent.get_and_update(agent, &{&1, &1 + 1}) >= 2")
+    end)
+
+    {:ok, agent} = Agent.start_link(fn -> 0 end)
+    Expect.to_pass!(fn -> assert Agent.get_and_update(agent, &{&1, &1 + 1}) >= 2 end, intervals: [0])
+  end
+
+  test "a helper module with the import alone records its passed assertions" do
+    on_trace(fn events ->
+      assert [~s(Expect "assert"), ~s(Expect "refute")] = Enum.map(befores(events), & &1["title"])
+    end)
+
+    Playwright.Test.AssertionsTest.Helper.check(:ok)
+  end
 
   test "no step of its own for expect.poll's assertion, nor outside a test" do
     on_trace(fn events ->
