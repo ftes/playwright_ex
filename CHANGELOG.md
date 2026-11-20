@@ -93,7 +93,8 @@ upstream minor, so `~> 1.65.0` is safe.
   spread, in `use Playwright.Test`, `Test.use/1`, `Test.parameters/1` and the keyword lists
   they take (`trace: [mode: :on, mode: :off]` is off, `connect_options`), in the config's
   (`driver`, `report_slow_tests`, `config :playwright, :expect` and its matchers'), and in the
-  options of `Playwright.Supervisor.start_link/1`, `step/3`, `attach/2` and `snapshot_path/2`.
+  options of `Playwright.Supervisor.start_link/1` and `child_spec/1`, `step/3`, `attach/2` and
+  `snapshot_path/2`.
 - **RC only:** **Breaking:** `@describetag`/`@tag Test.use(...)` with `browser_name`,
   `default_browser_type` (a device's), `launch_options` or `connect_options` raises when the
   module compiles a test of the `test` macro under it, with upstream's "Cannot use({ ... }) in

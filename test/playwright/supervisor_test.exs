@@ -16,6 +16,11 @@ defmodule Playwright.SupervisorTest do
     for name <- names, do: assert(BrowserType.name(Playwright.chromium(Playwright.instance(name))) == "chromium")
   end
 
+  test "the child spec takes the later of a duplicated name, as start_link does" do
+    name = __MODULE__.Later
+    assert %{id: ^name, start: {_, _, [[name: ^name]]}} = Playwright.Supervisor.child_spec(name: Earlier, name: name)
+  end
+
   test "after the driver exits, a new one starts and handles of the old one fail with TargetClosedError" do
     name = __MODULE__.Restart
     start_supervised!({Playwright.Supervisor, name: name})
