@@ -45,10 +45,6 @@ runs:
     - uses: ./tmp/default-branch/.github/actions/claude
       with:
         token: ${{ inputs.token }}
-        # The toolchain must install; the deps may fail on the branch's own changes, which Claude
-        # can still fix.
-        setup: deps-best-effort
-        deps-failed: "Dependency setup failed (likely transient): stop without closing the PR or giving up; the next run retries."
         prompt: fix-ci
         context: |
           REPO: ${{ github.repository }}

@@ -9,8 +9,10 @@
 #
 # Accepted risk: a job with `id-token: write` that checks out a branch other than main runs that
 # branch's setup code (mix.exs, deps), which can tamper with the job or mint the app token. Only
-# maintainers, Claude's own branches and Renovate can push branches here, fork PRs never get an
-# id-token, and no such job runs on Renovate's branches.
+# maintainers, Claude's own branches and Renovate can push branches here, and no such job runs on
+# Renovate's branches. Fork PRs get no id-token, except a maintainer's comment on one in
+# claude.yml: Claude then works in the fork's head with the id-token, and only the mix tools are
+# withheld.
 name: Claude
 description: Runs Claude Code with this repo's model, tool rules and settings.
 
@@ -19,11 +21,8 @@ inputs:
     description: The CLAUDE_CODE_OAUTH_TOKEN secret.
     required: true
   setup:
-    description: "The toolchain, the deps and the upstream sources: `required` (the deps must install; the sources are best effort, as a branch that doesn't compile can't download them), `deps-best-effort` (the toolchain must install, Claude runs without the deps if they fail), `best-effort` (Claude runs without whatever fails: the toolchain, the deps or the sources) or `none`."
+    description: "The toolchain, the deps and the upstream sources: `required` (the deps must install; the sources are best effort, as a branch that doesn't compile can't download them), `best-effort` (Claude runs without whatever fails: the toolchain, the deps or the sources) or `none`."
     default: required
-  deps-failed:
-    description: Appended to the system prompt when the deps don't install. Plain text, no double quotes.
-    default: ""
   prompt:
     description: "A prompt in .github/prompts, by name (`fix-ci`). None: Claude follows the comment that tagged it."
     default: ""
@@ -61,7 +60,7 @@ runs:
         SETUP: ${{ inputs.setup }}
         PROMPT: ${{ inputs.prompt }}
       run: |
-        if [[ ! $SETUP =~ ^(required|deps-best-effort|best-effort|none)$ ]]; then echo "::error::setup: required, deps-best-effort, best-effort or none, got: $SETUP"; exit 1; fi
+        if [[ ! $SETUP =~ ^(required|best-effort|none)$ ]]; then echo "::error::setup: required, best-effort or none, got: $SETUP"; exit 1; fi
         if [[ -n $PROMPT && ! $PROMPT =~ ^[a-z0-9-]+$ ]]; then echo "::error::prompt: a name, got: $PROMPT"; exit 1; fi
     # The summary filter and the prompt from this action's copy (main's), read before the setup
     # runs the checked-out branch's mix.exs, which could rewrite them.
@@ -88,9 +87,8 @@ runs:
       continue-on-error: ${{ inputs.setup == 'best-effort' }}
       uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
     - name: Install dependencies
-      id: deps
       if: inputs.setup != 'none'
-      continue-on-error: ${{ inputs.setup == 'best-effort' || inputs.setup == 'deps-best-effort' }}
+      continue-on-error: ${{ inputs.setup == 'best-effort' }}
       shell: bash
       run: mix "do" deps.get, deps.compile
     - name: Download upstream sources
@@ -127,7 +125,7 @@ runs:
           --model claude-opus-5-5
           --max-turns ${{ inputs.max-turns }}
           --add-dir /home/runner/.cache/playwright ${{ inputs.add-dir }}
-          --append-system-prompt "${{ inputs.system-prompt }} ${{ steps.sources.outputs.line }} ${{ steps.deps.outcome == 'failure' && inputs.deps-failed || '' }} Prefer your file tools over Bash to read, search and edit files, and keep any scratch files under tmp/; run each allowed Bash command on its own, without cd, git -C, semicolons, &&, pipes or heredocs (you are already in the repository). Give any subagent you start these same rules."
+          --append-system-prompt "${{ inputs.system-prompt }} ${{ steps.sources.outputs.line }} Prefer your file tools over Bash to read, search and edit files, and keep any scratch files under tmp/; run each allowed Bash command on its own, without cd, git -C, semicolons, &&, pipes or heredocs (you are already in the repository). Give any subagent you start these same rules."
           --allowedTools "${{ inputs.allowed-tools }}"
           ${{ inputs.disallowed-tools != '' && format('--disallowedTools "{0}"', inputs.disallowed-tools) || '' }}
     # summary.jq: only the final message and the denied calls.

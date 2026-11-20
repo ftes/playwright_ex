@@ -1,5 +1,6 @@
 # Accepted risk (.github/actions/claude): with an id-token, Claude runs a PR branch's setup code.
-# Never on Renovate's PRs.
+# Never on Renovate's PRs. On a fork's PR, a maintainer's comment gives Claude the fork's head with
+# the id-token; only the mix tools are withheld.
 name: Claude Code
 
 on:
@@ -47,9 +48,9 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
       # On a fork's PR Claude works in its head, where mix would run the fork's mix.exs with the
-      # tokens in reach. Empty, so no mix tools, there and when the lookup fails. A comment on
-      # Renovate's PR stops here (the job's `if` covers reviews): its deps would run with this
-      # job's id-token.
+      # tokens in reach: no mix tools there. A comment on Renovate's PR stops here (the job's `if`
+      # covers reviews), its deps would run with this job's id-token, as does a PR comment whose
+      # lookup fails, which might be Renovate's.
       - name: Allow mix tools unless on a fork's PR, skip Renovate's PRs
         id: tools
         env:
@@ -57,7 +58,8 @@ jobs:
           PR: ${{ github.event.issue.pull_request && github.event.issue.number || github.event.pull_request.number }}
         run: |
           if [[ -n $PR ]]; then
-            pr=$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json isCrossRepository,headRefName --jq '"\(.isCrossRepository) \(.headRefName)"') || exit 0
+            pr=$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json isCrossRepository,headRefName --jq '"\(.isCrossRepository) \(.headRefName)"') ||
+              { echo "::error::Couldn't look up PR $PR."; echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0; }
             if [[ $pr == *" renovate/"* ]]; then
               echo "::notice::Claude doesn't run on Renovate's PRs."
               echo "skip=true" >> "$GITHUB_OUTPUT"
