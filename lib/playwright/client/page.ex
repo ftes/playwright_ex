@@ -397,11 +397,11 @@ defmodule Playwright.Client.Page do
   # The statements after the await run on reply, before a bindingCall (`channel_call/5`).
   def expose_function(this, name, callback) do
     # deviation: the `bindingCall` listener runs it on the registrant's behalf (`Runtime.Callers`).
-    callers = Callers.capture()
+    callback = Callers.bind_1(&ClientHelper.call_function(callback, &1))
 
     result =
       channel_call(this, :exposeBinding, %{name: name}, TimeoutSettings.k_no_timeout(), fn _ ->
-        binding = fn _source, args -> Callers.run_as(callers, fn -> ClientHelper.call_function(callback, args) end) end
+        binding = fn _source, args -> callback.(args) end
         map_set(this, :_bindings, name, binding)
       end)
 
@@ -410,14 +410,12 @@ defmodule Playwright.Client.Page do
 
   def expose_binding(this, name, callback) do
     # deviation: the `bindingCall` listener runs it on the registrant's behalf (`Runtime.Callers`).
-    callers = Callers.capture()
+    callback = Callers.bind_2(&ClientHelper.call_function(callback, [&1 | &2]))
 
     result =
       channel_call(this, :exposeBinding, %{name: name}, TimeoutSettings.k_no_timeout(), fn _ ->
         # this._bindings.set(name, callback): called with (source, ...args)
-        map_set(this, :_bindings, name, fn source, args ->
-          Callers.run_as(callers, fn -> ClientHelper.call_function(callback, [source | args]) end)
-        end)
+        map_set(this, :_bindings, name, callback)
       end)
 
     DisposableObject.from(result.disposable)
@@ -425,11 +423,7 @@ defmodule Playwright.Client.Page do
 
   def _expose_callback_binding(this, name, callback) do
     # deviation: the `bindingCall` listener runs it on the registrant's behalf (`Runtime.Callers`).
-    callers = Callers.capture()
-
-    map_set(this, :_bindings, name, fn _source, args ->
-      Callers.run_as(callers, fn -> ClientHelper.call_function(callback, args) end)
-    end)
+    map_set(this, :_bindings, name, Callers.bind_2(fn _source, args -> ClientHelper.call_function(callback, args) end))
 
     result = channel_call(this, :exposeBinding, %{name: name, noGlobal: true}, TimeoutSettings.k_no_timeout())
     DisposableObject.from(result.disposable)
