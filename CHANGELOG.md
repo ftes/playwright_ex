@@ -113,6 +113,10 @@ upstream minor, so `~> 1.65.0` is safe.
 - **RC only:** `Playwright.Test.GitHubFormatter` labels a test by its project's name only, not
   by every `parameterize:` value, and a slow file's annotation is `[project] › file`, as
   upstream's.
+- `Playwright.Test.GitHubFormatter` goes on the `mix test --failed` rerun too, as upstream
+  annotates every attempt: the rerun's errors are under `Retry #1`, and its summary counts a
+  test passing there as flaky. The CI guide uploads `test-results` unless cancelled, so a job
+  the rerun turned green keeps the first run's files.
 
 ### Fixed
 

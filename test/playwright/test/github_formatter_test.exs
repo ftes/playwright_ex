@@ -193,6 +193,61 @@ defmodule Playwright.Test.GitHubFormatterTest do
                )
   end
 
+  test "under mix test --failed (retry 1): a passing test is flaky, a failing one gets a retry separator" do
+    {failure, line} = {failure(fn -> raise "oops" end), __ENV__.line}
+
+    events = [
+      {:test_finished, test_struct("test passes now", line: 12)},
+      {:test_finished, test_struct("test fails again", line: 20, state: {:failed, [failure]})},
+      {:test_finished, test_struct("test skipped", line: 31, state: {:skipped, "x"})},
+      {:suite_finished, %{run: 1_500_000, load: 200_000, async: 0}}
+    ]
+
+    header = fn line, name, indent ->
+      text = "#{indent}#{@file_path}:#{line} › #{name} "
+      text <> rule(100 - String.length(text))
+    end
+
+    # Each failed result's `::error`, the flaky test's being the first run's: it counts, as
+    # upstream's `_failedTestCount`, but has none here.
+    assert [error, summary] =
+             run(events, only_test_ids: [{__MODULE__, :"test fails again"}]) |> String.split("\n", trim: true)
+
+    assert String.starts_with?(
+             error,
+             "::error file=#{@file_path},title=#{@file_path}%3A20 › fails again,line=#{line}::" <>
+               Enum.join(
+                 [
+                   header.(20, "fails again", "  2) "),
+                   "",
+                   "    Retry #1 " <> rule(100 - 13),
+                   "     ** (RuntimeError) oops"
+                 ],
+                 "%0A"
+               )
+           )
+
+    assert summary ==
+             "::notice title=🎭 Playwright Run Summary::" <>
+               Enum.join(
+                 [
+                   "  1 failed",
+                   header.(20, "fails again", "    "),
+                   "  1 flaky",
+                   header.(12, "passes now", "    "),
+                   "  1 skipped"
+                 ],
+                 "%0A"
+               )
+
+    # The first run (retry 0): passed, and no Retry line.
+    output = run(events)
+    assert output =~ "%0A  1 passed (1.7s)\n"
+    refute output =~ " flaky%0A"
+    refute output =~ "Retry #1 ─"
+    assert output =~ "::#{header.(20, "fails again", "  1) ")}%0A     ** (RuntimeError) oops"
+  end
+
   test "config :playwright, :test's report_slow_tests: max and threshold, non-negative numbers, or false",
        %{config: config} do
     Application.put_env(:playwright, :test, Keyword.delete(config, :report_slow_tests))
