@@ -56,6 +56,14 @@ inputs:
   additional-permissions:
     description: claude-code-action's additional_permissions.
     default: ""
+  json-schema:
+    description: "Claude's --json-schema, on one line without single quotes: Claude then returns its answer as `structured_output`."
+    default: ""
+
+outputs:
+  structured_output:
+    description: "Claude's answer as a JSON string, with json-schema: data, to pass to a script by env."
+    value: ${{ steps.claude.outputs.structured_output }}
 
 runs:
   using: composite
@@ -65,9 +73,11 @@ runs:
       env:
         SETUP: ${{ inputs.setup }}
         PROMPT: ${{ inputs.prompt }}
+        JSON_SCHEMA: ${{ inputs.json-schema }}
       run: |
         if [[ ! $SETUP =~ ^(required|best-effort|none)$ ]]; then echo "::error::setup: required, best-effort or none, got: $SETUP"; exit 1; fi
         if [[ -n $PROMPT && ! $PROMPT =~ ^[a-z0-9-]+$ ]]; then echo "::error::prompt: a name, got: $PROMPT"; exit 1; fi
+        if [[ $JSON_SCHEMA == *"'"* || $JSON_SCHEMA == *$'\n'* ]]; then echo "::error::json-schema: one line without single quotes"; exit 1; fi
     # The summary filter and the prompt from this action's copy (main's), read before the setup
     # runs the checked-out branch's mix.exs, which could rewrite them.
     - name: Read the prompt
@@ -141,6 +151,7 @@ runs:
           --append-system-prompt "${{ inputs.system-prompt }} ${{ steps.sources.outputs.line }} Prefer your file tools over Bash to read, search and edit files, and keep any scratch files under tmp/; run each allowed Bash command on its own, without cd, git -C, semicolons, &&, pipes or heredocs (you are already in the repository). Give any subagent you start these same rules."
           --allowedTools "${{ inputs.allowed-tools }}"
           --disallowedTools "Bash(gh pr * -R*),Bash(gh pr * --repo*),Bash(gh issue * -R*),Bash(gh issue * --repo*),Bash(gh pr view *comments*),Bash(gh pr view *eview*),Bash(gh pr view * -c*),Bash(gh issue view *comments*),Bash(gh issue view * -c*),Bash(gh api *comments*),Bash(gh api *reviews*),Bash(gh api *timeline*),Bash(gh api graphql*),Bash(gh api *..*),Bash(gh api *%*),Bash(gh api * --hostname*),Bash(mix cmd*),Bash(mix run*),Bash(mix eval*),Bash(*mix cmd*)${{ inputs.disallowed-tools != '' && format(',{0}', inputs.disallowed-tools) || '' }}"
+          ${{ inputs.json-schema != '' && format('--json-schema ''{0}''', inputs.json-schema) || '' }}
     # summary.jq: only the final message and the denied calls.
     - name: Summarize Claude's result
       if: ${{ !cancelled() && steps.claude.outputs.execution_file != '' }}
