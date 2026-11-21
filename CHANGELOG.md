@@ -47,6 +47,13 @@ upstream minor, so `~> 1.65.0` is safe.
   `name` and `use` (the config's options, the project's over them), also in `setup_all` and
   `info/1`.
 
+### Fixed
+
+- **RC only:** `Playwright.Test`: a `Browser.new_context`, `Browser.new_page` or
+  `BrowserType.launch_persistent_context` after the test timeout closed the test's contexts
+  closes its context and fails with "Test timeout of <ms>ms exceeded.", instead of its calls
+  hanging until ExUnit's `TimeoutError`.
+
 ## [1.65.0-rc.3] 2026-11-21
 
 Drives [Playwright 1.65.1](https://github.com/microsoft/playwright/releases/tag/v1.65.1), on
