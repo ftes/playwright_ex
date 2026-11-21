@@ -108,19 +108,26 @@ defmodule Playwright.Client.ConnectBacklogTest do
     failed =
       Enum.find(1..100, fn _ ->
         watcher = spawn(&watcher/0)
-        Process.register(watcher, :connect_backlog_watcher)
-        known = conns(browser_type)
-        hook = fn -> send(watcher, {:child, hd(conns(browser_type) -- known), self()}) end
 
-        # A test hook is no API option: the client is called directly.
-        {:ok, browser} =
-          Facade.async("browserType.connect", fn ->
-            Playwright.Client.BrowserType.connect(browser_type, endpoint, %{__testHookBeforeCreateBrowser: hook})
-          end)
+        # `Process.exit` is asynchronous: wait for the watcher to go down, which frees its name, so
+        # the next iteration never finds the name still taken.
+        try do
+          Process.register(watcher, :connect_backlog_watcher)
+          known = conns(browser_type)
+          hook = fn -> send(watcher, {:child, hd(conns(browser_type) -- known), self()}) end
 
-        connected = !eventually(fn -> !Browser.is_connected(browser) end)
-        Process.exit(watcher, :kill)
-        connected
+          # A test hook is no API option: the client is called directly.
+          {:ok, browser} =
+            Facade.async("browserType.connect", fn ->
+              Playwright.Client.BrowserType.connect(browser_type, endpoint, %{__testHookBeforeCreateBrowser: hook})
+            end)
+
+          !eventually(fn -> !Browser.is_connected(browser) end)
+        after
+          ref = Process.monitor(watcher)
+          Process.exit(watcher, :kill)
+          receive do: ({:DOWN, ^ref, :process, _, _} -> :ok)
+        end
       end)
 
     assert failed == nil, "iteration #{failed}: the browser stayed connected"
