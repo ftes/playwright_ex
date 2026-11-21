@@ -7,9 +7,7 @@ defmodule Playwright.UpstreamCase do
   `Playwright.Test.BrowserPool.browser/1` in `setup_all`, upstream's worker: a driver under
   test (`PWTEST_UNDER_TEST`) and browser of the module's while it runs, reused by the next
   module (a fresh one after a failure). `Playwright.DriverCleanup` closes the browsers a test or
-  module created and the module's contexts; `Playwright.Test` closes a test's leftover contexts.
-  `@moduletag :own_worker` starts a driver for the module alone, without `Playwright.Test`'s
-  recording, so a test's leftover contexts stay open until the module ends:
+  module created and the module's contexts; `Playwright.Test` closes a test's leftover contexts:
 
     * `playwright`, `browser_name` (`BROWSER` env, default `"chromium"`), `headless` (`HEADED`
       env, see `Playwright.TestBrowser.headless/0`), `browser_type`, `browser` (the worker's,
@@ -297,21 +295,10 @@ defmodule Playwright.UpstreamCase do
     if reason, do: Module.put_attribute(module, :tag, skip: "not ported: " <> reason)
   end
 
-  setup_all %{module: module} = tags do
-    # Upstream runs its tests with the driver "under test" (`window.builtins`, ...): the pool's,
-    # or one it starts with `:own_worker`.
-    {playwright, browser} =
-      if tags[:own_worker] do
-        start_supervised!({Playwright.Supervisor, name: module, env: [{"PWTEST_UNDER_TEST", "1"}]})
-        playwright = Playwright.instance(module)
-        artifacts_dir = artifacts_dir()
-        on_exit(fn -> File.rm_rf(artifacts_dir) end)
-        setup_playwright(playwright, artifacts_dir)
-        {playwright, BrowserType.launch!(TestBrowser.browser_type(playwright))}
-      else
-        browser = BrowserPool.browser(pool_options())
-        {BrowserPool.playwright(browser), browser}
-      end
+  setup_all do
+    # Upstream runs its tests with the driver "under test" (`window.builtins`, ...): the pool's.
+    browser = BrowserPool.browser(pool_options())
+    playwright = BrowserPool.playwright(browser)
 
     # The browsers and contexts the module's own `setup_all` creates (a `browser` of its own).
     Playwright.DriverCleanup.track_module(playwright, keep: [browser])
