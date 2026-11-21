@@ -22,7 +22,9 @@ env:
 jobs:
   # Maintainers only: the action rejects anyone else, but only after the setup in `claude`. Reviews
   # only on this repository's PRs; a comment's PR is checked here, before anything is checked out.
-  # Also picks the gh commands Claude may run: on this event's PR or issue only.
+  # Also picks the gh commands Claude may run (on this event's PR or issue only) and whose comments
+  # Claude sees: maintainers' and claude[bot]'s. The PR's or issue's own body is included whoever
+  # wrote it: a maintainer who tags Claude on it chooses that.
   pr:
     if: |
       (
@@ -35,11 +37,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
+      issues: read
       pull-requests: read
     outputs:
       skip: ${{ steps.pr.outputs.skip }}
       other-repo: ${{ steps.pr.outputs.other-repo }}
       gh: ${{ steps.pr.outputs.gh }}
+      comment-authors: ${{ steps.authors.outputs.list }}
     steps:
       # Only this repository's PRs, never Renovate's; stops when the lookup fails.
       - name: Skip other repositories' and Renovate's PRs
@@ -63,6 +67,28 @@ jobs:
             echo "::notice::Claude doesn't run on Renovate's PRs."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
+      # The maintainers who commented, reviewed or left review comments here, for the action's
+      # include_comments_by_actor, which matches logins. Fails, and so skips Claude, when a lookup
+      # fails.
+      - name: List the maintainers who commented
+        id: authors
+        if: steps.pr.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.issue.pull_request && github.event.issue.number || github.event.pull_request.number }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          paths=("issues/${PR:-$ISSUE}/comments")
+          if [[ -n $PR ]]; then paths+=("pulls/$PR/comments" "pulls/$PR/reviews"); fi
+          logins=()
+          for path in "${paths[@]}"; do
+            out=$(gh api --paginate "repos/$GITHUB_REPOSITORY/$path" \
+              --jq '.[] | select(.author_association | IN("OWNER", "MEMBER", "COLLABORATOR")) | .user.login') ||
+              { echo "::error::Couldn't list $path."; exit 1; }
+            mapfile -t -O "${#logins[@]}" logins <<< "$out"
+          done
+          list=$(printf '%s\n' "${logins[@]}" "claude[bot]" | grep -E '^[A-Za-z0-9-]+(\[bot\])?$' | sort -u | paste -sd, -)
+          echo "list=$list" >> "$GITHUB_OUTPUT"
 
   # Says so on a PR from another repository, which `claude` skips.
   reply:
@@ -81,7 +107,7 @@ jobs:
 
   claude:
     needs: pr
-    if: needs.pr.outputs.skip != 'true'
+    if: needs.pr.outputs.skip != 'true' && needs.pr.outputs.comment-authors != ''
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -111,6 +137,7 @@ jobs:
         with:
           token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           setup: best-effort
+          comment-authors: ${{ needs.pr.outputs.comment-authors }}
           # Lets Claude read this PR's CI status (the action's get_ci_status); not other runs.
           additional-permissions: |
             actions: read

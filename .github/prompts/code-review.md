@@ -26,8 +26,8 @@ review.
    the browser tests (.github/workflows/elixir.yml): don't run or approximate them, and don't
    comment on what they cover. Review what CI cannot catch: correctness, design, upstream
    fidelity and docs.
-5. Don't repeat findings already posted on this PR (`gh api repos/REPO/pulls/PR/comments`,
-   `gh pr view PR --comments`).
+5. Don't repeat findings already posted on this PR: tmp/claude-review/comments.md has its
+   comments, reviews and review comments by maintainers and Claude.
 
 Post each verified finding as an inline comment on the relevant line
 (mcp__github_inline_comment__create_inline_comment, confirmed: true), with the failure scenario

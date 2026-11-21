@@ -217,15 +217,20 @@ jobs:
           open=$(jq '[.[] | select(.state == "OPEN")] | length' <<< "$prs")
           echo "::notice::$open of $MAX_OPEN_PRS nightly PRs open"
           if [ "$open" -lt "$MAX_OPEN_PRS" ]; then has_slot=true; else has_slot=false; fi
-          # Why each closed PR was declined: its maintainers' comments and reviews, and the bots'
-          # closing comment. No one else's, as anyone can comment on a PR and this reaches the prompt.
+          # Why each closed PR was declined: its maintainers' comments and reviews, and the closing
+          # comment of claude[bot] or github-actions[bot] (by REST, whose logins tell bots from
+          # users). Only theirs reach the prompt.
           recent=$(jq -c '.[:30]' <<< "$prs")
-          # shellcheck disable=SC2016 # jq's $closed
+          # shellcheck disable=SC2016 # jq's $closed and $bots
           for number in $(jq -r '.[] | select(.state == "CLOSED") | .number' <<< "$recent"); do
-            why=$(gh pr view "$number" --json closedAt,comments,reviews --jq '(.closedAt | fromdate) as $closed
-              | [.comments[], .reviews[] | select(.authorAssociation | IN("OWNER", "MEMBER", "COLLABORATOR"))]
-                + [.comments[] | select((.author.login | IN("claude", "github-actions")) and (.createdAt | fromdate) >= $closed - 120)]
-              | map(.body | gsub("\\s+"; " ") | .[:300] | select(. != ""))') || why='[]'
+            why=$(gh pr view "$number" --json closedAt,comments,reviews > "$RUNNER_TEMP/pr.json" &&
+              gh api --paginate "repos/$GH_REPO/issues/$number/comments" \
+                --jq '.[] | select(.user.type == "Bot" and (.user.login | IN("claude[bot]", "github-actions[bot]"))) | {body, createdAt: .created_at}' |
+                jq -s . > "$RUNNER_TEMP/bots.json" &&
+              jq -c --slurpfile bots "$RUNNER_TEMP/bots.json" '(.closedAt | fromdate) as $closed
+                | [.comments[], .reviews[] | select(.authorAssociation | IN("OWNER", "MEMBER", "COLLABORATOR"))]
+                  + [$bots[0][] | select((.createdAt | fromdate) >= $closed - 120)]
+                | map(.body | gsub("\\s+"; " ") | .[:300] | select(. != ""))' "$RUNNER_TEMP/pr.json") || why='[]'
             recent=$(jq -c --argjson n "$number" --argjson why "$why" 'map(if .number == $n then . + {why: $why} else . end)' <<< "$recent")
           done
           {
