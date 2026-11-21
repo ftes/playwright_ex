@@ -144,9 +144,17 @@ defmodule Playwright.Test.Options do
     options
     |> Map.put(
       :headless,
-      if(options.headless == nil, do: Keyword.get(options.launch_options, :headless, true), else: options.headless)
+      if(options.headless == nil, do: launch_headless(options.launch_options), else: options.headless)
     )
     |> Map.put(:channel, if(options.channel == nil, do: options.launch_options[:channel], else: options.channel))
+  end
+
+  # `launchOptions.headless ?? true`: a `nil` one too.
+  defp launch_headless(launch_options) do
+    case launch_options[:headless] do
+      nil -> true
+      headless -> headless
+    end
   end
 
   @doc """
@@ -487,7 +495,8 @@ defmodule Playwright.Test.Options do
   @doc """
   The worker options of a module's run, over the config's, for its `BrowserPool.browser/1`
   calls, the same for its `setup_all` and each of its tests: `browser_name/3`, and the
-  `launch_options` (the module's, else the project's, as a whole) and `connect_options` of the
+  `headless`, `channel`, `launch_options` (the module's, else the project's, as a whole) and
+  `connect_options` of the
   `module` (`module_worker/2`'s, or a module's `use_options`; a `nil` one dropped,
   `unset_nil/1`) or its `project` (`layers/3`'s, `nil`s dropped there).
   """

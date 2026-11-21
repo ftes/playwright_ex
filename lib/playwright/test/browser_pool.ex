@@ -40,7 +40,8 @@ defmodule Playwright.Test.BrowserPool do
     * `:on_start` - a function of the Playwright (`Playwright`) or `{m, f, args}`
       (called with the Playwright first), run once on each new driver before its browser
       launches: `&MyApp.Selectors.register/1`. Part of the worker's key, so pass a capture, not
-      a closure.
+      a closure. The worker's `headless` and `channel` are passed to the launch explicitly, over
+      any default launch options an `on_start` sets.
 
   A worker is one driver and one browser, keyed by all of the options, as upstream's worker hash
   covers its project's options. A connected browser runs on the server, its driver here:

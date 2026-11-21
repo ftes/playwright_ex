@@ -66,7 +66,6 @@ upstream minor, so `~> 1.65.0` is safe.
   unknown event.
 - **RC only:** `browser_name` and `preserve_output` also take upstream's strings (`"webkit"`,
   `"failures-only"`); an unknown string raises with upstream's message.
-
 - **RC only:** **Breaking:** `use Playwright.Test` replaces ExUnit's `assert` and `refute` with
   `Playwright.Test.Assertions`', so a module that imports `ExUnit.Assertions` again after the
   `use`, or another library's `assert/2`, no longer compiles (an ambiguous `assert`). Opt out

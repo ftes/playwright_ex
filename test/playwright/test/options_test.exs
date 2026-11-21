@@ -299,6 +299,8 @@ defmodule Playwright.Test.ConfigTest do
   test "headless and channel: worker options over launch_options", %{config: config} do
     assert %{headless: true, channel: nil} = opts = Options.pool([])
     assert Options.browser_options(opts) == [headless: true]
+    # `launchOptions.headless ?? true`: a `nil` one too.
+    assert %{headless: true} = Options.pool(launch_options: [headless: nil])
 
     opts = Options.pool(launch_options: [headless: false, channel: "chrome"])
     assert %{headless: false, channel: "chrome"} = opts
