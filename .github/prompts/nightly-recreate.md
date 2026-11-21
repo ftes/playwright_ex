@@ -3,12 +3,13 @@ BRANCH.
 
 Read `gh pr view OLD_PR` and `gh pr diff OLD_PR` for what it set out to do, then make the same
 change against the code as it is now, keeping what main has changed since and covering what WHY
-names, following AGENTS.md
-and PORTING.md (generated files are regenerated, never merged by hand). Run `mix format`,
-`mix compile --warnings-as-errors`, `mix credo` and `mix playwright.parity`; they must pass. CI
-on the new PR runs the test suite.
+names, following AGENTS.md and PORTING.md (generated files are regenerated, never merged by
+hand). Run `mix format`, `mix compile --warnings-as-errors`, `mix credo` and
+`mix playwright.parity`; they must pass. CI on the new PR runs the test suite.
 
-If the change can't be redone without redesigning it, stop without pushing and say why.
+If the change can't be redone without redesigning it, don't push. Close the old PR
+instead, so it isn't retried every night, with exactly:
+  gh pr close OLD_PR --delete-branch --comment "<one sentence on why it can't be redone>"
 
 To publish, commit with the old PR's title as the subject, write tmp/nightly-pr.md (the old
 description, updated if the change differs; tmp/ is gitignored), then run exactly, in this order:

@@ -124,9 +124,9 @@ jobs:
           prs=$(list)
           exhausted=$(jq -c --argjson max "$MAX_COMMITS" 'map(select(.mergeable == "MERGEABLE" and .failing and .commits >= $max) | .number)' <<< "$prs")
           # Triage's redo, if still open and listed (triage may have closed it, or a human commented
-          # since) and not out of fixes.
+          # since), not out of fixes and not a redo itself (claude/nightly-<run>-<old PR>).
           recreate=$(jq -c --argjson redo "$REDO" --argjson exhausted "$exhausted" '. as $prs
-            | ($redo | map(select(.number as $n | ($prs | any(.number == $n)) and ($exhausted | all(. != $n)))))
+            | ($redo | map(select(.number as $n | ($prs | any(.number == $n and (.branch | test("^claude/nightly-[0-9]+-[0-9]+$") | not))) and ($exhausted | all(. != $n)))))
               + map(select(.mergeable == "CONFLICTING") | {number, why: "It conflicts with main."})
             | unique_by(.number)' <<< "$prs")
           others=$(jq -c --argjson recreate "$recreate" 'map(select(.number as $n | $recreate | all(.number != $n)))' <<< "$prs")
