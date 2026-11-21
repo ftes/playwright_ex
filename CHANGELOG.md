@@ -40,6 +40,13 @@ upstream minor, so `~> 1.65.0` is safe.
 
 ## [Unreleased]
 
+### Added
+
+- `Playwright.Test.info/0`'s `project`, upstream's `testInfo.project`: a
+  `Playwright.Test.Project`, the module's from `parameterize:` or the default one, with its
+  `name` and `use` (the config's options, the project's over them), also in `setup_all` and
+  `info/1`.
+
 ## [1.65.0-rc.3] 2026-11-21
 
 Drives [Playwright 1.65.1](https://github.com/microsoft/playwright/releases/tag/v1.65.1), on

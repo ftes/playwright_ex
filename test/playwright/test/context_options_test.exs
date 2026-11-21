@@ -250,10 +250,10 @@ defmodule Playwright.Test.ContextOptionsTest do
   end
 
   test "a context option is an option of its own, over context_options at every level; a device is spread" do
-    # A private key per option, and one for `context_options`.
+    # A private key per option, and one for `context_options`, as given.
     assert [
              "playwright.use.context.locale": "de-DE",
-             "playwright.use.context_options": %{locale: "fr-FR"},
+             "playwright.use.context_options": [locale: "fr-FR"],
              "playwright.use.trace": _
            ] = Playwright.Test.use(locale: "de-DE", context_options: [locale: "fr-FR"], trace: :on)
 

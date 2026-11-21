@@ -5,12 +5,20 @@ defmodule Playwright.Test.Project do
   inspects as its `title/1`, so a failed test prints a short name, as upstream's reporters print
   the project's: `Parameters: %{"playwright.project": #Playwright.Test.Project<"Mobile Safari">}`.
   An unnamed project, as upstream's, has no title: it inspects as its options.
+
+  `Playwright.Test.info/0`'s `project` is one too, upstream's `testInfo.project`: there `use` is
+  upstream's `project.use`, the config's options with the project's over them, by `use/1`'s
+  names (`locale`, `base_url`, ...), `context_options` and `launch_options` as given.
   """
 
   @enforce_keys [:name, :use]
   defstruct [:name, :use]
 
-  @typedoc "`name` (`nil` when not given) and `use`, the options as `Playwright.Test` reads them."
+  @typedoc """
+  `name` (`nil` when not given) and `use`: the options as `Playwright.Test` reads them, in
+  `Playwright.Test.info/0`'s by `use/1`'s names (`context_options` and `launch_options` as
+  given).
+  """
   @type t :: %__MODULE__{name: String.t() | nil, use: map()}
 
   @doc "The project's title: its `name`, upstream's `project.name`; `nil` for an unnamed project."
