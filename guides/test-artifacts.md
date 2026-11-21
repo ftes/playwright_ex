@@ -88,37 +88,31 @@ status 2 into 1, so the retry never fires. In CI, with `--partitions` and annota
 [Annotations](debugging-and-ci.md#annotations).
 
 <!-- remove with Elixir 1.21: ftes/playwright_ex#319 -->
-On Elixir 1.20 and earlier, `--failed` loses two kinds of failure, so the retry can pass, or
-find nothing to run and exit 0:
+On Elixir 1.20 and earlier, `--failed` can miss a failure, and the retry then passes or runs
+nothing and exits 0: a test of a `parameterize:` module ([Projects](test-options.md#projects)) passing with
+another parameter set later in the run erases its failure
+([elixir-lang/elixir#15820](https://github.com/elixir-lang/elixir/issues/15820)), as does a
+`setup_all`'s `on_exit` failing after its tests passed
+([elixir-lang/elixir@0f654791](https://github.com/elixir-lang/elixir/commit/0f654791)). Running
+one project per `mix test` avoids the common case, the same test in another project. Failures
+across your own parameter lists, and that `on_exit` failure, can still be lost. In CI, run one
+project per job, each the job from [GitHub Actions](debugging-and-ci.md#github-actions) with its
+project's browser and an artifact name of its own (`test-results-${{ matrix.browser }}`):
 
-- A failure in a `parameterize:` module ([Projects](test-options.md#projects)): the failures
-  manifest keys a test by its module and name, and the last result wins, so the same test
-  passing with another parameter set (a project, or a parameter list of your own) that finishes
-  later erases it. Fixed in Elixir 1.21
-  ([elixir-lang/elixir#15820](https://github.com/elixir-lang/elixir/issues/15820)).
-- A `setup_all`'s `on_exit` that fails after its tests passed. Fixed in Elixir 1.21
-  ([elixir-lang/elixir@0f654791](https://github.com/elixir-lang/elixir/commit/0f654791)).
-
-Run one project per `mix test` (a CI matrix, or a loop over the env var the project list reads),
-and retry right after each run. That removes only the project dimension: a module's other
-parameter lists in one run can still lose failures. This bash `retry` fails the job when a failed
-run's retry finds nothing to rerun, the total loss:
-
-```bash
-retry() {
-  mix test --failed 2>&1 | tee retry.log; s=${PIPESTATUS[0]}
-  if grep -q "^There are no tests to run" retry.log; then
-    echo "::error::mix test --failed found no failures to rerun after a failed run"; return 1
-  fi
-  return $s
-}
-
-status=0
-for project in "Desktop Chrome" "Desktop Firefox"; do
-  export PROJECTS="$project"
-  mix test || { [ $? -eq 2 ] && retry; } || status=1
-done
-exit $status
+```yaml
+strategy:
+  fail-fast: false
+  matrix:
+    include:
+      - {project: "Desktop Chrome", browser: chromium}
+      - {project: "Desktop Firefox", browser: firefox}
+      - {project: "Desktop Safari", browser: webkit}
+steps:
+  # ...
+  - run: mix playwright.install ${{ matrix.browser }} --with-deps
+  - env:
+      PROJECTS: ${{ matrix.project }}
+    run: mix test || { [ $? -eq 2 ] && mix test --failed; }
 ```
 
 The other retry modes are Playwright Test's too: `:on_all_retries` traces every rerun,
