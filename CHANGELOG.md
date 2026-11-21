@@ -53,6 +53,9 @@ upstream minor, so `~> 1.65.0` is safe.
 
 ### Changed
 
+- `Playwright.Test.GitHubFormatter` annotates a `mix test --failed` rerun too, as upstream's
+  `github` reporter annotates every attempt: a test passing there counts as flaky in the rerun's
+  summary, and one failing again gets its error under `Retry #1`. Pass it to both runs.
 - **RC only:** **Breaking:** `config :playwright, Playwright.Test.GitHubFormatter,
   report_slow_tests: ...` is `config :playwright, :test, report_slow_tests: ...`, as upstream's
   top-level `reportSlowTests`, with `false` for none (`nil` is the default there, as for every
