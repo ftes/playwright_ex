@@ -494,6 +494,22 @@ defmodule Playwright.Test.ConfigTest do
     assert Locator.text_content!(Page.get_by_test_id(page, "a")) == "A"
   end
 
+  # `info/0`'s project: upstream's `project.use` is `config.use` under the project's, its
+  # `testIdAttribute` too; the unset ones and the config's other keys stay out.
+  test "info's project: the config's set use options, test_id_attribute included", %{config: config} do
+    Application.put_env(
+      :playwright,
+      :test,
+      config ++ [test_id_attribute: "data-pw", locale: "de-DE", trace: :on, workers: 2, base_url: nil]
+    )
+
+    use = Options.info_project(Options.project(Playwright.Test.parameters(locale: "fr-FR"))).use
+    assert use.test_id_attribute == "data-pw"
+    assert use.locale == "fr-FR"
+    assert use.trace[:mode] == :on
+    refute Map.has_key?(use, :workers) or Map.has_key?(use, :base_url) or Map.has_key?(use, :output_dir)
+  end
+
   test "the defaults", %{config: config} do
     Application.delete_env(:playwright, :test)
 

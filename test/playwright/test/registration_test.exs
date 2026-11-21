@@ -18,7 +18,7 @@ defmodule Playwright.Test.RegistrationTest do
 
   setup_all do
     browser = BrowserPool.browser()
-    %{browser: browser, playwright: BrowserPool.playwright(browser)}
+    %{browser: browser, playwright: BrowserPool.playwright(browser), info: Playwright.Test.info()}
   end
 
   @context_defaults %{
@@ -168,6 +168,19 @@ defmodule Playwright.Test.RegistrationTest do
       assert Task.await(Task.async(fn -> Playwright.Test.info() end)).deadline == deadline
       assert Playwright.Test.info(self()).deadline == deadline
     end
+  end
+
+  # Without `parameterize:`, upstream's default project (`projects: [{}]`): no name, and the
+  # config's options as its `use` (test_helper.exs sets `browser_name` alone).
+  test "info: the default project without parameterize:", %{info: setup_all_info} do
+    project = %Playwright.Test.Project{
+      name: nil,
+      use: %{browser_name: String.to_existing_atom(Playwright.TestBrowser.name())}
+    }
+
+    assert Playwright.Test.info().project == project
+    assert Playwright.Test.info(self()).project == project
+    assert setup_all_info.project == project
   end
 
   @tag timeout: :infinity

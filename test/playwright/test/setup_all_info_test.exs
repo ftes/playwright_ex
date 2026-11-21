@@ -96,6 +96,28 @@ defmodule Playwright.Test.SetupAllInfoTest do
     assert setup_all.project_name == "French"
   end
 
+  # Upstream's `testInfo.project`: the module run's project, in `setup_all` as in the test. Its
+  # `use` is upstream's `project.use`: the config's options, the project's over them, by
+  # `info().use`'s names; no defaults, none of the module's.
+  test "info: the project, its name and use over the config's", %{setup_all: setup_all} do
+    assert %Test.Project{name: "French", use: use} = setup_all.info.project
+
+    assert use == %{
+             browser_name: String.to_existing_atom(Playwright.TestBrowser.name()),
+             base_url: "http://project.test",
+             locale: "fr-FR",
+             timezone_id: "Asia/Tokyo",
+             action_timeout: 4321
+           }
+
+    assert Test.info().project == setup_all.info.project
+  end
+
+  test "info/1: the project in on_exit", %{setup_all: setup_all, test_pid: test_pid} do
+    project = setup_all.info.project
+    on_exit(fn -> assert Test.info(test_pid).project == project end)
+  end
+
   test "info: in a Task of setup_all, the same", %{setup_all: setup_all} do
     assert setup_all.task.info == setup_all.info
     assert setup_all.task.scope?

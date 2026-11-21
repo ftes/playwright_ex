@@ -291,6 +291,61 @@ defmodule Playwright.Test.Options do
     %{@project_key => %Playwright.Test.Project{name: name, use: use_options!(use, label, @worker_keys)}}
   end
 
+  @doc """
+  `Playwright.Test.info/0`'s `project`, upstream's `testInfo.project`, of `project` (`project/1`'s
+  of a registration's parameters), else of upstream's default project (`projects: [{}]`, no
+  name), with `use` as upstream's `project.use`, `mergeObjects(config.use, projectConfig.use)`:
+  the `use` options set in the config (`test_id_attribute` too, upstream's `use.testIdAttribute`),
+  the project's over them per option, by the names `resolved/1` gives them. Read when called, as
+  `info/0` reads it.
+  """
+  def info_project(project) do
+    project = project || %Playwright.Test.Project{name: nil, use: %{}}
+    {test_id_attribute, config_use} = config_use()
+    use = config_use |> merge(unset_nil(project.use)) |> facade_use()
+    %{project | use: if(test_id_attribute, do: Map.put(use, :test_id_attribute, test_id_attribute), else: use)}
+  end
+
+  # The config's `use` options that are set, as `use_options/1` takes them, and its
+  # `test_id_attribute` (config only): upstream's `config.use`.
+  defp config_use do
+    keys = @use_keys ++ [:default_browser_type] ++ @worker_keys ++ context_keys()
+    config = Enum.reject(Playwright.Application.config!(:test, @config_keys ++ context_keys()), &(elem(&1, 1) == nil))
+    {config[:test_id_attribute], config |> Keyword.take(keys) |> use_options!(@config_label, @worker_keys)}
+  end
+
+  # `use_options/1`'s options by `use/1`'s names: the context options of their own (`:context`) as
+  # keys, and those of `context_options`, by the facade's names, as `context_options/2` takes
+  # the bag (without its `nil` keys and a device's `defaultBrowserType`).
+  defp facade_use(options) do
+    {context, options} = Map.pop(options, :context, %{})
+
+    options = Map.merge(options, facade_names(context))
+
+    case options do
+      %{context_options: bag} ->
+        bag = bag |> Map.reject(fn {_key, value} -> value == nil end) |> Map.delete(:defaultBrowserType)
+        %{options | context_options: facade_names(bag)}
+
+      _none ->
+        options
+    end
+  end
+
+  # Context options by the client's keys, by the facade's names (an enum's value as its atom).
+  defp facade_names(context) do
+    {:object, schema} = Playwright.Browser.__options_type__(:new_context)
+    names = Map.new(schema, fn {key, {js_key, type}} -> {js_key, {key, type}} end)
+
+    Map.new(context, fn {js_key, value} ->
+      case names[js_key] do
+        {key, {:enum, values}} -> {key, Enum.find_value(values, value, fn {atom, wire} -> wire == value && atom end)}
+        {key, _type} -> {key, value}
+        nil -> {js_key, value}
+      end
+    end)
+  end
+
   @doc "The project of `parameters` (`parameters/1`'s, a module's `parameterize:` map), else `nil`."
   def project(parameters) do
     case parameters do
@@ -445,19 +500,8 @@ defmodule Playwright.Test.Options do
   recording modes and the worker options of its `BrowserPool.browser/1` calls.
   """
   def resolved(test) do
-    {:object, schema} = Playwright.Browser.__options_type__(:new_context)
-    names = Map.new(schema, fn {key, {js_key, type}} -> {js_key, {key, type}} end)
-
-    context =
-      Map.new(test.context_options, fn {js_key, value} ->
-        case names[js_key] do
-          {key, {:enum, values}} -> {key, Enum.find_value(values, value, fn {atom, wire} -> wire == value && atom end)}
-          {key, _type} -> {key, value}
-          nil -> {js_key, value}
-        end
-      end)
-
-    context
+    test.context_options
+    |> facade_names()
     |> Map.merge(test.timeouts)
     # The modes as given, not as the retry makes them (`trace: :on_first_retry`).
     |> Map.merge(test.use_modes)
