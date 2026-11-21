@@ -71,22 +71,36 @@ defmodule Playwright.ClientStackTraceTest do
     assert [{"setContent", nil}] = locations.()
   end
 
-  # `fulfill` and `abort` send their channel call from an async function (`Route`).
+  # `fulfill`, `continue` and `abort` send their channel call from an async function (`Route`).
   test "a route handler's call through an async function has its line, a tail call none" do
     page = new_page()
-    locations = record_locations(page, ~w(fulfill abort))
+    locations = record_locations(page, ~w(fulfill continue abort))
 
     Page.route!(page, "**/fulfill", fn route ->
       Route.fulfill!(route, body: "fulfilled")
       :ok
     end)
 
+    Page.route!(page, "**/continue", fn route ->
+      Route.continue!(route)
+      :ok
+    end)
+
     Page.route!(page, "**/abort", fn route -> Route.abort!(route) end)
     Page.goto!(page, "http://localhost/fulfill")
+    # Whatever the network answers: only the call's location counts.
+    _ = Page.goto(page, "http://localhost/continue")
     {:error, _} = Page.goto(page, "http://localhost/abort")
 
-    assert [{"fulfill", %{file: @this_file, line: line}}, {"abort", nil}] = locations.()
-    assert source(line) =~ ~s[Route.fulfill!(route, body: "fulfilled")]
+    assert [
+             {"fulfill", %{file: @this_file, line: fulfill}},
+             {"continue", %{file: @this_file, line: continue}},
+             {"abort", nil}
+           ] =
+             locations.()
+
+    assert source(fulfill) =~ ~s[Route.fulfill!(route, body: "fulfilled")]
+    assert source(continue) =~ "Route.continue!(route)"
   end
 
   # `on_exit` callbacks run last registered first: the check runs after the call.
