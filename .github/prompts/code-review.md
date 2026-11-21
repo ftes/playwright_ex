@@ -42,8 +42,10 @@ Open it with a verdict on the whole PR as it stands, counting earlier findings t
 open: `**Verdict: OK to merge.**` when nothing is blocking, noting any non-blocking ones (e.g.
 `**Verdict: OK to merge (2 non-blocking suggestions).**`), otherwise
 `**Verdict: Issues found: N blocking, M non-blocking.**`. The counts are of the inline comments'
-decorations; follow-ups in the summary don't count. Then say which depth you chose and why, and
-in a few sentences what you checked and the most important findings (by their label), or why you
-found nothing. After an increment review, cover what changed since the last review and say in a
-line whether the earlier findings still hold, without repeating the earlier summary. End the
-comment with the MARKER line, verbatim.
+decorations; follow-ups in the summary don't count. An earlier finding is closed, not open, once
+the code fixes it, a maintainer declines it in a reply, or its thread is resolved (comments.md
+marks those). Then say which depth you chose and why, and in a few sentences what you checked
+and the most important findings (by their label), or why you found nothing. After an increment
+review, cover what changed since the last review and say in a line whether the earlier findings
+still hold, without repeating the earlier summary. End the comment with the MARKER line,
+verbatim.
