@@ -346,7 +346,11 @@ Deviations the port requires:
   none): the close's artifact steps and the failing call's reply fit in it (about 50 ms with a
   trace and a screenshot), and a test stuck outside Playwright still gets ExUnit's
   `TimeoutError`. ExUnit's clock starts at the test process's spawn, ours at the registration
-  just after. A test that ends earlier cancels it.
+  just after. A test that ends earlier cancels it. A `Browser.new_context` or
+  `launch_persistent_context` after the close closes its context as its creation ends and fails
+  with the reason: upstream's test has failed by then, and a call on the closed context would
+  fail without the reason. `connect_over_cdp`'s default context is the external browser's, which
+  a close may end: it is left open.
 - `use Playwright.Test` as the first line of a case template's body: a template's own `setup`
   callbacks run before those its `using` brings in, so the test is registered before them. It
   takes no options, which another `setup` registering the test first would drop: they go in

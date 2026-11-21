@@ -16,7 +16,9 @@ defmodule Playwright.Test.Recorder do
   # The recorder also owns the test's timeout (upstream's `closeReason` of a `timedOut` test):
   # just before ExUnit kills the test process, it closes the test's open contexts with
   # "Test timeout of <ms>ms exceeded.", so a Playwright call that hangs until then fails with that
-  # reason and its call log, after the close's artifact steps ran (`test_timeout_margin/1`).
+  # reason and its call log, after the close's artifact steps ran (`test_timeout_margin/1`). A
+  # context a test creates after that is closed, and its creation fails with that reason
+  # (`record/3`).
   #
   # The recorder makes no driver call and awaits nothing, so its calls return at once: every
   # driver call of a traced test reports its step to it synchronously (`append_trace_event/2`),
@@ -38,9 +40,11 @@ defmodule Playwright.Test.Recorder do
   alias Playwright.Isomorphic.StringUtils
   alias Playwright.Page
   alias Playwright.Runtime.Callers
+  alias Playwright.Runtime.Heap
   alias Playwright.Runtime.Invocation
   alias Playwright.Runtime.Promise
   alias Playwright.Runtime.Zones
+  alias Playwright.TargetClosedError
   alias Playwright.Test.ErrorContext
   alias Playwright.Test.Results
   alias Playwright.Test.TestInfo
@@ -429,8 +433,10 @@ defmodule Playwright.Test.Recorder do
 
   def handle_info(_message, state), do: {:noreply, state}
 
+  defp timeout_reason(test), do: "Test timeout of #{test.test_timeout}ms exceeded."
+
   defp time_out(state) do
-    reason = "Test timeout of #{state.opts.test_timeout}ms exceeded."
+    reason = timeout_reason(state.opts)
     open = for %{guid: guid, context: context} <- state.contexts, guid not in state.closed, do: context
 
     # Not in the recorder: the close's hooks call it.
@@ -598,6 +604,19 @@ defmodule Playwright.Test.Recorder do
 
     if test.video[:mode] != :off, do: step("follow the context's pages", fn -> follow_pages(context, recorder) end)
     if test.video[:show][:test], do: step("show the test's title", fn -> install_title_updater(context, recorder) end)
+
+    # Elixir only: created by this call (`Browser.new_context/2`, `launch_persistent_context/3`,
+    # which anchor it in the calling process just before) after the test timeout fired (or as it
+    # fired, during the setup above), it is closed (a close the timeout started already returns at
+    # once), and its creation fails with the timeout's reason: upstream's timeout failed the test
+    # already, and its teardown closes the context. Its calls would fail without the reason, or
+    # never return during its close. Not `connect_over_cdp`'s default context: the external
+    # browser's, which a close may end, and the connected browser is the call's result.
+    if Heap.set_has(context, :_creators, self()) and match?(%{timed_out: true}, call(recorder, {:fields, [:timed_out]})) do
+      reason = timeout_reason(test)
+      step("close a context", fn -> BrowserContext.close(context, reason: reason) end)
+      raise TargetClosedError.new(reason)
+    end
   end
 
   # `installScreencastTitleUpdater`, of every context of the test (there are no context
