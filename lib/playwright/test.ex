@@ -302,14 +302,18 @@ defmodule Playwright.Test do
   as `timeout: 0` is everywhere in Playwright (see [API conventions](api-conventions.md)):
   write `:infinity` to say so.
 
-  Shortly before ExUnit's timeout (1 s before, at most 5% of the timeout), the test's open
-  contexts are closed with upstream's reason, "Test timeout of 60000ms exceeded.": a call that
-  hangs until then fails with that message and its call log, after the close kept the artifacts.
-  A `Playwright.Browser.new_context/2` or `Playwright.BrowserType.launch_persistent_context/3`
-  after that closes its context at the end of its creation and fails with that message
-  (`connect_over_cdp`'s default context is left to the external browser).
-  A test stuck elsewhere (`Process.sleep/1`, a `receive`) still fails with ExUnit's
-  `ExUnit.TimeoutError`. The timeout is ExUnit's: the `@tag timeout:` (`:infinity` for none) or
+  Shortly before ExUnit's timeout (1 s before, at most 5% of the timeout), a test that has a
+  context (or traces) fails with upstream's message, `Playwright.Test.TimeoutManagerError` "Test
+  timeout of 60000ms exceeded.", where it is: its process is interrupted, wherever it hangs. Its
+  `on_exit` then closes its contexts with that reason, after their artifact steps, within
+  ExUnit's timeout of the callback. A call the test hung in fails with it then, with its call
+  log: as upstream's second error, the failure's message ends with that error, and
+  `error-context.md` and the trace have it too. As for any exit, ExUnit shows the failure as
+  `** (EXIT from #PID<...>) an exception was raised:`. A `Playwright.Browser.new_context/2` or
+  `Playwright.BrowserType.launch_persistent_context/3` after that closes its context at the end of
+  its creation and fails with that message (`connect_over_cdp`'s default context is left to the
+  external browser). A test without a context fails with ExUnit's `ExUnit.TimeoutError`. The
+  timeout is ExUnit's: the `@tag timeout:` (`:infinity` for none) or
   `mix test --timeout`; `mix test --trace` has none. As ExUnit's (and upstream's, which counts
   `beforeEach` hooks), the timeout counts the test's `setup` callbacks: the clock starts at the
   module's first one, also one defined before `use Playwright.Test` or in its case template.
@@ -1168,7 +1172,7 @@ defmodule Playwright.Test do
   ms, the `@tag timeout:` or `mix test --timeout`, `:infinity` for none, as under `mix test
   --trace`) and `deadline` (upstream's internal `testInfo._deadline()`: monotonic milliseconds
   (compare with `System.monotonic_time(:millisecond)`) by which the test must be done: after
-  it, the test's contexts are closed and Playwright calls fail; `:infinity` without a test
+  it, the test fails with its timeout; `:infinity` without a test
   timeout; see "Timeouts"), from the test's setup to the end of its body. `use` is the test's
   options as resolved from every level (the config's, its project's, its module's, its
   describe's and its own), what upstream's option fixtures give a fixture: a map of the context

@@ -9,10 +9,13 @@ defmodule Playwright.Test.TimeoutsTest do
   alias Playwright.APIRequestContext
   alias Playwright.Browser
   alias Playwright.BrowserContext
+  alias Playwright.Client.Connection
   alias Playwright.Page
   alias Playwright.Runtime.Heap
   alias Playwright.Test.BrowserPool
   alias Playwright.Test.Recorder
+  alias Playwright.Test.Results
+  alias Playwright.Test.TimeoutManagerError
 
   setup_all do
     browser = BrowserPool.browser()
@@ -76,9 +79,13 @@ defmodule Playwright.Test.TimeoutsTest do
        ctx do
     Browser.new_context!(ctx.browser)
     recorder = Recorder.lookup(self())
-    # The timer's message, as it fires (the timer itself cancelled; none under `--trace`).
+    # The timer's message, as it fires (the timer itself cancelled; none under `--trace`): its
+    # interrupt received, not exited by, and taken back.
     if timer = :sys.get_state(recorder).timer, do: Process.cancel_timer(timer)
+    Process.flag(:trap_exit, true)
     send(recorder, :test_timeout)
+    assert_receive {:EXIT, _, {%TimeoutManagerError{message: "Test timeout of 30000ms exceeded."}, [_ | _]}}
+    assert {_exit_reason, _error} = Playwright.Test.TestInfo.take_interrupt(self())
     assert Recorder.timed_out?(recorder)
 
     message = "browser.newContext: Test timeout of #{Recorder.registration(self()).test_timeout}ms exceeded."
@@ -89,27 +96,40 @@ defmodule Playwright.Test.TimeoutsTest do
     assert late.guid in closed
   end
 
-  test "the timer closes a context whose setup hasn't ended", ctx do
-    Browser.new_context!(ctx.browser)
-    recorder = Recorder.lookup(self())
-    if timer = :sys.get_state(recorder).timer, do: Process.cancel_timer(timer)
+  test "the error of a call whose caller exited goes to its adopter, with the API name", ctx do
+    context = Browser.new_context!(ctx.browser)
+    page = BrowserContext.new_page!(context)
+    connection = Heap.get(context, :_connection)
+    pending = Connection.callbacks(connection)
+    {caller, ref} = spawn_monitor(fn -> Page.wait_for_selector(page, "#never") end)
 
-    # A context registered, its setup (`record/3`) still running: created outside the test, it
-    # has no setup of its own. Its creator stays, as a test's process does, linked so it ends with
-    # the test.
-    me = self()
+    # Interrupted in the call, as at the test timeout.
+    wait_until(fn -> Connection.callbacks(connection) -- pending != [] end)
+    Process.exit(caller, :kill)
+    assert_receive {:DOWN, ^ref, :process, _, :killed}
 
-    spawn_link(fn ->
-      send(me, {:context, Browser.new_context!(ctx.browser)})
-      Process.sleep(:infinity)
-    end)
+    test_pid = self()
+    Connection._adopt_calls(connection, caller, &send(test_pid, {:late, &1}))
+    BrowserContext.close!(context, reason: "Test timeout of 1ms exceeded.")
+    assert_receive {:late, %Playwright.TargetClosedError{message: message, log: [_ | _]}}
+    assert message =~ ~r"^page\.waitForSelector: Test timeout of 1ms exceeded\.\nCall log:\n"
+  end
 
-    assert_receive {:context, context}
-    :ok = GenServer.call(recorder, {:add_context, context})
-    BrowserContext.on(context, :close, fn _ -> send(me, :closed) end)
+  test "the timeout's message ends with the call's error, once it came" do
+    error = %TimeoutManagerError{message: "Test timeout of 1ms exceeded.", late_error: make_ref()}
+    assert Exception.message(error) == "Test timeout of 1ms exceeded."
 
-    send(recorder, :test_timeout)
-    assert_receive :closed, 5000
+    TimeoutManagerError.put_late_error(error, %Playwright.TimeoutError{message: "page.click: late"})
+    TimeoutManagerError.put_late_error(error, %Playwright.TimeoutError{message: "page.click: later"})
+    assert Exception.message(error) == "Test timeout of 1ms exceeded.\n\n** (Playwright.TimeoutError) page.click: late"
+    :ets.delete(Results.table(), {:late_error, error.late_error})
+  end
+
+  defp wait_until(fun) do
+    if !fun.() do
+      Process.sleep(10)
+      wait_until(fun)
+    end
   end
 
   @tag timeout: :infinity
