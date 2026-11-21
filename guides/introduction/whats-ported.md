@@ -263,7 +263,7 @@ Each area's row lists its main features, each feature's row its main gaps.
 | `testInfo.retry`, the retry modes | ✓ | retry 1 under `mix test --failed` |
 | test timeout | ✓ | ExUnit's (`@tag timeout:`, `--timeout`); the test fails just before it with upstream's message (`TimeoutManagerError`), wherever it hangs; its `on_exit` callbacks run, then its contexts close with it, and the hung call's error follows the message ([Timeouts](Playwright.Test.html#module-timeouts)) |
 | `test.setTimeout`, `test.slow` | n/a | `@tag timeout:` |
-| `beforeAll` timeout | ✓ | the module's timeout bounds its `setup_all` |
+| `beforeAll` timeout | ✓ | the module's timeout bounds its `setup_all`, which fails with upstream's message (`TimeoutManagerError`); its contexts close with it, and the hung call's error follows the message ([Timeouts](Playwright.Test.html#module-timeouts)) |
 | expect, action and navigation timeouts | ✓ | `config :playwright, :expect, timeout:`, `action_timeout`, `navigation_timeout` |
 | `globalTimeout` | ✗ | not ported yet |
 

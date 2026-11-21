@@ -329,15 +329,16 @@ defmodule Playwright.Test do
   A module's `setup_all` callbacks get the same timeout, the module's (`@moduletag timeout:`, else
   ExUnit's `timeout`: `ExUnit.start(timeout:)` or `mix test --timeout`), as upstream's `beforeAll`
   hook gets the test timeout: past it, the `setup_all` fails with upstream's message with
-  `beforeAll` renamed, `"setup_all" hook timeout of 60000ms exceeded.`, and the stack it was at.
-  ExUnit has no timeout there, so the runner exits the `setup_all` process, which fails the
-  module as a crash does; its `on_exit` callbacks still run. The failure is ExUnit's for an exit
-  (`** (EXIT from #PID<...>)`), with the stack unpruned, and a hung call fails without its call
-  log: unlike a test's, its contexts aren't closed with a reason before the exit. Its pooled
-  browsers are reset at the module's end instead, as a failed test's, which closes its contexts:
-  a failed `setup_all`'s are, as upstream stops a worker whose job failed. A `setup_all` process
-  that traps exits is killed 1 s after the timeout instead: it fails with `:killed`, without the
-  message. One timeout counts all of the module's `setup_all` callbacks, where upstream counts
+  `beforeAll` renamed, `Playwright.Test.TimeoutManagerError` `"setup_all" hook timeout of 60000ms
+  exceeded.`, and the stack it was at. ExUnit has no timeout there, so the runner exits the
+  `setup_all` process, which fails the module as a crash does, shown as a test's
+  (`** (EXIT from #PID<...>)`); its `on_exit` callbacks still run. Before the exit, the contexts
+  the `setup_all` (or a process with it in `$callers`) created are closed with that message, and
+  the error of a call it hung in, with its call log, follows the message, as for a test. Its
+  pooled browsers are reset at the module's end too, as a failed test's: a failed `setup_all`'s
+  are, as upstream stops a worker whose job failed. A `setup_all` process that traps exits is
+  killed 1 s after the timeout instead: it fails with `:killed`, without the message. One timeout
+  counts all of the module's `setup_all` callbacks, where upstream counts
   each hook on its own. `BrowserPool.browser/1` (the wait for a worker, its start) is not counted,
   as upstream's queue has no timeout and its worker fixtures have a timeout of their own: there,
   nothing bounds them. Its contexts get the `action_timeout` and

@@ -10,7 +10,10 @@ defmodule Playwright.Test.SetupAllTimeout do
   # (`__ex_unit__(:setup_all, context)`, see `Playwright.Test.__before_compile__/1`) in `run/2`: a
   # watchdog exits the `setup_all` process if the callbacks still run past ExUnit's timeout of
   # the module (`Options.ex_unit_timeout/1`). ExUnit then fails the module with the exit reason:
-  # upstream's message with `beforeAll` renamed to `setup_all`, and the stack the process was at.
+  # a `Playwright.Test.TimeoutManagerError` of upstream's message with `beforeAll` renamed to
+  # `setup_all`, and the stack the process was at, as a test's at its timeout. Before the exit,
+  # the process's contexts close with that message, and the error of a call it hung in follows
+  # the message, as upstream's second error (`close/3`).
   # Elixir only: one slot for all of the module's `setup_all` callbacks, where upstream gives
   # each hook its own. A process that traps exits is killed 1 s later (`:killed`, without the
   # message). A pooled browser (`Pool.browser/2`: the wait for a worker, a driver start and
@@ -26,6 +29,8 @@ defmodule Playwright.Test.SetupAllTimeout do
 
   alias Playwright.Test.Options
   alias Playwright.Test.Pool
+  alias Playwright.Test.Recorder
+  alias Playwright.Test.TimeoutManagerError
 
   @key {__MODULE__, :watchdog}
 
@@ -143,7 +148,12 @@ defmodule Playwright.Test.SetupAllTimeout do
           nil -> []
         end
 
-      error = RuntimeError.exception(~s("setup_all" hook timeout of #{timeout}ms exceeded.))
+      error = %TimeoutManagerError{
+        message: ~s("setup_all" hook timeout of #{timeout}ms exceeded.),
+        late_error: make_ref()
+      }
+
+      close(owner, error, timeout)
       Process.exit(owner, {error, stack})
 
       # A process that traps exits got a message instead.
@@ -155,5 +165,23 @@ defmodule Playwright.Test.SetupAllTimeout do
     end
 
     :ok
+  end
+
+  # The calls the callbacks hang in are adopted and their contexts closed while the process is
+  # alive (`Recorder.time_out_setup_all/2`), so the late error is in before the exit: after it,
+  # ExUnit runs the module's `on_exit` callbacks, whose pool release would reset the browser under
+  # them. Only once the watchdog won the handshake: the callbacks' end then waits for the exit
+  # (`run/2`), so the module fails either way. Within the timeout again, as a lost driver doesn't
+  # answer the close: then the close stops, not to run into that reset.
+  defp close(owner, error, timeout) do
+    {pid, ref} = spawn_monitor(fn -> Recorder.time_out_setup_all(owner, error) end)
+
+    receive do
+      {:DOWN, ^ref, :process, ^pid, _} -> :ok
+    after
+      timeout ->
+        Process.demonitor(ref, [:flush])
+        Process.exit(pid, :kill)
+    end
   end
 end

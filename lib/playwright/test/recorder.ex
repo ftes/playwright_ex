@@ -630,8 +630,12 @@ defmodule Playwright.Test.Recorder do
     nil
   end
 
-  # A module's `setup_all`'s: its timeouts, no recording.
-  defp after_create_browser_context(:module, module, context), do: set_default_timeouts(context, module.timeouts)
+  # A module's `setup_all`'s: its timeouts, no recording. Noted for its timeout's close
+  # (`time_out_setup_all/2`); `test_pid` is its `setup_all` process.
+  defp after_create_browser_context(:module, module, context) do
+    set_default_timeouts(context, module.timeouts)
+    Results.add_setup_all_context(module.test_pid, context)
+  end
 
   defp after_create_browser_context(:test, test, context) do
     with recorder when is_pid(recorder) <- Results.recorder(test.test_pid),
@@ -675,6 +679,20 @@ defmodule Playwright.Test.Recorder do
       step("close a context", fn -> BrowserContext.close(context, reason: reason) end)
       raise TargetClosedError.new(reason)
     end
+  end
+
+  @doc """
+  A module's `setup_all` process `pid` ran past its timeout (`Playwright.Test.SetupAllTimeout`),
+  its error `timeout_error`: before its exit, the calls it and the processes its exit takes down
+  wait in are adopted (`adopt_calls/4`), and its contexts closed with the timeout's message, as a
+  test's at its timeout; then the adopted calls' errors are awaited (`settle/1`). Elixir only:
+  upstream's `beforeAll` creates its contexts by hand, and they stay open until its worker stops.
+  """
+  def time_out_setup_all(pid, %TimeoutManagerError{message: reason} = timeout_error) do
+    contexts = Results.setup_all_contexts(pid)
+    adopted = adopt_calls(contexts, pid, timeout_error, dying(pid))
+    for context <- contexts, do: step("close a context", fn -> BrowserContext.close!(context, reason: reason) end)
+    settle(adopted)
   end
 
   # `installScreencastTitleUpdater`, of every context of the test (there are no context

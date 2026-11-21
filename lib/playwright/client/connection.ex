@@ -358,8 +358,9 @@ defmodule Playwright.Client.Connection do
   # process with `pid` in its `$callers` (its `Task`), hand their error to `reject` (in the
   # connection), with the API name `_wrap_api_call` would prefix, and their result to
   # `options[:resolve]` (in the connection too: no await), dropped without one. `pid` is a test
-  # interrupted at its timeout (`Playwright.Test.Recorder`), where JS's abandoned call still
-  # settles, and the test function's promise rejects with it. `options[:dying]`: callers still
+  # interrupted at its timeout (`Playwright.Test.Recorder`), or a `setup_all` process past its
+  # own (`Playwright.Test.SetupAllTimeout`), where JS's abandoned call still settles, and the
+  # test function's promise rejects with it. `options[:dying]`: callers still
   # alive whose exit is on its way (the test, its linked processes), adopted too: a live caller
   # would otherwise wait forever. Returns the ids of the adopted calls.
   def _adopt_calls(this, pid, reject, options \\ %{}) do

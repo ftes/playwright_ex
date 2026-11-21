@@ -49,6 +49,10 @@ upstream minor, so `~> 1.65.0` is safe.
   driver call follow the message, as upstream's second error.
 - `Playwright.Test`: a timed-out test's `on_exit` callbacks run before its contexts close, as
   upstream's `afterEach` hooks before its teardown.
+- `Playwright.Test`: a `setup_all` past its module's timeout fails with
+  `Playwright.Test.TimeoutManagerError`, where it was a `RuntimeError`, and closes its contexts
+  with the message before it exits: the hung call's error and call log follow the message, as
+  for a test.
 
 ### Fixed
 

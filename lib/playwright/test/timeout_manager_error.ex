@@ -1,6 +1,7 @@
 defmodule Playwright.Test.TimeoutManagerError do
   @moduledoc """
-  A test ran past its timeout: "Test timeout of 60000ms exceeded." (see Timeouts in
+  A test ran past its timeout: "Test timeout of 60000ms exceeded.", or a module's `setup_all`
+  past the module's: `"setup_all" hook timeout of 60000ms exceeded.` (see Timeouts in
   `Playwright.Test`). Port of `TimeoutManagerError`
   (`packages/playwright/src/worker/timeoutManager.ts`).
 

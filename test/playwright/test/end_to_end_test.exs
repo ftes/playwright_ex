@@ -463,23 +463,23 @@ defmodule Playwright.Test.EndToEndTest do
 
   # Upstream's `beforeAll` hook gets the test timeout, `"beforeAll" hook timeout of 30000ms
   # exceeded.` (`workerMain.ts` `_runAllHooksForSuite`, `timeoutManager.ts`).
-  test "a setup_all past its module's timeout fails with upstream's beforeAll message, renamed, and its stack", %{
-    tmp_dir: tmp_dir
-  } do
+  test "a setup_all past its module's timeout fails with upstream's beforeAll message, renamed, its stack and the hung call's error",
+       %{tmp_dir: tmp_dir} do
     child = start("setup_all_timeout", tmp_dir)
     assert ChildProcess.exit_code(child, 60_000) == 0
     output = ChildProcess.output(child)
     assert output =~ ~r"5 tests, 0 failures, 2 invalid|Result: 3 passed, 2 invalid"
 
-    for {module, timeout, frame} <- [
-          {"SetupAllSleepsTest", 1000, "Process.sleep/1"},
-          # Its stack: in the wait, or in the context or page on a slow browser.
-          {"SetupAllHangsTest", 6000, nil}
-        ] do
-      setup_all = failure(output, "#{module}: failure on setup_all callback, all tests have been invalidated")
-      assert setup_all =~ ~s[** (RuntimeError) "setup_all" hook timeout of #{timeout}ms exceeded.]
-      if frame, do: assert(setup_all =~ frame)
-    end
+    sleeps = failure(output, "SetupAllSleepsTest: failure on setup_all callback, all tests have been invalidated")
+    assert sleeps =~ ~s[** (Playwright.Test.TimeoutManagerError) "setup_all" hook timeout of 1000ms exceeded.\n]
+    assert sleeps =~ "Process.sleep/1"
+    refute sleeps =~ "Call log:"
+
+    # In the wait, unless the context and page take that long on a slow browser.
+    hangs = failure(output, "SetupAllHangsTest: failure on setup_all callback, all tests have been invalidated")
+
+    assert hangs =~
+             ~r/\*\* \(Playwright\.Test\.TimeoutManagerError\) "setup_all" hook timeout of 6000ms exceeded\.\n\n +\*\* \(Playwright\.TargetClosedError\) page\.waitForSelector: "setup_all" hook timeout of 6000ms exceeded\.\n +Call log:\n +- waiting for locator\('#never'\)/
   end
 
   defp alive(processes) do

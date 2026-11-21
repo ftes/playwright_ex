@@ -5,7 +5,8 @@ defmodule Playwright.Test.Results do
   # these requests), so a test's end reaches the pool before its scope's release: one mailbox.
   #
   # A module's registration (`register_module/2`): its `setup_all` process, for the context
-  # defaults of the contexts it creates.
+  # defaults of the contexts it creates, and those contexts, for its timeout
+  # (`add_setup_all_context/2`).
   #
   # A test's result (`watch/2`, `result/2`): passed when the `test` macro marked the end of its
   # body (`{:passed, pid}`) and its process then exited `:shutdown`, as ExUnit's runner ends it.
@@ -124,6 +125,20 @@ defmodule Playwright.Test.Results do
     if :ets.insert_new(table(), {{:module, pid}, defaults}), do: GenServer.cast(Pool, {:monitor, pid})
 
     :ok
+  end
+
+  @doc """
+  Notes `context`, created by the module's `setup_all` process `pid` or a process on its behalf,
+  for its timeout (`Playwright.Test.Recorder.time_out_setup_all/2`), until `pid` exits.
+  """
+  def add_setup_all_context(pid, context) do
+    :ets.insert(table(), {{:setup_all_context, context.guid}, pid, context})
+    :ok
+  end
+
+  @doc "The contexts of the `setup_all` process `pid` (`add_setup_all_context/2`)."
+  def setup_all_contexts(pid) do
+    if started?(), do: :ets.select(table(), [{{{:setup_all_context, :_}, pid, :"$1"}, [], [:"$1"]}]), else: []
   end
 
   @doc """
@@ -255,7 +270,9 @@ defmodule Playwright.Test.Results do
   """
   def down(state, pid, reason) do
     :ets.delete(table(), {:unregistered, pid})
-    :ets.delete(table(), {:module, pid})
+
+    if :ets.take(table(), {:module, pid}) != [],
+      do: :ets.match_delete(table(), {{:setup_all_context, :_}, pid, :_})
 
     case pop_in(state.kept[pid]) do
       {nil, state} ->

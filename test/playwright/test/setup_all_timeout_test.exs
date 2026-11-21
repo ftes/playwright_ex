@@ -3,8 +3,15 @@ defmodule Playwright.Test.SetupAllTimeoutTest do
   # here in a process standing in for ExUnit's `setup_all` process. A real module's:
   # `Playwright.Test.EndToEndTest`.
   use ExUnit.Case, async: true
+  use Playwright.Test
 
+  alias Playwright.Browser
+  alias Playwright.BrowserContext
+  alias Playwright.Page
+  alias Playwright.Test.BrowserPool
+  alias Playwright.Test.Results
   alias Playwright.Test.SetupAllTimeout
+  alias Playwright.Test.TimeoutManagerError
 
   if ExUnit.configuration()[:trace], do: @moduletag(skip: "mix test --trace has no timeouts")
 
@@ -20,19 +27,56 @@ defmodule Playwright.Test.SetupAllTimeoutTest do
     ref
   end
 
+  setup_all do
+    %{browser: BrowserPool.browser()}
+  end
+
   defp deep(0), do: Process.sleep(:infinity)
   defp deep(n), do: 1 + deep(n - 1)
 
   test "callbacks past the timeout: the process exits with upstream's message, renamed, and its stack" do
     ref = run_setup_all(100, fn -> Process.sleep(:infinity) end)
-    assert_receive {:DOWN, ^ref, :process, _, {%RuntimeError{message: message}, stack}}, 5000
+    assert_receive {:DOWN, ^ref, :process, _, {%TimeoutManagerError{message: message}, stack}}, 5000
     assert message == ~s("setup_all" hook timeout of 100ms exceeded.)
     assert {Process, :sleep, 1, _} = hd(stack)
   end
 
+  test "callbacks hung in a Playwright call: their contexts close with the message, then the call's error follows it",
+       %{browser: browser} do
+    test_pid = self()
+
+    ref =
+      run_setup_all(2000, fn ->
+        # As `use Playwright.Test`'s `setup_all` registers the module's process.
+        timeouts = %{action_timeout: :infinity, navigation_timeout: :infinity}
+        Results.register_module(self(), %{context_options: %{}, timeouts: timeouts, test_pid: self()})
+        page = browser |> Browser.new_context!() |> BrowserContext.new_page!()
+        send(test_pid, {:setup_all, self()})
+        # A call of a process on its behalf.
+        Task.await(Task.async(fn -> Page.wait_for_selector!(page, "#never") end), :infinity)
+      end)
+
+    assert_receive {:setup_all, pid}, 5000
+    assert_receive {:DOWN, ^ref, :process, _, {%TimeoutManagerError{} = error, _stack}}, 5000
+    on_exit(fn -> :ets.delete(Results.table(), {:late_error, error.late_error}) end)
+
+    assert Exception.message(error) =~
+             ~r/\A"setup_all" hook timeout of 2000ms exceeded\.\n\n\*\* \(Playwright\.TargetClosedError\) page\.waitForSelector: "setup_all" hook timeout of 2000ms exceeded\.\nCall log:\n.*#never/s
+
+    # Its contexts are forgotten with it.
+    wait_until(fn -> Results.setup_all_contexts(pid) == [] end)
+  end
+
+  defp wait_until(fun) do
+    if !fun.() do
+      Process.sleep(10)
+      wait_until(fun)
+    end
+  end
+
   test "callbacks blocked deep in their stack time out too" do
     ref = run_setup_all(100, fn -> deep(100) end)
-    assert_receive {:DOWN, ^ref, :process, _, {%RuntimeError{}, _stack}}, 5000
+    assert_receive {:DOWN, ^ref, :process, _, {%TimeoutManagerError{}, _stack}}, 5000
   end
 
   test "callbacks that ended in time: the process runs on past the timeout" do
@@ -42,7 +86,7 @@ defmodule Playwright.Test.SetupAllTimeoutTest do
 
   test "a nested run is part of the outer one's time" do
     ref = run_setup_all(100, fn -> SetupAllTimeout.run(%{timeout: :infinity}, fn -> Process.sleep(:infinity) end) end)
-    assert_receive {:DOWN, ^ref, :process, _, {%RuntimeError{}, _stack}}, 5000
+    assert_receive {:DOWN, ^ref, :process, _, {%TimeoutManagerError{}, _stack}}, 5000
   end
 
   test "a pooled browser's time is not counted" do
@@ -59,7 +103,7 @@ defmodule Playwright.Test.SetupAllTimeoutTest do
 
     assert_receive :waited, 5000
     assert_receive :in_time, 5000
-    assert_receive {:DOWN, ^ref, :process, _, {%RuntimeError{}, _stack}}, 5000
+    assert_receive {:DOWN, ^ref, :process, _, {%TimeoutManagerError{}, _stack}}, 5000
   end
 
   test "callbacks that trap exits: killed a second later, also when they end in that second" do
@@ -93,7 +137,7 @@ defmodule Playwright.Test.SetupAllTimeoutTest do
       receive do
         # The callbacks won: no exit follows, not even past the trap-exit grace.
         {:returned, ^pid} -> refute_receive {:DOWN, ^ref, _, _, _}, 1500
-        {:DOWN, ^ref, :process, _, reason} -> assert {%RuntimeError{}, _stack} = reason
+        {:DOWN, ^ref, :process, _, reason} -> assert {%TimeoutManagerError{}, _stack} = reason
       after
         5000 -> flunk("neither returned nor exited")
       end
@@ -116,7 +160,7 @@ defmodule Playwright.Test.SetupAllTimeoutTest do
       end)
 
     assert_receive :waited, 5000
-    assert_receive {:DOWN, ^ref, :process, _, {%RuntimeError{}, _stack}}, 5000
+    assert_receive {:DOWN, ^ref, :process, _, {%TimeoutManagerError{}, _stack}}, 5000
   end
 
   test "no timeout: no watchdog" do
