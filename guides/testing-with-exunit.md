@@ -201,6 +201,10 @@ defp sign_up(page, email) do
 end
 ```
 
+Steps a library's own code makes (its asserts, `Expect` calls, unboxed steps) are located in the
+library's file, as upstream's: step locations leave out only the frames of Playwright, ExUnit,
+Elixir and OTP.
+
 A step runs in the calling process, so `assert_receive` works in it. It takes no `timeout:`, as a
 running body can't be interrupted: the test's timeout bounds it. `step_skip` declares a step
 without running it. In `setup_all` a step runs too, unrecorded
