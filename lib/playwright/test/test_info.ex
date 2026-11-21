@@ -681,9 +681,14 @@ defmodule Playwright.Test.TestInfo do
   `afterEach` hooks; here the exit ends the body, so the screenshots are taken at teardown (the
   recorder's, as the contexts close), after the test's own `on_exit` callbacks.
   """
-  def _unhandled_error(this, error), do: running?(this) and interrupt(this, error)
+  def _unhandled_error(this, error), do: running?(this) and interrupt(this, error, :trace_first)
 
-  defp interrupt(this, error) do
+  @doc false
+  # Elixir only: the test timeout's interrupt (`Playwright.Test.Recorder`), as `_unhandled_error/2`
+  # but the exit first, from the recorder: ExUnit's kill is due. `trace` traces the error after.
+  def _time_out(this, error, trace), do: running?(this) and interrupt(this, error, trace)
+
+  defp interrupt(this, error, trace) do
     key = interrupt_key(this.test_pid)
     exit_reason = exit_reason(this, error)
 
@@ -692,9 +697,14 @@ defmodule Playwright.Test.TestInfo do
       not :ets.insert_new(Results.table(), {key, {exit_reason, error}}) ->
         true
 
-      running?(this) ->
+      running?(this) and trace == :trace_first ->
         TestTracing.append_for_error(_tracing(this), error)
         Process.exit(this.test_pid, exit_reason)
+
+      running?(this) ->
+        Process.exit(this.test_pid, exit_reason)
+        trace.(error)
+        true
 
       # The test ended meanwhile: taken back for the caller to log, unless the pool took it
       # already and reports it (one `take` wins).
@@ -744,7 +754,7 @@ defmodule Playwright.Test.TestInfo do
   """
   def _deadline(this) do
     # deviation: `:infinity` for `kMaxDeadline`, as BEAM's monotonic clock may be any integer. And
-    # the deadline is when the recorder closes the test's contexts, just before ExUnit kills the
+    # the deadline is when the recorder interrupts the test, just before ExUnit kills the
     # test (`Recorder.test_timeout_margin/1`), where upstream's timeout fails the test: so a
     # matcher (`toPass`) ends before that, with its own error.
     case this[:deadline] do

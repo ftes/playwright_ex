@@ -354,16 +354,18 @@ defmodule Playwright.Test.EndToEndTest do
     assert expects.("use-on") == ["1 + 1 == 2", "Process.get(:not_set, 1) == 2"]
   end
 
-  test "a test past its timeout: a hanging Playwright call fails with the call log, other code as ExUnit's",
+  test "a test past its timeout fails at its deadline with upstream's message, its artifacts kept",
        %{tmp_dir: tmp_dir} do
     child = start("timeouts", tmp_dir)
     assert ChildProcess.exit_code(child, 60_000) == 0
     output = ChildProcess.output(child)
     assert output =~ ~r"3 tests, 3 failures|Result: 0/3 passed"
 
+    # Interrupted where it is, as ExUnit's timeout reports it (the hanging call's own error and
+    # call log come once its context closes, after the test ended).
     hangs = failure(output, "test hangs in a Playwright call (TimeoutsTest)")
-    assert hangs =~ "Test timeout of 3000ms exceeded."
-    assert hangs =~ ~r"Call log:\n.*waiting for locator\('#never'\)"
+    assert hangs =~ "** (Playwright.TimeoutError) Test timeout of 3000ms exceeded."
+    assert hangs =~ "Playwright.Client.Frame.wait_for_selector/3"
     refute hangs =~ "ExUnit.TimeoutError"
 
     output_dir = Path.join(tmp_dir, "test-results")
@@ -376,7 +378,8 @@ defmodule Playwright.Test.EndToEndTest do
     assert error_context =~ ~s(heading "Hangs")
 
     sleeps = failure(output, "test hangs elsewhere (TimeoutsTest)")
-    assert sleeps =~ "** (ExUnit.TimeoutError) test timed out after 3000ms"
+    assert sleeps =~ "** (Playwright.TimeoutError) Test timeout of 3000ms exceeded."
+    refute sleeps =~ "ExUnit.TimeoutError"
 
     # The deadline counts the slow setup before the registration, as ExUnit's timeout does.
     slow_setup = failure(output, "test hangs in a Playwright call after a slow setup (SlowSetupTest)")
