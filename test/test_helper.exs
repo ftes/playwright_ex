@@ -28,7 +28,7 @@ ExUnit.configure(exclude: exclude)
 # Our own tests (not mirrored from upstream, which get upstream's 30 s): tight, so a hang fails
 # fast. The slowest takes ~5 s (a 5 s navigation timeout) on each browser (2026-11-05, macOS);
 # longer ones carry their own `@tag timeout:` with the measurement. CI sets PW_GITHUB_FORMATTER
-# for GitHub Actions annotations on the first run, not on its rerun of the failures.
+# for GitHub Actions annotations, on its rerun of the failures too.
 ExUnit.start(
   timeout: 20_000,
   assert_receive_timeout: 10_000,

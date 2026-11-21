@@ -10,6 +10,7 @@ defmodule Playwright.Page.PageEvaluateCallbackTest do
   alias Playwright.JSHandle
   alias Playwright.Locator
   alias Playwright.Page
+  alias Playwright.Promise
   alias Playwright.Utils
 
   @moduletag :page
@@ -234,17 +235,15 @@ defmodule Playwright.Page.PageEvaluateCallbackTest do
     greet = fn where -> "hello #{where}" end
 
     [from_main, from_child] =
-      Task.await_many(
-        [
-          Task.async(fn ->
-            Page.evaluate!(page, "async ({ cb }) => await cb('main')", %{cb: greet}, expose_functions: true)
-          end),
-          Task.async(fn ->
-            Frame.evaluate!(frame, "async ({ cb }) => await cb('child')", %{cb: greet}, expose_functions: true)
-          end)
-        ],
-        :infinity
-      )
+      Promise.all([
+        Promise.async(fn ->
+          Page.evaluate!(page, "async ({ cb }) => await cb('main')", %{cb: greet}, expose_functions: true)
+        end),
+        Promise.async(fn ->
+          Frame.evaluate!(frame, "async ({ cb }) => await cb('child')", %{cb: greet}, expose_functions: true)
+        end)
+      ])
+      |> Promise.await!()
 
     assert from_main == "hello main"
     assert from_child == "hello child"

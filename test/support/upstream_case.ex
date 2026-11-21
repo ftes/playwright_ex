@@ -220,10 +220,16 @@ defmodule Playwright.UpstreamCase do
 
   @doc """
   The options of the module's `Playwright.Test.BrowserPool` driver: under test, set up as
-  Playwright Test's fixtures (`on_start/1`). `ExampleCase` shares them, so both templates' modules
-  reuse each other's drivers.
+  Playwright Test's fixtures (`on_start/1`), and `headless` its option (`HEADED`, as upstream's
+  `--headed`), which the pool sets over the default launch options. `ExampleCase` shares them,
+  so both templates' modules reuse each other's drivers.
   """
-  def pool_options, do: [driver: [env: [{"PWTEST_UNDER_TEST", "1"}]], on_start: {__MODULE__, :on_start, []}]
+  def pool_options,
+    do: [
+      driver: [env: [{"PWTEST_UNDER_TEST", "1"}]],
+      on_start: {__MODULE__, :on_start, []},
+      headless: TestBrowser.headless()
+    ]
 
   @doc """
   The `on_start` of the module's driver (`Playwright.Test.BrowserPool`), on each new driver:

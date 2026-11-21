@@ -9,6 +9,7 @@ defmodule Playwright.Page.ExpectToHaveTextTest do
   alias Playwright.Expect
   alias Playwright.Locator
   alias Playwright.Page
+  alias Playwright.Promise
 
   @moduletag :page
 
@@ -131,14 +132,14 @@ defmodule Playwright.Page.ExpectToHaveTextTest do
       locator = Page.locator(page, "#node")
 
       tasks = [
-        Task.async(fn -> Expect.to_have_text!(locator, ~r/Text 2/) end),
-        Task.async(fn ->
+        Promise.async(fn -> Expect.to_have_text!(locator, ~r/Text 2/) end),
+        Promise.async(fn ->
           Page.wait_for_timeout!(page, 1000)
           Locator.evaluate!(locator, "element => element.textContent = 'Text 2 content'")
         end)
       ]
 
-      Task.await_many(tasks, :infinity)
+      tasks |> Promise.all() |> Promise.await!()
     end
 
     test "EX-284 with userInnerText", %{page: page} do

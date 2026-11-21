@@ -17,25 +17,31 @@ defmodule Playwright.Test.BrowserPool do
 
   `browser/1` takes these options, merged over `config :playwright, :test` (`launch_options`
   and `driver` one level deep). In a module of `use Playwright.Test`, the module's
-  `browser_name`, `launch_options` and `connect_options` (its `use` options and its project's,
+  `browser_name`, `headless`, `channel`, `launch_options` and `connect_options` (its `use` options and its project's,
   see "Browser" in `Playwright.Test`) are between the two, each replacing the config's as a
   whole (`launch_options` too, as upstream's fixture); the call's `launch_options` merge over
   them one key at a time:
 
-    * `:browser_name` - `:chromium` (default), `:firefox` or `:webkit`; without one anywhere,
+    * `:browser_name` - `:chromium` (default), `:firefox` or `:webkit` (or its string); without one anywhere,
       that of the module's device.
-    * `:launch_options` - for `Playwright.BrowserType.launch/2`, as is.
+    * `:headless`, `:channel` - Playwright Test's options of their own, set over the launch
+      options' when given; unset (`nil`, default), the launch options' (`headless` `true` when
+      they have none).
+    * `:launch_options` - for `Playwright.BrowserType.launch/2`, with `headless` and `channel`
+      over them (upstream's `_browserOptions`).
     * `:connect_options` - Playwright Test's `connectOptions`: `:ws_endpoint` (required) and
       the options of `Playwright.BrowserType.connect/3` (`:headers`, `:expose_network`,
       `:timeout`, `:slow_mo`). The browser is then connected to that Playwright server instead
-      of launched, with `launch_options` sent in the `x-playwright-launch-options` header (the
+      of launched, with the launch options (`headless` and `channel` over them) sent in the
+      `x-playwright-launch-options` header (the
       call's `headers` win). `nil` (default) launches.
     * `:driver` - `[env: _]`, the driver's environment (`Playwright.Supervisor`'s `:env`). The
       driver itself is `config :playwright, :driver`'s, as `mix playwright.install` installs it.
     * `:on_start` - a function of the Playwright (`Playwright`) or `{m, f, args}`
       (called with the Playwright first), run once on each new driver before its browser
       launches: `&MyApp.Selectors.register/1`. Part of the worker's key, so pass a capture, not
-      a closure.
+      a closure. The worker's `headless` and `channel` are passed to the launch explicitly, over
+      any default launch options an `on_start` sets.
 
   A worker is one driver and one browser, keyed by all of the options, as upstream's worker hash
   covers its project's options. A connected browser runs on the server, its driver here:
@@ -101,8 +107,8 @@ defmodule Playwright.Test.BrowserPool do
   def browser(opts \\ []) do
     # For `Recorder.worker_options/0`'s note of an unregistered caller.
     Pool.ensure_started()
-    # Under them, the worker options of the module's run (upstream's `browserName`,
-    # `launchOptions`, `connectOptions`), over the config's.
+    # Under them, the worker options of the module's run (upstream's `browserName`, `headless`,
+    # `channel`, `launchOptions`, `connectOptions`), over the config's.
     opts = Options.pool(opts, Recorder.worker_options())
 
     case Recorder.registration() do

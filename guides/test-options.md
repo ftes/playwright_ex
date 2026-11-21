@@ -115,7 +115,7 @@ end
 
 The browser is the module's, as in Playwright Test, which rejects a browser option in a
 describe because it forces a new worker: a `@describetag` or `@tag` with `browser_name`,
-`launch_options`, `connect_options` or `default_browser_type` raises when the module compiles a
+`headless`, `channel`, `launch_options`, `connect_options` or `default_browser_type` raises when the module compiles a
 `test` under it, so does one with a device (`@tag Test.use(Playwright.device("Pixel 7"))`). The
 module takes them, in its `use` or its `@moduletag Test.use(...)`s (merged, the later winning per
 option), for all its tests. For a device's emulation alone in a describe, drop its
@@ -134,8 +134,8 @@ Plain tags named like options (`@tag trace: :on`) set nothing: only `Test.use/1`
 
 Playwright Test's `projects: [{ use: { ...devices['Desktop Chrome'] } }, ...]`, one run per
 browser and device, are ExUnit's `parameterize:` with a `Playwright.Test.parameters/1` map per
-project. It takes `Test.use/1`'s options, the worker's (`browser_name`, `launch_options`,
-`connect_options`) and the project's `name`:
+project. It takes `Test.use/1`'s options, the worker's (`browser_name`, `headless`, `channel`,
+`launch_options`, `connect_options`) and the project's `name`:
 
 ```elixir
 defmodule MyApp.Projects do
@@ -171,6 +171,9 @@ has more than one, as
 `Test.parameters([name: "de", locale: "de-DE"] ++ Playwright.device("Desktop Chrome"))`. ExUnit's
 filters don't see `parameterize:` values, so to run one project, read an env var where the list is
 built, as above.
+On Elixir 1.20 and earlier, `mix test --failed` loses a failure in a `parameterize:` module when
+another parameter set passes the same test: run one project per `mix test`, which removes the
+project dimension only ([Retries](test-artifacts.md#retries)).
 
 ## Your own case template
 

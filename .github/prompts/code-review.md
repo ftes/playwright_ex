@@ -1,6 +1,13 @@
 Review this pull request like a senior maintainer of this codebase. The PR is checked out; read
 whatever you need.
 
+First pick the depth. With an earlier review, tmp/claude-review/increment.diff has what changed
+since. Review just the increment, and how it meets the rest of the PR, when it refines the PR
+within its design: fixes, follow-ups to findings, local changes. Review the whole PR when the
+increment changes its shape: new areas, a changed public API or behaviour, a different approach,
+or much of the PR rewritten. Read the whole diff either way. The steps below apply to what you
+review.
+
 1. Read AGENTS.md and the files it references for the project's rules, and follow its Reviewing
    guidance. Read the PR description (`gh pr view PR`) and the diff (`git diff BASE...HEAD`).
 2. For every changed file, read the surrounding code, the callers and the tests, not just the
@@ -15,13 +22,17 @@ whatever you need.
    formatting nits. Don't ask for handling of edge cases outside the PR's issue; list them in
    the summary as follow-ups. Ported code (`@upstream`) marks only its deviations: an edge case
    it shares with upstream is not a defect of this PR, but a new deviation nothing requires is.
-   CI runs `mix check` (AGENTS.md): don't run or approximate it, and don't comment on what it
-   covers. Review what CI cannot catch: correctness, design, upstream fidelity and docs.
-5. Don't repeat findings already posted on this PR (`gh api repos/REPO/pulls/PR/comments`,
-   `gh pr view PR --comments`).
+   CI runs `mix lint` (format, credo, compile warnings, docs, Dialyzer), the parity check and
+   the browser tests (.github/workflows/elixir.yml): don't run or approximate them, and don't
+   comment on what they cover. Review what CI cannot catch: correctness, design, upstream
+   fidelity and docs.
+5. Don't repeat findings already posted on this PR: tmp/claude-review/comments.md has its
+   comments, reviews and review comments by maintainers and Claude.
 
 Post each verified finding as an inline comment on the relevant line
 (mcp__github_inline_comment__create_inline_comment, confirmed: true), with the failure scenario
 and a suggested fix. Then post or update one summary comment with
 `gh pr comment PR --edit-last --create-if-none --body-file <file>`: a few sentences on what you
-checked and the most important findings, or why you found nothing.
+checked and the most important findings, or why you found nothing. Say which depth you chose
+and why; after an increment review, keep what still holds from the earlier summary. End the
+comment with the MARKER line, verbatim.

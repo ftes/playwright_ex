@@ -39,8 +39,8 @@ defmodule Playwright.Test.OptionsTest do
     end
 
     test "unknown options raise before anything starts" do
-      assert_raise ArgumentError, ~r/unknown option headless, /, fn ->
-        BrowserPool.browser(headless: true)
+      assert_raise ArgumentError, ~r/unknown option slow_mo, /, fn ->
+        BrowserPool.browser(slow_mo: 1)
       end
 
       assert_raise ArgumentError, ~r/unknown option driver.name, /, fn -> Options.pool(driver: [name: Foo]) end
@@ -51,10 +51,20 @@ defmodule Playwright.Test.OptionsTest do
         Options.pool(browser_name: :chrome)
       end
 
+      # A string, as upstream's `browser` fixture checks it.
+      assert %{browser_name: :webkit} = Options.pool(browser_name: "webkit")
+
+      assert_raise ArgumentError,
+                   ~s|Playwright.Test.BrowserPool.browser/1: Unexpected browserName "chrome", must be one of "chromium", "firefox" or "webkit"|,
+                   fn -> Options.pool(browser_name: "chrome") end
+
       assert_raise ArgumentError, ~r/invalid value .* for on_start, /, fn -> Options.pool(on_start: fn -> :ok end) end
 
-      assert_raise ArgumentError, ~r/invalid value "x" for launch_options, /, fn ->
-        Options.pool(launch_options: "x")
+      # Merged over the config's, they name the function too.
+      for key <- [:launch_options, :driver] do
+        assert_raise ArgumentError,
+                     ~s(Playwright.Test.BrowserPool.browser/1: invalid value "x" for #{key}, expected a keyword list or a map),
+                     fn -> Options.pool([{key, "x"}]) end
       end
 
       assert_raise ArgumentError, ~r/expected a keyword list/, fn -> Options.pool([:driver]) end
@@ -284,6 +294,29 @@ defmodule Playwright.Test.ConfigTest do
     assert %{trace: [mode: :off] ++ _} = artifacts(%{trace: :off})
   end
 
+  # Upstream's `headless` and `channel` fixtures: `launchOptions.headless ?? true` and
+  # `launchOptions.channel` unset, over the launch options when defined (`_browserOptions`).
+  test "headless and channel: worker options over launch_options", %{config: config} do
+    assert %{headless: true, channel: nil} = opts = Options.pool([])
+    assert Options.browser_options(opts) == [headless: true]
+    # `launchOptions.headless ?? true`: a `nil` one too.
+    assert %{headless: true} = Options.pool(launch_options: [headless: nil])
+
+    opts = Options.pool(launch_options: [headless: false, channel: "chrome"])
+    assert %{headless: false, channel: "chrome"} = opts
+    assert Enum.sort(Options.browser_options(opts)) == [channel: "chrome", headless: false]
+
+    Application.put_env(:playwright, :test, config ++ [headless: false, launch_options: [headless: true, slow_mo: 1]])
+    opts = Options.pool(channel: "msedge")
+    assert Enum.sort(Options.browser_options(opts)) == [channel: "msedge", headless: false, slow_mo: 1]
+    assert Playwright.Test.Pool.Worker.key(opts) != Playwright.Test.Pool.Worker.key(Options.pool(headless: true))
+
+    # A project's and a module's, as the other worker options.
+    project = Options.project(Options.parameters(headless: true, channel: "chrome"))
+    opts = Options.pool([], Options.worker(Options.config(), project.use, %{channel: "msedge"}))
+    assert %{headless: true, channel: "msedge"} = opts
+  end
+
   test "connect_options: the call's over the config's, nil launches", %{config: config} do
     Application.put_env(:playwright, :test, config ++ [connect_options: [ws_endpoint: "ws://config"]])
     assert %{connect_options: [ws_endpoint: "ws://config"]} = Options.pool([])
@@ -494,6 +527,8 @@ defmodule Playwright.Test.ConfigTest do
     assert resolved == %{
              browser_name: :chromium,
              default_browser_type: nil,
+             headless: nil,
+             channel: nil,
              launch_options: [],
              connect_options: nil,
              driver: [],
@@ -511,6 +546,7 @@ defmodule Playwright.Test.ConfigTest do
              snapshot_path_template: nil,
              test_id_attribute: "data-testid",
              report_slow_tests: [max: 5, threshold: 300_000],
+             assert_steps: true,
              expect: %{timeout: 5000}
            }
 
@@ -551,6 +587,15 @@ defmodule Playwright.Test.ConfigTest do
 
     Application.put_env(:playwright, :test, config ++ [preserve_output: :on_failure])
     assert_raise ArgumentError, ~r/invalid value :on_failure for preserve_output, /, fn -> Options.preserve_output() end
+
+    # Strings, as upstream's `validateConfig` checks them.
+    Application.put_env(:playwright, :test, config ++ [preserve_output: "failures-only"])
+    assert Options.preserve_output() == :failures_only
+    Application.put_env(:playwright, :test, config ++ [preserve_output: "on-failure"])
+
+    assert_raise ArgumentError,
+                 ~s|config :playwright, :test: config.preserveOutput must be one of "always", "never" or "failures-only"|,
+                 fn -> Options.preserve_output() end
 
     Application.put_env(:playwright, :test, config ++ [context_options: [lokale: "x"]])
     assert_raise ArgumentError, fn -> Options.context_options() end

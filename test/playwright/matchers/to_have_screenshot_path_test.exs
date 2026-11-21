@@ -42,3 +42,43 @@ defmodule Playwright.Matchers.ToHaveScreenshotPathTest do
     |> Task.await(:infinity)
   end
 end
+
+defmodule Playwright.Matchers.ToHaveScreenshotTimeoutTest do
+  # Not mirrored from upstream. Not async: it sets the expect config, which is global as in JS.
+  @upstream nil
+  use Playwright.UpstreamCase, async: false
+
+  alias Playwright.Expect
+  alias Playwright.Matchers.Expect, as: ExpectConfig
+  alias Playwright.Page
+
+  @moduletag :page
+  @moduletag :tmp_dir
+
+  setup do
+    on_exit(fn -> :persistent_term.erase({ExpectConfig, :expect_config}) end)
+  end
+
+  # Upstream's `helper.options.timeout ?? this.timeout`: the config's `toHaveScreenshot.timeout`
+  # over the expect timeout, a call's `timeout` over both.
+  test "the config's to_have_screenshot timeout beats the expect timeout, a call's beats it", %{
+    page: page,
+    tmp_dir: tmp_dir
+  } do
+    ExpectConfig.set_expect_config(
+      ExpectConfig.app_env_expect_config(timeout: 20_000, to_have_screenshot: [timeout: 300])
+    )
+
+    path = Path.join(tmp_dir, "home.png")
+    Page.set_content!(page, "<h1>before</h1>")
+    assert :ok = Expect.to_have_screenshot(page, path: path, timeout: 5_000)
+    Playwright.Test.TestInfo.take_errors(self())
+    Page.set_content!(page, "<h1>after, longer</h1>")
+
+    assert {:error, error} = Expect.to_have_screenshot(page, path: path)
+    assert Exception.message(error) =~ ~s(Expect "toHaveScreenshot" with timeout 300ms)
+
+    assert {:error, error} = Expect.to_have_screenshot(page, path: path, timeout: 200)
+    assert Exception.message(error) =~ ~s(Expect "toHaveScreenshot" with timeout 200ms)
+  end
+end

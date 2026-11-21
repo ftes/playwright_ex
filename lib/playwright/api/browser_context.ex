@@ -172,6 +172,7 @@ defmodule Playwright.BrowserContext do
   """
 
   alias Playwright.Runtime.Facade
+  alias Playwright.Runtime.ProtocolType
 
   @typedoc "A `BrowserContext` handle. Compare handles with `==`, their fields are internal."
   @type t :: %__MODULE__{}
@@ -254,7 +255,7 @@ defmodule Playwright.BrowserContext do
     Playwright.Client.BrowserContext.debugger(browser_context)
   end
 
-  @add_cookies_cookies Facade.protocol_type("BrowserContextAddCookiesParams", :cookies)
+  @add_cookies_cookies ProtocolType.of("BrowserContextAddCookiesParams", :cookies)
 
   @doc ~S"""
   Adds cookies into this browser context. All pages within this context will have these cookies installed. Cookies can be
@@ -1378,7 +1379,7 @@ defmodule Playwright.BrowserContext do
     end)
   end
 
-  @set_storage_state_storage_state Facade.protocol_type("BrowserContextSetStorageStateParams", :storageState)
+  @set_storage_state_storage_state ProtocolType.of("BrowserContextSetStorageStateParams", :storageState)
 
   @doc ~S"""
   Clears the existing cookies, local storage, IndexedDB entries, origin private file system entries and virtual WebAuthn credentials, and sets the new storage
@@ -1874,6 +1875,7 @@ defmodule Playwright.BrowserContext do
   @spec on(t(), :request_finished, (Playwright.Request.t() -> term())) :: t()
   @spec on(t(), :response, (Playwright.Response.t() -> term())) :: t()
   @spec on(t(), :service_worker, (Playwright.Worker.t() -> term())) :: t()
+  @spec on(t(), String.t(), (term() -> term())) :: t()
   def on(%Playwright.BrowserContext{} = browser_context, event, listener) do
     event = Facade.event!(event, @events, "browserContext.on")
     Facade.listen(fn -> Playwright.Client.BrowserContext.on(browser_context, event, listener) end)
@@ -1899,6 +1901,7 @@ defmodule Playwright.BrowserContext do
   @spec once(t(), :request_finished, (Playwright.Request.t() -> term())) :: t()
   @spec once(t(), :response, (Playwright.Response.t() -> term())) :: t()
   @spec once(t(), :service_worker, (Playwright.Worker.t() -> term())) :: t()
+  @spec once(t(), String.t(), (term() -> term())) :: t()
   def once(%Playwright.BrowserContext{} = browser_context, event, listener) do
     event = Facade.event!(event, @events, "browserContext.once")
     Facade.listen(fn -> Playwright.Client.BrowserContext.once(browser_context, event, listener) end)
@@ -1924,6 +1927,7 @@ defmodule Playwright.BrowserContext do
   @spec add_listener(t(), :request_finished, (Playwright.Request.t() -> term())) :: t()
   @spec add_listener(t(), :response, (Playwright.Response.t() -> term())) :: t()
   @spec add_listener(t(), :service_worker, (Playwright.Worker.t() -> term())) :: t()
+  @spec add_listener(t(), String.t(), (term() -> term())) :: t()
   def add_listener(%Playwright.BrowserContext{} = browser_context, event, listener) do
     event = Facade.event!(event, @events, "browserContext.addListener")
     Facade.listen(fn -> Playwright.Client.BrowserContext.add_listener(browser_context, event, listener) end)
@@ -1949,6 +1953,7 @@ defmodule Playwright.BrowserContext do
   @spec remove_listener(t(), :request_finished, (Playwright.Request.t() -> term())) :: t()
   @spec remove_listener(t(), :response, (Playwright.Response.t() -> term())) :: t()
   @spec remove_listener(t(), :service_worker, (Playwright.Worker.t() -> term())) :: t()
+  @spec remove_listener(t(), String.t(), (term() -> term())) :: t()
   def remove_listener(%Playwright.BrowserContext{} = browser_context, event, listener) do
     event = Facade.event!(event, @events, "browserContext.removeListener")
     Facade.listen(fn -> Playwright.Client.BrowserContext.remove_listener(browser_context, event, listener) end)
@@ -1974,6 +1979,7 @@ defmodule Playwright.BrowserContext do
   @spec off(t(), :request_finished, (Playwright.Request.t() -> term())) :: t()
   @spec off(t(), :response, (Playwright.Response.t() -> term())) :: t()
   @spec off(t(), :service_worker, (Playwright.Worker.t() -> term())) :: t()
+  @spec off(t(), String.t(), (term() -> term())) :: t()
   def off(%Playwright.BrowserContext{} = browser_context, event, listener) do
     event = Facade.event!(event, @events, "browserContext.off")
     Facade.listen(fn -> Playwright.Client.BrowserContext.off(browser_context, event, listener) end)
@@ -1999,17 +2005,19 @@ defmodule Playwright.BrowserContext do
   @spec prepend_listener(t(), :request_finished, (Playwright.Request.t() -> term())) :: t()
   @spec prepend_listener(t(), :response, (Playwright.Response.t() -> term())) :: t()
   @spec prepend_listener(t(), :service_worker, (Playwright.Worker.t() -> term())) :: t()
+  @spec prepend_listener(t(), String.t(), (term() -> term())) :: t()
   def prepend_listener(%Playwright.BrowserContext{} = browser_context, event, listener) do
     event = Facade.event!(event, @events, "browserContext.prependListener")
     Facade.listen(fn -> Playwright.Client.BrowserContext.prepend_listener(browser_context, event, listener) end)
   end
 
-  @doc """
-  The options of `function`, an atom such as `:add_init_script`, as
-  `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, for tools that build on the facade at
-  compile time; a function without options raises `FunctionClauseError`. Unstable: the shape
-  may change between releases.
-  """
+  # The options of `function`, an atom such as `:add_init_script`, in order, as its docs show them:
+  # `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, `doc` the first paragraph on one
+  # line, `since` the Playwright version that added the option if newer than the function,
+  # `type_doc` the type as rendered, `spec` the quoted typespec. For libraries that pass
+  # options on; a function without options raises `FunctionClauseError`.
+  @doc false
+  @doc library_api: true
   @spec __options__(atom()) :: [
           {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
         ]

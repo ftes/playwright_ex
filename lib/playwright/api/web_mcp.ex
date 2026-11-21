@@ -143,12 +143,13 @@ defmodule Playwright.WebMCP do
     Facade.async!("webMCP.tools", fn -> Playwright.Client.WebMCP.tools(web_mcp, options) end)
   end
 
-  @doc """
-  The options of `function`, an atom such as `:call_tool`, as
-  `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, for tools that build on the facade at
-  compile time; a function without options raises `FunctionClauseError`. Unstable: the shape
-  may change between releases.
-  """
+  # The options of `function`, an atom such as `:call_tool`, in order, as its docs show them:
+  # `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, `doc` the first paragraph on one
+  # line, `since` the Playwright version that added the option if newer than the function,
+  # `type_doc` the type as rendered, `spec` the quoted typespec. For libraries that pass
+  # options on; a function without options raises `FunctionClauseError`.
+  @doc false
+  @doc library_api: true
   @spec __options__(atom()) :: [
           {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
         ]

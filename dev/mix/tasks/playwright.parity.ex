@@ -269,8 +269,6 @@ defmodule Mix.Tasks.Playwright.Parity do
 
   # Upstream fixture => why it is no option here, or one of another scope.
   @fixture_exclusions %{
-    "headless" => "set in launch_options (upstream derives both from launchOptions)",
-    "channel" => "set in launch_options (upstream derives both from launchOptions)",
     "_optionContextReuseMode" => "internal: context reuse (the VS Code extension, UI mode)",
     "_optionConnectOptions" => "internal: connect_options is the option",
     "reuseContext" => "internal: context reuse",

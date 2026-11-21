@@ -828,6 +828,19 @@ defmodule Playwright.Test.ArtifactsTest.TagsTest do
   end
 end
 
+defmodule Playwright.Test.ArtifactsTest.UseOptionsCase do
+  # A template forwarding its options as is (ExUnit's too), after its own defaults.
+  use ExUnit.CaseTemplate
+  use Playwright.Test
+
+  using opts do
+    quote do
+      use Playwright.Test, trace: :retain_on_failure, screenshot: :only_on_failure, video: :on
+      use Playwright.Test, unquote(opts)
+    end
+  end
+end
+
 defmodule Playwright.Test.ArtifactsTest.UseOptionsTest do
   # The modes from `use Playwright.Test`'s options (upstream's `test.use({ trace: 'on' })`): over
   # the config, under the tags.
@@ -865,8 +878,8 @@ defmodule Playwright.Test.ArtifactsTest.UseOptionsTest do
   end
 
   test "an unknown option raises at compile time; a duplicated one's later wins" do
-    assert_raise ArgumentError, ~r/use Playwright.Test: unknown option headless, /, fn ->
-      compile("headless: false")
+    assert_raise ArgumentError, ~r/use Playwright.Test: unknown option slow_mo, /, fn ->
+      compile("slow_mo: 1")
     end
 
     assert_raise ArgumentError, ~r/unknown option video.full_page, /, fn ->
@@ -913,19 +926,6 @@ defmodule Playwright.Test.ArtifactsTest.UseTagsOffTest do
   test "the use options and the config, not the tags", ctx do
     assert %{trace: [mode: :retain_on_failure] ++ _, screenshot: [mode: :off], video: [mode: :off]} = modes()
     assert %{screenshot: true, trace: :on, video: true} = ctx
-  end
-end
-
-defmodule Playwright.Test.ArtifactsTest.UseOptionsCase do
-  # A template forwarding its options as is (ExUnit's too), after its own defaults.
-  use ExUnit.CaseTemplate
-  use Playwright.Test
-
-  using opts do
-    quote do
-      use Playwright.Test, trace: :retain_on_failure, screenshot: :only_on_failure, video: :on
-      use Playwright.Test, unquote(opts)
-    end
   end
 end
 

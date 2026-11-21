@@ -2,6 +2,7 @@ defmodule Playwright.Runtime.FacadeTest do
   use ExUnit.Case, async: true
 
   alias Playwright.Runtime.Facade
+  alias Playwright.Runtime.ProtocolType
 
   @schema {:object,
            %{
@@ -113,7 +114,7 @@ defmodule Playwright.Runtime.FacadeTest do
   end
 
   test "objects passed on to the protocol have the keys of its params, as atoms or strings" do
-    type = Facade.protocol_type("BrowserContextAddCookiesParams", :cookies)
+    type = ProtocolType.of("BrowserContextAddCookiesParams", :cookies)
     cookies = [%{"name" => "a", "httpOnly" => true}, %{name: "b", _crHasCrossSiteAncestor: false}]
     assert Facade.arg!(cookies, type, "x.y", :cookies) == cookies
 
@@ -129,6 +130,13 @@ defmodule Playwright.Runtime.FacadeTest do
     end
   end
 
+  test "a protocol type nested in itself passes unchecked where it recurs" do
+    # `SerializedValue` holds `SerializedValue`s (`a`, `o[].v`).
+    assert {:protocol, %{value: {:protocol, value, _}}, _} = ProtocolType.of("JSHandleEvaluateExpressionParams", :arg)
+    assert {:array, {:protocol, %{v: nil}, _}} = value.o
+    assert value.a == nil
+  end
+
   test "keys that need quoting are quoted, so a key with a dot is no path" do
     assert_raise ArgumentError, ~s(x.y: unknown field viewport.:"proxy.server", expected one of height, width), fn ->
       Facade.options!([viewport: %{"proxy.server": 1}], @schema, "x.y")
@@ -136,6 +144,11 @@ defmodule Playwright.Runtime.FacadeTest do
 
     assert_raise ArgumentError, ~r/^x\.y: unknown option :"proxy\.server", expected one of color_scheme, /, fn ->
       Facade.options!(["proxy.server": 1], @schema, "x.y")
+    end
+
+    # Bare where an atom literal needs no quotes.
+    assert_raise ArgumentError, ~r/^x\.y: unknown option headless\?, /, fn ->
+      Facade.options!([headless?: true], @schema, "x.y")
     end
   end
 
@@ -186,12 +199,45 @@ defmodule Playwright.Runtime.FacadeTest do
     assert_raise ArgumentError, ~r/^locator\.drop: unknown field payload\.files\[0\]\.mime_type, /, fn ->
       Playwright.Locator.drop(locator, %{files: [%{name: "a", mime_type: "t", buffer: "b"}]})
     end
+
+    # A dictionary's keys are data, its values are checked: a multipart file.
+    request = %Playwright.APIRequestContext{}
+
+    assert_raise ArgumentError,
+                 ~s(apiRequestContext.post: unknown field multipart."file".mime_type, expected one of buffer, mimeType, name),
+                 fn ->
+                   Playwright.APIRequestContext.post(request, "/",
+                     multipart: %{"name" => "x", "file" => %{name: "a", mime_type: "t", buffer: "b"}}
+                   )
+                 end
+
+    # The FormData form: a keyword list, names repeated.
+    assert_raise ArgumentError, ~r/^apiRequestContext\.post: unknown field multipart\.file\.mime_type, /, fn ->
+      Playwright.APIRequestContext.post(request, "/",
+        multipart: [
+          name: "x",
+          file: %{name: "a", mimeType: "t", buffer: "b"},
+          file: %{name: "b", mime_type: "t", buffer: "b"}
+        ]
+      )
+    end
+
+    # A dictionary in a union: a map is checked as one.
+    assert_raise ArgumentError, ~r/^x\.y: unknown field form\.f\.mime_type, /, fn ->
+      Facade.arg!(
+        %{f: %{mime_type: "t"}},
+        {:union, [{:enum, %{a: "a"}}, {:dictionary, {:fields, %{mimeType: nil}}}]},
+        "x.y",
+        :form
+      )
+    end
   end
 
-  test "events" do
+  test "events: atoms are checked, strings pass through, as JS's emitters take any name" do
     events = %{page_error: "pageerror"}
     assert Facade.event!(:page_error, events, "page.on") == "pageerror"
     assert Facade.event!("pageerror", events, "page.on") == "pageerror"
+    assert Facade.event!("foo", events, "page.on") == "foo"
     assert_raise ArgumentError, ~r/unknown event :pageerror/, fn -> Facade.event!(:pageerror, events, "page.on") end
   end
 

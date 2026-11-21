@@ -385,6 +385,8 @@ defmodule Playwright.FrameLocator do
 
   * `role` - Required aria role.
 
+    In Elixir, a role is an atom of the typespec (`:button`) or a string, also one the typespec lacks (`"mark"`): the JS client takes any string.
+
   ## Options
 
   * `:checked` (`t:boolean/0`) - An attribute that is usually set by `aria-checked` or native `<input type=checkbox>` controls.
@@ -502,7 +504,8 @@ defmodule Playwright.FrameLocator do
           | :tooltip
           | :tree
           | :treegrid
-          | :treeitem,
+          | :treeitem
+          | String.t(),
           get_by_role_options()
         ) :: Playwright.Locator.t()
   def get_by_role(%Playwright.FrameLocator{} = frame_locator, role, options \\ []) do
@@ -749,12 +752,13 @@ defmodule Playwright.FrameLocator do
     Playwright.Client.FrameLocator.owner(frame_locator)
   end
 
-  @doc """
-  The options of `function`, an atom such as `:get_by_alt_text`, as
-  `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, for tools that build on the facade at
-  compile time; a function without options raises `FunctionClauseError`. Unstable: the shape
-  may change between releases.
-  """
+  # The options of `function`, an atom such as `:get_by_alt_text`, in order, as its docs show them:
+  # `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, `doc` the first paragraph on one
+  # line, `since` the Playwright version that added the option if newer than the function,
+  # `type_doc` the type as rendered, `spec` the quoted typespec. For libraries that pass
+  # options on; a function without options raises `FunctionClauseError`.
+  @doc false
+  @doc library_api: true
   @spec __options__(atom()) :: [
           {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
         ]
@@ -934,4 +938,10 @@ defmodule Playwright.FrameLocator do
   def __options_type__(:get_by_text), do: @get_by_text_options
   def __options_type__(:get_by_title), do: @get_by_title_options
   def __options_type__(:locator), do: @locator_options
+
+  @doc false
+  # The enum of `function`'s positional argument `arg`, as `Facade.arg!/4` checks it.
+  def __arg_type__(function, arg)
+
+  def __arg_type__(:get_by_role, :role), do: @get_by_role_role
 end

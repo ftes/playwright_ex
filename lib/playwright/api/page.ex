@@ -2005,6 +2005,8 @@ defmodule Playwright.Page do
 
   * `role` - Required aria role.
 
+    In Elixir, a role is an atom of the typespec (`:button`) or a string, also one the typespec lacks (`"mark"`): the JS client takes any string.
+
   ## Options
 
   * `:checked` (`t:boolean/0`) - An attribute that is usually set by `aria-checked` or native `<input type=checkbox>` controls.
@@ -2122,7 +2124,8 @@ defmodule Playwright.Page do
           | :tooltip
           | :tree
           | :treegrid
-          | :treeitem,
+          | :treeitem
+          | String.t(),
           get_by_role_options()
         ) :: Playwright.Locator.t()
   def get_by_role(%Playwright.Page{} = page, role, options \\ []) do
@@ -7255,6 +7258,7 @@ defmodule Playwright.Page do
   @spec on(t(), :response, (Playwright.Response.t() -> term())) :: t()
   @spec on(t(), :web_socket, (Playwright.WebSocket.t() -> term())) :: t()
   @spec on(t(), :worker, (Playwright.Worker.t() -> term())) :: t()
+  @spec on(t(), String.t(), (term() -> term())) :: t()
   def on(%Playwright.Page{} = page, event, listener) do
     event = Facade.event!(event, @events, "page.on")
     Facade.listen(fn -> Playwright.Client.Page.on(page, event, listener) end)
@@ -7282,6 +7286,7 @@ defmodule Playwright.Page do
   @spec once(t(), :response, (Playwright.Response.t() -> term())) :: t()
   @spec once(t(), :web_socket, (Playwright.WebSocket.t() -> term())) :: t()
   @spec once(t(), :worker, (Playwright.Worker.t() -> term())) :: t()
+  @spec once(t(), String.t(), (term() -> term())) :: t()
   def once(%Playwright.Page{} = page, event, listener) do
     event = Facade.event!(event, @events, "page.once")
     Facade.listen(fn -> Playwright.Client.Page.once(page, event, listener) end)
@@ -7309,6 +7314,7 @@ defmodule Playwright.Page do
   @spec add_listener(t(), :response, (Playwright.Response.t() -> term())) :: t()
   @spec add_listener(t(), :web_socket, (Playwright.WebSocket.t() -> term())) :: t()
   @spec add_listener(t(), :worker, (Playwright.Worker.t() -> term())) :: t()
+  @spec add_listener(t(), String.t(), (term() -> term())) :: t()
   def add_listener(%Playwright.Page{} = page, event, listener) do
     event = Facade.event!(event, @events, "page.addListener")
     Facade.listen(fn -> Playwright.Client.Page.add_listener(page, event, listener) end)
@@ -7336,6 +7342,7 @@ defmodule Playwright.Page do
   @spec remove_listener(t(), :response, (Playwright.Response.t() -> term())) :: t()
   @spec remove_listener(t(), :web_socket, (Playwright.WebSocket.t() -> term())) :: t()
   @spec remove_listener(t(), :worker, (Playwright.Worker.t() -> term())) :: t()
+  @spec remove_listener(t(), String.t(), (term() -> term())) :: t()
   def remove_listener(%Playwright.Page{} = page, event, listener) do
     event = Facade.event!(event, @events, "page.removeListener")
     Facade.listen(fn -> Playwright.Client.Page.remove_listener(page, event, listener) end)
@@ -7363,6 +7370,7 @@ defmodule Playwright.Page do
   @spec off(t(), :response, (Playwright.Response.t() -> term())) :: t()
   @spec off(t(), :web_socket, (Playwright.WebSocket.t() -> term())) :: t()
   @spec off(t(), :worker, (Playwright.Worker.t() -> term())) :: t()
+  @spec off(t(), String.t(), (term() -> term())) :: t()
   def off(%Playwright.Page{} = page, event, listener) do
     event = Facade.event!(event, @events, "page.off")
     Facade.listen(fn -> Playwright.Client.Page.off(page, event, listener) end)
@@ -7390,17 +7398,19 @@ defmodule Playwright.Page do
   @spec prepend_listener(t(), :response, (Playwright.Response.t() -> term())) :: t()
   @spec prepend_listener(t(), :web_socket, (Playwright.WebSocket.t() -> term())) :: t()
   @spec prepend_listener(t(), :worker, (Playwright.Worker.t() -> term())) :: t()
+  @spec prepend_listener(t(), String.t(), (term() -> term())) :: t()
   def prepend_listener(%Playwright.Page{} = page, event, listener) do
     event = Facade.event!(event, @events, "page.prependListener")
     Facade.listen(fn -> Playwright.Client.Page.prepend_listener(page, event, listener) end)
   end
 
-  @doc """
-  The options of `function`, an atom such as `:add_init_script`, as
-  `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, for tools that build on the facade at
-  compile time; a function without options raises `FunctionClauseError`. Unstable: the shape
-  may change between releases.
-  """
+  # The options of `function`, an atom such as `:add_init_script`, in order, as its docs show them:
+  # `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, `doc` the first paragraph on one
+  # line, `since` the Playwright version that added the option if newer than the function,
+  # `type_doc` the type as rendered, `spec` the quoted typespec. For libraries that pass
+  # options on; a function without options raises `FunctionClauseError`.
+  @doc false
+  @doc library_api: true
   @spec __options__(atom()) :: [
           {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
         ]
@@ -9881,4 +9891,11 @@ defmodule Playwright.Page do
   def __options_type__(:expect_response), do: @expect_response_options
   def __options_type__(:expect_websocket), do: @expect_websocket_options
   def __options_type__(:expect_worker), do: @expect_worker_options
+
+  @doc false
+  # The enum of `function`'s positional argument `arg`, as `Facade.arg!/4` checks it.
+  def __arg_type__(function, arg)
+
+  def __arg_type__(:get_by_role, :role), do: @get_by_role_role
+  def __arg_type__(:wait_for_load_state, :state), do: @wait_for_load_state_state
 end

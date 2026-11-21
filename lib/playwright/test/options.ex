@@ -7,16 +7,16 @@ defmodule Playwright.Test.Options do
 
   alias Playwright.Runtime.Facade
 
-  @pool_keys [:browser_name, :launch_options, :connect_options, :driver, :on_start]
+  @pool_keys [:browser_name, :headless, :channel, :launch_options, :connect_options, :driver, :on_start]
   @artifact_keys [:trace, :screenshot, :video]
   # `use Playwright.Test`'s and `Playwright.Test.use/1`'s: upstream's options of `test.use` that
   # a describe block or a test may set.
   @timeout_keys [:action_timeout, :navigation_timeout]
   @use_keys @artifact_keys ++ [:context_options] ++ @timeout_keys
-  # Upstream's worker-scoped `browserName`, `launchOptions` and `connectOptions`: a module's or a
-  # project's, not a describe's or a test's. (Its `trace`, `screenshot` and `video` are too:
-  # here they are per test.)
-  @worker_keys [:browser_name, :launch_options, :connect_options]
+  # Upstream's worker-scoped `browserName`, `headless`, `channel`, `launchOptions` and
+  # `connectOptions`: a module's or a project's, not a describe's or a test's. (Its `trace`,
+  # `screenshot` and `video` are too: here they are per test.)
+  @worker_keys [:browser_name, :headless, :channel, :launch_options, :connect_options]
   # Upstream's context option fixtures (`acceptDownloads: [({ contextOptions }, use) => ...]` in
   # `packages/playwright/src/index.ts`), by the client's keys: options of their own, each over
   # its key of `context_options` (upstream's `contextOptions`).
@@ -62,7 +62,8 @@ defmodule Playwright.Test.Options do
     :snapshot_dir,
     :snapshot_path_template,
     :test_id_attribute,
-    :report_slow_tests
+    :report_slow_tests,
+    :assert_steps
   ]
   @config_keys @pool_keys ++ @artifact_keys ++ @config_only_keys
 
@@ -103,12 +104,14 @@ defmodule Playwright.Test.Options do
 
   # What `validate!/2` checks, for its error: upstream's `configLoader` checks (`preserveOutput`,
   # `workers`, `outputDir`), its browser fixture's (`browserName`), and `on_start`'s (Elixir only).
-  # Other values pass as given, as upstream's do.
+  # Other values pass as given, as upstream's do. A string of `browser_name` or
+  # `preserve_output` gets upstream's error instead (`validate!/2`).
   @expected %{
-    browser_name: "one of :chromium, :firefox, :webkit",
+    assert_steps: "a boolean",
+    browser_name: "one of :chromium, :firefox, :webkit or their strings",
     on_start: "nil, a 1-arity function or an {m, f, a} tuple",
     output_dir: "a string",
-    preserve_output: "one of :always, :never, :failures_only",
+    preserve_output: "one of :always, :never, :failures_only or their strings (\"failures-only\")",
     workers: "a positive integer"
   }
 
@@ -132,6 +135,36 @@ defmodule Playwright.Test.Options do
     |> Map.merge(Map.new(worker))
     |> Map.merge(Map.new(opts), &merge_value/3)
     |> validate_all!(@pool_label)
+    |> launch_fixtures()
+  end
+
+  # Upstream's `headless` and `channel` fixtures, unset (`nil`): of the launch options
+  # (`launchOptions.headless ?? true`, `launchOptions.channel`).
+  defp launch_fixtures(options) do
+    options
+    |> Map.put(
+      :headless,
+      if(options.headless == nil, do: launch_headless(options.launch_options), else: options.headless)
+    )
+    |> Map.put(:channel, if(options.channel == nil, do: options.launch_options[:channel], else: options.channel))
+  end
+
+  # `launchOptions.headless ?? true`: a `nil` one too.
+  defp launch_headless(launch_options) do
+    case launch_options[:headless] do
+      nil -> true
+      headless -> headless
+    end
+  end
+
+  @doc """
+  Upstream's `_browserOptions`: the launch options of the pool options `opts` (`pool/2`'s), with
+  `headless` and `channel` over them when defined.
+  """
+  def browser_options(opts) do
+    options = opts.launch_options
+    options = if opts.headless != nil, do: Keyword.put(options, :headless, opts.headless), else: options
+    if opts.channel != nil, do: Keyword.put(options, :channel, opts.channel), else: options
   end
 
   @doc """
@@ -162,13 +195,29 @@ defmodule Playwright.Test.Options do
       scopes:
         scope.(@context_fixtures ++ [:contextOptions, :actionTimeout, :navigationTimeout], :test)
         |> Map.merge(scope.([:trace, :screenshot, :video], :test))
-        |> Map.merge(scope.([:browserName, :defaultBrowserType, :launchOptions, :connectOptions], :worker))
+        |> Map.merge(
+          scope.([:browserName, :defaultBrowserType, :headless, :channel, :launchOptions, :connectOptions], :worker)
+        )
         |> Map.merge(scope.([:testIdAttribute], :config)),
       defaults: Map.new(@context_defaults, fn {name, value} -> {Atom.to_string(name), value} end)
     }
   end
 
   defp use_options!(opts, label, worker_keys) do
+    # Elixir only: read by the `use` macro itself (`Playwright.Test.__using__/1`), so from a
+    # literal keyword list only.
+    if Keyword.has_key?(opts, :assert_steps),
+      do:
+        raise(
+          ArgumentError,
+          if(label == "use Playwright.Test",
+            do:
+              "#{label}: assert_steps must be a literal boolean in a literal keyword list (it is read at compile time)",
+            else:
+              "#{label}: assert_steps is an option of use Playwright.Test and config :playwright, :test only (it is read at compile time)"
+          )
+        )
+
     {context, opts} = Keyword.split(opts, context_keys())
 
     # A device's, with its other keys: upstream's worker-scoped `defaultBrowserType` (`use/1`
@@ -427,7 +476,10 @@ defmodule Playwright.Test.Options do
   """
   def browser_name(config \\ config(), project \\ %{}, module \\ %{}) do
     env = Application.get_env(:playwright, :test, [])
-    configured = if Keyword.keyword?(env) and env[:browser_name] != nil, do: config.browser_name
+    # The later of a duplicated key, as `config/0` takes it.
+    configured =
+      if Keyword.keyword?(env) and Playwright.Application.later_wins(env)[:browser_name] != nil,
+        do: config.browser_name
 
     module[:browser_name] || project[:browser_name] || configured || module[:default_browser_type] ||
       project[:default_browser_type] || config[:default_browser_type] || config.browser_name
@@ -443,7 +495,8 @@ defmodule Playwright.Test.Options do
   @doc """
   The worker options of a module's run, over the config's, for its `BrowserPool.browser/1`
   calls, the same for its `setup_all` and each of its tests: `browser_name/3`, and the
-  `launch_options` (the module's, else the project's, as a whole) and `connect_options` of the
+  `headless`, `channel`, `launch_options` (the module's, else the project's, as a whole) and
+  `connect_options` of the
   `module` (`module_worker/2`'s, or a module's `use_options`; a `nil` one dropped,
   `unset_nil/1`) or its `project` (`layers/3`'s, `nil`s dropped there).
   """
@@ -499,9 +552,9 @@ defmodule Playwright.Test.Options do
   def test_id_attribute, do: config()[:test_id_attribute]
 
   # Option lists merge one level deep (`launch_options: [slow_mo: 50]` keeps the config's
-  # `headless`).
+  # `headless`). The call's is checked first, so its error names the function.
   defp merge_value(key, config, value) when key in [:launch_options, :driver],
-    do: Keyword.merge(to_keyword(key, config), to_keyword(key, value))
+    do: Keyword.merge(to_keyword(key, config), validate!(key, value, @pool_label))
 
   defp merge_value(_key, _config, value), do: value
 
@@ -519,6 +572,8 @@ defmodule Playwright.Test.Options do
     %{
       browser_name: :chromium,
       default_browser_type: nil,
+      headless: nil,
+      channel: nil,
       launch_options: [],
       connect_options: nil,
       driver: [],
@@ -535,9 +590,13 @@ defmodule Playwright.Test.Options do
       snapshot_dir: nil,
       snapshot_path_template: nil,
       test_id_attribute: "data-testid",
-      report_slow_tests: [max: 5, threshold: 300_000]
+      report_slow_tests: [max: 5, threshold: 300_000],
+      assert_steps: true
     }
   end
+
+  @doc "`key`'s value of the config or `use` (`label`) validated, as `config/0` validates it."
+  def validate_key!(key, value, label), do: validate!(key, value, label)
 
   # `validate!/2`, its error naming the entry point `label`.
   defp validate!(key, value, label) do
@@ -557,6 +616,16 @@ defmodule Playwright.Test.Options do
     do: String.to_existing_atom(name)
 
   defp validate!(:browser_name, name) when name in [:chromium, :firefox, :webkit], do: name
+  defp validate!(:browser_name, name) when name in ["chromium", "firefox", "webkit"], do: String.to_existing_atom(name)
+
+  # Upstream's `browser` fixture's check of `browserName`.
+  defp validate!(:browser_name, name) when is_binary(name),
+    do:
+      raise(
+        ArgumentError,
+        ~s|Unexpected browserName "#{name}", must be one of "chromium", "firefox" or "webkit"|
+      )
+
   defp validate!(key, value) when key in [:launch_options, :context_options], do: to_keyword(key, value)
 
   defp validate!(:driver, driver) do
@@ -584,6 +653,14 @@ defmodule Playwright.Test.Options do
 
   defp validate!(:output_dir, dir) when is_binary(dir), do: dir
   defp validate!(:preserve_output, value) when value in [:always, :never, :failures_only], do: value
+  defp validate!(:preserve_output, "failures-only"), do: :failures_only
+  defp validate!(:preserve_output, value) when value in ["always", "never"], do: String.to_existing_atom(value)
+
+  # Upstream's `validateConfig` (`configLoader.ts`).
+  defp validate!(:preserve_output, value) when is_binary(value),
+    do: raise(ArgumentError, ~s|config.preserveOutput must be one of "always", "never" or "failures-only"|)
+
+  defp validate!(:assert_steps, value) when is_boolean(value), do: value
 
   # Upstream's `if (testIdAttribute)` (`_setupContextOptions`): an empty one sets none (`nil`),
   # so the selectors keep theirs.

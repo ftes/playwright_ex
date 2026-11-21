@@ -18,6 +18,7 @@ defmodule Playwright.Library.BrowsercontextPagesTest do
   alias Playwright.JSHandle
   alias Playwright.Mouse
   alias Playwright.Page
+  alias Playwright.Promise
   alias Playwright.Utils
 
   test "BC-051 should not be visible in context.pages", %{context_factory: context_factory} do
@@ -152,16 +153,19 @@ defmodule Playwright.Library.BrowsercontextPagesTest do
       capture_log(fn ->
         pages =
           1..20
-          |> Enum.map(fn _ -> Task.async(fn -> BrowserContext.new_page!(context) end) end)
-          |> Task.await_many(:infinity)
+          |> Enum.map(fn _ -> Promise.async(fn -> BrowserContext.new_page!(context) end) end)
+          |> Promise.all()
+          |> Promise.await!()
 
         pages
-        |> Enum.map(fn page -> Task.async(fn -> Page.goto!(page, server.empty_page) end) end)
-        |> Task.await_many(:infinity)
+        |> Enum.map(fn page -> Promise.async(fn -> Page.goto!(page, server.empty_page) end) end)
+        |> Promise.all()
+        |> Promise.await!()
 
         pages
-        |> Enum.map(fn page -> Task.async(fn -> Page.close!(page) end) end)
-        |> Task.await_many(:infinity)
+        |> Enum.map(fn page -> Promise.async(fn -> Page.close!(page) end) end)
+        |> Promise.all()
+        |> Promise.await!()
       end)
 
     refute warning =~ "MaxListenersExceededWarning"

@@ -13,6 +13,7 @@ defmodule Playwright.Library.Chromium.SessionTest do
   alias Playwright.Coverage
   alias Playwright.Frame
   alias Playwright.Page
+  alias Playwright.Promise
   alias Playwright.Runtime
   alias Playwright.TimeoutError
   alias Playwright.Utils
@@ -26,13 +27,11 @@ defmodule Playwright.Library.Chromium.SessionTest do
   test "CD-037 should work", %{page: page} do
     client = BrowserContext.new_cdp_session!(Page.context(page), page)
 
-    Task.await_many(
-      [
-        Task.async(fn -> CDPSession.send!(client, "Runtime.enable") end),
-        Task.async(fn -> CDPSession.send!(client, "Runtime.evaluate", %{expression: ~s[window.foo = "bar"]}) end)
-      ],
-      :infinity
-    )
+    Promise.all([
+      Promise.async(fn -> CDPSession.send!(client, "Runtime.enable") end),
+      Promise.async(fn -> CDPSession.send!(client, "Runtime.evaluate", %{expression: ~s[window.foo = "bar"]}) end)
+    ])
+    |> Promise.await!()
 
     foo = Page.evaluate!(page, "() => window['foo']")
     assert foo == "bar"
@@ -139,13 +138,11 @@ defmodule Playwright.Library.Chromium.SessionTest do
   test "CD-044 should work with main frame", %{page: page} do
     client = BrowserContext.new_cdp_session!(Page.context(page), Page.main_frame(page))
 
-    Task.await_many(
-      [
-        Task.async(fn -> CDPSession.send!(client, "Runtime.enable") end),
-        Task.async(fn -> CDPSession.send!(client, "Runtime.evaluate", %{expression: ~s[window.foo = "bar"]}) end)
-      ],
-      :infinity
-    )
+    Promise.all([
+      Promise.async(fn -> CDPSession.send!(client, "Runtime.enable") end),
+      Promise.async(fn -> CDPSession.send!(client, "Runtime.evaluate", %{expression: ~s[window.foo = "bar"]}) end)
+    ])
+    |> Promise.await!()
 
     foo = Page.evaluate!(page, "() => window['foo']")
     assert foo == "bar"

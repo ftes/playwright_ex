@@ -35,6 +35,7 @@ defmodule Playwright.Browser do
   """
 
   alias Playwright.Runtime.Facade
+  alias Playwright.Runtime.ProtocolType
 
   @typedoc "A `Browser` handle. Compare handles with `==`, their fields are internal."
   @type t :: %__MODULE__{}
@@ -214,8 +215,7 @@ defmodule Playwright.Browser do
                             {:reducedMotion, {:enum, %{reduce: "reduce", no_preference: "no-preference"}}},
                           screen: {:screen, {:fields, %{width: nil, height: nil}}},
                           service_workers: {:serviceWorkers, {:enum, %{allow: "allow", block: "block"}}},
-                          storage_state:
-                            {:storageState, Facade.protocol_type("BrowserNewContextParams", :storageState)},
+                          storage_state: {:storageState, ProtocolType.of("BrowserNewContextParams", :storageState)},
                           strict_selectors: {:strictSelectors, nil},
                           timezone_id: {:timezoneId, nil},
                           user_agent: {:userAgent, nil},
@@ -653,7 +653,7 @@ defmodule Playwright.Browser do
                        reduced_motion: {:reducedMotion, {:enum, %{reduce: "reduce", no_preference: "no-preference"}}},
                        screen: {:screen, {:fields, %{width: nil, height: nil}}},
                        service_workers: {:serviceWorkers, {:enum, %{allow: "allow", block: "block"}}},
-                       storage_state: {:storageState, Facade.protocol_type("BrowserNewContextParams", :storageState)},
+                       storage_state: {:storageState, ProtocolType.of("BrowserNewContextParams", :storageState)},
                        strict_selectors: {:strictSelectors, nil},
                        timezone_id: {:timezoneId, nil},
                        user_agent: {:userAgent, nil},
@@ -1236,6 +1236,7 @@ defmodule Playwright.Browser do
   @doc group: "Events"
   @spec on(t(), :context, (Playwright.BrowserContext.t() -> term())) :: t()
   @spec on(t(), :disconnected, (Playwright.Browser.t() -> term())) :: t()
+  @spec on(t(), String.t(), (term() -> term())) :: t()
   def on(%Playwright.Browser{} = browser, event, listener) do
     event = Facade.event!(event, @events, "browser.on")
     Facade.listen(fn -> Playwright.Client.Browser.on(browser, event, listener) end)
@@ -1245,6 +1246,7 @@ defmodule Playwright.Browser do
   @doc group: "Events"
   @spec once(t(), :context, (Playwright.BrowserContext.t() -> term())) :: t()
   @spec once(t(), :disconnected, (Playwright.Browser.t() -> term())) :: t()
+  @spec once(t(), String.t(), (term() -> term())) :: t()
   def once(%Playwright.Browser{} = browser, event, listener) do
     event = Facade.event!(event, @events, "browser.once")
     Facade.listen(fn -> Playwright.Client.Browser.once(browser, event, listener) end)
@@ -1254,6 +1256,7 @@ defmodule Playwright.Browser do
   @doc group: "Events"
   @spec add_listener(t(), :context, (Playwright.BrowserContext.t() -> term())) :: t()
   @spec add_listener(t(), :disconnected, (Playwright.Browser.t() -> term())) :: t()
+  @spec add_listener(t(), String.t(), (term() -> term())) :: t()
   def add_listener(%Playwright.Browser{} = browser, event, listener) do
     event = Facade.event!(event, @events, "browser.addListener")
     Facade.listen(fn -> Playwright.Client.Browser.add_listener(browser, event, listener) end)
@@ -1263,6 +1266,7 @@ defmodule Playwright.Browser do
   @doc group: "Events"
   @spec remove_listener(t(), :context, (Playwright.BrowserContext.t() -> term())) :: t()
   @spec remove_listener(t(), :disconnected, (Playwright.Browser.t() -> term())) :: t()
+  @spec remove_listener(t(), String.t(), (term() -> term())) :: t()
   def remove_listener(%Playwright.Browser{} = browser, event, listener) do
     event = Facade.event!(event, @events, "browser.removeListener")
     Facade.listen(fn -> Playwright.Client.Browser.remove_listener(browser, event, listener) end)
@@ -1272,6 +1276,7 @@ defmodule Playwright.Browser do
   @doc group: "Events"
   @spec off(t(), :context, (Playwright.BrowserContext.t() -> term())) :: t()
   @spec off(t(), :disconnected, (Playwright.Browser.t() -> term())) :: t()
+  @spec off(t(), String.t(), (term() -> term())) :: t()
   def off(%Playwright.Browser{} = browser, event, listener) do
     event = Facade.event!(event, @events, "browser.off")
     Facade.listen(fn -> Playwright.Client.Browser.off(browser, event, listener) end)
@@ -1281,17 +1286,19 @@ defmodule Playwright.Browser do
   @doc group: "Events"
   @spec prepend_listener(t(), :context, (Playwright.BrowserContext.t() -> term())) :: t()
   @spec prepend_listener(t(), :disconnected, (Playwright.Browser.t() -> term())) :: t()
+  @spec prepend_listener(t(), String.t(), (term() -> term())) :: t()
   def prepend_listener(%Playwright.Browser{} = browser, event, listener) do
     event = Facade.event!(event, @events, "browser.prependListener")
     Facade.listen(fn -> Playwright.Client.Browser.prepend_listener(browser, event, listener) end)
   end
 
-  @doc """
-  The options of `function`, an atom such as `:close`, as
-  `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, for tools that build on the facade at
-  compile time; a function without options raises `FunctionClauseError`. Unstable: the shape
-  may change between releases.
-  """
+  # The options of `function`, an atom such as `:close`, in order, as its docs show them:
+  # `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, `doc` the first paragraph on one
+  # line, `since` the Playwright version that added the option if newer than the function,
+  # `type_doc` the type as rendered, `spec` the quoted typespec. For libraries that pass
+  # options on; a function without options raises `FunctionClauseError`.
+  @doc false
+  @doc library_api: true
   @spec __options__(atom()) :: [
           {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
         ]

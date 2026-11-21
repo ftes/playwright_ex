@@ -91,9 +91,6 @@ defmodule Playwright.Guides.ApiConventionsTest do
     BrowserContext.close!(context)
 
     assert_raise ArgumentError, fn -> Page.screenshot(page, full_pag: true) end
-
-    [{:button, %{doc: "Defaults to `:left`.", since: nil, spec: spec}} | _] = Locator.__options__(:click)
-    assert Macro.to_string(spec) == ":left | :right | :middle"
   end
 
   test "enums and :null", %{page: page} do

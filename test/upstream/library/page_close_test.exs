@@ -43,13 +43,11 @@ defmodule Playwright.Library.PageCloseTest do
     Page.set_content!(page, "<div id=node>Text content</div>")
 
     [error, _] =
-      Task.await_many(
-        [
-          Task.async(fn -> Expect.to_have_text(Page.locator(page, "div"), "hey", timeout: 100_000) end),
-          Task.async(fn -> Page.close!(page) end)
-        ],
-        :infinity
-      )
+      Promise.all([
+        Promise.async(fn -> Expect.to_have_text(Page.locator(page, "div"), "hey", timeout: 100_000) end),
+        Promise.async(fn -> Page.close!(page) end)
+      ])
+      |> Promise.await!()
 
     assert strip_ansi(message(error)) =~ "expect(locator).toHaveText(expected)"
     refute strip_ansi(message(error)) =~ "Timed out"
@@ -86,13 +84,11 @@ defmodule Playwright.Library.PageCloseTest do
       Runtime.Promise.async(fn -> Frame.evaluate(Enum.at(Page.frames(page), 1), "() => new Promise(() => {})") end)
 
     [error, _] =
-      Task.await_many(
-        [
-          Task.async(fn -> Page.evaluate(page, "() => new Promise(r => {})") end),
-          Task.async(fn -> Page.close!(page) end)
-        ],
-        :infinity
-      )
+      Promise.all([
+        Promise.async(fn -> Page.evaluate(page, "() => new Promise(r => {})") end),
+        Promise.async(fn -> Page.close!(page) end)
+      ])
+      |> Promise.await!()
 
     assert message(error) =~ @k_target_closed_error_message
     assert message(Runtime.Promise.await(frame_error_promise)) =~ @k_target_closed_error_message
@@ -125,13 +121,11 @@ defmodule Playwright.Library.PageCloseTest do
   end
 
   test "PA-046 should be callable twice", %{page: page} do
-    Task.await_many(
-      [
-        Task.async(fn -> Page.close!(page) end),
-        Task.async(fn -> Page.close!(page) end)
-      ],
-      :infinity
-    )
+    Promise.all([
+      Promise.async(fn -> Page.close!(page) end),
+      Promise.async(fn -> Page.close!(page) end)
+    ])
+    |> Promise.await!()
 
     Page.close!(page)
   end
@@ -162,13 +156,11 @@ defmodule Playwright.Library.PageCloseTest do
            do: "upstream fixme: makes the next test to always timeout"
          )
   test "PA-050 should not throw UnhandledPromiseRejection when page closes", %{page: page} do
-    Task.await_many(
-      [
-        Task.async(fn -> Page.close(page) end),
-        Task.async(fn -> Mouse.click(Page.mouse(page), 1, 2) end)
-      ],
-      :infinity
-    )
+    Promise.all([
+      Promise.async(fn -> Page.close(page) end),
+      Promise.async(fn -> Mouse.click(Page.mouse(page), 1, 2) end)
+    ])
+    |> Promise.await!()
   end
 
   test "PA-051 interrupt request.response() and request.allHeaders() on page.close",

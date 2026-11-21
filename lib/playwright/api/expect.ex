@@ -45,9 +45,9 @@ defmodule Playwright.Expect do
       bounds it), not `:timeout`; `:infinity` is `0`.
     * `:to_have_screenshot` - Defaults of `Playwright.Expect.to_have_screenshot/2`'s options, as
       it names them: `:animations`, `:caret`, `:max_diff_pixels`, `:max_diff_pixel_ratio`,
-      `:scale`, `:style_path`, `:threshold` (`[max_diff_pixels: 10]`), and the config's own
-      `:type` (`:png` or `:webp`, of an unnamed snapshot) and `:path_template`
-      (see "Snapshots" in `Playwright.Test`).
+      `:scale`, `:style_path`, `:threshold` and `:timeout` (over the expect `:timeout`, under a
+      call's), as in `[max_diff_pixels: 10]`, and the config's own `:type` (`:png` or `:webp`, of
+      an unnamed snapshot) and `:path_template` (see "Snapshots" in `Playwright.Test`).
     * `:to_match_aria_snapshot` - `:children` (`:contain`, `:equal` or `:deep_equal`: the
       `/children` mode of a snapshot that sets none) and `:path_template`.
 
@@ -3378,6 +3378,8 @@ defmodule Playwright.Expect do
 
   * `role` - Required aria role.
 
+    In Elixir, a role is an atom of the typespec (`:button`) or a string, also one the typespec lacks (`"mark"`): the JS client takes any string.
+
   ## Options
 
   * `:signal` (`t:Playwright.AbortSignal.t/0`) - *Since Playwright 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
@@ -3473,7 +3475,8 @@ defmodule Playwright.Expect do
           | :tooltip
           | :tree
           | :treegrid
-          | :treeitem,
+          | :treeitem
+          | String.t(),
           to_have_role_options()
         ) :: :ok | {:error, Playwright.error()}
   def to_have_role(locator, role, options \\ []) do
@@ -3575,7 +3578,8 @@ defmodule Playwright.Expect do
           | :tooltip
           | :tree
           | :treegrid
-          | :treeitem,
+          | :treeitem
+          | String.t(),
           to_have_role_options()
         ) :: :ok
   def to_have_role!(locator, role, options \\ []) do
@@ -3694,6 +3698,8 @@ defmodule Playwright.Expect do
 
   * `role` - Required aria role.
 
+    In Elixir, a role is an atom of the typespec (`:button`) or a string, also one the typespec lacks (`"mark"`): the JS client takes any string.
+
   ## Options
 
   * `:signal` (`t:Playwright.AbortSignal.t/0`) - *Since Playwright 1.62.* An optional [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that
@@ -3789,7 +3795,8 @@ defmodule Playwright.Expect do
           | :tooltip
           | :tree
           | :treegrid
-          | :treeitem,
+          | :treeitem
+          | String.t(),
           not_to_have_role_options()
         ) :: :ok | {:error, Playwright.error()}
   def not_to_have_role(locator, role, options \\ []) do
@@ -3891,7 +3898,8 @@ defmodule Playwright.Expect do
           | :tooltip
           | :tree
           | :treegrid
-          | :treeitem,
+          | :treeitem
+          | String.t(),
           not_to_have_role_options()
         ) :: :ok
   def not_to_have_role!(locator, role, options \\ []) do
@@ -4017,7 +4025,7 @@ defmodule Playwright.Expect do
   * `:threshold` (`t:number/0`) - An acceptable perceived color difference in the [YIQ color space](https://en.wikipedia.org/wiki/YIQ)
     between the same pixel in compared images, between zero (strict) and one (lax), default is configurable with
     `config :playwright, :expect` (see the configuration in `Playwright.Expect`). Defaults to `0.2`.
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright, :expect` (`5000` if not set, see the configuration in `Playwright.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright, :expect, to_have_screenshot: [...]`, else to `:timeout` in `config :playwright, :expect` (`5000` if not set, see the configuration in `Playwright.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   * `:clip` (`t:map/0`) - An object which specifies clipping of the resulting image.
@@ -4163,7 +4171,7 @@ defmodule Playwright.Expect do
   * `:threshold` (`t:number/0`) - An acceptable perceived color difference in the [YIQ color space](https://en.wikipedia.org/wiki/YIQ)
     between the same pixel in compared images, between zero (strict) and one (lax), default is configurable with
     `config :playwright, :expect` (see the configuration in `Playwright.Expect`). Defaults to `0.2`.
-  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright, :expect` (`5000` if not set, see the configuration in `Playwright.Expect`).
+  * `:timeout` (`t:number/0` | `:infinity`) - Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright, :expect, to_have_screenshot: [...]`, else to `:timeout` in `config :playwright, :expect` (`5000` if not set, see the configuration in `Playwright.Expect`).
 
     In Elixir, `:infinity` is the same as `0`: no timeout.
   * `:clip` (`t:map/0`) - An object which specifies clipping of the resulting image.
@@ -5477,12 +5485,13 @@ defmodule Playwright.Expect do
     Facade.matcher!(fn -> Playwright.Matchers.Expect.poll(info, callback, options).([assertion]) end)
   end
 
-  @doc """
-  The options of `function`, an atom such as `:to_be_attached`, as
-  `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, for tools that build on the facade at
-  compile time; a function without options raises `FunctionClauseError`. Unstable: the shape
-  may change between releases.
-  """
+  # The options of `function`, an atom such as `:to_be_attached`, in order, as its docs show them:
+  # `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, `doc` the first paragraph on one
+  # line, `since` the Playwright version that added the option if newer than the function,
+  # `type_doc` the type as rendered, `spec` the quoted typespec. For libraries that pass
+  # options on; a function without options raises `FunctionClauseError`.
+  @doc false
+  @doc library_api: true
   @spec __options__(atom()) :: [
           {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
         ]
@@ -6564,7 +6573,7 @@ defmodule Playwright.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright, :expect` (`5000` if not set, see the configuration in `Playwright.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright, :expect, to_have_screenshot: [...]`, else to `:timeout` in `config :playwright, :expect` (`5000` if not set, see the configuration in `Playwright.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       },
@@ -6680,7 +6689,7 @@ defmodule Playwright.Expect do
       timeout: %{
         type_doc: "`t:number/0` | `:infinity`",
         doc:
-          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright, :expect` (`5000` if not set, see the configuration in `Playwright.Expect`).",
+          "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `:timeout` in `config :playwright, :expect, to_have_screenshot: [...]`, else to `:timeout` in `config :playwright, :expect` (`5000` if not set, see the configuration in `Playwright.Expect`).",
         since: nil,
         spec: quote(do: number() | :infinity)
       },
@@ -7124,4 +7133,11 @@ defmodule Playwright.Expect do
   def __options_type__(:to_pass), do: @to_pass_options
   def __options_type__(:not_to_pass), do: @not_to_pass_options
   def __options_type__(:poll), do: @poll_options
+
+  @doc false
+  # The enum of `function`'s positional argument `arg`, as `Facade.arg!/4` checks it.
+  def __arg_type__(function, arg)
+
+  def __arg_type__(:to_have_role, :role), do: @to_have_role_role
+  def __arg_type__(:not_to_have_role, :role), do: @not_to_have_role_role
 end

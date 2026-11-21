@@ -87,6 +87,40 @@ Call `mix test` itself, not through an alias that runs it with `mix cmd`: `mix c
 status 2 into 1, so the retry never fires. In CI, with `--partitions` and annotations:
 [Annotations](debugging-and-ci.md#annotations).
 
+<!-- remove with Elixir 1.21: ftes/playwright_ex#319 -->
+On Elixir 1.20 and earlier, `--failed` loses two kinds of failure, so the retry can pass, or
+find nothing to run and exit 0:
+
+- A failure in a `parameterize:` module ([Projects](test-options.md#projects)): the failures
+  manifest keys a test by its module and name, and the last result wins, so the same test
+  passing with another parameter set (a project, or a parameter list of your own) that finishes
+  later erases it. Fixed in Elixir 1.21
+  ([elixir-lang/elixir#15820](https://github.com/elixir-lang/elixir/issues/15820)).
+- A `setup_all`'s `on_exit` that fails after its tests passed. Fixed in Elixir 1.21
+  ([elixir-lang/elixir@0f654791](https://github.com/elixir-lang/elixir/commit/0f654791)).
+
+Run one project per `mix test` (a CI matrix, or a loop over the env var the project list reads),
+and retry right after each run. That removes only the project dimension: a module's other
+parameter lists in one run can still lose failures. This bash `retry` fails the job when a failed
+run's retry finds nothing to rerun, the total loss:
+
+```bash
+retry() {
+  mix test --failed 2>&1 | tee retry.log; s=${PIPESTATUS[0]}
+  if grep -q "^There are no tests to run" retry.log; then
+    echo "::error::mix test --failed found no failures to rerun after a failed run"; return 1
+  fi
+  return $s
+}
+
+status=0
+for project in "Desktop Chrome" "Desktop Firefox"; do
+  export PROJECTS="$project"
+  mix test || { [ $? -eq 2 ] && retry; } || status=1
+done
+exit $status
+```
+
 The other retry modes are Playwright Test's too: `:on_all_retries` traces every rerun,
 `:retain_on_first_failure` the first run's failures, `:retain_on_failure_and_retries` both;
 `video` takes them as well, and `screenshot` has `:on_first_failure`.
@@ -127,7 +161,8 @@ At most `workers` drivers run at once (config, default half the schedulers, as P
 `setup_all` outside its timeout, in `setup` or a test within ExUnit's test timeout. A wait costs
 nothing, so ExUnit's `max_cases` can stay as it is. A worker is a driver and one browser of one
 set of options, as Playwright Test's worker runs one project: a call with other options (another
-`browser_name`, `launch_options`, `driver` or `on_start`) takes another worker, which may
+`browser_name`, `headless`, `channel`, `launch_options`, `connect_options`, `driver` or
+`on_start`) takes another worker, which may
 restart an idle one of other options. ExUnit runs modules in random order, so in a run that
 mixes options each switch restarts a worker (a driver start, about 110 ms, plus the browser's
 launch). Run one configuration per invocation, as Playwright Test's projects effectively do: tag
@@ -158,13 +193,13 @@ browser suites: past it the app's CPU saturates. At `max_cases` 36 the same suit
 
 ## Debugging one test
 
-To watch one module run headed, slowed down, give it a browser with those launch options:
+To watch one module run headed, slowed down, give it a browser with those options:
 
 ```elixir
 @moduletag :debug
 
 setup_all do
-  %{browser: BrowserPool.browser(launch_options: [headless: false, slow_mo: 500])}
+  %{browser: BrowserPool.browser(headless: false, launch_options: [slow_mo: 500])}
 end
 
 setup %{browser: browser} do
@@ -175,7 +210,9 @@ end
 
 and run it alone: `mix test test/my_app/sign_up_test.exs`, or `mix test --only debug`. The
 call's `launch_options` merge over the module's (its own or its project's, else the config's)
-one key at a time, so the other launch options stay.
+one key at a time, so the other launch options stay. `headless` and `channel`, set at any level,
+win over the launch options', as Playwright Test's: pass `headless: false` itself, not in
+`launch_options`.
 
 To step through a test with `Page.pause/1`, tag it `@tag timeout: :infinity` (or run `mix test
 --trace`): otherwise ExUnit's timeout ends the test mid-pause, closing its contexts. The same goes
@@ -196,8 +233,8 @@ config :playwright, :test,
 
 Start the server as in [Remote browsers](debugging-and-ci.md#remote-browsers). The local driver
 still runs `on_start`, and contexts on the connected browser get Playwright Test's defaults and
-are recorded, as on a launched one. `launch_options` go to the server in the
-`x-playwright-launch-options` header, as Playwright Test sends them; the server applies those
+are recorded, as on a launched one. The launch options, with `headless` and `channel` over them,
+go to the server in the `x-playwright-launch-options` header, as Playwright Test sends them; the server applies those
 it allows (`headless`, `channel`, `slow_mo`, ...). A connected browser and a launched one are
 different browsers, also of one `browser_name`, and a lost connection is made again by the next
 call. Each driver connects once, and the server launches a browser per connection, so each

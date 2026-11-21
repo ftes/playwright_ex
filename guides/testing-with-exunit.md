@@ -188,8 +188,8 @@ test "signs up in steps", %{page: page} do
 end
 ```
 
-With `box: true`, an error inside the step is reported where the helper is called, instead of
-inside the step, which suits helpers:
+With `box: true`, the step and an error inside it are reported where the helper is called,
+which suits helpers, a library's too. The steps inside keep their own locations:
 
 ```elixir
 defp sign_up(page, email) do
@@ -205,8 +205,26 @@ A step runs in the calling process, so `assert_receive` works in it. It takes no
 running body can't be interrupted: the test's timeout bounds it. `step_skip` declares a step
 without running it. In `setup_all` a step runs too, unrecorded
 ([Steps](Playwright.Test.html#module-steps)), so the same helpers serve both. `use Playwright.Test`
-imports only `test`, so the rest is called qualified (`Test.step`, `Test.info()`), as Playwright
-Test's `test.step()`, and a wrapper library's own `step` doesn't clash.
+imports `test` and replaces ExUnit's `assert` and `refute` with `Playwright.Test.Assertions`' (the
+rest of `ExUnit.Assertions` stays imported); the rest of `Playwright.Test` is called qualified (`Test.step`,
+`Test.info()`), as Playwright Test's `test.step()`, and a wrapper library's own `step` doesn't
+clash.
+
+Each `assert` and `refute` is a step too, as Playwright Test's `expect`: `Expect "assert"`, with
+the expression next to it and its right side as `expected`, and a failed one with its error,
+at the test's level. They are ExUnit's otherwise, with
+the same bindings, messages and stacktraces (a function that ends in one keeps its frame).
+Don't `import ExUnit.Assertions` again after `use Playwright.Test`, which makes `assert`
+ambiguous. A helper module without `use Playwright.Test` needs `import Playwright.Test.Assertions`
+(and, if it imports `ExUnit.Assertions` too, `except: [assert: 1, assert: 2, refute: 1, refute: 2]`
+there), else its passed asserts silently leave no step. A library with its own `assert/2` excludes
+exactly the arities it defines (`import Playwright.Test.Assertions, except: [assert: 2]`); its own
+`refute/2` must also take the `refute(value, expr: ...)` that ExUnit's `refute match?` calls
+([Assertions](Playwright.Test.html#module-assertions)).
+Assert steps are on by default: `use Playwright.Test, assert_steps: false` keeps ExUnit's own for a
+module, and `config :playwright, :test, assert_steps: false` (in `config/test.exs`, as it is
+read at compile time, not in `runtime.exs`) for all, which a module's `assert_steps: true`
+overrides.
 
 ## Route handlers and listeners
 

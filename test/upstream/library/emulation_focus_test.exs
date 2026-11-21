@@ -14,6 +14,7 @@ defmodule Playwright.Library.EmulationFocusTest do
   alias Playwright.Keyboard
   alias Playwright.Mouse
   alias Playwright.Page
+  alias Playwright.Promise
 
   import Playwright.UpstreamSnapshot
   import Playwright.Utils, only: [attach_frame: 3]
@@ -21,7 +22,7 @@ defmodule Playwright.Library.EmulationFocusTest do
   @moduletag :page
 
   # Promise.all([...])
-  defp all(funs), do: funs |> Enum.map(&Task.async/1) |> Task.await_many(:infinity)
+  defp all(funs), do: funs |> Enum.map(&Promise.async/1) |> Promise.all() |> Promise.await!()
 
   test "EM-013 should think that it is focused by default", %{page: page} do
     assert Page.evaluate!(page, "document.hasFocus()") == true
@@ -111,32 +112,26 @@ defmodule Playwright.Library.EmulationFocusTest do
     # it.skip(browserName === 'firefox' && !headless)  -- headless here
     page2 = BrowserContext.new_page!(Page.context(page))
 
-    Task.await_many(
-      [
-        Task.async(fn -> Page.set_viewport_size!(page, %{width: 500, height: 500}) end),
-        Task.async(fn -> Page.goto!(page, server.prefix <> "/grid.html") end),
-        Task.async(fn -> Page.set_viewport_size!(page2, %{width: 50, height: 50}) end),
-        Task.async(fn -> Page.goto!(page2, server.prefix <> "/grid.html") end)
-      ],
-      :infinity
-    )
+    Promise.all([
+      Promise.async(fn -> Page.set_viewport_size!(page, %{width: 500, height: 500}) end),
+      Promise.async(fn -> Page.goto!(page, server.prefix <> "/grid.html") end),
+      Promise.async(fn -> Page.set_viewport_size!(page2, %{width: 50, height: 50}) end),
+      Promise.async(fn -> Page.goto!(page2, server.prefix <> "/grid.html") end)
+    ])
+    |> Promise.await!()
 
-    Task.await_many(
-      [
-        Task.async(fn -> Page.focus!(page, "body") end),
-        Task.async(fn -> Page.focus!(page2, "body") end)
-      ],
-      :infinity
-    )
+    Promise.all([
+      Promise.async(fn -> Page.focus!(page, "body") end),
+      Promise.async(fn -> Page.focus!(page2, "body") end)
+    ])
+    |> Promise.await!()
 
     screenshots =
-      Task.await_many(
-        [
-          Task.async(fn -> Page.screenshot!(page) end),
-          Task.async(fn -> Page.screenshot!(page2) end)
-        ],
-        :infinity
-      )
+      Promise.all([
+        Promise.async(fn -> Page.screenshot!(page) end),
+        Promise.async(fn -> Page.screenshot!(page2) end)
+      ])
+      |> Promise.await!()
 
     to_match_snapshot(Enum.at(screenshots, 0), "screenshot-sanity.png")
     to_match_snapshot(Enum.at(screenshots, 1), "grid-cell-0.png")

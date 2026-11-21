@@ -73,7 +73,12 @@ defmodule TestMacroSample do
     test "never runs", do: :ok
   end
 
-  defp helper(n), do: assert(n == 1)
+  # Not its tail call: `use Playwright.Test`'s `assert` records its step after ExUnit's, so a
+  # function that ends in a failing one keeps its frame (`Playwright.Test.AssertionsTest`).
+  defp helper(n) do
+    assert n == 1
+    n
+  end
 end
 """
 

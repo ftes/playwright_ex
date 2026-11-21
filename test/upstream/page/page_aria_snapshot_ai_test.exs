@@ -11,6 +11,7 @@ defmodule Playwright.Page.PageAriaSnapshotAiTest do
   alias Playwright.FrameLocator
   alias Playwright.Locator
   alias Playwright.Page
+  alias Playwright.Promise
   alias Playwright.TestServer
 
   @moduletag :page
@@ -650,9 +651,9 @@ defmodule Playwright.Page.PageAriaSnapshotAiTest do
 
   test "AR-074 should auto-wait for navigation", %{page: page, server: server} do
     Page.goto!(page, server.prefix <> "/frames/frame.html")
-    reload = Task.async(fn -> Page.evaluate!(page, "() => window.location.reload()") end)
-    snapshot = Task.async(fn -> snapshot_for_ai(page) end)
-    [_, snapshot] = Task.await_many([reload, snapshot], :infinity)
+    reload = Promise.async(fn -> Page.evaluate!(page, "() => window.location.reload()") end)
+    snapshot = Promise.async(fn -> snapshot_for_ai(page) end)
+    [_, snapshot] = Promise.all([reload, snapshot]) |> Promise.await!()
     # The snapshot races the reload, which may re-number the main frame, so accept any ref.
     assert snapshot =~ ~r/- generic \[active\] \[ref=(?:f\d+)?e\d+\]: Hi, I'm frame/
   end

@@ -10,9 +10,12 @@
 # Accepted risk: a job with `id-token: write` that checks out a branch other than main runs that
 # branch's setup code (mix.exs, deps), which can tamper with the job or mint the app token. Only
 # maintainers, Claude's own branches and Renovate can push branches here, and no such job runs on
-# Renovate's branches. Fork PRs get no id-token, except a maintainer's comment on one in
-# claude.yml: Claude then works in the fork's head with the id-token, and only the mix tools are
-# withheld.
+# Renovate's branches. Such a job runs only for this repository's PRs and branches.
+#
+# The tool rules below (allowed-tools, the shared denials, dontAsk) steer Claude's tool use; they
+# are no sandbox: a job that lets Claude edit files and run mix lets it run code. What these jobs
+# rely on is that none loads another repository's content, the tokens' scopes, and the rulesets
+# on main and the branches.
 name: Claude
 description: Runs Claude Code with this repo's model, tool rules and settings.
 
@@ -39,13 +42,16 @@ inputs:
     description: Claude's --allowedTools, comma-separated.
     required: true
   disallowed-tools:
-    description: Claude's --disallowedTools, comma-separated.
+    description: Claude's --disallowedTools, comma-separated, besides the ones every job denies (Run Claude).
     default: ""
   add-dir:
     description: Directories Claude may read besides the checkout and the upstream sources, space-separated.
     default: ""
   allowed-bots:
     description: claude-code-action's allowed_bots.
+    default: ""
+  comment-authors:
+    description: "claude-code-action's include_comments_by_actor: the logins whose comments, reviews and review comments tag mode shows Claude. Empty: every login."
     default: ""
   additional-permissions:
     description: claude-code-action's additional_permissions.
@@ -117,17 +123,24 @@ runs:
         claude_code_oauth_token: ${{ inputs.token }}
         prompt: ${{ steps.prompt.outputs.prompt }}
         allowed_bots: ${{ inputs.allowed-bots }}
+        include_comments_by_actor: ${{ inputs.comment-authors }}
         additional_permissions: ${{ inputs.additional-permissions }}
-        # The owner forbids attribution; AGENTS.md says so too.
+        # The owner forbids attribution; AGENTS.md says so too. dontAsk: a call that no rule allows
+        # is denied, except the read-only ones Claude Code always allows (the action would
+        # otherwise start in auto mode, where a review decides them). Tag mode (claude.yml) runs
+        # in acceptEdits instead, which also allows file edits in the checkout.
         settings: |
-          {"includeCoAuthoredBy": false, "attribution": {"commit": "", "pr": ""}}
+          {"includeCoAuthoredBy": false, "attribution": {"commit": "", "pr": ""}, "permissions": {"defaultMode": "dontAsk"}}
+        # --disallowedTools: the caller's, and in every job other repositories' PRs and issues, the
+        # comments and reviews (a job that needs them gets its maintainers' in a file), API paths
+        # outside the allowed ones, and mix's commands that run arbitrary code.
         claude_args: |
           --model claude-opus-5-5
           --max-turns ${{ inputs.max-turns }}
           --add-dir /home/runner/.cache/playwright ${{ inputs.add-dir }}
           --append-system-prompt "${{ inputs.system-prompt }} ${{ steps.sources.outputs.line }} Prefer your file tools over Bash to read, search and edit files, and keep any scratch files under tmp/; run each allowed Bash command on its own, without cd, git -C, semicolons, &&, pipes or heredocs (you are already in the repository). Give any subagent you start these same rules."
           --allowedTools "${{ inputs.allowed-tools }}"
-          ${{ inputs.disallowed-tools != '' && format('--disallowedTools "{0}"', inputs.disallowed-tools) || '' }}
+          --disallowedTools "Bash(gh pr * -R*),Bash(gh pr * --repo*),Bash(gh issue * -R*),Bash(gh issue * --repo*),Bash(gh pr view *comments*),Bash(gh pr view *eview*),Bash(gh pr view * -c*),Bash(gh issue view *comments*),Bash(gh issue view * -c*),Bash(gh api *comments*),Bash(gh api *reviews*),Bash(gh api *timeline*),Bash(gh api graphql*),Bash(gh api *..*),Bash(gh api *%*),Bash(gh api * --hostname*),Bash(mix cmd*),Bash(mix run*),Bash(mix eval*),Bash(*mix cmd*)${{ inputs.disallowed-tools != '' && format(',{0}', inputs.disallowed-tools) || '' }}"
     # summary.jq: only the final message and the denied calls.
     - name: Summarize Claude's result
       if: ${{ !cancelled() && steps.claude.outputs.execution_file != '' }}

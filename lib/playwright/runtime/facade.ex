@@ -18,15 +18,18 @@ defmodule Playwright.Runtime.Facade do
       is passed unchecked.
     * Enums of options and positional arguments: atoms (`:no_preference`) become the wire
       strings (`"no-preference"`); strings pass through.
+    * Events: atoms (`:page_error`) become the JS names (`"pageerror"`), an unknown one raises;
+      strings pass through, as JS's emitters take any event name (one that never fires: its
+      listener isn't called, its `wait_for_event` times out).
     * `timeout: :infinity` is `timeout: 0` (no timeout, as in JS), likewise a positional
       `timeout` (`set_default_timeout(context, :infinity)`).
 
   A type is `nil` (passed through), `:timeout` (a positional timeout), `{:object, %{key => {js_key, type}}}`
   (options), `{:fields, %{js_key => type}}` (a nested object), `{:protocol, %{js_key => type},
-  %{string => type}}` (one the client passes on, `protocol_type/2`), `{:array, type}`, `{:enum, %{atom => string}}`
-  or `{:union, [type]}`.
+  %{string => type}}` (one the client passes on, `Playwright.Runtime.ProtocolType.of/3`),
+  `{:array, type}`, `{:dictionary, type}` (a map of any keys whose values are `type`),
+  `{:enum, %{atom => string}}` or `{:union, [type]}`.
   """
-  alias Playwright.Protocol.Validator
   alias Playwright.Runtime.Promise
   alias Playwright.Runtime.Zones
   alias Playwright.TargetClosedError
@@ -243,47 +246,19 @@ defmodule Playwright.Runtime.Facade do
     end)
   end
 
-  @doc """
-  The type of `field` of the protocol's `params` (`Playwright.Protocol.Validator`): a value the
-  client passes on (cookies, storage states), whose objects take the protocol's keys as atoms or
-  strings. The generated facade computes it when it compiles. The values of the `unchecked`
-  keys, at any depth, pass as they are: those the protocol's validator drops unread
-  (`APIRequest.newContext`'s storage state `credentials`).
-  """
-  def protocol_type(params, field, unchecked \\ []) do
-    {:object, fields} = Validator.scheme(params)
-    scheme_type(Keyword.fetch!(fields, field), unchecked)
-  end
-
-  defp scheme_type({:optional, scheme}, unchecked), do: scheme_type(scheme, unchecked)
-  defp scheme_type({:type, name}, unchecked), do: scheme_type(Validator.scheme(name), unchecked)
-
-  defp scheme_type({:array, scheme}, unchecked) do
-    if type = scheme_type(scheme, unchecked), do: {:array, type}
-  end
-
-  defp scheme_type({:object, fields}, unchecked) do
-    atoms =
-      Map.new(fields, fn {key, scheme} -> {key, if(key not in unchecked, do: scheme_type(scheme, unchecked))} end)
-
-    {:protocol, atoms, Map.new(atoms, fn {key, type} -> {Atom.to_string(key), type} end)}
-  end
-
-  defp scheme_type(_scheme, _unchecked), do: nil
-
   @doc "Converts the positional argument `name` (its Elixir name, for errors) of `type`."
   def arg!(value, type, api_name, name), do: convert!(value, type, api_name, [name])
 
   @doc """
-  The JS event name for `event` (atom, or the JS name as a string) in `events`; `nil` (an optional
-  event left out) stays `nil`. With `open?`, any string is an event too (CDP events of a `CDPSession`).
+  The JS event name for `event` in `events`: an atom's, a string as it is (any string, as JS's
+  `on` takes any event name); `nil` (an optional event left out) stays `nil`.
   """
-  def event!(event, events, api_name, open? \\ false) do
+  def event!(event, events, api_name) do
     cond do
       # An optional event left out (`remove_all_listeners(page)`: every event).
       event == nil -> nil
+      is_binary(event) -> event
       is_atom(event) and Map.has_key?(events, event) -> Map.fetch!(events, event)
-      is_binary(event) and (open? or event in Map.values(events)) -> event
       true -> raise ArgumentError, "#{api_name}: unknown event #{inspect(event)}, expected one of #{values(events)}"
     end
   end
@@ -313,6 +288,13 @@ defmodule Playwright.Runtime.Facade do
     value
   end
 
+  # Its keys are data (a `multipart` field name), its values are checked; a keyword list too (the
+  # FormData form, `Playwright.Client.Fetch`).
+  defp convert!(value, {:dictionary, type}, api_name, path) do
+    if object?(value) or is_list(value), do: for({key, item} <- value, do: convert!(item, type, api_name, [key | path]))
+    value
+  end
+
   defp convert!(value, {:array, type}, api_name, path) when is_list(value),
     do:
       value
@@ -333,7 +315,7 @@ defmodule Playwright.Runtime.Facade do
   defp convert!(value, {:union, types}, api_name, path) do
     type =
       cond do
-        object?(value) -> Enum.find(types, &match?({:fields, _}, &1))
+        object?(value) -> Enum.find(types, &match?({tag, _} when tag in [:fields, :dictionary], &1))
         is_list(value) -> Enum.find(types, &match?({:array, _}, &1))
         is_atom(value) -> Enum.find(types, &match?({:enum, _}, &1))
         true -> nil
@@ -401,11 +383,15 @@ defmodule Playwright.Runtime.Facade do
   defp values(map), do: map |> Map.keys() |> Enum.sort() |> Enum.map_join(", ", &inspect/1)
 
   @doc false
-  # A key as written in a path: bare (`color_scheme`), quoted where it must be (`:"proxy.server"`,
-  # a string key `"httpOnly"`). `Playwright.Application.key_name/1` names the runner's keys so.
+  # A key as written in a path: bare (`color_scheme`, `headless?`), quoted where it must be
+  # (`:"proxy.server"`, a string key `"httpOnly"`). `Playwright.Application.key_name/1` names the
+  # runner's keys so.
   def key(key) when is_atom(key) do
-    name = Atom.to_string(key)
-    if Regex.match?(~r/^[A-Za-z_][A-Za-z0-9_]*$/, name), do: name, else: inspect(key)
+    case inspect(key) do
+      ":\"" <> _ = quoted -> quoted
+      ":" <> name -> name
+      name -> name
+    end
   end
 
   def key(key), do: inspect(key)

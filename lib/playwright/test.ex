@@ -40,8 +40,9 @@ defmodule Playwright.Test do
   ## Registration
 
   `use Playwright.Test` comes after `use ExUnit.Case` (or in a case template's `using`). It
-  imports only a `test` macro, which hands the test to `ExUnit.Case.test/3` with the body's end
-  marked, so the test's `on_exit` learns whether it passed. And it adds a `setup` that
+  imports a `test` macro, which hands the test to `ExUnit.Case.test/3` with the body's end
+  marked, so the test's `on_exit` learns whether it passed, and `assert/1,2` and `refute/1,2`,
+  which are also steps (see "Assertions"). And it adds a `setup` that
   registers each test: its recording modes, its output dir and an `on_exit` (the first, so it
   runs last) that keeps or drops the artifacts by the result, then releases the test's
   `BrowserPool.browser/1` drivers. Tests of other macros (doctests, a `property`) count as
@@ -235,10 +236,16 @@ defmodule Playwright.Test do
   `launch_options` (its `use`'s, else its project's, else the config's, each as a whole) and
   `connect_options` are that call's defaults too, upstream's `launchOptions` and
   `connectOptions`: a project with `launch_options: [channel: "chrome"]` gets a worker of its
-  own. These four are the worker's, as upstream's: the module's (its `use`, then all of its
+  own. So are its `headless` and `channel`, upstream's options of their own, set over the launch
+  options' when given (`headless: false` launches headed whatever `launch_options` say); unset,
+  they are the launch options' (`headless` `true` when those have none). These six are the
+  worker's, as upstream's: the module's (its `use`, then all of its
   `@moduletag Test.use(...)`s merged, the later per option, upstream's top-level `test.use`, for
-  every test of the module, also those above such a line) or its project's. In a `@describetag` or a `@tag` of a test of
-  the `test` macro they raise when the module compiles, as upstream's `test.use` in a describe
+  every test of the module, also those above such a line) or its project's. Its other options
+  don't reach a test above the line, as ExUnit gives a test the `@moduletag`s set before it:
+  under `@moduletag Test.use(Playwright.device("iPhone 13"))`, such a test gets the device's
+  `default_browser_type` but not its viewport or user agent, so put the line above the tests.
+  In a `@describetag` or a `@tag` of a test of the `test` macro they raise when the module compiles, as upstream's `test.use` in a describe
   when the file loads, a device's `default_browser_type` too; other tests (a doctest, a bare
   `ExUnit.Case.test`) get the module's worker regardless. For a browser or a device per run,
   make each a project (`parameters/1`) in the module's `parameterize:`.
@@ -249,7 +256,7 @@ defmodule Playwright.Test do
   |---|---|---|---|---|
   | the context options, `context_options`, `action_timeout`, `navigation_timeout` | yes | yes | yes | yes |
   | `trace`, `screenshot`, `video` | yes | yes | yes | yes (an addition: upstream's are the worker's; they work fully per test, as the recorder records per test and touches no browser) |
-  | `browser_name`, `launch_options`, `connect_options` | yes | yes | yes | raises when the module compiles a `test` under it, as Playwright Test's `test.use` in a describe |
+  | `browser_name`, `headless`, `channel`, `launch_options`, `connect_options` | yes | yes | yes | raises when the module compiles a `test` under it, as Playwright Test's `test.use` in a describe |
   | `default_browser_type` (a device's) | picks the browser | picks the browser | picks the browser | raises, as the browser keys |
   | `test_id_attribute` | yes | no | no | no (a deviation: upstream's is an option of every level, global to a worker, which runs one test at a time; here it is global to the VM, which the tests running at once share) |
   | `output_dir`, `preserve_output`, `workers`, `snapshot_dir`, `snapshot_path_template`, `driver`, `on_start` | yes | no | no | no |
@@ -375,10 +382,74 @@ defmodule Playwright.Test do
   handler's in the current test: ExUnit runs `setup_all` before any test, and hooks aren't
   steps here.
 
+  ## Assertions
+
+  `use Playwright.Test` imports `Playwright.Test.Assertions`' `assert/1,2` and `refute/1,2` in
+  place of `ExUnit.Assertions`' (it imports that module again without them). Each is ExUnit's, also a
+  step of the running test, as upstream's `expect(value).toBe(...)` is: `category: 'expect'`,
+  titled `Expect "assert"` or `Expect "refute"`, with the expression as its subtitle and its
+  `expression` param, located at the call. Its `expected` param, as upstream's
+  `toEqual(expected)`'s, is the right side ExUnit's expansion binds (`left == right` and the other
+  operators, `pattern = right`, `match?(pattern, right)`; a failed one's from its error), when it
+  is JS-truthy (`if (args[0])`: not `nil`, `:null`, `false`, `0`, `0.0` or `""`), previewed as upstream's
+  `generatePreview` but cut to 100 list elements and 1000 characters (`…`), as upstream's isn't
+  (Elixir only: bound trace size); a truthy `assert x` has none. A message (`assert x, "msg"`)
+  is the title, as upstream's `expect(value, message)`.
+
+  A passed one expands to ExUnit's `assert` as it is, then records its step, so it binds as
+  ExUnit's (`assert {:ok, user} = create()`, `assert (n = count()) > 0`), and its driver calls
+  come before it, as upstream's. A failed one raises ExUnit's error, with its message and
+  stacktrace; only a function that ends in an assertion keeps its frame in the stacktrace, as
+  the assertion is no longer its tail call (as JS keeps every frame). A failed `assert/1` or
+  `refute/1` is recorded once, with that error, where it ends: in a `Playwright.Expect.to_pass/2`
+  attempt, else at the end of the test's body, as a step of the test's (not of the `step/3` it
+  failed in, which fails with the same error). `assert/2` and `refute/2` are functions in
+  ExUnit, so only their call is wrapped in a `try`, which records the failure there, in its
+  step, also when the test rescues it.
+  Outside a test, and in the module's `setup_all` (as a step there), nothing is recorded. The
+  other assertions (`assert_receive`, `assert_raise`, ...) are ExUnit's, no steps.
+
+  They are on by default. `use Playwright.Test, assert_steps: false` keeps ExUnit's own
+  `assert` and `refute` (its plain `import ExUnit.Assertions`) and records none in its tests,
+  passed or failed, a helper module's either; `config :playwright, :test, assert_steps: false` makes that the default,
+  which a module's `assert_steps: true` overrides. As it decides the import, it is read when the
+  module compiles: set it in `config/config.exs` or `config/test.exs`, not `config/runtime.exs`
+  (Mix recompiles the modules when it changes). The option takes a literal boolean.
+
+  Limits:
+
+    * A passed assertion is recorded only where the import is: a helper module opts in with
+      `import Playwright.Test.Assertions`, and, if it imports `ExUnit.Assertions` too,
+      `import ExUnit.Assertions, except: [assert: 1, assert: 2, refute: 1, refute: 2]`. A library
+      with its own `assert/2` excludes the arities it defines (`except: [assert: 2]`); its own
+      `refute/2` also takes the `refute(value, expr: ...)` that ExUnit's `refute match?` calls
+      (see `Playwright.Test.Assertions`). A failed `assert/1` or `refute/1` is recorded wherever it was
+      written.
+    * A test module that imports `ExUnit.Assertions` again after `use Playwright.Test` fails to
+      compile, with an ambiguous call of `assert`: drop that import, or add the same `except:`.
+    * A case template passes the import on with `use Playwright.Test` in its `using`; the one in
+      its body (see "Registration") doesn't.
+    * A failed `assert/1` or `refute/1` is a step of the test's, not nested in the `step/3` it
+      failed in. One that the test rescues itself (a retry loop without steps) leaves no step,
+      and so does one in the test's body under `mix test --breakpoints`, which runs the body
+      without the `test` macro's `catch`. One rescued and raised again with `raise error` (not
+      `reraise`) is located at that `raise`.
+    * A failed `assert/1` or `refute/1` in a process of its own (a `Task`, a listener, a route
+      handler) or in a `setup` callback leaves no step: the test body's catch doesn't see it.
+    * Each attempt of `Playwright.Expect.poll/3` is its assertion's own steps, under the poll's
+      step (as upstream's attempts are its matcher's); a poll with a message has the matcher's,
+      titled by it, as upstream's. An attempt without one of these `assert`s (`assert_receive`,
+      a raise of its own) leaves no step when it passes, the matcher's when it fails.
+    * A failed assertion's expression shows a capture's argument as ExUnit's error has it
+      (`_& == 2` for `&assert(&1 == 2)`); a passed one's is `&1 == 2`. On Elixir 1.18 both show
+      the argument as `capture` (`capture == 2`).
+
   ## Config
 
       config :playwright, :test,
-        browser_name: :chromium,      # BrowserPool: :chromium | :firefox | :webkit
+        browser_name: :chromium,      # BrowserPool: :chromium | :firefox | :webkit, or "chromium", ...
+        headless: nil,                # BrowserPool: over launch_options' (nil: launch_options' headless, else true)
+        channel: nil,                 # BrowserPool: over launch_options' (nil: launch_options' channel)
         launch_options: [],           # BrowserPool: Playwright.BrowserType.launch/2
         connect_options: nil,         # BrowserPool: [ws_endpoint: _, ...] to connect instead of launching
         driver: [],                   # BrowserPool: [env: _], Playwright.Supervisor's (the driver is config :playwright, :driver's)
@@ -393,11 +464,12 @@ defmodule Playwright.Test do
         screenshot: :off,             # :off | :on | :only_on_failure | :on_first_failure, or [mode: _, ...]
         video: :off,                  # as trace, or [mode: _, size: _]
         output_dir: "test-results",
-        preserve_output: :always,     # :always | :failures_only | :never, see Artifacts
+        preserve_output: :always,     # :always | :failures_only | :never, or "failures-only", ..., see Artifacts
         snapshot_dir: nil,            # upstream's testDir: test/
         snapshot_path_template: nil,  # upstream's defaults, see Snapshots
         test_id_attribute: "data-testid",
-        report_slow_tests: [max: 5, threshold: 300_000]  # Playwright.Test.GitHubFormatter's, ms; false: none
+        report_slow_tests: [max: 5, threshold: 300_000], # Playwright.Test.GitHubFormatter's, ms; false: none
+        assert_steps: true            # assert/refute as steps, at compile time (see Assertions)
 
   Each context option (`base_url`, `locale`, `viewport`, `storage_state`, ...) is a config key of
   its own, over the `context_options` bag, as under every other level, and in `config/0` only
@@ -408,8 +480,14 @@ defmodule Playwright.Test do
   `test_id_attribute` is upstream's `testIdAttribute`, set on each pooled driver: the client's
   value is global to the VM, so set it here, not per module. `config/0` returns the config
   resolved. An unknown key raises at application start (and when the runner reads a config
-  changed since), and so does a bad value of the keys upstream checks: `workers`, `preserve_output`, `output_dir`, `browser_name`, `on_start`, `report_slow_tests` and the context options (as `Browser.new_context/2` checks them).
-  Other values pass as given, as upstream's: an unknown artifact mode records nothing.
+  changed since), and so does a bad value of the keys upstream checks: `preserve_output`,
+  `output_dir`, `browser_name`, `report_slow_tests` and the context options (as
+  `Browser.new_context/2` checks them), and of `workers` (a positive integer: upstream's also
+  takes `"50%"` or a numeric string, which aren't supported), `on_start` and Elixir's
+  `assert_steps` (a boolean). `browser_name` and `preserve_output` take an atom (`:webkit`,
+  `:failures_only`) or upstream's string (`"webkit"`, `"failures-only"`): an unknown atom raises
+  as any bad value, an unknown string with upstream's error. Other values pass as given, as
+  upstream's: an unknown artifact mode records nothing.
   """
 
   alias Playwright.Runtime.Zones
@@ -427,6 +505,10 @@ defmodule Playwright.Test do
   @reraised {__MODULE__, :reraised}
   # When the test's first `setup` callback ran (`__started__/1`), in its process.
   @started {__MODULE__, :started}
+  @assertion_titles Map.new(
+                      [:assert, :refute],
+                      &{&1, "Expect #{Playwright.Isomorphic.StringUtils.escape_with_quotes(to_string(&1), "\"")}"}
+                    )
   # `info/0`'s fields of the registration.
   @info_keys [:test_pid, :file, :test_name, :output_dir, :retry]
 
@@ -437,9 +519,30 @@ defmodule Playwright.Test do
       # A test module, also when `use Playwright.Test` came before (from a template's `using`):
       # its import replaced ExUnit.Case's `test`.
       {:test, 3} in Keyword.get(macros, ExUnit.Case, []) or {:test, 3} in Keyword.get(macros, __MODULE__, []) ->
+        {assert_steps, opts} = assert_steps!(opts, __CALLER__)
+        # At expansion, for a later `use` in the module (`assert_steps!/2`) and `__before_compile__/1`.
+        Module.put_attribute(__CALLER__.module, :playwright_assert_steps, assert_steps)
+
+        imports =
+          if assert_steps do
+            quote do
+              # Replaces `use ExUnit.Case`'s import: `assert` and `refute` are `Playwright.Test.Assertions`'.
+              import ExUnit.Assertions, except: [assert: 1, assert: 2, refute: 1, refute: 2]
+              import Playwright.Test.Assertions
+              import Playwright.Test, only: [test: 1, test: 2, test: 3]
+            end
+          else
+            quote do
+              # Also after an earlier `use`'s import of them (a case template's `using`).
+              import Playwright.Test.Assertions, only: []
+              import ExUnit.Assertions
+              import Playwright.Test, only: [test: 1, test: 2, test: 3]
+            end
+          end
+
         quote do
           import ExUnit.Case, only: [describe: 2]
-          import Playwright.Test, only: [test: 1, test: 2, test: 3]
+          unquote(imports)
           require Playwright.Test
 
           if Playwright.Test.__use__(__MODULE__, unquote(opts)) do
@@ -509,6 +612,33 @@ defmodule Playwright.Test do
     end
   end
 
+  # Elixir only: whether `assert` and `refute` are steps (see "Assertions"), at compile time, as
+  # it decides the import: the literal `assert_steps:` of `opts` (taken out of them), else an
+  # earlier `use`'s in the module, else `config :playwright, :test`'s, read with `Application.compile_env/4`, so Mix recompiles the
+  # module when it changes.
+  defp assert_steps!(opts, caller) do
+    {given, opts} = if Keyword.keyword?(opts), do: Keyword.pop(opts, :assert_steps), else: {nil, opts}
+
+    cond do
+      is_boolean(given) ->
+        {given, opts}
+
+      given != nil ->
+        raise ArgumentError,
+              "use Playwright.Test: invalid value #{Macro.to_string(given)} for assert_steps, expected a literal boolean"
+
+      # An earlier `use`'s (a case template's `using`), as the other options merge.
+      is_boolean(earlier = Module.get_attribute(caller.module, :playwright_assert_steps)) ->
+        {earlier, opts}
+
+      true ->
+        # A `nil` key is unset: its default, as `config/0` reads it.
+        configured = Application.compile_env(caller, :playwright, [:test, :assert_steps], nil)
+        configured = if configured == nil, do: true, else: configured
+        {Options.validate_key!(:assert_steps, configured, "config :playwright, :test"), opts}
+    end
+  end
+
   @doc false
   # The module's merged `use` options, for its registration (`__register__/1`): a function, so the
   # test's context stays the test author's. And the timeout of its `setup_all` callbacks
@@ -516,6 +646,7 @@ defmodule Playwright.Test do
   # compiled them into `__ex_unit__/2`.
   defmacro __before_compile__(env) do
     options = Module.get_attribute(env.module, :playwright_test)
+    assert_steps = Module.get_attribute(env.module, :playwright_assert_steps, true)
 
     # Without ExUnit's `__ex_unit__/2` (its internals changed), no `setup_all` timeout: said at
     # compile time.
@@ -544,6 +675,7 @@ defmodule Playwright.Test do
       @doc false
       def __playwright_test__(:options), do: unquote(Macro.escape(options))
       def __playwright_test__(:file), do: unquote(env.file)
+      def __playwright_test__(:assert_steps), do: unquote(assert_steps)
 
       unquote(setup_all_timeout)
     end
@@ -604,6 +736,102 @@ defmodule Playwright.Test do
   end
 
   @doc false
+  # The step of an `assert` or `refute` (`kind`) of `code` with `message`: passed, or failed
+  # with `error` (`{kind, reason, stacktrace}`), with its `expected` (`Playwright.Test.Assertions`). The shape of
+  # `Playwright.Matchers.Expect.call_matcher_as_step/6`'s: none outside a test, and none in the
+  # module's `setup_all`, where `step/3` records nowhere, nor in a test of a module with
+  # `assert_steps: false` (a helper's assertion there).
+  def __assertion__(kind, code, message, error, expected) do
+    with %{} = test_info <- current_test_info(),
+         true <- Map.get(test_info, :assert_steps, true) do
+      stack = if error, do: elem(error, 2), else: TestInfo.capture_raw_stack()
+      add_assertion_step(test_info, kind, code, message, stack, error, expected)
+    end
+
+    :ok
+  end
+
+  # The running test: in a matcher's callback (a `to_pass` or `poll` attempt) the one the matcher
+  # call found (`Playwright.Matchers.Expect.expect_config/1`'s), else looked up.
+  defp current_test_info do
+    case Zones.data(:expectTestInfo) do
+      {test_info} -> test_info
+      nil -> TestInfo.current()
+    end
+  end
+
+  @doc false
+  # Elixir only: the step of a failed `assert/1` or `refute/1`, which ExUnit's macro raises with
+  # no `try` around it: recorded where the error ends, the catch of the test's body
+  # (`__failed__/3`) or of a `to_pass` attempt (the `toPass` step's), so once, at that level (not
+  # in the step it failed in, which fails with it). Its `ExUnit.AssertionError` has the expression,
+  # its stacktrace the location, its `right` the `expected`; also when a helper module without
+  # the import asserted. `assert/2`'s error has no expression: its own `try` recorded it.
+  # `assert_receive` and the others aren't steps. Returns whether it is such an error.
+  def __assertion_error__(test_info, error)
+
+  def __assertion_error__(
+        test_info,
+        {:error, %ExUnit.AssertionError{expr: {kind, _, [expr]}} = reason, stacktrace} = error
+      )
+      when kind in [:assert, :refute] and is_map(test_info) do
+    # None in a module with `assert_steps: false`.
+    if Map.get(test_info, :assert_steps, true),
+      do:
+        add_assertion_step(
+          test_info,
+          kind,
+          Playwright.Test.Assertions.__code_string__(expr),
+          nil,
+          stacktrace,
+          error,
+          expected(expr, reason)
+        )
+
+    true
+  end
+
+  def __assertion_error__(_test_info, _error), do: false
+
+  # ExUnit's operators that fail for both sides being exactly equal (its `translate_assertion/3`).
+  @equality_operators [:<, :>, :!==, :!=, :<=, :>=, :===, :==, :=~]
+
+  # A failed assertion's `expected`: its error's `right`, or of a comparison ExUnit failed for
+  # both sides being exactly equal (`assert a != b`, no `right`), its `left`; else none.
+  defp expected(expr, %{left: left, right: right}) do
+    no_value = ExUnit.AssertionError.no_value()
+
+    cond do
+      right != no_value -> right
+      match?({operator, _, [_, _]} when operator in @equality_operators, expr) and left != no_value -> left
+      true -> nil
+    end
+  end
+
+  # `callMatcherAsStep`'s step: its title is the message, else `Expect "assert"` (its
+  # `escapeWithQuotes` at compile time, which costs more at run time than the step).
+  defp add_assertion_step(test_info, kind, code, message, stacktrace, error, expected) do
+    title = if is_binary(message) and message != "", do: message, else: @assertion_titles[kind]
+    params = %{expression: code}
+    # `if (args[0]) params.expected = args[0]`, its preview bounded (`TestTracing.bounded_preview/1`).
+    params =
+      if Playwright.Matchers.Expect.truthy?(expected),
+        do: Map.put(params, :expected, TestTracing.bounded_preview(expected)),
+        else: params
+
+    step =
+      TestInfo._add_step(test_info, %{
+        category: "expect",
+        title: title,
+        subtitle: code,
+        stack: TestInfo.stack_frames(TestInfo.filtered_stack_trace(stacktrace)),
+        params: params
+      })
+
+    TestInfo.step_complete(step, if(error, do: %{error: error}, else: %{}))
+  end
+
+  @doc false
   # When a test registers, its describe's and its own tags have no worker option of `use/1`, as
   # upstream's `test.use` in a describe raises when it loads; the module's `@moduletag` may.
   def __worker_tags__!(module) do
@@ -644,6 +872,8 @@ defmodule Playwright.Test do
     if Process.delete(@reraised) do
       {kind, reason, stacktrace}
     else
+      # Elixir only: a failed `assert/1`'s step (`__assertion_error__/2`).
+      __assertion_error__(TestInfo.current(), {kind, reason, stacktrace})
       # The worker's `_failWithError` of the body's error: its trace event (`appendForError`).
       TestInfo.trace_errors(self(), errors(kind, reason, stacktrace))
 
@@ -815,6 +1045,8 @@ defmodule Playwright.Test do
       })
       |> Map.merge(context_defaults(config, layers, module_worker(context[:module], use_options, %{})))
       |> Map.put(:use_modes, use_modes)
+      # Elixir only: the module's `assert_steps` (`__assertion_error__/2`).
+      |> Map.put(:assert_steps, compiled(context[:module], :assert_steps, config.assert_steps))
 
     TestInfo.remove_output_dirs(test)
     # The failure of a marked test that raised nothing in its body.
@@ -940,7 +1172,7 @@ defmodule Playwright.Test do
   options every context of the test starts from (`base_url`, `locale`, `extra_http_headers`,
   ...; those set, and Playwright Test's defaults), `action_timeout`, `navigation_timeout`,
   `trace`, `screenshot`, `video`, and the worker options of its `BrowserPool.browser/1` calls
-  (`browser_name`, `launch_options`, `connect_options`). A library that passes options in a
+  (`browser_name`, `headless`, `channel`, `launch_options`, `connect_options`). A library that passes options in a
   call merges into it, as the call's replace the resolved ones as a whole:
   `Browser.new_context!(browser, extra_http_headers: Map.merge(Test.info().use[:extra_http_headers]
   || %{}, headers))`. A library that waits or
@@ -1117,8 +1349,8 @@ defmodule Playwright.Test do
   the default. A plain tag named like an option (`@tag trace: :on`) sets nothing.
 
   An unknown option raises `ArgumentError`, when the test module compiles. So do
-  `browser_name`, `default_browser_type` (a device's), `launch_options` and `connect_options` in
-  a `@describetag` or a `@tag`, when the module compiles a test of the `test` macro under it,
+  `browser_name`, `default_browser_type` (a device's), `headless`, `channel`, `launch_options` and
+  `connect_options` in a `@describetag` or a `@tag`, when the module compiles a test of the `test` macro under it,
   with upstream's message ("Cannot use({
   browser_name }) in a describe group, because it forces a new worker.\nMake it top-level in the
   test file or put in the configuration file.", "in a test" for a `@tag`): they are the
@@ -1133,7 +1365,8 @@ defmodule Playwright.Test do
   @doc """
   A project for `parameterize:`, upstream's `projects: [{ name, use: { ... } }]`: `name:` (a
   string, upstream's `project.name`), `use/1`'s options and the worker's (`browser_name`,
-  `default_browser_type`, `launch_options`, `connect_options`), validated as it does. A map of
+  `default_browser_type`, `headless`, `channel`, `launch_options`, `connect_options`), validated
+  as it does. A map of
   one private key, `:"playwright.project"`, whose value is a `Playwright.Test.Project`, which
   ExUnit takes there (a tag takes `use/1`'s keyword list).
 
@@ -1259,10 +1492,13 @@ defmodule Playwright.Test do
 
   Options:
 
-    * `:box` - an error inside the step is reported outside it: its stacktrace starts at the
-      call of the function the step is in (a helper's caller), instead of the frames inside it.
+    * `:box` - the step is located at the call of the function the step is in (a helper's
+      caller), unless `:location` is given, and an error inside it is reported there: its
+      stacktrace starts at that call, instead of the frames inside it. The steps inside keep
+      their own locations. A boxed step outside a helper (in the test's body) has no location of
+      its own; pass `location:`.
     * `:location` - `%{file: _, line: _, column: _}` of the step in the trace. The `do` form
-      passes its own.
+      passes its own, unless boxed.
     * `:params`, `:subtitle` - shown with the step in the trace.
 
   The body runs in the calling process. Upstream's `timeout` is not supported (it raises an
@@ -1290,8 +1526,14 @@ defmodule Playwright.Test do
         do_block?(body_or_options) and options == [] ->
           {step_fn(body_or_options), [location: location]}
 
+        # A boxed step is located where its helper is called (`boxedStack`), as upstream's
+        # without `location`.
         do_block?(options) ->
-          {step_fn(options), quote(do: Keyword.put_new(unquote(body_or_options), :location, unquote(location)))}
+          {step_fn(options),
+           quote do
+             options = unquote(body_or_options)
+             if options[:box], do: options, else: Keyword.put_new(options, :location, unquote(location))
+           end}
 
         true ->
           {body_or_options, options}

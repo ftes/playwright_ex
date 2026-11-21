@@ -175,8 +175,8 @@ defmodule Playwright.Test.BrowserPoolTest do
     end
 
     test "unknown options and bad values raise" do
-      assert_raise ArgumentError, ~r/unknown option headless, /, fn ->
-        BrowserPool.browser(headless: true)
+      assert_raise ArgumentError, ~r/unknown option slow_mo, /, fn ->
+        BrowserPool.browser(slow_mo: 1)
       end
 
       assert_raise ArgumentError, ~r/invalid value :chrome for browser_name, /, fn ->
