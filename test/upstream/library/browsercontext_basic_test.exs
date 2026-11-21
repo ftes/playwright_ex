@@ -67,13 +67,11 @@ defmodule Playwright.Library.BrowsercontextBasicTest do
 
     click_count = 20
 
-    Task.await_many(
-      [
-        Task.async(fn -> click_in_page.(page1, click_count) end),
-        Task.async(fn -> click_in_page.(page2, click_count) end)
-      ],
-      30_000
-    )
+    Promise.all([
+      Promise.async(fn -> click_in_page.(page1, click_count) end),
+      Promise.async(fn -> click_in_page.(page2, click_count) end)
+    ])
+    |> Promise.await!()
 
     assert get_clicks.(page1) == click_count
     assert get_clicks.(page2) == click_count
@@ -103,28 +101,31 @@ defmodule Playwright.Library.BrowsercontextBasicTest do
     pages =
       [1, 2, 3, 4, 5]
       |> Enum.map(fn _ ->
-        Task.async(fn ->
+        Promise.async(fn ->
           context = Browser.new_context!(browser)
           page = BrowserContext.new_page!(context)
           Page.set_content!(page, html)
           page
         end)
       end)
-      |> Task.await_many(:infinity)
+      |> Promise.all()
+      |> Promise.await!()
 
     # expect.soft(..., `Tooltip for page ${index + 1} should be visible`): a plain assertion (no soft asserts).
     pages
     |> Enum.map(fn page ->
-      Task.async(fn ->
+      Promise.async(fn ->
         page |> Page.get_by_role("button", name: "Hover me") |> Locator.hover!()
         Expect.to_be_visible!(Page.get_by_role(page, "tooltip"))
       end)
     end)
-    |> Task.await_many(:infinity)
+    |> Promise.all()
+    |> Promise.await!()
 
     pages
-    |> Enum.map(&Task.async(fn -> BrowserContext.close!(Page.context(&1)) end))
-    |> Task.await_many(:infinity)
+    |> Enum.map(&Promise.async(fn -> BrowserContext.close!(Page.context(&1)) end))
+    |> Promise.all()
+    |> Promise.await!()
   end
 
   test "BC-004 window.open should use parent tab context", %{browser: browser, server: server} do
@@ -180,13 +181,11 @@ defmodule Playwright.Library.BrowsercontextBasicTest do
     assert Page.evaluate!(page2, "() => document.cookie") == "name=page2"
 
     # Cleanup contexts.
-    Task.await_many(
-      [
-        Task.async(fn -> BrowserContext.close!(context1) end),
-        Task.async(fn -> BrowserContext.close!(context2) end)
-      ],
-      :infinity
-    )
+    Promise.all([
+      Promise.async(fn -> BrowserContext.close!(context1) end),
+      Promise.async(fn -> BrowserContext.close!(context2) end)
+    ])
+    |> Promise.await!()
 
     assert Browser.contexts(browser) == []
   end
@@ -539,27 +538,23 @@ defmodule Playwright.Library.BrowsercontextBasicTest do
     context1 = Browser.new_context!(browser)
     context2 = Browser.new_context!(browser)
 
-    Task.await_many(
-      [
-        Task.async(fn -> BrowserContext.new_page!(context1) end),
-        Task.async(fn -> BrowserContext.new_page!(context1) end),
-        Task.async(fn -> BrowserContext.new_page!(context2) end),
-        Task.async(fn -> BrowserContext.new_page!(context2) end)
-      ],
-      :infinity
-    )
+    Promise.all([
+      Promise.async(fn -> BrowserContext.new_page!(context1) end),
+      Promise.async(fn -> BrowserContext.new_page!(context1) end),
+      Promise.async(fn -> BrowserContext.new_page!(context2) end),
+      Promise.async(fn -> BrowserContext.new_page!(context2) end)
+    ])
+    |> Promise.await!()
 
     BrowserContext.close!(context1)
     BrowserContext.close!(context2)
     context3 = Browser.new_context!(browser)
 
-    Task.await_many(
-      [
-        Task.async(fn -> BrowserContext.new_page!(context3) end),
-        Task.async(fn -> BrowserContext.new_page!(context3) end)
-      ],
-      :infinity
-    )
+    Promise.all([
+      Promise.async(fn -> BrowserContext.new_page!(context3) end),
+      Promise.async(fn -> BrowserContext.new_page!(context3) end)
+    ])
+    |> Promise.await!()
 
     BrowserContext.close!(context3)
   end

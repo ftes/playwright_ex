@@ -31,6 +31,7 @@ defmodule Playwright.Library.HarTest do
   alias Playwright.Browser
   alias Playwright.BrowserContext
   alias Playwright.Page
+  alias Playwright.Promise
   alias Playwright.Response
   alias Playwright.Route
   alias Playwright.TestServer
@@ -1155,8 +1156,9 @@ defmodule Playwright.Library.HarTest do
     # location. NB: Run this test with --repeat-each 10.
     [log0, log1] =
       [session0, session1]
-      |> Enum.map(&Task.async(fn -> get_log(&1) end))
-      |> Task.await_many(:infinity)
+      |> Enum.map(&Promise.async(fn -> get_log(&1) end))
+      |> Promise.all()
+      |> Promise.await!()
 
     assert length(log0["pages"]) == 1
     page_entry = hd(log0["pages"])

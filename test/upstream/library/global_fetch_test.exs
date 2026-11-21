@@ -9,6 +9,7 @@ defmodule Playwright.Library.GlobalFetchTest do
   alias Playwright.APIRequest
   alias Playwright.APIRequestContext
   alias Playwright.APIResponse
+  alias Playwright.Promise
   alias Playwright.TestServer
 
   # const it = base.extend({ context: ... throw })  -- no `context`/`page` fixture without the `:page` tag
@@ -493,15 +494,15 @@ defmodule Playwright.Library.GlobalFetchTest do
     wait = TestServer.wait_for_request(server, "/empty.html")
 
     tasks = [
-      Task.async(fn -> APIRequestContext.get(request, server.empty_page) end),
-      Task.async(fn -> APIRequestContext.post(request, server.empty_page) end),
-      Task.async(fn -> APIRequestContext.delete(request, server.empty_page) end)
+      Promise.async(fn -> APIRequestContext.get(request, server.empty_page) end),
+      Promise.async(fn -> APIRequestContext.post(request, server.empty_page) end),
+      Promise.async(fn -> APIRequestContext.delete(request, server.empty_page) end)
     ]
 
     Task.await(wait, :infinity)
     APIRequestContext.dispose!(request)
 
-    for result <- Task.await_many(tasks, :infinity) do
+    for result <- tasks |> Promise.all() |> Promise.await!() do
       assert {:error, error} = result
       assert Exception.message(error) =~ "Request context disposed."
     end

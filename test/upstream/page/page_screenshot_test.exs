@@ -18,6 +18,7 @@ defmodule Playwright.Page.PageScreenshotTest do
   alias Playwright.FrameLocator
   alias Playwright.Locator
   alias Playwright.Page
+  alias Playwright.Promise
   alias Playwright.Route
   alias Playwright.Runtime
   alias Playwright.TestServer
@@ -178,10 +179,10 @@ defmodule Playwright.Page.PageScreenshotTest do
 
       promises =
         for i <- 0..2 do
-          Task.async(fn -> Page.screenshot!(page, clip: %{x: 50 * i, y: 0, width: 50, height: 50}) end)
+          Promise.async(fn -> Page.screenshot!(page, clip: %{x: 50 * i, y: 0, width: 50, height: 50}) end)
         end
 
-      screenshots = Task.await_many(promises, :infinity)
+      screenshots = promises |> Promise.all() |> Promise.await!()
       to_match_snapshot(Enum.at(screenshots, 1), "grid-cell-1.png")
     end
 
@@ -540,9 +541,9 @@ defmodule Playwright.Page.PageScreenshotTest do
     test "SS-039 should take fullPage screenshots during navigation", %{page: page, server: server} do
       Page.set_viewport_size!(page, %{width: 500, height: 500})
       Page.goto!(page, server.prefix <> "/grid.html")
-      reload_several_times = Task.async(fn -> for _ <- 1..5, do: Page.reload!(page) end)
-      screenshot_several_times = Task.async(fn -> for _ <- 1..5, do: Page.screenshot!(page, full_page: true) end)
-      Task.await_many([reload_several_times, screenshot_several_times], :infinity)
+      reload_several_times = Promise.async(fn -> for _ <- 1..5, do: Page.reload!(page) end)
+      screenshot_several_times = Promise.async(fn -> for _ <- 1..5, do: Page.screenshot!(page, full_page: true) end)
+      Promise.all([reload_several_times, screenshot_several_times]) |> Promise.await!()
     end
 
     @tag skip:
@@ -640,21 +641,19 @@ defmodule Playwright.Page.PageScreenshotTest do
       Page.add_style_tag!(page, content: "iframe { border: none; }")
 
       screenshots =
-        Task.await_many(
-          [
-            Task.async(fn ->
-              Page.screenshot!(page,
-                mask: [page |> Page.frame_locator("#frame1") |> FrameLocator.locator("div") |> Locator.nth(1)]
-              )
-            end),
-            Task.async(fn ->
-              Page.screenshot!(page,
-                mask: [page |> Page.frame_locator("#frame2") |> FrameLocator.locator("div") |> Locator.nth(3)]
-              )
-            end)
-          ],
-          :infinity
-        )
+        Promise.all([
+          Promise.async(fn ->
+            Page.screenshot!(page,
+              mask: [page |> Page.frame_locator("#frame1") |> FrameLocator.locator("div") |> Locator.nth(1)]
+            )
+          end),
+          Promise.async(fn ->
+            Page.screenshot!(page,
+              mask: [page |> Page.frame_locator("#frame2") |> FrameLocator.locator("div") |> Locator.nth(3)]
+            )
+          end)
+        ])
+        |> Promise.await!()
 
       to_match_snapshot(Enum.at(screenshots, 0), "should-mask-in-parallel-1.png")
       to_match_snapshot(Enum.at(screenshots, 1), "should-mask-in-parallel-2.png")
