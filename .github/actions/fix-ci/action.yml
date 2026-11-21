@@ -39,11 +39,12 @@ runs:
           echo "::error::bad input: $KIND $PR $BRANCH"
           exit 1
         fi
-        # This repository's runs only.
+        # This repository's runs of the checked-out commit only.
+        head=$(git rev-parse HEAD)
         # shellcheck disable=SC2016 # jq's $ENV
-        run=$(gh api "repos/$GH_REPO/actions/workflows/elixir.yml/runs?branch=$BRANCH&event=pull_request&per_page=100" \
+        run=$(gh api "repos/$GH_REPO/actions/workflows/elixir.yml/runs?branch=$BRANCH&head_sha=$head&event=pull_request&per_page=100" \
           --jq '[.workflow_runs[] | select(.head_repository.full_name == $ENV.GH_REPO)][0].id // empty')
-        if [[ -z $run ]]; then echo "::error::no CI run of $BRANCH"; exit 1; fi
+        if [[ -z $run ]]; then echo "::error::no CI run of $BRANCH at $head"; exit 1; fi
         mkdir -p tmp
         gh run view "$run" --log-failed | tail -n 5000 > tmp/ci-failed.log
     - uses: ./tmp/default-branch/.github/actions/claude
@@ -59,4 +60,4 @@ runs:
           GIVE UP: ${{ inputs.kind == 'nightly' && format('gh pr close {0} --delete-branch --comment "<one sentence on why>"', inputs.pr) || format('gh pr comment {0} --body "Needs a human: <one sentence on why>"', inputs.pr) }}
         # Nightly fixes are small: fewer turns, no subagents.
         max-turns: ${{ inputs.kind == 'nightly' && '60' || '150' }}
-        allowed-tools: "Skill,Read,Grep,Glob,Edit,Write,${{ inputs.kind != 'nightly' && 'Agent,Task,' || '' }}Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix credo:*),Bash(mix playwright.parity:*),Bash(mix playwright.gen.api:*),Bash(mix playwright.gen.protocol:*),Bash(gh pr view ${{ inputs.pr }}:*),Bash(gh pr diff ${{ inputs.pr }}:*),Bash(git push origin ${{ inputs.branch }}),${{ inputs.kind == 'nightly' && format('Bash(gh pr close {0} *)', inputs.pr) || format('Bash(gh pr comment {0} *)', inputs.pr) }}"
+        allowed-tools: "Skill,Read,Grep,Glob,Edit,Write,${{ inputs.kind != 'nightly' && 'Agent,Task,' || '' }}Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix credo:*),Bash(mix playwright.parity:*),Bash(mix playwright.gen.api:*),Bash(mix playwright.gen.protocol:*),Bash(gh pr view ${{ inputs.pr }}),Bash(gh pr view ${{ inputs.pr }} *),Bash(gh pr diff ${{ inputs.pr }}),Bash(gh pr diff ${{ inputs.pr }} *),Bash(git push origin ${{ inputs.branch }}),${{ inputs.kind == 'nightly' && format('Bash(gh pr close {0} *)', inputs.pr) || format('Bash(gh pr comment {0} *)', inputs.pr) }}"

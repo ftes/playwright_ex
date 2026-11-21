@@ -24,7 +24,8 @@ the existing ported code next to whatever you port.
 3. Follow PORTING.md "Bumping the pinned version", step by step:
    1. PORTING step 1 with `mix playwright.checksums TO NODE`: NODE is the current
       `NODE_VERSION`, or playwright-python's `NODE_VERSION` for TO if that changed (look it up in
-      microsoft/playwright-python with `gh` or `curl`). Then `mix playwright.install chromium`
+      microsoft/playwright-python with `gh api repos/microsoft/playwright-python/...` or
+      `curl -fsSL https://raw.githubusercontent.com/microsoft/playwright-python/...`). Then `mix playwright.install chromium`
       (driver and browser for TO).
    2. PORTING step 2; commit the bump and the generated diff (often none for a patch release) on
       their own. Then publish, before porting anything, so a run that stops early still leaves

@@ -103,10 +103,11 @@ jobs:
       # The upstream clone (see the prompt) lives outside the checkout; --add-dir needs it.
       - run: mkdir -p /tmp/playwright
       # No github_token input: the action uses the Claude App token (see above). Tools: file tools
-      # and subagents; mix (build, generators, tests), git (upstream fetch/diff, commits, push), gh
-      # (release notes, PR), curl (playwright-python's NODE_VERSION); a few read-only shell helpers.
-      # Prefix rules can't fence pushes tightly, so the denials are a backstop; main's ruleset is
-      # the real guard. --add-dir: the upstream clone.
+      # and subagents; mix (build, generators, tests); git on the checkout (no fetching; pushes to
+      # BRANCH only) and on the upstream clone (fetches from microsoft/playwright only); gh for the
+      # release notes, playwright-python's API and this run's PR; curl for playwright-python's raw
+      # files; a few read-only shell helpers. The denials keep those to their one repository;
+      # main's ruleset is the real guard for pushes. --add-dir: the upstream clone.
       - uses: ./.github/actions/claude
         with:
           token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -120,8 +121,8 @@ jobs:
             RELEASE: https://github.com/microsoft/playwright/releases/tag/v${{ needs.check.outputs.to }}
           max-turns: "600"
           add-dir: /tmp/playwright
-          allowed-tools: "Skill,Read,Write,Edit,MultiEdit,Glob,Grep,LS,Agent,Task,TodoWrite,Bash(mix:*),Bash(MIX_ENV=test mix:*),Bash(git:*),Bash(gh:*),Bash(curl:*),Bash(ls:*),Bash(mkdir:*),Bash(wc:*),Bash(diff:*)"
-          disallowed-tools: "Bash(gh pr merge:*),Bash(gh pr ready:*),Bash(gh repo:*),Bash(gh workflow:*),Bash(git push origin main:*),Bash(git push origin HEAD:main:*),Bash(git push --force:*),Bash(git push -f:*)"
+          allowed-tools: "Skill,Read,Write,Edit,MultiEdit,Glob,Grep,LS,Agent,Task,TodoWrite,Bash(mix:*),Bash(MIX_ENV=test mix:*),Bash(PW_UNSKIP=* mix test *),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git rm:*),Bash(git mv:*),Bash(git restore:*),Bash(git commit:*),Bash(git switch -c ${{ needs.check.outputs.branch }}),Bash(git push origin ${{ needs.check.outputs.branch }}),Bash(git push -u origin ${{ needs.check.outputs.branch }}),Bash(git init -q /tmp/playwright),Bash(git -C /tmp/playwright fetch --depth=1 https://github.com/microsoft/playwright *),Bash(git -C /tmp/playwright diff *),Bash(git -C /tmp/playwright show *),Bash(git -C /tmp/playwright log *),Bash(gh release view * --repo microsoft/playwright),Bash(gh api repos/microsoft/playwright-python/*),Bash(gh pr create --draft --base main --head ${{ needs.check.outputs.branch }} *),Bash(gh pr edit ${{ needs.check.outputs.branch }} --body-file *),Bash(curl -fsSL https://raw.githubusercontent.com/microsoft/playwright-python/*),Bash(ls:*),Bash(mkdir:*),Bash(wc:*),Bash(diff:*)"
+          disallowed-tools: "Bash(git *pull/*),Bash(git * --upload-pack*),Bash(git -C /tmp/playwright fetch *..*),Bash(git -C /tmp/playwright fetch *%*),Bash(curl *..*),Bash(curl *%*),Bash(curl -fsSL https://raw.githubusercontent.com/microsoft/playwright-python/* *)"
       # Claude's run succeeds whatever it did, so a port that never got published would go unnoticed.
       - name: Check the branch and PR exist
         env:
