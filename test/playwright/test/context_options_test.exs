@@ -1,3 +1,25 @@
+# Before the test module: an async module's tests start once it is compiled, while the rest
+# of the file still compiles, and its tests read these modules' compiled options.
+defmodule Playwright.Test.ContextOptionsTest.Merged do
+  # No tests: its `use`s' merged options.
+  use ExUnit.Case, async: true
+  use Playwright.Test, locale: "de-DE", color_scheme: :dark
+  use Playwright.Test, %{locale: "fr-FR"}
+end
+
+defmodule Playwright.Test.ContextOptionsTest.NilOption do
+  use ExUnit.Case, async: true
+  use Playwright.Test, locale: "fr-FR", color_scheme: :dark
+  use Playwright.Test, locale: nil
+end
+
+defmodule Playwright.Test.ContextOptionsTest.NilThenOption do
+  use ExUnit.Case, async: true
+  use Playwright.Test, locale: "fr-FR", color_scheme: :dark
+  use Playwright.Test, locale: nil
+  use Playwright.Test, locale: "it-IT"
+end
+
 defmodule Playwright.Test.ContextOptionsTest do
   # `use Playwright.Test, ...` (through `Playwright.Case`), upstream's
   # `test.use({ locale: 'de-DE' })`: over the defaults and the config, under the call's options,
@@ -819,26 +841,6 @@ defmodule Playwright.Test.ContextOptionsTest.OtherTest do
     assert language(page) == "en-US"
     refute dark?(page)
   end
-end
-
-defmodule Playwright.Test.ContextOptionsTest.Merged do
-  # No tests: its `use`s' merged options.
-  use ExUnit.Case, async: true
-  use Playwright.Test, locale: "de-DE", color_scheme: :dark
-  use Playwright.Test, %{locale: "fr-FR"}
-end
-
-defmodule Playwright.Test.ContextOptionsTest.NilOption do
-  use ExUnit.Case, async: true
-  use Playwright.Test, locale: "fr-FR", color_scheme: :dark
-  use Playwright.Test, locale: nil
-end
-
-defmodule Playwright.Test.ContextOptionsTest.NilThenOption do
-  use ExUnit.Case, async: true
-  use Playwright.Test, locale: "fr-FR", color_scheme: :dark
-  use Playwright.Test, locale: nil
-  use Playwright.Test, locale: "it-IT"
 end
 
 defmodule Playwright.Test.ContextOptionsTest.ModuleWorkerTest do
