@@ -170,7 +170,12 @@ defmodule Playwright.Test.ResultTest do
     pid = fake_test()
     end_test(pid, [&{:passed, &1}], :shutdown)
     pool = Process.whereis(Pool)
+    # Its rows went with the pool, its recorder too.
+    recorder = Playwright.Test.Recorder.lookup(pid)
     :ets.delete(Results.table(), {:test, pid})
+    :ets.delete(Results.table(), {:recorder, pid})
+    # None under `--trace`: no timeout.
+    if recorder, do: GenServer.stop(recorder)
 
     assert Results.take(pid) == {nil, nil}
 

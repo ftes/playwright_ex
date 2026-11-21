@@ -110,7 +110,8 @@ defmodule Playwright.Test.RegistrationTest do
     browser = Playwright.BrowserType.launch!(Playwright.TestBrowser.browser_type(playwright))
     own = &Browser.new_context!(browser, user_agent: &1)
     assert Map.take(options_of(playwright, own), Map.keys(@context_defaults)) == %{}
-    assert Recorder.lookup(self()) == nil
+    # The recorder of the test's timeout, if any (none under `--trace`), has none of it.
+    if recorder = Recorder.lookup(self()), do: assert(:sys.get_state(recorder).contexts == [])
   end
 
   test "info: the running test, also in a Task; outside a test it raises" do
@@ -200,9 +201,19 @@ defmodule Playwright.Test.RegistrationTest do
     end
   end
 
-  test "with every artifact off, nothing is written and no recorder runs for a test without contexts" do
-    assert Recorder.lookup(self()) == nil
+  test "with every artifact off, nothing is written for a test without contexts" do
     refute File.exists?(Playwright.Test.info().output_dir)
+  end
+
+  @tag timeout: :infinity
+  test "with every artifact off, no recorder runs for a test without contexts and a timeout" do
+    assert Recorder.lookup(self()) == nil
+  end
+
+  if ExUnit.configuration()[:trace], do: @tag(skip: "mix test --trace has no timeouts")
+
+  test "a test with a timeout has its recorder from its registration, for the timer" do
+    assert is_reference(:sys.get_state(Recorder.lookup(self())).timer)
   end
 
   # Kept on failure only, so the passing test leaves no files.
@@ -211,7 +222,8 @@ defmodule Playwright.Test.RegistrationTest do
     assert is_pid(Recorder.lookup(self()))
   end
 
-  test "a test's first context starts its recorder", ctx do
+  @tag timeout: :infinity
+  test "a test without a timeout or traces: its first context starts its recorder", ctx do
     assert Recorder.lookup(self()) == nil
     Browser.new_context!(ctx.browser)
     assert is_pid(Recorder.lookup(self()))

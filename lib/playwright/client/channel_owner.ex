@@ -457,7 +457,10 @@ defmodule Playwright.Client.ChannelOwner do
             internal: true,
             signal: signal,
             timeout: timeout,
-            on_reply: on_reply
+            on_reply: on_reply,
+            # Elixir only: the prefix of an adopted call's error (`Connection._adopt_calls/4`), as
+            # `_wrap_api_call/3` prefixes any error of its zone.
+            apiName: api_zone.apiName
           })
         end
       end,

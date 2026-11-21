@@ -4,10 +4,11 @@ defmodule Playwright.Test.Recorder do
   # `ArtifactsRecorder`, `SnapshotRecorder` and `_contextFactory`
   # (`packages/playwright/src/index.ts`).
   #
-  # A process per test that creates a context (`Playwright.Test.Results.recorder/1`, started on
-  # its first one; on its registration when it traces, for the steps of `test.trace`), alive to
-  # the end of its `on_exit`: it remembers the test's contexts and anchors them (so their pages
-  # and videos stay readable after the process that created or closed them exits). The driver's
+  # A process per test (`Playwright.Test.Results.recorder/1`, started on its registration when it
+  # has a timeout, for the timer, or traces, for the steps of `test.trace`; else on its first
+  # context), alive to the end of its `on_exit`: it remembers the test's contexts and anchors them
+  # (so their pages and videos stay readable after the process that created or closed them
+  # exits). The driver's
   # listener (`listener/0`) runs in the processes that create and close contexts; `finish/3`
   # runs in ExUnit's `on_exit` process, once the test's result is known, and keeps or drops the
   # artifacts by it. Every artifact step rescues and logs: an exception in `on_exit` would fail
@@ -16,7 +17,8 @@ defmodule Playwright.Test.Recorder do
   # The recorder also owns the test's timeout (upstream's `TimeoutManager`): just before ExUnit
   # kills the test process (`test_timeout_margin/1`), it interrupts it with "Test timeout of
   # <ms>ms exceeded.", and the test's `on_exit` closes its contexts with that reason (upstream's
-  # `closeReason` of a `timedOut` test), after their artifact steps. A context a test creates
+  # `closeReason` of a `timedOut` test), after their artifact steps; a test the interrupt can't
+  # stop has them closed then (`time_out/1`). A context a test creates
   # after the interrupt is closed, and its creation fails with that reason (`record/3`).
   #
   # The recorder makes no driver call and awaits nothing, so its calls return at once: every
@@ -30,10 +32,13 @@ defmodule Playwright.Test.Recorder do
   # How long the test's end waits for an answer of a recorder that may be blocked: before its
   # artifacts (`timed_out?/1`), and past their budget (`finish/3`), before it kills it.
   @answer_timeout 5000
+  # How long `finish/3` waits for the adopted calls' errors after the closes.
+  @settle_timeout 1000
 
   alias Playwright.APIRequestContext
   alias Playwright.BrowserContext
   alias Playwright.Client.ChannelOwner
+  alias Playwright.Client.Connection
   alias Playwright.Client.TimeoutSettings
   alias Playwright.Isomorphic.ProtocolFormatter
   alias Playwright.Isomorphic.StringUtils
@@ -48,6 +53,7 @@ defmodule Playwright.Test.Recorder do
   alias Playwright.Test.Results
   alias Playwright.Test.TestInfo
   alias Playwright.Test.TestTracing
+  alias Playwright.Test.TimeoutManagerError
   alias Playwright.Tracing
   alias Playwright.Video
 
@@ -260,12 +266,17 @@ defmodule Playwright.Test.Recorder do
     # `contexts` in creation order, `closed` (guids) in close order, `requests` the open request
     # contexts of `APIRequest.new_context/2`, `screenshots` (temporary files) in capture order;
     # `snapshotted` the guids of the pages with a screenshot, `ordinal` the screenshots named so
-    # far (upstream's `SnapshotRecorder`). `timer` the test timeout's, `timed_out` once it fired;
-    # `finisher` the caller of `finish/3`.
+    # far (upstream's `SnapshotRecorder`). `timer` the test timeout's, `timed_out` once it fired,
+    # with the interrupt's error `timeout_error` and the test's calls it adopted (`adopted`,
+    # `adopt_calls/4`), or `closing` the process that closes the contexts then; `finisher` the
+    # caller of `finish/3`.
     {:ok,
      %{
        timer: arm(test),
        timed_out: false,
+       timeout_error: nil,
+       adopted: [],
+       closing: nil,
        finisher: nil,
        test_pid: test.test_pid,
        opts: test,
@@ -437,7 +448,15 @@ defmodule Playwright.Test.Recorder do
   # exceeded.", whatever it runs. Here its process is interrupted at once, as by an unhandled
   # error (`TestInfo._unhandled_error/2`); its contexts close with the reason after, in its
   # `on_exit` (`finish/3`), with ExUnit's fresh timeout of the callback (upstream's after-hooks
-  # slot). Not in the recorder: the interrupt traces the error, which calls it.
+  # slot). A test the interrupt can't stop (of another macro, or one that traps exits, which
+  # would only get a message) has its contexts closed now instead, so that a call it hangs in
+  # fails with the reason and its call log before ExUnit's kill. None after another interrupt
+  # (`:dropped`), also one a test that traps exits outlived: it runs on to ExUnit's timeout.
+  #
+  # Just before the exit, the calls the test and the processes its exit takes down wait in are
+  # adopted (`adopt_calls/4`): their error is the timeout's second one, and a context they create
+  # is closed. A process that starts trapping exits between the check below and the exit is not
+  # stopped: its adopted calls never return.
   defp time_out(state) do
     # Where the test is, as ExUnit's timeout reports it.
     stacktrace =
@@ -446,17 +465,55 @@ defmodule Playwright.Test.Recorder do
         nil -> []
       end
 
-    error = {:error, %Playwright.TimeoutError{message: timeout_reason(state.opts)}, stacktrace}
-    recorder = self()
-    # Traced in a process of its own: it calls the recorder.
-    TestInfo._time_out(state.opts, error, &Task.start(fn -> TestTracing.append_for_error(recorder, &1) end))
-    {:noreply, %{state | timer: nil, timed_out: true}}
+    timeout_error = %TimeoutManagerError{message: timeout_reason(state.opts), late_error: make_ref()}
+    error = {:error, timeout_error, stacktrace}
+    state = %{state | timer: nil}
+
+    interrupt =
+      if match?({:trap_exit, true}, Process.info(state.test_pid, :trap_exit)),
+        do: :not_running,
+        else: TestInfo._time_out(state.opts, error, fn -> adopt_test_calls(state, timeout_error, true) end)
+
+    case interrupt do
+      {:interrupted, adopted} ->
+        # Traced here, at once: `append_trace_event/2` calls the recorder.
+        tracing = %{state.tracing | trace_events: [TestTracing.error_event(error) | state.tracing.trace_events]}
+        {:noreply, %{state | timed_out: true, timeout_error: timeout_error, adopted: adopted, tracing: tracing}}
+
+      :not_running ->
+        {:noreply, close_at_timeout(state)}
+
+      _dropped_or_ended ->
+        {:noreply, state}
+    end
+  end
+
+  # Not in the recorder: the close's hooks call it.
+  defp close_at_timeout(state) do
+    reason = timeout_reason(state.opts)
+    open = for %{guid: guid, context: context} <- state.contexts, guid not in state.closed, do: context
+
+    {:ok, closing} =
+      Task.start(fn ->
+        open
+        |> Task.async_stream(&step("close a context", fn -> BrowserContext.close(&1, reason: reason) end),
+          timeout: :infinity
+        )
+        |> Stream.run()
+      end)
+
+    %{state | timed_out: true, closing: closing}
   end
 
   # Its `finish/3` was killed (ExUnit's timeout of the `on_exit` callback): it stops.
   defp process_down({:DOWN, _ref, :process, pid, reason}, %{finisher: pid} = state)
        when reason not in [:normal, :shutdown],
        do: {:stop, :normal, state}
+
+  # The test process exited at its interrupt: the calls of its processes that exited with it
+  # (an unlinked `Task` of its, a linked one whose exit was in flight) are adopted too.
+  defp process_down({:DOWN, _ref, :process, pid, _reason}, %{test_pid: pid, timeout_error: %{} = error} = state),
+    do: {:noreply, %{state | adopted: state.adopted ++ adopt_test_calls(state, error, false)}}
 
   # The test process ended before its timeout.
   defp process_down({:DOWN, _ref, :process, pid, _reason}, %{test_pid: pid} = state) do
@@ -608,10 +665,10 @@ defmodule Playwright.Test.Recorder do
 
     # Elixir only: created by this call (`Browser.new_context/2`, `launch_persistent_context/3`,
     # which anchor it in the calling process just before) after the test timeout fired (or as it
-    # fired, during the setup above), it is closed (a close the timeout started already returns at
-    # once), and its creation fails with the timeout's reason: upstream's timeout failed the test
-    # already, and its teardown closes the context. Its calls would fail without the reason, or
-    # never return during its close. Not `connect_over_cdp`'s default context: the external
+    # fired, during the setup above), by a process of the test that outlived its interrupt, it is
+    # closed, and its creation fails with the timeout's reason: upstream's timeout failed the test
+    # already, and its teardown closes the context. The test's `on_exit` may have read its
+    # contexts before this one. Not `connect_over_cdp`'s default context: the external
     # browser's, which a close may end, and the connected browser is the call's result.
     if Heap.set_has(context, :_creators, self()) and match?(%{timed_out: true}, call(recorder, {:fields, [:timed_out]})) do
       reason = timeout_reason(test)
@@ -947,7 +1004,16 @@ defmodule Playwright.Test.Recorder do
   end
 
   defp collect_all(pid, {verdict, failures}) do
-    state = GenServer.call(pid, {:fields, [:timed_out, :opts, :contexts, :closed, :requests]}, :infinity)
+    state =
+      GenServer.call(
+        pid,
+        {:fields, [:timed_out, :timeout_error, :closing, :opts, :contexts, :closed, :requests]},
+        :infinity
+      )
+
+    # The test timeout's closes, with their artifact steps.
+    if state.closing, do: await_exit(state.closing)
+
     # A test of another macro (a doctest) has no result: kept as a failure's.
     failed? = verdict != :passed
     GenServer.call(pid, {:did_finish_test_function_and_after_each_hooks, failed?}, :infinity)
@@ -967,6 +1033,10 @@ defmodule Playwright.Test.Recorder do
     for request <- state.requests,
         do: step("dispose a request context", fn -> APIRequestContext.dispose!(request, reason: "Test ended.") end)
 
+    # The adopted calls' errors, which may come after the closes' replies.
+    if state.timeout_error, do: settle(GenServer.call(pid, {:fields, [:adopted]}, :infinity).adopted)
+    trace_late_error(pid, state)
+
     # All of it, the trace events too, once.
     state = GenServer.call(pid, :state, :infinity)
     save_videos(state, failed?)
@@ -977,6 +1047,102 @@ defmodule Playwright.Test.Recorder do
       do: step("write error-context.md", fn -> ErrorContext.write(state.opts, failures, state.page_snapshot) end)
 
     trace
+  end
+
+  # The test's process exited at the timeout, in a call: its error, once the call's context
+  # closes, is upstream's second error, in the timeout's message (`TimeoutManagerError`).
+  defp adopt_test_calls(state, timeout_error, dying?) do
+    owners =
+      for(%{guid: guid, context: context} <- state.contexts, guid not in state.closed, do: context) ++ state.requests
+
+    adopt_calls(owners, state.test_pid, timeout_error, if(dying?, do: dying(state.test_pid), else: []))
+  end
+
+  @doc false
+  # Elixir only: the calls of the test or `setup_all` process `pid` (or a process with it in
+  # `$callers`) that exited or is in `dying`, on the connections of `owners` and of the pool's
+  # drivers (`Connection._adopt_calls/4`): their error goes to `timeout_error`'s second one, and a
+  # context their result is (`Browser.new_context`, `launch_persistent_context`) is closed with
+  # its reason, as its creation's `record/3` would. `[{connection, ids}]` of the adopted calls.
+  def adopt_calls(owners, pid, %TimeoutManagerError{message: reason} = timeout_error, dying) do
+    options = %{resolve: &close_created(&1, reason), dying: dying}
+    put = &TimeoutManagerError.put_late_error(timeout_error, &1)
+
+    for connection <- Enum.uniq(Enum.map(owners, &Heap.get(&1, :_connection)) ++ driver_connections()),
+        ids = step("adopt the hung calls", fn -> Connection._adopt_calls(connection, pid, put, options) end),
+        ids not in [nil, []],
+        do: {connection, ids}
+  end
+
+  # The connections of the pool's drivers (`{:driver, conn}` rows, two per driver).
+  defp driver_connections do
+    for playwright <- Enum.uniq(:ets.select(Results.table(), [{{{:driver, :_}, :"$1"}, [], [:"$1"]}])),
+        connection = step("read a driver's connection", fn -> Heap.get(playwright, :_connection) end),
+        do: connection
+  end
+
+  # In the connection (no await): the close runs in a process of its own.
+  defp close_created(%{context: %BrowserContext{} = context}, reason),
+    do: Promise.void(fn -> step("close a context", fn -> BrowserContext.close(context, reason: reason) end) end)
+
+  defp close_created(_result, _reason), do: nil
+
+  @doc false
+  # Elixir only: `pid` and the processes its exit takes down with it: linked, not trapping exits,
+  # and theirs in turn.
+  def dying(pid), do: dying([pid], [])
+
+  defp dying([], seen), do: seen
+
+  defp dying([pid | rest], seen) do
+    if pid in seen,
+      do: dying(rest, seen),
+      else: dying(linked_dying(pid) ++ rest, [pid | seen])
+  end
+
+  defp linked_dying(pid) do
+    case Process.info(pid, :links) do
+      {:links, links} -> for link <- links, is_pid(link), node(link) == node(), not traps_exits?(link), do: link
+      nil -> []
+    end
+  end
+
+  defp traps_exits?(pid), do: match?({:trap_exit, true}, Process.info(pid, :trap_exit))
+
+  # Until the adopted calls got their replies (`[{connection, ids}]`), at most `@settle_timeout` ms.
+  defp settle(adopted), do: settle(adopted, System.monotonic_time(:millisecond) + @settle_timeout)
+
+  defp settle(adopted, deadline) do
+    pending =
+      for {connection, ids} <- adopted,
+          callbacks = MapSet.new(step("list the pending calls", fn -> Connection.callbacks(connection) end) || []),
+          ids = Enum.filter(ids, &MapSet.member?(callbacks, &1)),
+          ids != [],
+          do: {connection, ids}
+
+    if pending != [] and System.monotonic_time(:millisecond) < deadline do
+      Process.sleep(10)
+      settle(pending, deadline)
+    end
+  end
+
+  defp await_exit(pid) do
+    ref = Process.monitor(pid)
+
+    receive do
+      {:DOWN, ^ref, :process, _pid, _reason} -> :ok
+    end
+  end
+
+  # Upstream's second error, the call's (`adopt_calls/4`): traced on its own; the timeout's
+  # message has it too.
+  defp trace_late_error(_recorder, %{timeout_error: nil}), do: :ok
+
+  defp trace_late_error(recorder, state) do
+    case TimeoutManagerError.late_error(state.timeout_error) do
+      nil -> :ok
+      late -> TestTracing.append_for_error(recorder, {:error, late, []})
+    end
   end
 
   # Past the budget: the contexts still open are closed in the background, so they don't pile up

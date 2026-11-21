@@ -342,14 +342,26 @@ Deviations the port requires:
   Playwright outlives the test and serves any process.
 - The test timeout before ExUnit's. Upstream fails the test at its deadline, then closes its
   contexts with the reason in its after hooks, which get a fresh timeout; ExUnit kills the test
-  process, which nothing can follow. So the test's recorder interrupts the test `min(1 s, 5%)`
-  before ExUnit's timeout (`--trace` and `:infinity` have none), as an unhandled error does, with
-  "Test timeout of <ms>ms exceeded.", and its `on_exit`, with ExUnit's fresh timeout of the
-  callback, closes the contexts with the reason after their artifact steps. ExUnit's clock starts
+  process, which nothing can follow. So the test's recorder, started at the registration of every
+  test with a timeout (upstream's `TimeoutManager` of every test), interrupts the test
+  `min(1 s, 5%)` before ExUnit's timeout (`--trace` and `:infinity` have none), as an unhandled
+  error does, with "Test timeout of <ms>ms exceeded." (`Playwright.Test.TimeoutManagerError`).
+  The test's `on_exit` callbacks run next, as upstream's after hooks, and the last one, with
+  ExUnit's fresh timeout of the callback, closes the contexts with the reason after their
+  artifact steps. ExUnit's clock starts
   at the test process's spawn, ours at the registration just after: the lead covers the gap and
   the interrupt. A test that ends earlier cancels it. Upstream also reports the hanging call's
-  own error (its call log) when the close ends it; here the test has ended by then. A
-  `Browser.new_context` or `launch_persistent_context` after the interrupt closes its context as
+  own error (its call log) when the close ends it, after the test failed; here the test's process
+  exited, so just before the exit the connection hands the error of a pending driver call of the
+  test (and of the processes its exit takes down, and at its `DOWN` of those that exited with it)
+  to the recorder (`Connection._adopt_calls/4`); a context such a call creates is closed when it
+  comes. `Playwright.Test.TimeoutManagerError`'s message reads the error when formatted: ExUnit
+  formats a failure after the test's `on_exit` callbacks, which close the contexts and wait for
+  the adopted calls (1 s at most) before the trace. A wait of the client's own (`wait_for_event`,
+  `wait_for_url`, `wait_for_load_state`, a polling matcher) is no driver call and has no such
+  error. A failure formatted before the close ends (an `on_exit` past its timeout) lacks it. A
+  `Browser.new_context` or `launch_persistent_context` after the interrupt (by a process of the
+  test that outlived it) closes its context as
   its creation ends and fails with the reason: a call on the closed context would fail without
   it. `connect_over_cdp`'s default context is the external browser's, which a close may end: it
   is left open.

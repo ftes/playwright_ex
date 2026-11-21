@@ -1,6 +1,6 @@
 defmodule Playwright.Test.TestMacroTest do
-  # `use Playwright.Test`'s `test` macro: ExUnit reports failures byte for byte as without it,
-  # and `mix test --breakpoints` breaks where it would without it (a child BEAM,
+  # `use Playwright.Test`'s `test` macro: ExUnit reports failures byte for byte as without it
+  # (a timed-out test's is upstream's, `Playwright.Test.TimeoutManagerError`), and `mix test --breakpoints` breaks where it would without it (a child BEAM,
   # `test/support/test_macro_impl.exs`).
   use ExUnit.Case, async: true
 
@@ -21,10 +21,15 @@ defmodule Playwright.Test.TestMacroTest do
     |> String.replace(~r/^Finished in .*$/m, "")
   end
 
-  test "failures are reported as without it" do
+  test "failures are reported as without it, the timeout's with upstream's message" do
     [plain, ours] = for variant <- ["plain", "ours"], do: run(variant, "run")
     assert plain =~ ~r"14 tests, 12 failures|Result: 2/14 passed"
-    assert ours == plain
+    timed_out = ~r/\n +\d+\) test times out \(TestMacroSample\)\n.*?\n(?=\n +\d+\) test )/s
+    assert [plain_timeout] = Regex.run(timed_out, plain)
+    assert plain_timeout =~ "** (ExUnit.TimeoutError) test timed out after 100ms."
+    assert [ours_timeout] = Regex.run(timed_out, ours)
+    assert ours_timeout =~ "** (Playwright.Test.TimeoutManagerError) Test timeout of 100ms exceeded."
+    assert String.replace(ours, timed_out, "") == String.replace(plain, timed_out, "")
   end
 
   test "breakpoints before each expression, as without it" do

@@ -681,35 +681,39 @@ defmodule Playwright.Test.TestInfo do
   `afterEach` hooks; here the exit ends the body, so the screenshots are taken at teardown (the
   recorder's, as the contexts close), after the test's own `on_exit` callbacks.
   """
-  def _unhandled_error(this, error), do: running?(this) and interrupt(this, error, :trace_first)
+  def _unhandled_error(this, error), do: running?(this) and interrupt(this, error, true, nil) != :ended
 
   @doc false
   # Elixir only: the test timeout's interrupt (`Playwright.Test.Recorder`), as `_unhandled_error/2`
-  # but the exit first, from the recorder: ExUnit's kill is due. `trace` traces the error after.
-  def _time_out(this, error, trace), do: running?(this) and interrupt(this, error, trace)
+  # but untraced (the recorder traces it): `{:interrupted, before_exit.()}` by this call
+  # (`before_exit` runs once the interrupt is this call's, just before the exit), `:dropped`
+  # after another interrupt, `:ended` once the test ended, `:not_running` for a test that isn't
+  # (another macro's, or its body ended).
+  def _time_out(this, error, before_exit \\ fn -> nil end),
+    do: if(running?(this), do: interrupt(this, error, false, before_exit), else: :not_running)
 
-  defp interrupt(this, error, trace) do
+  defp interrupt(this, error, trace?, before_exit) do
     key = interrupt_key(this.test_pid)
     exit_reason = exit_reason(this, error)
 
     cond do
       # `_hasUnhandledError`, set once (atomic across the test's processes).
       not :ets.insert_new(Results.table(), {key, {exit_reason, error}}) ->
-        true
-
-      running?(this) and trace == :trace_first ->
-        TestTracing.append_for_error(_tracing(this), error)
-        Process.exit(this.test_pid, exit_reason)
+        :dropped
 
       running?(this) ->
+        if trace?, do: TestTracing.append_for_error(_tracing(this), error)
+        before = before_exit && before_exit.()
         Process.exit(this.test_pid, exit_reason)
-        trace.(error)
-        true
+        if before_exit, do: {:interrupted, before}, else: :interrupted
 
       # The test ended meanwhile: taken back for the caller to log, unless the pool took it
       # already and reports it (one `take` wins).
+      :ets.take(Results.table(), key) == [] ->
+        :dropped
+
       true ->
-        :ets.take(Results.table(), key) == []
+        :ended
     end
   end
 

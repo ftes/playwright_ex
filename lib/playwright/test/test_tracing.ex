@@ -189,11 +189,15 @@ defmodule Playwright.Test.TestTracing do
   defp attachment_content(_attachment), do: nil
 
   @doc "`appendForError`: `error` is `{kind, reason, stacktrace}`."
-  def append_for_error(this, error) do
+  def append_for_error(this, error), do: _append_trace_event(this, error_event(error))
+
+  @doc false
+  # Elixir only: `appendForError`'s event, for the recorder to append to its own state.
+  def error_event(error) do
     # const rawStack = error.stack?.split('\n') || []; const stack = filteredStackTrace(rawStack);
     {_kind, _reason, raw_stack} = error
     stack = TestInfo.stack_frames(TestInfo.filtered_stack_trace(raw_stack))
-    _append_trace_event(this, %{type: "error", message: _format_error(TestInfo.test_info_error(error)), stack: stack})
+    %{type: "error", message: _format_error(TestInfo.test_info_error(error)), stack: stack}
   end
 
   @doc "`_formatError` of a `testInfoError`."

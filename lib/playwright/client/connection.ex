@@ -252,6 +252,7 @@ defmodule Playwright.Client.Connection do
           promise = Promise.from_monitor(ref, fn -> Process.demonitor(ref, [:flush]) end)
           resolve = fn value -> Promise.resolve(promise, value) end
           reject = fn error -> Promise.reject(promise, error) end
+          callers = [self() | List.wrap(Process.get(:"$callers"))]
 
           closed =
             try do
@@ -270,7 +271,10 @@ defmodule Playwright.Client.Connection do
                     title: options[:title],
                     type: type,
                     method: method,
-                    on_reply: options[:on_reply]
+                    on_reply: options[:on_reply],
+                    # Elixir only: for `_adopt_calls/4`.
+                    callers: callers,
+                    api_name: options[:apiName]
                   })
 
                   onmessage = get(this, :onmessage)
@@ -348,6 +352,37 @@ defmodule Playwright.Client.Connection do
   @doc false
   # Diagnostics: the pending callbacks.
   def callbacks(this), do: map_keys(this, :_callbacks)
+
+  @doc false
+  # Elixir only: the calls that wait for their reply of the exited process `pid`, or of an exited
+  # process with `pid` in its `$callers` (its `Task`), hand their error to `reject` (in the
+  # connection), with the API name `_wrap_api_call` would prefix, and their result to
+  # `options[:resolve]` (in the connection too: no await), dropped without one. `pid` is a test
+  # interrupted at its timeout (`Playwright.Test.Recorder`), where JS's abandoned call still
+  # settles, and the test function's promise rejects with it. `options[:dying]`: callers still
+  # alive whose exit is on its way (the test, its linked processes), adopted too: a live caller
+  # would otherwise wait forever. Returns the ids of the adopted calls.
+  def _adopt_calls(this, pid, reject, options \\ %{}) do
+    resolve = options[:resolve] || fn _ -> nil end
+    dying = options[:dying] || []
+
+    atomic(this, fn ->
+      for {id, %{callers: [caller | _] = callers} = callback} <- map_entries(this, :_callbacks),
+          pid in callers,
+          caller in dying or not Process.alive?(caller) do
+        reject = fn error -> reject.(_with_api_name(error, callback.api_name)) end
+        map_set(this, :_callbacks, id, %{callback | resolve: resolve, reject: reject})
+        id
+      end
+    end)
+  end
+
+  defp _with_api_name(e, api_name) do
+    if is_binary(api_name) and api_name != "" and !String.contains?(api_name, "<anonymous>") and
+         Map.has_key?(e, :message),
+       do: Map.put(e, :message, api_name <> ": " <> Exception.message(e)),
+       else: e
+  end
 
   defp _validator_from_wire_context(this) do
     under_test = _is_under_test(this)

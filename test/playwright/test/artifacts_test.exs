@@ -616,9 +616,8 @@ defmodule Playwright.Test.ArtifactsTest do
     refute File.exists?(test.dir)
   end
 
-  test "a failed test without a context gets error-context.md, with no recorder" do
+  test "a failed test without a context gets error-context.md" do
     test = fake_test(%{})
-    assert Recorder.lookup(test.pid) == nil
     assert finish(test, [failed()], :shutdown) == ""
     assert File.ls!(test.dir) == ["error-context.md"]
     assert File.read!(Path.join(test.dir, "error-context.md")) =~ "```\nRuntimeError: on purpose\n```"

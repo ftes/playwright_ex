@@ -40,10 +40,20 @@ upstream minor, so `~> 1.65.0` is safe.
 
 ## [Unreleased]
 
+### Changed
+
+- `Playwright.Test`: a test past its timeout fails with `Playwright.Test.TimeoutManagerError`
+  "Test timeout of <ms>ms exceeded." wherever it hangs, also outside a Playwright call and
+  without a context, where it failed with the hung call's error or ExUnit's `TimeoutError`
+  (which a loaded machine could also show for a hung call). The error and call log of a hung
+  driver call follow the message, as upstream's second error.
+- `Playwright.Test`: a timed-out test's `on_exit` callbacks run before its contexts close, as
+  upstream's `afterEach` hooks before its teardown.
+
 ### Fixed
 
-- `Playwright.Test`: a `Browser.new_context` or `BrowserType.launch_persistent_context` after the
-  test timeout closed the test's contexts closes its context and fails with "Test timeout of
+- `Playwright.Test`: a `Browser.new_context` or `BrowserType.launch_persistent_context` by a
+  process of the test after its timeout closes its context and fails with "Test timeout of
   <ms>ms exceeded.", instead of its calls hanging until ExUnit's `TimeoutError`.
 
 ## [1.65.0-rc.3] 2026-11-21

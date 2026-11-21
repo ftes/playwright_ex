@@ -302,14 +302,23 @@ defmodule Playwright.Test do
   as `timeout: 0` is everywhere in Playwright (see [API conventions](api-conventions.md)):
   write `:infinity` to say so.
 
-  Shortly before ExUnit's timeout (1 s before, at most 5% of the timeout), a test that has a
-  context (or traces) fails with upstream's message, `Playwright.TimeoutError` "Test timeout of
-  60000ms exceeded.", where it is: its process is interrupted, wherever it hangs. Its `on_exit`
-  then closes its contexts with that reason, after their artifact steps, within ExUnit's timeout
-  of the callback. A `Playwright.Browser.new_context/2` or
-  `Playwright.BrowserType.launch_persistent_context/3` after that closes its context at the end of
-  its creation and fails with that message (`connect_over_cdp`'s default context is left to the
-  external browser). A test without a context fails with ExUnit's `ExUnit.TimeoutError`. The
+  Shortly before ExUnit's timeout (1 s before, at most 5% of the timeout), a test fails with
+  upstream's message, `Playwright.Test.TimeoutManagerError` "Test timeout of 60000ms exceeded.",
+  where it is: its process is interrupted, wherever it hangs, in a Playwright call or not. Its
+  `on_exit` callbacks run next, its contexts still open (as upstream's `afterEach` hooks before
+  its teardown), and the last one, `use Playwright.Test`'s, closes its contexts with that
+  reason, after their artifact steps, within ExUnit's timeout of the callback. A driver call the
+  test hung in (one waiting for the driver's reply) fails with it then, with its call log: as
+  upstream's second error, the failure's message ends with that error, and `error-context.md`
+  and the trace have it too (not `info/1`'s `errors` in the `on_exit` callbacks, as not
+  upstream's in `afterEach`). A wait of the client's own (`Playwright.Page.wait_for_event/3`,
+  `wait_for_url/3`, `wait_for_load_state/3`, a polling matcher) has no such error. A context
+  whose creation the test was waiting for is closed when it comes. As for any
+  exit, ExUnit shows the failure as `** (EXIT from #PID<...>) an exception was raised:`. A
+  `Playwright.Browser.new_context/2` or `Playwright.BrowserType.launch_persistent_context/3` by a
+  process of the test after that closes its context at the end of its creation and fails with
+  that message (`connect_over_cdp`'s default context is left to the external browser). A test
+  of another macro (`ExUnit.Case.test`, a doctest) fails with ExUnit's `ExUnit.TimeoutError`. The
   timeout is ExUnit's: the `@tag timeout:` (`:infinity` for none) or
   `mix test --timeout`; `mix test --trace` has none. As ExUnit's (and upstream's, which counts
   `beforeEach` hooks), the timeout counts the test's `setup` callbacks: the clock starts at the
@@ -1058,8 +1067,10 @@ defmodule Playwright.Test do
     Results.watch(test.test_pid, marked? && failure)
     :ets.insert(Results.table(), {{:test, test.test_pid}, test})
     if marked?, do: TestInfo.start(test)
-    # The steps of `test.trace` go to the recorder.
-    if modes.trace[:mode] != :off, do: Results.recorder(test.test_pid)
+    # The steps of `test.trace` go to the recorder, and it times the test out. A cost for a test
+    # with a timeout, untraced and without contexts: a process, and a call per step, whose trace
+    # events it keeps though no trace is written.
+    if modes.trace[:mode] != :off or is_integer(timeout), do: Results.recorder(test.test_pid)
     test
   end
 
@@ -1247,7 +1258,7 @@ defmodule Playwright.Test do
   end
 
   # `info/0` of a registration: its `@info_keys`, `timeout` (upstream's `testInfo.timeout`) and
-  # `deadline` (`TestInfo._deadline/1`, upstream's `testInfo._deadline()`: the contexts' close).
+  # `deadline` (`TestInfo._deadline/1`, upstream's `testInfo._deadline()`: the interrupt).
   defp info_of(test) do
     test
     |> Map.take(@info_keys)
@@ -1305,7 +1316,7 @@ defmodule Playwright.Test do
   end
 
   # `testInfo.status`, `errors`, `expectedStatus`, `duration` of a result (`Results.result/2`).
-  # Past the timeout: killed, or failed after the recorder closed its contexts.
+  # Past the timeout: killed, or interrupted by the recorder.
   defp result_info(test_pid, {verdict, failures}, recorder) do
     status =
       if verdict == :failed and (Results.killed() in failures or Recorder.timed_out?(recorder)),
