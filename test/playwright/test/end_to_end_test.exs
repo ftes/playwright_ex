@@ -361,10 +361,14 @@ defmodule Playwright.Test.EndToEndTest do
     output = ChildProcess.output(child)
     assert output =~ ~r"3 tests, 3 failures|Result: 0/3 passed"
 
-    # Interrupted where it is, as ExUnit's timeout reports it (the hanging call's own error and
-    # call log come once its context closes, after the test ended).
+    # Interrupted where it is, as ExUnit's timeout reports it, then the hanging call's own error
+    # and call log, once its context closed (upstream's second error).
     hangs = failure(output, "test hangs in a Playwright call (TimeoutsTest)")
-    assert hangs =~ "** (Playwright.TimeoutError) Test timeout of 3000ms exceeded."
+    assert hangs =~ "** (Playwright.Test.TimeoutManagerError) Test timeout of 3000ms exceeded."
+
+    assert hangs =~
+             ~r"\*\* \(Playwright.TargetClosedError\) page.waitForSelector: Test timeout of 3000ms exceeded.\n\s+Call log:\n.*waiting for locator\('#never'\)"
+
     assert hangs =~ "Playwright.Client.Frame.wait_for_selector/3"
     refute hangs =~ "ExUnit.TimeoutError"
 
@@ -375,15 +379,18 @@ defmodule Playwright.Test.EndToEndTest do
     assert "test-failed-1.png" in files
     error_context = File.read!(Path.join([output_dir, dir, "error-context.md"]))
     assert error_context =~ "Test timeout of 3000ms exceeded."
+    assert error_context =~ ~r"page.waitForSelector: Test timeout of 3000ms exceeded.\nCall log:"
     assert error_context =~ ~s(heading "Hangs")
 
     sleeps = failure(output, "test hangs elsewhere (TimeoutsTest)")
-    assert sleeps =~ "** (Playwright.TimeoutError) Test timeout of 3000ms exceeded."
+    assert sleeps =~ "** (Playwright.Test.TimeoutManagerError) Test timeout of 3000ms exceeded."
+    refute sleeps =~ "Call log:"
     refute sleeps =~ "ExUnit.TimeoutError"
 
     # The deadline counts the slow setup before the registration, as ExUnit's timeout does.
     slow_setup = failure(output, "test hangs in a Playwright call after a slow setup (SlowSetupTest)")
     assert slow_setup =~ "Test timeout of 3000ms exceeded."
+    assert slow_setup =~ "Call log:"
     refute slow_setup =~ "ExUnit.TimeoutError"
   end
 

@@ -303,10 +303,13 @@ defmodule Playwright.Test do
   write `:infinity` to say so.
 
   Shortly before ExUnit's timeout (1 s before, at most 5% of the timeout), a test that has a
-  context (or traces) fails with upstream's message, `Playwright.TimeoutError` "Test timeout of
-  60000ms exceeded.", where it is: its process is interrupted, wherever it hangs. Its `on_exit`
-  then closes its contexts with that reason, after their artifact steps, within ExUnit's timeout
-  of the callback. A `Playwright.Browser.new_context/2` or
+  context (or traces) fails with upstream's message, `Playwright.Test.TimeoutManagerError` "Test
+  timeout of 60000ms exceeded.", where it is: its process is interrupted, wherever it hangs. Its
+  `on_exit` then closes its contexts with that reason, after their artifact steps, within
+  ExUnit's timeout of the callback. A call the test hung in fails with it then, with its call
+  log: as upstream's second error, the failure's message ends with that error, and
+  `error-context.md` and the trace have it too. As for any exit, ExUnit shows the failure as
+  `** (EXIT from #PID<...>) an exception was raised:`. A `Playwright.Browser.new_context/2` or
   `Playwright.BrowserType.launch_persistent_context/3` after that closes its context at the end of
   its creation and fails with that message (`connect_over_cdp`'s default context is left to the
   external browser). A test without a context fails with ExUnit's `ExUnit.TimeoutError`. The

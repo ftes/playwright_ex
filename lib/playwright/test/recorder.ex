@@ -34,6 +34,7 @@ defmodule Playwright.Test.Recorder do
   alias Playwright.APIRequestContext
   alias Playwright.BrowserContext
   alias Playwright.Client.ChannelOwner
+  alias Playwright.Client.Connection
   alias Playwright.Client.TimeoutSettings
   alias Playwright.Isomorphic.ProtocolFormatter
   alias Playwright.Isomorphic.StringUtils
@@ -48,6 +49,7 @@ defmodule Playwright.Test.Recorder do
   alias Playwright.Test.Results
   alias Playwright.Test.TestInfo
   alias Playwright.Test.TestTracing
+  alias Playwright.Test.TimeoutManagerError
   alias Playwright.Tracing
   alias Playwright.Video
 
@@ -260,12 +262,13 @@ defmodule Playwright.Test.Recorder do
     # `contexts` in creation order, `closed` (guids) in close order, `requests` the open request
     # contexts of `APIRequest.new_context/2`, `screenshots` (temporary files) in capture order;
     # `snapshotted` the guids of the pages with a screenshot, `ordinal` the screenshots named so
-    # far (upstream's `SnapshotRecorder`). `timer` the test timeout's, `timed_out` once it fired;
-    # `finisher` the caller of `finish/3`.
+    # far (upstream's `SnapshotRecorder`). `timer` the test timeout's, `timed_out` once it fired,
+    # with its error `timeout_error`; `finisher` the caller of `finish/3`.
     {:ok,
      %{
        timer: arm(test),
        timed_out: false,
+       timeout_error: nil,
        finisher: nil,
        test_pid: test.test_pid,
        opts: test,
@@ -446,11 +449,12 @@ defmodule Playwright.Test.Recorder do
         nil -> []
       end
 
-    error = {:error, %Playwright.TimeoutError{message: timeout_reason(state.opts)}, stacktrace}
+    timeout_error = %TimeoutManagerError{message: timeout_reason(state.opts), late_error: make_ref()}
+    error = {:error, timeout_error, stacktrace}
     recorder = self()
     # Traced in a process of its own: it calls the recorder.
     TestInfo._time_out(state.opts, error, &Task.start(fn -> TestTracing.append_for_error(recorder, &1) end))
-    {:noreply, %{state | timer: nil, timed_out: true}}
+    {:noreply, %{state | timer: nil, timed_out: true, timeout_error: timeout_error}}
   end
 
   # Its `finish/3` was killed (ExUnit's timeout of the `on_exit` callback): it stops.
@@ -947,7 +951,13 @@ defmodule Playwright.Test.Recorder do
   end
 
   defp collect_all(pid, {verdict, failures}) do
-    state = GenServer.call(pid, {:fields, [:timed_out, :opts, :contexts, :closed, :requests]}, :infinity)
+    state =
+      GenServer.call(
+        pid,
+        {:fields, [:timed_out, :timeout_error, :test_pid, :opts, :contexts, :closed, :requests]},
+        :infinity
+      )
+
     # A test of another macro (a doctest) has no result: kept as a failure's.
     failed? = verdict != :passed
     GenServer.call(pid, {:did_finish_test_function_and_after_each_hooks, failed?}, :infinity)
@@ -958,6 +968,7 @@ defmodule Playwright.Test.Recorder do
 
     # `closeReason`: the timeout's, once it fired.
     reason = if state.timed_out, do: timeout_reason(state.opts), else: "Test ended."
+    adopt_calls(state)
 
     for %{guid: guid, context: context} <- state.contexts,
         guid not in state.closed,
@@ -966,6 +977,8 @@ defmodule Playwright.Test.Recorder do
     # The leftover request contexts too, as upstream's `request` fixture is disposed.
     for request <- state.requests,
         do: step("dispose a request context", fn -> APIRequestContext.dispose!(request, reason: "Test ended.") end)
+
+    trace_late_error(pid, state)
 
     # All of it, the trace events too, once.
     state = GenServer.call(pid, :state, :infinity)
@@ -977,6 +990,31 @@ defmodule Playwright.Test.Recorder do
       do: step("write error-context.md", fn -> ErrorContext.write(state.opts, failures, state.page_snapshot) end)
 
     trace
+  end
+
+  # The test's process exited at the timeout, in a call: its error, once the call's context
+  # closes, is upstream's second error, in the timeout's message (`TimeoutManagerError`).
+  defp adopt_calls(%{timeout_error: nil}), do: :ok
+
+  defp adopt_calls(state) do
+    put = &TimeoutManagerError.put_late_error(state.timeout_error, &1)
+
+    owners =
+      for(%{guid: guid, context: context} <- state.contexts, guid not in state.closed, do: context) ++ state.requests
+
+    for connection <- Enum.uniq(Enum.map(owners, &Heap.get(&1, :_connection))),
+        do: step("adopt the test's calls", fn -> Connection._adopt_calls(connection, state.test_pid, put) end)
+  end
+
+  # Upstream's second error, the call's (`adopt_calls/1`): traced on its own; the timeout's
+  # message has it too.
+  defp trace_late_error(_recorder, %{timeout_error: nil}), do: :ok
+
+  defp trace_late_error(recorder, state) do
+    case TimeoutManagerError.late_error(state.timeout_error) do
+      nil -> :ok
+      late -> TestTracing.append_for_error(recorder, {:error, late, []})
+    end
   end
 
   # Past the budget: the contexts still open are closed in the background, so they don't pile up

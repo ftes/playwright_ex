@@ -348,7 +348,11 @@ Deviations the port requires:
   callback, closes the contexts with the reason after their artifact steps. ExUnit's clock starts
   at the test process's spawn, ours at the registration just after: the lead covers the gap and
   the interrupt. A test that ends earlier cancels it. Upstream also reports the hanging call's
-  own error (its call log) when the close ends it; here the test has ended by then. A
+  own error (its call log) when the close ends it, after the test failed; here the test's process
+  exited, so the connection hands a dead caller's error to the recorder
+  (`Connection._adopt_calls/3`), and `Playwright.Test.TimeoutManagerError`'s message reads it when
+  formatted: ExUnit formats a failure after the test's `on_exit` callbacks, which close the
+  contexts. A failure formatted before the close ends (an `on_exit` past its timeout) lacks it. A
   `Browser.new_context` or `launch_persistent_context` after the interrupt closes its context as
   its creation ends and fails with the reason: a call on the closed context would fail without
   it. `connect_over_cdp`'s default context is the external browser's, which a close may end: it
