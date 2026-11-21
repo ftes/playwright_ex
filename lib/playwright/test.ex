@@ -964,6 +964,7 @@ defmodule Playwright.Test do
         |> Map.merge(%{file: compiled(context[:module], :file, nil), timeout: Options.ex_unit_timeout(context)})
         # Also its steps' `testInfo` (`step_test_info!/0`): never started, so not running.
         |> Map.merge(%{test_pid: self(), step_id_prefix: "setup_all", project_name: TestInfo.project_name(parameters)})
+        |> Map.put(:project, Options.project(parameters))
         |> Map.put(:use_modes, Options.artifacts(config, layers))
 
       Results.register_module(self(), module)
@@ -1045,6 +1046,7 @@ defmodule Playwright.Test do
       })
       |> Map.merge(context_defaults(config, layers, module_worker(context[:module], use_options, %{})))
       |> Map.put(:use_modes, use_modes)
+      |> Map.put(:project, Options.project(parameters))
       # Elixir only: the module's `assert_steps` (`__assertion_error__/2`).
       |> Map.put(:assert_steps, compiled(context[:module], :assert_steps, config.assert_steps))
 
@@ -1179,10 +1181,20 @@ defmodule Playwright.Test do
   retries on its own (a server-side backstop) should stop by `deadline`, as the matchers
   stop 250 ms before it, as upstream's stop 250 ms before its test deadline.
 
+  `project` is upstream's `testInfo.project`, a `Playwright.Test.Project`: the module's
+  (`parameters/1` in its `parameterize:`), else the default project. Its `name` is `nil` for the
+  default project and an unnamed one (upstream's `""`). Its `use` is upstream's `project.use`:
+  the options set in the config, the project's over them per option, by the names `use/1` takes
+  and `info().use` has (`locale`, `base_url`, `trace`, `browser_name`, `context_options`, a
+  device's `default_browser_type`, ...; the config's `test_id_attribute` too), without Playwright
+  Test's defaults or the module's, a describe's or a test's options. Its
+  other fields (`outputDir`, `retries`, ...) aren't ported.
+
   In the module's `setup_all` (and processes with it in `$callers`), it returns the fields that
   apply to the module, with the same meaning: `file`, `timeout` (ExUnit's timeout of the module,
   `@moduletag timeout:` or ExUnit's, the one "Timeouts" in the moduledoc applies to its
-  `setup_all` callbacks) and `use`, the module's options as resolved from the config, its
+  `setup_all` callbacks), `project` (the module run's, as upstream's worker's in `beforeAll`) and
+  `use`, the module's options as resolved from the config, its
   project and the module itself (its `use` and `@moduletag`): a describe's and a test's options
   never reach `setup_all`. The test's fields (`test_pid`, `test_name`, `output_dir`, `retry`,
   `deadline`) are absent. Deviations: upstream runs `beforeAll` hooks with the
@@ -1218,9 +1230,10 @@ defmodule Playwright.Test do
             retry: non_neg_integer(),
             timeout: timeout(),
             deadline: integer() | :infinity,
+            project: Playwright.Test.Project.t(),
             use: map()
           }
-          | %{file: Path.t(), timeout: timeout(), use: map()}
+          | %{file: Path.t(), timeout: timeout(), project: Playwright.Test.Project.t(), use: map()}
   def info do
     case Recorder.scope() do
       {:test, test} ->
@@ -1239,6 +1252,7 @@ defmodule Playwright.Test do
   defp setup_all_info(module) do
     module
     |> Map.take([:file, :timeout])
+    |> Map.put(:project, Options.info_project(module.project))
     |> Map.put(:use, Options.resolved(module))
   end
 
@@ -1250,6 +1264,7 @@ defmodule Playwright.Test do
     |> Map.merge(%{
       timeout: test.test_timeout,
       deadline: TestInfo._deadline(test).deadline,
+      project: Options.info_project(test.project),
       use: Options.resolved(test)
     })
   end

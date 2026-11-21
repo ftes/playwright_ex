@@ -23,6 +23,41 @@ defmodule Playwright.Test.ProjectTest do
     end
   end
 
+  # `info/0`'s project: upstream's `project.use`, the config's options (test_helper.exs sets
+  # `browser_name`) under the project's, by the names `use/1` takes, not the runner's.
+  test "info's project has the use options by their names, over the config's" do
+    browser_name = String.to_existing_atom(Playwright.TestBrowser.name())
+
+    parameters =
+      Playwright.Test.parameters(
+        [name: "Pixel", color_scheme: :dark, context_options: [reduced_motion: :reduce], trace: :on] ++
+          Playwright.device("Pixel 7")
+      )
+
+    assert %Playwright.Test.Project{name: "Pixel", use: use} = Options.info_project(Options.project(parameters))
+    refute Map.has_key?(use, :context)
+    assert use.browser_name == browser_name
+    assert use.default_browser_type == :chromium
+    assert use.color_scheme == :dark
+    assert use.is_mobile
+    assert use.viewport == %{width: 412, height: 839}
+    assert use.context_options == %{reduced_motion: :reduce}
+
+    # The bag as contexts take it: no `nil` key, no device's `defaultBrowserType`.
+    bag = Playwright.Test.parameters(context_options: [locale: nil] ++ Playwright.device("Pixel 7"))
+    bag = Options.info_project(Options.project(bag)).use.context_options
+
+    refute Map.has_key?(bag, :locale) or Map.has_key?(bag, :defaultBrowserType) or
+             Map.has_key?(bag, :default_browser_type)
+
+    assert bag.is_mobile
+    assert use.trace[:mode] == :on
+
+    # A `nil` is unset: the config's.
+    assert Options.info_project(project(browser_name: nil)).use == %{browser_name: browser_name}
+    assert Options.info_project(nil) == %Playwright.Test.Project{name: nil, use: %{browser_name: browser_name}}
+  end
+
   test "an empty name is no name, as upstream's default project's" do
     assert project(name: "", browser_name: :firefox).name == nil
     assert Playwright.Test.Project.title(project(name: "")) == nil
