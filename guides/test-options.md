@@ -172,8 +172,8 @@ has more than one, as
 filters don't see `parameterize:` values, so to run one project, read an env var where the list is
 built, as above.
 On Elixir 1.20 and earlier, `mix test --failed` loses a failure in a `parameterize:` module when
-another parameter set passes the same test: run one project per `mix test`, which removes the
-project dimension only ([Retries](test-artifacts.md#retries)).
+another parameter set passes the same test. One project per `mix test` avoids that across projects,
+not across your own parameter lists ([Retries](test-artifacts.md#retries)).
 
 Unlike upstream's config, `config :playwright, :test` has no projects. To set them once for the
 suite, give your case template's `parameterize:` a default; a module's own `parameterize:` still
