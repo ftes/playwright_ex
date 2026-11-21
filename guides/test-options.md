@@ -155,6 +155,12 @@ defmodule MyApp.SignUpTest do
 end
 ```
 
+Unlike upstream's config, `config :playwright, :test` has no projects: each module passes
+`parameterize:` itself, and a case template can't give it a default (`ExUnit.CaseTemplate` hands
+`use ExUnit.Case` only the module's own options). Keep the list in one function, as
+`MyApp.Projects.all/0` above, and pass it in every module. A suite that sets its browser in the
+config instead runs one unnamed project.
+
 The project's options are over the config's and under the module's `use`, for every context of
 the module's run, `setup_all`'s included, and its device picks the browser as above: Chromium,
 Firefox and WebKit here (not with a `browser_name` in the config, which wins over a device:

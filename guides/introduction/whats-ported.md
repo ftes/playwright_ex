@@ -38,7 +38,7 @@ Each area's row lists its main features, each feature's row its main gaps.
 | **[Assertions and snapshots](#assertions-and-snapshots)** | | web-first assertions ◐ · `soft`, `poll` and `toPass` ✓ · `toHaveScreenshot` ✓ · `toMatchAriaSnapshot` ✓ · generic matchers n/a · `expect.extend` ✗ · `toMatchSnapshot` ✗ |
 | [Assertions](#assertions) | ◐ | generic matchers are ExUnit's `assert`; no `expect.configure` or `expect.extend`; `toHaveURL` doesn't encode the expected URL |
 | [Snapshots](#snapshots) | ◐ | no `toMatchSnapshot`, no inline aria rebaselining |
-| **[Configuring tests](#configuring-tests)** | | `test.use` at every level ✓ · context options ✓ · projects ✓ · worker options ◐ · `reuseContext` ✗ · `webServer` and `globalSetup` n/a |
+| **[Configuring tests](#configuring-tests)** | | `test.use` at every level ✓ · context options ✓ · projects ◐ · worker options ◐ · `reuseContext` ✗ · `webServer` and `globalSetup` n/a |
 | [Options and projects](#options-and-projects) | ◐ | a project is a name and `use` options; no `reuseContext` |
 | [Global setup and webServer](#global-setup-and-webserver) | n/a | |
 | **[Running in CI and at scale](#running-in-ci-and-at-scale)** | | workers ◐ · `fullyParallel` ✗ · sharding n/a · retries ◐ · test, expect and action timeouts ✓ · `globalTimeout` ✗ · `github` reporter ✓ · HTML report ✗ |
@@ -225,7 +225,7 @@ Each area's row lists its main features, each feature's row its main gaps.
 | `actionTimeout`, `navigationTimeout`, `trace`, `screenshot`, `video` | ✓ | also per `describe` and test |
 | `testIdAttribute` | ◐ | config only. Not planned: the client's is global, as upstream's (`locator.ts`), and ExUnit runs async tests at once in one VM, where upstream's worker runs one test at a time |
 | `reuseContext` | ✗ | not ported yet |
-| projects (`name`, `use`) | ✓ | `parameterize:` with `Playwright.Test.parameters/1` ([Projects](../test-options.md#projects)) |
+| projects (`name`, `use`) | ◐ | `parameterize:` with `Playwright.Test.parameters/1` in each module: the config has no projects, and a case template can't default `parameterize:` ([Projects](../test-options.md#projects)) |
 | a project's `outputDir`, `snapshotDir`, `snapshotPathTemplate` | ✗ | config only ([#286](https://github.com/ftes/playwright_ex/issues/286)) |
 | a project's `timeout`, `retries`, `testMatch`, `grep`, `repeatEach`, `metadata` | ✗ | not planned: ExUnit has no projects; a project is a `parameterize:` map, which ExUnit's filters don't see |
 | the config file, `outputDir`, `preserveOutput` | ✓ | `config :playwright, :test` |
