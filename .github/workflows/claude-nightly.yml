@@ -36,13 +36,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         # A human comment or review keeps a PR out of triage; Claude's own review doesn't. The
-        # allowlist names each PR, so Claude can't close any other.
+        # allowlist names each PR, so Claude can't read or close any other.
         run: |
           numbers=$(gh pr list --state open --limit 1000 --json number,headRefName,isCrossRepository,comments,reviews \
             --jq '[.[] | select((.isCrossRepository | not) and (.headRefName | startswith("claude/nightly-")) and ([.comments[], .reviews[]] | all(.author.login == "claude"))) | .number]')
           {
             echo "numbers=$(jq -r 'join(" ")' <<< "$numbers")"
-            echo "allowed=$(jq -r 'map("Bash(gh pr close \(.) *)") | join(",")' <<< "$numbers")"
+            echo "allowed=$(jq -r 'map("Bash(gh pr close \(.) *),Bash(gh pr view \(.)),Bash(gh pr view \(.) *),Bash(gh pr diff \(.)),Bash(gh pr diff \(.) *)") | join(",")' <<< "$numbers")"
           } >> "$GITHUB_OUTPUT"
       - name: Checkout repository
         if: steps.list.outputs.numbers != ''
@@ -62,7 +62,7 @@ jobs:
             REPO: ${{ github.repository }}
             OPEN NIGHTLY PRS: ${{ steps.list.outputs.numbers }}
           max-turns: "60"
-          allowed-tools: "Skill,Read,Grep,Glob,Agent,Task,Bash(git log:*),Bash(git show:*),Bash(git diff:*),Bash(gh pr view:*),Bash(gh pr diff:*),${{ steps.list.outputs.allowed }}"
+          allowed-tools: "Skill,Read,Grep,Glob,Agent,Task,Bash(git log:*),Bash(git show:*),Bash(git diff:*),${{ steps.list.outputs.allowed }}"
 
   # After triage, so only PRs worth keeping get fixed.
   classify:
@@ -189,7 +189,7 @@ jobs:
             OLD_PR: ${{ matrix.pr }}
             BRANCH: ${{ env.NIGHTLY_BRANCH }} (already checked out, from current main)
           max-turns: "60"
-          allowed-tools: "Skill,Read,Grep,Glob,Edit,Write,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix credo:*),Bash(mix playwright.parity:*),Bash(mix playwright.gen.api:*),Bash(mix playwright.gen.protocol:*),Bash(gh pr view ${{ matrix.pr }}:*),Bash(gh pr diff ${{ matrix.pr }}:*),Bash(git push -u origin ${{ env.NIGHTLY_BRANCH }}),Bash(gh pr create --base main --head ${{ env.NIGHTLY_BRANCH }} *),Bash(gh pr close ${{ matrix.pr }} *)"
+          allowed-tools: "Skill,Read,Grep,Glob,Edit,Write,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix credo:*),Bash(mix playwright.parity:*),Bash(mix playwright.gen.api:*),Bash(mix playwright.gen.protocol:*),Bash(gh pr view ${{ matrix.pr }}),Bash(gh pr view ${{ matrix.pr }} *),Bash(gh pr diff ${{ matrix.pr }}),Bash(gh pr diff ${{ matrix.pr }} *),Bash(git push -u origin ${{ env.NIGHTLY_BRANCH }}),Bash(gh pr create --base main --head ${{ env.NIGHTLY_BRANCH }} *),Bash(gh pr close ${{ matrix.pr }} *)"
 
   # Enforces the cap before any toolchain is set up. Runs even if an earlier job failed: the
   # count is still right, it just finds fewer slots.
@@ -206,6 +206,8 @@ jobs:
     steps:
       - name: Count open nightly PRs
         id: count
+        # With pipefail, so a failed lookup in the pipeline below shows.
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -217,15 +219,21 @@ jobs:
           open=$(jq '[.[] | select(.state == "OPEN")] | length' <<< "$prs")
           echo "::notice::$open of $MAX_OPEN_PRS nightly PRs open"
           if [ "$open" -lt "$MAX_OPEN_PRS" ]; then has_slot=true; else has_slot=false; fi
-          # Why each closed PR was declined: its maintainers' comments and reviews, and the bots'
-          # closing comment. No one else's, as anyone can comment on a PR and this reaches the prompt.
+          # Why each closed PR was declined: its maintainers' comments and reviews, and the closing
+          # comment of claude[bot] or github-actions[bot] (by REST, whose logins tell bots from
+          # users). Only theirs reach the prompt.
           recent=$(jq -c '.[:30]' <<< "$prs")
-          # shellcheck disable=SC2016 # jq's $closed
+          # shellcheck disable=SC2016 # jq's $closed and $bots
           for number in $(jq -r '.[] | select(.state == "CLOSED") | .number' <<< "$recent"); do
-            why=$(gh pr view "$number" --json closedAt,comments,reviews --jq '(.closedAt | fromdate) as $closed
-              | [.comments[], .reviews[] | select(.authorAssociation | IN("OWNER", "MEMBER", "COLLABORATOR"))]
-                + [.comments[] | select((.author.login | IN("claude", "github-actions")) and (.createdAt | fromdate) >= $closed - 120)]
-              | map(.body | gsub("\\s+"; " ") | .[:300] | select(. != ""))') || why='[]'
+            why=$(gh pr view "$number" --json closedAt,comments,reviews > "$RUNNER_TEMP/pr.json" &&
+              gh api --paginate "repos/$GH_REPO/issues/$number/comments" \
+                --jq '.[] | select(.user.type == "Bot" and (.user.login | IN("claude[bot]", "github-actions[bot]"))) | {body, createdAt: .created_at}' |
+                jq -s . > "$RUNNER_TEMP/bots.json" &&
+              jq -c --slurpfile bots "$RUNNER_TEMP/bots.json" '(.closedAt | fromdate) as $closed
+                | [.comments[], .reviews[] | select(.authorAssociation | IN("OWNER", "MEMBER", "COLLABORATOR"))]
+                  + [$bots[0][] | select((.createdAt | fromdate) >= $closed - 120)]
+                | map(.body | gsub("\\s+"; " ") | .[:300] | select(. != ""))' "$RUNNER_TEMP/pr.json") ||
+              { echo "::warning::Couldn't read why #$number was closed."; why='[]'; }
             recent=$(jq -c --argjson n "$number" --argjson why "$why" 'map(if .number == $n then . + {why: $why} else . end)' <<< "$recent")
           done
           {
