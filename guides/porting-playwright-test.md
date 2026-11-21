@@ -24,7 +24,8 @@ Playwright Test features ExUnit can't host, or that ExUnit and Elixir already co
 | reporter plugins (monocart coverage, ...) | there are no reporters to plug into | none: `Playwright.Coverage` collects, your code reports |
 | `webServer` | `test_helper.exs` starts what a run needs | start the endpoint in `test_helper.exs`, or `server: true` in the test config (see [The app under test](testing-with-exunit.md#the-app-under-test)) |
 
-Not ported yet ([open an issue](https://github.com/ftes/playwright_ex/issues) if you need one):
+Not ported yet, the items a spec runs into most ([What's ported](introduction/whats-ported.md) has
+the full list; [open an issue](https://github.com/ftes/playwright_ex/issues) if you need one):
 
 - the HTML reporter, with `blob` and `merge-reports` for partitioned runs;
 - rebaselining inline aria snapshots into the test source (`--update-source-method`);

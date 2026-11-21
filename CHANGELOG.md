@@ -66,6 +66,9 @@ upstream minor, so `~> 1.65.0` is safe.
   unknown event.
 - **RC only:** `browser_name` and `preserve_output` also take upstream's strings (`"webkit"`,
   `"failures-only"`); an unknown string raises with upstream's message.
+- What's ported answers "can I do X?": a summary, an overview of the features by goal
+  (automating a browser, in tests or not; writing, configuring, running and debugging tests),
+  then each feature's table of what is ported, partly or not, with the reason or the issue.
 - **RC only:** **Breaking:** `use Playwright.Test` replaces ExUnit's `assert` and `refute` with
   `Playwright.Test.Assertions`', so a module that imports `ExUnit.Assertions` again after the
   `use`, or another library's `assert/2`, no longer compiles (an ambiguous `assert`). Opt out

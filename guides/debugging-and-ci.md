@@ -179,7 +179,9 @@ only those, so name `ExUnit.CLIFormatter` next to it (`--formatter` replaces the
 formatters). When failures are rerun, pass it to the rerun too: as upstream annotates every
 attempt, a test failing twice gets an error per run (the rerun's under `Retry #1`), and one
 passing on the rerun counts as flaky in the rerun's summary (so does one that a failed
-`setup_all` kept from running in the first run, where upstream counts it as passed). Rerun
+`setup_all` kept from running in the first run, where upstream counts it as passed). As it
+takes a `mix test --failed` run for retry 1, a local `--failed` rerun after a fix lists every
+fixed test as flaky: the formatter is meant for CI. Rerun
 only on exit status 2 (tests failed): any other failure, such as a crash or a missed coverage
 threshold, would otherwise go green on an empty `--failed` run.
 On Elixir 1.20 and earlier, `--failed` loses some failures: see
