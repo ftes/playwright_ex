@@ -340,17 +340,19 @@ Deviations the port requires:
 - `actionTimeout`/`navigationTimeout` per context, in the listener's after-create hook (and a
   request context's `timeout`), not on the Playwright (`_setupContextOptions`): a pooled driver's
   Playwright outlives the test and serves any process.
-- The test timeout's close before the timeout. Upstream fails the test, then closes its contexts
-  with the reason; ExUnit kills the test process, which nothing can follow. So the test's
-  recorder closes them `min(1 s, 5%)` before ExUnit's timeout (`--trace` and `:infinity` have
-  none): the close's artifact steps and the failing call's reply fit in it (about 50 ms with a
-  trace and a screenshot), and a test stuck outside Playwright still gets ExUnit's
-  `TimeoutError`. ExUnit's clock starts at the test process's spawn, ours at the registration
-  just after. A test that ends earlier cancels it. A `Browser.new_context` or
-  `launch_persistent_context` after the close closes its context as its creation ends and fails
-  with the reason: upstream's test has failed by then, and a call on the closed context would
-  fail without the reason. `connect_over_cdp`'s default context is the external browser's, which
-  a close may end: it is left open.
+- The test timeout before ExUnit's. Upstream fails the test at its deadline, then closes its
+  contexts with the reason in its after hooks, which get a fresh timeout; ExUnit kills the test
+  process, which nothing can follow. So the test's recorder interrupts the test `min(1 s, 5%)`
+  before ExUnit's timeout (`--trace` and `:infinity` have none), as an unhandled error does, with
+  "Test timeout of <ms>ms exceeded.", and its `on_exit`, with ExUnit's fresh timeout of the
+  callback, closes the contexts with the reason after their artifact steps. ExUnit's clock starts
+  at the test process's spawn, ours at the registration just after: the lead covers the gap and
+  the interrupt. A test that ends earlier cancels it. Upstream also reports the hanging call's
+  own error (its call log) when the close ends it; here the test has ended by then. A
+  `Browser.new_context` or `launch_persistent_context` after the interrupt closes its context as
+  its creation ends and fails with the reason: a call on the closed context would fail without
+  it. `connect_over_cdp`'s default context is the external browser's, which a close may end: it
+  is left open.
 - `use Playwright.Test` as the first line of a case template's body: a template's own `setup`
   callbacks run before those its `using` brings in, so the test is registered before them. It
   takes no options, which another `setup` registering the test first would drop: they go in

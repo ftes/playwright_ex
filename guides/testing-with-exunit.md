@@ -89,9 +89,9 @@ var in the config: `base_url: System.get_env("BASE_URL", "http://localhost:4000"
 
 As in Playwright Test, actions and navigations have no timeout of their own in a test: ExUnit's
 test timeout (60 seconds) bounds them; Playwright Test's is 30 seconds, so for the same
-behaviour, `ExUnit.start(timeout: 30_000)` in `test_helper.exs`. Just before it, the test's
-contexts are closed, so a stuck call fails with "Test timeout of 60000ms exceeded." and its call
-log, and the artifacts are kept. To fail sooner, set `action_timeout` and `navigation_timeout` in
+behaviour, `ExUnit.start(timeout: 30_000)` in `test_helper.exs`. Just before it, the test fails
+with "Test timeout of 60000ms exceeded." where it is stuck, then its contexts are closed and the
+artifacts are kept. To fail sooner, set `action_timeout` and `navigation_timeout` in
 the config (milliseconds). `:infinity`, the default, is no limit, and so is `0`, as in every
 `timeout:` option ([API conventions](introduction/api-conventions.md#no-timeout)).
 `setup_all`'s timeout and the rest: [Timeouts](Playwright.Test.html#module-timeouts).

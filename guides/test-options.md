@@ -257,7 +257,7 @@ end
 `deadline` and its resolved options, `use`, in the
 test's process and in processes with it in `$callers` (a `Task`, a route handler). `deadline` is
 monotonic milliseconds (compare with `System.monotonic_time(:millisecond)`) by which the test
-must be done: after it, the test's contexts are closed and Playwright calls fail; `:infinity`
+must be done: after it, the test fails with its timeout; `:infinity`
 without a test timeout. A library that waits or retries on its own stops by it. A library
 that owns resources per test (an Ecto sandbox owner, a session) finds the test from a `Task` with
 it: `Playwright.Test.info().test_pid`. In the module's `setup_all`, `info/0` returns the module's
