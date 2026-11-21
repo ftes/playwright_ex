@@ -305,6 +305,9 @@ defmodule Playwright.Test do
   Shortly before ExUnit's timeout (1 s before, at most 5% of the timeout), the test's open
   contexts are closed with upstream's reason, "Test timeout of 60000ms exceeded.": a call that
   hangs until then fails with that message and its call log, after the close kept the artifacts.
+  A `Playwright.Browser.new_context/2` or `Playwright.BrowserType.launch_persistent_context/3`
+  after that closes its context at the end of its creation and fails with that message
+  (`connect_over_cdp`'s default context is left to the external browser).
   A test stuck elsewhere (`Process.sleep/1`, a `receive`) still fails with ExUnit's
   `ExUnit.TimeoutError`. The timeout is ExUnit's: the `@tag timeout:` (`:infinity` for none) or
   `mix test --timeout`; `mix test --trace` has none. As ExUnit's (and upstream's, which counts

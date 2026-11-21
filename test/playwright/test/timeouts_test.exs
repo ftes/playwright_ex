@@ -71,6 +71,47 @@ defmodule Playwright.Test.TimeoutsTest do
     GenServer.stop(recorder)
   end
 
+  @tag timeout: 30_000
+  test "a context created after the timer fired is closed, its creation fails with the timeout's reason",
+       ctx do
+    Browser.new_context!(ctx.browser)
+    recorder = Recorder.lookup(self())
+    # The timer's message, as it fires (the timer itself cancelled; none under `--trace`).
+    if timer = :sys.get_state(recorder).timer, do: Process.cancel_timer(timer)
+    send(recorder, :test_timeout)
+    assert Recorder.timed_out?(recorder)
+
+    message = "browser.newContext: Test timeout of #{Recorder.registration(self()).test_timeout}ms exceeded."
+    assert {:error, %Playwright.TargetClosedError{message: ^message}} = Browser.new_context(ctx.browser)
+
+    # Closed, by its creator.
+    %{contexts: [_first, late], closed: closed} = :sys.get_state(recorder)
+    assert late.guid in closed
+  end
+
+  test "the timer closes a context whose setup hasn't ended", ctx do
+    Browser.new_context!(ctx.browser)
+    recorder = Recorder.lookup(self())
+    if timer = :sys.get_state(recorder).timer, do: Process.cancel_timer(timer)
+
+    # A context registered, its setup (`record/3`) still running: created outside the test, it
+    # has no setup of its own. Its creator stays, as a test's process does, linked so it ends with
+    # the test.
+    me = self()
+
+    spawn_link(fn ->
+      send(me, {:context, Browser.new_context!(ctx.browser)})
+      Process.sleep(:infinity)
+    end)
+
+    assert_receive {:context, context}
+    :ok = GenServer.call(recorder, {:add_context, context})
+    BrowserContext.on(context, :close, fn _ -> send(me, :closed) end)
+
+    send(recorder, :test_timeout)
+    assert_receive :closed, 5000
+  end
+
   @tag timeout: :infinity
   test "a test without a timeout has no timer", ctx do
     Browser.new_context!(ctx.browser)
