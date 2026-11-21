@@ -86,7 +86,7 @@ jobs:
             _build
       - name: Install dependencies
         run: mix "do" deps.get, deps.compile
-      # A PR never writes the shared cache; `mix dialyzer` builds what a restore lacks.
+      # A PR never writes the shared cache; `mix dialyzer --plt` builds what a restore lacks.
       - name: Restore Dialyzer PLT cache
         id: plt_cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -94,16 +94,21 @@ jobs:
           key: plt-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ hashFiles('**/mix.lock') }}
           restore-keys: plt-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}
           path: priv/plts
-      # mix.exs's `lint`, which `mix check` runs too: format, credo, compile, the usage rules, the
-      # Hex package, the docs and Dialyzer.
-      - name: Lint
-        run: mix lint
+      # Saved right after it is built, so a lint failure doesn't waste the build; `mix lint`'s
+      # Dialyzer step then reuses it. Building it compiles the app (dialyxir's `cons_apps` loads
+      # it to list the PLT's apps), so an app compile error fails this step.
+      - name: Build Dialyzer PLT
+        run: mix dialyzer --plt
       - name: Save PLT cache
-        if: success() && github.ref == 'refs/heads/main' && steps.plt_cache.outputs.cache-hit != 'true'
+        if: github.ref == 'refs/heads/main' && steps.plt_cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           key: ${{ steps.plt_cache.outputs.cache-primary-key }}
           path: priv/plts
+      # mix.exs's `lint`, which `mix check` runs too: format, credo, compile, the usage rules, the
+      # Hex package, the docs and Dialyzer.
+      - name: Lint
+        run: mix lint
       # Last, so only a green job saves; under the key computed before deps.get.
       - name: Save deps and _build
         if: success() && github.ref == 'refs/heads/main' && steps.mix_cache.outputs.cache-hit != 'true'
@@ -334,6 +339,8 @@ jobs:
           path: /tmp/playwright-test-results
           if-no-files-found: ignore
           retention-days: 7
+          # A re-run of the workflow keeps the first attempt's artifact of the same name.
+          overwrite: true
 
   # The one check to require: green when every lane's and browser's partitions are, which need a
   # green build.
