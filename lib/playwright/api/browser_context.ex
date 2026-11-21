@@ -1875,6 +1875,7 @@ defmodule Playwright.BrowserContext do
   @spec on(t(), :request_finished, (Playwright.Request.t() -> term())) :: t()
   @spec on(t(), :response, (Playwright.Response.t() -> term())) :: t()
   @spec on(t(), :service_worker, (Playwright.Worker.t() -> term())) :: t()
+  @spec on(t(), String.t(), (term() -> term())) :: t()
   def on(%Playwright.BrowserContext{} = browser_context, event, listener) do
     event = Facade.event!(event, @events, "browserContext.on")
     Facade.listen(fn -> Playwright.Client.BrowserContext.on(browser_context, event, listener) end)
@@ -1900,6 +1901,7 @@ defmodule Playwright.BrowserContext do
   @spec once(t(), :request_finished, (Playwright.Request.t() -> term())) :: t()
   @spec once(t(), :response, (Playwright.Response.t() -> term())) :: t()
   @spec once(t(), :service_worker, (Playwright.Worker.t() -> term())) :: t()
+  @spec once(t(), String.t(), (term() -> term())) :: t()
   def once(%Playwright.BrowserContext{} = browser_context, event, listener) do
     event = Facade.event!(event, @events, "browserContext.once")
     Facade.listen(fn -> Playwright.Client.BrowserContext.once(browser_context, event, listener) end)
@@ -1925,6 +1927,7 @@ defmodule Playwright.BrowserContext do
   @spec add_listener(t(), :request_finished, (Playwright.Request.t() -> term())) :: t()
   @spec add_listener(t(), :response, (Playwright.Response.t() -> term())) :: t()
   @spec add_listener(t(), :service_worker, (Playwright.Worker.t() -> term())) :: t()
+  @spec add_listener(t(), String.t(), (term() -> term())) :: t()
   def add_listener(%Playwright.BrowserContext{} = browser_context, event, listener) do
     event = Facade.event!(event, @events, "browserContext.addListener")
     Facade.listen(fn -> Playwright.Client.BrowserContext.add_listener(browser_context, event, listener) end)
@@ -1950,6 +1953,7 @@ defmodule Playwright.BrowserContext do
   @spec remove_listener(t(), :request_finished, (Playwright.Request.t() -> term())) :: t()
   @spec remove_listener(t(), :response, (Playwright.Response.t() -> term())) :: t()
   @spec remove_listener(t(), :service_worker, (Playwright.Worker.t() -> term())) :: t()
+  @spec remove_listener(t(), String.t(), (term() -> term())) :: t()
   def remove_listener(%Playwright.BrowserContext{} = browser_context, event, listener) do
     event = Facade.event!(event, @events, "browserContext.removeListener")
     Facade.listen(fn -> Playwright.Client.BrowserContext.remove_listener(browser_context, event, listener) end)
@@ -1975,6 +1979,7 @@ defmodule Playwright.BrowserContext do
   @spec off(t(), :request_finished, (Playwright.Request.t() -> term())) :: t()
   @spec off(t(), :response, (Playwright.Response.t() -> term())) :: t()
   @spec off(t(), :service_worker, (Playwright.Worker.t() -> term())) :: t()
+  @spec off(t(), String.t(), (term() -> term())) :: t()
   def off(%Playwright.BrowserContext{} = browser_context, event, listener) do
     event = Facade.event!(event, @events, "browserContext.off")
     Facade.listen(fn -> Playwright.Client.BrowserContext.off(browser_context, event, listener) end)
@@ -2000,6 +2005,7 @@ defmodule Playwright.BrowserContext do
   @spec prepend_listener(t(), :request_finished, (Playwright.Request.t() -> term())) :: t()
   @spec prepend_listener(t(), :response, (Playwright.Response.t() -> term())) :: t()
   @spec prepend_listener(t(), :service_worker, (Playwright.Worker.t() -> term())) :: t()
+  @spec prepend_listener(t(), String.t(), (term() -> term())) :: t()
   def prepend_listener(%Playwright.BrowserContext{} = browser_context, event, listener) do
     event = Facade.event!(event, @events, "browserContext.prependListener")
     Facade.listen(fn -> Playwright.Client.BrowserContext.prepend_listener(browser_context, event, listener) end)

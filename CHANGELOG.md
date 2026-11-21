@@ -56,9 +56,16 @@ upstream minor, so `~> 1.65.0` is safe.
   level. They are ExUnit's otherwise, but a function that ends in a failing assertion keeps its
   frame in the stacktrace. Helper modules `import Playwright.Test.Assertions`. Opt out with
   `use Playwright.Test, assert_steps: false`, or the same key in `config :playwright, :test`.
+- `headless` and `channel` are worker options of `Playwright.Test` (config, project, module,
+  `BrowserPool.browser/1`), set over `launch_options`', as upstream's fixtures.
 
 ### Changed
 
+- `on/3`, `once/3`, `wait_for_event` and the other event functions take any string as an
+  event, as JS's emitters do (one that never fires: a wait times out); atoms still raise for an
+  unknown event.
+- **RC only:** `browser_name` and `preserve_output` also take upstream's strings (`"webkit"`,
+  `"failures-only"`); an unknown string raises with upstream's message.
 - **RC only:** **Breaking:** `use Playwright.Test` replaces ExUnit's `assert` and `refute` with
   `Playwright.Test.Assertions`', so a module that imports `ExUnit.Assertions` again after the
   `use`, or another library's `assert/2`, no longer compiles (an ambiguous `assert`). Opt out

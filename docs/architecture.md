@@ -71,6 +71,9 @@ a running supervisor's root object, and the `error` type), `@intros` in `ApiRule
   objects keep JS keys in both directions, so results round-trip and each object has one type.
   Optional positional arguments stay positional, options last, except where `ApiRules` lets
   the options take an optional argument's place (`orOptions`, below).
+- Atoms are typo-checked, strings pass through: an enum's atom (`:no_preference`) or an event's
+  (`:page_error`) that isn't in api.json raises, a string goes to the client as it is, as JS takes
+  any (an event name that never fires: its listener isn't called, its `wait_for_event` times out).
 - Three conveniences of `ApiRules` are deliberate, as each only adds a form a JS caller can
   write: `orOptions` (an optional argument before the options that is never a list or plain map
   may be left out, `to_have_attribute(locator, "disabled", timeout: 1)`, as JS passes
@@ -86,7 +89,7 @@ a running supervisor's root object, and the `error` type), `@intros` in `ApiRule
   per-call judgment or bump step and upstream predicts it. Rejected: raising for input errors the
   client detects (`File.read/1`'s convention), as the driver's input errors (a bad selector) still
   arrive as `PlaywrightError`, so callers couldn't rely on it, and each of upstream's ~75
-  `throw new Error` would need classifying. Our own Elixir-side checks (unknown option or event,
+  `throw new Error` would need classifying. Our own Elixir-side checks (unknown option or event atom,
   RegExp translation) raise `ArgumentError`.
 - Bang matchers raise `Playwright.ExpectError`, as JS's expect throws its own error (ExUnit
   reports it as a failure with the same text). Rejected: `ExUnit.AssertionError` when ExUnit is
@@ -361,8 +364,9 @@ waiters served first come first served. Where it differs from upstream's dispatc
 the scheduling: it runs modules in random order with no queue to group by options or look ahead,
 so a run that mixes configurations restarts workers (one configuration per invocation), and a
 scope waits inside `browser/1`. A scope that holds a worker takes further options over the cap,
-so it never waits for itself. `workers` defaults to half the schedulers, upstream's number, below
-ExUnit's `max_cases`: each running browser test keeps a browser, a renderer and the driver busy,
+so it never waits for itself. `workers` takes a positive integer only, a gap: upstream's also takes a
+percentage (`"50%"`) or a numeric string (`resolveWorkers`). It defaults to half the schedulers,
+upstream's number, below ExUnit's `max_cases`: each running browser test keeps a browser, a renderer and the driver busy,
 while modules past `workers` wait at no cost. The drivers stop in `ExUnit.after_suite/1`, as
 `mix test` halts without stopping applications (#191), and the pool starts on first use, never
 with the application: a release has no ExUnit.

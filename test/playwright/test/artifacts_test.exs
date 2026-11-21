@@ -865,8 +865,8 @@ defmodule Playwright.Test.ArtifactsTest.UseOptionsTest do
   end
 
   test "an unknown option raises at compile time; a duplicated one's later wins" do
-    assert_raise ArgumentError, ~r/use Playwright.Test: unknown option headless, /, fn ->
-      compile("headless: false")
+    assert_raise ArgumentError, ~r/use Playwright.Test: unknown option slow_mo, /, fn ->
+      compile("slow_mo: 1")
     end
 
     assert_raise ArgumentError, ~r/unknown option video.full_page, /, fn ->

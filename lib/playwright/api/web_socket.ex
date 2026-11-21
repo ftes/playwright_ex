@@ -233,6 +233,7 @@ defmodule Playwright.WebSocket do
   @spec on(t(), :frame_received, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec on(t(), :frame_sent, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec on(t(), :socket_error, (String.t() -> term())) :: t()
+  @spec on(t(), String.t(), (term() -> term())) :: t()
   def on(%Playwright.WebSocket{} = web_socket, event, listener) do
     event = Facade.event!(event, @events, "webSocket.on")
     Facade.listen(fn -> Playwright.Client.WebSocket.on(web_socket, event, listener) end)
@@ -244,6 +245,7 @@ defmodule Playwright.WebSocket do
   @spec once(t(), :frame_received, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec once(t(), :frame_sent, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec once(t(), :socket_error, (String.t() -> term())) :: t()
+  @spec once(t(), String.t(), (term() -> term())) :: t()
   def once(%Playwright.WebSocket{} = web_socket, event, listener) do
     event = Facade.event!(event, @events, "webSocket.once")
     Facade.listen(fn -> Playwright.Client.WebSocket.once(web_socket, event, listener) end)
@@ -255,6 +257,7 @@ defmodule Playwright.WebSocket do
   @spec add_listener(t(), :frame_received, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec add_listener(t(), :frame_sent, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec add_listener(t(), :socket_error, (String.t() -> term())) :: t()
+  @spec add_listener(t(), String.t(), (term() -> term())) :: t()
   def add_listener(%Playwright.WebSocket{} = web_socket, event, listener) do
     event = Facade.event!(event, @events, "webSocket.addListener")
     Facade.listen(fn -> Playwright.Client.WebSocket.add_listener(web_socket, event, listener) end)
@@ -266,6 +269,7 @@ defmodule Playwright.WebSocket do
   @spec remove_listener(t(), :frame_received, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec remove_listener(t(), :frame_sent, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec remove_listener(t(), :socket_error, (String.t() -> term())) :: t()
+  @spec remove_listener(t(), String.t(), (term() -> term())) :: t()
   def remove_listener(%Playwright.WebSocket{} = web_socket, event, listener) do
     event = Facade.event!(event, @events, "webSocket.removeListener")
     Facade.listen(fn -> Playwright.Client.WebSocket.remove_listener(web_socket, event, listener) end)
@@ -277,6 +281,7 @@ defmodule Playwright.WebSocket do
   @spec off(t(), :frame_received, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec off(t(), :frame_sent, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec off(t(), :socket_error, (String.t() -> term())) :: t()
+  @spec off(t(), String.t(), (term() -> term())) :: t()
   def off(%Playwright.WebSocket{} = web_socket, event, listener) do
     event = Facade.event!(event, @events, "webSocket.off")
     Facade.listen(fn -> Playwright.Client.WebSocket.off(web_socket, event, listener) end)
@@ -288,6 +293,7 @@ defmodule Playwright.WebSocket do
   @spec prepend_listener(t(), :frame_received, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec prepend_listener(t(), :frame_sent, (%{payload: String.t() | {:binary, binary()}} -> term())) :: t()
   @spec prepend_listener(t(), :socket_error, (String.t() -> term())) :: t()
+  @spec prepend_listener(t(), String.t(), (term() -> term())) :: t()
   def prepend_listener(%Playwright.WebSocket{} = web_socket, event, listener) do
     event = Facade.event!(event, @events, "webSocket.prependListener")
     Facade.listen(fn -> Playwright.Client.WebSocket.prepend_listener(web_socket, event, listener) end)

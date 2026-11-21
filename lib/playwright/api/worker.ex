@@ -298,6 +298,7 @@ defmodule Playwright.Worker do
   @doc group: "Events"
   @spec on(t(), :close, (Playwright.Worker.t() -> term())) :: t()
   @spec on(t(), :console, (Playwright.ConsoleMessage.t() -> term())) :: t()
+  @spec on(t(), String.t(), (term() -> term())) :: t()
   def on(%Playwright.Worker{} = worker, event, listener) do
     event = Facade.event!(event, @events, "worker.on")
     Facade.listen(fn -> Playwright.Client.Worker.on(worker, event, listener) end)
@@ -307,6 +308,7 @@ defmodule Playwright.Worker do
   @doc group: "Events"
   @spec once(t(), :close, (Playwright.Worker.t() -> term())) :: t()
   @spec once(t(), :console, (Playwright.ConsoleMessage.t() -> term())) :: t()
+  @spec once(t(), String.t(), (term() -> term())) :: t()
   def once(%Playwright.Worker{} = worker, event, listener) do
     event = Facade.event!(event, @events, "worker.once")
     Facade.listen(fn -> Playwright.Client.Worker.once(worker, event, listener) end)
@@ -316,6 +318,7 @@ defmodule Playwright.Worker do
   @doc group: "Events"
   @spec add_listener(t(), :close, (Playwright.Worker.t() -> term())) :: t()
   @spec add_listener(t(), :console, (Playwright.ConsoleMessage.t() -> term())) :: t()
+  @spec add_listener(t(), String.t(), (term() -> term())) :: t()
   def add_listener(%Playwright.Worker{} = worker, event, listener) do
     event = Facade.event!(event, @events, "worker.addListener")
     Facade.listen(fn -> Playwright.Client.Worker.add_listener(worker, event, listener) end)
@@ -325,6 +328,7 @@ defmodule Playwright.Worker do
   @doc group: "Events"
   @spec remove_listener(t(), :close, (Playwright.Worker.t() -> term())) :: t()
   @spec remove_listener(t(), :console, (Playwright.ConsoleMessage.t() -> term())) :: t()
+  @spec remove_listener(t(), String.t(), (term() -> term())) :: t()
   def remove_listener(%Playwright.Worker{} = worker, event, listener) do
     event = Facade.event!(event, @events, "worker.removeListener")
     Facade.listen(fn -> Playwright.Client.Worker.remove_listener(worker, event, listener) end)
@@ -334,6 +338,7 @@ defmodule Playwright.Worker do
   @doc group: "Events"
   @spec off(t(), :close, (Playwright.Worker.t() -> term())) :: t()
   @spec off(t(), :console, (Playwright.ConsoleMessage.t() -> term())) :: t()
+  @spec off(t(), String.t(), (term() -> term())) :: t()
   def off(%Playwright.Worker{} = worker, event, listener) do
     event = Facade.event!(event, @events, "worker.off")
     Facade.listen(fn -> Playwright.Client.Worker.off(worker, event, listener) end)
@@ -343,6 +348,7 @@ defmodule Playwright.Worker do
   @doc group: "Events"
   @spec prepend_listener(t(), :close, (Playwright.Worker.t() -> term())) :: t()
   @spec prepend_listener(t(), :console, (Playwright.ConsoleMessage.t() -> term())) :: t()
+  @spec prepend_listener(t(), String.t(), (term() -> term())) :: t()
   def prepend_listener(%Playwright.Worker{} = worker, event, listener) do
     event = Facade.event!(event, @events, "worker.prependListener")
     Facade.listen(fn -> Playwright.Client.Worker.prepend_listener(worker, event, listener) end)

@@ -30,8 +30,6 @@ defmodule Mix.Playwright.ApiRules do
       drops notes that recommend the test runner's options instead (`Tracing`).
     * Page functions (`expression`, a `[function]|[string]` in JS) and init scripts (`script`)
       are JS source strings.
-    * Classes whose emitters take any string as an event (`@open_events`: a `CDPSession` emits
-      every CDP event under its method name) are marked `"openEvents"`.
     * Waits: the JS members that the Python client has as `expect_*` (`waitForEvent`,
       `waitForRequest`, `waitForNavigation`, ...) return a promise handle (`"promise"`), as JS
       code starts them without `await`.
@@ -112,9 +110,6 @@ defmodule Mix.Playwright.ApiRules do
 
   # Exceptions (`Playwright.TimeoutError`), JS classes in api.json.
   @exception_classes ~w(TimeoutError)
-
-  # `session.on("Network.requestWillBeSent", ...)`: types.d.ts overloads `on` per CDP event.
-  @open_events ~w(CDPSession)
 
   # "Class.member" => options the docs do not describe (`python_rules.js` `extraOptions`).
   @extra_options %{
@@ -330,7 +325,6 @@ defmodule Mix.Playwright.ApiRules do
       Map.merge(class, %{
         "spec" => class["spec"] |> runner_notes() |> prose_overrides(class["name"]),
         "members" => members ++ callbacks,
-        "openEvents" => class["name"] in @open_events,
         "intro" => @intros[class["name"]]
       })
     end

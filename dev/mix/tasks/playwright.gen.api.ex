@@ -39,8 +39,8 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
       of another class fails there, naming the function; a class with subclasses (`JSHandle`)
       matches none.
     * Classes with events: `on/3`, `once/3`, `add_listener/3`, `remove_listener/3`, `off/3`,
-      `prepend_listener/3` with event atoms (`:disconnected`), as `types.d.ts` has them; any
-      string too for `"openEvents"` classes (`CDPSession`, see `Mix.Playwright.ApiRules`). The
+      `prepend_listener/3` with event atoms (`:disconnected`), as `types.d.ts` has them, or any
+      string, as JS's emitters take any event name (a `CDPSession` emits CDP events). The
       call runs in `Playwright.Runtime.Facade.listen/1`: the listener is a user listener.
     * Functions with options: `__options__(:click)` lists the options with their doc and type, for
       wrappers that pass them on (`@doc library_api: true`, see docs/architecture.md).
@@ -1063,9 +1063,10 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
       """
       @doc #{inspect(doc)}
       @doc group: "Events"
-      #{Enum.map_join(events, "\n", &listener_spec(ctx, name, &1))}#{if class["openEvents"], do: "\n@spec #{name}(t(), String.t(), (term() -> term())) :: t()"}
+      #{Enum.map_join(events, "\n", &listener_spec(ctx, name, &1))}
+      @spec #{name}(t(), String.t(), (term() -> term())) :: t()
       def #{name}(#{ctx.receiver_param}, event, listener) do
-        event = Facade.event!(event, @events, #{inspect(api_name)}#{if class["openEvents"], do: ", true"})
+        event = Facade.event!(event, @events, #{inspect(api_name)})
         Facade.listen(fn -> #{inspect(impl(class["name"]))}.#{name}(#{receiver}, event, listener) end)
       end
       """

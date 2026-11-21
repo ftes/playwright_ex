@@ -172,6 +172,8 @@ defmodule Playwright.Test.ContextOptionsTest do
   test "the worker options raise in a describe's or a test's tag, as upstream's test.use in a describe; test_id_attribute everywhere" do
     for {key, option} <- [
           browser_name: "browser_name: :webkit",
+          headless: "headless: false",
+          channel: ~s|channel: "chrome"|,
           launch_options: "launch_options: [slow_mo: 1]",
           connect_options: ~s|connect_options: [ws_endpoint: "ws://localhost"]|,
           default_browser_type: "default_browser_type: :webkit",
@@ -725,7 +727,7 @@ defmodule Playwright.Test.ContextOptionsTest.LaunchOptionsProjectTest do
 
   test "the case's browser is the project's worker's", %{browser: browser, slow_mo: slow_mo} do
     keys =
-      for {_pid, %{key: {_, _, _, launch_options, _}}} <- :sys.get_state(Playwright.Test.Pool).workers,
+      for {_pid, %{key: {_, _, _, _, _, launch_options, _}}} <- :sys.get_state(Playwright.Test.Pool).workers,
           do: launch_options
 
     assert Enum.any?(keys, &(&1[:slow_mo] == slow_mo))

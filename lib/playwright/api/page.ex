@@ -7258,6 +7258,7 @@ defmodule Playwright.Page do
   @spec on(t(), :response, (Playwright.Response.t() -> term())) :: t()
   @spec on(t(), :web_socket, (Playwright.WebSocket.t() -> term())) :: t()
   @spec on(t(), :worker, (Playwright.Worker.t() -> term())) :: t()
+  @spec on(t(), String.t(), (term() -> term())) :: t()
   def on(%Playwright.Page{} = page, event, listener) do
     event = Facade.event!(event, @events, "page.on")
     Facade.listen(fn -> Playwright.Client.Page.on(page, event, listener) end)
@@ -7285,6 +7286,7 @@ defmodule Playwright.Page do
   @spec once(t(), :response, (Playwright.Response.t() -> term())) :: t()
   @spec once(t(), :web_socket, (Playwright.WebSocket.t() -> term())) :: t()
   @spec once(t(), :worker, (Playwright.Worker.t() -> term())) :: t()
+  @spec once(t(), String.t(), (term() -> term())) :: t()
   def once(%Playwright.Page{} = page, event, listener) do
     event = Facade.event!(event, @events, "page.once")
     Facade.listen(fn -> Playwright.Client.Page.once(page, event, listener) end)
@@ -7312,6 +7314,7 @@ defmodule Playwright.Page do
   @spec add_listener(t(), :response, (Playwright.Response.t() -> term())) :: t()
   @spec add_listener(t(), :web_socket, (Playwright.WebSocket.t() -> term())) :: t()
   @spec add_listener(t(), :worker, (Playwright.Worker.t() -> term())) :: t()
+  @spec add_listener(t(), String.t(), (term() -> term())) :: t()
   def add_listener(%Playwright.Page{} = page, event, listener) do
     event = Facade.event!(event, @events, "page.addListener")
     Facade.listen(fn -> Playwright.Client.Page.add_listener(page, event, listener) end)
@@ -7339,6 +7342,7 @@ defmodule Playwright.Page do
   @spec remove_listener(t(), :response, (Playwright.Response.t() -> term())) :: t()
   @spec remove_listener(t(), :web_socket, (Playwright.WebSocket.t() -> term())) :: t()
   @spec remove_listener(t(), :worker, (Playwright.Worker.t() -> term())) :: t()
+  @spec remove_listener(t(), String.t(), (term() -> term())) :: t()
   def remove_listener(%Playwright.Page{} = page, event, listener) do
     event = Facade.event!(event, @events, "page.removeListener")
     Facade.listen(fn -> Playwright.Client.Page.remove_listener(page, event, listener) end)
@@ -7366,6 +7370,7 @@ defmodule Playwright.Page do
   @spec off(t(), :response, (Playwright.Response.t() -> term())) :: t()
   @spec off(t(), :web_socket, (Playwright.WebSocket.t() -> term())) :: t()
   @spec off(t(), :worker, (Playwright.Worker.t() -> term())) :: t()
+  @spec off(t(), String.t(), (term() -> term())) :: t()
   def off(%Playwright.Page{} = page, event, listener) do
     event = Facade.event!(event, @events, "page.off")
     Facade.listen(fn -> Playwright.Client.Page.off(page, event, listener) end)
@@ -7393,6 +7398,7 @@ defmodule Playwright.Page do
   @spec prepend_listener(t(), :response, (Playwright.Response.t() -> term())) :: t()
   @spec prepend_listener(t(), :web_socket, (Playwright.WebSocket.t() -> term())) :: t()
   @spec prepend_listener(t(), :worker, (Playwright.Worker.t() -> term())) :: t()
+  @spec prepend_listener(t(), String.t(), (term() -> term())) :: t()
   def prepend_listener(%Playwright.Page{} = page, event, listener) do
     event = Facade.event!(event, @events, "page.prependListener")
     Facade.listen(fn -> Playwright.Client.Page.prepend_listener(page, event, listener) end)
