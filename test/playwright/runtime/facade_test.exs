@@ -233,10 +233,11 @@ defmodule Playwright.Runtime.FacadeTest do
     end
   end
 
-  test "events" do
+  test "events: atoms are checked, strings pass through, as JS's emitters take any name" do
     events = %{page_error: "pageerror"}
     assert Facade.event!(:page_error, events, "page.on") == "pageerror"
     assert Facade.event!("pageerror", events, "page.on") == "pageerror"
+    assert Facade.event!("foo", events, "page.on") == "foo"
     assert_raise ArgumentError, ~r/unknown event :pageerror/, fn -> Facade.event!(:pageerror, events, "page.on") end
   end
 

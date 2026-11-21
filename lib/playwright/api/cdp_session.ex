@@ -126,7 +126,7 @@ defmodule Playwright.CDPSession do
   @spec on(t(), :event, (%{required(:method) => String.t(), optional(:params) => map()} -> term())) :: t()
   @spec on(t(), String.t(), (term() -> term())) :: t()
   def on(%Playwright.CDPSession{} = cdp_session, event, listener) do
-    event = Facade.event!(event, @events, "cdpSession.on", true)
+    event = Facade.event!(event, @events, "cdpSession.on")
     Facade.listen(fn -> Playwright.Client.CDPSession.on(cdp_session, event, listener) end)
   end
 
@@ -136,7 +136,7 @@ defmodule Playwright.CDPSession do
   @spec once(t(), :event, (%{required(:method) => String.t(), optional(:params) => map()} -> term())) :: t()
   @spec once(t(), String.t(), (term() -> term())) :: t()
   def once(%Playwright.CDPSession{} = cdp_session, event, listener) do
-    event = Facade.event!(event, @events, "cdpSession.once", true)
+    event = Facade.event!(event, @events, "cdpSession.once")
     Facade.listen(fn -> Playwright.Client.CDPSession.once(cdp_session, event, listener) end)
   end
 
@@ -146,7 +146,7 @@ defmodule Playwright.CDPSession do
   @spec add_listener(t(), :event, (%{required(:method) => String.t(), optional(:params) => map()} -> term())) :: t()
   @spec add_listener(t(), String.t(), (term() -> term())) :: t()
   def add_listener(%Playwright.CDPSession{} = cdp_session, event, listener) do
-    event = Facade.event!(event, @events, "cdpSession.addListener", true)
+    event = Facade.event!(event, @events, "cdpSession.addListener")
     Facade.listen(fn -> Playwright.Client.CDPSession.add_listener(cdp_session, event, listener) end)
   end
 
@@ -156,7 +156,7 @@ defmodule Playwright.CDPSession do
   @spec remove_listener(t(), :event, (%{required(:method) => String.t(), optional(:params) => map()} -> term())) :: t()
   @spec remove_listener(t(), String.t(), (term() -> term())) :: t()
   def remove_listener(%Playwright.CDPSession{} = cdp_session, event, listener) do
-    event = Facade.event!(event, @events, "cdpSession.removeListener", true)
+    event = Facade.event!(event, @events, "cdpSession.removeListener")
     Facade.listen(fn -> Playwright.Client.CDPSession.remove_listener(cdp_session, event, listener) end)
   end
 
@@ -166,7 +166,7 @@ defmodule Playwright.CDPSession do
   @spec off(t(), :event, (%{required(:method) => String.t(), optional(:params) => map()} -> term())) :: t()
   @spec off(t(), String.t(), (term() -> term())) :: t()
   def off(%Playwright.CDPSession{} = cdp_session, event, listener) do
-    event = Facade.event!(event, @events, "cdpSession.off", true)
+    event = Facade.event!(event, @events, "cdpSession.off")
     Facade.listen(fn -> Playwright.Client.CDPSession.off(cdp_session, event, listener) end)
   end
 
@@ -176,7 +176,7 @@ defmodule Playwright.CDPSession do
   @spec prepend_listener(t(), :event, (%{required(:method) => String.t(), optional(:params) => map()} -> term())) :: t()
   @spec prepend_listener(t(), String.t(), (term() -> term())) :: t()
   def prepend_listener(%Playwright.CDPSession{} = cdp_session, event, listener) do
-    event = Facade.event!(event, @events, "cdpSession.prependListener", true)
+    event = Facade.event!(event, @events, "cdpSession.prependListener")
     Facade.listen(fn -> Playwright.Client.CDPSession.prepend_listener(cdp_session, event, listener) end)
   end
 

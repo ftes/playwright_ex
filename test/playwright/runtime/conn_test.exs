@@ -260,6 +260,14 @@ defmodule Playwright.RuntimeConnTest do
       assert {:messages, []} = Process.info(self(), :messages)
     end
 
+    # As JS's `ChannelOwner.on`: any event name, one that never fires.
+    test "an unknown event as a string is listened to and waited for", %{page: page} do
+      assert %Page{} = Page.on(page, "foo", fn _ -> :ok end)
+      error = assert_raise Playwright.TimeoutError, fn -> Page.wait_for_event!(page, "foo", timeout: 50) end
+      assert error.message =~ ~s(waiting for event "foo")
+      assert %Page{} = Page.off(page, "foo", fn _ -> :ok end)
+    end
+
     test "a wait's predicate runs outside the wait's API call (savedZone)", %{page: page} do
       test = self()
 

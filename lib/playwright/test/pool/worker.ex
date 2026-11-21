@@ -8,10 +8,10 @@ defmodule Playwright.Test.Pool.Worker do
   # runs `on_start` on each new driver's Playwright before the launch. A `browser/3` of another
   # key stops the driver and starts one of the key, in place, as `_runJobInWorker` awaits
   # `worker.stop()` before it starts a worker of another hash; so does the one after `reset/1`
-  # (a failed scope's). Its one browser is the options' (`browser_name`, `launch_options`,
-  # `connect_options`), as upstream's worker runs its project's: the listener on the driver's
-  # instrumentation sees its contexts, also those of a connected browser, whose connection shares
-  # it. A lost browser (closed, disconnected, or its driver gone) is launched or connected again
+  # (a failed scope's). Its one browser is the options' (`browser_name`, `headless`, `channel`,
+  # `launch_options`, `connect_options`), as upstream's worker runs its project's: the listener
+  # on the driver's instrumentation sees its contexts, also those of a connected browser, whose
+  # connection shares it. A lost browser (closed, disconnected, or its driver gone) is launched or connected again
   # by the next `browser/3`.
   use GenServer
 
@@ -29,11 +29,13 @@ defmodule Playwright.Test.Pool.Worker do
 
   @doc """
   The key of the pool options `opts` (all of them: `driver`, `on_start`, and the browser's
-  `browser_name`, `launch_options`, `connect_options`), as upstream's worker hash covers the
-  project's options.
+  `browser_name`, `headless`, `channel`, `launch_options`, `connect_options`), as upstream's
+  worker hash covers the project's options.
   """
   def key(opts),
-    do: {Enum.sort(opts.driver), opts.on_start, opts.browser_name, Enum.sort(opts.launch_options), opts.connect_options}
+    do:
+      {Enum.sort(opts.driver), opts.on_start, opts.browser_name, opts.headless, opts.channel,
+       Enum.sort(opts.launch_options), opts.connect_options}
 
   @doc """
   `%{playwright: _, browser: _}` of the worker `pid` for `opts` (of `key`): a driver of another
@@ -148,7 +150,7 @@ defmodule Playwright.Test.Pool.Worker do
 
   defp launch_new(%{opts: opts} = state) do
     browser_type = apply(Playwright, opts.browser_name, [state.playwright])
-    browser = launch_or_connect(browser_type, opts.launch_options, opts.connect_options)
+    browser = launch_or_connect(browser_type, Options.browser_options(opts), opts.connect_options)
     # `BrowserPool.playwright/1` of a connected browser: the driver's.
     :ets.insert(Playwright.Test.Results.table(), {{:driver, browser.conn}, state.playwright})
     {:ok, browser, %{state | browser: browser}}

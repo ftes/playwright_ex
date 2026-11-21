@@ -40,7 +40,7 @@ ExUnit](../testing-with-exunit.md)).
 | custom fixtures (`test.extend`) | n/a | `setup`, case templates; option fixtures are tags |
 | `test.use` | ◐ | values, not functions; a browser or device in a describe or test raises, as upstream ([Test options](../test-options.md)) |
 | projects | ◐ | `parameterize:`; a project is a `name` and `use` options only (no `outputDir`, `timeout`, `retries`, `testMatch`, `grep`, `dependencies`, ...) |
-| workers | ◐ | `Playwright.Test.BrowserPool`; no `fullyParallel`, no fresh worker after a failed test |
+| workers | ◐ | `Playwright.Test.BrowserPool`; no `fullyParallel`, no fresh worker after a failed test; `workers` a positive integer, no `"50%"` or numeric string |
 | retries | ◐ | `mix test --failed`, which the retry modes go by ([Retries](../test-artifacts.md#retries)) |
 | sharding | n/a | `mix test --partitions` |
 | timeouts: test, action, navigation, expect | ✓ | ExUnit's test timeout, `action_timeout`, `navigation_timeout`, `config :playwright, :expect` |

@@ -236,7 +236,10 @@ defmodule Playwright.Test do
   `launch_options` (its `use`'s, else its project's, else the config's, each as a whole) and
   `connect_options` are that call's defaults too, upstream's `launchOptions` and
   `connectOptions`: a project with `launch_options: [channel: "chrome"]` gets a worker of its
-  own. These four are the worker's, as upstream's: the module's (its `use`, then all of its
+  own. So are its `headless` and `channel`, upstream's options of their own, set over the launch
+  options' when given (`headless: false` launches headed whatever `launch_options` say); unset,
+  they are the launch options' (`headless` `true` when those have none). These six are the
+  worker's, as upstream's: the module's (its `use`, then all of its
   `@moduletag Test.use(...)`s merged, the later per option, upstream's top-level `test.use`, for
   every test of the module, also those above such a line) or its project's. Its other options
   don't reach a test above the line, as ExUnit gives a test the `@moduletag`s set before it:
@@ -253,7 +256,7 @@ defmodule Playwright.Test do
   |---|---|---|---|---|
   | the context options, `context_options`, `action_timeout`, `navigation_timeout` | yes | yes | yes | yes |
   | `trace`, `screenshot`, `video` | yes | yes | yes | yes (an addition: upstream's are the worker's; they work fully per test, as the recorder records per test and touches no browser) |
-  | `browser_name`, `launch_options`, `connect_options` | yes | yes | yes | raises when the module compiles a `test` under it, as Playwright Test's `test.use` in a describe |
+  | `browser_name`, `headless`, `channel`, `launch_options`, `connect_options` | yes | yes | yes | raises when the module compiles a `test` under it, as Playwright Test's `test.use` in a describe |
   | `default_browser_type` (a device's) | picks the browser | picks the browser | picks the browser | raises, as the browser keys |
   | `test_id_attribute` | yes | no | no | no (a deviation: upstream's is an option of every level, global to a worker, which runs one test at a time; here it is global to the VM, which the tests running at once share) |
   | `output_dir`, `preserve_output`, `workers`, `snapshot_dir`, `snapshot_path_template`, `driver`, `on_start` | yes | no | no | no |
@@ -444,7 +447,9 @@ defmodule Playwright.Test do
   ## Config
 
       config :playwright, :test,
-        browser_name: :chromium,      # BrowserPool: :chromium | :firefox | :webkit
+        browser_name: :chromium,      # BrowserPool: :chromium | :firefox | :webkit, or "chromium", ...
+        headless: nil,                # BrowserPool: over launch_options' (nil: launch_options' headless, else true)
+        channel: nil,                 # BrowserPool: over launch_options' (nil: launch_options' channel)
         launch_options: [],           # BrowserPool: Playwright.BrowserType.launch/2
         connect_options: nil,         # BrowserPool: [ws_endpoint: _, ...] to connect instead of launching
         driver: [],                   # BrowserPool: [env: _], Playwright.Supervisor's (the driver is config :playwright, :driver's)
@@ -459,7 +464,7 @@ defmodule Playwright.Test do
         screenshot: :off,             # :off | :on | :only_on_failure | :on_first_failure, or [mode: _, ...]
         video: :off,                  # as trace, or [mode: _, size: _]
         output_dir: "test-results",
-        preserve_output: :always,     # :always | :failures_only | :never, see Artifacts
+        preserve_output: :always,     # :always | :failures_only | :never, or "failures-only", ..., see Artifacts
         snapshot_dir: nil,            # upstream's testDir: test/
         snapshot_path_template: nil,  # upstream's defaults, see Snapshots
         test_id_attribute: "data-testid",
@@ -475,8 +480,14 @@ defmodule Playwright.Test do
   `test_id_attribute` is upstream's `testIdAttribute`, set on each pooled driver: the client's
   value is global to the VM, so set it here, not per module. `config/0` returns the config
   resolved. An unknown key raises at application start (and when the runner reads a config
-  changed since), and so does a bad value of the keys upstream checks: `workers`, `preserve_output`, `output_dir`, `browser_name`, `on_start`, `report_slow_tests` and the context options (as `Browser.new_context/2` checks them), and of Elixir's `assert_steps` (a boolean).
-  Other values pass as given, as upstream's: an unknown artifact mode records nothing.
+  changed since), and so does a bad value of the keys upstream checks: `preserve_output`,
+  `output_dir`, `browser_name`, `report_slow_tests` and the context options (as
+  `Browser.new_context/2` checks them), and of `workers` (a positive integer: upstream's also
+  takes `"50%"` or a numeric string, which aren't supported), `on_start` and Elixir's
+  `assert_steps` (a boolean). `browser_name` and `preserve_output` take an atom (`:webkit`,
+  `:failures_only`) or upstream's string (`"webkit"`, `"failures-only"`): an unknown atom raises
+  as any bad value, an unknown string with upstream's error. Other values pass as given, as
+  upstream's: an unknown artifact mode records nothing.
   """
 
   alias Playwright.Runtime.Zones
@@ -1161,7 +1172,7 @@ defmodule Playwright.Test do
   options every context of the test starts from (`base_url`, `locale`, `extra_http_headers`,
   ...; those set, and Playwright Test's defaults), `action_timeout`, `navigation_timeout`,
   `trace`, `screenshot`, `video`, and the worker options of its `BrowserPool.browser/1` calls
-  (`browser_name`, `launch_options`, `connect_options`). A library that passes options in a
+  (`browser_name`, `headless`, `channel`, `launch_options`, `connect_options`). A library that passes options in a
   call merges into it, as the call's replace the resolved ones as a whole:
   `Browser.new_context!(browser, extra_http_headers: Map.merge(Test.info().use[:extra_http_headers]
   || %{}, headers))`. A library that waits or
@@ -1338,8 +1349,8 @@ defmodule Playwright.Test do
   the default. A plain tag named like an option (`@tag trace: :on`) sets nothing.
 
   An unknown option raises `ArgumentError`, when the test module compiles. So do
-  `browser_name`, `default_browser_type` (a device's), `launch_options` and `connect_options` in
-  a `@describetag` or a `@tag`, when the module compiles a test of the `test` macro under it,
+  `browser_name`, `default_browser_type` (a device's), `headless`, `channel`, `launch_options` and
+  `connect_options` in a `@describetag` or a `@tag`, when the module compiles a test of the `test` macro under it,
   with upstream's message ("Cannot use({
   browser_name }) in a describe group, because it forces a new worker.\nMake it top-level in the
   test file or put in the configuration file.", "in a test" for a `@tag`): they are the
@@ -1354,7 +1365,8 @@ defmodule Playwright.Test do
   @doc """
   A project for `parameterize:`, upstream's `projects: [{ name, use: { ... } }]`: `name:` (a
   string, upstream's `project.name`), `use/1`'s options and the worker's (`browser_name`,
-  `default_browser_type`, `launch_options`, `connect_options`), validated as it does. A map of
+  `default_browser_type`, `headless`, `channel`, `launch_options`, `connect_options`), validated
+  as it does. A map of
   one private key, `:"playwright.project"`, whose value is a `Playwright.Test.Project`, which
   ExUnit takes there (a tag takes `use/1`'s keyword list).
 
