@@ -10,9 +10,7 @@
 # Accepted risk: a job with `id-token: write` that checks out a branch other than main runs that
 # branch's setup code (mix.exs, deps), which can tamper with the job or mint the app token. Only
 # maintainers, Claude's own branches and Renovate can push branches here, and no such job runs on
-# Renovate's branches. Fork PRs get no id-token, except a maintainer's comment on one in
-# claude.yml: Claude then works in the fork's head with the id-token, and only the mix tools are
-# withheld.
+# Renovate's branches. Such a job runs only for this repository's PRs and branches.
 name: Claude
 description: Runs Claude Code with this repo's model, tool rules and settings.
 
