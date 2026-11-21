@@ -1,3 +1,5 @@
+Code.require_file("../../support/step_library.exs", __DIR__)
+
 defmodule Playwright.Test.StepsTest do
   # `step/3` (upstream's `test.step`) and the matchers' steps, in the test's `test.trace`
   # (upstream's `TestTracing`). Failures as ExUnit reports them: `Playwright.Test.EndToEndTest`.
@@ -15,6 +17,7 @@ defmodule Playwright.Test.StepsTest do
   alias Playwright.Locator
   alias Playwright.Page
   alias Playwright.Route
+  alias Playwright.StepLibrary
   alias Playwright.Runtime.ProcessOwner
   alias Playwright.Runtime.Promise
   alias Playwright.Test
@@ -64,6 +67,13 @@ defmodule Playwright.Test.StepsTest do
 
   # The source line `line` of this file.
   defp source(line), do: __ENV__.file |> File.read!() |> String.split("\n") |> Enum.at(line - 1)
+
+  # The line of a step error's first frame, in this file (the message may span lines).
+  defp first_frame_line(stack) do
+    frame = stack |> String.split("\n") |> Enum.find(&String.starts_with?(&1, "    at "))
+    [_, line] = Regex.run(~r"^    at .*steps_test\.exs:(\d+)", frame)
+    String.to_integer(line)
+  end
 
   defp before(events, title), do: Enum.find(events, &(&1["type"] == "before" and &1["title"] == title))
   defp after_of(events, %{"callId" => id}), do: Enum.find(events, &(&1["type"] == "after" and &1["callId"] == id))
@@ -185,14 +195,67 @@ defmodule Playwright.Test.StepsTest do
     arg
   end
 
+  # A library's helper (`Playwright.StepLibrary`, no module of the app's) boxes its step, as
+  # upstream's in `node_modules` does: the step and its errors are at the test's call of it, the
+  # steps inside keep the library's location.
+  test "a library's boxed step is at the test's call of its helper; an explicit or unboxed location stays" do
+    library_file = Path.expand("../../support/step_library.exs", __DIR__)
+
+    on_trace(fn events, _files ->
+      for title <- ["assert text do", "assert text fn"] do
+        boxed = before(events, title)
+        assert [%{"file" => @this_file, "line" => line} | _] = boxed["stack"]
+        assert source(line) =~ "helper.(locator"
+
+        inner = Enum.find(events, &(&1["type"] == "before" and &1["parentId"] == boxed["callId"]))
+        assert inner["title"] == ~s(Expect "toHaveText")
+        # The `fn` form's tail call drops the fun's frame (BEAM), the `do` form keeps it.
+        if title == "assert text do", do: assert([%{"file" => ^library_file} | _] = inner["stack"])
+
+        for step <- [boxed, inner] do
+          assert source(first_frame_line(after_of(events, step)["error"]["stack"])) =~ "helper.(locator"
+        end
+      end
+
+      # An explicit `location` wins over the boxed one, an unboxed `do` step keeps its own line,
+      # and a boxed one in the test's body has none (upstream's `slice(1)` leaves no user frame).
+      assert [%{"file" => "elsewhere.ex", "line" => 7}] = before(events, "boxed at")["stack"]
+      assert [%{"file" => ^library_file, "line" => line}] = before(events, "unboxed do")["stack"]
+      assert library_file |> File.read!() |> String.split("\n") |> Enum.at(line - 1) =~ ~s(Test.step "unboxed do")
+      assert before(events, "boxed in test")["stack"] == []
+    end)
+
+    StepLibrary.boxed_at(%{file: "elsewhere.ex", line: 7, column: 0})
+    StepLibrary.unboxed_do()
+
+    Test.step "boxed in test", box: true do
+      :ok
+    end
+
+    page = new_page()
+    Page.set_content!(page, "<div>text</div>")
+    locator = Page.locator(page, "div")
+
+    for helper <- [&StepLibrary.assert_text_do/2, &StepLibrary.assert_text_fn/2] do
+      stacktrace =
+        try do
+          helper.(locator, "other")
+        rescue
+          _ -> __STACKTRACE__
+        end
+
+      assert [{__MODULE__, _, _, location} | _] = stacktrace
+      assert source(location[:line]) =~ "helper.(locator"
+    end
+  end
+
   # The client's stack (`captureLibraryStackTrace`) of a call in a step's body starts in the body,
   # as upstream's: the runtime's frames around the body (`Zones.run`) don't hide it. The `do`
   # form's last call keeps the body's frame too; a fun's tail call doesn't (BEAM drops its frame).
   test "a call in a step's body is located in the body: the fn and do forms, nested, toPass's, its error" do
     on_trace(fn events, _files ->
       %{"error" => %{"stack" => stack}} = after_of(events, before(events, "fails"))
-      [_, line] = Regex.run(~r"\n    at .*steps_test\.exs:(\d+)", stack)
-      assert source(String.to_integer(line)) =~ ~s[Page.click!(page, "#missing", timeout: 1)]
+      assert source(first_frame_line(stack)) =~ ~s[Page.click!(page, "#missing", timeout: 1)]
     end)
 
     page = new_page()

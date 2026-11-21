@@ -155,6 +155,8 @@ upstream minor, so `~> 1.65.0` is safe.
 - **RC only:** `Route.fulfill`, `abort` and `continue` in a route handler have the handler's
   call site in the trace, which a tail call such as `fn r -> Route.abort!(r) end` doesn't keep
   (BEAM drops its frame).
+- **RC only:** a boxed `Playwright.Test.step ... do` is located where its helper is called, as
+  the `fn` form and upstream's are, not at its own line in the helper.
 
 ## [1.65.0-rc.2] 2026-11-18
 
