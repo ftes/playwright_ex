@@ -25,6 +25,11 @@ Playwright.Supervisor           OTP form of outofprocess.start(): driver and con
 Playwright.Test, Playwright.Case  native ExUnit runner (see Test runner)
 ```
 
+HexDocs shows the facade, the errors and the runtime entry points (`filter_modules` in
+`mix.exs`). An internal function with `@doc library_api: true` (hidden by `@doc false` or its
+module, seen in `Code.fetch_docs/1`) is one libraries build on (`__options__/1`,
+`LocatorUtils.get_by_*_selector`): keep it stable, and change it only with a CHANGELOG note.
+
 ## Port and versions
 
 The client is a statement-by-statement port of the official JS client at a pinned version, so a

@@ -43,9 +43,10 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
       string too for `"openEvents"` classes (`CDPSession`, see `Mix.Playwright.ApiRules`). The
       call runs in `Playwright.Runtime.Facade.listen/1`: the listener is a user listener.
     * Functions with options: `__options__(:click)` lists the options with their doc and type, for
-      wrappers that pass them on (documented as unstable). `__options_type__(:click)` (`@doc
-      false`) is their type, as `Playwright.Runtime.Facade.options!/3` converts them: the
-      config's `context_options` of `Playwright.Test`.
+      wrappers that pass them on (`@doc library_api: true`, see docs/architecture.md).
+      `__options_type__(:click)` (`@doc false`) is their type, as
+      `Playwright.Runtime.Facade.options!/3` converts them: the config's `context_options` of
+      `Playwright.Test`.
     * Positional enum arguments: `__arg_type__(:wait_for_load_state, :state)` (`@doc false`) is
       the enum `Playwright.Runtime.Facade.arg!/4` checks it against, for code that needs its atoms.
 
@@ -338,6 +339,7 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
       #{if facade(name) == Playwright, do: "use Playwright.Root"}
 
       #{if String.contains?(body, "Facade."), do: "alias Playwright.Runtime.Facade"}
+      #{if String.contains?(body, "ProtocolType."), do: "alias Playwright.Runtime.ProtocolType"}
 
       #{body}
     end
@@ -1107,12 +1109,13 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
         end
 
       """
-      @doc \"\"\"
-      The options of `function`, an atom such as `:#{name}`, as
-      `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, for tools that build on the facade at
-      compile time; a function without options raises `FunctionClauseError`. Unstable: the shape
-      may change between releases.
-      \"\"\"
+      # The options of `function`, an atom such as `:#{name}`, in order, as its docs show them:
+      # `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, `doc` the first paragraph on one
+      # line, `since` the Playwright version that added the option if newer than the function,
+      # `type_doc` the type as rendered, `spec` the quoted typespec. For libraries that pass
+      # options on; a function without options raises `FunctionClauseError`.
+      @doc false
+      @doc library_api: true
       @spec __options__(atom()) :: [
               {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
             ]
@@ -1183,8 +1186,8 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
   defp schema(_ctx, nil, _mode), do: nil
 
   # An open object (a storage state, cookies, see `Mix.Playwright.ApiRules`): passed as it is, its
-  # keys checked against those of protocol params (`Facade.protocol_type/2` when the module
-  # compiles), which its validator would drop silently. Every one needs them.
+  # keys checked against those of protocol params (`Playwright.Runtime.ProtocolType.of/3` when the
+  # module compiles), which its validator would drop silently. Every one needs them.
   defp schema(_ctx, %{"protocol" => {params, field, unchecked}}, _mode), do: {:protocol, params, field, unchecked}
 
   defp schema(_ctx, %{"open" => true}, _mode),
@@ -1203,9 +1206,11 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
     end
   end
 
-  # A dictionary (`Object<string, ...>`): its keys are data, not checked. api.json can attach the
-  # properties of an object value to it (`multipart`).
-  defp schema(_ctx, %{"name" => "Object", "templates" => [_, _]}, _mode), do: nil
+  # A dictionary (`Object<string, ...>`): its keys are data, not checked, its values are (a
+  # `multipart` file). api.json can attach the properties of an object value to it.
+  defp schema(ctx, %{"name" => "Object", "templates" => [_, value]}, _mode) do
+    if s = schema(ctx, value, :nested), do: {:dictionary, s}
+  end
 
   defp schema(ctx, %{"properties" => props}, _mode) when is_list(props) and props != [] do
     pairs =
@@ -1735,10 +1740,10 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
   # what the VM loaded before.
   defp render({:map, pairs}), do: "%{#{Enum.map_join(pairs, ", ", fn {k, v} -> "#{key(k)} #{render(v)}" end)}}"
 
-  defp render({:protocol, params, field, []}), do: "Facade.protocol_type(#{inspect(params)}, #{inspect(field)})"
+  defp render({:protocol, params, field, []}), do: "ProtocolType.of(#{inspect(params)}, #{inspect(field)})"
 
   defp render({:protocol, params, field, unchecked}),
-    do: "Facade.protocol_type(#{inspect(params)}, #{inspect(field)}, #{inspect(unchecked)})"
+    do: "ProtocolType.of(#{inspect(params)}, #{inspect(field)}, #{inspect(unchecked)})"
 
   defp render(tuple) when is_tuple(tuple), do: "{#{tuple |> Tuple.to_list() |> Enum.map_join(", ", &render/1)}}"
   defp render(list) when is_list(list), do: "[#{Enum.map_join(list, ", ", &render/1)}]"

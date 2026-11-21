@@ -35,6 +35,7 @@ defmodule Playwright.Browser do
   """
 
   alias Playwright.Runtime.Facade
+  alias Playwright.Runtime.ProtocolType
 
   @typedoc "A `Browser` handle. Compare handles with `==`, their fields are internal."
   @type t :: %__MODULE__{}
@@ -214,8 +215,7 @@ defmodule Playwright.Browser do
                             {:reducedMotion, {:enum, %{reduce: "reduce", no_preference: "no-preference"}}},
                           screen: {:screen, {:fields, %{width: nil, height: nil}}},
                           service_workers: {:serviceWorkers, {:enum, %{allow: "allow", block: "block"}}},
-                          storage_state:
-                            {:storageState, Facade.protocol_type("BrowserNewContextParams", :storageState)},
+                          storage_state: {:storageState, ProtocolType.of("BrowserNewContextParams", :storageState)},
                           strict_selectors: {:strictSelectors, nil},
                           timezone_id: {:timezoneId, nil},
                           user_agent: {:userAgent, nil},
@@ -653,7 +653,7 @@ defmodule Playwright.Browser do
                        reduced_motion: {:reducedMotion, {:enum, %{reduce: "reduce", no_preference: "no-preference"}}},
                        screen: {:screen, {:fields, %{width: nil, height: nil}}},
                        service_workers: {:serviceWorkers, {:enum, %{allow: "allow", block: "block"}}},
-                       storage_state: {:storageState, Facade.protocol_type("BrowserNewContextParams", :storageState)},
+                       storage_state: {:storageState, ProtocolType.of("BrowserNewContextParams", :storageState)},
                        strict_selectors: {:strictSelectors, nil},
                        timezone_id: {:timezoneId, nil},
                        user_agent: {:userAgent, nil},
@@ -1286,12 +1286,13 @@ defmodule Playwright.Browser do
     Facade.listen(fn -> Playwright.Client.Browser.prepend_listener(browser, event, listener) end)
   end
 
-  @doc """
-  The options of `function`, an atom such as `:close`, as
-  `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, for tools that build on the facade at
-  compile time; a function without options raises `FunctionClauseError`. Unstable: the shape
-  may change between releases.
-  """
+  # The options of `function`, an atom such as `:close`, in order, as its docs show them:
+  # `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, `doc` the first paragraph on one
+  # line, `since` the Playwright version that added the option if newer than the function,
+  # `type_doc` the type as rendered, `spec` the quoted typespec. For libraries that pass
+  # options on; a function without options raises `FunctionClauseError`.
+  @doc false
+  @doc library_api: true
   @spec __options__(atom()) :: [
           {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
         ]

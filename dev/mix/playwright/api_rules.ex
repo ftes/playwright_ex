@@ -1229,12 +1229,22 @@ defmodule Mix.Playwright.ApiRules do
 
     case Playwright.Protocol.Validator.scheme(params) do
       {:object, fields} ->
-        if Keyword.has_key?(fields, field),
-          do: {params, field, unchecked},
-          else: Mix.raise("ApiRules: #{params} has no #{field} (@protocol_params, #{name})")
+        if !Keyword.has_key?(fields, field),
+          do: Mix.raise("ApiRules: #{params} has no #{field} (@protocol_params, #{name})")
 
       _ ->
         Mix.raise("ApiRules: no protocol params #{params} (@protocol_params, #{name})")
+    end
+
+    protocol_object!(name, params, field, unchecked)
+  end
+
+  # Anything else (a scheme that resolves to `nil`) would turn the key check off.
+  defp protocol_object!(name, params, field, unchecked) do
+    case Playwright.Runtime.ProtocolType.of(params, field, unchecked) do
+      {:protocol, _atoms, _strings} -> {params, field, unchecked}
+      {:array, {:protocol, _atoms, _strings}} -> {params, field, unchecked}
+      type -> Mix.raise("ApiRules: #{params}.#{field} is no object or list of objects: #{inspect(type)} (#{name})")
     end
   end
 

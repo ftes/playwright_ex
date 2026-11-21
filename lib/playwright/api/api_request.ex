@@ -17,6 +17,7 @@ defmodule Playwright.APIRequest do
   """
 
   alias Playwright.Runtime.Facade
+  alias Playwright.Runtime.ProtocolType
 
   @typedoc "A `APIRequest` handle. Compare handles with `==`, their fields are internal."
   @type t :: %__MODULE__{}
@@ -57,7 +58,7 @@ defmodule Playwright.APIRequest do
                           proxy: {:proxy, {:fields, %{server: nil, bypass: nil, username: nil, password: nil}}},
                           storage_state:
                             {:storageState,
-                             Facade.protocol_type("BrowserContextSetStorageStateParams", :storageState, [:credentials])},
+                             ProtocolType.of("BrowserContextSetStorageStateParams", :storageState, [:credentials])},
                           timeout: {:timeout, nil},
                           user_agent: {:userAgent, nil}
                         }}
@@ -244,12 +245,13 @@ defmodule Playwright.APIRequest do
     Facade.async!("apiRequest.newContext", fn -> Playwright.Client.APIRequest.new_context(api_request, options) end)
   end
 
-  @doc """
-  The options of `function`, an atom such as `:new_context`, as
-  `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, for tools that build on the facade at
-  compile time; a function without options raises `FunctionClauseError`. Unstable: the shape
-  may change between releases.
-  """
+  # The options of `function`, an atom such as `:new_context`, in order, as its docs show them:
+  # `[{key, %{type_doc: _, doc: _, since: _, spec: _}}]`, `doc` the first paragraph on one
+  # line, `since` the Playwright version that added the option if newer than the function,
+  # `type_doc` the type as rendered, `spec` the quoted typespec. For libraries that pass
+  # options on; a function without options raises `FunctionClauseError`.
+  @doc false
+  @doc library_api: true
   @spec __options__(atom()) :: [
           {atom(), %{type_doc: String.t(), doc: String.t(), since: String.t() | nil, spec: Macro.t()}}
         ]

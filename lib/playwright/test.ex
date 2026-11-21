@@ -237,8 +237,11 @@ defmodule Playwright.Test do
   `connectOptions`: a project with `launch_options: [channel: "chrome"]` gets a worker of its
   own. These four are the worker's, as upstream's: the module's (its `use`, then all of its
   `@moduletag Test.use(...)`s merged, the later per option, upstream's top-level `test.use`, for
-  every test of the module, also those above such a line) or its project's. In a `@describetag` or a `@tag` of a test of
-  the `test` macro they raise when the module compiles, as upstream's `test.use` in a describe
+  every test of the module, also those above such a line) or its project's. Its other options
+  don't reach a test above the line, as ExUnit gives a test the `@moduletag`s set before it:
+  under `@moduletag Test.use(Playwright.device("iPhone 13"))`, such a test gets the device's
+  `default_browser_type` but not its viewport or user agent, so put the line above the tests.
+  In a `@describetag` or a `@tag` of a test of the `test` macro they raise when the module compiles, as upstream's `test.use` in a describe
   when the file loads, a device's `default_browser_type` too; other tests (a doctest, a bare
   `ExUnit.Case.test`) get the module's worker regardless. For a browser or a device per run,
   make each a project (`parameters/1`) in the module's `parameterize:`.

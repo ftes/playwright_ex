@@ -96,7 +96,8 @@ upstream minor, so `~> 1.65.0` is safe.
   spread, in `use Playwright.Test`, `Test.use/1`, `Test.parameters/1` and the keyword lists
   they take (`trace: [mode: :on, mode: :off]` is off, `connect_options`), in the config's
   (`driver`, `report_slow_tests`, `config :playwright, :expect` and its matchers'), and in the
-  options of `Playwright.Supervisor.start_link/1`, `step/3`, `attach/2` and `snapshot_path/2`.
+  options of `Playwright.Supervisor.start_link/1` and `child_spec/1`, `step/3`, `attach/2` and
+  `snapshot_path/2`.
 - **RC only:** **Breaking:** `@describetag`/`@tag Test.use(...)` with `browser_name`,
   `default_browser_type` (a device's), `launch_options` or `connect_options` raises when the
   module compiles a test of the `test` macro under it, with upstream's "Cannot use({ ... }) in
@@ -116,12 +117,17 @@ upstream minor, so `~> 1.65.0` is safe.
 - **RC only:** `Playwright.Test.GitHubFormatter` labels a test by its project's name only, not
   by every `parameterize:` value, and a slow file's annotation is `[project] › file`, as
   upstream's.
+- **RC only:** `__options__/1` is out of HexDocs, as are the selector builders of
+  `Isomorphic.LocatorUtils`: both are marked `library_api: true` in their docs metadata,
+  internal but stable for libraries that build on them, changed only with a CHANGELOG note.
 
 ### Fixed
 
 - **RC only:** `add_cookies`, `storage_state:` and `set_storage_state` check their keys
   against the protocol's: a snake_case `http_only:` raises instead of being dropped. Errors
   name the argument and list index (`cookies[0].http_only`).
+- **RC only:** a `multipart` file's keys are checked as other nested objects' are: `mime_type:`
+  raises, where the client failed treating the map as a stream.
 - **RC only:** option and field errors name keys bare: `unknown option x, expected one of
   y, z` (was `unknown option :x, expected one of :y, :z`), `for opt` (was `for :opt`).
 - **RC only:** `mix playwright.install` forwards a `--` to `playwright install` (rc.2 raised on
