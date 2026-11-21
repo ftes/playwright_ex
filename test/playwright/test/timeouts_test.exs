@@ -93,6 +93,23 @@ defmodule Playwright.Test.TimeoutsTest do
     assert {:error, %Playwright.TargetClosedError{message: ^message}} = Browser.new_page(ctx.browser)
   end
 
+  test "the timer fails a hung call with the timeout's reason", ctx do
+    page = Browser.new_context!(ctx.browser) |> BrowserContext.new_page!()
+    recorder = Recorder.lookup(self())
+    # The timer's close, sent by hand (its timer cancelled; none under `--trace`), with a task
+    # standing in for the test's own hung call. The race with ExUnit's kill, and the call log (the
+    # driver's), are the end-to-end test's.
+    if timer = :sys.get_state(recorder).timer, do: Process.cancel_timer(timer)
+    hung = Task.async(fn -> Page.wait_for_selector(page, "#never") end)
+    send(recorder, :test_timeout)
+
+    # A margin, not an order: the call gets the reason only if it reaches the driver before the
+    # driver closes the context (later, upstream's plain "has been closed"), and the close first
+    # disposes the request context and takes the page snapshot, driver round trips.
+    assert {:error, %Playwright.TargetClosedError{message: message}} = Task.await(hung, 30_000)
+    assert message =~ "Test timeout of #{Recorder.registration(self()).test_timeout}ms exceeded."
+  end
+
   test "the timer closes a context whose setup hasn't ended", ctx do
     Browser.new_context!(ctx.browser)
     recorder = Recorder.lookup(self())
