@@ -62,7 +62,8 @@ defmodule Playwright.Test.Options do
     :snapshot_dir,
     :snapshot_path_template,
     :test_id_attribute,
-    :report_slow_tests
+    :report_slow_tests,
+    :assert_steps
   ]
   @config_keys @pool_keys ++ @artifact_keys ++ @config_only_keys
 
@@ -105,6 +106,7 @@ defmodule Playwright.Test.Options do
   # `workers`, `outputDir`), its browser fixture's (`browserName`), and `on_start`'s (Elixir only).
   # Other values pass as given, as upstream's do.
   @expected %{
+    assert_steps: "a boolean",
     browser_name: "one of :chromium, :firefox, :webkit",
     on_start: "nil, a 1-arity function or an {m, f, a} tuple",
     output_dir: "a string",
@@ -169,6 +171,20 @@ defmodule Playwright.Test.Options do
   end
 
   defp use_options!(opts, label, worker_keys) do
+    # Elixir only: read by the `use` macro itself (`Playwright.Test.__using__/1`), so from a
+    # literal keyword list only.
+    if Keyword.has_key?(opts, :assert_steps),
+      do:
+        raise(
+          ArgumentError,
+          if(label == "use Playwright.Test",
+            do:
+              "#{label}: assert_steps must be a literal boolean in a literal keyword list (it is read at compile time)",
+            else:
+              "#{label}: assert_steps is an option of use Playwright.Test and config :playwright, :test only (it is read at compile time)"
+          )
+        )
+
     {context, opts} = Keyword.split(opts, context_keys())
 
     # A device's, with its other keys: upstream's worker-scoped `defaultBrowserType` (`use/1`
@@ -538,9 +554,13 @@ defmodule Playwright.Test.Options do
       snapshot_dir: nil,
       snapshot_path_template: nil,
       test_id_attribute: "data-testid",
-      report_slow_tests: [max: 5, threshold: 300_000]
+      report_slow_tests: [max: 5, threshold: 300_000],
+      assert_steps: true
     }
   end
+
+  @doc "`key`'s value of the config or `use` (`label`) validated, as `config/0` validates it."
+  def validate_key!(key, value, label), do: validate!(key, value, label)
 
   # `validate!/2`, its error naming the entry point `label`.
   defp validate!(key, value, label) do
@@ -587,6 +607,8 @@ defmodule Playwright.Test.Options do
 
   defp validate!(:output_dir, dir) when is_binary(dir), do: dir
   defp validate!(:preserve_output, value) when value in [:always, :never, :failures_only], do: value
+
+  defp validate!(:assert_steps, value) when is_boolean(value), do: value
 
   # Upstream's `if (testIdAttribute)` (`_setupContextOptions`): an empty one sets none (`nil`),
   # so the selectors keep theirs.

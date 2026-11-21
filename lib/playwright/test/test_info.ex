@@ -551,6 +551,7 @@ defmodule Playwright.Test.TestInfo do
 
   # The library, ExUnit, and OTP's and Elixir's own apps (`ClientStackTrace`'s internal ones).
   @runner_apps [{:ok, :playwright}, {:ok, :ex_unit}, {:ok, :elixir}, {:ok, :stdlib}, {:ok, :kernel}]
+  @runner_app_names for {:ok, app} <- @runner_apps, do: app
 
   @doc "utils `captureRawStack`: the caller's stacktrace (from its caller's frame)."
   def capture_raw_stack do
@@ -564,13 +565,33 @@ defmodule Playwright.Test.TestInfo do
   its own packages, the runner's too and Node's internals, or without a file.
   """
   def filtered_stack_trace(stacktrace) do
+    runner_modules = runner_modules()
+
     Enum.filter(stacktrace, fn
       {module, _fun, _arity, location} when is_atom(module) ->
-        location[:file] != nil and :application.get_application(module) not in @runner_apps
+        location[:file] != nil and not Map.has_key?(runner_modules, module)
 
       _ ->
         false
     end)
+  end
+
+  # Elixir only: the modules of `@runner_apps`, read once (`:application.get_application/1` scans
+  # every loaded app, ~5 us per frame, which each `assert` would pay). An app not loaded yet (a
+  # release without ExUnit) is read again on each call until it is.
+  defp runner_modules do
+    {modules, missing} =
+      :persistent_term.get({__MODULE__, :runner_modules}, {%{}, @runner_app_names})
+
+    case Enum.filter(missing, &Application.spec(&1, :vsn)) do
+      [] ->
+        modules
+
+      loaded ->
+        modules = Map.merge(modules, Map.new(Enum.flat_map(loaded, &Application.spec(&1, :modules)), &{&1, true}))
+        :persistent_term.put({__MODULE__, :runner_modules}, {modules, missing -- loaded})
+        modules
+    end
   end
 
   @doc "An Elixir stacktrace as trace `StackFrame`s (absolute files, as the client's)."

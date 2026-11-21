@@ -50,12 +50,22 @@ upstream minor, so `~> 1.65.0` is safe.
 - `Playwright.Test.parameters/1` takes `name:`, upstream's `project.name`: a failed test prints
   the project as `#Playwright.Test.Project<"Mobile Safari">`, not the whole device, and the
   name is the snapshot templates' `{projectName}`.
+- `use Playwright.Test` records each `assert` and `refute` as an `expect` step of the test's
+  trace, as upstream's `expect` is: `Expect "assert"`, the expression as its subtitle, the right
+  side of a comparison or match as its `expected`, a failed one with its error at the test's
+  level. They are ExUnit's otherwise, but a function that ends in a failing assertion keeps its
+  frame in the stacktrace. Helper modules `import Playwright.Test.Assertions`. Opt out with
+  `use Playwright.Test, assert_steps: false`, or the same key in `config :playwright, :test`.
 
 ### Changed
 
-- `Playwright.Test.GitHubFormatter` annotates a `mix test --failed` rerun too, as upstream's
-  `github` reporter annotates every attempt: a test passing there counts as flaky in the rerun's
-  summary, and one failing again gets its error under `Retry #1`. Pass it to both runs.
+- **RC only:** **Breaking:** `use Playwright.Test` replaces ExUnit's `assert` and `refute` with
+  `Playwright.Test.Assertions`', so a module that imports `ExUnit.Assertions` again after the
+  `use`, or another library's `assert/2`, no longer compiles (an ambiguous `assert`). Opt out
+  with `assert_steps: false`, or import `Playwright.Test.Assertions, except: [...]` beside it.
+- **RC only:** `Playwright.Test.GitHubFormatter` annotates a `mix test --failed` rerun too, as
+  upstream's `github` reporter annotates every attempt: a test passing there counts as flaky in
+  the rerun's summary, and one failing again gets its error under `Retry #1`. Pass it to both.
 - **RC only:** **Breaking:** `config :playwright, Playwright.Test.GitHubFormatter,
   report_slow_tests: ...` is `config :playwright, :test, report_slow_tests: ...`, as upstream's
   top-level `reportSlowTests`, with `false` for none (`nil` is the default there, as for every
