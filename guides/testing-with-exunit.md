@@ -188,8 +188,8 @@ test "signs up in steps", %{page: page} do
 end
 ```
 
-With `box: true`, an error inside the step is reported where the helper is called, instead of
-inside the step, which suits helpers:
+With `box: true`, the step and an error inside it are reported where the helper is called,
+which suits helpers, a library's too. The steps inside keep their own locations:
 
 ```elixir
 defp sign_up(page, email) do

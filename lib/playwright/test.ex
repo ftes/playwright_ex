@@ -1492,10 +1492,13 @@ defmodule Playwright.Test do
 
   Options:
 
-    * `:box` - an error inside the step is reported outside it: its stacktrace starts at the
-      call of the function the step is in (a helper's caller), instead of the frames inside it.
+    * `:box` - the step is located at the call of the function the step is in (a helper's
+      caller), unless `:location` is given, and an error inside it is reported there: its
+      stacktrace starts at that call, instead of the frames inside it. The steps inside keep
+      their own locations. A boxed step outside a helper (in the test's body) has no location of
+      its own; pass `location:`.
     * `:location` - `%{file: _, line: _, column: _}` of the step in the trace. The `do` form
-      passes its own.
+      passes its own, unless boxed.
     * `:params`, `:subtitle` - shown with the step in the trace.
 
   The body runs in the calling process. Upstream's `timeout` is not supported (it raises an
@@ -1523,8 +1526,14 @@ defmodule Playwright.Test do
         do_block?(body_or_options) and options == [] ->
           {step_fn(body_or_options), [location: location]}
 
+        # A boxed step is located where its helper is called (`boxedStack`), as upstream's
+        # without `location`.
         do_block?(options) ->
-          {step_fn(options), quote(do: Keyword.put_new(unquote(body_or_options), :location, unquote(location)))}
+          {step_fn(options),
+           quote do
+             options = unquote(body_or_options)
+             if options[:box], do: options, else: Keyword.put_new(options, :location, unquote(location))
+           end}
 
         true ->
           {body_or_options, options}
