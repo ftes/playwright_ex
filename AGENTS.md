@@ -26,6 +26,10 @@ Read them before changing ported code. When reviewing a change or fixing review 
   an RC. Upstream driver bumps and changes ported from upstream are never RC only. At the first
   non-RC release, drop the RC-only entries and merge the RC sections into that release's notes,
   keeping the latest `Drives Playwright` line.
+- Several PRs for one goal go in a GitHub stack: `elixir.yml` runs Build and lint and the tests only
+  on a stack's top PR, and not on drafts. Open drafts, each `--base` the previous branch, run
+  `gh stack link --base main <bottom> … <top>` (a `--base` chain alone isn't a stack), then mark
+  ready top first.
 - `mix check` is the full verification: `mix lint` (format, credo, compile, usage rules, Hex package
   compile, docs, dialyzer), then parity and the tests.
 - Files marked "do not edit manually" are generated: run `mix playwright.gen.api`
