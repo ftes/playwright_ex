@@ -225,7 +225,7 @@ Each area's row lists its main features, each feature's row its main gaps.
 | `actionTimeout`, `navigationTimeout`, `trace`, `screenshot`, `video` | ✓ | also per `describe` and test |
 | `testIdAttribute` | ◐ | config only. Not planned: the client's is global, as upstream's (`locator.ts`), and ExUnit runs async tests at once in one VM, where upstream's worker runs one test at a time |
 | `reuseContext` | ✗ | not ported yet |
-| projects (`name`, `use`) | ✓ | `parameterize:` with `Playwright.Test.parameters/1` ([Projects](../test-options.md#projects)) |
+| projects (`name`, `use`) | ✓ | `parameterize:` with `Playwright.Test.parameters/1`, set once as your case template's default (the config has no projects) ([Projects](../test-options.md#projects)) |
 | a project's `outputDir`, `snapshotDir`, `snapshotPathTemplate` | ✗ | config only ([#286](https://github.com/ftes/playwright_ex/issues/286)) |
 | a project's `timeout`, `retries`, `testMatch`, `grep`, `repeatEach`, `metadata` | ✗ | not planned: ExUnit has no projects; a project is a `parameterize:` map, which ExUnit's filters don't see |
 | the config file, `outputDir`, `preserveOutput` | ✓ | `config :playwright, :test` |

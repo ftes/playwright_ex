@@ -175,6 +175,23 @@ On Elixir 1.20 and earlier, `mix test --failed` loses a failure in a `parameteri
 another parameter set passes the same test: run one project per `mix test`, which removes the
 project dimension only ([Retries](test-artifacts.md#retries)).
 
+Unlike upstream's config, `config :playwright, :test` has no projects. To set them once for the
+suite, give your case template's `parameterize:` a default; a module's own `parameterize:` still
+wins:
+
+```elixir
+defmodule MyApp.BrowserCase do
+  use ExUnit.CaseTemplate
+
+  using opts do
+    opts = Keyword.put_new(opts, :parameterize, quote(do: MyApp.Projects.all()))
+    quote do: use(Playwright.Case, unquote(opts))
+  end
+end
+```
+
+A suite without `parameterize:` runs one default project, with no name.
+
 ## Your own case template
 
 To add setup after the page's, use `Playwright.Case` in your template's `using` and put the
