@@ -1009,7 +1009,8 @@ defmodule Playwright.Isomorphic.LocatorGenerators do
     @moduledoc false
     # Elixir only: the facade syntax a user would paste, one pipe per chain, starting from `page`
     # (`Page.get_by_role(page, :button, name: "Submit") |> Locator.first()`). Option keys are
-    # snake_case, roles atoms, regular expressions `~r` sigils (flags beyond `imsu` dropped, `v` is `u`).
+    # snake_case, roles atoms (strings for those `AriaRole` lacks, `"mark"`), regular expressions
+    # `~r` sigils (flags beyond `imsu` dropped, `v` is `u`).
     import Playwright.Isomorphic.StringUtils, only: [normalize_escaped_regex_quotes: 1, to_snake_case: 1]
     alias Playwright.Isomorphic.LocatorGenerators
 
@@ -1066,7 +1067,7 @@ defmodule Playwright.Isomorphic.LocatorGenerators do
             attrs ++
               for %{name: name, value: value} <- options[:attrs], do: "#{key(to_snake_case(name))} #{literal(value)}"
 
-          call(base, "get_by_role", [atom(body) | attrs])
+          call(base, "get_by_role", [role(body) | attrs])
 
         "has-text" ->
           call(base, "filter", ["has_text: #{to_has_text(body)}"])
@@ -1146,9 +1147,16 @@ defmodule Playwright.Isomorphic.LocatorGenerators do
       "~r/#{source}/#{flags}"
     end
 
-    # A role atom literal (`:button`), quoted if it is no plain identifier.
-    defp atom(name) do
-      if Regex.match?(~r/\A[a-z_][a-zA-Z0-9_]*\z/, name), do: ":" <> name, else: ":" <> quote_text(name)
+    # A role: an atom (`:button`) for those the facade takes as atoms, a string otherwise (`"mark"`).
+    # Elixir only: upstream's isomorphic code knows no facade; this factory writes facade calls,
+    # so it reads the role atoms from the facade (`__arg_type__/2`) instead of copying the list.
+    defp role(name) do
+      {:enum, roles} = Playwright.Locator.__arg_type__(:get_by_role, :role)
+
+      case Enum.find(roles, fn {_atom, value} -> value == name end) do
+        {atom, _value} -> inspect(atom)
+        nil -> quote_text(name)
+      end
     end
 
     defp key(name) do

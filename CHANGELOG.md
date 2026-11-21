@@ -126,6 +126,9 @@ upstream minor, so `~> 1.65.0` is safe.
   y, z` (was `unknown option :x, expected one of :y, :z`), `for opt` (was `for :opt`).
 - **RC only:** `mix playwright.install` forwards a `--` to `playwright install` (rc.2 raised on
   it).
+- **RC only:** `get_by_role` and `to_have_role` specs and docs take roles as strings too, also
+  those Playwright's `AriaRole` lacks (`"mark"`), as JS does; locator descriptions print those
+  as strings, not atoms that raise.
 - **RC only:** `Route.fulfill`, `abort` and `continue` in a route handler have the handler's
   call site in the trace, which a tail call such as `fn r -> Route.abort!(r) end` doesn't keep
   (BEAM drops its frame).
