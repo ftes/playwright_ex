@@ -29,6 +29,8 @@ jobs:
       contents: read
       pull-requests: read
       id-token: write # Exchanged for the Claude app token, which closes the PRs.
+    outputs:
+      redo: ${{ steps.redo.outputs.redo }}
     steps:
       - name: List open nightly PRs without human comments or reviews
         id: list
@@ -52,7 +54,8 @@ jobs:
           ref: main
           persist-credentials: false
           fetch-depth: 0
-      - if: steps.list.outputs.numbers != ''
+      - id: claude
+        if: steps.list.outputs.numbers != ''
         uses: ./.github/actions/claude
         with:
           token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -62,7 +65,22 @@ jobs:
             REPO: ${{ github.repository }}
             OPEN NIGHTLY PRS: ${{ steps.list.outputs.numbers }}
           max-turns: "60"
-          allowed-tools: "Skill,Read,Grep,Glob,Agent,Task,Bash(git log:*),Bash(git show:*),Bash(git diff:*),${{ steps.list.outputs.allowed }}"
+          allowed-tools: "Skill,Read,Grep,Glob,Agent,Task,StructuredOutput,Bash(git log:*),Bash(git show:*),Bash(git diff:*),${{ steps.list.outputs.allowed }}"
+          json-schema: '{"type":"object","properties":{"redo":{"type":"array","items":{"type":"object","properties":{"number":{"type":"integer"},"why":{"type":"string"}},"required":["number","why"]}}},"required":["redo"]}'
+      - name: Keep the redo verdicts of listed PRs
+        id: redo
+        if: ${{ !cancelled() }}
+        env:
+          OUTPUT: ${{ steps.claude.outputs.structured_output }}
+          NUMBERS: ${{ steps.list.outputs.numbers }}
+        # Claude's answer is data: only the PRs it was given, and a `why` cut to one line.
+        run: |
+          redo=$(jq -cn --arg numbers "$NUMBERS" '($numbers | split(" ") | map(select(. != "") | tonumber)) as $listed
+            | (env.OUTPUT | try fromjson catch {}) | (.redo // [])
+            | map(select(.number as $n | $listed | any(. == $n)) | {number, why: (.why | tostring | gsub("\\s+"; " ") | .[:200])})
+            | unique_by(.number)')
+          echo "::notice::To redo: $(jq -r 'map("#\(.number)") | join(" ")' <<< "$redo")"
+          echo "redo=$redo" >> "$GITHUB_OUTPUT"
 
   # After triage, so only PRs worth keeping get fixed.
   classify:
@@ -78,7 +96,7 @@ jobs:
       checks: read
       statuses: read
     outputs:
-      conflicted: ${{ steps.list.outputs.conflicted }}
+      recreate: ${{ steps.list.outputs.recreate }}
       failing: ${{ steps.list.outputs.failing }}
     steps:
       - name: Sort open nightly PRs without human comments or reviews by what they need
@@ -87,11 +105,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           MAX_COMMITS: 3
+          # Triage's PRs to redo on current main; none if it failed.
+          REDO: ${{ needs.triage.outputs.redo || '[]' }}
         # GitHub computes mergeability on the first read after main moves, answering UNKNOWN until
         # it's done. A human comment or review keeps a PR from being changed under them. A PR lists
         # every run of a check, so only each check's latest counts. Every fix or re-run adds a
         # commit, so the commit count limits the attempts. Listing commits caps --limit at 40: more
-        # exceeds GitHub's GraphQL node limit.
+        # exceeds GitHub's GraphQL node limit. A PR to recreate (conflicted, or triage's redo) isn't
+        # fixed or given up on as well: its replacement gets a CI run of its own.
         run: |
           list() {
             gh pr list --state open --limit 40 --json number,headRefName,isCrossRepository,mergeable,commits,statusCheckRollup,comments,reviews \
@@ -100,10 +121,16 @@ jobs:
           list > /dev/null
           sleep 30
           prs=$(list)
+          # Still open and listed: triage may have closed it, or a human commented since.
+          recreate=$(jq -c --argjson redo "$REDO" '. as $prs
+            | ($redo | map(select(.number as $n | $prs | any(.number == $n))))
+              + map(select(.mergeable == "CONFLICTING") | {number, why: "It conflicts with main."})
+            | unique_by(.number)' <<< "$prs")
+          others=$(jq -c --argjson recreate "$recreate" 'map(select(.number as $n | $recreate | all(.number != $n)))' <<< "$prs")
           {
-            echo "conflicted=$(jq -c 'map(select(.mergeable == "CONFLICTING") | .number)' <<< "$prs")"
-            echo "failing=$(jq -c --argjson max "$MAX_COMMITS" 'map(select(.mergeable == "MERGEABLE" and .failing and .commits < $max) | {number, branch})' <<< "$prs")"
-            echo "exhausted=$(jq -r --argjson max "$MAX_COMMITS" 'map(select(.mergeable == "MERGEABLE" and .failing and .commits >= $max) | .number) | join(" ")' <<< "$prs")"
+            echo "recreate=$recreate"
+            echo "failing=$(jq -c --argjson max "$MAX_COMMITS" 'map(select(.mergeable == "MERGEABLE" and .failing and .commits < $max) | {number, branch})' <<< "$others")"
+            echo "exhausted=$(jq -r --argjson max "$MAX_COMMITS" 'map(select(.mergeable == "MERGEABLE" and .failing and .commits >= $max) | .number) | join(" ")' <<< "$others")"
           } >> "$GITHUB_OUTPUT"
       - name: Close PRs still failing after two fixes
         env:
@@ -153,11 +180,12 @@ jobs:
           pr: ${{ matrix.pr.number }}
           branch: ${{ matrix.pr.branch }}
 
-  # Replaces each conflicted PR with one on a new branch from main. The Claude app can't push
-  # workflow file changes, which a merge or rebase of the old branch would carry from main.
+  # Replaces each conflicted PR, and each that triage found no longer fits main, with one on a new
+  # branch from main. The Claude app can't push workflow file changes, which a merge or rebase of
+  # the old branch would carry from main.
   recreate:
     needs: classify
-    if: ${{ !cancelled() && needs.classify.result == 'success' && needs.classify.outputs.conflicted != '[]' }}
+    if: ${{ !cancelled() && needs.classify.result == 'success' && needs.classify.outputs.recreate != '[]' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -166,9 +194,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        pr: ${{ fromJSON(needs.classify.outputs.conflicted) }}
+        pr: ${{ fromJSON(needs.classify.outputs.recreate) }}
     env:
-      NIGHTLY_BRANCH: claude/nightly-${{ github.run_id }}-${{ matrix.pr }}
+      NIGHTLY_BRANCH: claude/nightly-${{ github.run_id }}-${{ matrix.pr.number }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -186,10 +214,11 @@ jobs:
           prompt: nightly-recreate
           context: |
             REPO: ${{ github.repository }}
-            OLD_PR: ${{ matrix.pr }}
+            OLD_PR: ${{ matrix.pr.number }}
+            WHY: ${{ matrix.pr.why }}
             BRANCH: ${{ env.NIGHTLY_BRANCH }} (already checked out, from current main)
           max-turns: "60"
-          allowed-tools: "Skill,Read,Grep,Glob,Edit,Write,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix credo:*),Bash(mix playwright.parity:*),Bash(mix playwright.gen.api:*),Bash(mix playwright.gen.protocol:*),Bash(gh pr view ${{ matrix.pr }}),Bash(gh pr view ${{ matrix.pr }} *),Bash(gh pr diff ${{ matrix.pr }}),Bash(gh pr diff ${{ matrix.pr }} *),Bash(git push -u origin ${{ env.NIGHTLY_BRANCH }}),Bash(gh pr create --base main --head ${{ env.NIGHTLY_BRANCH }} *),Bash(gh pr close ${{ matrix.pr }} *)"
+          allowed-tools: "Skill,Read,Grep,Glob,Edit,Write,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix credo:*),Bash(mix playwright.parity:*),Bash(mix playwright.gen.api:*),Bash(mix playwright.gen.protocol:*),Bash(gh pr view ${{ matrix.pr.number }}),Bash(gh pr view ${{ matrix.pr.number }} *),Bash(gh pr diff ${{ matrix.pr.number }}),Bash(gh pr diff ${{ matrix.pr.number }} *),Bash(git push -u origin ${{ env.NIGHTLY_BRANCH }}),Bash(gh pr create --base main --head ${{ env.NIGHTLY_BRANCH }} *),Bash(gh pr close ${{ matrix.pr.number }} *)"
 
   # Enforces the cap before any toolchain is set up. Runs even if an earlier job failed: the
   # count is still right, it just finds fewer slots.
