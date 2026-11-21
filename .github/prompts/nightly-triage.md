@@ -12,6 +12,8 @@ and the patterns it follows. Then decide one of:
   changed the code it touches or its callers, renamed what it uses or added a use it misses, so
   merging it as is would break or leave the code inconsistent. A redo makes the same change again
   on a new branch from current main, which CI then tests.
+  A change is redone at most once: a PR whose branch name ends in `-<number>` is itself
+  a redo, so keep or close it.
 
 A merge conflict alone, the PR's age or a preference for other work is no reason for either:
 conflicts get redone anyway.
