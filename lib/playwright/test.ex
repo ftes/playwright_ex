@@ -310,10 +310,13 @@ defmodule Playwright.Test do
   of its creation and fails with that message
   (`connect_over_cdp`'s default context is left to the external browser).
   A test stuck elsewhere (`Process.sleep/1`, a `receive`) still fails with ExUnit's
-  `ExUnit.TimeoutError`. The timeout is ExUnit's: the `@tag timeout:` (`:infinity` for none) or
-  `mix test --timeout`; `mix test --trace` has none. As ExUnit's (and upstream's, which counts
-  `beforeEach` hooks), the timeout counts the test's `setup` callbacks: the clock starts at the
-  module's first one, also one defined before `use Playwright.Test` or in its case template.
+  `ExUnit.TimeoutError`. So can a hung call under heavy load, when the close doesn't finish
+  before ExUnit's kill: the console then has no call log, but the trace keeps the hung call with
+  its log, and `error-context.md` says the test process was killed.
+  The timeout is ExUnit's: the `@tag timeout:` (`:infinity` for none) or `mix test --timeout`;
+  `mix test --trace` has none. As ExUnit's (and upstream's, which counts `beforeEach` hooks), the
+  timeout counts the test's `setup` callbacks: the clock starts at the module's first one, also
+  one defined before `use Playwright.Test` or in its case template.
   What ExUnit does before them (`@tag :tmp_dir`'s cleanup, `capture_log`) is not counted, and
   comes out of the margin.
 

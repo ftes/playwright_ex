@@ -41,9 +41,9 @@ Each area's row lists its main features, each feature's row its main gaps.
 | **[Configuring tests](#configuring-tests)** | | `test.use` at every level ✓ · context options ✓ · projects ✓ · worker options ◐ · `reuseContext` ✗ · `webServer` and `globalSetup` n/a |
 | [Options and projects](#options-and-projects) | ◐ | a project is a name and `use` options; no `reuseContext` |
 | [Global setup and webServer](#global-setup-and-webserver) | n/a | |
-| **[Running in CI and at scale](#running-in-ci-and-at-scale)** | | workers ◐ · `fullyParallel` ✗ · sharding n/a · retries ◐ · test, expect and action timeouts ✓ · `globalTimeout` ✗ · `github` reporter ✓ · HTML report ✗ |
+| **[Running in CI and at scale](#running-in-ci-and-at-scale)** | | workers ◐ · `fullyParallel` ✗ · sharding n/a · retries ◐ · test timeout ◐ · expect and action timeouts ✓ · `globalTimeout` ✗ · `github` reporter ✓ · HTML report ✗ |
 | [Workers and parallelism](#workers-and-parallelism) | ◐ | no `fullyParallel`, no fresh worker after a failed test, no worker index |
-| [Retries and timeouts](#retries-and-timeouts) | ◐ | retries are `mix test --failed`; no global timeout |
+| [Retries and timeouts](#retries-and-timeouts) | ◐ | retries are `mix test --failed`; no global timeout; under heavy load a test timeout can be ExUnit's |
 | [Reporters](#reporters) | ◐ | no `html`, `blob`, `merge-reports`, `perfetto` or `coverage` |
 | **[Debugging and running tests](#debugging-and-running-tests)** | | traces, screenshots and videos ✓ · `error-context.md` ✓ · `test.step` ✓ · a step's `timeout` ✗ · testInfo ◐ · `setup_all` recording ✗ · UI and watch mode ✗ |
 | [Artifacts](#artifacts) | ◐ | `setup_all` contexts unrecorded; no stdout and stderr in the trace |
@@ -261,7 +261,7 @@ Each area's row lists its main features, each feature's row its main gaps.
 |---|---|---|
 | `retries` | ◐ | not planned: ExUnit has no retries in a run ([#210](https://github.com/ftes/playwright_ex/issues/210)); rerun the failures with `mix test --failed` ([Retries](../test-artifacts.md#retries)) |
 | `testInfo.retry`, the retry modes | ✓ | retry 1 under `mix test --failed` |
-| test timeout | ✓ | ExUnit's (`@tag timeout:`, `--timeout`); the test's contexts close just before it, with upstream's message ([Timeouts](Playwright.Test.html#module-timeouts)) |
+| test timeout | ◐ | ExUnit's (`@tag timeout:`, `--timeout`); the test's contexts close just before it, with upstream's message. Under heavy load ExUnit's `TimeoutError` can win: no call log in the console, the trace keeps it ([Timeouts](Playwright.Test.html#module-timeouts)) |
 | `test.setTimeout`, `test.slow` | n/a | `@tag timeout:` |
 | `beforeAll` timeout | ✓ | the module's timeout bounds its `setup_all` |
 | expect, action and navigation timeouts | ✓ | `config :playwright, :expect, timeout:`, `action_timeout`, `navigation_timeout` |

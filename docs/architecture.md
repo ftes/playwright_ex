@@ -351,6 +351,13 @@ Deviations the port requires:
   with the reason: upstream's test has failed by then, and a call on the closed context would
   fail without the reason. `connect_over_cdp`'s default context is the external browser's, which
   a close may end: it is left open.
+  Known difference: the close has to finish within the margin. Under heavy load it may not (it
+  took 0.3-1.9 s with 18-36 busy cores), and ExUnit's kill wins: the test fails with ExUnit's
+  `TimeoutError`, without our message or the call log in the console. Its trace keeps the hung
+  call with its log, and `error-context.md` notes the kill. Ending the test itself at the
+  deadline, as upstream does, would fix that but needs new machinery in every call's path (#356,
+  deferred): accepted for now. The end-to-end timeout test accepts either outcome, checking each
+  one's artifacts.
 - `use Playwright.Test` as the first line of a case template's body: a template's own `setup`
   callbacks run before those its `using` brings in, so the test is registered before them. It
   takes no options, which another `setup` registering the test first would drop: they go in
