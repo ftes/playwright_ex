@@ -68,6 +68,7 @@ defmodule Playwright.Matchers.Expect do
   # The configuration section, also rendered in the generated `Playwright.Expect` (`ApiRules`).
   def __config_doc__, do: @config_doc
 
+  alias Playwright.Client.ClientHelper
   alias Playwright.ExpectError
   alias Playwright.Isomorphic.StringUtils
   alias Playwright.Isomorphic.TimeoutRunner
@@ -298,7 +299,7 @@ defmodule Playwright.Matchers.Expect do
   end
 
   # JS `a || b`.
-  defp truthy_or(a, b), do: if(truthy?(a), do: a, else: b)
+  defp truthy_or(a, b), do: if(ClientHelper.truthy(a), do: a, else: b)
 
   # Elixir has no rest parameters: the matcher function takes the argument list.
   def create_matcher(matcher_name, info, actual, matcher, promise \\ nil) do
@@ -323,7 +324,7 @@ defmodule Playwright.Matchers.Expect do
     # Elixir only: the facade passes the options it got, `%{}` for none (JS `undefined`), and a
     # function (`toPass`'s callback, `poll`'s assertion) is no value to expect.
     params =
-      if truthy?(Enum.at(args, 0)) and Enum.at(args, 0) != %{} and not is_function(Enum.at(args, 0)),
+      if ClientHelper.truthy(Enum.at(args, 0)) and Enum.at(args, 0) != %{} and not is_function(Enum.at(args, 0)),
         do: Map.put(params, :expected, hd(args)),
         else: params
 
@@ -426,10 +427,6 @@ defmodule Playwright.Matchers.Expect do
     end
   end
 
-  @doc false
-  # JS truthiness of an argument (also `Playwright.Test.Assertions.assert/1`'s `expected`).
-  def truthy?(value), do: value not in [nil, false, :null, "", 0] and value != 0.0
-
   # Elixir only: the message of a `suggestedRebaseline` that is not written (see above). The
   # rebaseline is a JS template literal with `{indent}` placeholders; its body is printed.
   defp suggested_rebaseline_message(result) do
@@ -491,7 +488,7 @@ defmodule Playwright.Matchers.Expect do
             # assertion, whose own step (`Playwright.Test.Assertions.assert/1`, with its expression and
             # `expected`) is the attempt's, as upstream's attempt is `toEqual(expected)`'s; with
             # a message (the attempt's title) or `assert_steps: false` it is the matcher's.
-            own_step? = matcher_name == "assert" and assert_steps?(test_info) and !truthy?(info[:message])
+            own_step? = matcher_name == "assert" and assert_steps?(test_info) and !ClientHelper.truthy(info[:message])
 
             try do
               if own_step?,

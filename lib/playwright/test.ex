@@ -822,7 +822,7 @@ defmodule Playwright.Test do
     params = %{expression: code}
     # `if (args[0]) params.expected = args[0]`, its preview bounded (`TestTracing.bounded_preview/1`).
     params =
-      if Playwright.Matchers.Expect.truthy?(expected),
+      if Playwright.Client.ClientHelper.truthy(expected),
         do: Map.put(params, :expected, TestTracing.bounded_preview(expected)),
         else: params
 
