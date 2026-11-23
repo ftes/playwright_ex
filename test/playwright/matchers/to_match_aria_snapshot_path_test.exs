@@ -15,14 +15,14 @@ defmodule Playwright.Matchers.ToMatchAriaSnapshotPathTest do
   @moduletag :tmp_dir
 
   setup %{tmp_dir: tmp_dir} do
-    previous = Application.get_env(:playwright, :expect)
-    on_exit(fn -> Application.put_env(:playwright, :expect, previous) end)
+    previous = Application.get_env(:playwright, :test)
+    on_exit(fn -> Application.put_env(:playwright, :test, previous) end)
     [path: Path.join([tmp_dir, "nested", "body.aria.yml"])]
   end
 
   defp update_snapshots(value) do
-    previous = Application.get_env(:playwright, :expect)
-    Application.put_env(:playwright, :expect, Keyword.put(previous, :update_snapshots, value))
+    previous = Application.get_env(:playwright, :test)
+    Application.put_env(:playwright, :test, Keyword.put(previous, :update_snapshots, value))
   end
 
   defp write(path, snapshot) do

@@ -1,6 +1,4 @@
 Logger.configure(level: :info)
-# Upstream's tests/library/playwright.config.ts `expect: { timeout: 10000 }`.
-Application.put_env(:playwright, :expect, timeout: 10_000)
 # Upstream awaits events with no timeout of its own (bounded by the test timeout); ExUnit's
 # 100 ms `assert_receive` default flakes on slow CI runners. As many modules at once as upstream
 # runs workers (Playwright's default: half the logical cores), or `PW_MAX_CASES`.
@@ -13,10 +11,12 @@ max_cases =
 # `Playwright.Test`, which every case template gets its browser from (`UpstreamCase`,
 # `ExampleCase`, its own tests in test/playwright/test): the browser under test, artifacts
 # outside the checkout, and a worker for each module running at once.
+# Upstream's tests/library/playwright.config.ts `expect: { timeout: 10000 }`.
 Application.put_env(:playwright, :test,
   browser_name: String.to_atom(Playwright.TestBrowser.name()),
   output_dir: Path.join(System.tmp_dir!(), "playwright-test-results"),
-  workers: max_cases
+  workers: max_cases,
+  expect: [timeout: 10_000]
 )
 
 # Headed windows steal focus on macOS: `mix test --include headed` runs them (PORTING "Tests").

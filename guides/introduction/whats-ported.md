@@ -195,7 +195,7 @@ Each area's row lists its main features, each feature's row its main gaps.
 | locator, page and response assertions | ◐ | `Playwright.Expect`, all of upstream's; `toHaveURL` takes no `URLPattern`, resolves against the base URL with `URI.merge`, and doesn't encode its expected URL, so one with non-ASCII characters or spaces never matches: pass it encoded (not planned: encoding it would be a partial WHATWG port for one matcher, so [#229](https://github.com/ftes/playwright_ex/issues/229) was closed by documenting it, [URL globs](https://github.com/ftes/playwright_ex/blob/main/docs/architecture.md#url-globs)) |
 | `not`, `expect.soft`, `expect(x, message)` | ✓ | `not_to_*` and `Expect.not_/1`, `Expect.soft/1`, `Expect.message/2` |
 | `expect.poll`, `toPass` | ✓ | `Expect.poll/3` (its matcher an ExUnit assertion), `Expect.to_pass/2` (returns the passing attempt's value) |
-| the config's `expect` (`timeout`, `toHaveScreenshot`, ...) | ✓ | `config :playwright, :expect` |
+| the config's `expect` (`timeout`, `toHaveScreenshot`, ...) | ✓ | `config :playwright, :test, expect: [...]` |
 | `expect.configure` | ✗ | not planned: the options are the receiver's (`Expect.soft/1`, a matcher's `timeout:`), not a configured `expect` |
 | generic matchers (`toBe`, `toEqual`, `toContain`, `toThrow`, ...) | n/a | ExUnit's `assert`, a step as upstream's `expect` ([Assertions](Playwright.Test.html#module-assertions)) |
 | asymmetric matchers (`expect.any`, `objectContaining`, `toBeCloseTo`, ...) | n/a | patterns (`assert %{"id" => id} = ...`), `assert_in_delta/3` |
@@ -208,7 +208,7 @@ Each area's row lists its main features, each feature's row its main gaps.
 |---|---|---|
 | `toHaveScreenshot` (`maxDiffPixels`, `threshold`, `mask`, `stylePath`, ...) | ✓ | `Expect.to_have_screenshot/2` ([Snapshots](Playwright.Test.html#module-snapshots)) |
 | `toMatchAriaSnapshot`, inline or in a file | ✓ | `Expect.to_match_aria_snapshot/3` |
-| `updateSnapshots`, `ignoreSnapshots`, `snapshotDir`, `snapshotPathTemplate` | ✓ | `config :playwright, :expect` and `:test` |
+| `updateSnapshots`, `ignoreSnapshots`, `snapshotDir`, `snapshotPathTemplate` | ✓ | `config :playwright, :test` |
 | rebaselining inline aria snapshots into the source (`--update-source-method`) | ✗ | not ported yet |
 | `toMatchSnapshot` | ✗ | not ported yet |
 
@@ -264,7 +264,7 @@ Each area's row lists its main features, each feature's row its main gaps.
 | test timeout | ◐ | ExUnit's (`@tag timeout:`, `--timeout`); the test's contexts close just before it, with upstream's message. Under heavy load ExUnit's `TimeoutError` can win: no call log in the console, the trace keeps it ([Timeouts](Playwright.Test.html#module-timeouts)) |
 | `test.setTimeout`, `test.slow` | n/a | `@tag timeout:` |
 | `beforeAll` timeout | ✓ | the module's timeout bounds its `setup_all` |
-| expect, action and navigation timeouts | ✓ | `config :playwright, :expect, timeout:`, `action_timeout`, `navigation_timeout` |
+| expect, action and navigation timeouts | ✓ | `config :playwright, :test`'s `expect: [timeout: ...]`, `action_timeout`, `navigation_timeout` |
 | `globalTimeout` | ✗ | not ported yet |
 
 ### Reporters

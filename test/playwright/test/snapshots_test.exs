@@ -67,14 +67,8 @@ defmodule Playwright.Test.SnapshotsTest do
                "|#{File.cwd!()}/test|playwright/test/snapshots_test.exs|snapshots_test.exs"
 
     # The matcher's own template wins.
-    previous = Application.get_env(:playwright, :expect)
-    on_exit(fn -> Application.put_env(:playwright, :expect, previous) end)
-
-    Application.put_env(
-      :playwright,
-      :expect,
-      Keyword.put(previous, :to_match_aria_snapshot, path_template: "{arg}{ext}")
-    )
+    expect = Application.get_env(:playwright, :test)[:expect]
+    put_config(expect: Keyword.put(expect, :to_match_aria_snapshot, path_template: "{arg}{ext}"))
 
     assert Test.snapshot_path("body.aria.yml", kind: :aria) == Path.join(File.cwd!(), "body.aria.yml")
   end

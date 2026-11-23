@@ -66,7 +66,7 @@ defmodule Playwright.Matchers.ToHaveScreenshotTimeoutTest do
     tmp_dir: tmp_dir
   } do
     ExpectConfig.set_expect_config(
-      ExpectConfig.app_env_expect_config(timeout: 20_000, to_have_screenshot: [timeout: 300])
+      ExpectConfig.app_env_expect_config(expect: [timeout: 20_000, to_have_screenshot: [timeout: 300]])
     )
 
     path = Path.join(tmp_dir, "home.png")

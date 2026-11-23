@@ -10,15 +10,15 @@ defmodule Playwright.Application do
     # A bad config fails here, not at the first test or matcher.
     validate_env!(Application.get_all_env(:playwright))
     Playwright.Driver.config()
-    Playwright.Matchers.Expect.app_env_expect_config()
     Playwright.Test.Options.context_options(Playwright.Test.Options.config())
+    Playwright.Matchers.Expect.app_env_expect_config()
     children = [Playwright.AbortSignal, Playwright.Runtime.ProcessOwner]
     Supervisor.start_link(children, strategy: :one_for_one, name: __MODULE__)
   end
 
-  # The keys of `config :playwright, ...` the library reads: `Playwright.Test`'s, the
-  # matchers', `Playwright.Driver`'s.
-  @keys [:test, :expect, :driver]
+  # The keys of `config :playwright, ...` the library reads: upstream's `playwright.config.ts`
+  # (`Playwright.Test`'s and the matchers'), `Playwright.Driver`'s.
+  @keys [:test, :driver]
 
   @doc false
   # Raises `ArgumentError` for a key of `env` (the app env) that is not one of `@keys`.
@@ -40,10 +40,18 @@ defmodule Playwright.Application do
   # Returned with the later of a duplicated key only, as JS's spread keeps it, so a reader's
   # `opts[key]` gets it.
   def options!(label, opts, allowed, noun \\ "option") do
+    opts = keyword!(label, opts)
+    unknown_key!(label, noun, Keyword.keys(opts), allowed)
+    opts
+  end
+
+  @doc false
+  # `opts` of `label`, checked: a keyword list, else `ArgumentError`. Returned with the later of a
+  # duplicated key only (`options!/4`).
+  def keyword!(label, opts) do
     if !(is_list(opts) and Keyword.keyword?(opts)),
       do: raise(ArgumentError, "#{label}: expected a keyword list, got: #{inspect(opts)}")
 
-    unknown_key!(label, noun, Keyword.keys(opts), allowed)
     later_wins(opts)
   end
 

@@ -65,7 +65,10 @@ defmodule Playwright.Test.Options do
     :report_slow_tests,
     :assert_steps
   ]
-  @config_keys @pool_keys ++ @artifact_keys ++ @config_only_keys
+  # Upstream's config keys the matchers read (`expect`, `updateSnapshots`, `ignoreSnapshots`):
+  # `Playwright.Matchers.Expect` validates them, as it reads them also without `Playwright.Test`.
+  @matcher_keys [:expect, :update_snapshots, :ignore_snapshots]
+  @config_keys @pool_keys ++ @artifact_keys ++ @config_only_keys ++ @matcher_keys
 
   # `Playwright.Supervisor`'s `env` of each pooled driver: the driver itself is `config
   # :playwright, :driver`'s (`Playwright.Driver`), as `mix playwright.install` installs it.
@@ -608,13 +611,17 @@ defmodule Playwright.Test.Options do
 
   defp merge_value(_key, _config, value), do: value
 
-  @doc "`config :playwright, :test`, validated, with each key's default (`Playwright.Test.config/0`)."
+  @doc """
+  `config :playwright, :test`, validated, with each key's default (`Playwright.Test.config/0`),
+  without the matchers' keys (`Playwright.Matchers.Expect.app_env_expect_config/0`'s).
+  """
   def config do
     config = Playwright.Application.config!(:test, @config_keys ++ context_keys())
 
     # A `nil` key is unset: its default.
     defaults()
     |> Map.merge(unset_nil(Map.new(config)))
+    |> Map.drop(@matcher_keys)
     |> validate_all!(@config_label)
   end
 
@@ -743,9 +750,13 @@ defmodule Playwright.Test.Options do
 
   defp validate!(_key, value), do: value
 
-  # Raises for the keys of `options` (the option `key`'s) that are not `allowed`.
-  defp keys!(key, options, allowed) do
-    case Enum.uniq(Keyword.keys(options)) -- allowed do
+  @doc """
+  Raises `ArgumentError` for the keys of `options` (the option `key`'s, a key path such as
+  `expect.to_pass`) that are not `allowed`: `unknown option <key>.<name>, expected one of ...`.
+  """
+  def keys!(key, options, allowed) do
+    # A map's key may be no atom.
+    case Enum.uniq(Enum.map(options, &elem(&1, 0))) -- allowed do
       [] ->
         :ok
 
@@ -774,8 +785,11 @@ defmodule Playwright.Test.Options do
   defp mode(:video, :retry_with_video), do: :on_first_retry
   defp mode(_key, mode), do: mode
 
-  # Of a duplicated key the later wins, as in JS's spread (`{ ...a, ...b }`), before any lookup.
-  defp to_keyword(key, value) do
+  @doc """
+  `value`, the option `key`'s, as a keyword list (a map's entries), else `ArgumentError`. Of a
+  duplicated key the later wins, as in JS's spread (`{ ...a, ...b }`), before any lookup.
+  """
+  def to_keyword(key, value) do
     cond do
       is_list(value) and Keyword.keyword?(value) ->
         Playwright.Application.later_wins(value)

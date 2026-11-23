@@ -157,7 +157,7 @@ default:
 
 ```elixir
 # config/test.exs
-config :playwright, :expect, timeout: 10_000
+config :playwright, :test, expect: [timeout: 10_000]
 ```
 
 ## Logging

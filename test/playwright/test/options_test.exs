@@ -20,12 +20,17 @@ defmodule Playwright.Test.OptionsTest do
       end
     end
 
-    test "config :playwright takes :test, :expect and :driver" do
-      assert Playwright.Application.validate_env!([{:test, []}, {:expect, []}, {:driver, []}]) == :ok
+    test "config :playwright takes :test and :driver" do
+      assert Playwright.Application.validate_env!([{:test, []}, {:driver, []}]) == :ok
 
-      for {key, name} <- [{:tests, "tests"}, {Playwright.Test.GitHubFormatter, "Playwright.Test.GitHubFormatter"}] do
+      # The matchers' config is `:test`'s `expect`, as in `playwright.config.ts`.
+      for {key, name} <- [
+            {:tests, "tests"},
+            {:expect, "expect"},
+            {Playwright.Test.GitHubFormatter, "Playwright.Test.GitHubFormatter"}
+          ] do
         assert_raise ArgumentError,
-                     "config :playwright: unknown key #{name}, expected one of test, expect, driver",
+                     "config :playwright: unknown key #{name}, expected one of test, driver",
                      fn -> Playwright.Application.validate_env!([{key, []}]) end
       end
     end
@@ -542,10 +547,7 @@ defmodule Playwright.Test.ConfigTest do
   end
 
   test "config/0: the resolved config, also outside a test", %{config: config} do
-    expect = Application.get_env(:playwright, :expect)
-    on_exit(fn -> Application.put_env(:playwright, :expect, expect) end)
     Application.delete_env(:playwright, :test)
-    Application.delete_env(:playwright, :expect)
     test_pid = self()
     spawn(fn -> send(test_pid, {:config, Playwright.Test.config()}) end)
     assert_receive {:config, resolved}
@@ -573,14 +575,37 @@ defmodule Playwright.Test.ConfigTest do
              test_id_attribute: "data-testid",
              report_slow_tests: [max: 5, threshold: 300_000],
              assert_steps: true,
-             expect: %{timeout: 5000}
+             expect: %{timeout: 5000},
+             update_snapshots: :default,
+             ignore_snapshots: false
            }
 
-    Application.put_env(:playwright, :test, config ++ [action_timeout: 0, context_options: [locale: "de-DE"]])
-    Application.put_env(:playwright, :expect, timeout: 0)
+    Application.put_env(
+      :playwright,
+      :test,
+      config ++
+        [
+          action_timeout: 0,
+          context_options: [locale: "de-DE"],
+          expect: [timeout: 0],
+          update_snapshots: "missing",
+          ignore_snapshots: true
+        ]
+    )
 
-    assert %{action_timeout: 0, context_options: [locale: "de-DE"], expect: %{timeout: 0}} =
-             Playwright.Test.config()
+    assert %{
+             action_timeout: 0,
+             context_options: [locale: "de-DE"],
+             expect: %{timeout: 0},
+             update_snapshots: :missing,
+             ignore_snapshots: true
+           } = Playwright.Test.config()
+
+    Application.put_env(:playwright, :test, config ++ [update_snapshots: :always])
+
+    assert_raise ArgumentError, ~r/^config :playwright, :test: invalid value :always for update_snapshots, /, fn ->
+      Playwright.Test.config()
+    end
 
     Application.put_env(:playwright, :test, config ++ [context_options: [lokale: "x"]])
     assert_raise ArgumentError, fn -> Playwright.Test.config() end
@@ -602,6 +627,13 @@ defmodule Playwright.Test.ConfigTest do
 
     Application.put_env(:playwright, :test, config ++ [context_options: [lokale: "x"]])
     assert_raise ArgumentError, fn -> Playwright.Application.start(:normal, []) end
+
+    # The matchers' keys too (`Playwright.Matchers.Expect`).
+    Application.put_env(:playwright, :test, config ++ [expect: [timout: 1]])
+
+    assert_raise ArgumentError, ~r/^config :playwright, :test: unknown option expect.timout, /, fn ->
+      Playwright.Application.start(:normal, [])
+    end
 
     # error-context.md has no switch, as upstream.
     Application.put_env(:playwright, :test, config ++ [error_context: true])
