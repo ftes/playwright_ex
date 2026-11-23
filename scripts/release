@@ -1,0 +1,5 @@
+#!/bin/sh
+# Releases a version: scripts/release [--dry-run] <version>. See CONTRIBUTING.md "Releasing".
+set -eu
+cd "$(dirname "$0")/.."
+exec elixir -r scripts/release.exs -e 'ReleaseScript.main(System.argv())' -- "$@"
