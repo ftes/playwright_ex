@@ -16,3 +16,15 @@ human and agent reviews alike.
 - Follow how the codebase already does the same thing. A new pattern needs a reason.
 - A PR fixes its issue. Edge cases and gaps that predate it are follow-ups: note them
   instead of adding code for them in the PR.
+
+## Releasing
+
+1. `scripts/release --dry-run <version>` runs the checks (an empty `@` on `main@origin`, an
+   `## [Unreleased]` with entries, a new tag and a greater version) and prints the edits.
+2. `scripts/release <version>` commits "Release <version>" (the version, its dated changelog
+   section and driver line) and "Start the next release", pushes `main` and tags the first
+   commit, which starts `release.yml`. `RELEASE_REMOTE` names another remote than `origin`.
+3. Approve the staged release on hex.pm; the workflow then creates the GitHub release.
+
+It runs locally, not as a workflow: only an admin can push to `main` past its ruleset, and a tag
+pushed with `GITHUB_TOKEN` starts no workflow.
