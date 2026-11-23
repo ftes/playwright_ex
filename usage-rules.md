@@ -24,7 +24,9 @@ guides are at hexdocs.pm/playwright_ex.
   driver install, in `config/config.exs`, not `test.exs` or `runtime.exs`: `mix playwright.install`
   usually runs in `:dev` and doesn't read `runtime.exs`.
   Unknown keys raise, and no option reads an environment variable (`PLAYWRIGHT_TEST_BASE_URL`
-  neither): read yours in config. The keys are in `Playwright.Test` and `Playwright.Driver`.
+  neither): read yours in config. The keys are in `Playwright.Test` and `Playwright.Driver`;
+  outside a test, read the `:test` config with its defaults through `Playwright.Test.config/0`,
+  not `Application.fetch_env!/2`.
 
 ## API shape
 

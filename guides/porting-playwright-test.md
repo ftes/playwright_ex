@@ -80,6 +80,13 @@ the full list; [open an issue](https://github.com/ftes/playwright_ex/issues) if 
   |> Expect.to_be_visible!()`.
 - `reporter: 'github'` is the `Playwright.Test.GitHubFormatter` formatter, which prints only
   annotations: list it next to `ExUnit.CLIFormatter` (see [CI](debugging-and-ci.md#annotations)).
+- `workers: 1` is `config :playwright, :test, workers: 1`. ExUnit's `max_cases` can stay as it
+  is when modules take their browser in `setup_all`, as `Playwright.Case` does: that wait isn't
+  timed. A module that calls `BrowserPool.browser/1` only in `setup` or its tests waits within
+  each test's timeout, so such a suite wants `max_cases: 1` or a longer test timeout
+  ([Workers](test-artifacts.md#workers)).
+- Drop your JS job's cache step for the driver and browsers when porting its CI: the CI guide
+  doesn't cache them ([GitHub Actions](debugging-and-ci.md#github-actions)).
 - `test('...', { tag: '@slow' })` and `--grep @slow` are an ExUnit tag (`@tag :slow`, or
   `@moduletag :slow` for the file) and `mix test --only slow`.
 - ExUnit runs the modules in a random (seeded) order, so a spec that relies on state another

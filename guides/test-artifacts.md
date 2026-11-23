@@ -115,6 +115,22 @@ steps:
     run: mix test || { [ $? -eq 2 ] && mix test --failed; }
 ```
 
+A rerun that lost every failure prints `There are no tests to run` and exits 0, and no
+`mix test` flag turns that into a failure, so check its output, in a bash step (`retry` passes
+its arguments on, such as the formatters). A rerun that runs only the failures it kept still
+passes:
+
+```yaml
+- shell: bash
+  run: |
+    retry() {
+      mix test --failed "$@" 2>&1 | tee "$RUNNER_TEMP/retry.log"; s=${PIPESTATUS[0]}
+      if grep -q "^There are no tests to run" "$RUNNER_TEMP/retry.log"; then return 1; fi
+      return $s
+    }
+    mix test || { [ $? -eq 2 ] && retry; }
+```
+
 The other retry modes are Playwright Test's too: `:on_all_retries` traces every rerun,
 `:retain_on_first_failure` the first run's failures, `:retain_on_failure_and_retries` both;
 `video` takes them as well, and `screenshot` has `:on_first_failure`.
@@ -152,8 +168,9 @@ config :playwright, :test, test_id_attribute: "data-pw"
 
 At most `workers` drivers run at once (config, default half the schedulers, as Playwright Test's
 `workers`); the others wait, first come first served, inside `BrowserPool.browser/1`: in
-`setup_all` outside its timeout, in `setup` or a test within ExUnit's test timeout. A wait costs
-nothing, so ExUnit's `max_cases` can stay as it is. A worker is a driver and one browser of one
+`setup_all` outside its timeout, in `setup` or a test within ExUnit's test timeout. A wait in
+`setup_all` costs nothing, so ExUnit's `max_cases` can stay as it is; one in `setup` or a test
+counts against the test's timeout. A worker is a driver and one browser of one
 set of options, as Playwright Test's worker runs one project: a call with other options (another
 `browser_name`, `headless`, `channel`, `launch_options`, `connect_options`, `driver` or
 `on_start`) takes another worker, which may

@@ -70,13 +70,15 @@ defmodule Playwright.Test.BrowserPool do
   next call.
 
   At most `workers` workers are held at once (config, default half the schedulers, as Playwright
-  Test's `workers`); other scopes wait, first come first served, within ExUnit's test timeout
-  (not counted in `setup_all`'s). A scope that waits costs nothing, so ExUnit's `max_cases` can stay
-  above `workers`. A scope that holds a worker takes its further options over `workers`, so it
-  never waits while others wait for it; those workers stop at its end. A scope gets an idle
-  worker of its options, else a new one, else the longest idle worker of other options, whose
-  driver its `browser/1` restarts, as upstream restarts a worker of another hash: in a run that mixes
-  options, each switch costs a driver start (about 110 ms) and a browser launch.
+  Test's `workers`); other scopes wait, first come first served: a `setup_all` with no limit on
+  the wait (not counted in its timeout), a test within its ExUnit timeout. A scope that waits
+  costs nothing, so ExUnit's `max_cases` can stay above `workers`, also at `workers: 1` when the
+  modules hold their worker in `setup_all`. A scope that holds a worker takes its further options
+  over `workers`, so it never waits while others wait for it; those workers stop at its end. A
+  scope gets an idle worker of its options, else a new one, else the longest idle worker of other
+  options, whose driver its `browser/1` restarts, as upstream restarts a worker of another hash:
+  in a run that mixes options, each switch costs a driver start (about 110 ms) and a browser
+  launch.
 
   The test id attribute of `get_by_test_id` is global to the VM (upstream's to the worker
   process), so only a suite-wide one is safe: config `test_id_attribute`, which each pooled
