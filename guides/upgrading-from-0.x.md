@@ -13,8 +13,9 @@ find the JS method for it, then its Elixir name with
 ```
 
 The app is `:playwright` and the modules are `Playwright.*`: `PlaywrightEx.Page` is
-`Playwright.Page`. A module of your own named `Playwright` shadows them: see the
-[usage rules](introduction/getting-started.md#usage-rules-for-coding-agents).
+`Playwright.Page`. A module of your own named `Playwright` (`alias MyApp.Playwright`) shadows
+them: call yours in full or alias it `as: MyPlaywright`; below `alias MyApp.Playwright` in a
+sorted alias list, write `alias Elixir.Playwright.Page`.
 
 ## What replaces what
 
