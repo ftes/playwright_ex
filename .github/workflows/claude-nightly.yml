@@ -114,6 +114,8 @@ jobs:
         # exceeds GitHub's GraphQL node limit. A PR to recreate (conflicted, or triage's redo) isn't
         # fixed as well: its replacement gets a CI run of its own. A PR out of fixes is given up on,
         # not redone, which would reset its fix budget.
+        # A conflicting PR is recreated even if it is a redo: each conflict follows a change on main,
+        # and the app can't push a merge or rebase, so the cap on redos is triage's alone.
         run: |
           list() {
             gh pr list --state open --limit 40 --json number,headRefName,isCrossRepository,mergeable,commits,statusCheckRollup,comments,reviews \
