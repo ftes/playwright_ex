@@ -62,8 +62,11 @@ the full list; [open an issue](https://github.com/ftes/playwright_ex/issues) if 
 - `expect(fn).toPass()` is `Expect.to_pass!/2`, which returns the passing attempt's value: a
   callback that assigns an outer `let` returns it instead (`box = Expect.to_pass!(fn -> ...; box
   end)`). `expect.poll(fn).toBe(x)` is `Expect.poll!(fn, &assert(&1 == x))`, and a call started
-  now and awaited later (`const p = locator.evaluate(...)`) is `Playwright.Promise.async/1`, and
-  `Promise.all([...])` is `Playwright.Promise.all/1` of those (see [Concurrency](concurrency.md)).
+  now and awaited later (`const p = locator.evaluate(...)`) is `Playwright.Promise.async/1`.
+  A `Promise.all([...])` whose wait or call must start before the action is a `wait_for_*` or
+  `async/1`, the action, then `Promise.await!/1` (`Promise.all/1` only combines them); of
+  independent reads or assertions, it is sequential calls (see
+  [Plain Elixir first](concurrency.md#plain-elixir-first)).
 - The `browserName` fixture is `browser_name` in `Playwright.Case`'s context (`setup_all`'s
   and the test's): `test "...", %{page: page, browser_name: name}`, `:chromium`, `:firefox` or
   `:webkit`.

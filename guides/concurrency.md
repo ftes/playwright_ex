@@ -3,6 +3,41 @@
 JS runs Playwright on one thread. This port runs it in Elixir processes, and that changes a
 few things you can rely on. Snippets alias `Playwright.{Page, BrowserContext, Promise, ...}`.
 
+## Plain Elixir first
+
+`Playwright.Promise` keeps the client port mechanical. In your code, prefer plain Elixir, and use
+it only where it is strictly needed:
+
+1. a wait must start before the action that triggers it: an `expect_*!` function, or a
+   `wait_for_*` (`wait_for_event/3`, `wait_for_response/3`, `wait_for_navigation/2`) and
+   `Promise.await!/1` ([Events and waiting](events-and-waiting.md));
+2. a call must be sent before your next action, though its result comes later:
+   `Promise.async/1` ([Calls you await later](#calls-you-await-later));
+3. several such waits race: `Promise.race/1` (or `any/1`) of waits started before the action.
+
+When several processes need one result, a promise is the simplest option
+([Promises from any process](#promises-from-any-process)), though one process can await and `send`.
+
+Otherwise, a JS `Promise.all` of independent reads or assertions only saves time, and their order
+doesn't matter: make the calls one after another. Reads can run in `Task`s for real concurrency;
+`Task.await/2` and `Task.await_many/2` time out after 5 s by default, so pass `:infinity`, as
+Playwright calls time out on their own.
+
+```elixir
+# JS: await Promise.all([expect(a).toHaveText('1'), expect(b).toHaveText('2')])
+Expect.to_have_text!(a, "1")
+Expect.to_have_text!(b, "2")
+
+# JS: const [x, y] = await Promise.all([a.textContent(), b.textContent()])
+[x, y] =
+  [fn -> Locator.text_content!(a) end, fn -> Locator.text_content!(b) end]
+  |> Enum.map(&Task.async/1)
+  |> Task.await_many(:infinity)
+```
+
+A listener reports with `send/2` (see below), and a call the API docs say doesn't wait
+(`Page.close(page, run_before_unload: true)`) is a plain call.
+
 ## Connections and your processes
 
 Each driver connection is one process. It dispatches the driver's messages one at a time, in
@@ -112,11 +147,18 @@ Elixir form fits depends on when the call completes:
   true = Promise.await!(clicked)
   ```
 
-  `Promise.all([...])`, `Promise.race([...])` and `Promise.any([...])` are `Promise.all/1`,
-  `Promise.race/1` and `Promise.any/1`, of `async/1` calls and waits:
+  A JS `Promise.all([...])` that starts a wait with its action is case 1 of
+  [Plain Elixir first](#plain-elixir-first): start the wait, act, then await it.
+  `Promise.all/1`, `Promise.race/1` and `Promise.any/1` of `async/1` calls and waits are the
+  literal port, and only combine them:
 
   ```elixir
   # JS: await Promise.all([page.waitForNavigation(), page.click('a')])
+  nav = Page.wait_for_navigation(page)
+  Page.click!(page, "a")
+  Promise.await!(nav)
+
+  # Literal port:
   Promise.all([Page.wait_for_navigation(page), Promise.async(fn -> Page.click!(page, "a") end)])
   |> Promise.await!()
   ```
@@ -133,7 +175,7 @@ Elixir form fits depends on when the call completes:
   dialog = Page.wait_for_event(page, :dialog)
   click = Task.async(fn -> Locator.click!(Page.get_by_role(page, :button)) end)
   Dialog.accept!(Promise.await!(dialog))
-  Task.await(click)
+  Task.await(click, :infinity)
   ```
 
 ## Lifetimes after close
