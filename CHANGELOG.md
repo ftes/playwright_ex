@@ -36,7 +36,7 @@ upstream minor, so `~> 1.65.0` is safe.
 ## Backwards-incompatible changes
 
 1.x is a clean cut from 0.16: the guid-based modules, `Selector`, `EventWaiter` and the other
-0.16 APIs are gone.
+0.16 APIs are gone. [Upgrading from 0.x](guides/upgrading-from-0.x.md) maps them to 1.x.
 
 ## [Unreleased]
 

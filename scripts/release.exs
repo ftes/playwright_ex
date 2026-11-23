@@ -23,7 +23,8 @@ defmodule ReleaseScript.Config do
       # The version snippets to bump besides `@version` in mix.exs: each regex's one group is
       # the version requirement (see `minor_requirement`), and each file must match at least once.
       snippets: [
-        {"README.md", ~r/\{:playwright, "~> ([^"]+)", hex: :playwright_ex\}/}
+        {"README.md", ~r/\{:playwright, "~> ([^"]+)", hex: :playwright_ex\}/},
+        {"guides/upgrading-from-0.x.md", ~r/\{:playwright, "~> ([^"]+)", hex: :playwright_ex\}/}
       ],
       # Adds the release's `Drives [Playwright …]` line from DRIVER_VERSION and NODE_VERSION.
       driver_line: true,
