@@ -13,20 +13,27 @@ defmodule ReleaseScript.Config do
     %{
       # owner/repo for `gh`.
       repo: "ftes/playwright_ex",
-      # The jj remote to fetch from and push to; `RELEASE_REMOTE` overrides it.
+      # The jj remote to fetch from and push to; `RELEASE_REMOTE` overrides it. It only names
+      # the remote: `gh` still uses `repo`.
       remote: System.get_env("RELEASE_REMOTE", "origin"),
       branch: "main",
       # The workflow a pushed `v*` tag starts.
       workflow: "release.yml",
       hex_package: "playwright_ex",
       # The version snippets to bump besides `@version` in mix.exs: each regex's one group is
-      # the version, and each file must match at least once.
+      # the version requirement (see `minor_requirement`), and each file must match at least once.
       snippets: [
         {"README.md", ~r/\{:playwright, "~> ([^"]+)", hex: :playwright_ex\}/},
         {"usage-rules.md", ~r/\{:playwright, "~> ([^"]+)", hex: :playwright_ex\}/}
       ],
       # Adds the release's `Drives [Playwright …]` line from DRIVER_VERSION and NODE_VERSION.
-      driver_line: true
+      driver_line: true,
+      # Requires DRIVER_VERSION's major.minor to be the release's: versions are Playwright's
+      # major.minor with our own patch.
+      driver_minor: true,
+      # A final version's snippets require `~> major.minor.0`, which takes our patches; a
+      # prerelease's require the full version.
+      minor_requirement: true
     }
   end
 end
@@ -51,6 +58,25 @@ defmodule ReleaseScript.Edit do
   end
 
   def newer?(version, current), do: Version.compare(version, current) == :gt
+
+  # A final version whose prereleases still have their own sections: their entries would be
+  # missing from its release notes.
+  def rc_sections?(changelog, version) do
+    Version.parse!(version).pre == [] and changelog =~ ~r/^## \[#{Regex.escape(version)}-/m
+  end
+
+  # The version the snippets require.
+  def requirement(version, minor?) do
+    case Version.parse!(version) do
+      %Version{major: major, minor: minor, pre: []} when minor? -> "#{major}.#{minor}.0"
+      _ -> version
+    end
+  end
+
+  def same_minor?(version, driver) do
+    %Version{major: major, minor: minor} = Version.parse!(version)
+    match?({:ok, %Version{major: ^major, minor: ^minor}}, Version.parse(driver))
+  end
 
   def current_version(mix_exs) do
     case Regex.run(version_regex(), mix_exs, capture: :all_but_first) do
@@ -189,8 +215,14 @@ defmodule ReleaseScript do
     version = Edit.parse_version(version)
     target = "#{c.branch}@#{c.remote}"
 
-    step("Fetching #{c.remote}")
-    run!("jj", ["git", "fetch", "--remote", c.remote])
+    # Not in a dry run: a fetch can abandon squash-merged work and move `@`.
+    if dry_run? do
+      step("Not fetching: checking against #{target} as last fetched")
+    else
+      step("Fetching #{c.remote}")
+      run!("jj", ["git", "fetch", "--remote", c.remote])
+    end
+
     check_clean!(target)
 
     changelog = File.read!("CHANGELOG.md")
@@ -199,6 +231,15 @@ defmodule ReleaseScript do
 
     unless Edit.unreleased_content?(changelog), do: raise(Error, "`## [Unreleased]` in CHANGELOG.md is empty")
     unless Edit.newer?(version, current), do: raise(Error, "#{version} isn't greater than @version #{current}")
+
+    if Edit.rc_sections?(changelog, version) do
+      raise Error,
+            "CHANGELOG.md still has `## [#{version}-…]` sections: for the first non-RC release, merge them " <>
+              "into `## [Unreleased]` first (keeping the latest `Drives` line) and drop the `**RC only:**` entries"
+    end
+
+    check_driver_minor!(c, version)
+
     check_no_tag!(c.repo, "v#{version}")
 
     released = release_changelog(c, changelog, version)
@@ -208,7 +249,7 @@ defmodule ReleaseScript do
       [{"mix.exs", mix_exs, Edit.set_version(mix_exs, version)}, {"CHANGELOG.md", changelog, released}] ++
         for {path, regex} <- c.snippets do
           content = File.read!(path)
-          {path, content, bump!(path, content, regex, version)}
+          {path, content, bump!(path, content, regex, Edit.requirement(version, c.minor_requirement))}
         end
 
     if dry_run? do
@@ -289,6 +330,15 @@ defmodule ReleaseScript do
     end
   end
 
+  defp check_driver_minor!(c, version) do
+    if c.driver_minor do
+      driver = read_version!("DRIVER_VERSION")
+
+      unless Edit.same_minor?(version, driver),
+        do: raise(Error, "DRIVER_VERSION #{driver} isn't #{version}'s major.minor")
+    end
+  end
+
   defp check_no_tag!(repo, tag) do
     refs = capture!("gh", ["api", "repos/#{repo}/git/matching-refs/tags/#{tag}", "--jq", ".[].ref"])
     if "refs/tags/#{tag}" in String.split(refs), do: raise(Error, "the tag #{tag} exists on GitHub")
@@ -304,8 +354,10 @@ defmodule ReleaseScript do
 
   # The run the tag started: it can take a few seconds to show up.
   defp run_url(c, tag, attempts \\ 10) do
+    workflow_url = "https://github.com/#{c.repo}/actions/workflows/#{c.workflow}"
+
     url =
-      capture!("gh", [
+      try_capture("gh", [
         "run",
         "list",
         "--repo",
@@ -323,6 +375,9 @@ defmodule ReleaseScript do
       ])
 
     cond do
+      url == :error ->
+        "couldn't list the runs, see #{workflow_url}"
+
       url != "" ->
         url
 
@@ -331,7 +386,7 @@ defmodule ReleaseScript do
         run_url(c, tag, attempts - 1)
 
       true ->
-        "not listed yet, see https://github.com/#{c.repo}/actions/workflows/#{c.workflow}"
+        "not listed yet, see #{workflow_url}"
     end
   end
 
@@ -376,7 +431,17 @@ defmodule ReleaseScript do
     end
   end
 
+  # Once the tag exists, a failure only costs the run's URL.
+  defp try_capture(tool, args) do
+    capture!(tool, args)
+  rescue
+    Error -> :error
+  end
+
+  # `--color=never`: `ui.color = "always"` would put escapes in the ids and templates read here.
   defp capture!(tool, args) do
+    args = if tool == "jj", do: ["--color=never" | args], else: args
+
     case System.cmd("env", ["-u", "DEVELOPER_DIR", tool | args]) do
       {out, 0} -> String.trim(out)
       {out, status} -> raise Error, "`#{Enum.join([tool | args], " ")}` exited with #{status}\n#{out}"

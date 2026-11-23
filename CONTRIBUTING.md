@@ -19,12 +19,17 @@ human and agent reviews alike.
 
 ## Releasing
 
-1. `scripts/release --dry-run <version>` runs the checks (an empty `@` on `main@origin`, an
-   `## [Unreleased]` with entries, a new tag and a greater version) and prints the edits.
-2. `scripts/release <version>` commits "Release <version>" (the version, its dated changelog
+1. For the first non-RC release, merge the RC sections into `## [Unreleased]` and drop the
+   `**RC only:**` entries ([AGENTS.md](AGENTS.md)); the script refuses while they remain.
+2. `scripts/release --dry-run <version>` runs the checks (an empty `@` on `main@origin` as last
+   fetched, an `## [Unreleased]` with entries, a new tag, a greater version and the driver's
+   major.minor) and prints the edits.
+3. `scripts/release <version>` commits "Release <version>" (the version, its dated changelog
    section and driver line) and "Start the next release", pushes `main` and tags the first
-   commit, which starts `release.yml`. `RELEASE_REMOTE` names another remote than `origin`.
-3. Approve the staged release on hex.pm; the workflow then creates the GitHub release.
+   commit, which starts `release.yml`. It fetches first and checks again. `RELEASE_REMOTE`
+   names another remote than `origin`.
+4. Approve the staged release on hex.pm; the workflow then creates the GitHub release.
 
 It runs locally, not as a workflow: only an admin can push to `main` past its ruleset, and a tag
-pushed with `GITHUB_TOKEN` starts no workflow.
+pushed with `GITHUB_TOKEN` starts no workflow. The tag doesn't wait for CI on `main`: the release
+commits only change versions and the changelog, and the approval on hex.pm is the gate.
