@@ -7,6 +7,7 @@ defmodule Playwright.Isomorphic.UrlMatchTest do
   alias Playwright.Expect
   alias Playwright.Isomorphic.UrlMatch
   alias Playwright.Page
+  alias Playwright.RegExp
   alias Playwright.Route
 
   @moduletag :page
@@ -18,6 +19,16 @@ defmodule Playwright.Isomorphic.UrlMatchTest do
       send(test, {tag, uri})
       true
     end
+  end
+
+  test "url_matches_equal/2 compares regexes by JS source and flags, anything else with ==" do
+    # Different PCRE sources, same JS `source` (`a\/b`).
+    assert UrlMatch.url_matches_equal(~r"a/b", ~r/a\/b/)
+    assert UrlMatch.url_matches_equal(~r/a/i, ~r/a/i)
+    assert UrlMatch.url_matches_equal(~r/a/i, RegExp.new("a", "i"))
+    refute UrlMatch.url_matches_equal(~r/a/i, ~r/a/)
+    refute UrlMatch.url_matches_equal(~r/a/, "a")
+    assert UrlMatch.url_matches_equal("a", "a")
   end
 
   test "waitForURL, route, frame and toHaveURL give a function matcher a URI", %{page: page, server: server} do
