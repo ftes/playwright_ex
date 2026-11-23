@@ -168,8 +168,9 @@ config :playwright, :test, test_id_attribute: "data-pw"
 
 At most `workers` drivers run at once (config, default half the schedulers, as Playwright Test's
 `workers`); the others wait, first come first served, inside `BrowserPool.browser/1`: in
-`setup_all` outside its timeout, in `setup` or a test within ExUnit's test timeout. A wait costs
-nothing, so ExUnit's `max_cases` can stay as it is. A worker is a driver and one browser of one
+`setup_all` outside its timeout, in `setup` or a test within ExUnit's test timeout. A wait in
+`setup_all` costs nothing, so ExUnit's `max_cases` can stay as it is; one in `setup` or a test
+counts against the test's timeout. A worker is a driver and one browser of one
 set of options, as Playwright Test's worker runs one project: a call with other options (another
 `browser_name`, `headless`, `channel`, `launch_options`, `connect_options`, `driver` or
 `on_start`) takes another worker, which may
