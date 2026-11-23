@@ -44,16 +44,9 @@ defmodule Playwright.Isomorphic.UrlMatch do
   # deserializeURLPattern, deserializeURLMatch  -- not ported: URLPattern
 
   def url_matches_equal(match1, match2) do
-    cond do
-      is_struct(match1, Regex) and is_struct(match2, Regex) ->
-        Regex.source(match1) == Regex.source(match2) and Regex.opts(match1) == Regex.opts(match2)
-
-      reg_exp?(match1) and reg_exp?(match2) ->
-        RegExp.from_regex(match1) == RegExp.from_regex(match2)
-
-      true ->
-        match1 == match2
-    end
+    if reg_exp?(match1) and reg_exp?(match2),
+      do: RegExp.from_regex(match1) == RegExp.from_regex(match2),
+      else: match1 == match2
   end
 
   def url_matches(local_utils, base_url, url_string, match, web_socket_url \\ nil) do
