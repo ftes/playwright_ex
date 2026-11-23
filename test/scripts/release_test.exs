@@ -77,6 +77,15 @@ defmodule ReleaseScript.EditTest do
       assert_raise Error, ~r/no match/, fn -> Edit.bump("nothing", snippet(), "1.0.0") end
     end
 
+    test "bump_snippet/4 names the file whose snippet is gone" do
+      assert Edit.bump_snippet("README.md", ~s({:playwright, "~> 1.0.0", hex: :playwright_ex}), snippet(), "1.1.0") ==
+               ~s({:playwright, "~> 1.1.0", hex: :playwright_ex})
+
+      assert_raise Error, ~r/^usage-rules.md: no match for .* \(the release config's snippets\)$/, fn ->
+        Edit.bump_snippet("usage-rules.md", "Depend on `:playwright`.", snippet(), "1.1.0")
+      end
+    end
+
     test "reads and sets @version in mix.exs" do
       mix_exs = ~s(defmodule P.MixProject do\n  @version "1.65.0-rc.4"\n  @other "1.65.0-rc.4"\nend\n)
 

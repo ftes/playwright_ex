@@ -23,8 +23,7 @@ defmodule ReleaseScript.Config do
       # The version snippets to bump besides `@version` in mix.exs: each regex's one group is
       # the version requirement (see `minor_requirement`), and each file must match at least once.
       snippets: [
-        {"README.md", ~r/\{:playwright, "~> ([^"]+)", hex: :playwright_ex\}/},
-        {"usage-rules.md", ~r/\{:playwright, "~> ([^"]+)", hex: :playwright_ex\}/}
+        {"README.md", ~r/\{:playwright, "~> ([^"]+)", hex: :playwright_ex\}/}
       ],
       # Adds the release's `Drives [Playwright …]` line from DRIVER_VERSION and NODE_VERSION.
       driver_line: true,
@@ -89,6 +88,13 @@ defmodule ReleaseScript.Edit do
 
   # A function, not an attribute: OTP 28 can't store a compiled regex in one.
   defp version_regex, do: ~r/^  @version "([^"]+)"$/m
+
+  # A configured snippet that matches nothing is a stale config: abort, naming the file.
+  def bump_snippet(path, content, regex, version) do
+    bump(content, regex, version)
+  rescue
+    error in Error -> reraise Error, "#{path}: #{error.message} (the release config's snippets)", __STACKTRACE__
+  end
 
   # Replaces each match's group with the version.
   def bump(content, regex, version) do
@@ -225,8 +231,8 @@ defmodule ReleaseScript do
 
     check_clean!(target)
 
-    changelog = File.read!("CHANGELOG.md")
-    mix_exs = File.read!("mix.exs")
+    changelog = read!("CHANGELOG.md")
+    mix_exs = read!("mix.exs")
     current = Edit.current_version(mix_exs)
 
     unless Edit.unreleased_content?(changelog), do: raise(Error, "`## [Unreleased]` in CHANGELOG.md is empty")
@@ -248,8 +254,8 @@ defmodule ReleaseScript do
     files =
       [{"mix.exs", mix_exs, Edit.set_version(mix_exs, version)}, {"CHANGELOG.md", changelog, released}] ++
         for {path, regex} <- c.snippets do
-          content = File.read!(path)
-          {path, content, bump!(path, content, regex, Edit.requirement(version, c.minor_requirement))}
+          content = read!(path)
+          {path, content, Edit.bump_snippet(path, content, regex, Edit.requirement(version, c.minor_requirement))}
         end
 
     if dry_run? do
@@ -344,13 +350,14 @@ defmodule ReleaseScript do
     if "refs/tags/#{tag}" in String.split(refs), do: raise(Error, "the tag #{tag} exists on GitHub")
   end
 
-  defp bump!(path, content, regex, version) do
-    Edit.bump(content, regex, version)
-  rescue
-    error in Error -> reraise Error, "#{path}: #{error.message}", __STACKTRACE__
+  defp read!(path) do
+    case File.read(path) do
+      {:ok, content} -> content
+      {:error, reason} -> raise Error, "can't read #{path}: #{:file.format_error(reason)}"
+    end
   end
 
-  defp read_version!(path), do: path |> File.read!() |> String.trim()
+  defp read_version!(path), do: path |> read!() |> String.trim()
 
   # The run the tag started: it can take a few seconds to show up.
   defp run_url(c, tag, attempts \\ 10) do
