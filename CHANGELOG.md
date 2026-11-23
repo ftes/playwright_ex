@@ -40,6 +40,17 @@ upstream minor, so `~> 1.65.0` is safe.
 
 ## [Unreleased]
 
+### Fixed
+
+- **RC only:** an improper list as a `trace`, `screenshot`, `video`, `driver`,
+  `connect_options` or `report_slow_tests` option, or in the config's `expect`, raises `invalid
+  value ... expected a keyword list or a map` again, not a `FunctionClauseError`.
+
+## [1.65.0-rc.4] 2026-11-23
+
+Drives [Playwright 1.65.1](https://github.com/microsoft/playwright/releases/tag/v1.65.1), on
+Node 26.13.1. No upstream API changes.
+
 ### Added
 
 - `Playwright.Test.info/0`'s `project`, upstream's `testInfo.project`: a
