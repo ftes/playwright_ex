@@ -167,7 +167,10 @@ defmodule Playwright.Test.OptionsTest do
             {%{screenshot: [mode: :on, path: "x.png"]}, ~r/unknown option screenshot.path, /},
             # A key that is no atom, in a list of pairs as in a map.
             {%{trace: [{"mode", :on}]}, ~r/unknown option trace."mode", expected one of /},
-            {%{trace: %{"mode" => :on}}, ~r/unknown option trace."mode", expected one of /}
+            {%{trace: %{"mode" => :on}}, ~r/unknown option trace."mode", expected one of /},
+            # An improper list: no keyword list.
+            {%{trace: [{:mode, :on} | :x]},
+             ~r/invalid value \[\{:mode, :on\} \| :x\] for trace, expected a keyword list or a map/}
           ],
           do: assert_raise(ArgumentError, message, fn -> artifacts(option) end)
 
