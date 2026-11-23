@@ -150,6 +150,14 @@ defmodule ReleaseScript.EditTest do
       refute Edit.rc_sections?(String.replace(@changelog, "## [1.65.0-rc.4] 2026-11-23", "## [1.64.0]"), "1.65.0")
     end
 
+    test "rc_only_entries?/2 finds RC-only entries in a final version's Unreleased" do
+      changelog = String.replace(@changelog, "- A fix.", "- **RC only:** A fix.")
+      assert Edit.rc_only_entries?(changelog, "1.65.0")
+      refute Edit.rc_only_entries?(changelog, "1.65.0-rc.5")
+      refute Edit.rc_only_entries?(@changelog, "1.65.0")
+      refute Edit.rc_only_entries?(String.replace(@changelog, "- A feature.", "- **RC only:** A feature."), "1.65.0")
+    end
+
     test "same_minor?/2 compares the driver's major.minor" do
       assert Edit.same_minor?("1.65.0-rc.5", "1.65.1")
       assert Edit.same_minor?("1.65.3", "1.65.0")

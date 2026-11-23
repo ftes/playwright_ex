@@ -64,6 +64,12 @@ defmodule ReleaseScript.Edit do
     Version.parse!(version).pre == [] and changelog =~ ~r/^## \[#{Regex.escape(version)}-/m
   end
 
+  # A final version whose Unreleased entries still say `**RC only:**`.
+  def rc_only_entries?(changelog, version) do
+    {_, body_start, body_end} = section!(changelog, @unreleased)
+    Version.parse!(version).pre == [] and binary_part(changelog, body_start, body_end - body_start) =~ "**RC only:**"
+  end
+
   # The version the snippets require.
   def requirement(version, minor?) do
     case Version.parse!(version) do
@@ -238,9 +244,9 @@ defmodule ReleaseScript do
     unless Edit.unreleased_content?(changelog), do: raise(Error, "`## [Unreleased]` in CHANGELOG.md is empty")
     unless Edit.newer?(version, current), do: raise(Error, "#{version} isn't greater than @version #{current}")
 
-    if Edit.rc_sections?(changelog, version) do
+    if Edit.rc_sections?(changelog, version) or Edit.rc_only_entries?(changelog, version) do
       raise Error,
-            "CHANGELOG.md still has `## [#{version}-…]` sections: for the first non-RC release, merge them " <>
+            "CHANGELOG.md still has `## [#{version}-…]` sections or `**RC only:**` entries: for the first non-RC release, merge them " <>
               "into `## [Unreleased]` first (keeping the latest `Drives` line) and drop the `**RC only:**` entries"
     end
 
