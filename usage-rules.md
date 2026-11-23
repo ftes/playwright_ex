@@ -12,14 +12,17 @@ guides are at hexdocs.pm/playwright_ex.
   `hex: :playwright_ex` (see the README for the current version). The Hex package `playwright`
   (hexdocs.pm/playwright) is another library with another API: ignore its docs and examples.
 - Don't alias a module of your own named `Playwright` (`alias MyApp.Playwright`): `Playwright.Page`
-  then silently resolves to `MyApp.Playwright.Page`.
+  then silently resolves to `MyApp.Playwright.Page`. Call yours in full or alias it
+  `as: MyPlaywright`; below `alias MyApp.Playwright` in a sorted list, write
+  `alias Elixir.Playwright.Page`.
 - `timeout: 0` means no timeout, as in Playwright JS, not "don't wait" as `receive ... after 0`:
   write `timeout: :infinity` for none, and never use `0` for an immediate check.
 - There is no npm, `package.json`, `playwright.config.ts` or `@playwright/test`:
   `mix playwright.install` installs the driver and browsers, and Elixir config replaces the rest.
   `config :playwright, :test` mirrors `playwright.config.ts` in snake_case: `use` options and the
   top-level keys flat, `expect: [...]` its expect block; `config :playwright, :driver` is the
-  driver install, in `config/config.exs`, which `mix playwright.install` reads in any env.
+  driver install, in `config/config.exs`, not `test.exs` or `runtime.exs`: `mix playwright.install`
+  usually runs in `:dev` and doesn't read `runtime.exs`.
   Unknown keys raise, and no option reads an environment variable (`PLAYWRIGHT_TEST_BASE_URL`
   neither): read yours in config. The keys are in `Playwright.Test` and `Playwright.Driver`.
 
@@ -61,7 +64,9 @@ guides are at hexdocs.pm/playwright_ex.
   not a `Task`: it returns once its calls are sent, so they come before your next action.
 - A listener (`on/3`, `once/3`) runs in its own process, and the connection waits for it before
   the next message: keep it short and `send` work elsewhere. A `:dialog` listener must accept or
-  dismiss the dialog.
+  dismiss the dialog before asserting.
+- `add_init_script` with a function's source and no argument only defines it: wrap it as
+  `"(#{fun})()"`.
 - Outside `Playwright.Test`, close what you open: a browser or context doesn't close when the
   process that created it exits.
 
@@ -69,16 +74,19 @@ guides are at hexdocs.pm/playwright_ex.
 
 - `use Playwright.Case, async: true` gives each test a fresh `context` and `page` from a pooled
   browser. Don't start a `Playwright.Supervisor` for the tests' browsers.
-- Set options per module, describe or test with `Test.use/1`: `@tag Test.use(trace: :on)`. A plain
-  `@tag trace: :on` sets nothing, silently. Worker options (`browser_name`, `headless`, a device)
-  go in the module's `use`, a project or the config, not a `@describetag` or `@tag`.
+- Set options per module, describe or test with `Test.use/1` (`use Playwright.Case` aliases
+  `Test`, `Page`, `Locator`, `Expect`, ...): `@tag Test.use(trace: :on)`. A plain
+  `@tag trace: :on` sets nothing, silently. Worker options (`browser_name`, launch and connect
+  options, a device) go in the module's `use`, a project or the config, not a `@describetag` or
+  `@tag`: see `Playwright.Test`'s table of where each option can be set.
 - Use `Playwright.device("iPhone 13")` (raises for an unknown name), not
   `Playwright.devices()["iPhone 13"]` (`nil` falls back silently).
 - Don't add a `timeout:` per call: in a test, only ExUnit's test timeout bounds actions and
   navigations. Set `action_timeout` in config to fail sooner. Matchers still wait 5 seconds.
 - `Playwright.Test.step "log in" do ... end` is `test.step`. `assert` and `refute` are steps too:
   `use Playwright.Test` imports `Playwright.Test.Assertions` in place of ExUnit's. Don't
-  `import ExUnit.Assertions` after it; a helper module needs `import Playwright.Test.Assertions`,
-  or its passed asserts leave no step.
+  `import ExUnit.Assertions` after it; a helper module needs `import Playwright.Test.Assertions`
+  (and `import ExUnit.Assertions, except: [assert: 1, assert: 2, refute: 1, refute: 2]` if it
+  imports ExUnit's too), or its passed asserts leave no step.
 - A failed test writes `test-results/<test>/error-context.md` (errors, source, an aria snapshot):
   read it first. Open traces with `mix playwright.cli show-trace <path>`.
