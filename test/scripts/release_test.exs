@@ -66,8 +66,24 @@ defmodule ReleaseScript.EditTest do
              """
     end
 
+    test "requirement/2 takes major.minor.0 for a final version, the full one for a prerelease" do
+      assert Edit.requirement("1.65.0", true) == "1.65.0"
+      assert Edit.requirement("1.65.3", true) == "1.65.0"
+      assert Edit.requirement("1.65.0-rc.5", true) == "1.65.0-rc.5"
+      assert Edit.requirement("1.65.3", false) == "1.65.3"
+    end
+
     test "fails when the snippet isn't there" do
       assert_raise Error, ~r/no match/, fn -> Edit.bump("nothing", snippet(), "1.0.0") end
+    end
+
+    test "bump_snippet/4 names the file whose snippet is gone" do
+      assert Edit.bump_snippet("README.md", ~s({:playwright, "~> 1.0.0", hex: :playwright_ex}), snippet(), "1.1.0") ==
+               ~s({:playwright, "~> 1.1.0", hex: :playwright_ex})
+
+      assert_raise Error, ~r/^usage-rules.md: no match for .* \(the release config's snippets\)$/, fn ->
+        Edit.bump_snippet("usage-rules.md", "Depend on `:playwright`.", snippet(), "1.1.0")
+      end
     end
 
     test "reads and sets @version in mix.exs" do
@@ -125,6 +141,29 @@ defmodule ReleaseScript.EditTest do
       assert Edit.newer?("1.65.0", "1.65.0-rc.5")
       refute Edit.newer?("1.65.0-rc.4", "1.65.0-rc.4")
       refute Edit.newer?("1.65.0-rc.3", "1.65.0-rc.4")
+    end
+
+    test "rc_sections?/2 finds a final version's prerelease sections" do
+      refute Edit.rc_sections?(@changelog, "1.65.0-rc.5")
+      assert Edit.rc_sections?(@changelog, "1.65.0")
+      refute Edit.rc_sections?(@changelog, "1.65.1")
+      refute Edit.rc_sections?(String.replace(@changelog, "## [1.65.0-rc.4] 2026-11-23", "## [1.64.0]"), "1.65.0")
+    end
+
+    test "rc_only_entries?/2 finds RC-only entries in a final version's Unreleased" do
+      changelog = String.replace(@changelog, "- A fix.", "- **RC only:** A fix.")
+      assert Edit.rc_only_entries?(changelog, "1.65.0")
+      refute Edit.rc_only_entries?(changelog, "1.65.0-rc.5")
+      refute Edit.rc_only_entries?(@changelog, "1.65.0")
+      refute Edit.rc_only_entries?(String.replace(@changelog, "- A feature.", "- **RC only:** A feature."), "1.65.0")
+    end
+
+    test "same_minor?/2 compares the driver's major.minor" do
+      assert Edit.same_minor?("1.65.0-rc.5", "1.65.1")
+      assert Edit.same_minor?("1.65.3", "1.65.0")
+      refute Edit.same_minor?("1.65.0", "1.66.0")
+      refute Edit.same_minor?("1.65.0", "2.65.0")
+      refute Edit.same_minor?("1.65.0", "garbage")
     end
 
     test "parse_version/1 takes SemVer only" do
