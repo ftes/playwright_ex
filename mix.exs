@@ -103,6 +103,7 @@ defmodule Playwright.MixProject do
         "guides/network.md": [title: "Network"],
         "guides/debugging-and-ci.md": [title: "Debugging and CI"],
         "guides/concurrency.md": [title: "Concurrency"],
+        "guides/upgrading-from-0.x.md": [title: "Upgrading from 0.x"],
         "CHANGELOG.md": [title: "Changelog"]
       ],
       groups_for_extras: [
@@ -115,7 +116,8 @@ defmodule Playwright.MixProject do
           "guides/events-and-waiting.md",
           "guides/network.md",
           "guides/debugging-and-ci.md",
-          "guides/concurrency.md"
+          "guides/concurrency.md",
+          "guides/upgrading-from-0.x.md"
         ],
         Changelog: ["CHANGELOG.md"]
       ],
