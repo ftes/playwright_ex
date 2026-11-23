@@ -501,7 +501,9 @@ defmodule Playwright.Test do
   `assert_steps` (a boolean). `browser_name` and `preserve_output` take an atom (`:webkit`,
   `:failures_only`) or upstream's string (`"webkit"`, `"failures-only"`): an unknown atom raises
   as any bad value, an unknown string with upstream's error. Other values pass as given, as
-  upstream's: an unknown artifact mode records nothing.
+  upstream's: an unknown artifact mode records nothing. An unknown key in `expect`, or a bad
+  `expect`, `update_snapshots` or `ignore_snapshots` set after start, raises when a matcher or
+  `config/0` next reads it.
   """
 
   alias Playwright.Runtime.Zones

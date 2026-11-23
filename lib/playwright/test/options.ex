@@ -66,7 +66,8 @@ defmodule Playwright.Test.Options do
     :assert_steps
   ]
   # Upstream's config keys the matchers read (`expect`, `updateSnapshots`, `ignoreSnapshots`):
-  # `Playwright.Matchers.Expect` validates them, as it reads them also without `Playwright.Test`.
+  # `Playwright.Matchers.Expect` validates them, as it reads them also without `Playwright.Test`
+  # (`matcher_keys/0`).
   @matcher_keys [:expect, :update_snapshots, :ignore_snapshots]
   @config_keys @pool_keys ++ @artifact_keys ++ @config_only_keys ++ @matcher_keys
 
@@ -180,6 +181,9 @@ defmodule Playwright.Test.Options do
   as in JS's spread; an unknown key raises.
   """
   def use_options(opts), do: opts |> without_ex_unit_keys() |> use_options!("use Playwright.Test", @worker_keys)
+
+  @doc "The keys of `config :playwright, :test` the matchers read (`Playwright.Matchers.Expect`)."
+  def matcher_keys, do: @matcher_keys
 
   @doc "The context options that are options of their own (`@context_fixtures`), as the facade names them."
   def context_keys do
@@ -686,16 +690,13 @@ defmodule Playwright.Test.Options do
   defp validate!(key, value) when key in [:launch_options, :context_options], do: to_keyword(key, value)
 
   defp validate!(:driver, driver) do
-    driver = to_keyword(:driver, driver)
-    keys!(:driver, driver, @driver_keys)
-    driver
+    to_keyword!(:driver, driver, @driver_keys)
   end
 
   defp validate!(:connect_options, nil), do: nil
 
   defp validate!(:connect_options, options) do
-    options = to_keyword(:connect_options, options)
-    keys!(:connect_options, options, @connect_keys)
+    options = to_keyword!(:connect_options, options, @connect_keys)
     Enum.sort(options)
   end
 
@@ -704,7 +705,7 @@ defmodule Playwright.Test.Options do
   defp validate!(:on_start, {m, f, a} = mfa) when is_atom(m) and is_atom(f) and is_list(a), do: mfa
 
   defp validate!(key, options) when key in @artifact_keys and (is_list(options) or is_map(options)),
-    do: artifact!(key, to_keyword(key, options))
+    do: artifact!(key, to_keyword!(key, options, @artifact_options[key]))
 
   defp validate!(key, mode) when key in @artifact_keys, do: artifact!(key, mode: mode)
 
@@ -728,8 +729,7 @@ defmodule Playwright.Test.Options do
 
   # Upstream's `reportSlowTests` (`{ max, threshold }`), as its configLoader validates it.
   defp validate!(:report_slow_tests, options) do
-    options = to_keyword(:report_slow_tests, options)
-    keys!(:report_slow_tests, options, [:max, :threshold])
+    options = to_keyword!(:report_slow_tests, options, [:max, :threshold])
 
     for key <- [:max, :threshold] do
       value = options[key]
@@ -766,14 +766,13 @@ defmodule Playwright.Test.Options do
     end
   end
 
-  # An artifact option as a keyword list in `@artifact_options` order (an atom is its `mode`),
+  # An artifact option (`to_keyword!/3`'s, or `[mode: mode]`) as a keyword list in
+  # `@artifact_options` order (an atom is its `mode`),
   # the trace's options defaulting to upstream's (`defaultTraceOptions` in
   # `packages/playwright/src/worker/testTracing.ts`); its values pass as given. No `mode` is
   # `:off` (`value.mode || 'off'`), the deprecated `:retry_with_trace` and `:retry_with_video`
   # `:on_first_retry`, as upstream's `startIfNeeded` and `normalizeVideoMode`.
   defp artifact!(key, options) do
-    keys!(key, options, @artifact_options[key])
-
     defaults = if key == :trace, do: [snapshots: true, screenshots: true, sources: true, attachments: true], else: []
     options = defaults |> Keyword.merge(options) |> Keyword.put(:mode, mode(key, options[:mode]))
 
@@ -784,6 +783,17 @@ defmodule Playwright.Test.Options do
   defp mode(:trace, :retry_with_trace), do: :on_first_retry
   defp mode(:video, :retry_with_video), do: :on_first_retry
   defp mode(_key, mode), do: mode
+
+  @doc """
+  `to_keyword/2` of options with `allowed` keys only, else `ArgumentError` (`keys!/3`): a key
+  that is no atom in a list of pairs (`[{"mode", :on}]`) is unknown, as a map's.
+  """
+  def to_keyword!(key, value, allowed) do
+    if is_list(value) and Enum.all?(value, &match?({_key, _value}, &1)), do: keys!(key, value, allowed)
+    options = to_keyword(key, value)
+    keys!(key, options, allowed)
+    options
+  end
 
   @doc """
   `value`, the option `key`'s, as a keyword list (a map's entries), else `ArgumentError`. Of a

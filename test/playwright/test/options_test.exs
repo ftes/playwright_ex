@@ -151,6 +151,11 @@ defmodule Playwright.Test.OptionsTest do
                Options.pool(connect_options: [ws_endpoint: "ws://a", slow_mo: 1, ws_endpoint: "ws://b", slow_mo: 2])
 
       assert %{driver: [env: %{"B" => "2"}]} = Options.pool(driver: [env: %{"A" => "1"}, env: %{"B" => "2"}])
+
+      assert_raise ArgumentError, ~r/unknown option connect_options."timeout", /, fn ->
+        Options.pool(connect_options: [{"timeout", 1}])
+      end
+
       assert %{launch_options: [slow_mo: 2]} = Options.pool(launch_options: [slow_mo: 1, slow_mo: 2])
       assert %{browser_name: :firefox} = Options.pool(browser_name: :webkit, browser_name: :firefox)
     end
@@ -159,7 +164,10 @@ defmodule Playwright.Test.OptionsTest do
       for {option, message} <- [
             {%{trace: [mode: :on, live: true]}, ~r/unknown option trace.live, expected one of /},
             {%{video: [mode: :on, audio: true]}, ~r/unknown option video.audio, /},
-            {%{screenshot: [mode: :on, path: "x.png"]}, ~r/unknown option screenshot.path, /}
+            {%{screenshot: [mode: :on, path: "x.png"]}, ~r/unknown option screenshot.path, /},
+            # A key that is no atom, in a list of pairs as in a map.
+            {%{trace: [{"mode", :on}]}, ~r/unknown option trace."mode", expected one of /},
+            {%{trace: %{"mode" => :on}}, ~r/unknown option trace."mode", expected one of /}
           ],
           do: assert_raise(ArgumentError, message, fn -> artifacts(option) end)
 
