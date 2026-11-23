@@ -29,8 +29,9 @@ defmodule Playwright.Promise do
   returns (`async/1`, the waits), not a local promise (from the runtime's `async`), which can be
   awaited once, as a `Task`.
 
-  Outside the few cases that need a promise, prefer plain Elixir: sequential calls, `Task`,
-  `send/2` and `receive`. [Plain Elixir first](concurrency.md#plain-elixir-first) lists those cases.
+  A wait or call that must start before an action is a wait or `async/1`, then `await!/1`;
+  `all/1` only combines them. Elsewhere, prefer plain Elixir: sequential calls, `Task`, `send/2`
+  and `receive` ([Plain Elixir first](concurrency.md#plain-elixir-first)).
   """
 
   @typedoc "A promise handle."

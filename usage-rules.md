@@ -63,8 +63,8 @@ guides are at hexdocs.pm/playwright_ex.
 - For JS's call without `await` (`const p = locator.evaluate(...)`), use `Playwright.Promise.async/1`,
   not a `Task`: it returns once its calls are sent, so they come before your next action.
 - Otherwise prefer plain Elixir to `Playwright.Promise` (the Concurrency guide lists where it is
-  needed): a JS `Promise.all` of independent reads or assertions is sequential calls, or `Task`s
-  awaited with `:infinity`.
+  needed): a JS `Promise.all` of independent reads or assertions is sequential calls; reads may
+  run in `Task`s awaited with `:infinity`.
 - A listener (`on/3`, `once/3`) runs in its own process, and the connection waits for it before
   the next message: keep it short and `send` work elsewhere. A `:dialog` listener must accept or
   dismiss the dialog before asserting.
