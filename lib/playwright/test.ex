@@ -352,8 +352,8 @@ defmodule Playwright.Test do
   Without a name, a snapshot is named after the test and its count in the test:
   `pays-1-<platform>.png` for a screenshot, `pays-1.aria.yml` for an aria snapshot.
   A name is sanitized for the file system, a list of path segments is not. `snapshot_dir` is
-  `test/` by default; `snapshot_path_template` (or the matcher's `path_template` in `config
-  :playwright, :expect`) takes upstream's tokens: `{testDir}`, `{snapshotDir}`,
+  `test/` by default; `snapshot_path_template` (or the matcher's `path_template` in the config's
+  `expect`, `expect: [to_have_screenshot: [path_template: ...]]`) takes upstream's tokens: `{testDir}`, `{snapshotDir}`,
   `{testFileDir}`, `{testFileName}`, `{testFileBaseName}`, `{testFilePath}`, `{testName}`,
   `{arg}`, `{ext}`, `{platform}` and `{snapshotSuffix}` (the platform, as upstream's);
   `{projectName}` is the `name` of the module's project (`parameters/1`), empty without one. `snapshot_path/2`
@@ -476,7 +476,13 @@ defmodule Playwright.Test do
         snapshot_path_template: nil,  # upstream's defaults, see Snapshots
         test_id_attribute: "data-testid",
         report_slow_tests: [max: 5, threshold: 300_000], # Playwright.Test.GitHubFormatter's, ms; false: none
-        assert_steps: true            # assert/refute as steps, at compile time (see Assertions)
+        assert_steps: true,           # assert/refute as steps, at compile time (see Assertions)
+        expect: [],                   # the matchers': [timeout: 5000, to_have_screenshot: [...], ...], see Playwright.Expect
+        update_snapshots: :default,   # :all | :changed | :missing | :none | :default, see Snapshots
+        ignore_snapshots: false       # skip the snapshot matchers
+
+  `expect`, `update_snapshots` and `ignore_snapshots` are the matchers' (see the configuration
+  in `Playwright.Expect`), which read them also without `Playwright.Test`.
 
   Each context option (`base_url`, `locale`, `viewport`, `storage_state`, ...) is a config key of
   its own, over the `context_options` bag, as under every other level, and in `config/0` only
@@ -488,7 +494,8 @@ defmodule Playwright.Test do
   value is global to the VM, so set it here, not per module. `config/0` returns the config
   resolved. An unknown key raises at application start (and when the runner reads a config
   changed since), and so does a bad value of the keys upstream checks: `preserve_output`,
-  `output_dir`, `browser_name`, `report_slow_tests` and the context options (as
+  `output_dir`, `browser_name`, `report_slow_tests`, `update_snapshots`, `ignore_snapshots`,
+  `expect`'s `to_have_screenshot` `type` and the context options (as
   `Browser.new_context/2` checks them), and of `workers` (a positive integer: upstream's also
   takes `"50%"` or a numeric string, which aren't supported), `on_start` and Elixir's
   `assert_steps` (a boolean). `browser_name` and `preserve_output` take an atom (`:webkit`,
@@ -1419,8 +1426,9 @@ defmodule Playwright.Test do
   modes are keyword lists with `:mode` first (`trace: [mode: :off, snapshots: true, ...]`), a
   context option is as configured (none of Playwright Test's context defaults; one set only in
   `context_options` is there only), and an unset `action_timeout` or `navigation_timeout` is
-  `:infinity`. A test's resolved options, over every level, are `info().use`. `expect: %{timeout: ms}` is the matchers' timeout of `config :playwright,
-  :expect` (5000 by default, `0` for none). Works outside a test too (at startup, in a module
+  `:infinity`. A test's resolved options, over every level, are `info().use`. `expect: %{timeout: ms}`
+  is the matchers' timeout of the config's `expect` (5000 by default, `0` for none), and
+  `update_snapshots` an atom. Works outside a test too (at startup, in a module
   without `use Playwright.Test`); raises `ArgumentError` for an invalid config.
 
       Playwright.Test.config().workers
@@ -1430,7 +1438,13 @@ defmodule Playwright.Test do
     config = Options.config()
     # Validated as the registration converts them for `Playwright.Browser.new_context/2`.
     Options.context_options(config)
-    Map.put(config, :expect, %{timeout: Playwright.Matchers.Expect.config_timeout()})
+    expect_config = Playwright.Matchers.Expect.app_env_expect_config()
+
+    Map.merge(config, %{
+      expect: %{timeout: Playwright.Matchers.Expect.config_timeout()},
+      update_snapshots: String.to_existing_atom(expect_config.updateSnapshots),
+      ignore_snapshots: expect_config.ignoreSnapshots
+    })
   end
 
   @doc """

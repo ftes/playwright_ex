@@ -172,10 +172,10 @@ Expect.not_to_have_text!(locator, "Error")
 locator |> Expect.not_() |> Expect.to_have_text!("Error")
 ```
 
-Matchers retry until they pass or time out (5 seconds, `config :playwright, :expect`). They
+Matchers retry until they pass or time out (5 seconds, `config :playwright, :test, expect: [timeout: ...]`). They
 return `:ok` (`to_pass` `{:ok, value}`, its callback's) or `{:error, %Playwright.ExpectError{}}`;
 the bang forms raise the `Playwright.ExpectError`, which fails an ExUnit test as any exception
-does. Unknown keys in the `:expect` config raise `ArgumentError`.
+does. Unknown keys in the config's `expect` raise `ArgumentError`.
 
 ## Errors
 

@@ -221,6 +221,13 @@ defmodule Playwright.Runtime.Facade do
   def options!(options, {:object, _schema}, _api_name, _function), do: options
 
   @doc """
+  Like `options!/3`, for options at `path` (keys, the outermost first) of a bigger value, which
+  the errors name: `expect.to_have_screenshot.animations` of a config.
+  """
+  def options_at!(options, {:object, schema}, api_name, path),
+    do: object!(options, schema, api_name, Enum.reverse(path), nil)
+
+  @doc """
   Like `options!/3`, but the options may also be a result of the call (a map with the JS keys,
   `credentials.create(known.rpId, known)`): its JS keys become the option keys, the `ignored`
   JS keys (result fields that are no options) are dropped. Other keys still raise.

@@ -118,7 +118,7 @@ Prefer them to `assert Locator.text_content!(...) == ...`, which reads once and 
 Their timeout is 5 seconds; set it for the suite in `config/test.exs`:
 
 ```elixir
-config :playwright, :expect, timeout: 10_000
+config :playwright, :test, expect: [timeout: 10_000]
 ```
 
 A soft assertion (Playwright Test's `expect.soft`) doesn't stop the test: it fails the test once
@@ -160,7 +160,7 @@ Expect.to_match_aria_snapshot!(Page.locator(page, "body"))
 ```
 
 A missing snapshot is written, and fails the test once its body has run, so CI catches a
-snapshot nobody committed. `update_snapshots` in `config :playwright, :expect` (`:all`,
+snapshot nobody committed. `update_snapshots` in `config :playwright, :test` (`:all`,
 `:changed`, `:missing`, `:none`) rewrites them. A failed comparison leaves `-actual`,
 `-expected`, `-previous` and `-diff` images in the test's dir under `test-results/`. Paths and
 templates: [Snapshots](Playwright.Test.html#module-snapshots).

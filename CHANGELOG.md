@@ -47,6 +47,12 @@ upstream minor, so `~> 1.65.0` is safe.
   `name` and `use` (the config's options, the project's over them), also in `setup_all` and
   `info/1`.
 
+### Changed
+
+- **RC only:** **Breaking:** `config :playwright, :expect, timeout: 10_000, update_snapshots:
+  :missing` is `config :playwright, :test, expect: [timeout: 10_000], update_snapshots:
+  :missing`, as in `playwright.config.ts` (`ignore_snapshots` too).
+
 ### Fixed
 
 - **RC only:** `Playwright.Test`: a `Browser.new_context`, `Browser.new_page` or

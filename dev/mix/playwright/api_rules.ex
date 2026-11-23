@@ -88,7 +88,7 @@ defmodule Mix.Playwright.ApiRules do
       the snapshot file as a `path` option (`to_have_screenshot(page, path: "home.png")`), as does
       `toMatchAriaSnapshot`, in place of `expected` (`to_match_aria_snapshot(page, path: "a.aria.yml")`).
       Their option docs
-      name `config :playwright, :expect` for the runner's `TestConfig.expect`.
+      name the `expect` of `config :playwright, :test` for the runner's `TestConfig.expect`.
   """
 
   # BrowserServer: `launchServer` is out of scope (architecture: Generated facade), browsers run
@@ -142,11 +142,12 @@ defmodule Mix.Playwright.ApiRules do
 
   @timeout_doc "In Elixir, `:infinity` is the same as `0`: no timeout."
   @expect_timeout_doc "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to `timeout` in " <>
-                        "`config :playwright, :expect` (`5000` if not set, see the configuration in `Playwright.Expect`)."
+                        "`config :playwright, :test, expect: [...]` (`5000` if not set, see the configuration in " <>
+                        "`Playwright.Expect`)."
   # Upstream's `helper.options.timeout ?? this.timeout`: the matcher's own config key first.
   @to_have_screenshot_timeout_doc "Time to retry the assertion for in milliseconds, `0` for no timeout. Defaults to " <>
-                                    "`timeout` in `config :playwright, :expect, to_have_screenshot: [...]`, else to " <>
-                                    "`timeout` in `config :playwright, :expect` (`5000` if not set, see the " <>
+                                    "`timeout` in `config :playwright, :test, expect: [to_have_screenshot: [...]]`, else " <>
+                                    "to `timeout` in its `expect` (`5000` if not set, see the " <>
                                     "configuration in `Playwright.Expect`)."
   @signal_doc "In Elixir, a `Playwright.AbortSignal` (`Playwright.AbortController.signal/1`)."
 
@@ -503,7 +504,7 @@ defmodule Mix.Playwright.ApiRules do
     end
   end
 
-  # Matcher options: the test runner's `TestConfig.expect` is `config :playwright, :expect`.
+  # Matcher options: the test runner's `TestConfig.expect` is `config :playwright, :test`'s `expect`.
   defp expect_options(%{"name" => "options", "type" => %{"properties" => props}} = options, matcher) do
     timeout_doc = if matcher == "toHaveScreenshot", do: @to_have_screenshot_timeout_doc, else: @expect_timeout_doc
 
@@ -524,7 +525,7 @@ defmodule Mix.Playwright.ApiRules do
       String.replace(
         text,
         "`TestConfig.expect`",
-        "`config :playwright, :expect` (see the configuration in `Playwright.Expect`)"
+        "`expect` in `config :playwright, :test` (see the configuration in `Playwright.Expect`)"
       )
 
   defp expect_config_doc(spec) when is_list(spec), do: Enum.map(spec, &expect_config_doc/1)
@@ -787,7 +788,8 @@ defmodule Mix.Playwright.ApiRules do
               text(
                 "Time to retry the callback for in milliseconds. Defaults to `0`: until the test's timeout (none outside " <>
                   "a `Playwright.Test` test), not the matchers' `timeout`. A default other than `0` is `:to_pass` in " <>
-                  "`config :playwright, :expect` (see the configuration in `Playwright.Expect`). Within a test, it " <>
+                  "`config :playwright, :test, expect: [...]` (see the configuration in `Playwright.Expect`). Within a " <>
+                  "test, it " <>
                   "ends before the test's timeout."
               )
             ]
