@@ -40,6 +40,8 @@ upstream minor, so `~> 1.65.0` is safe.
 
 ## [Unreleased]
 
+## [1.65.0-rc.4] 2026-11-23
+
 ### Added
 
 - `Playwright.Test.info/0`'s `project`, upstream's `testInfo.project`: a
