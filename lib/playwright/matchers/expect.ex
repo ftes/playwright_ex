@@ -122,19 +122,26 @@ defmodule Playwright.Matchers.Expect do
   defp current_test_info(:now), do: TestInfo.current()
 
   @doc false
-  # Elixir only: the app env's `ExpectConfig`, of `config :playwright, :test`, built when that
-  # changes (at application start, which so validates it, or after an `Application.put_env/3` in
-  # a test helper).
+  # Elixir only: the app env's `ExpectConfig`, of `config :playwright, :test`, built when its
+  # matcher keys change (at application start, which so validates it, or after an
+  # `Application.put_env/3` in a test helper). Cached by those keys' entries only, so a change
+  # of the runner's keys alone keeps it (reordered matcher entries rebuild it); a `:test` that is
+  # no keyword list is the key itself, so `app_env_expect_config/1` raises for it.
   def app_env_expect_config do
     env = Application.get_env(:playwright, :test, [])
 
+    key =
+      if is_list(env) and Keyword.keyword?(env),
+        do: Keyword.take(env, Playwright.Test.Options.matcher_keys()),
+        else: env
+
     case :persistent_term.get({__MODULE__, :app_env_expect_config}, nil) do
-      {^env, config} ->
+      {^key, config} ->
         config
 
       _ ->
         config = app_env_expect_config(env)
-        :persistent_term.put({__MODULE__, :app_env_expect_config}, {env, config})
+        :persistent_term.put({__MODULE__, :app_env_expect_config}, {key, config})
         config
     end
   end
@@ -184,11 +191,7 @@ defmodule Playwright.Matchers.Expect do
 
   defp expect!(nil), do: []
 
-  defp expect!(expect) do
-    expect = Playwright.Test.Options.to_keyword(:expect, expect)
-    Playwright.Test.Options.keys!(:expect, expect, @expect_keys)
-    expect
-  end
+  defp expect!(expect), do: Playwright.Test.Options.to_keyword!(:expect, expect, @expect_keys)
 
   # An `ArgumentError` of `fun` with the config's label.
   defp labeled!(fun) do
@@ -218,8 +221,7 @@ defmodule Playwright.Matchers.Expect do
       options ->
         {options, config_only} =
           labeled!(fn ->
-            options = Playwright.Test.Options.to_keyword(path, options)
-            Playwright.Test.Options.keys!(path, options, option_keys ++ config_keys)
+            options = Playwright.Test.Options.to_keyword!(path, options, option_keys ++ config_keys)
             {options, config_only} = Keyword.split(options, option_keys)
             {options, Map.new(config_only, fn {name, value} -> config_value!(path, name, value) end)}
           end)

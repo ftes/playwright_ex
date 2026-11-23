@@ -104,9 +104,46 @@ defmodule Playwright.Matchers.ExpectTest do
     assert_raise ArgumentError,
                  ~s(config :playwright, :test: unknown option expect.to_pass."timeout", expected one of timeout, intervals),
                  fn -> Expect.app_env_expect_config(expect: [to_pass: %{"timeout" => 1}]) end
+
+    # A list of pairs as the map.
+    assert_raise ArgumentError,
+                 ~s(config :playwright, :test: unknown option expect.to_pass."timeout", expected one of timeout, intervals),
+                 fn -> Expect.app_env_expect_config(expect: [to_pass: [{"timeout", 1}]]) end
+
+    assert_raise ArgumentError,
+                 ~s(config :playwright, :test: unknown option expect."timeout", expected one of timeout, ) <>
+                   "to_have_screenshot, to_match_aria_snapshot, to_pass",
+                 fn -> Expect.app_env_expect_config(expect: [{"timeout", 1}]) end
   end
 
   test "test_helper sets the timeout through the app env" do
     assert Expect.expect_config().timeout == 10_000
+  end
+end
+
+defmodule Playwright.Matchers.ExpectCacheTest do
+  # Not async: it changes the app env and the cached config, which are global.
+  use ExUnit.Case, async: false
+
+  alias Playwright.Matchers.Expect
+
+  test "the cache is keyed on the matchers' keys: a runner key's change keeps it, theirs rebuild it" do
+    env = Application.get_env(:playwright, :test)
+    on_exit(fn -> Application.put_env(:playwright, :test, env) end)
+    config = Expect.app_env_expect_config()
+
+    Application.put_env(:playwright, :test, Keyword.put(env, :trace, :on))
+    key = Keyword.take(env, [:expect, :update_snapshots, :ignore_snapshots])
+    assert {^key, ^config} = :persistent_term.get({Expect, :app_env_expect_config})
+    assert Expect.app_env_expect_config() == config
+
+    Application.put_env(:playwright, :test, Keyword.put(env, :update_snapshots, :none))
+    assert Expect.app_env_expect_config().updateSnapshots == "none"
+
+    Application.put_env(:playwright, :test, :x)
+
+    assert_raise ArgumentError,
+                 "config :playwright, :test: expected a keyword list, got: :x",
+                 &Expect.app_env_expect_config/0
   end
 end
