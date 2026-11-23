@@ -40,6 +40,11 @@ upstream minor, so `~> 1.65.0` is safe.
 
 ## [Unreleased]
 
+### Changed
+
+- **RC only:** `usage-rules.md` keeps only the traps an agent gets wrong and points to the
+  module docs for setup and config keys.
+
 ### Fixed
 
 - **RC only:** an improper list as a `trace`, `screenshot`, `video`, `driver`,
