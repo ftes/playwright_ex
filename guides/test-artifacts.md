@@ -115,6 +115,22 @@ steps:
     run: mix test || { [ $? -eq 2 ] && mix test --failed; }
 ```
 
+A rerun that lost every failure prints `There are no tests to run` and exits 0, and no
+`mix test` flag turns that into a failure, so check its output, in a bash step (`retry` passes
+its arguments on, such as the formatters). A rerun that runs only the failures it kept still
+passes:
+
+```yaml
+- shell: bash
+  run: |
+    retry() {
+      mix test --failed "$@" 2>&1 | tee "$RUNNER_TEMP/retry.log"; s=${PIPESTATUS[0]}
+      if grep -q "^There are no tests to run" "$RUNNER_TEMP/retry.log"; then return 1; fi
+      return $s
+    }
+    mix test || { [ $? -eq 2 ] && retry; }
+```
+
 The other retry modes are Playwright Test's too: `:on_all_retries` traces every rerun,
 `:retain_on_first_failure` the first run's failures, `:retain_on_failure_and_retries` both;
 `video` takes them as well, and `screenshot` has `:on_first_failure`.

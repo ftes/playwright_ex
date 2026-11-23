@@ -184,8 +184,8 @@ takes a `mix test --failed` run for retry 1, a local `--failed` rerun after a fi
 fixed test as flaky: the formatter is meant for CI. Rerun
 only on exit status 2 (tests failed): any other failure, such as a crash or a missed coverage
 threshold, would otherwise go green on an empty `--failed` run.
-On Elixir 1.20 and earlier, `--failed` loses some failures: see
-[Retries](test-artifacts.md#retries).
+On Elixir 1.20 and earlier, `--failed` loses some failures, and a rerun that lost them all
+exits 0: see [Retries](test-artifacts.md#retries) for a guard, called here as `retry $f`.
 `erlef/setup-beam`'s problem matchers annotate each failure again, at the test's line, so turn
 them off:
 
