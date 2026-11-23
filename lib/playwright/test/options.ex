@@ -789,7 +789,9 @@ defmodule Playwright.Test.Options do
   that is no atom in a list of pairs (`[{"mode", :on}]`) is unknown, as a map's.
   """
   def to_keyword!(key, value, allowed) do
-    if is_list(value) and Enum.all?(value, &match?({_key, _value}, &1)), do: keys!(key, value, allowed)
+    if is_list(value) and not List.improper?(value) and Enum.all?(value, &match?({_key, _value}, &1)),
+      do: keys!(key, value, allowed)
+
     options = to_keyword(key, value)
     keys!(key, options, allowed)
     options
