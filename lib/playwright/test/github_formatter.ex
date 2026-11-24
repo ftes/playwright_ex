@@ -135,12 +135,13 @@ defmodule Playwright.Test.GitHubFormatter do
   # 'skipped' with an interrupted result  -- never: no interruption
   defp should_print_failure_annotations(this, test), do: outcome(this, test) == :unexpected
 
+  @doc false
   # Elixir only: `test.outcome()` of the test's results, this run's and, on a retry, the first
-  # run's failure before it (`--failed` reruns only failures).
+  # run's failure before it (`--failed` reruns only failures). Also `Playwright.Test.JSONFormatter`'s.
   # deviation: a test not run after a failed `setup_all` is in the failures manifest too, without
   # its state, so one passing on the rerun is flaky, where upstream's did-not-run-then-passed test
   # is expected (`computeTestCaseOutcome`).
-  defp outcome(this, %ExUnit.Test{state: state}) do
+  def outcome(this, %ExUnit.Test{state: state}) do
     case state do
       nil when this.retry > 0 -> :flaky
       nil -> :expected
@@ -290,8 +291,10 @@ defmodule Playwright.Test.GitHubFormatter do
     separator(header)
   end
 
-  # formatError: ExUnit's text of a failed `setup_all`, without its counter.
-  defp format_error({module, failures}) do
+  @doc false
+  # formatError: ExUnit's text of a failed `setup_all`, without its counter. Also
+  # `Playwright.Test.JSONFormatter`'s.
+  def format_error({module, failures}) do
     text = ExUnit.Formatter.format_test_all_failure(module, failures, 1, @width, &formatter/2)
     %{message: text |> String.replace_prefix("  1) ", "") |> String.trim_trailing()}
   end
@@ -300,11 +303,13 @@ defmodule Playwright.Test.GitHubFormatter do
   defp format_retry(%{retry: 0}), do: []
   defp format_retry(%{retry: retry}), do: ["", separator("    Retry ##{retry}")]
 
+  @doc false
   # formatResultFailure: ExUnit's failure text (`ExUnit.Formatter.format_test_failure/5`, without
-  # its header, which upstream's replaces) for formatError's message, already indented.
+  # its header, which upstream's replaces) for formatError's message, already indented, and its
+  # location. Also `Playwright.Test.JSONFormatter`'s (`this.deps`).
   # 'Expected to fail, but passed.', 'Test was interrupted.'  -- never: no `test.fail`, no
   # interruption.
-  defp format_result_failure(this, %ExUnit.Test{state: {:failed, failures}} = test) do
+  def format_result_failure(this, %ExUnit.Test{state: {:failed, failures}} = test) do
     # The header alone: the text of no failures.
     header = ExUnit.Formatter.format_test_failure(test, [], 1, @width, &formatter/2)
 
@@ -366,9 +371,10 @@ defmodule Playwright.Test.GitHubFormatter do
       else: Path.expand(file)
   end
 
+  @doc false
   # `%{paths: %{app => dir}, path: deps_dir}` of the Mix project, or `nil` without one (every
   # app's frames are then the user's).
-  defp deps do
+  def deps do
     if Code.ensure_loaded?(Mix.Project) and Process.whereis(Mix.ProjectStack) != nil and Mix.Project.get() != nil do
       %{
         paths: Map.new(Mix.Project.deps_paths(), fn {app, dir} -> {app, Path.expand(dir)} end),

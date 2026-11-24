@@ -265,7 +265,13 @@ defmodule Playwright.Test.Results do
         end
 
       {kept, state} ->
-        for test_pid <- kept, do: :ets.delete(table(), {:info, test_pid})
+        for test_pid <- kept do
+          :ets.delete(table(), {:info, test_pid})
+          # Its attachments (`TestInfo._attach/3`) and steps (`TestInfo.ended/1`) left.
+          :ets.match_delete(table(), {{:attachment, test_pid, :_}, :_})
+          :ets.delete(table(), {:steps, test_pid})
+        end
+
         tests = for test_pid <- kept, do: {test_pid, runner(state, test_pid)}
         {{:finished, tests}, %{state | results: Map.drop(state.results, kept)}}
     end

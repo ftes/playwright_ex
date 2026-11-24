@@ -761,9 +761,48 @@ defmodule Playwright.Test.ArtifactsTest do
     assert Enum.sort(File.ls!(test.dir)) == ~w(test-failed-1.png trace.zip video.webm)
   end
 
+  test "the artifacts are the test's attachments, in info/1, a trace's attach steps in it", %{browser: browser} do
+    test = fake_test(%{trace: :on, screenshot: :on, video: :on})
+
+    test.run.(fn ->
+      context = Browser.new_context!(browser)
+      page(context, "CLOSED")
+      BrowserContext.close!(context)
+      page(Browser.new_context!(browser), "OPEN")
+      Playwright.Test.attach("note", body: "hello")
+    end)
+
+    finish(test, [failed()], :shutdown)
+    attachments = Playwright.Test.info(test.pid).attachments
+    file = &Path.join(test.dir, &1)
+
+    assert attachments == [
+             %{name: "note", content_type: "text/plain", path: nil, body: "hello"},
+             %{name: "screenshot", content_type: "image/png", path: file.("test-failed-1.png"), body: nil},
+             %{name: "video", content_type: "video/webm", path: file.("video.webm"), body: nil},
+             %{name: "video", content_type: "video/webm", path: file.("video-1.webm"), body: nil},
+             %{name: "screenshot", content_type: "image/png", path: file.("test-failed-2.png"), body: nil},
+             %{name: "error-context", content_type: "text/markdown", path: file.("error-context.md"), body: nil},
+             %{name: "trace", content_type: "application/zip", path: file.("trace.zip"), body: nil}
+           ]
+
+    {:ok, files} = :zip.unzip(String.to_charlist(file.("trace.zip")), [:memory])
+    trace = for {~c"test.trace", data} <- files, line <- String.split(data, "\n"), do: JSON.decode!(line)
+    titles = for %{"type" => "before", "method" => "test.attach"} = event <- trace, do: event["title"]
+    expected = ~w(note screenshot video video screenshot error-context)
+    assert titles == Enum.map(expected, &~s(Attach "#{&1}"))
+  end
+
   @tag :tmp_dir
   test "error-context.md has the errors, the source, and the page snapshot unless a matcher has one", %{tmp_dir: dir} do
-    test = %{output_dir: dir, title_path: ["x_test.exs", "t"], location: {__ENV__.file, 1}}
+    test = %{
+      test_pid: self(),
+      step_id_prefix: "t",
+      output_dir: dir,
+      title_path: ["x_test.exs", "t"],
+      location: {__ENV__.file, 1}
+    }
+
     page_snapshot = ~s(- heading "PAGE")
 
     stack = [{__MODULE__, :t, 1, file: __ENV__.file, line: __ENV__.line}]

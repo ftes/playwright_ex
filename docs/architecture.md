@@ -404,8 +404,8 @@ API), as ExUnit gives the context only the values, which a `setup` may overwrite
 The matchers, traces and failure reports need part of Playwright Test, so that part is ported:
 `Playwright.Test.TestInfo` (`testInfo.ts`: snapshot paths, `_failWithError`, steps, `attach`),
 `Playwright.Test.TestTracing` (`testTracing.ts`: `test.trace`), `step/3` (`test.step`),
-`Playwright.Test.ErrorContext` (`errorContext.ts`) and `Playwright.Test.GitHubFormatter`
-(`reporters/github.ts`), with upstream source references and `-- not ported`/`# deviation:`
+`Playwright.Test.ErrorContext` (`errorContext.ts`), `Playwright.Test.GitHubFormatter`
+(`reporters/github.ts`) and `Playwright.Test.JSONFormatter` (`reporters/json.ts`), with upstream source references and `-- not ported`/`# deviation:`
 comments. They have no `@upstream`, as parity tracks the client API, not the runner (they are in
 `@derived` of `Mix.Playwright.Notices`); the rest of the runner is native.
 

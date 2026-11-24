@@ -50,8 +50,15 @@ defmodule Playwright.Test.ErrorContext do
 
     if content =
          build(%{title_path: test.title_path, location: test.location, errors: errors, page_snapshot: page_snapshot}) do
+      file_path = Path.join(test.output_dir, "error-context.md")
       File.mkdir_p!(test.output_dir)
-      File.write!(Path.join(test.output_dir, "error-context.md"), content)
+      File.write!(file_path, content)
+
+      Playwright.Test.TestInfo._attach(
+        test,
+        %{name: "error-context", contentType: "text/markdown", path: file_path},
+        nil
+      )
     end
   end
 

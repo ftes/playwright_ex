@@ -275,7 +275,8 @@ Each area's row lists its main features, each feature's row its main gaps.
 | `github`, `reportSlowTests` | ✓ | `Playwright.Test.GitHubFormatter` ([Annotations](../debugging-and-ci.md#annotations)) |
 | `list`, `line`, `dot`, `failures` | n/a | ExUnit's CLI formatter |
 | `null` | n/a | no formatter: `ExUnit.start(formatters: [])` |
-| `json`, `junit` | n/a | an ExUnit formatter from Hex, such as `junit_formatter` |
+| `json` | ✓ | `Playwright.Test.JSONFormatter` ([A report of the run](../test-artifacts.md#a-report-of-the-run)); no `stdout`, `stderr`, `annotations` or `workerIndex` |
+| `junit` | n/a | an ExUnit formatter from Hex, such as `junit_formatter` |
 | custom reporters | n/a | an ExUnit formatter |
 | `html`, `blob`, `merge-reports`, `perfetto` | ✗ | not ported yet |
 | `coverage` | ✗ | not ported yet: `Playwright.Coverage` collects, your code reports |
@@ -291,7 +292,7 @@ Each area's row lists its main features, each feature's row its main gaps.
 | the video's step overlay (`show.test`) | ◐ | not ported yet: it keeps the title of a process killed inside a step, and shows an IPv6 host with a zone id as `fe80` |
 | `error-context.md` | ✓ | |
 | the test's output dir, `preserveOutput` | ✓ | [Artifacts](Playwright.Test.html#module-artifacts) |
-| attachments | ✓ | `Playwright.Test.attach/2`, in the trace |
+| attachments | ✓ | `Playwright.Test.attach/2`, in the trace; the artifacts' too, in `info/1`'s `attachments` and the JSON report |
 | `beforeAll` contexts, recorded per test | ✗ | not ported yet: create the context per test ([Contexts of `setup_all`](Playwright.Test.html#module-contexts-of-setup_all)) |
 | the test's stdout and stderr in the trace | ✗ | not ported yet |
 
@@ -308,7 +309,7 @@ Each area's row lists its main features, each feature's row its main gaps.
 | steps in `beforeAll` | ◐ | they run in `setup_all`, recorded nowhere (not planned: ExUnit runs it before any test); a route handler or listener registered inside a boxed `setup_all` step keeps that step as its steps' parent in later tests (not ported yet) |
 | steps and asserts in handlers | ◐ | a handler registered inside `to_pass` or `poll` keeps the matcher's test, so its passed asserts record into that test even after it finished (not ported yet) |
 | steps of a library's helpers | ✓ | `Playwright.Test.step/3` with `box: true` locates a helper's step and its errors at the caller; inner steps keep their own location, as upstream's. Steps the library's own code makes (its asserts, `Expect` calls, unboxed steps) are located in the library's file: step locations leave out only the frames of Playwright, ExUnit, Elixir and OTP, as upstream's leave out only its own package and Node's internals |
-| `test.info()` | ◐ | `Playwright.Test.info/0`: `test_pid`, `file`, `test_name`, `output_dir`, `retry`, `timeout`, `deadline`, `use`, `project` (the module's `parameters/1` project, else the default one, without a name; `name` and `use`, the config's options with the project's over them; its other fields not ported yet); `info/1` in `on_exit`, with `status`, `errors`, `duration`; `config`: `Playwright.Test.config/0`; the rest below |
+| `test.info()` | ◐ | `Playwright.Test.info/0`: `test_pid`, `file`, `test_name`, `output_dir`, `attachments`, `retry`, `timeout`, `deadline`, `use`, `project` (the module's `parameters/1` project, else the default one, without a name; `name` and `use`, the config's options with the project's over them; its other fields not ported yet); `info/1` in `on_exit`, with `status`, `errors`, `duration`; `config`: `Playwright.Test.config/0`; the rest below |
 | `test.info()` in `beforeAll` | ◐ | `info/0` in `setup_all` has the module's `file`, `timeout`, `project` and `use`, but no `test_pid`, which tells a test from `setup_all` (not planned: upstream's is the first test's, and ExUnit runs `setup_all` before any test) |
 | `outputPath`, `attach`, `snapshotPath` | ✓ | `output_path/1`, `attach/2`, `snapshot_path/2` |
 | `outputPath` in `beforeAll` | ✗ | not ported yet: `output_path/1` raises in `setup_all`, where upstream's is the first test's dir |

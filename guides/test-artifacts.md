@@ -45,7 +45,9 @@ upstream's.
 
 Files of your own go in the test's dir with `Playwright.Test.output_path("export.csv")`; they
 stay when the test passes. `Playwright.Test.attach("export", path: path)` (or `body:`) also shows
-one in the trace, as Playwright Test's `testInfo.attach`.
+one in the trace, as Playwright Test's `testInfo.attach`. The files kept are the test's
+attachments too, after yours, as Playwright Test's `testInfo.attachments`: `screenshot`, `video`,
+`error-context` and `trace`, each with its `path`.
 
 The files are written in the test's `on_exit`, which ExUnit runs in reverse order of
 registration. An `on_exit` that reads them (to check a `trace.zip`, say) must therefore be
@@ -56,13 +58,32 @@ it in teardown (`status`, `errors`, `duration`):
 ```elixir
 setup %{test_pid: test_pid} do
   on_exit(fn ->
-    %{status: status, output_dir: dir} = Playwright.Test.info(test_pid)
-    if status != :passed, do: MyApp.CI.upload(Path.join(dir, "trace.zip"))
+    %{status: status, attachments: attachments} = Playwright.Test.info(test_pid)
+    for %{name: "trace", path: path} <- attachments, status != :passed, do: MyApp.CI.upload(path)
   end)
 end
 
 use Playwright.Test
 ```
+
+## A report of the run
+
+`Playwright.Test.JSONFormatter` is Playwright Test's `json` reporter: one JSON file of the run,
+in the reporter's shape, with each test's result (`status`, `duration`, `errors`, `steps`) and
+its `attachments`, the paths of its trace, screenshots and videos. A CI step or a script that
+builds a summary reads the paths from there, rather than guessing them from test names:
+
+```elixir
+# test/test_helper.exs
+ExUnit.start(formatters: [ExUnit.CLIFormatter, Playwright.Test.JSONFormatter])
+
+# config/test.exs
+config :playwright, :test, json_output_file: "test-results/results.json"
+```
+
+`PLAYWRIGHT_JSON_OUTPUT_FILE` overrides the config, as in Playwright Test; without either, the
+report goes to standard output. Its fields, and what ExUnit can't fill in:
+`Playwright.Test.JSONFormatter`.
 
 ## Retries
 

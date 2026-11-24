@@ -92,7 +92,10 @@ defmodule Playwright.Test.ResultTest do
              first
 
     assert duration >= 20
-    assert last == first
+    # And after it, the artifacts' attachments: the failure's `error-context.md`.
+    assert first.attachments == []
+    assert [%{name: "error-context", content_type: "text/markdown"}] = last.attachments
+    assert %{last | attachments: []} == first
     # Gone with the on_exit process, once the pool saw its exit.
     assert_raise RuntimeError, ~r/^Playwright.Test.info\/1: no test running or in its on_exit, got: /, fn ->
       until_raises(fn -> Playwright.Test.info(pid) end)

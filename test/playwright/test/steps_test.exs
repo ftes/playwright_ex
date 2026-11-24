@@ -673,6 +673,14 @@ defmodule Playwright.Test.StepsTest do
     assert [copy] = File.ls!(Path.join(dir, "attachments"))
     assert copy =~ ~r/^report-[0-9a-f]{40}\.json$/
 
+    assert [
+             %{name: "report", content_type: "application/json", path: path, body: nil},
+             %{name: "note", content_type: "text/plain", path: nil, body: "hello"},
+             %{name: "bytes", content_type: "application/octet-stream", body: <<255, 0>>}
+           ] = Test.info().attachments
+
+    assert path == Path.join([dir, "attachments", copy])
+
     assert_raise RuntimeError, ~r/Exactly one of "path" and "body"/, fn -> Test.attach("x", path: file, body: "") end
     assert_raise ArgumentError, fn -> Test.attach("x", contentType: "text/plain") end
   end

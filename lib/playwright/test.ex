@@ -109,6 +109,15 @@ defmodule Playwright.Test do
       the first page of the first context closed after the failure (upstream's `didFinishTest`
       and `buildErrorContext`), whatever the modes.
 
+  Each file kept is one of the test's attachments, as upstream's `testInfo.attachments`, after
+  those of `attach/2`: `screenshot` (`image/png`), `video` (`video/webm`), `error-context`
+  (`text/markdown`) and `trace` (`application/zip`), with its absolute `path`. Each but the trace
+  is also a `test.attach` step of the trace (so `trace.zip` holds a copy, unless the trace's
+  `attachments: false`). `info/1` in a later `on_exit` callback has them (`attachments`), and so
+  does each test's result in `Playwright.Test.JSONFormatter`'s report, which ExUnit writes after
+  the test's `on_exit` callbacks. Under `preserve_output: :failures_only` or `:never`, a deleted
+  file stays listed, as upstream's.
+
   The modes are config, the project's over it (`parameters/1`), the module's `use` options over
   those, and `use/1` in tags over those (a test's `@tag` over its `@describetag` over the
   module's `@moduletag`): `trace` and `video` `:off`
@@ -259,7 +268,7 @@ defmodule Playwright.Test do
   | `browser_name`, `headless`, `channel`, `launch_options`, `connect_options` | yes | yes | yes | raises when the module compiles a `test` under it, as Playwright Test's `test.use` in a describe |
   | `default_browser_type` (a device's) | picks the browser | picks the browser | picks the browser | raises, as the browser keys |
   | `test_id_attribute` | yes | no | no | no (a deviation: upstream's is an option of every level, global to a worker, which runs one test at a time; here it is global to the VM, which the tests running at once share) |
-  | `output_dir`, `preserve_output`, `workers`, `snapshot_dir`, `snapshot_path_template`, `driver`, `on_start` | yes | no | no | no |
+  | `output_dir`, `preserve_output`, `workers`, `snapshot_dir`, `snapshot_path_template`, `json_output_file`, `driver`, `on_start` | yes | no | no | no |
 
   ## Contexts of `setup_all`
 
@@ -476,6 +485,7 @@ defmodule Playwright.Test do
         snapshot_path_template: nil,  # upstream's defaults, see Snapshots
         test_id_attribute: "data-testid",
         report_slow_tests: [max: 5, threshold: 300_000], # Playwright.Test.GitHubFormatter's, ms; false: none
+        json_output_file: nil,        # Playwright.Test.JSONFormatter's report, else stdout
         assert_steps: true,           # assert/refute as steps, at compile time (see Assertions)
         expect: [],                   # the matchers': [timeout: 5000, to_have_screenshot: [...], ...], see Playwright.Expect
         update_snapshots: :default,   # :all | :changed | :missing | :none | :default, see Snapshots
@@ -497,8 +507,8 @@ defmodule Playwright.Test do
   `output_dir`, `browser_name`, `report_slow_tests`, `update_snapshots`, `ignore_snapshots`,
   `expect`'s `to_have_screenshot` `type` and the context options (as
   `Browser.new_context/2` checks them), and of `workers` (a positive integer: upstream's also
-  takes `"50%"` or a numeric string, which aren't supported), `on_start` and Elixir's
-  `assert_steps` (a boolean). `browser_name` and `preserve_output` take an atom (`:webkit`,
+  takes `"50%"` or a numeric string, which aren't supported), `on_start`, `json_output_file` (a
+  string) and Elixir's `assert_steps` (a boolean). `browser_name` and `preserve_output` take an atom (`:webkit`,
   `:failures_only`) or upstream's string (`"webkit"`, `"failures-only"`): an unknown atom raises
   as any bad value, an unknown string with upstream's error. Other values pass as given, as
   upstream's: an unknown artifact mode records nothing. An unknown key in `expect`, or a bad
@@ -508,6 +518,7 @@ defmodule Playwright.Test do
 
   alias Playwright.Runtime.Zones
   alias Playwright.Test.ErrorContext
+  alias Playwright.Test.JSONFormatter
   alias Playwright.Test.Options
   alias Playwright.Test.Pool
   alias Playwright.Test.Recorder
@@ -1058,7 +1069,11 @@ defmodule Playwright.Test do
         test_timeout: timeout,
         deadline: if(is_integer(timeout), do: started(context) + timeout),
         preserve_output: Options.preserve_output(config),
-        tmp: Path.join(System.tmp_dir!(), "playwright-test-#{System.unique_integer([:positive])}")
+        tmp: Path.join(System.tmp_dir!(), "playwright-test-#{System.unique_integer([:positive])}"),
+        # Elixir only: the test as `Playwright.Test.JSONFormatter` gets it (`%ExUnit.Test{}`), and
+        # its `result.startTime`.
+        report_key: {context.module, context.test, parameters},
+        start_time: System.os_time(:millisecond)
       })
       |> Map.merge(context_defaults(config, layers, module_worker(context[:module], use_options, %{})))
       |> Map.put(:use_modes, use_modes)
@@ -1125,7 +1140,8 @@ defmodule Playwright.Test do
     {test, recorder} = Results.take(test_pid)
     if !test, do: raise("Playwright.Test: the test's registration is gone (the pool restarted since)")
     # For `info/1` in the `on_exit` callbacks that run after this one.
-    Results.keep_info(test_pid, Map.merge(info_of(test), result_info(test_pid, result, recorder)))
+    info = Map.merge(info_of(test), result_info(test_pid, result, recorder))
+    Results.keep_info(test_pid, info)
 
     trace =
       case finish_artifacts(test, recorder, result, deadline) do
@@ -1138,6 +1154,13 @@ defmodule Playwright.Test do
         trace ->
           trace
       end
+
+    # With the artifacts' attachments.
+    attachments = TestInfo.attachments(test_pid)
+    info = %{info | attachments: info_attachments(attachments)}
+    Results.keep_info(test_pid, info)
+    # For the JSON formatter's `test_finished`, which ExUnit sends after the `on_exit` callbacks.
+    JSONFormatter.put_result(test, info.status, attachments, TestInfo.take_steps(test_pid))
 
     # The list reporter's `npx playwright show-trace <path>`, after the failures as its summary
     # has it: ExUnit prints this test's failure only after its `on_exit` callbacks.
@@ -1178,7 +1201,9 @@ defmodule Playwright.Test do
   The running test of the calling process or a process in its `$callers` (a `Task`), as
   upstream's `test.info()`: `test_pid`, `file` (absolute), `test_name` (without the macro's
   `test ` prefix), `output_dir` (absolute, with its `-retry1` suffix under `mix test --failed`,
-  see "Artifacts" in the moduledoc), `retry` (upstream's `testInfo.retry`: 0, or 1
+  see "Artifacts" in the moduledoc), `attachments` (upstream's `testInfo.attachments`: those of
+  `attach/2` so far, in order, each a map of `name`, `content_type` and `path` or `body`, the
+  other `nil`; `info/1` adds the artifacts'), `retry` (upstream's `testInfo.retry`: 0, or 1
   under `mix test --failed`) and `timeout` (upstream's `testInfo.timeout`: ExUnit's timeout of the test in
   ms, the `@tag timeout:` or `mix test --timeout`, `:infinity` for none, as under `mix test
   --trace`) and `deadline` (upstream's internal `testInfo._deadline()`: monotonic milliseconds
@@ -1239,12 +1264,16 @@ defmodule Playwright.Test do
 
       Playwright.Test.info().test_pid
   """
+  @typedoc "An attachment of `info/0`: upstream's `name`, `contentType` and `path` or `body`."
+  @type attachment :: %{name: String.t(), content_type: String.t(), path: Path.t() | nil, body: binary() | nil}
+
   @spec info() ::
           %{
             test_pid: pid(),
             file: Path.t(),
             test_name: String.t(),
             output_dir: Path.t(),
+            attachments: [attachment()],
             retry: non_neg_integer(),
             timeout: timeout(),
             deadline: integer() | :infinity,
@@ -1280,6 +1309,7 @@ defmodule Playwright.Test do
     test
     |> Map.take(@info_keys)
     |> Map.merge(%{
+      attachments: info_attachments(TestInfo.attachments(test.test_pid)),
       timeout: test.test_timeout,
       deadline: TestInfo._deadline(test).deadline,
       project: Options.info_project(test.project),
@@ -1298,7 +1328,8 @@ defmodule Playwright.Test do
   @doc """
   `info/0` of the test `test_pid` (the context's `test_pid`), from any process, from its setup to
   the end of its `on_exit` callbacks. Once the test's process has exited, so in `on_exit`, it has
-  upstream's result fields too, as `testInfo` has in teardown:
+  upstream's result fields too, as `testInfo` has in teardown, and in the `on_exit` callbacks
+  after the registration's (see "Artifacts" in the moduledoc), the artifacts' `attachments`:
 
     * `status` - `:passed`, `:failed`, `:timed_out` (past ExUnit's timeout), or `nil`
       for a test of another macro (a doctest).
@@ -1331,6 +1362,17 @@ defmodule Playwright.Test do
           do: info,
           else: Map.merge(info, result_info(test_pid, Results.result(test_pid, 5000), Recorder.lookup(test_pid)))
     end
+  end
+
+  # `testInfo.attachments` with snake_case keys, as the other fields.
+  defp info_attachments(attachments) do
+    for attachment <- attachments,
+        do: %{
+          name: attachment.name,
+          content_type: attachment.contentType,
+          path: attachment[:path],
+          body: attachment[:body]
+        }
   end
 
   # `testInfo.status`, `errors`, `expectedStatus`, `duration` of a result (`Results.result/2`).
@@ -1465,7 +1507,7 @@ defmodule Playwright.Test do
 
   @doc """
   Upstream's `testInfo.attach(name, options)`: attaches a file or a binary to the running test,
-  as a `test.attach` step of its trace, which shows it. Options:
+  one of `info/0`'s `attachments` and a `test.attach` step of its trace, which shows it. Options:
 
     * `:path` - a file, copied to `attachments/<name>-<hash><ext>` in the test's output dir,
       which keeps it also when the test passes.

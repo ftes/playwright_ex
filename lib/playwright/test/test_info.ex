@@ -9,8 +9,8 @@ defmodule Playwright.Test.TestInfo do
   # names and output dir (`titlePath`, `outputDir`, with util.ts's `sanitizeForFilePath` and
   # `trimLongString`), snapshot paths (`_resolveSnapshotPaths`, `snapshotPath`), output paths
   # (`_getOutputPath`) and error list (`_failWithError`), which fails the test when its body
-  # ends (`Playwright.Test.__passed__/0`), and its steps (`_addStep`), traced by its
-  # `_tracing` (`Playwright.Test.TestTracing`).
+  # ends (`Playwright.Test.__passed__/0`), its steps (`_addStep`), traced by its `_tracing`
+  # (`Playwright.Test.TestTracing`), and its `attachments` (`_attach`).
   #
   # `this` is a map of the test's static fields. Its mutable state, the snapshot indexes, the
   # errors and the steps, are rows of the pool's public table keyed `{:test_info, test_pid, _}`,
@@ -24,6 +24,7 @@ defmodule Playwright.Test.TestInfo do
   alias Playwright.Runtime.Callers
   alias Playwright.Runtime.Zones
   alias Playwright.Test.ErrorContext
+  alias Playwright.Test.JSONFormatter
   alias Playwright.Test.Recorder
   alias Playwright.Test.Results
   alias Playwright.Test.TestTracing
@@ -58,8 +59,9 @@ defmodule Playwright.Test.TestInfo do
     (project && project.name) || ""
   end
 
-  # `_tracing`: the test's recorder, if it records artifacts.
-  defp _tracing(this), do: Recorder.lookup(this.test_pid)
+  # `_tracing`: the test's recorder, if it records artifacts. Elixir only: `this`'s own
+  # `_tracing`, the recorder's at the test's end, once the test's row of it is gone.
+  defp _tracing(this), do: this[:_tracing] || Recorder.lookup(this.test_pid)
 
   # The test's names and output dir, from its ExUnit context, as `testInfo`'s constructor
   # (`titlePath`, `outputDir`) and util.ts (`sanitizeForFilePath`, `trimLongString`) make them.
@@ -281,12 +283,55 @@ defmodule Playwright.Test.TestInfo do
   """
   def ended(test_pid) do
     errors = finish(test_pid)
+    # Elixir only: the test's steps, as its reporter's `onStepBegin` and `onStepEnd` gave them,
+    # for the JSON formatter (`take_steps/1`), before their rows go.
+    if JSONFormatter.listening?(), do: :ets.insert(Results.table(), {{:steps, test_pid}, steps(test_pid)})
     # Not the errors: a late `_fail_with_error/2` takes its own back. Nor the interrupt
     # (`take_interrupt/1`): a late `_unhandled_error/2` takes its own back too.
     not_error = {:not, {:andalso, {:is_tuple, :"$1"}, {:==, {:element, 1, :"$1"}, :error}}}
     not_interrupt = {:"=/=", :"$1", :has_unhandled_error}
     :ets.select_delete(Results.table(), [{{{:test_info, test_pid, :"$1"}, :_}, [not_error, not_interrupt], [true]}])
     errors
+  end
+
+  # The reported steps (`!step.group`) of the test, nested by `parentStepId`, as the reporter's
+  # `result.steps`: a step whose parent it doesn't know is a top-level one.
+  defp steps(test_pid) do
+    rows =
+      for {{_, _, {:step, _id}}, %{group: nil} = row} <-
+            :ets.match_object(Results.table(), {{:test_info, test_pid, {:step, :_}}, :_}),
+          do: row
+
+    ids = MapSet.new(rows, & &1.stepId)
+    by_parent = Enum.group_by(rows, &if(MapSet.member?(ids, &1.parentStepId), do: &1.parentStepId))
+    nest_steps(by_parent, nil)
+  end
+
+  # `TestStep`: `duration` is `-1` for a step that never ended.
+  defp nest_steps(by_parent, parent_step_id) do
+    for row <- Enum.sort_by(Map.get(by_parent, parent_step_id, []), & &1.seq) do
+      %{
+        title: row.title,
+        subtitle: row.subtitle,
+        category: row.category,
+        startWallTime: row.startWallTime,
+        duration: if(row.endWallTime, do: row.endWallTime - row.startWallTime, else: -1),
+        error: row.error,
+        steps: nest_steps(by_parent, row.stepId)
+      }
+    end
+  end
+
+  @doc """
+  Takes the steps of the ended test `test_pid` (`ended/1` keeps them while the JSON formatter
+  runs): maps of `title`, `subtitle`, `category`, `startWallTime`, `duration` (ms), `error` and
+  `steps`. `nil` without them.
+  """
+  def take_steps(test_pid) do
+    case Results.started?() && :ets.take(Results.table(), {:steps, test_pid}) do
+      [{_key, steps}] -> steps
+      _ -> nil
+    end
   end
 
   @doc "Takes the errors `_fail_with_error/2` recorded for the test `test_pid`."
@@ -373,13 +418,20 @@ defmodule Playwright.Test.TestInfo do
     # `info: new TestStepInfoImpl(...)`, `steps: []`; `parentStepList.push(step)`,
     # `this._stepMap.set(stepId, step)`: the row, its parent's `steps` by `parentStepId`.
     put_row(this, step_key(step), %{
+      stepId: step_id,
       parentStepId: parent_step && parent_step.stepId,
       seq: seq,
+      # The step's fields the reporter reads (`take_steps/1`).
+      title: step.title,
+      subtitle: step[:subtitle],
+      category: step.category,
+      group: step.group,
+      startWallTime: System.os_time(:millisecond),
       endWallTime: nil,
       error: nil,
       infectParentStepsWithError: false,
       annotations: [],
-      # `attachmentIndices`: the attachments themselves (there is no `testInfo.attachments`).
+      # `attachmentIndices`: the attachments themselves.
       attachments: []
     })
 
@@ -763,9 +815,21 @@ defmodule Playwright.Test.TestInfo do
     step_complete(step, %{})
   end
 
-  # `_attach(attachment, stepId)`, with the step itself. `_attachmentsPush`, `onAttach`  -- not
-  # ported: reporters
-  defp _attach(this, attachment, step) do
+  @doc """
+  `testInfo.attachments.push(attachment)`, as the constructor overrides it: `_attach` in the
+  step of the zone. The artifact recording's (`trace`, `screenshot`, `video`) and
+  `error-context`'s.
+  """
+  def attachments_push(this, attachment), do: _attach(this, attachment, _parent_step(this))
+
+  @doc """
+  `_attach(attachment, stepId)`, with the step itself (or `nil`): adds `attachment` (`name`,
+  `contentType`, `path` or `body`) to `testInfo.attachments` (`attachments/1`), and to the
+  step's, or to a `test.attach` step of its own in the trace.
+  """
+  def _attach(this, attachment, step) do
+    _attachments_push(this, attachment)
+
     step = if step[:group], do: nil, else: step
 
     with %{} = step <- step,
@@ -785,6 +849,31 @@ defmodule Playwright.Test.TestInfo do
         })
 
         TestTracing.append_after_action_for_step(tracing, step_id, nil, [attachment])
+    end
+
+    # this._callbacks.onAttach({ ... });  -- not ported: reporters (the JSON formatter reads
+    # `attachments/1` at the test's end)
+    :ok
+  end
+
+  # `this._attachmentsPush`, the array's own `push`. Elixir only: rows of the pool's table
+  # `{:attachment, test_pid, seq}`, not the test's `{:test_info, ...}` ones, as the recording
+  # attaches its artifacts after the test's process ended. They stay until its `on_exit` ends
+  # (`Playwright.Test.Results.down/3`).
+  defp _attachments_push(this, attachment) do
+    seq = System.unique_integer([:positive, :monotonic])
+    :ets.insert(Results.table(), {{:attachment, this.test_pid, seq}, attachment})
+  end
+
+  @doc "`testInfo.attachments` of the test `test_pid`, in the order they were added."
+  def attachments(test_pid) do
+    if Results.started?() do
+      Results.table()
+      |> :ets.match_object({{:attachment, test_pid, :_}, :_})
+      |> Enum.sort_by(fn {{_, _, seq}, _attachment} -> seq end)
+      |> Enum.map(&elem(&1, 1))
+    else
+      []
     end
   end
 

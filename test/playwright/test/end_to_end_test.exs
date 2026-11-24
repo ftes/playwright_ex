@@ -86,6 +86,83 @@ defmodule Playwright.Test.EndToEndTest do
     refute File.read!(Path.join([output_dir, dir, "trace.zip"])) == first
   end
 
+  test "the JSON formatter writes upstream's report, with each test's steps and artifacts' paths",
+       %{tmp_dir: tmp_dir} do
+    child = start("json", tmp_dir)
+    assert ChildProcess.exit_code(child, 60_000) == 0
+    report = JSON.decode!(File.read!(Path.join(tmp_dir, "report.json")))
+
+    assert %{"rootDir" => root_dir, "projects" => [%{"name" => "", "id" => "", "retries" => 0}]} = report["config"]
+    assert root_dir == Path.join(File.cwd!(), "test")
+    assert %{"expected" => 2, "unexpected" => 1, "skipped" => 2, "flaky" => 0} = report["stats"]
+    assert [%{"message" => setup_all_error}] = report["errors"]
+    assert setup_all_error =~ "setup_all on purpose"
+
+    file = "support/test_runner_impl.exs"
+
+    assert [%{"title" => ^file, "file" => ^file, "line" => 0, "specs" => specs, "suites" => [describe]}] =
+             report["suites"]
+
+    assert Enum.map(specs, & &1["title"]) == ["passes", "passes", "skips", "does not run"]
+    assert %{"title" => "checkout", "file" => ^file, "specs" => [failing]} = describe
+
+    [passing, plain, skipped, not_run] = specs
+    assert %{"ok" => true, "file" => ^file, "id" => id, "tests" => [test]} = passing
+    assert id =~ ~r/^[0-9a-f]{20}-[0-9a-f]{20}$/
+    assert %{"status" => "expected", "expectedStatus" => "passed", "projectName" => "", "results" => [result]} = test
+    assert %{"status" => "passed", "retry" => 0, "errors" => [], "stdout" => [], "attachments" => attachments} = result
+    refute Map.has_key?(result, "error")
+    assert {:ok, _, _} = DateTime.from_iso8601(result["startTime"])
+
+    assert [%{"title" => "outer", "duration" => duration, "steps" => [%{"title" => "inner"}]}] = result["steps"]
+    assert is_integer(duration) and duration >= 0
+
+    assert [
+             %{"name" => "note", "contentType" => "text/plain", "body" => body},
+             %{"name" => "screenshot", "contentType" => "image/png", "path" => screenshot},
+             %{"name" => "trace", "contentType" => "application/zip", "path" => trace}
+           ] = attachments
+
+    assert Base.decode64!(body) == "hello"
+    assert Path.basename(screenshot) == "test-finished-1.png" and File.exists?(screenshot)
+    assert Path.basename(trace) == "trace.zip" and File.exists?(trace)
+    assert Path.dirname(trace) =~ ~r/support-test_runner_impl-passes-[0-9a-f]{5}$/
+    # The screenshot's attachment, a step of its own, is in the trace.
+    assert trace_text(trace) =~ ~s("title":"Attach \\"screenshot\\"")
+
+    assert %{"ok" => false, "tests" => [%{"status" => "unexpected", "results" => [result]}]} = failing
+
+    assert %{"status" => "failed", "error" => error, "errors" => [%{"message" => message, "location" => location}]} =
+             result
+
+    assert error["message"] =~ "ExUnit.AssertionError: on purpose"
+    assert message =~ "on purpose"
+    assert %{"file" => location_file, "line" => _, "column" => 0} = location
+    assert location_file == Path.join(File.cwd!(), "test/support/test_runner_impl.exs")
+    assert result["errorLocation"] == location
+
+    assert [%{"title" => "pay", "error" => %{"message" => _}, "steps" => [%{"title" => "charge", "error" => _}]}] =
+             result["steps"]
+
+    assert ["screenshot", "error-context", "trace"] = Enum.map(result["attachments"], & &1["name"])
+    assert Enum.all?(result["attachments"], &File.exists?(&1["path"]))
+
+    # A test without `Playwright.Test`: ExUnit's fields only.
+    assert %{"tests" => [%{"status" => "expected", "results" => [%{"status" => "passed", "attachments" => []}]}]} =
+             plain
+
+    refute Map.has_key?(hd(hd(plain["tests"])["results"]), "steps")
+
+    assert %{
+             "tests" => [
+               %{"status" => "skipped", "expectedStatus" => "skipped", "results" => [%{"status" => "skipped"}]}
+             ]
+           } =
+             skipped
+
+    assert %{"ok" => true, "tests" => [%{"status" => "skipped", "results" => []}]} = not_run
+  end
+
   test "retry modes: a test under --failed is a retry, its trace, video and screenshot by its mode",
        %{tmp_dir: tmp_dir} do
     output_dir = Path.join(tmp_dir, "test-results")
@@ -255,7 +332,9 @@ defmodule Playwright.Test.EndToEndTest do
     end
 
     events = trace_events.("fails-in-a-boxed-step")
-    [outer, log_in] = for %{"type" => "before"} = event <- events, do: event
+    # Then the attach step of `error-context.md`.
+    [outer, log_in, attach] = for %{"type" => "before"} = event <- events, do: event
+    assert %{"method" => "test.attach", "title" => ~s(Attach "error-context")} = attach
     assert %{"title" => "outer", "method" => "test.step"} = outer
     assert %{"title" => "log in", "parentId" => parent_id} = log_in
     assert parent_id == outer["callId"]
@@ -279,7 +358,7 @@ defmodule Playwright.Test.EndToEndTest do
     assert failed =~ "test/support/test_runner_impl.exs:#{line.("(the failing assert)")}: (test)"
 
     events = trace_events.("fails-in-an-assert")
-    [passed, failed] = for %{"type" => "before"} = event <- events, do: event
+    [passed, failed, %{"method" => "test.attach"}] = for %{"type" => "before"} = event <- events, do: event
 
     assert %{
              "title" => ~s(Expect "assert"),
