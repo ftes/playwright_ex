@@ -63,7 +63,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup languages
-        uses: jdx/mise-action@90f833d396d0cc3674b631d2d225e306476c303a # v5.2.10
+        uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
       # Caches built on another runner image (e.g. ubuntu24 vs ubuntu26) don't fit: PLTs are
       # rejected as "Old PLT file", compiled NIFs and ERTS paths may differ.
       - name: Get runner image
@@ -181,7 +181,7 @@ jobs:
         if: matrix.lane == 'oldest'
         run: cp .tool-versions.oldest .tool-versions
       - name: Setup languages
-        uses: jdx/mise-action@90f833d396d0cc3674b631d2d225e306476c303a # v5.2.10
+        uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
       - name: Get runner image
         id: runner_image
         run: |
