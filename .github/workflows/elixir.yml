@@ -36,10 +36,9 @@ on:
 # A new push to a PR cancels its running CI. Other events (main pushes, the nightly, dispatched
 # experiments) get a group of their own: in a shared group GitHub keeps one run pending and cancels
 # the older pending one, which would drop a nightly or a main push's cache save, and serialize
-# parallel experiments. So does a PR run that tests nothing (a draft, or below the top of its
-# stack), so that it can't cancel the tip's test run.
+# parallel experiments.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && !github.event.pull_request.draft && (github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size) && github.ref || github.run_id }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: true
 
 # Each job asks for what it needs.
