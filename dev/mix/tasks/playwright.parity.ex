@@ -734,7 +734,7 @@ defmodule Mix.Tasks.Playwright.Parity do
       end
 
     matched = fn pred ->
-      for test <- tests, pred.(test), row <- matched_rows(test.match), into: MapSet.new(), do: row.id
+      for test <- tests, pred.(test), row = test.match, into: MapSet.new(), do: row.id
     end
 
     ported = matched.(& &1.body?)
@@ -757,9 +757,6 @@ defmodule Mix.Tasks.Playwright.Parity do
       specs: for(file <- Map.keys(pin), pin[file], do: file)
     }
   end
-
-  defp matched_rows({:ok, row}), do: [row]
-  defp matched_rows(:none), do: []
 
   # file => the test identifiers of its spec at the pin (nil without one).
   defp pin_ids(upstream, files) do
@@ -946,7 +943,7 @@ defmodule Mix.Tasks.Playwright.Parity do
   @doc false
   # Informational: registry rows not at the pin, mirrored tests not in the registry.
   def registry_info(registry) do
-    unmatched = Enum.filter(registry.tests, &(&1.match == :none))
+    unmatched = Enum.filter(registry.tests, &is_nil(&1.match))
 
     examples =
       for test <- Enum.take(unmatched, 5) do

@@ -61,9 +61,9 @@ defmodule Mix.Playwright.TestRegistryTest do
 
   test "match/2: by identifier, in the rows of the file", %{rows: rows} do
     cc = Enum.filter(rows, &(&1.file == "library/client-certificates"))
-    assert {:ok, %{id: "CC-040"}} = TestRegistry.match(cc, "CC-040")
-    assert :none = TestRegistry.match(cc, "BC-073")
-    assert :none = TestRegistry.match(cc, nil)
+    assert %{id: "CC-040"} = TestRegistry.match(cc, "CC-040")
+    assert TestRegistry.match(cc, "BC-073") == nil
+    assert TestRegistry.match(cc, nil) == nil
   end
 
   test "id/1: the identifier a name starts with, also of a name built at runtime" do

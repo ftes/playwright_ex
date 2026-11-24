@@ -104,15 +104,9 @@ defmodule Mix.Playwright.TestRegistry do
   def file_key(upstream), do: upstream |> String.replace_prefix("tests/", "") |> String.replace_suffix(".spec.ts", "")
 
   @doc """
-  The row of a test in `rows` (the rows of its file) with the test's identifier (`id/1`):
-  `{:ok, row}`, or `:none`.
+  The row of a test in `rows` (the rows of its file) with the test's identifier (`id/1`), or nil.
   """
-  def match(rows, id) do
-    case id && Enum.find(rows, &(&1.id == id)) do
-      nil -> :none
-      row -> {:ok, row}
-    end
-  end
+  def match(rows, id), do: id && Enum.find(rows, &(&1.id == id))
 
   @doc """
   The identifier a test name starts with (`"CH-017 should work"`), or nil. `name` is a string,
@@ -136,10 +130,9 @@ defmodule Mix.Playwright.TestRegistry do
   def not_ported_reason(root, upstream, name) do
     {rows_by_file, rules} = cached(root)
 
-    case match(Map.get(rows_by_file, file_key(upstream), []), id(name)) do
-      {:ok, row} -> if rule = rule_for(row, rules), do: rule.reason
-      :none -> nil
-    end
+    with %{} = row <- match(Map.get(rows_by_file, file_key(upstream), []), id(name)),
+         %{} = rule <- rule_for(row, rules),
+         do: rule.reason
   end
 
   defp cached(root) do
