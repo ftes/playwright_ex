@@ -138,7 +138,7 @@ jobs:
   # tests catch what the floor lacks (a call to a missing function is only a compile warning there).
   test:
     name: Test (${{ matrix.lane }}, ${{ matrix.browser }}, ${{ matrix.partition }})
-    runs-on: ubicloud-standard-4-ubuntu-2604
+    runs-on: ubicloud-standard-2-ubuntu-2604
     needs: [build, matrix]
     # After a green build, or none when skip_lint skipped it.
     if: ${{ !cancelled() && needs.matrix.result == 'success' && (needs.build.result == 'success' || (inputs.skip_lint && needs.build.result == 'skipped')) }}
