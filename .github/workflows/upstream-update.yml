@@ -94,10 +94,10 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
       - name: Set up toolchain and deps
-        uses: ftes/ci/setup@c7549ac6ba6e6f8c96a28472d6489ae28d76c5a6 # v1.0.2
+        uses: ftes/ci/setup@78e6ba9c26b2865cad995d33aadba7ccb23c9149 # v1.0.3
       # The FROM driver; Claude reinstalls after bumping (--with-deps covers the OS packages).
       - name: Install driver and browser
-        uses: ftes/ci/playwright-browser@c7549ac6ba6e6f8c96a28472d6489ae28d76c5a6 # v1.0.2
+        uses: ftes/ci/playwright-browser@78e6ba9c26b2865cad995d33aadba7ccb23c9149 # v1.0.3
         with:
           driver-dir: .
       # The upstream clone (see the prompt) lives outside the checkout; --add-dir needs it.
