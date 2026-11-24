@@ -1,4 +1,4 @@
-# Accepted risk (.github/actions/claude): with an id-token, `fix` runs a nightly PR branch's setup
+# Accepted risk (.github/actions/fix-ci): with an id-token, `fix` runs a nightly PR branch's setup
 # code. Only claude/nightly-* branches.
 name: Claude Nightly Improvement
 
@@ -52,18 +52,17 @@ jobs:
         if: steps.list.outputs.numbers != ''
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # Main's Claude action, also on a workflow_dispatch from another branch.
+          # Main's code, also on a workflow_dispatch from another branch.
           ref: main
           persist-credentials: false
           fetch-depth: 0
       - id: claude
         if: steps.list.outputs.numbers != ''
-        uses: ./.github/actions/claude
+        uses: ftes/ci/claude@70f3e82336c42d568193e6653b5d3e30e4693d39 # v1.0.4
         with:
           token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          setup: none
-          prompt: nightly-triage
-          context: |
+          prompt-file: .github/prompts/nightly-triage.md
+          prompt: |
             REPO: ${{ github.repository }}
             OPEN NIGHTLY PRS, each with its branch: ${{ steps.list.outputs.listed }}
           max-turns: "60"
@@ -172,8 +171,8 @@ jobs:
           persist-credentials: false
           ref: ${{ matrix.pr.branch }}
           fetch-depth: 0
-      # The Claude actions and prompts from main, not from the ref checked out above
-      # (.github/actions/claude): into a gitignored path, after that checkout, which would clean it.
+      # The fix-ci action from main, not from the ref checked out above: into a gitignored path,
+      # after that checkout, which would clean it.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
@@ -208,23 +207,32 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # Main's Claude action and code, also on a workflow_dispatch from another branch.
+          # Main's code, also on a workflow_dispatch from another branch.
           ref: main
           # Else checkout's read-only token can override the app token Claude pushes with: from v6
           # it sits in an includeIf file claude-code-action doesn't clear, so the push gets a 403.
           persist-credentials: false
           fetch-depth: 0
       - run: git switch -c "$NIGHTLY_BRANCH"
-      - uses: ./.github/actions/claude
+      - name: Set up toolchain and deps
+        uses: ftes/ci/setup@70f3e82336c42d568193e6653b5d3e30e4693d39 # v1.0.4
+      # Best effort: Claude runs without them.
+      - name: Download upstream sources
+        id: sources
+        continue-on-error: true
+        run: mkdir -p ~/.cache/playwright && mix playwright.upstream
+      - uses: ftes/ci/claude@70f3e82336c42d568193e6653b5d3e30e4693d39 # v1.0.4
         with:
           token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt: nightly-recreate
-          context: |
+          prompt-file: .github/prompts/nightly-recreate.md
+          prompt: |
             REPO: ${{ github.repository }}
             OLD_PR: ${{ matrix.pr.number }}
             WHY: ${{ matrix.pr.why }}
             BRANCH: ${{ env.NIGHTLY_BRANCH }} (already checked out, from current main)
           max-turns: "60"
+          add-dir: /home/runner/.cache/playwright
+          system-prompt: ${{ steps.sources.outcome == 'success' && 'Upstream''s sources at the pin are under ~/.cache/playwright/<version>/upstream.' || '' }}
           allowed-tools: "Skill,Read,Grep,Glob,Edit,Write,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix credo:*),Bash(mix playwright.parity:*),Bash(mix playwright.gen.api:*),Bash(mix playwright.gen.protocol:*),Bash(gh pr view ${{ matrix.pr.number }}),Bash(gh pr view ${{ matrix.pr.number }} *),Bash(gh pr diff ${{ matrix.pr.number }}),Bash(gh pr diff ${{ matrix.pr.number }} *),Bash(git push -u origin ${{ env.NIGHTLY_BRANCH }}),Bash(gh pr create --base main --head ${{ env.NIGHTLY_BRANCH }} *),Bash(gh pr close ${{ matrix.pr.number }} *)"
 
   # Enforces the cap before any toolchain is set up. Runs even if an earlier job failed: the
@@ -294,7 +302,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # Main's Claude action and code, also on a workflow_dispatch from another branch.
+          # Main's code, also on a workflow_dispatch from another branch.
           ref: main
           # Else checkout's read-only token can override the app token Claude pushes with: from v6
           # it sits in an includeIf file claude-code-action doesn't clear, so the push gets a 403.
@@ -317,14 +325,23 @@ jobs:
           echo "::notice::Focus: $area"
           echo "area=$area" >> "$GITHUB_OUTPUT"
 
-      - uses: ./.github/actions/claude
+      - name: Set up toolchain and deps
+        uses: ftes/ci/setup@70f3e82336c42d568193e6653b5d3e30e4693d39 # v1.0.4
+      # Best effort: Claude runs without them.
+      - name: Download upstream sources
+        id: sources
+        continue-on-error: true
+        run: mkdir -p ~/.cache/playwright && mix playwright.upstream
+      - uses: ftes/ci/claude@70f3e82336c42d568193e6653b5d3e30e4693d39 # v1.0.4
         with:
           token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt: nightly-improve
-          context: |
+          prompt-file: .github/prompts/nightly-improve.md
+          prompt: |
             REPO: ${{ github.repository }}
             BRANCH: ${{ env.NIGHTLY_BRANCH }} (already checked out)
             PREVIOUS NIGHTLY PRS, newest first: ${{ needs.capacity.outputs.prs }}
             FOCUS: ${{ steps.focus.outputs.area }}
           max-turns: "150"
+          add-dir: /home/runner/.cache/playwright
+          system-prompt: ${{ steps.sources.outcome == 'success' && 'Upstream''s sources at the pin are under ~/.cache/playwright/<version>/upstream.' || '' }}
           allowed-tools: "Skill,Read,Grep,Glob,Edit,Write,Agent,Task,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix credo:*),Bash(mix playwright.parity:*),Bash(mix playwright.gen.api:*),Bash(mix playwright.gen.protocol:*),Bash(git push -u origin ${{ env.NIGHTLY_BRANCH }}),Bash(gh pr create --base main --head ${{ env.NIGHTLY_BRANCH }} *)"
