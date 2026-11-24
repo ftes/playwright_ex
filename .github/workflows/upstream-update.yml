@@ -37,7 +37,7 @@ env:
 jobs:
   # Cheap, no Claude: is there a newer stable release without a branch or PR for it?
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
       contents: read # read DRIVER_VERSION and mix.exs
@@ -70,7 +70,7 @@ jobs:
   update:
     needs: check
     if: needs.check.outputs.update == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     # A minor release can mean hours of porting; GitHub-hosted jobs stop at 6 h anyway.
     timeout-minutes: 240
     permissions:
@@ -93,18 +93,13 @@ jobs:
           # it sits in an includeIf file claude-code-action doesn't clear, so the push gets a 403.
           persist-credentials: false
           fetch-depth: 0
-      # mise installs precompiled Erlang (builds.hex.pm) only on the Ubuntu runners it detects (up
-      # to 24.04) and compiles it from source, ~5 min, on newer ones. Drop once it detects this one.
-      - name: Use precompiled Erlang
-        run: | # zizmor: ignore[github-env] (only the runner's ImageOS digits)
-          if [[ "${ImageOS:-}" =~ ^ubuntu([0-9]{2})$ ]]; then echo "MISE_ERLANG_PRECOMPILED_OS=ubuntu-${BASH_REMATCH[1]}.04" >> "$GITHUB_ENV"; fi
-      - name: Setup languages
-        uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
-      - name: Install dependencies
-        run: mix "do" deps.get, deps.compile
+      - name: Set up toolchain and deps
+        uses: ftes/ci/setup@c7549ac6ba6e6f8c96a28472d6489ae28d76c5a6 # v1.0.2
       # The FROM driver; Claude reinstalls after bumping (--with-deps covers the OS packages).
-      - name: Install driver and browsers
-        run: mix playwright.install chromium --with-deps
+      - name: Install driver and browser
+        uses: ftes/ci/playwright-browser@c7549ac6ba6e6f8c96a28472d6489ae28d76c5a6 # v1.0.2
+        with:
+          driver-dir: .
       # The upstream clone (see the prompt) lives outside the checkout; --add-dir needs it.
       - run: mkdir -p /tmp/playwright
       # No github_token input: the action uses the Claude App token (see above). Tools: file tools
@@ -149,7 +144,7 @@ jobs:
   # Claude's finished ports whose CI failed. A PR left "in progress" by a run that stopped early is
   # not worth fixing, and one a human has commented on or pushed to is theirs.
   failing:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
       contents: read
@@ -184,7 +179,7 @@ jobs:
   fix:
     needs: failing
     if: needs.failing.outputs.prs != '[]'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 60
     permissions:
       contents: read

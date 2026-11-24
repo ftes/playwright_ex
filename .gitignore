@@ -26,5 +26,6 @@ playwright_ex-*.tar
 /priv/plts/
 
 node_modules
-.claude/*
-!.claude/skills
+# Personal Claude Code setup (settings.local.json, worktrees, hooks); the skills are shared.
+/.claude/*
+!/.claude/skills

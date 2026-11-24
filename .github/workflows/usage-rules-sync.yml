@@ -1,7 +1,7 @@
 name: Sync usage rules
 
 # `mix check` fails when an updated dep changes its usage rules, and Renovate can't run the sync
-# itself, so commit it to Renovate's branch.
+# itself, so this commits it to Renovate's branch. The jobs are ftes/ci's.
 on:
   pull_request:
     paths: [mix.lock]
@@ -13,67 +13,12 @@ concurrency:
 permissions: {}
 
 jobs:
-  # Runs the updated deps' code, so without write access. `commit` runs none of it.
   sync:
     if: startsWith(github.head_ref, 'renovate/') && github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
     permissions:
-      contents: read
-    env:
-      MIX_ENV: test
-    outputs:
-      changed: ${{ steps.diff.outputs.changed }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          persist-credentials: false
-      # mise installs precompiled Erlang (builds.hex.pm) only on the Ubuntu runners it detects (up
-      # to 24.04) and compiles it from source, ~5 min, on newer ones. Drop once it detects this one.
-      - name: Use precompiled Erlang
-        run: | # zizmor: ignore[github-env] (only the runner's ImageOS digits)
-          if [[ "${ImageOS:-}" =~ ^ubuntu([0-9]{2})$ ]]; then echo "MISE_ERLANG_PRECOMPILED_OS=ubuntu-${BASH_REMATCH[1]}.04" >> "$GITHUB_ENV"; fi
-      - uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
-      - run: mix deps.get
-      - run: mix usage_rules.sync --yes
-      - id: diff
-        run: |
-          git add -- .agents/skills
-          git diff --cached --binary -- .agents/skills > "$RUNNER_TEMP/usage-rules.patch"
-          if [ -s "$RUNNER_TEMP/usage-rules.patch" ]; then echo "changed=true" >> "$GITHUB_OUTPUT"; fi
-      - if: steps.diff.outputs.changed == 'true'
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: usage-rules-patch
-          path: ${{ runner.temp }}/usage-rules.patch
-          if-no-files-found: error
-          retention-days: 1
-
-  commit:
-    needs: sync
-    if: needs.sync.outputs.changed == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      actions: write # to dispatch CI
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: usage-rules-patch
-          path: ${{ runner.temp }}
-      # A push with GITHUB_TOKEN starts no workflows, but a dispatch does, and the new commit needs
-      # CI. A push that lost a race with Renovate fails here; Renovate's own push runs this again.
-      - name: Commit and run CI
-        env:
-          GH_TOKEN: ${{ github.token }}
-          BRANCH: ${{ github.head_ref }}
-        run: |
-          git apply --index --include='.agents/skills/*' "$RUNNER_TEMP/usage-rules.patch"
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'Sync usage rules'
-          git push origin "HEAD:refs/heads/$BRANCH"
-          gh workflow run elixir.yml --ref "$BRANCH"
+      contents: write # the commit job pushes the sync
+      actions: write # and dispatches CI
+    uses: ftes/ci/.github/workflows/usage-rules-sync.yml@c7549ac6ba6e6f8c96a28472d6489ae28d76c5a6 # v1.0.2
+    with:
+      skills-path: .agents/skills
+      ci-workflow: elixir.yml
