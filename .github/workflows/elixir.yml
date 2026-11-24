@@ -73,7 +73,12 @@ jobs:
       # rejected as "Old PLT file", compiled NIFs and ERTS paths may differ.
       - name: Get runner image
         id: runner_image
-        run: echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
+        # And the Erlang build (its Dialyzer beams): Dialyzer rejects a PLT another build of the same
+        # version made, e.g. compiled from source vs precompiled.
+        run: |
+          echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
+          dialyzer=$(erl -noshell -eval 'io:format("~s", [code:lib_dir(dialyzer)])' -s init stop)
+          echo "erlang-build=$(cat "$dialyzer"/ebin/*.beam | sha256sum | cut -c1-12)" >> "$GITHUB_OUTPUT"
       # deps and the whole _build (our app too: Mix compares content digests, so a fresh checkout
       # recompiles only what changed, and --warnings-as-errors re-emits the manifest's warnings).
       # Every job restores; this job saves it, on main only (a PR never writes the shared cache).
@@ -97,8 +102,8 @@ jobs:
         id: plt_cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          key: plt-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ hashFiles('**/mix.lock') }}
-          restore-keys: plt-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}
+          key: plt-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ steps.runner_image.outputs.erlang-build }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: plt-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ steps.runner_image.outputs.erlang-build }}
           path: priv/plts
       # Saved right after it is built, so a lint failure doesn't waste the build; `mix lint`'s
       # Dialyzer step then reuses it. Building it compiles the app (dialyxir's `cons_apps` loads
