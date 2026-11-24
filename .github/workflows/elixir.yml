@@ -103,9 +103,11 @@ jobs:
 
   # The test jobs, one per lane, browser and partition: the browsers (default all) in `partitions`
   # jobs each (default firefox 6, whose slowest sets the run's time, the others 3), on the newest
-  # lane, and chromium's on the oldest too. Unconditional: the tests need the build anyway.
+  # lane, and chromium's on the oldest too. Skipped where the build is (draft, or below
+  # the top of a stack), but not by skip_lint: the tests still run then.
   matrix:
     name: Test matrix
+    if: ${{ !github.event.pull_request.draft && (github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size) }}
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions: {}
