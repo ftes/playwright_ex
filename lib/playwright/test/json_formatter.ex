@@ -23,7 +23,10 @@ defmodule Playwright.Test.JSONFormatter do
       directory);
     * else standard output, as upstream's without an output file.
 
-  Relative paths are relative to the working directory.
+  Relative paths are relative to the working directory. The report's strings must be valid UTF-8:
+  a binary that isn't (in a failure's message, a step's title) raises at the suite's end. Next to `ExUnit.CLIFormatter`, a report on
+  standard output is mixed with its output: there, run the formatter on its own, or set an output
+  file.
 
   The report has upstream's `JSONReport` shape: `config`, `suites` (a suite per test file
   relative to `test/`, the `rootDir`, with a suite per `describe`), each with its `specs` (a
@@ -103,11 +106,13 @@ defmodule Playwright.Test.JSONFormatter do
   # constructor
   @impl true
   def init(opts) do
-    :ets.new(__MODULE__, [:named_table, :public, :set])
+    # Elixir only: the table `put_result/4` writes, another one for a formatter of a test.
+    table = :ets.new(Keyword.get(opts, :json_formatter_table, __MODULE__), [:named_table, :public, :set])
     config = Options.config()
 
     {:ok,
      %{
+       table: table,
        resolved_output_file: resolve_output_file(config.json_output_file),
        # onConfigure: `config`, what of it the report has.
        config: config,
@@ -135,7 +140,7 @@ defmodule Playwright.Test.JSONFormatter do
 
   def handle_cast({:test_finished, %ExUnit.Test{} = test}, this) do
     result =
-      case :ets.take(__MODULE__, {test.module, test.name, test.parameters}) do
+      case :ets.take(this.table, {test.module, test.name, test.parameters}) do
         [{_key, result}] -> result
         [] -> nil
       end
@@ -204,58 +209,102 @@ defmodule Playwright.Test.JSONFormatter do
   end
 
   # The projects of the tests' `parameterize:` (the default project's name is `""`), by name.
+  # deviation: no `config.projects`, each module has its own `parameterize:`.
   defp projects([]), do: [""]
   defp projects(tests), do: tests |> Enum.map(& &1.test.projectName) |> Enum.uniq() |> Enum.sort()
 
   defp report_slow_tests(false), do: :null
   defp report_slow_tests(options), do: Map.new(options)
 
-  # The file suites of the tests: `_mergeSuites`, one per file, its tests' specs merged per
-  # project (`_mergeTestsFromSuite`) and the specs of each `describe` as a suite of its own
-  # (`_serializeSuite`), in the files' order, by line.
+  # `_mergeSuites`: each project's file suites (`_serializeSuite`), the projects in their order,
+  # merged per file (`_mergeTestsFromSuite`).
   defp merge_suites(tests) do
-    tests
-    |> Enum.group_by(& &1.file)
+    file_suites =
+      for {_name, project_tests} <- project_suites(tests),
+          {file, entries} <- Enum.group_by(project_tests, & &1.file),
+          do: {file, serialize_suite(file, entries)}
+
+    file_suites
+    |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+    # deviation: the files by path, not by when they were loaded: ExUnit loads them concurrently.
     |> Enum.sort_by(&elem(&1, 0))
-    |> Enum.map(fn {file, entries} ->
-      {specs, described} = Enum.split_with(entries, &(&1.describe == nil))
-
-      suites =
-        described
-        |> Enum.group_by(& &1.describe)
-        |> Enum.sort_by(fn {{_title, line}, _entries} -> line end)
-        |> Enum.map(fn {{title, line}, entries} ->
-          %{title: title, file: file, line: line, column: 0, specs: serialize_specs(entries)}
-        end)
-
-      suite = %{title: file, file: file, column: 0, line: 0, specs: serialize_specs(specs)}
-      if suites == [], do: suite, else: Map.put(suite, :suites, suites)
+    |> Enum.map(fn {file, suites} ->
+      result = %{title: file, file: file, column: 0, line: 0, specs: []}
+      Enum.reduce(suites, result, &merge_tests_from_suite(&2, &1))
     end)
   end
 
-  # `_serializeTestSpec`, the specs of one title and location merged: their tests in turn, the
-  # first one's `ok` and `id` (`toSpec.tests.push(...spec.tests)`).
-  defp serialize_specs(entries) do
-    entries
-    |> Enum.group_by(&{&1.title, &1.line})
-    |> Enum.sort_by(fn {{_title, line}, _entries} -> line end)
-    |> Enum.map(fn {{title, line}, [first | _] = entries} ->
-      %{
-        title: title,
-        ok: first.ok,
-        # test.tags  -- not ported: ExUnit's tags are not Playwright's `@tag`s
-        tags: [],
-        tests: Enum.map(entries, & &1.test),
-        id: first.id,
-        file: first.file,
-        line: line,
-        column: 0
-      }
+  # The project suites: the tests by project, the projects in their order (`project_order`).
+  defp project_suites(tests) do
+    tests
+    |> Enum.group_by(&elem(&1.project_order, 1))
+    |> Enum.sort_by(fn {_name, project_tests} -> project_tests |> Enum.map(& &1.project_order) |> Enum.min() end)
+  end
+
+  defp location_matches?(s1, s2), do: s1.file == s2.file and s1.line == s2.line and s1.column == s2.column
+
+  defp merge_tests_from_suite(to, from) do
+    to =
+      Enum.reduce(from[:suites] || [], to, fn from_suite, to ->
+        case find_matching(to[:suites] || [], from_suite) do
+          nil -> Map.put(to, :suites, (to[:suites] || []) ++ [from_suite])
+          index -> %{to | suites: List.update_at(to.suites, index, &merge_tests_from_suite(&1, from_suite))}
+        end
+      end)
+
+    Enum.reduce(from.specs, to, fn spec, to ->
+      case find_matching(to.specs, spec) do
+        nil -> %{to | specs: to.specs ++ [spec]}
+        index -> %{to | specs: List.update_at(to.specs, index, &%{&1 | tests: &1.tests ++ spec.tests})}
+      end
     end)
   end
+
+  # The index of `list`'s suite or spec of `entry`'s title and location (`find`), else `nil`.
+  defp find_matching(list, entry),
+    do: Enum.find_index(list, &(&1.title == entry.title and location_matches?(&1, entry)))
+
+  # `_serializeSuite` of a file's suite in one project: its tests (by line) and a suite per
+  # `describe` (by line), each with its tests.
+  defp serialize_suite(file, entries) do
+    {tests, described} = Enum.split_with(entries, &(&1.describe == nil))
+
+    suites =
+      described
+      |> Enum.group_by(& &1.describe)
+      |> Enum.sort_by(fn {{_title, line}, _entries} -> line end)
+      |> Enum.map(fn {{title, line}, entries} ->
+        %{title: title, file: file, line: line, column: 0, specs: serialize_test_specs(entries)}
+      end)
+
+    %{
+      title: file,
+      file: file,
+      line: 0,
+      column: 0,
+      specs: serialize_test_specs(tests),
+      suites: if(suites != [], do: suites)
+    }
+  end
+
+  defp serialize_test_specs(entries), do: entries |> Enum.sort_by(& &1.line) |> Enum.map(&serialize_test_spec/1)
+
+  defp serialize_test_spec(entry),
+    do: %{
+      title: entry.title,
+      ok: entry.ok,
+      # test.tags  -- not ported: ExUnit's tags are not Playwright's `@tag`s
+      tags: [],
+      tests: [entry.test],
+      id: entry.id,
+      file: entry.file,
+      line: entry.line,
+      column: 0
+    }
 
   # A test, with what its spec and suites need: its `file` (`_relativeLocation`), `describe`
-  # (`{title, line}`, or `nil`), `title`, `line`, `ok` and `id`.
+  # (`{title, line}`, or `nil`), `title`, `line`, `ok`, `id` and `project_order` (its project's
+  # place in `parameterize:`, else its name).
   defp serialize_test_entry(this, test, result, end_time) do
     # `test.titlePath()`: the file, the describe block, the test.
     [_file | titles] = TestInfo.title_path(Map.put(test.tags, :test, test.name))
@@ -271,6 +320,7 @@ defmodule Playwright.Test.JSONFormatter do
       # `test.ok()`
       ok: outcome != :unexpected,
       id: test_id(file, titles, project_name),
+      project_order: {TestInfo.parameters_index(test.module, test.parameters), project_name},
       test: serialize_test(this, test, result, end_time, project_name, outcome)
     }
   end
@@ -323,6 +373,7 @@ defmodule Playwright.Test.JSONFormatter do
         end
     }
 
+    # deviation: `prepareErrorStack(stack).location` is the first formatted error's, in your code.
     if error[:stack], do: Map.put(json_result, :errorLocation, error.location), else: json_result
   end
 
@@ -392,7 +443,9 @@ defmodule Playwright.Test.JSONFormatter do
 
   # `nil` is `undefined`, left out, and `:null` is `null`. Indented by `:json.format/1` (OTP 27).
   defp stringify(report) do
-    json = JSON.encode!(json_value(report))
+    report = json_value(report)
+    check_utf8!(report)
+    json = JSON.encode!(report)
 
     if Code.ensure_loaded?(:json) and function_exported?(:json, :format, 1),
       do: IO.iodata_to_binary(:json.format(:json.decode(json))),
@@ -406,6 +459,50 @@ defmodule Playwright.Test.JSONFormatter do
 
   defp json_value(list) when is_list(list), do: Enum.map(list, &json_value/1)
   defp json_value(value), do: value
+
+  # Elixir only: a binary that isn't UTF-8 (a failure's text, a step's title, an attachment's
+  # name) has no JSON string, unlike JavaScript's strings, which are always text.
+  defp check_utf8!(report) do
+    case invalid_binary(report, []) do
+      nil ->
+        :ok
+
+      {value, path} ->
+        raise "Playwright.Test.JSONFormatter: the JSON report can't be written, it has a binary " <>
+                "that isn't UTF-8#{test_of(report, path)} at #{format_path(path)}, got: #{inspect(value, binaries: :as_strings)}"
+    end
+  end
+
+  # The first invalid binary of `value` and its path, else `nil`.
+  defp invalid_binary(binary, path) when is_binary(binary),
+    do: if(String.valid?(binary), do: nil, else: {binary, Enum.reverse(path)})
+
+  defp invalid_binary(%{} = map, path) when not is_struct(map),
+    do: map |> Enum.sort() |> Enum.find_value(fn {key, value} -> invalid_binary(value, [key | path]) end)
+
+  defp invalid_binary(list, path) when is_list(list),
+    do: list |> Enum.with_index() |> Enum.find_value(fn {value, index} -> invalid_binary(value, [index | path]) end)
+
+  defp invalid_binary(_value, _path), do: nil
+
+  # ` in test "title" (file:line)`, of the spec the path is in.
+  defp test_of(report, path) do
+    {spec, _} =
+      Enum.reduce(path, {nil, report}, fn key, {spec, value} ->
+        value = if is_list(value), do: Enum.at(value, key), else: value[key]
+        {if(key == :specs or not match?(%{title: _, line: _, tests: _}, value), do: spec, else: value), value}
+      end)
+
+    if spec, do: " in test #{inspect(spec.title)} (#{spec.file}:#{spec.line})", else: ""
+  end
+
+  defp format_path(path) do
+    Enum.map_join(path, fn
+      index when is_integer(index) -> "[#{index}]"
+      key -> ".#{key}"
+    end)
+    |> String.trim_leading(".")
+  end
 
   # base.ts `resolveOutputFile('JSON', options)`, with the working directory as `configDir`: the
   # json reporter has no `default`.

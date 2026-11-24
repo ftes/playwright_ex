@@ -155,6 +155,15 @@ defmodule Playwright.Test.TestInfo do
     {parameters, Map.reject(context, fn {key, value} -> match?(%{^key => ^value}, parameters) end)}
   end
 
+  @doc false
+  # The place of `parameters` in the `parameterize:` of `module` (its project's), `nil` if none.
+  def parameters_index(module, parameters) do
+    case parameterize(module) do
+      list when is_list(list) -> Enum.find_index(list, &(&1 == parameters))
+      _ -> nil
+    end
+  end
+
   # `__ex_unit__(:config)` is ExUnit's internal API (`@doc false`; a map with `:parameterize`
   # in 1.18 to 1.20): any other shape is no parameters.
   defp parameterize(module) do

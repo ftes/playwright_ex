@@ -82,7 +82,8 @@ config :playwright, :test, json_output_file: "test-results/results.json"
 ```
 
 `PLAYWRIGHT_JSON_OUTPUT_FILE` overrides the config, as in Playwright Test; without either, the
-report goes to standard output. Its fields, and what ExUnit can't fill in:
+report goes to standard output, mixed with `ExUnit.CLIFormatter`'s output unless the formatter
+runs on its own (`mix test --formatter Playwright.Test.JSONFormatter`). Its fields, and what ExUnit can't fill in:
 `Playwright.Test.JSONFormatter`.
 
 ## Retries
