@@ -36,6 +36,10 @@
 #     --failed` runs it (`only_test_ids`).
 #   * `retry_modes` - a test per retry mode (trace and video), failing on the first run (`retry`
 #     0) or always; with a further `failed` argument, only those, as `mix test --failed` runs them.
+#   * `json` - `Playwright.Test.JSONFormatter` writing `report.json` next to the output dir: a
+#     module with `trace: :on, screenshot: :on` (a passing test that attaches and steps, a failing
+#     one in a describe, failing in a nested step), a plain ExUnit module (a passing and a
+#     skipped test) and one whose `setup_all` fails.
 
 # credo:disable-for-this-file Credo.Check.Warning.WrongTestFilename
 
@@ -54,7 +58,8 @@ Application.put_env(:playwright, :test,
   # `modules` holds ten workers at once, four of them failed scopes': under fewer workers a release
   # trims a warm worker when it comes before the failed ones'.
   workers: if(mode == "modules", do: 10, else: 8),
-  assert_steps: mode != "assert_steps"
+  assert_steps: mode != "assert_steps",
+  json_output_file: if(mode == "json", do: Path.join(Path.dirname(output_dir), "report.json"))
 )
 
 # The test build's .app lists the test-only deps: start the library's own tree.
@@ -83,7 +88,8 @@ ExUnit.start(
   max_cases: 8,
   max_failures: max_failures,
   trace: mode == "trace",
-  only_test_ids: only_test_ids
+  only_test_ids: only_test_ids,
+  formatters: [ExUnit.CLIFormatter] ++ if(mode == "json", do: [Playwright.Test.JSONFormatter], else: [])
 )
 
 # What the modules saw: `{label, scope, playwright}` (the scope: the pid that holds the workers).
@@ -620,6 +626,47 @@ case mode do
 
       @tag Playwright.Test.use(trace: :retain_on_failure_and_retries, video: :retain_on_failure_and_retries)
       test("failure and retries passing", %{page: page}, do: Page.set_content!(page, "<h1>Passes</h1>"))
+    end
+
+  "json" ->
+    defmodule JsonTest do
+      use Playwright.Case, async: true, trace: :on, screenshot: :on
+
+      test "passes", %{page: page} do
+        Page.set_content!(page, "<h1>Passes</h1>")
+        Test.attach("note", body: "hello")
+
+        Test.step "outer" do
+          Test.step("inner", fn -> :ok end)
+          Expect.to_be_visible!(Page.get_by_role(page, :heading))
+        end
+      end
+
+      describe "checkout" do
+        test "fails", %{page: page} do
+          Page.set_content!(page, "<h1>Fails</h1>")
+          Test.step("pay", do: Test.step("charge", fn -> flunk("on purpose") end))
+        end
+      end
+    end
+
+    defmodule JsonPlainTest do
+      use ExUnit.Case, async: true
+
+      test "passes", do: :ok
+
+      @tag :skip
+      test "skips", do: :ok
+    end
+
+    defmodule JsonSetupAllTest do
+      use ExUnit.Case, async: true
+
+      setup_all do
+        raise "setup_all on purpose"
+      end
+
+      test "does not run", do: :ok
     end
 
   "pool_start" ->

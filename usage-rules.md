@@ -95,3 +95,6 @@ guides are at hexdocs.pm/playwright_ex.
   imports ExUnit's too), or its passed asserts leave no step.
 - A failed test writes `test-results/<test>/error-context.md` (errors, source, an aria snapshot):
   read it first. Open traces with `mix playwright.cli show-trace <path>`.
+- To map tests to their trace, screenshots and videos, read the `attachments` of
+  `Playwright.Test.JSONFormatter`'s report (or `Playwright.Test.info(test_pid)` in `on_exit`);
+  don't rebuild the paths from test names.

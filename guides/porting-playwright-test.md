@@ -19,7 +19,7 @@ Playwright Test features ExUnit can't host, or that ExUnit and Elixir already co
 | `globalSetup`, project `dependencies` | ExUnit has no projects | `test_helper.exs` (see [Logging in once](testing-with-exunit.md#logging-in-once)) |
 | asymmetric and value matchers (`expect.objectContaining`, `expect.any(String)`, `toMatchObject`, `toBeCloseTo`, ...) | the jest matchers aren't ported | patterns: `assert %{"id" => id} = hd(list)`, then `assert is_binary(id)`; `assert_in_delta/3` |
 | `expect.configure({ timeout, soft })` | the options are the receiver's, not a configured `expect` | the matchers' `timeout:`, `Expect.soft/1` |
-| `json`, `junit` reporters | ExUnit formatters cover them | an ExUnit formatter, such as the `junit_formatter` Hex package |
+| `junit` reporter | ExUnit formatters cover it | an ExUnit formatter, such as the `junit_formatter` Hex package |
 | `list`, `line`, `dot` reporters | ExUnit's output covers them | ExUnit's CLI formatter |
 | reporter plugins (monocart coverage, ...) | there are no reporters to plug into | none: `Playwright.Coverage` collects, your code reports |
 | `webServer` | `test_helper.exs` starts what a run needs | start the endpoint in `test_helper.exs`, or `server: true` in the test config (see [The app under test](testing-with-exunit.md#the-app-under-test)) |
@@ -80,6 +80,10 @@ the full list; [open an issue](https://github.com/ftes/playwright_ex/issues) if 
   |> Expect.to_be_visible!()`.
 - `reporter: 'github'` is the `Playwright.Test.GitHubFormatter` formatter, which prints only
   annotations: list it next to `ExUnit.CLIFormatter` (see [CI](debugging-and-ci.md#annotations)).
+  `reporter: [['json', { outputFile: 'results.json' }]]` is the `Playwright.Test.JSONFormatter`
+  formatter with `config :playwright, :test, json_output_file: "results.json"` (or
+  `PLAYWRIGHT_JSON_OUTPUT_FILE`), next to `ExUnit.CLIFormatter` too
+  ([A report of the run](test-artifacts.md#a-report-of-the-run)).
 - `workers: 1` is `config :playwright, :test, workers: 1`. ExUnit's `max_cases` can stay as it
   is when modules take their browser in `setup_all`, as `Playwright.Case` does: that wait isn't
   timed. A module that calls `BrowserPool.browser/1` only in `setup` or its tests waits within

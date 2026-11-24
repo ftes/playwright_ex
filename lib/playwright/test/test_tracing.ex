@@ -102,7 +102,7 @@ defmodule Playwright.Test.TestTracing do
   `stopIfNeeded`, in the recorder's `finish`: with the test's registration `test` (its `trace`
   options, `mode` first, `test_timeout`, `tmp` and `output_dir`) and result, adds `test.trace`
   (with the sources of its steps) to the context `chunks` and merges them into the output dir's
-  `trace.zip`, its path returned, or drops the chunks (`nil`).
+  `trace.zip`, attached as `trace` and its path returned, or drops the chunks (`nil`).
   """
   def stop_if_needed(this, %{trace: [{:mode, mode} | options]} = test, chunks, failed?) do
     [context_created_event | events] = Enum.reverse(this.trace_events)
@@ -158,7 +158,8 @@ defmodule Playwright.Test.TestTracing do
 
         path = Path.join(test.output_dir, "trace.zip")
         merge_trace_files(path, chunks ++ [file])
-        # this._testInfo.attachments.push({ name: 'trace', ... });  -- not ported: attachments; the path is returned
+        TestInfo.attachments_push(test, %{name: "trace", path: path, contentType: "application/zip"})
+        # Elixir only: the path, for the hint to open it.
         path
     end
   end

@@ -40,6 +40,17 @@ upstream minor, so `~> 1.65.0` is safe.
 
 ## [Unreleased]
 
+### Added
+
+- `Playwright.Test.JSONFormatter`, Playwright Test's `json` reporter as an ExUnit formatter: the
+  run's report in upstream's `JSONReport` shape, with each test's status, errors, steps and
+  attachments, written to `config :playwright, :test, json_output_file:` or
+  `PLAYWRIGHT_JSON_OUTPUT_FILE`.
+- `Playwright.Test.info/0`'s `attachments`, upstream's `testInfo.attachments`: those of
+  `attach/2`, and in `info/1` after the test the artifacts' (`trace`, `screenshot`, `video`,
+  `error-context`) with their paths. Each artifact but the trace is a `test.attach` step of the
+  trace, which so holds a copy of it, as upstream's.
+
 ### Changed
 
 - **RC only:** `usage-rules.md` keeps only the traps an agent gets wrong and points to the

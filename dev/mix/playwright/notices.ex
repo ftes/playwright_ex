@@ -43,6 +43,7 @@ defmodule Mix.Playwright.Notices do
     "lib/playwright/matchers/matcher_utils.ex" => @jest,
     "lib/playwright/test/error_context.ex" => ["packages/playwright/src/errorContext.ts"],
     "lib/playwright/test/github_formatter.ex" => ["packages/playwright/src/reporters/github.ts"],
+    "lib/playwright/test/json_formatter.ex" => ["packages/playwright/src/reporters/json.ts"],
     "lib/playwright/test/test_info.ex" => ["packages/playwright/src/worker/testInfo.ts"],
     "lib/playwright/test/test_tracing.ex" => ["packages/playwright/src/worker/testTracing.ts"]
   }
@@ -54,13 +55,15 @@ defmodule Mix.Playwright.Notices do
     "packages/playwright/src/common/process.ts" => "the worker process the browser pool stands in for",
     "packages/playwright/src/common/testType.ts" => "the test API (`test.step`, `test.step.skip`, `test.slow`)",
     "packages/playwright/src/index.ts" => "fixtures, options and their defaults, the artifact recording",
-    "packages/playwright/src/reporters/base.ts" => "what the GitHub formatter uses of `TerminalReporter`",
+    "packages/playwright/src/reporters/base.ts" =>
+      "what the GitHub formatter uses of `TerminalReporter`, the JSON formatter's `resolveOutputFile`",
     "packages/playwright/src/runner/dispatcher.ts" => "worker reuse and stop after a failure (the pool)",
     "packages/playwright/src/util.ts" => "testInfo's path helpers (`sanitizeForFilePath`, `trimLongString`)",
     "packages/playwright/src/worker/timeoutManager.ts" => "the `setup_all` timeout and its error",
     "packages/playwright/src/worker/util.ts" => "testInfo's errors (`testInfoError`)",
     "packages/playwright/src/worker/workerMain.ts" => "output dir cleanup and `preserveOutput`",
-    "packages/playwright/types/test.d.ts" => "the options' types and object forms"
+    "packages/playwright/types/test.d.ts" => "the options' types and object forms",
+    "packages/playwright/types/testReporter.d.ts" => "the JSON report's types (`JSONReport`)"
   }
   # The runner files whose upstream citations must be in `runner_sources/0`.
   @runner_files ~w(lib/playwright/test.ex lib/playwright/case.ex lib/playwright/test/**/*.ex)

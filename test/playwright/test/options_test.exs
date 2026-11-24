@@ -585,6 +585,7 @@ defmodule Playwright.Test.ConfigTest do
              snapshot_path_template: nil,
              test_id_attribute: "data-testid",
              report_slow_tests: [max: 5, threshold: 300_000],
+             json_output_file: nil,
              assert_steps: true,
              expect: %{timeout: 5000},
              update_snapshots: :default,

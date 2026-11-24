@@ -175,19 +175,33 @@ steps:
 
 `Playwright.Test.GitHubFormatter` is Playwright Test's `github` reporter: annotations for the
 failed tests (at their line), failed `setup_all`s and slow files, and a summary. It prints
-only those, so name `ExUnit.CLIFormatter` next to it (`--formatter` replaces the configured
-formatters). When failures are rerun, pass it to the rerun too: as upstream annotates every
-attempt, a test failing twice gets an error per run (the rerun's under `Retry #1`), and one
-passing on the rerun counts as flaky in the rerun's summary (so does one that a failed
+only those, so list `ExUnit.CLIFormatter` next to it. The simplest is to set it once, in
+`test/test_helper.exs`, on only under GitHub Actions, as upstream's `reporter: process.env.CI ?
+'github' : 'list'`:
+
+```elixir
+github = if System.get_env("GITHUB_ACTIONS"), do: [Playwright.Test.GitHubFormatter], else: []
+ExUnit.start(formatters: [ExUnit.CLIFormatter | github])
+```
+
+Every `mix test` then gets it, the rerun of the failures too, with no flags. A `--formatter` on
+the command line replaces that list as a whole: `mix test` applies its own options after
+`test_helper.exs` has run, so name every formatter you want there. `Playwright.Test.JSONFormatter`
+([A report of the run](test-artifacts.md#a-report-of-the-run)) goes in the same list.
+
+It annotates the rerun too, as upstream annotates every attempt: a test failing twice gets an
+error per run (the rerun's under `Retry #1`), and one passing on the rerun counts as flaky in
+the rerun's summary (so does one that a failed
 `setup_all` kept from running in the first run, where upstream counts it as passed). As it
 takes a `mix test --failed` run for retry 1, a local `--failed` rerun after a fix lists every
 fixed test as flaky: the formatter is meant for CI. Rerun
 only on exit status 2 (tests failed): any other failure, such as a crash or a missed coverage
 threshold, would otherwise go green on an empty `--failed` run.
 On Elixir 1.20 and earlier, `--failed` loses some failures, and a rerun that lost them all
-exits 0: see [Retries](test-artifacts.md#retries) for a guard, called here as `retry $f`.
+exits 0: see [Retries](test-artifacts.md#retries) for a guard, the bash function `retry`, defined
+in the same step.
 `erlef/setup-beam`'s problem matchers annotate each failure again, at the test's line, so turn
-them off:
+them off. With the formatter in `test_helper.exs`:
 
 ```yaml
 - uses: erlef/setup-beam@v1
@@ -195,9 +209,21 @@ them off:
     elixir-version: "1.20"
     otp-version: "29"
     disable_problem_matchers: true
-- run: |
+- shell: bash
+  run: |
+    retry() { ...; }  # from Retries
+    mix test || { [ $? -eq 2 ] && retry; }
+```
+
+Or, without it in `test_helper.exs`, pass the formatters as flags to both runs (`retry $f`
+passes them on):
+
+```yaml
+- shell: bash
+  run: |
+    retry() { ...; }  # from Retries
     f="--formatter ExUnit.CLIFormatter --formatter Playwright.Test.GitHubFormatter"
-    mix test $f || { [ $? -eq 2 ] && mix test --failed $f; }
+    mix test $f || { [ $? -eq 2 ] && retry $f; }
 ```
 
 With `--partitions`, rerun without it. The failures manifest holds only this partition's

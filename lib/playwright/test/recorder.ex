@@ -876,10 +876,23 @@ defmodule Playwright.Test.Recorder do
     {paths, opts} = GenServer.call(pid, {:capture, failed?}, :infinity)
 
     paths
-    |> Task.async_stream(fn {page, path} -> step("take a screenshot", fn -> screenshot(page, path, opts) end) end,
+    |> Task.async_stream(
+      fn {page, path} ->
+        step("take a screenshot", fn ->
+          screenshot(page, path, opts)
+          attach(opts, pid, "screenshot", path, "image/png")
+        end)
+      end,
       timeout: :infinity
     )
     |> Stream.run()
+  end
+
+  # `testInfo.attachments.push({ name, path, contentType })` of the test `opts` (its
+  # registration), traced by its recorder `pid`.
+  defp attach(opts, pid, name, path, content_type) do
+    this = Map.put(opts, :_tracing, pid)
+    TestInfo.attachments_push(this, %{name: name, path: path, contentType: content_type})
   end
 
   defp call(recorder, message, timeout \\ :infinity) do
@@ -965,16 +978,19 @@ defmodule Playwright.Test.Recorder do
     for request <- state.requests,
         do: step("dispose a request context", fn -> APIRequestContext.dispose!(request, reason: "Test ended.") end)
 
-    # All of it, the trace events too, once.
     state = GenServer.call(pid, :state, :infinity)
-    save_videos(state, failed?)
-    trace = save_trace(state, failed?)
-    persist_screenshots(state, failed?)
+    save_videos(pid, state, failed?)
+    persist_screenshots(pid, state, failed?)
 
     if verdict == :failed,
-      do: step("write error-context.md", fn -> ErrorContext.write(state.opts, failures, state.page_snapshot) end)
+      do:
+        step("write error-context.md", fn ->
+          ErrorContext.write(Map.put(state.opts, :_tracing, pid), failures, state.page_snapshot)
+        end)
 
-    trace
+    # The trace events too, with the attachments' `test.attach` steps.
+    %{tracing: tracing} = GenServer.call(pid, {:fields, [:tracing]}, :infinity)
+    save_trace(pid, %{state | tracing: tracing}, failed?)
   end
 
   defp await_exit(pid) do
@@ -1038,11 +1054,11 @@ defmodule Playwright.Test.Recorder do
 
   # `_contextFactory`'s close (`preserveVideo`): `video.webm`, `video-1.webm`, ... in the
   # order the contexts closed. The artifact options have their `mode` first.
-  defp save_videos(%{opts: %{video: [{:mode, video} | _]} = opts} = state, failed?) do
-    if should_preserve_video(video, failed?, opts.retry), do: do_save_videos(state)
+  defp save_videos(pid, %{opts: %{video: [{:mode, video} | _]} = opts} = state, failed?) do
+    if should_preserve_video(video, failed?, opts.retry), do: do_save_videos(pid, state)
   end
 
-  defp do_save_videos(state) do
+  defp do_save_videos(pid, state) do
     by_guid = Map.new(state.contexts, &{&1.guid, &1})
     open = for %{guid: guid} <- state.contexts, guid not in state.closed, do: guid
     pages = for guid <- state.closed ++ open, page <- by_guid[guid].pages, do: page
@@ -1050,7 +1066,11 @@ defmodule Playwright.Test.Recorder do
 
     for {video, i} <- Enum.with_index(videos) do
       path = Path.join(state.opts.output_dir, if(i == 0, do: "video.webm", else: "video-#{i}.webm"))
-      step("save a video", fn -> save_video(video, path) end)
+
+      step("save a video", fn ->
+        save_video(video, path)
+        attach(state.opts, pid, "video", path, "video/webm")
+      end)
     end
   end
 
@@ -1061,8 +1081,10 @@ defmodule Playwright.Test.Recorder do
 
   # `testTracing`'s `stopIfNeeded`: the test's `test.trace` and its contexts' chunks. The path,
   # when kept.
-  defp save_trace(state, failed?),
-    do: step("merge the traces", fn -> TestTracing.stop_if_needed(state.tracing, state.opts, state.chunks, failed?) end)
+  defp save_trace(pid, state, failed?) do
+    test = Map.put(state.opts, :_tracing, pid)
+    step("merge the traces", fn -> TestTracing.stop_if_needed(state.tracing, test, state.chunks, failed?) end)
+  end
 
   @doc "`SnapshotRecorder.shouldCaptureUponFinish`, by the screenshot `mode` and the test's result and `retry`."
   def should_capture_upon_finish(mode, failed?, retry),
@@ -1074,11 +1096,15 @@ defmodule Playwright.Test.Recorder do
 
   # `SnapshotRecorder.persistTemporary`: `test-failed-N.png` of a failed test, else
   # `test-finished-N.png` (`on` only), in capture order, numbered after those taken at the end.
-  defp persist_screenshots(state, failed?) do
+  defp persist_screenshots(pid, state, failed?) do
     for {file, ordinal} <- Enum.with_index(state.screenshots, state.ordinal),
         should_capture_upon_finish(state.opts.screenshot[:mode], failed?, state.opts.retry),
         path = attachment_path(state.opts.output_dir, failed?, ordinal),
-        do: step("save a screenshot", fn -> save_screenshot(file, path) end)
+        do:
+          step("save a screenshot", fn ->
+            save_screenshot(file, path)
+            attach(state.opts, pid, "screenshot", path, "image/png")
+          end)
   end
 
   defp save_screenshot(file, path) do

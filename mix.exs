@@ -173,7 +173,8 @@ defmodule Playwright.MixProject do
           Playwright.Test.Assertions,
           Playwright.Test.BrowserPool,
           Playwright.Test.Project,
-          Playwright.Test.GitHubFormatter
+          Playwright.Test.GitHubFormatter,
+          Playwright.Test.JSONFormatter
         ],
         Network: [
           Playwright.Request,

@@ -63,6 +63,7 @@ defmodule Playwright.Test.Options do
     :snapshot_path_template,
     :test_id_attribute,
     :report_slow_tests,
+    :json_output_file,
     :assert_steps
   ]
   # Upstream's config keys the matchers read (`expect`, `updateSnapshots`, `ignoreSnapshots`):
@@ -115,6 +116,7 @@ defmodule Playwright.Test.Options do
     browser_name: "one of :chromium, :firefox, :webkit or their strings",
     on_start: "nil, a 1-arity function or an {m, f, a} tuple",
     output_dir: "a string",
+    json_output_file: "nil or a string",
     preserve_output: "one of :always, :never, :failures_only or their strings (\"failures-only\")",
     workers: "a positive integer"
   }
@@ -652,6 +654,7 @@ defmodule Playwright.Test.Options do
       snapshot_path_template: nil,
       test_id_attribute: "data-testid",
       report_slow_tests: [max: 5, threshold: 300_000],
+      json_output_file: nil,
       assert_steps: true
     }
   end
@@ -710,6 +713,7 @@ defmodule Playwright.Test.Options do
   defp validate!(key, mode) when key in @artifact_keys, do: artifact!(key, mode: mode)
 
   defp validate!(:output_dir, dir) when is_binary(dir), do: dir
+  defp validate!(:json_output_file, file) when is_binary(file) or file == nil, do: file
   defp validate!(:preserve_output, value) when value in [:always, :never, :failures_only], do: value
   defp validate!(:preserve_output, "failures-only"), do: :failures_only
   defp validate!(:preserve_output, value) when value in ["always", "never"], do: String.to_existing_atom(value)

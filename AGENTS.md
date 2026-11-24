@@ -17,8 +17,8 @@ Read them before changing ported code. When reviewing a change or fixing review 
   directory, `<cache_dir>/<version>/upstream`.
 - `Playwright.Test` (ExUnit runner and browser pool, `lib/playwright/test*`) is a native runner, with no
   port markers. Only what the ported matchers, traces and failure reports need is ported:
-  testInfo, `test.trace`, `step`, errorContext and the github reporter
-  (`Playwright.Test.{TestInfo, TestTracing, ErrorContext, GitHubFormatter}`, `test.ex`), with upstream source
+  testInfo, `test.trace`, `step`, errorContext and the github and json reporters
+  (`Playwright.Test.{TestInfo, TestTracing, ErrorContext, GitHubFormatter, JSONFormatter}`, `test.ex`), with upstream source
   references and `-- not ported`/`# deviation:` comments, but no `@upstream`: parity covers the
   client API, not the runner.
 - CHANGELOG during an RC phase: prefix entries that only matter to users of an earlier RC with

@@ -20,7 +20,7 @@ so that a version bump stays a matter of porting `git diff vA vB` hunks. The why
 | `tests/page/*.spec.ts`, `tests/library/*.spec.ts` | `test/upstream/{page,library}/`, ported by hand |
 | Node's single thread, Node built-ins | `Playwright.Runtime.*`, Elixir only except `Zones` (above), see Shims |
 | `packages/playwright/src/index.ts` (fixtures, artifacts) | not ported: `Playwright.Test` is native, after the non-JS clients' test plugins, with its own `test` macro for the result ([why](docs/architecture.md#test-runner)) |
-| `packages/playwright/src/worker/{testInfo,testTracing}.ts`, `test.step`, `errorContext.ts`, `reporters/github.ts` | `Playwright.Test.{TestInfo, TestTracing}`, `Playwright.Test.step/3`, `Playwright.Test.{ErrorContext, GitHubFormatter}`: what the matchers, traces and failure reports need, ported by hand without `@upstream` (parity covers the client, not the runner) |
+| `packages/playwright/src/worker/{testInfo,testTracing}.ts`, `test.step`, `errorContext.ts`, `reporters/{github,json}.ts` | `Playwright.Test.{TestInfo, TestTracing}`, `Playwright.Test.step/3`, `Playwright.Test.{ErrorContext, GitHubFormatter, JSONFormatter}`: what the matchers, traces and failure reports need, ported by hand without `@upstream` (parity covers the client, not the runner) |
 
 ## Rules
 
