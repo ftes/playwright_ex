@@ -324,11 +324,12 @@ defmodule Playwright.Test do
   A test stuck elsewhere (`Process.sleep/1`, a `receive`) still fails with ExUnit's
   `ExUnit.TimeoutError`. So can a hung call under heavy load, when the close doesn't finish
   before ExUnit's kill: the console then has no call log, but the trace keeps the hung call with
-  its log, and `error-context.md` says the test process was killed. So does a call waiting for
-  an element to be actionable (hidden, disabled) in a test whose margin is under 500 ms (a
-  timeout under 10 s): the driver retries it up to 500 ms past the close, as upstream's does.
-  The artifacts are kept either way; for the call to fail by itself with its log, set
-  `action_timeout` below the test's timeout, as Playwright Test advises.
+  its log, and `error-context.md` says the test process was killed. So can a call retrying an
+  element that isn't actionable (hidden, disabled, covered by another element, ...): the margin
+  is at most 1 s and also holds the close's artifact steps, and the driver waits up to 500 ms
+  between its retries without noticing the close, as upstream's does. The artifacts are kept
+  either way. For such a call to fail by itself with its log, give it an `action_timeout` that
+  runs out well before the test's timeout.
   The timeout is ExUnit's: the `@tag timeout:` (`:infinity` for none) or `mix test --timeout`;
   `mix test --trace` has none. As ExUnit's (and upstream's, which counts `beforeEach` hooks), the
   timeout counts the test's `setup` callbacks: the clock starts at the module's first one, also
