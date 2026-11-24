@@ -101,7 +101,7 @@ runs:
     - name: Set up toolchain and deps
       if: inputs.setup != 'none'
       continue-on-error: ${{ inputs.setup == 'best-effort' }}
-      uses: ftes/ci/setup@78e6ba9c26b2865cad995d33aadba7ccb23c9149 # v1.0.3
+      uses: ftes/ci/setup@70f3e82336c42d568193e6653b5d3e30e4693d39 # v1.0.4
     - name: Download upstream sources
       if: inputs.setup != 'none'
       continue-on-error: true
