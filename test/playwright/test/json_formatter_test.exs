@@ -112,7 +112,8 @@ defmodule Playwright.Test.JSONFormatterTest do
 
     # As upstream's: the first project's spec, the later's tests added, though one failed.
     spec = fn tests ->
-      assert %{"suites" => [%{"specs" => [%{"ok" => ok, "id" => id, "tests" => tests}]}]} = report(tests)
+      assert %{"suites" => [%{"specs" => [%{"ok" => ok, "id" => id, "tests" => tests}]}]} = report = report(tests)
+      assert Enum.map(report["config"]["projects"], & &1["name"]) == ["b", "a"]
       {ok, id, Enum.map(tests, & &1["projectName"])}
     end
 

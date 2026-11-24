@@ -208,10 +208,11 @@ defmodule Playwright.Test.JSONFormatter do
     }
   end
 
-  # The projects of the tests' `parameterize:` (the default project's name is `""`), by name.
+  # The projects of the tests' `parameterize:` (the default project's name is `""`), in their
+  # order, as the suites have them (`project_suites/1`).
   # deviation: no `config.projects`, each module has its own `parameterize:`.
   defp projects([]), do: [""]
-  defp projects(tests), do: tests |> Enum.map(& &1.test.projectName) |> Enum.uniq() |> Enum.sort()
+  defp projects(tests), do: tests |> project_suites() |> Enum.map(&elem(&1, 0))
 
   defp report_slow_tests(false), do: :null
   defp report_slow_tests(options), do: Map.new(options)
