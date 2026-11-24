@@ -16,7 +16,7 @@ concurrency:
 permissions: {}
 
 env:
-  # As in elixir.yml.
+  # As in ci.yml.
   MIX_ENV: test
 
 jobs:
@@ -120,7 +120,7 @@ jobs:
         run: |
           list() {
             gh pr list --state open --limit 40 --json number,headRefName,isCrossRepository,mergeable,commits,statusCheckRollup,comments,reviews \
-              --jq '[.[] | select((.isCrossRepository | not) and (.headRefName | startswith("claude/nightly-")) and ([.comments[], .reviews[]] | all(.author.login == "claude"))) | {number, branch: .headRefName, mergeable, commits: (.commits | length), failing: ([.statusCheckRollup[] | select(.workflowName == "Elixir CI")] | group_by(.name) | map(max_by(.startedAt)) | any(.conclusion == "FAILURE" or .conclusion == "TIMED_OUT"))}]'
+              --jq '[.[] | select((.isCrossRepository | not) and (.headRefName | startswith("claude/nightly-")) and ([.comments[], .reviews[]] | all(.author.login == "claude"))) | {number, branch: .headRefName, mergeable, commits: (.commits | length), failing: ([.statusCheckRollup[] | select(.workflowName == "CI")] | group_by(.name) | map(max_by(.startedAt)) | any(.conclusion == "FAILURE" or .conclusion == "TIMED_OUT"))}]'
           }
           list > /dev/null
           sleep 30

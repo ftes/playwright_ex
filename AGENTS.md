@@ -25,7 +25,7 @@ Read them before changing ported code. When reviewing a change or fixing review 
   `**RC only:**`. These are fixes for bugs an RC introduced, and changes to APIs first shipped in
   an RC. Upstream driver bumps and changes ported from upstream are never RC only. `## [Unreleased]`
   gathers every RC's entries; at the first non-RC release, drop the RC-only ones.
-- Several PRs for one goal go in a GitHub stack: `elixir.yml` runs Build and lint and the tests only
+- Several PRs for one goal go in a GitHub stack: `ci.yml` runs Build and lint and the tests only
   on a stack's top PR, and not on drafts. Open drafts, each `--base` the previous branch, run
   `gh stack link --base main <bottom> … <top>` (a `--base` chain alone isn't a stack), then mark
   ready top first.

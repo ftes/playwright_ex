@@ -46,7 +46,7 @@ runs:
         # This repository's runs of the checked-out commit only.
         head=$(git rev-parse HEAD)
         # shellcheck disable=SC2016 # jq's $ENV
-        run=$(gh api "repos/$GH_REPO/actions/workflows/elixir.yml/runs?branch=$BRANCH&head_sha=$head&event=pull_request&per_page=100" \
+        run=$(gh api "repos/$GH_REPO/actions/workflows/ci.yml/runs?branch=$BRANCH&head_sha=$head&event=pull_request&per_page=100" \
           --jq '[.workflow_runs[] | select(.head_repository.full_name == $ENV.GH_REPO)][0].id // empty')
         if [[ -z $run ]]; then echo "::error::no CI run of $BRANCH at $head"; exit 1; fi
         mkdir -p tmp
