@@ -40,6 +40,10 @@
 #     module with `trace: :on, screenshot: :on` (a passing test that attaches and steps, a failing
 #     one in a describe, failing in a nested step), a plain ExUnit module (a passing and a
 #     skipped test) and one whose `setup_all` fails.
+#   * `on_exit` - the testing guide's page-error check in an `on_exit` callback (`Playwright.Test.on_exit/2`):
+#     a test whose page error fails it there, and one whose check ignores it; each prints its
+#     status from an `on_exit` callback that runs after the check: `(status=>name=>status)`. With
+#     the JSON formatter, as `json`.
 
 # credo:disable-for-this-file Credo.Check.Warning.WrongTestFilename
 
@@ -59,7 +63,7 @@ Application.put_env(:playwright, :test,
   # trims a warm worker when it comes before the failed ones'.
   workers: if(mode == "modules", do: 10, else: 8),
   assert_steps: mode != "assert_steps",
-  json_output_file: if(mode == "json", do: Path.join(Path.dirname(output_dir), "report.json"))
+  json_output_file: if(mode in ["json", "on_exit"], do: Path.join(Path.dirname(output_dir), "report.json"))
 )
 
 # The test build's .app lists the test-only deps: start the library's own tree.
@@ -89,7 +93,7 @@ ExUnit.start(
   max_failures: max_failures,
   trace: mode == "trace",
   only_test_ids: only_test_ids,
-  formatters: [ExUnit.CLIFormatter] ++ if(mode == "json", do: [Playwright.Test.JSONFormatter], else: [])
+  formatters: [ExUnit.CLIFormatter] ++ if(mode in ["json", "on_exit"], do: [Playwright.Test.JSONFormatter], else: [])
 )
 
 # What the modules saw: `{label, scope, playwright}` (the scope: the pid that holds the workers).
@@ -667,6 +671,44 @@ case mode do
       end
 
       test "does not run", do: :ok
+    end
+
+  "on_exit" ->
+    defmodule OnExitTest do
+      use Playwright.Case, async: true
+
+      # Runs after the check, which comes later.
+      setup %{test: name, test_pid: test_pid} do
+        on_exit(fn -> IO.puts("(status=>#{name}=>#{inspect(Playwright.Test.info(test_pid).status)})") end)
+      end
+
+      # The testing guide's "A check after the test".
+      setup %{page: page} = ctx do
+        {:ok, errors} = Agent.start(fn -> [] end)
+        Page.on(page, :page_error, fn error -> Agent.update(errors, &(&1 ++ [error])) end)
+
+        on_exit(fn ->
+          page_errors = Agent.get(errors, & &1)
+          Agent.stop(errors)
+          if !ctx[:ignore_js_errors], do: assert(page_errors == [], "unhandled page errors")
+        end)
+
+        %{errors: errors}
+      end
+
+      defp page_error(page, errors) do
+        Page.set_content!(
+          page,
+          "<h1>Page error</h1><script>setTimeout(() => { throw new Error('page boom') })</script>"
+        )
+
+        Expect.poll!(fn -> length(Agent.get(errors, & &1)) end, &assert(&1 == 1))
+      end
+
+      test("fails in on_exit", %{page: page, errors: errors}, do: page_error(page, errors))
+
+      @tag :ignore_js_errors
+      test("passes in on_exit", %{page: page, errors: errors}, do: page_error(page, errors))
     end
 
   "pool_start" ->

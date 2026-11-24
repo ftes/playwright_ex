@@ -8,8 +8,9 @@ defmodule Playwright.Test.Results do
   # defaults of the contexts it creates.
   #
   # A test's result (`watch/2`, `result/2`): passed when the `test` macro marked the end of its
-  # body (`{:passed, pid}`) and its process then exited `:shutdown`, as ExUnit's runner ends it.
-  # The messages a test process sends arrive before its `DOWN`.
+  # body (`{:passed, pid}`) and its process then exited `:shutdown`, as ExUnit's runner ends it,
+  # and no `Playwright.Test.on_exit/2` callback failed after it (`{:failed_in_teardown, pid,
+  # failure}`). The messages a test process sends arrive before its `DOWN`.
 
   alias Playwright.Test.Pool
   alias Playwright.Test.TestInfo
@@ -40,7 +41,10 @@ defmodule Playwright.Test.Results do
     GenServer.call(Pool, {:watch, pid, Pool.parent(pid), marked}, :infinity)
   end
 
-  @doc "Sends `message` (`{:passed, pid}`, `{:failed, pid, failure}`) if the pool runs."
+  @doc """
+  Sends `message` (`{:passed, pid}`, `{:failed, pid, failure}`, or `{:failed_in_teardown, pid,
+  failure}` from an `on_exit` callback) if the pool runs.
+  """
   def notify(message) do
     if pid = Process.whereis(Pool), do: send(pid, message)
     :ok
@@ -159,7 +163,17 @@ defmodule Playwright.Test.Results do
     else
       Process.monitor(pid)
       started = System.monotonic_time(:millisecond)
-      test = %{runner: runner, marked: marked, passed?: false, failures: [], awaiting: [], started: started}
+
+      test = %{
+        runner: runner,
+        marked: marked,
+        passed?: false,
+        failures: [],
+        teardown: [],
+        awaiting: [],
+        started: started
+      }
+
       {:reply, :ok, %{state | tests: Map.put(state.tests, pid, test)}}
     end
   end
@@ -245,6 +259,21 @@ defmodule Playwright.Test.Results do
     end
   end
 
+  # An `on_exit` callback's error fails the test, as upstream's `_failWithError` does in teardown:
+  # after its end, or before the pool saw its `DOWN` (`test_ended/4` adds it then).
+  def handle_info({:failed_in_teardown, pid, failure}, state) do
+    case state do
+      %{results: %{^pid => {_verdict, failures, duration, runner}}} ->
+        put_in(state.results[pid], {:failed, failures ++ [failure], duration, runner})
+
+      %{tests: %{^pid => _}} ->
+        update_in(state.tests[pid].teardown, &(&1 ++ [failure]))
+
+      _ ->
+        state
+    end
+  end
+
   def handle_info(_message, state), do: state
 
   @doc """
@@ -298,9 +327,9 @@ defmodule Playwright.Test.Results do
       end
 
     {verdict, failures} =
-      case {errors ++ unhandled, verdict(test, pid, reason, interrupt)} do
-        {[], result} -> result
-        {errors, {_verdict, failures}} -> {:failed, Enum.map(errors, &normalize/1) ++ failures}
+      case {errors ++ unhandled, verdict(test, pid, reason, interrupt), test.teardown} do
+        {[], result, []} -> result
+        {errors, {_verdict, failures}, teardown} -> {:failed, Enum.map(errors, &normalize/1) ++ failures ++ teardown}
       end
 
     for from <- test.awaiting, do: GenServer.reply(from, {verdict, failures})

@@ -169,6 +169,36 @@ defmodule Playwright.Test.ResultTest do
     for pid <- [passed, killed, unmarked], do: on_exit_callbacks(pid, fn -> nil end, fn -> nil end)
   end
 
+  # `Playwright.Test.on_exit/2`: upstream's `_failWithError` in teardown.
+  test "an on_exit callback's error fails a passed test, also before the pool saw its end; after its finish, not" do
+    failure = fn message -> {:error, %RuntimeError{message: message}, []} end
+
+    ended = fake_test()
+    end_test(ended, [&{:passed, &1}], :shutdown)
+
+    {first, last} =
+      on_exit_callbacks(
+        ended,
+        fn ->
+          Results.notify({:failed_in_teardown, ended, failure.("teardown boom")})
+          Playwright.Test.info(ended)
+        end,
+        fn ->
+          Results.notify({:failed_in_teardown, ended, failure.("too late")})
+          Playwright.Test.info(ended)
+        end
+      )
+
+    assert %{status: :failed, errors: [%{message: "RuntimeError: teardown boom"}]} = first
+    assert %{status: :failed, errors: [%{message: "RuntimeError: teardown boom"}]} = last
+
+    # Its `DOWN` after the error (the fake test sends both).
+    early = fake_test()
+    end_test(early, [&{:passed, &1}, &{:failed_in_teardown, &1, failure.("teardown boom")}], :shutdown)
+    assert %{status: :failed, errors: [%{message: "RuntimeError: teardown boom"}]} = Playwright.Test.info(early)
+    on_exit_callbacks(early, fn -> nil end, fn -> nil end)
+  end
+
   test "the finish of a test whose registration row is gone (the pool restarted) leaves the pool running" do
     pid = fake_test()
     end_test(pid, [&{:passed, &1}], :shutdown)

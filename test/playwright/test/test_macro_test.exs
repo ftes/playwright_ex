@@ -23,7 +23,7 @@ defmodule Playwright.Test.TestMacroTest do
 
   test "failures are reported as without it" do
     [plain, ours] = for variant <- ["plain", "ours"], do: run(variant, "run")
-    assert plain =~ ~r"14 tests, 12 failures|Result: 2/14 passed"
+    assert plain =~ ~r"18 tests, 16 failures|Result: 2/18 passed"
     assert ours == plain
   end
 
