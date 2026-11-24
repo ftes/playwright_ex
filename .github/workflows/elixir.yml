@@ -160,6 +160,13 @@ jobs:
     # The slowest partition took ~12 min at 4 per browser (firefox, with BrowsertypeConnectTest); a
     # hang fails here instead of at GitHub's 6 h.
     timeout-minutes: 30
+    # One run per leg, first come first served: the run whose build finished first gets every leg, a
+    # later run's legs wait for theirs and hold no runner meanwhile. The workflow-level group still
+    # cancels a superseded run, its running and waiting legs alike. build and matrix are one job per
+    # run each, so they run ungrouped and a later run's legs queue as soon as its build is green.
+    concurrency:
+      group: ${{ github.workflow }}-test-${{ matrix.lane }}-${{ matrix.browser }}-${{ matrix.partition }}
+      queue: max
     permissions:
       contents: read
     strategy:
