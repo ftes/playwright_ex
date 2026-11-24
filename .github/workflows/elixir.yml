@@ -36,10 +36,9 @@ on:
 # A new push to a PR cancels its running CI. Other events (main pushes, the nightly, dispatched
 # experiments) get a group of their own: in a shared group GitHub keeps one run pending and cancels
 # the older pending one, which would drop a nightly or a main push's cache save, and serialize
-# parallel experiments. So does a PR run that tests nothing (a draft, or below the top of its
-# stack), so that it can't cancel the tip's test run.
+# parallel experiments.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && !github.event.pull_request.draft && (github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size) && github.ref || github.run_id }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: true
 
 # Each job asks for what it needs.
@@ -53,6 +52,7 @@ jobs:
     name: Build and lint
     # Draft PRs skip CI until marked ready, and in a stack only the top PR runs it (the tests need
     # this job): it holds every change below it. `stack` is absent outside a stack and on other events.
+    # Tradeoffs (re-run CI on a PR that becomes the top): ftes/ci README, "Pull request CI".
     if: ${{ !inputs.skip_lint && !github.event.pull_request.draft && (github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size) }}
     runs-on: ubuntu-26.04
     timeout-minutes: 30
@@ -104,9 +104,11 @@ jobs:
 
   # The test jobs, one per lane, browser and partition: the browsers (default all) in `partitions`
   # jobs each (default firefox 6, whose slowest sets the run's time, the others 3), on the newest
-  # lane, and chromium's on the oldest too. Unconditional: the tests need the build anyway.
+  # lane, and chromium's on the oldest too. Skipped where the build is (draft, or below
+  # the top of a stack), but not by skip_lint: the tests still run then.
   matrix:
     name: Test matrix
+    if: ${{ !github.event.pull_request.draft && (github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size) }}
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions: {}
