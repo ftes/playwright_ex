@@ -131,9 +131,9 @@ jobs:
 
   # Each browser's suite in `partitions` jobs (`mix test --partitions`: test files round-robin by
   # path). Parity, Selenium and headful run once per browser, in partition 1, on the newest lane.
-  # The oldest lane (.tool-versions.oldest, mix.exs's floor) runs chromium's main suite only, with
-  # warnings allowed so newer backwards-compatible features stay usable: the tests catch what the
-  # floor lacks (a call to a missing function is only a compile warning there).
+  # The oldest lane (.tool-versions.oldest, mix.exs's floor, with mix.lock.oldest) runs chromium's
+  # main suite only, with warnings allowed so newer backwards-compatible features stay usable: the
+  # tests catch what the floor lacks (a call to a missing function is only a compile warning there).
   test:
     name: Test (${{ matrix.lane }}, ${{ matrix.browser }}, ${{ matrix.partition }})
     runs-on: ubuntu-26.04

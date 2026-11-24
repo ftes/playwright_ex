@@ -6,6 +6,14 @@
 3. Porting rules: [`PORTING.md`](PORTING.md); the why behind the design:
    [`docs/architecture.md`](docs/architecture.md); agent instructions: [`AGENTS.md`](AGENTS.md).
 
+The compatibility floor is Elixir 1.18 on OTP 27 (`.tool-versions.oldest` and `mix.lock.oldest`,
+which CI's oldest lane uses). There are no runtime dependencies, so `mix.lock.oldest` holds only the
+dev and test ones that lane builds with; a runtime one would be locked at its floor, the lowest
+version its requirement in `mix.exs` accepts, which `DependencyFloorsTest` checks. To update it,
+copy `.tool-versions.oldest` to `.tool-versions` and `mix.lock.oldest` to `mix.lock`, run
+`mix deps.update <dep>`, and keep the lock as `mix.lock.oldest` once `mix deps.get` leaves it
+unchanged from an empty `deps/`, as CI runs it. Then restore `.tool-versions` and `mix.lock`.
+
 ## Reviewing
 
 Besides correctness, review a change for simplicity, consistency and scope. This applies to
