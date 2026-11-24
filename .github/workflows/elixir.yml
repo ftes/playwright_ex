@@ -3,7 +3,7 @@ name: Elixir CI
 on:
   push:
     branches: ["main"]
-    # A release: scripts/release pushes the tag; the publish job below releases it.
+    # A release tag, from ftes/ci's release/release.exs: the publish job below releases it.
     tags: ["v*"]
   # Any base branch, so PRs stacked on another PR's branch get CI too.
   pull_request:
@@ -94,9 +94,6 @@ jobs:
       # Hex package, the docs and Dialyzer.
       - name: Lint
         run: mix lint
-      # The release config against this repo, and against each Renovate bump of ftes/ci's script.
-      - name: Check the release config
-        run: scripts/release --check
       # Last, so only a green job saves; under the key computed before deps.get.
       - name: Save deps and _build
         if: success() && github.ref == 'refs/heads/main' && steps.setup.outputs.cache-hit != 'true'
@@ -316,13 +313,13 @@ jobs:
           RESULT: ${{ needs.test.result }}
         run: test "$RESULT" = success
 
-  # A pushed vX.Y.Z tag (scripts/release pushes it): publishes to Hex once every job above passed
-  # on the tagged commit, then creates the GitHub release from CHANGELOG.md. Hex authenticates the
-  # job by workload identity (hex.pm/docs/workload-identity): no API key. The package's workload
-  # identity names this file and the `release` environment, so renaming either breaks publishing.
-  # Staged publishing holds the release until an owner approves it on hex.pm with 2FA; `--wait`
-  # blocks until then, so the GitHub release appears only once the Hex release is live. Approve
-  # within the job's 6 h, or create the GitHub release by hand.
+  # A pushed vX.Y.Z tag (from ftes/ci's release/release.exs): publishes to Hex once every job
+  # above passed on the tagged commit, then creates the GitHub release from CHANGELOG.md. Hex
+  # authenticates the job by workload identity (hex.pm/docs/workload-identity): no API key. The
+  # package's workload identity names this file and the `release` environment, so renaming either
+  # breaks publishing. Staged publishing holds the release until an owner approves it on hex.pm
+  # with 2FA; `--wait` blocks until then, so the GitHub release appears only once the Hex release
+  # is live. Approve within the job's 6 h, or create the GitHub release by hand.
   publish:
     name: Publish to Hex and GitHub
     needs: quality

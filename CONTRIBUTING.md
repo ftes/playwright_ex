@@ -30,21 +30,20 @@ human and agent reviews alike.
 
 ## Releasing
 
-The script needs a jj working copy colocated with git, `gh` logged in as a repo admin (to push
-`main` past its ruleset and create the tag), and `curl` and `elixir` on the PATH.
+Releases run from a checkout of [ftes/ci](https://github.com/ftes/ci), with `gh` logged in as a
+repo admin (to push `main` past its ruleset and create the tag) and `jj` and `elixir` on the PATH:
 
-1. For the first non-RC release, merge the RC sections into `## [Unreleased]` and drop the `**RC
-   only:**` entries ([AGENTS.md](AGENTS.md)); the script refuses while they remain.
-2. `scripts/release --dry-run <version>` runs the checks (an empty `@` on `main@origin` as last
-   fetched, an `## [Unreleased]` with entries, a new tag, a greater version and the driver's
-   major.minor) and prints the edits.
-3. `scripts/release <version>` commits "Release <version>" (the version, its dated changelog
-   section and driver line) and "Start the next release", pushes `main` and tags the first commit.
-   It fetches first and checks again. `RELEASE_REMOTE` names another remote than `origin`.
-4. The tag runs CI (`elixir.yml`) on the tagged commit; once every job passed, its publish job
-   stages the release on Hex. Approve it on hex.pm; the job then creates the GitHub release.
+```sh
+# Makes both commits in a clone and prints them; pushes nothing.
+release/release.exs playwright_ex --dry-run <version>
+release/release.exs playwright_ex <version>
+```
 
-It runs locally, not as a workflow: only an admin can push to `main` past its ruleset, and a tag
-pushed with `GITHUB_TOKEN` starts no workflow. `scripts/release` runs ftes/ci's
-`release/release.exs` at a pinned commit (Renovate bumps it, and CI's `scripts/release --check`
-tests each bump against this repo); this repo's settings are `scripts/release_config.exs`.
+It clones this repo into a temporary directory, commits "Release <version>" and "Start the next
+release", pushes `main` and tags the first commit. The tag runs CI (`elixir.yml`) on the tagged
+commit; once every job passed, its publish job stages the release on Hex. Approve it on hex.pm;
+the job then creates the GitHub release.
+
+`## [Unreleased]` gathers every change since the last final release, across the release
+candidates. For a final release, drop the `**RC only:**` entries first: the script refuses while
+they remain. `release/release.exs` lists the conventions it relies on.

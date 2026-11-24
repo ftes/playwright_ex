@@ -40,7 +40,7 @@ upstream minor, so `~> 1.65.0` is safe.
 
 ## [Unreleased]
 
-## [1.65.0-rc.5] 2026-11-24
+Changes since 0.16.0, gathered across the release candidates.
 
 Drives [Playwright 1.65.1](https://github.com/microsoft/playwright/releases/tag/v1.65.1), on
 Node 26.13.1. No upstream API changes.
@@ -55,59 +55,10 @@ Node 26.13.1. No upstream API changes.
   `attach/2`, and in `info/1` after the test the artifacts' (`trace`, `screenshot`, `video`,
   `error-context`) with their paths. Each artifact but the trace is a `test.attach` step of the
   trace, which so holds a copy of it, as upstream's.
-
-### Changed
-
-- **RC only:** `usage-rules.md` keeps only the traps an agent gets wrong and points to the
-  module docs for setup and config keys.
-- **RC only:** the docs prefer plain Elixir (sequential calls, `Task`) to `Playwright.Promise`
-  for a JS `Promise.all` of independent reads, and list the cases that need a promise.
-
-### Fixed
-
-- A test whose body passes but whose `on_exit` callback fails counts as failed, as an
-  `afterEach` hook's failure fails it upstream: its trace, screenshots and `error-context.md` are
-  kept under the on-failure modes, and `info/1` and the reporters say `:failed`. `use
-  Playwright.Test` imports its own `on_exit/1,2` for that (a case template's only with the `use`
-  in its `using`); `ExUnit.Callbacks.on_exit/2` called qualified isn't covered. A module that
-  imports `ExUnit.Callbacks` again after the `use` now fails to compile a bare `on_exit` call
-  (ambiguous): drop that import.
-- **RC only:** an improper list as a `trace`, `screenshot`, `video`, `driver`,
-  `connect_options` or `report_slow_tests` option, or in the config's `expect`, raises `invalid
-  value ... expected a keyword list or a map` again, not a `FunctionClauseError`.
-
-## [1.65.0-rc.4] 2026-11-23
-
-Drives [Playwright 1.65.1](https://github.com/microsoft/playwright/releases/tag/v1.65.1), on
-Node 26.13.1. No upstream API changes.
-
-### Added
-
 - `Playwright.Test.info/0`'s `project`, upstream's `testInfo.project`: a
   `Playwright.Test.Project`, the module's from `parameterize:` or the default one, with its
   `name` and `use` (the config's options, the project's over them), also in `setup_all` and
   `info/1`.
-
-### Changed
-
-- **RC only:** **Breaking:** `config :playwright, :expect, timeout: 10_000, update_snapshots:
-  :missing` is `config :playwright, :test, expect: [timeout: 10_000], update_snapshots:
-  :missing`, as in `playwright.config.ts` (`ignore_snapshots` too).
-
-### Fixed
-
-- **RC only:** `Playwright.Test`: a `Browser.new_context`, `Browser.new_page` or
-  `BrowserType.launch_persistent_context` after the test timeout closed the test's contexts
-  closes its context and fails with "Test timeout of <ms>ms exceeded.", instead of its calls
-  hanging until ExUnit's `TimeoutError`.
-
-## [1.65.0-rc.3] 2026-11-21
-
-Drives [Playwright 1.65.1](https://github.com/microsoft/playwright/releases/tag/v1.65.1), on
-Node 26.13.1. No upstream API changes.
-
-### Added
-
 - `Playwright.Test.info/0` in `setup_all`: the module's `file`, `timeout` and resolved `use`
   options (config, project, module).
 - `Playwright.Test.step/2,3` and `step_skip/2,3` in `setup_all`, as `test.step` in
@@ -124,9 +75,73 @@ Node 26.13.1. No upstream API changes.
   `use Playwright.Test, assert_steps: false`, or the same key in `config :playwright, :test`.
 - `headless` and `channel` are worker options of `Playwright.Test` (config, project, module,
   `BrowserPool.browser/1`), set over `launch_options`', as upstream's fixtures.
+- `Playwright.Promise.all/1`, `race/1` and `any/1`, as JS's `Promise.all`, `Promise.race` and
+  `Promise.any` (with `Playwright.AggregateError`).
+- A warning when the connection has waited 5 s for one listener or route handler, which stalls
+  every page on it: it names the listener, shows where it waits and points to the fix
+  ([Concurrency](guides/concurrency.md#no-blocking-work-in-listeners)).
+- `use Playwright.Test` (and `use Playwright.Case`) takes the context options as
+  options of their own, Playwright Test's `test.use({ locale: 'de-DE' })`: `use Playwright.Case,
+  locale: "de-DE"`, over the config's per option, under the call's, for every context of the
+  module, its `setup_all`'s included (#257). Any option a layer (config, project, module
+  `use`, tags) gives as `nil` resets it to the layer under (the project's, the config's or the
+  default), as upstream's `undefined`; a call's own `nil` of a context option or
+  `connect_options` is passed as given.
+  `context_options:` is upstream's `contextOptions`, for the other options of `new_context`,
+  under an option of its own, so flat keys are the upstream-shaped form (`config :playwright,
+  :test, locale: "de-DE"`). The config takes both too (`config :playwright, :test, base_url:
+  "..."`). `Playwright.Test.config().context_options` holds only the bag, not the options of
+  their own: a library that read options from it should read the test's resolved options with
+  `Playwright.Test.info().use`.
+- `Playwright.Test.use/1` gives a describe block or a test its options, as
+  Playwright Test's `test.use` in a `test.describe`: `@describetag Test.use(timezone_id:
+  "Europe/Berlin")`, `@tag Test.use(trace: :on)`. They layer per option, over the module's.
+- `Playwright.Test.parameters/1` is a project for `parameterize:`, Playwright
+  Test's `projects: [{ use }]`: its options are over the config's and under the module's, for
+  every context of the module's run.
+- `browser_name`, `launch_options` and `connect_options` are options of `use
+  Playwright.Test` and of `Test.parameters/1`, and the defaults of the module's
+  `BrowserPool.browser/1` calls. Without a `browser_name` (in the config either), a device's
+  `default_browser_type` picks the browser, as upstream's `browserName` defaults to
+  `defaultBrowserType`.
+- `Playwright.Case` puts `browser_name`, Playwright Test's `browserName` fixture, in the context
+  of `setup_all` and the tests: the module's browser, `:chromium`, `:firefox` or `:webkit`.
+- `action_timeout` and `navigation_timeout` are options of `use Playwright.Test`,
+  `Test.use/1` and `Test.parameters/1` too.
+- `Playwright.device/1` and `Playwright.devices/0`, Playwright's device
+  descriptors as static data (upstream's `import { devices }`), so a device works at compile
+  time, spread as upstream's `...devices['iPhone 13']`: `use Playwright.Test,
+  Playwright.device("iPhone 13")`, `@moduletag Test.use(Playwright.device("Pixel 7"))`,
+  `Test.parameters(Playwright.device("Pixel 7"))`. A device is a keyword list of options, so the
+  config takes it as it is: `config :playwright, :test, Playwright.device("Desktop Chrome")`,
+  and a later key overrides its option, as upstream's `{ ...devices['iPhone 13'], viewport }`:
+  `Playwright.device("iPhone 13") ++ [viewport: ...]`. The driver's `Playwright.devices/1` remains, with maps.
+- Playwright's whole client API, with a tuple and a bang form per call: `Playwright.Promise` for
+  calls JS starts without `await` (`Promise.async/1`), `Playwright.RegExp` for JS regexes,
+  `AbortController` signals, API requests, `CDPSession`, `Clock`, `Credentials` and the rest.
+- User callbacks (route handlers, listeners, exposed functions, locator handlers) run with the
+  registering process's `$callers`, so the Ecto sandbox, Mox and `Req.Test` find the test.
+- `Playwright.Test`: Playwright Test's runner for ExUnit, with pooled worker browsers
+  (`Playwright.Test.BrowserPool`), context defaults, traces, screenshots and videos, steps,
+  snapshot paths, soft assertions, timeouts and `info/0`. `Playwright.Case` gives each test a
+  `page`; `Playwright.Test.GitHubFormatter` is the `github` reporter.
+- `Expect.to_pass/2`, `Expect.poll/3`, `Expect.soft/1` and `Expect.message/2`, beside upstream's
+  matchers.
+- `mix playwright.install` (`--no-browsers` for the driver only) and `mix playwright.cli`.
+- `__options__/1` on the facade modules, for wrappers (its shape is unstable).
+- `usage-rules.md` ships in the package: `usage_rules: [:playwright]`.
+- Guides: getting started, from playwright.dev to Elixir, cheatsheet, testing with ExUnit,
+  events and waiting, network, debugging and CI, concurrency.
 
 ### Changed
 
+- **RC only:** `usage-rules.md` keeps only the traps an agent gets wrong and points to the
+  module docs for setup and config keys.
+- **RC only:** the docs prefer plain Elixir (sequential calls, `Task`) to `Playwright.Promise`
+  for a JS `Promise.all` of independent reads, and list the cases that need a promise.
+- **RC only:** **Breaking:** `config :playwright, :expect, timeout: 10_000, update_snapshots:
+  :missing` is `config :playwright, :test, expect: [timeout: 10_000], update_snapshots:
+  :missing`, as in `playwright.config.ts` (`ignore_snapshots` too).
 - `on/3`, `once/3`, `wait_for_event` and the other event functions take any string as an
   event, as JS's emitters do (one that never fires: a wait times out); atoms still raise for an
   unknown event.
@@ -205,76 +220,6 @@ Node 26.13.1. No upstream API changes.
 - **RC only:** `__options__/1` is out of HexDocs, as are the selector builders of
   `Isomorphic.LocatorUtils`: both are marked `library_api: true` in their docs metadata,
   internal but stable for libraries that build on them, changed only with a CHANGELOG note.
-
-### Fixed
-
-- **RC only:** `add_cookies`, `storage_state:` and `set_storage_state` check their keys
-  against the protocol's: a snake_case `http_only:` raises instead of being dropped. Errors
-  name the argument and list index (`cookies[0].http_only`).
-- **RC only:** a `multipart` file's keys are checked as other nested objects' are: `mime_type:`
-  raises, where the client failed treating the map as a stream.
-- **RC only:** `mix playwright.install` forwards a `--` to `playwright install` (rc.2 raised on
-  it).
-- **RC only:** `get_by_role` and `to_have_role` specs and docs take roles as strings too, also
-  those Playwright's `AriaRole` lacks (`"mark"`), as JS does; locator descriptions print those
-  as strings, not atoms that raise.
-- **RC only:** `Route.fulfill`, `abort` and `continue` in a route handler have the handler's
-  call site in the trace, which a tail call such as `fn r -> Route.abort!(r) end` doesn't keep
-  (BEAM drops its frame).
-- **RC only:** a boxed `Playwright.Test.step ... do` is located where its helper is called, as
-  the `fn` form and upstream's are, not at its own line in the helper.
-
-## [1.65.0-rc.2] 2026-11-18
-
-Drives [Playwright 1.65.1](https://github.com/microsoft/playwright/releases/tag/v1.65.1), on
-Node 26.13.1. No upstream API changes.
-
-### Added
-
-- `Playwright.Promise.all/1`, `race/1` and `any/1`, as JS's `Promise.all`, `Promise.race` and
-  `Promise.any` (with `Playwright.AggregateError`).
-- A warning when the connection has waited 5 s for one listener or route handler, which stalls
-  every page on it: it names the listener, shows where it waits and points to the fix
-  ([Concurrency](guides/concurrency.md#no-blocking-work-in-listeners)).
-- `use Playwright.Test` (and `use Playwright.Case`) takes the context options as
-  options of their own, Playwright Test's `test.use({ locale: 'de-DE' })`: `use Playwright.Case,
-  locale: "de-DE"`, over the config's per option, under the call's, for every context of the
-  module, its `setup_all`'s included (#257). Any option a layer (config, project, module
-  `use`, tags) gives as `nil` resets it to the layer under (the project's, the config's or the
-  default), as upstream's `undefined`; a call's own `nil` of a context option or
-  `connect_options` is passed as given.
-  `context_options:` is upstream's `contextOptions`, for the other options of `new_context`,
-  under an option of its own, so flat keys are the upstream-shaped form (`config :playwright,
-  :test, locale: "de-DE"`). The config takes both too (`config :playwright, :test, base_url:
-  "..."`). `Playwright.Test.config().context_options` holds only the bag, not the options of
-  their own: a library that read options from it should read the test's resolved options with
-  `Playwright.Test.info().use`.
-- `Playwright.Test.use/1` gives a describe block or a test its options, as
-  Playwright Test's `test.use` in a `test.describe`: `@describetag Test.use(timezone_id:
-  "Europe/Berlin")`, `@tag Test.use(trace: :on)`. They layer per option, over the module's.
-- `Playwright.Test.parameters/1` is a project for `parameterize:`, Playwright
-  Test's `projects: [{ use }]`: its options are over the config's and under the module's, for
-  every context of the module's run.
-- `browser_name`, `launch_options` and `connect_options` are options of `use
-  Playwright.Test` and of `Test.parameters/1`, and the defaults of the module's
-  `BrowserPool.browser/1` calls. Without a `browser_name` (in the config either), a device's
-  `default_browser_type` picks the browser, as upstream's `browserName` defaults to
-  `defaultBrowserType`.
-- `Playwright.Case` puts `browser_name`, Playwright Test's `browserName` fixture, in the context
-  of `setup_all` and the tests: the module's browser, `:chromium`, `:firefox` or `:webkit`.
-- `action_timeout` and `navigation_timeout` are options of `use Playwright.Test`,
-  `Test.use/1` and `Test.parameters/1` too.
-- `Playwright.device/1` and `Playwright.devices/0`, Playwright's device
-  descriptors as static data (upstream's `import { devices }`), so a device works at compile
-  time, spread as upstream's `...devices['iPhone 13']`: `use Playwright.Test,
-  Playwright.device("iPhone 13")`, `@moduletag Test.use(Playwright.device("Pixel 7"))`,
-  `Test.parameters(Playwright.device("Pixel 7"))`. A device is a keyword list of options, so the
-  config takes it as it is: `config :playwright, :test, Playwright.device("Desktop Chrome")`,
-  and a later key overrides its option, as upstream's `{ ...devices['iPhone 13'], viewport }`:
-  `Playwright.device("iPhone 13") ++ [viewport: ...]`. The driver's `Playwright.devices/1` remains, with maps.
-
-### Changed
-
 - **RC only:** **Breaking:** the tags `trace`, `screenshot` and `video` no longer set the
   recording modes, and `use Playwright.Test, tags: false` is gone (an unknown option now):
   write `@tag Test.use(trace: :on)` for `@tag trace: :on`, likewise for `@describetag` and
@@ -328,18 +273,6 @@ Node 26.13.1. No upstream API changes.
   after the body ended is still only logged. A test that traps exits isn't stopped.
 - **RC only:** a failed test's "Trace of ..." hint prints after the run, below ExUnit's summary:
   above its own failure it read as the previous failure's.
-
-### Fixed
-
-- **RC only:** `mix playwright.install` and `mix playwright.cli` failed with "module :public_key
-  is not available" when run before the project was compiled (e.g. right after `mix deps.get` in
-  CI).
-
-## [1.65.0-rc.1] 2026-11-16
-
-Drives [Playwright 1.65.0](https://github.com/microsoft/playwright/releases/tag/v1.65.0).
-
-### Changed
 - **Breaking:** rewritten as a port of Playwright's JS client, its API generated from Playwright's
   docs: structs in place of guids, locators in place of `Selector`, `on/3` and `expect_*` in
   place of `subscribe/2` and `EventWaiter`, exceptions named after the JS errors.
@@ -362,28 +295,46 @@ Drives [Playwright 1.65.0](https://github.com/microsoft/playwright/releases/tag/
   MIT.
 - No runtime dependencies: `nimble_options`, `mime` and `websockex` are gone.
 
+### Fixed
+
+- A test whose body passes but whose `on_exit` callback fails counts as failed, as an
+  `afterEach` hook's failure fails it upstream: its trace, screenshots and `error-context.md` are
+  kept under the on-failure modes, and `info/1` and the reporters say `:failed`. `use
+  Playwright.Test` imports its own `on_exit/1,2` for that (a case template's only with the `use`
+  in its `using`); `ExUnit.Callbacks.on_exit/2` called qualified isn't covered. A module that
+  imports `ExUnit.Callbacks` again after the `use` now fails to compile a bare `on_exit` call
+  (ambiguous): drop that import.
+- **RC only:** an improper list as a `trace`, `screenshot`, `video`, `driver`,
+  `connect_options` or `report_slow_tests` option, or in the config's `expect`, raises `invalid
+  value ... expected a keyword list or a map` again, not a `FunctionClauseError`.
+- **RC only:** `Playwright.Test`: a `Browser.new_context`, `Browser.new_page` or
+  `BrowserType.launch_persistent_context` after the test timeout closed the test's contexts
+  closes its context and fails with "Test timeout of <ms>ms exceeded.", instead of its calls
+  hanging until ExUnit's `TimeoutError`.
+- **RC only:** `add_cookies`, `storage_state:` and `set_storage_state` check their keys
+  against the protocol's: a snake_case `http_only:` raises instead of being dropped. Errors
+  name the argument and list index (`cookies[0].http_only`).
+- **RC only:** a `multipart` file's keys are checked as other nested objects' are: `mime_type:`
+  raises, where the client failed treating the map as a stream.
+- **RC only:** `mix playwright.install` forwards a `--` to `playwright install` (rc.2 raised on
+  it).
+- **RC only:** `get_by_role` and `to_have_role` specs and docs take roles as strings too, also
+  those Playwright's `AriaRole` lacks (`"mark"`), as JS does; locator descriptions print those
+  as strings, not atoms that raise.
+- **RC only:** `Route.fulfill`, `abort` and `continue` in a route handler have the handler's
+  call site in the trace, which a tail call such as `fn r -> Route.abort!(r) end` doesn't keep
+  (BEAM drops its frame).
+- **RC only:** a boxed `Playwright.Test.step ... do` is located where its helper is called, as
+  the `fn` form and upstream's are, not at its own line in the helper.
+- **RC only:** `mix playwright.install` and `mix playwright.cli` failed with "module :public_key
+  is not available" when run before the project was compiled (e.g. right after `mix deps.get` in
+  CI).
+
 ### Removed
+
 - **Breaking:** `launch_browser/2`, `subscribe/2`, `send/2`, `EventWaiter`, `Selector`,
   `JsLogger`, the `connection:` option, the supervisor's `timeout:`, `js_logger:`, `ws_endpoint:`
   (use `BrowserType.connect/3`) and `:fail_on_unknown_opts`, and `Tracing`'s `coverage:`.
-
-### Added
-- Playwright's whole client API, with a tuple and a bang form per call: `Playwright.Promise` for
-  calls JS starts without `await` (`Promise.async/1`), `Playwright.RegExp` for JS regexes,
-  `AbortController` signals, API requests, `CDPSession`, `Clock`, `Credentials` and the rest.
-- User callbacks (route handlers, listeners, exposed functions, locator handlers) run with the
-  registering process's `$callers`, so the Ecto sandbox, Mox and `Req.Test` find the test.
-- `Playwright.Test`: Playwright Test's runner for ExUnit, with pooled worker browsers
-  (`Playwright.Test.BrowserPool`), context defaults, traces, screenshots and videos, steps,
-  snapshot paths, soft assertions, timeouts and `info/0`. `Playwright.Case` gives each test a
-  `page`; `Playwright.Test.GitHubFormatter` is the `github` reporter.
-- `Expect.to_pass/2`, `Expect.poll/3`, `Expect.soft/1` and `Expect.message/2`, beside upstream's
-  matchers.
-- `mix playwright.install` (`--no-browsers` for the driver only) and `mix playwright.cli`.
-- `__options__/1` on the facade modules, for wrappers (its shape is unstable).
-- `usage-rules.md` ships in the package: `usage_rules: [:playwright]`.
-- Guides: getting started, from playwright.dev to Elixir, cheatsheet, testing with ExUnit,
-  events and waiting, network, debugging and CI, concurrency.
 
 ## 0.16 and earlier
 
