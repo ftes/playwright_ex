@@ -24,7 +24,7 @@ Playwright Test are ported.
 ```elixir
 def deps do
   [
-    {:playwright, "~> 1.65.0-rc.4", hex: :playwright_ex}
+    {:playwright, "~> 1.65.0-rc.5", hex: :playwright_ex}
   ]
 end
 ```
