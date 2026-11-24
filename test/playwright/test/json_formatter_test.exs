@@ -89,6 +89,16 @@ defmodule Playwright.Test.JSONFormatterTest do
     assert %{"status" => "flaky", "results" => [%{"retry" => 1}]} = test
   end
 
+  test "a test without `Playwright.Test`'s start starts at its end less its duration, not the report's" do
+    before = System.os_time(:millisecond)
+    report = JSON.decode!(run([{:test_finished, %{test_struct("test pays") | time: 30_000}}, {:sleep, 1000}]))
+
+    assert %{"suites" => [%{"specs" => [%{"tests" => [%{"results" => [%{"startTime" => start_time}]}]}]}]} = report
+    {:ok, start_time, 0} = DateTime.from_iso8601(start_time)
+    start_time = DateTime.to_unix(start_time, :millisecond)
+    assert start_time >= before - 30 and start_time < before + 500
+  end
+
   defp report(tests, opts \\ []),
     do: JSON.decode!(run(Enum.map(tests, &{:test_finished, &1}), opts))
 
@@ -97,7 +107,12 @@ defmodule Playwright.Test.JSONFormatterTest do
     capture_io(fn ->
       {:ok, pid} = GenServer.start(JSONFormatter, opts)
       GenServer.cast(pid, {:suite_started, opts})
-      Enum.each(events, &GenServer.cast(pid, &1))
+
+      Enum.each(events, fn
+        {:sleep, ms} -> Process.sleep(ms)
+        event -> GenServer.cast(pid, event)
+      end)
+
       GenServer.cast(pid, {:suite_finished, %{run: 1000, async: 0, load: nil}})
       GenServer.stop(pid)
     end)

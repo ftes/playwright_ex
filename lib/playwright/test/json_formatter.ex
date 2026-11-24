@@ -140,7 +140,8 @@ defmodule Playwright.Test.JSONFormatter do
         [] -> nil
       end
 
-    {:noreply, %{this | tests: [{test, result} | this.tests]}}
+    # Elixir only: the end of a test without `Playwright.Test`'s start, for its `startTime`.
+    {:noreply, %{this | tests: [{test, result, System.os_time(:millisecond)} | this.tests]}}
   end
 
   # onError: a failed `setup_all`, as upstream's failed global setup.
@@ -157,7 +158,10 @@ defmodule Playwright.Test.JSONFormatter do
   defp on_end(this, times_us), do: output_report(serialize_report(this, times_us), this.resolved_output_file)
 
   defp serialize_report(this, times_us) do
-    tests = this.tests |> Enum.reverse() |> Enum.map(fn {test, result} -> serialize_test_entry(this, test, result) end)
+    tests =
+      this.tests
+      |> Enum.reverse()
+      |> Enum.map(fn {test, result, end_time} -> serialize_test_entry(this, test, result, end_time) end)
 
     %{
       config: %{
@@ -252,7 +256,7 @@ defmodule Playwright.Test.JSONFormatter do
 
   # A test, with what its spec and suites need: its `file` (`_relativeLocation`), `describe`
   # (`{title, line}`, or `nil`), `title`, `line`, `ok` and `id`.
-  defp serialize_test_entry(this, test, result) do
+  defp serialize_test_entry(this, test, result, end_time) do
     # `test.titlePath()`: the file, the describe block, the test.
     [_file | titles] = TestInfo.title_path(Map.put(test.tags, :test, test.name))
     file = Path.relative_to(Path.expand(test.tags.file), TestInfo.test_dir(), force: true)
@@ -267,7 +271,7 @@ defmodule Playwright.Test.JSONFormatter do
       # `test.ok()`
       ok: outcome != :unexpected,
       id: test_id(file, titles, project_name),
-      test: serialize_test(this, test, result, project_name, outcome)
+      test: serialize_test(this, test, result, end_time, project_name, outcome)
     }
   end
 
@@ -278,7 +282,7 @@ defmodule Playwright.Test.JSONFormatter do
     file_id <> "-" <> binary_part(TestInfo.calculate_sha1(test_id_expression), 0, 20)
   end
 
-  defp serialize_test(this, test, result, project_name, outcome) do
+  defp serialize_test(this, test, result, end_time, project_name, outcome) do
     %{
       timeout: timeout(if(result, do: result.timeout, else: Options.ex_unit_timeout(test.tags))),
       # test.annotations  -- not ported: annotations
@@ -287,12 +291,13 @@ defmodule Playwright.Test.JSONFormatter do
       projectId: project_name,
       projectName: project_name,
       # A test not run after a failed `setup_all` has no result, as upstream's did-not-run test.
-      results: if(match?({:invalid, _}, test.state), do: [], else: [serialize_test_result(this, test, result)]),
+      results:
+        if(match?({:invalid, _}, test.state), do: [], else: [serialize_test_result(this, test, result, end_time)]),
       status: Atom.to_string(outcome)
     }
   end
 
-  defp serialize_test_result(this, test, result) do
+  defp serialize_test_result(this, test, result, end_time) do
     duration = div(test.time, 1000)
     errors = if match?({:failed, _}, test.state), do: GitHubFormatter.format_result_failure(this, test), else: []
     error = first_error(test, errors)
@@ -309,7 +314,7 @@ defmodule Playwright.Test.JSONFormatter do
       retry: result[:retry] || this.retry,
       steps: serialize_test_steps(result[:steps]),
       # Without `Playwright.Test`'s start, its end less its duration.
-      startTime: iso_string(result[:start_time] || System.os_time(:millisecond) - duration),
+      startTime: iso_string(result[:start_time] || end_time - duration),
       # result.annotations  -- not ported: annotations
       annotations: [],
       attachments:
