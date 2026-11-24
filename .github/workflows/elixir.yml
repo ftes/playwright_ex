@@ -160,6 +160,14 @@ jobs:
     # The slowest partition took ~12 min at 4 per browser (firefox, with BrowsertypeConnectTest); a
     # hang fails here instead of at GitHub's 6 h.
     timeout-minutes: 30
+    # PR runs queue per leg, first come first served: the PR run whose build finished first gets every
+    # leg, a later one's legs wait for theirs and hold no runner meanwhile. The workflow-level group
+    # still cancels a superseded run, its running and waiting legs alike. Other events (main pushes,
+    # the nightly, experiments) get a group per run, so they run unqueued as before. build and matrix
+    # are one job per run each, so they run ungrouped and a run's legs queue once its build is green.
+    concurrency:
+      group: ${{ github.workflow }}-test-${{ matrix.lane }}-${{ matrix.browser }}-${{ matrix.partition }}-${{ github.event_name == 'pull_request' && 'pr' || github.run_id }}
+      queue: max
     permissions:
       contents: read
     strategy:
