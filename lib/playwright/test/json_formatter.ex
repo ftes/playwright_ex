@@ -24,9 +24,9 @@ defmodule Playwright.Test.JSONFormatter do
     * else standard output, as upstream's without an output file.
 
   Relative paths are relative to the working directory. The report's strings must be valid UTF-8:
-  a binary that isn't (in a failure's message, a step's title) raises at the suite's end. Next to `ExUnit.CLIFormatter`, a report on
-  standard output is mixed with its output: there, run the formatter on its own, or set an output
-  file.
+  a binary that isn't (in a failure's message, a step's title) raises at the suite's end. Next to
+  `ExUnit.CLIFormatter`, a report on standard output is mixed with its output: there, run the
+  formatter on its own, or set an output file.
 
   The report has upstream's `JSONReport` shape: `config`, `suites` (a suite per test file
   relative to `test/`, the `rootDir`, with a suite per `describe`), each with its `specs` (a
@@ -50,7 +50,7 @@ defmodule Playwright.Test.JSONFormatter do
           do: {spec["title"], result["status"], path}
 
   A test of a module without `use Playwright.Test` has ExUnit's fields only: no steps or
-  attachments, and its start time is its end less its duration.
+  attachments, and its start time is its end (after its `on_exit` callbacks) less its duration.
 
   ExUnit has no retries in a run: `retry` is 1 under `mix test --failed`, as
   `Playwright.Test.info/0`'s, and a test passing there is `flaky`, as in
@@ -106,7 +106,8 @@ defmodule Playwright.Test.JSONFormatter do
   # constructor
   @impl true
   def init(opts) do
-    # Elixir only: the table `put_result/4` writes, another one for a formatter of a test.
+    # Test only, undocumented: another table, for a formatter a test starts while the run's has
+    # the default one (which `listening?/0` and `put_result/4` use).
     table = :ets.new(Keyword.get(opts, :json_formatter_table, __MODULE__), [:named_table, :public, :set])
     config = Options.config()
 
@@ -145,7 +146,8 @@ defmodule Playwright.Test.JSONFormatter do
         [] -> nil
       end
 
-    # Elixir only: the end of a test without `Playwright.Test`'s start, for its `startTime`.
+    # Elixir only: the end of a test without `Playwright.Test`'s start, for its `startTime`: after
+    # its `on_exit` callbacks, which ExUnit runs before it reports the test.
     {:noreply, %{this | tests: [{test, result, System.os_time(:millisecond)} | this.tests]}}
   end
 
@@ -305,7 +307,7 @@ defmodule Playwright.Test.JSONFormatter do
 
   # A test, with what its spec and suites need: its `file` (`_relativeLocation`), `describe`
   # (`{title, line}`, or `nil`), `title`, `line`, `ok`, `id` and `project_order` (its project's
-  # place in `parameterize:`, else its name).
+  # place in `parameterize:`, the default project of a module without it first, then its name).
   defp serialize_test_entry(this, test, result, end_time) do
     # `test.titlePath()`: the file, the describe block, the test.
     [_file | titles] = TestInfo.title_path(Map.put(test.tags, :test, test.name))
@@ -321,7 +323,7 @@ defmodule Playwright.Test.JSONFormatter do
       # `test.ok()`
       ok: outcome != :unexpected,
       id: test_id(file, titles, project_name),
-      project_order: {TestInfo.parameters_index(test.module, test.parameters), project_name},
+      project_order: {TestInfo.parameters_index(test.module, test.parameters) || -1, project_name},
       test: serialize_test(this, test, result, end_time, project_name, outcome)
     }
   end
@@ -364,7 +366,7 @@ defmodule Playwright.Test.JSONFormatter do
       stderr: [],
       retry: result[:retry] || this.retry,
       steps: serialize_test_steps(result[:steps]),
-      # Without `Playwright.Test`'s start, its end less its duration.
+      # Without `Playwright.Test`'s start, its end (after `on_exit`) less its duration.
       startTime: iso_string(result[:start_time] || end_time - duration),
       # result.annotations  -- not ported: annotations
       annotations: [],

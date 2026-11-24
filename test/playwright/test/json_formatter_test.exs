@@ -119,6 +119,10 @@ defmodule Playwright.Test.JSONFormatterTest do
 
     assert {true, id, ["b", "a"]} = spec.([a, b])
     assert spec.([b, a]) == {true, id, ["b", "a"]}
+
+    # A module without `parameterize:` has the default project, first.
+    assert %{"config" => %{"projects" => projects}} = report([a, test_struct("test waits", line: 20), b])
+    assert Enum.map(projects, & &1["name"]) == ["", "b", "a"]
   end
 
   test "a binary that isn't UTF-8 raises, with its test, field and value" do
