@@ -194,5 +194,8 @@ Handles of a lost driver stay readable the same way; `Playwright.Supervisor` has
   it returns; JS interleaves them. Other listeners and calls carry on.
 - A wait rejected by an event (a page closing under `wait_for_event`) settles in the waiting
   process, so it may notice after a later event; JS rejects it synchronously inside the emit.
-- Code after a call runs in your process when the reply arrives, so the connection may already
-  have dispatched the next events; JS runs it before the next message.
+- Code after a call or a wait runs in your process once it settles, so the connection may already
+  have dispatched the next events; JS runs it before the next message. A getter such as
+  [`Request.frame/1`](`Playwright.Request.frame/1`) or [`Page.url/1`](`Playwright.Page.url/1`)
+  may then already show what they changed: don't assert a state that lasts only until the next
+  event (a popup's first request without a frame yet).
