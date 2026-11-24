@@ -54,7 +54,8 @@ jobs:
     # Draft PRs skip CI until marked ready, and in a stack only the top PR runs it (the tests need
     # this job): it holds every change below it. `stack` is absent outside a stack and on other events.
     if: ${{ !inputs.skip_lint && !github.event.pull_request.draft && (github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
     permissions:
       contents: read
 
@@ -62,48 +63,19 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      # mise installs precompiled Erlang (builds.hex.pm) only on the Ubuntu runners it detects (up
-      # to 24.04) and compiles it from source, ~5 min, on newer ones. Drop once it detects this one.
-      - name: Use precompiled Erlang
-        run: | # zizmor: ignore[github-env] (only the runner's ImageOS digits)
-          if [[ "${ImageOS:-}" =~ ^ubuntu([0-9]{2})$ ]]; then echo "MISE_ERLANG_PRECOMPILED_OS=ubuntu-${BASH_REMATCH[1]}.04" >> "$GITHUB_ENV"; fi
-      - name: Setup languages
-        uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
-      # Caches built on another runner image (e.g. ubuntu24 vs ubuntu26) don't fit: PLTs are
-      # rejected as "Old PLT file", compiled NIFs and ERTS paths may differ.
-      - name: Get runner image
-        id: runner_image
-        # And the Erlang build (its Dialyzer beams): Dialyzer rejects a PLT another build of the same
-        # version made, e.g. compiled from source vs precompiled.
-        run: |
-          echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
-          dialyzer=$(erl -noshell -eval 'io:format("~s", [code:lib_dir(dialyzer)])' -s init stop)
-          echo "erlang-build=$(cat "$dialyzer"/ebin/*.beam | sha256sum | cut -c1-12)" >> "$GITHUB_OUTPUT"
-      # deps and the whole _build (our app too: Mix compares content digests, so a fresh checkout
-      # recompiles only what changed, and --warnings-as-errors re-emits the manifest's warnings).
-      # Every job restores; this job saves it, on main only (a PR never writes the shared cache).
-      # The test jobs build the same MIX_ENV=test tree.
-      - &mix-restore
-        name: Restore deps and _build
-        id: mix_cache
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          key: mix-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ env.MIX_ENV }}-${{ hashFiles('**/mix.lock') }}-${{ github.sha }}
-          restore-keys: |
-            mix-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ env.MIX_ENV }}-${{ hashFiles('**/mix.lock') }}-
-            mix-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ env.MIX_ENV }}-
-          path: |
-            deps
-            _build
-      - name: Install dependencies
-        run: mix "do" deps.get, deps.compile
-      # A PR never writes the shared cache; `mix dialyzer --plt` builds what a restore lacks.
+      # deps and _build: every job restores them, this job saves them on main (the test jobs build
+      # the same MIX_ENV=test tree).
+      - name: Set up toolchain and deps
+        id: setup
+        uses: ftes/ci/setup@c7549ac6ba6e6f8c96a28472d6489ae28d76c5a6 # v1.0.2
+      # A PR never writes the shared cache; `mix dialyzer --plt` builds what a restore lacks. Keyed
+      # per runner image and OTP build: a PLT from another is rejected as "Old PLT file".
       - name: Restore Dialyzer PLT cache
         id: plt_cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          key: plt-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ steps.runner_image.outputs.erlang-build }}-${{ hashFiles('**/mix.lock') }}
-          restore-keys: plt-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ steps.runner_image.outputs.erlang-build }}
+          key: plt-${{ steps.setup.outputs.image }}-erlang-${{ steps.setup.outputs.erlang }}-${{ steps.setup.outputs.erlang-build }}-elixir-${{ steps.setup.outputs.elixir }}-${{ hashFiles('mix.lock') }}
+          restore-keys: plt-${{ steps.setup.outputs.image }}-erlang-${{ steps.setup.outputs.erlang }}-${{ steps.setup.outputs.erlang-build }}-elixir-${{ steps.setup.outputs.elixir }}-
           path: priv/plts
       # Saved right after it is built, so a lint failure doesn't waste the build; `mix lint`'s
       # Dialyzer step then reuses it. Building it compiles the app (dialyxir's `cons_apps` loads
@@ -122,10 +94,10 @@ jobs:
         run: mix lint
       # Last, so only a green job saves; under the key computed before deps.get.
       - name: Save deps and _build
-        if: success() && github.ref == 'refs/heads/main' && steps.mix_cache.outputs.cache-hit != 'true'
+        if: success() && github.ref == 'refs/heads/main' && steps.setup.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with: &mix-save
-          key: ${{ steps.mix_cache.outputs.cache-primary-key }}
+          key: ${{ steps.setup.outputs.cache-key }}
           path: |
             deps
             _build
@@ -135,7 +107,8 @@ jobs:
   # lane, and chromium's on the oldest too. Unconditional: the tests need the build anyway.
   matrix:
     name: Test matrix
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
     permissions: {}
     outputs:
       include: ${{ steps.matrix.outputs.include }}
@@ -163,7 +136,7 @@ jobs:
   # floor lacks (a call to a missing function is only a compile warning there).
   test:
     name: Test (${{ matrix.lane }}, ${{ matrix.browser }}, ${{ matrix.partition }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: [build, matrix]
     # After a green build, or none when skip_lint skipped it.
     if: ${{ !cancelled() && needs.matrix.result == 'success' && (needs.build.result == 'success' || (inputs.skip_lint && needs.build.result == 'skipped')) }}
@@ -195,63 +168,20 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Select oldest toolchain
-        if: matrix.lane == 'oldest'
-        run: cp .tool-versions.oldest .tool-versions
-      # mise installs precompiled Erlang (builds.hex.pm) only on the Ubuntu runners it detects (up
-      # to 24.04) and compiles it from source, ~5 min, on newer ones. Drop once it detects this one.
-      - name: Use precompiled Erlang
-        run: | # zizmor: ignore[github-env] (only the runner's ImageOS digits)
-          if [[ "${ImageOS:-}" =~ ^ubuntu([0-9]{2})$ ]]; then echo "MISE_ERLANG_PRECOMPILED_OS=ubuntu-${BASH_REMATCH[1]}.04" >> "$GITHUB_ENV"; fi
-      - name: Setup languages
-        uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
-      - name: Get runner image
-        id: runner_image
-        run: |
-          echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
-          echo "day=$(date -u +%F)" >> "$GITHUB_OUTPUT"
-      # Saved on main by the build job (newest) or below (oldest). The key hashes the lane's
-      # .tool-versions.
-      - *mix-restore
-      - name: Install dependencies
-        run: mix "do" deps.get, deps.compile
-      # --with-deps runs apt-get against the runner's Azure mirror, which has stalled or trickled for
-      # whole attempts (webkit pulls ~140 MB). The .debs are cached per browser and driver version, so
-      # a warm run installs offline; archive.ubuntu.com is a fallback mirror; apt times out stalled
-      # fetches; each attempt is capped, and a killed attempt's apt-get (sudo puts it out of timeout's
-      # reach) is killed before the next. The key's day makes main save a fresh cache daily, so
-      # Ubuntu's package updates are picked up; restores take the newest. autoclean drops the
-      # superseded .debs.
-      - name: Restore browser system packages
-        id: apt_cache
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      # The lane's toolchain; the build job (newest) or below (oldest) saves its deps and _build.
+      - name: Set up toolchain and deps
+        id: setup
+        uses: ftes/ci/setup@c7549ac6ba6e6f8c96a28472d6489ae28d76c5a6 # v1.0.2
         with:
-          key: apt-${{ matrix.browser }}-${{ hashFiles('DRIVER_VERSION', 'NODE_VERSION') }}-${{ steps.runner_image.outputs.os }}-${{ steps.runner_image.outputs.day }}
-          restore-keys: apt-${{ matrix.browser }}-${{ hashFiles('DRIVER_VERSION', 'NODE_VERSION') }}-${{ steps.runner_image.outputs.os }}-
-          path: ~/apt-cache
-      - name: Install driver and browsers
-        run: |
-          printf 'Acquire::http::Timeout "30";\nAcquire::https::Timeout "30";\nAcquire::Retries "5";\nDPkg::Lock::Timeout "60";\nAPT::Keep-Downloaded-Packages "true";\n' | sudo tee /etc/apt/apt.conf.d/99timeouts
-          if [[ -f /etc/apt/apt-mirrors.txt ]]; then echo "http://archive.ubuntu.com/ubuntu/" | sudo tee -a /etc/apt/apt-mirrors.txt; fi
-          if compgen -G ~/apt-cache/'*.deb' > /dev/null; then sudo cp ~/apt-cache/*.deb /var/cache/apt/archives/; fi
-          for attempt in 1 2 3; do
-            if timeout 300 mix playwright.install "$BROWSER" --with-deps; then
-              sudo apt-get autoclean -qq
-              rm -rf ~/apt-cache && mkdir -p ~/apt-cache && cp /var/cache/apt/archives/*.deb ~/apt-cache/ 2>/dev/null || true
-              exit 0
-            fi
-            echo "::warning::browser install attempt $attempt failed or timed out"
-            sudo pkill -x apt-get || true
-          done
-          exit 1
-      # One job per browser saves (the partitions and lanes would race for the same key), on main
-      # only: a PR's cache is visible to that PR alone.
-      - name: Save browser system packages
-        if: github.ref == 'refs/heads/main' && matrix.lane == 'newest' && matrix.partition == 1 && steps.apt_cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+          lane: ${{ matrix.lane }}
+      # This repo's DRIVER_VERSION: the driver it tests. One job per browser saves the apt cache
+      # (the partitions and lanes would race for the key); the action saves on main only.
+      - name: Install driver and browser
+        uses: ftes/ci/playwright-browser@c7549ac6ba6e6f8c96a28472d6489ae28d76c5a6 # v1.0.2
         with:
-          key: ${{ steps.apt_cache.outputs.cache-primary-key }}
-          path: ~/apt-cache
+          browser: ${{ matrix.browser }}
+          driver-dir: .
+          save-apt-cache: ${{ matrix.lane == 'newest' && matrix.partition == 1 }}
       - name: Check parity with upstream
         if: matrix.lane == 'newest' && matrix.browser == 'chromium' && matrix.partition == 1
         run: mix playwright.parity
@@ -348,7 +278,7 @@ jobs:
       # The oldest lane has no build job: one green partition saves its deps and _build, on main
       # only, under the key computed before deps.get.
       - name: Save deps and _build
-        if: success() && matrix.lane == 'oldest' && matrix.partition == 1 && github.ref == 'refs/heads/main' && steps.mix_cache.outputs.cache-hit != 'true'
+        if: success() && matrix.lane == 'oldest' && matrix.partition == 1 && github.ref == 'refs/heads/main' && steps.setup.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with: *mix-save
       # The display is shared by the steps above: its log, in case it went down.
@@ -376,7 +306,8 @@ jobs:
     name: quality
     if: always()
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
     permissions: {}
     steps:
       # Green without checking on a draft or a PR below the top of its stack, whose jobs above are
