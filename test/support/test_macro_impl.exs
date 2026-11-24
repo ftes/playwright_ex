@@ -73,6 +73,31 @@ defmodule TestMacroSample do
     test "never runs", do: :ok
   end
 
+  describe "a failing on_exit" do
+    setup ctx do
+      on_exit(fn ->
+        case ctx.fail do
+          :raise -> raise "on_exit boom"
+          :exit -> exit(:on_exit_boom)
+          :throw -> throw(:on_exit_ball)
+        end
+      end)
+    end
+
+    @tag fail: :raise
+    test "raises", do: :ok
+
+    @tag fail: :exit
+    test "exits", do: :ok
+
+    @tag fail: :throw
+    test "throws", do: :ok
+  end
+
+  test "fails in an on_exit of its body" do
+    on_exit(fn -> helper(2) end)
+  end
+
   # Not its tail call: `use Playwright.Test`'s `assert` records its step after ExUnit's, so a
   # function that ends in a failing one keeps its frame (`Playwright.Test.AssertionsTest`).
   defp helper(n) do

@@ -60,6 +60,13 @@ upstream minor, so `~> 1.65.0` is safe.
 
 ### Fixed
 
+- A test whose body passes but whose `on_exit` callback fails counts as failed, as an
+  `afterEach` hook's failure fails it upstream: its trace, screenshots and `error-context.md` are
+  kept under the on-failure modes, and `info/1` and the reporters say `:failed`. `use
+  Playwright.Test` imports its own `on_exit/1,2` for that (a case template's only with the `use`
+  in its `using`); `ExUnit.Callbacks.on_exit/2` called qualified isn't covered. A module that
+  imports `ExUnit.Callbacks` again after the `use` now fails to compile a bare `on_exit` call
+  (ambiguous): drop that import.
 - **RC only:** an improper list as a `trace`, `screenshot`, `video`, `driver`,
   `connect_options` or `report_slow_tests` option, or in the config's `expect`, raises `invalid
   value ... expected a keyword list or a map` again, not a `FunctionClauseError`.

@@ -100,6 +100,12 @@ guides are at hexdocs.pm/playwright_ex.
   `import ExUnit.Assertions` after it; a helper module needs `import Playwright.Test.Assertions`
   (and `import ExUnit.Assertions, except: [assert: 1, assert: 2, refute: 1, refute: 2]` if it
   imports ExUnit's too), or its passed asserts leave no step.
+- A check in `on_exit` (Playwright Test's `afterEach`) fails the test for its artifacts and
+  `info/1` only through the `on_exit/1,2` `use Playwright.Test` imports, registered after the
+  `use` (a later `setup`, or the test), under a name not used before it. Not
+  `ExUnit.Callbacks.on_exit/2` called qualified: that failure counts as passed, and its trace is
+  dropped. Don't `import ExUnit.Callbacks` after the `use`: a bare `on_exit` call is then
+  ambiguous and fails to compile.
 - A failed test writes `test-results/<test>/error-context.md` (errors, source, an aria snapshot):
   read it first. Open traces with `mix playwright.cli show-trace <path>`.
 - To map tests to their trace, screenshots and videos, read the `attachments` of
