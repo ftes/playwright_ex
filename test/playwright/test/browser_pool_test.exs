@@ -304,26 +304,46 @@ defmodule Playwright.Test.BrowserPoolTest do
       end
     end
 
-    test "an on_exit callback's failure of a process that is no test (a setup_all) fails nothing" do
-      opts = opts()
+    # Through `Playwright.Test.on_exit/2` itself, in a process that is watched as a test but has no
+    # registration (`__register__/1`): as in a module's `setup_all`, the callback is ExUnit's own.
+    # ExUnit's `OnExitHandler` (internal) stands in for the runner, which registers its tests there.
+    test "on_exit/2 in a process with no registration registers the callback unwrapped: nothing fails" do
       test = self()
 
-      {pid, ref} =
-        spawn_monitor(fn ->
-          send(test, {:held, Pool.browser(Options.pool(opts), {:process, self()})})
-          receive do: (:end -> :ok)
+      pid =
+        spawn(fn ->
+          ExUnit.OnExitHandler.register(self())
+          Playwright.Test.on_exit(fn -> raise "teardown boom" end)
+          send(test, :registered)
+
+          receive do
+            :end ->
+              Results.notify({:passed, self()})
+              exit(:shutdown)
+          end
         end)
 
-      assert_receive {:held, held}, 30_000
-      Results.notify({:failed_in_teardown, pid, {:error, %RuntimeError{message: "teardown boom"}, []}})
-      refute :sys.get_state(Pool).scopes[pid].failed?
+      Results.watch(pid, Results.outside())
+      on_exit(fn -> Pool.release(pid) end)
+      assert_receive :registered
+      hold(pid, opts())
+      [worker] = for {worker, %{scope: ^pid}} <- :sys.get_state(Pool).workers, do: worker
       send(pid, :end)
-      assert_receive {:DOWN, ^ref, :process, ^pid, :normal}, 10_000
-      Pool.release(pid)
+      assert Results.result(pid, 5000) == {:passed, []}
 
-      t = fake_test()
-      assert hold(t, opts).playwright == held.playwright
-      finish(t, [passed()], :shutdown)
+      result =
+        Task.await(
+          Task.async(fn ->
+            assert {:error, %RuntimeError{message: "teardown boom"}, _} = ExUnit.OnExitHandler.run(pid, 5000)
+            result = Results.result(pid, 5000)
+            Pool.release(pid)
+            result
+          end)
+        )
+
+      assert result == {:passed, []}
+      assert %{scope: nil, key: key} = :sys.get_state(Pool).workers[worker]
+      assert key != nil
     end
 
     test "forgotten once the test's on_exit took it" do

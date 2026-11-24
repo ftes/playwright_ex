@@ -781,8 +781,9 @@ defmodule Playwright.Test do
   reports it as without this function. `use Playwright.Test` imports it in place of ExUnit's.
 
   Only a callback that runs before the test's artifacts are kept, last in its `on_exit`
-  callbacks, counts: one registered after `use Playwright.Test`'s `setup`, in a later `setup` or
-  in the test. A callback registered with `ExUnit.Callbacks.on_exit/2` (qualified, or in a module
+  callbacks, counts: one registered after `use Playwright.Test`'s `setup` (in a later `setup` or
+  in the test), under a name not used before it (ExUnit replaces a named callback in its first
+  place). A callback registered with `ExUnit.Callbacks.on_exit/2` (qualified, or in a module
   without the import) doesn't, nor one killed past ExUnit's timeout.
   """
   @spec on_exit(term(), (-> term())) :: :ok
