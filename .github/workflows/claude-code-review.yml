@@ -45,7 +45,7 @@ jobs:
       # A rebase of reviewed changes skips the review; a later push can be reviewed by its
       # increment.
       - id: review
-        uses: ftes/ci/claude-review@70f3e82336c42d568193e6653b5d3e30e4693d39 # v1.0.4
+        uses: ftes/ci/claude-review@dd50f950cf260ef6a0c33110f9906dba13bed8c7 # v1.0.5
         with:
           ci: "`mix lint` (format, credo, compile warnings, docs, Dialyzer), the parity check and the browser tests (.github/workflows/elixir.yml)"
           notes: "Ported code (`@upstream`) marks only its deviations: an edge case it shares with upstream is not a defect of this PR, but a new deviation nothing requires is. Also review upstream fidelity."
@@ -53,14 +53,14 @@ jobs:
       - name: Set up toolchain and deps
         if: steps.review.outputs.skip != 'true'
         continue-on-error: true
-        uses: ftes/ci/setup@70f3e82336c42d568193e6653b5d3e30e4693d39 # v1.0.4
+        uses: ftes/ci/setup@dd50f950cf260ef6a0c33110f9906dba13bed8c7 # v1.0.5
       - name: Download upstream sources
         if: steps.review.outputs.skip != 'true'
         continue-on-error: true
         run: mkdir -p ~/.cache/playwright && mix playwright.upstream
 
       - if: steps.review.outputs.skip != 'true'
-        uses: ftes/ci/claude@70f3e82336c42d568193e6653b5d3e30e4693d39 # v1.0.4
+        uses: ftes/ci/claude@dd50f950cf260ef6a0c33110f9906dba13bed8c7 # v1.0.5
         with:
           token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # The action refuses bot-triggered runs unless allowed; the if above admits only this one.
