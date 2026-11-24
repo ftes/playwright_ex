@@ -32,7 +32,7 @@ concurrency:
 permissions: {}
 
 env:
-  # As in elixir.yml, so a fix compiles what CI failed on.
+  # As in ci.yml, so a fix compiles what CI failed on.
   MIX_ENV: test
 
 jobs:
@@ -79,7 +79,7 @@ jobs:
       # with the Claude GitHub App's installation token, which the action gets by exchanging
       # this job's OIDC token (id-token: write) at api.anthropic.com
       # (contents/pull-requests/issues: write on this repo only). Unlike GITHUB_TOKEN, an app
-      # token's push and PR do trigger workflows, so elixir.yml runs on the PR as on any other.
+      # token's push and PR do trigger workflows, so ci.yml runs on the PR as on any other.
       contents: read
       id-token: write
       pull-requests: read # the PR check after Claude
@@ -170,7 +170,7 @@ jobs:
         run: |
           list() {
             gh pr list --state open --limit 40 --json number,headRefName,isCrossRepository,mergeable,body,commits,statusCheckRollup,comments,reviews \
-              --jq '[.[] | select((.isCrossRepository | not) and (.headRefName | startswith("upstream/")) and .mergeable != "CONFLICTING" and (.body | startswith("Port in progress") | not) and ([.comments[], .reviews[]] | all(.author.login == "claude")) and (any(.comments[]; .body | startswith("Needs a human:")) | not) and ([.commits[].authors[].name] | all(. == "claude[bot]")) and ([.commits[] | select(.messageHeadline | test("^(Fix CI:|Re-run CI$)"))] | length < 3) and ([.statusCheckRollup[] | select(.workflowName == "Elixir CI")] | group_by(.name) | map(max_by(.startedAt)) | any(.conclusion == "FAILURE" or .conclusion == "TIMED_OUT"))) | {number, branch: .headRefName}]'
+              --jq '[.[] | select((.isCrossRepository | not) and (.headRefName | startswith("upstream/")) and .mergeable != "CONFLICTING" and (.body | startswith("Port in progress") | not) and ([.comments[], .reviews[]] | all(.author.login == "claude")) and (any(.comments[]; .body | startswith("Needs a human:")) | not) and ([.commits[].authors[].name] | all(. == "claude[bot]")) and ([.commits[] | select(.messageHeadline | test("^(Fix CI:|Re-run CI$)"))] | length < 3) and ([.statusCheckRollup[] | select(.workflowName == "CI")] | group_by(.name) | map(max_by(.startedAt)) | any(.conclusion == "FAILURE" or .conclusion == "TIMED_OUT"))) | {number, branch: .headRefName}]'
           }
           list > /dev/null
           sleep 30

@@ -20,7 +20,7 @@ defmodule Playwright.Library.BrowsertypeLaunchSeleniumTest do
   # the Selenium Server jars) and PWTEST_CHROMEDRIVER (a chromedriver for the installed Google
   # Chrome, which it drives). Upstream's installation test downloads them
   # (tests/installation/fixture-scripts/download-{selenium,chromedriver}.js); our CI downloads the
-  # jars and takes the runner image's Chrome and ChromeDriver (.github/workflows/elixir.yml).
+  # jars and takes the runner image's Chrome and ChromeDriver (.github/workflows/ci.yml).
   @no_selenium if(!System.get_env("PWTEST_CHROMEDRIVER") or !System.get_env("PWTEST_SELENIUM"),
                  do: "upstream skip: needs PWTEST_CHROMEDRIVER, PWTEST_SELENIUM and java (Selenium Grid)"
                )

@@ -30,17 +30,20 @@ human and agent reviews alike.
 
 ## Releasing
 
-1. For the first non-RC release, merge the RC sections into `## [Unreleased]` and drop the
-   `**RC only:**` entries ([AGENTS.md](AGENTS.md)); the script refuses while they remain.
-2. `scripts/release --dry-run <version>` runs the checks (an empty `@` on `main@origin` as last
-   fetched, an `## [Unreleased]` with entries, a new tag, a greater version and the driver's
-   major.minor) and prints the edits.
-3. `scripts/release <version>` commits "Release <version>" (the version, its dated changelog
-   section and driver line) and "Start the next release", pushes `main` and tags the first
-   commit, which starts `release.yml`. It fetches first and checks again. `RELEASE_REMOTE`
-   names another remote than `origin`.
-4. Approve the staged release on hex.pm; the workflow then creates the GitHub release.
+Releases run from a checkout of [ftes/ci](https://github.com/ftes/ci), with `gh` logged in as a
+repo admin (to push `main` past its ruleset and create the tag) and `jj` and `elixir` on the PATH:
 
-It runs locally, not as a workflow: only an admin can push to `main` past its ruleset, and a tag
-pushed with `GITHUB_TOKEN` starts no workflow. The tag doesn't wait for CI on `main`: the release
-commits only change versions and the changelog, and the approval on hex.pm is the gate.
+```sh
+# Makes both commits in a clone and prints them; pushes nothing.
+release/release.exs playwright_ex --dry-run <version>
+release/release.exs playwright_ex <version>
+```
+
+It clones this repo into a temporary directory, commits "Release <version>" and "Start the next
+release", pushes `main` and tags the first commit. The tag runs CI (`ci.yml`) on the tagged
+commit; once every job passed, its publish job stages the release on Hex. Approve it on hex.pm;
+the job then creates the GitHub release.
+
+`## [Unreleased]` gathers every change since the last final release, across the release
+candidates. For a final release, drop the `**RC only:**` entries first: the script refuses while
+they remain. `release/release.exs` lists the conventions it relies on.

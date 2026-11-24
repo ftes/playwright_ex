@@ -47,7 +47,7 @@ jobs:
       - id: review
         uses: ftes/ci/claude-review@2c3f2ed89933e28679de07afdd02f3bb80c0240d # v1.0.7
         with:
-          ci: "`mix lint` (format, credo, compile warnings, docs, Dialyzer), the parity check and the browser tests (.github/workflows/elixir.yml)"
+          ci: "`mix lint` (format, credo, compile warnings, docs, Dialyzer), the parity check and the browser tests (.github/workflows/ci.yml)"
           notes: "Ported code (`@upstream`) marks only its deviations: an edge case it shares with upstream is not a defect of this PR, but a new deviation nothing requires is. Also review upstream fidelity."
       # Soft, so a branch whose mix.exs, deps or code doesn't build still gets a Claude run.
       - name: Set up toolchain and deps

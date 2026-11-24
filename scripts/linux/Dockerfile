@@ -1,4 +1,4 @@
-# Linux image like CI's test job (.github/workflows/elixir.yml). `run setup` passes the Elixir and
+# Linux image like CI's test job (.github/workflows/ci.yml). `run setup` passes the Elixir and
 # OTP versions from .tool-versions; the driver, browsers and their system deps are installed in the
 # container by `mix playwright.install <browsers> --with-deps`, as CI does.
 ARG ELIXIR
