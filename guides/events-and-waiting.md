@@ -25,6 +25,9 @@ download = Page.expect_download!(page, fn -> Page.get_by_text(page, "Export") |>
 Waiting after the action can miss the event: the click returns when the browser has clicked, and the
 download may already have started. [`Page.wait_for_event!/3`](`Playwright.Page.wait_for_event!/3`)
 awaits at once, so use it only for what happens later on its own, such as a timer in the page.
+To skip a page's debounce or timers rather than wait them out, control its time with
+`Playwright.Clock` (`Clock.install!/2`, then `Clock.run_for!/2`), as in Playwright's
+[Clock guide](https://playwright.dev/docs/clock).
 
 A predicate picks one event out of many, and `timeout:` bounds the wait:
 

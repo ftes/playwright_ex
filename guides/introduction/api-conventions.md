@@ -210,7 +210,10 @@ Page.get_by_text(page, Playwright.RegExp.new("a[^]b", "v"))
 
 ## `evaluate` takes JS source
 
-The script is a JS string: an expression, or a function that gets the optional argument.
+The script is a JS string: an expression, or a function that gets the optional argument. As in
+the Python client, no flag says which: when the script's value is a function, it is called. So a
+script that ends by assigning a function (`window.count = () => n`) runs it; end it with a value
+(`window.count = () => n; true`).
 
 ```elixir
 Page.evaluate!(page, "document.title")

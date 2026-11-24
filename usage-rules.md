@@ -17,6 +17,11 @@ guides are at hexdocs.pm/playwright_ex.
   `alias Elixir.Playwright.Page`.
 - `timeout: 0` means no timeout, as in Playwright JS, not "don't wait" as `receive ... after 0`:
   write `timeout: :infinity` for none, and never use `0` for an immediate check.
+- A Chromium `--enable-features=`/`--disable-features=` in `launch_options: [args: ...]` replaces
+  the list Playwright passes (Chromium keeps the last flag): repeat Playwright's features, from
+  `chromiumSwitches.ts` at the driver's version
+  (github.com/microsoft/playwright/blob/v1.65.0/packages/playwright-core/src/server/chromium/chromiumSwitches.ts),
+  or leave the flag out.
 - There is no npm, `package.json`, `playwright.config.ts` or `@playwright/test`:
   `mix playwright.install` installs the driver and browsers, and Elixir config replaces the rest.
   `config :playwright, :test` mirrors `playwright.config.ts` in snake_case: `use` options and the
@@ -41,7 +46,9 @@ guides are at hexdocs.pm/playwright_ex.
 - Options come last, with snake_case keys. Nested option values and object arguments are maps with
   the JS keys: `viewport: %{width: 1280, height: 720}`, a cookie's `httpOnly: true`. Unknown keys
   raise.
-- `nil` is JS `undefined` and `:null` JS `null`; string enums are atoms (`:no_preference`). Strings
+- `nil` is JS `undefined` and `:null` JS `null`, so an absent value from `evaluate` may be either
+  (`obj.missing` is `nil`, `querySelector` with no match `:null`): match both
+  (`x in [nil, :null]`), not `x || default`. String enums are atoms (`:no_preference`). Strings
   are literal text or URL globs; use `~r//` for a pattern.
 
 ## Locators and assertions
