@@ -38,7 +38,7 @@ env:
 jobs:
   # Cheap, no Claude: is there a newer stable release without a branch or PR for it?
   check:
-    runs-on: ubuntu-26.04
+    runs-on: ubicloud-standard-2-ubuntu-2604
     timeout-minutes: 5
     permissions:
       contents: read # read DRIVER_VERSION and mix.exs
@@ -71,8 +71,8 @@ jobs:
   update:
     needs: check
     if: needs.check.outputs.update == 'true'
-    runs-on: ubuntu-26.04
-    # A minor release can mean hours of porting; GitHub-hosted jobs stop at 6 h anyway.
+    runs-on: ubicloud-standard-2-ubuntu-2604
+    # A minor release can mean hours of porting.
     timeout-minutes: 240
     permissions:
       # The workflow token only checks out. Claude pushes and opens the PR
@@ -145,7 +145,7 @@ jobs:
   # Claude's finished ports whose CI failed. A PR left "in progress" by a run that stopped early is
   # not worth fixing, and one a human has commented on or pushed to is theirs.
   failing:
-    runs-on: ubuntu-26.04
+    runs-on: ubicloud-standard-2-ubuntu-2604
     timeout-minutes: 5
     permissions:
       contents: read
@@ -180,7 +180,7 @@ jobs:
   fix:
     needs: failing
     if: needs.failing.outputs.prs != '[]'
-    runs-on: ubuntu-26.04
+    runs-on: ubicloud-standard-2-ubuntu-2604
     timeout-minutes: 60
     permissions:
       contents: read
