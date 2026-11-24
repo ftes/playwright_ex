@@ -13,6 +13,9 @@ version its requirement in `mix.exs` accepts, which `DependencyFloorsTest` check
 copy `.tool-versions.oldest` to `.tool-versions` and `mix.lock.oldest` to `mix.lock`, run
 `mix deps.update <dep>`, and keep the lock as `mix.lock.oldest` once `mix deps.get` leaves it
 unchanged from an empty `deps/`, as CI runs it. Then restore `.tool-versions` and `mix.lock`.
+Renovate never updates `mix.lock.oldest`. When `mix.exs` no longer accepts what it locks (a raised
+floor, or a dev dependency's new major), CI's oldest lane fails at setup with "deps.get changed
+mix.lock.oldest"; update the lock as above.
 
 ## Reviewing
 
