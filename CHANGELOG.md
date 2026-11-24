@@ -43,7 +43,7 @@ upstream minor, so `~> 1.65.0` is safe.
 Changes since 0.16.0, gathered across the release candidates.
 
 Drives [Playwright 1.65.1](https://github.com/microsoft/playwright/releases/tag/v1.65.1), on
-Node 26.13.1. No upstream API changes.
+Node 26.13.1.
 
 ### Added
 
