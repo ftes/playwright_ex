@@ -197,9 +197,12 @@ At most `workers` drivers run at once (config, default half the schedulers, as P
 `workers`); the others wait, first come first served, inside `BrowserPool.browser/1`: in
 `setup_all` outside its timeout, in `setup` or a test within ExUnit's test timeout. A wait in
 `setup_all` costs nothing, so ExUnit's `max_cases` can stay as it is; one in `setup` or a test
-counts against the test's timeout. A worker is a driver and one browser of one
-set of options, as Playwright Test's worker runs one project: a call with other options (another
-`browser_name`, `headless`, `channel`, `launch_options`, `connect_options`, `driver` or
+counts against the test's timeout, and so does a worker it starts or restarts (a driver start and
+browser launch: about half a second for Firefox, more on CI), as after a failed test reset it.
+Taken in `setup_all`, as `Playwright.Case` does, the module's browser starts outside every test's
+timeout. A worker is a driver and one browser
+of one set of options, as Playwright Test's worker runs one project: a call with other options
+(another `browser_name`, `headless`, `channel`, `launch_options`, `connect_options`, `driver` or
 `on_start`) takes another worker, which may
 restart an idle one of other options. ExUnit runs modules in random order, so in a run that
 mixes options each switch restarts a worker (a driver start, about 110 ms, plus the browser's
