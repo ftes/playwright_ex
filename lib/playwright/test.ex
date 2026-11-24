@@ -41,12 +41,15 @@ defmodule Playwright.Test do
 
   `use Playwright.Test` comes after `use ExUnit.Case` (or in a case template's `using`). It
   imports a `test` macro, which hands the test to `ExUnit.Case.test/3` with the body's end
-  marked, so the test's `on_exit` learns whether it passed, and `assert/1,2` and `refute/1,2`,
-  which are also steps (see "Assertions"). And it adds a `setup` that
+  marked, so the test's `on_exit` learns whether it passed; `on_exit/1,2`, whose callback's
+  failure fails the test too, as an `afterEach` hook's does upstream; and `assert/1,2` and
+  `refute/1,2`, which are also steps (see "Assertions"). And it adds a `setup` that
   registers each test: its recording modes, its output dir and an `on_exit` (the first, so it
   runs last) that keeps or drops the artifacts by the result, then releases the test's
   `BrowserPool.browser/1` drivers. Tests of other macros (doctests, a `property`) count as
-  failed for their artifacts, and a failure only in an `on_exit` callback counts as passed.
+  failed for their artifacts. A failure in an `on_exit` callback that isn't `on_exit/1,2`'s
+  (`ExUnit.Callbacks.on_exit/2` called qualified), or that runs after that `on_exit` (registered
+  before the `setup`), counts as passed.
 
   In a case template, `use Playwright.Test` may also be the first line of the template's
   body: a template's own `setup` callbacks run before those its `using` brings in, so the test
@@ -321,7 +324,12 @@ defmodule Playwright.Test do
   A test stuck elsewhere (`Process.sleep/1`, a `receive`) still fails with ExUnit's
   `ExUnit.TimeoutError`. So can a hung call under heavy load, when the close doesn't finish
   before ExUnit's kill: the console then has no call log, but the trace keeps the hung call with
-  its log, and `error-context.md` says the test process was killed.
+  its log, and `error-context.md` says the test process was killed. So can a call retrying an
+  element that isn't actionable (hidden, disabled, covered by another element, ...): the margin
+  is at most 1 s and also holds the close's artifact steps, and the driver waits up to 500 ms
+  between its retries without noticing the close, as upstream's does. The artifacts are kept
+  either way. For such a call to fail by itself with its log, give it an `action_timeout` that
+  runs out well before the test's timeout.
   The timeout is ExUnit's: the `@tag timeout:` (`:infinity` for none) or `mix test --timeout`;
   `mix test --trace` has none. As ExUnit's (and upstream's, which counts `beforeEach` hooks), the
   timeout counts the test's `setup` callbacks: the clock starts at the module's first one, also
@@ -556,19 +564,22 @@ defmodule Playwright.Test do
               # Replaces `use ExUnit.Case`'s import: `assert` and `refute` are `Playwright.Test.Assertions`'.
               import ExUnit.Assertions, except: [assert: 1, assert: 2, refute: 1, refute: 2]
               import Playwright.Test.Assertions
-              import Playwright.Test, only: [test: 1, test: 2, test: 3]
+              import Playwright.Test, only: [test: 1, test: 2, test: 3, on_exit: 1, on_exit: 2]
             end
           else
             quote do
               # Also after an earlier `use`'s import of them (a case template's `using`).
               import Playwright.Test.Assertions, only: []
               import ExUnit.Assertions
-              import Playwright.Test, only: [test: 1, test: 2, test: 3]
+              import Playwright.Test, only: [test: 1, test: 2, test: 3, on_exit: 1, on_exit: 2]
             end
           end
 
         quote do
           import ExUnit.Case, only: [describe: 2]
+          # Elixir only: `on_exit/1,2` are `Playwright.Test`'s, as ExUnit tells the test's end nothing
+          # of its `on_exit` callbacks' errors (upstream's `_failWithError` sees its hooks' own).
+          import ExUnit.Callbacks, except: [on_exit: 1, on_exit: 2]
           unquote(imports)
           require Playwright.Test
 
@@ -583,6 +594,10 @@ defmodule Playwright.Test do
       {:using, 1} in Keyword.get(macros, ExUnit.CaseTemplate, []) ->
         quote do
           Playwright.Test.__template_use__(unquote(opts), __ENV__)
+          # Elixir only: `on_exit/1,2` are `Playwright.Test`'s (as in a test module), for the
+          # template's own `setup` callbacks.
+          import ExUnit.Callbacks, except: [on_exit: 1, on_exit: 2]
+          import Playwright.Test, only: [on_exit: 1, on_exit: 2]
 
           if Playwright.Test.__use__(__MODULE__, []) do
             Playwright.Test.__clock__(__MODULE__)
@@ -760,6 +775,56 @@ defmodule Playwright.Test do
       @tag "playwright.test": :marked
       ExUnit.Case.test(unquote(message))
     end
+  end
+
+  @doc """
+  `ExUnit.Callbacks.on_exit/2`, whose callback's failure (a raise, exit or throw) is also the
+  test's, as upstream's `afterEach` hooks and fixture teardowns fail the test (`_failWithError`):
+  its result is `:failed` for its artifacts (they are kept under `:retain_on_failure` and
+  `:only_on_failure`), `error-context.md`, `info/1` in its later `on_exit` callbacks and the
+  reporters, and its trace has the error. The callback's error is raised on unchanged, so ExUnit
+  reports it as without this function. `use Playwright.Test` imports it in place of ExUnit's.
+
+  Only a callback that runs before the test's artifacts are kept, last in its `on_exit`
+  callbacks, counts: one registered after `use Playwright.Test`'s `setup` (in a later `setup` or
+  in the test), under a name not used before it (ExUnit replaces a named callback in its first
+  place). A callback registered with `ExUnit.Callbacks.on_exit/2` (qualified, or in a module
+  without the import) doesn't, nor one killed past ExUnit's timeout.
+  """
+  @spec on_exit(term(), (-> term())) :: :ok
+  # Elixir only: upstream's worker fails the test with a hook's error itself (`_failWithError`);
+  # ExUnit keeps an `on_exit` callback's error to itself, so the callback is wrapped. Only in a
+  # registered test: elsewhere (a module's `setup_all`) there is no test to fail.
+  def on_exit(name_or_ref \\ make_ref(), callback) when is_function(callback, 0) do
+    test_pid = self()
+
+    if Recorder.registration(test_pid),
+      # A tail call: its frame is `run_on_exit/2`'s.
+      do: ExUnit.Callbacks.on_exit(name_or_ref, fn -> run_on_exit(test_pid, callback) end),
+      else: ExUnit.Callbacks.on_exit(name_or_ref, callback)
+  end
+
+  # Elixir only: the wrapped callback of `on_exit/2`.
+  defp run_on_exit(test_pid, callback) do
+    callback.()
+  catch
+    kind, reason ->
+      # Without this function's frame, as ExUnit reports the error without it.
+      stacktrace = Enum.reject(__STACKTRACE__, &match?({__MODULE__, :run_on_exit, 2, _}, &1))
+      failed_in_teardown(test_pid, {kind, reason, stacktrace})
+      :erlang.raise(kind, reason, stacktrace)
+  end
+
+  # The worker's `_failWithError` of an `on_exit` callback's error: the test's status and errors,
+  # and its trace event (`appendForError`).
+  defp failed_in_teardown(test_pid, error) do
+    TestInfo.trace_errors(test_pid, errors(error))
+
+    for {kind, reason, stacktrace} <- errors(error),
+        do:
+          Results.notify(
+            {:failed_in_teardown, test_pid, {kind, Exception.normalize(kind, reason, stacktrace), stacktrace}}
+          )
   end
 
   @doc false
@@ -1338,7 +1403,8 @@ defmodule Playwright.Test do
     * `expected_status` - `:passed` (there is no `test.fail()`).
     * `duration` - ms from the test's setup to its process's exit.
 
-  A failure in an `on_exit` callback doesn't change them.
+  An error of an earlier `on_exit/1,2` callback is among them (`status` `:failed`), as
+  upstream's `afterEach` hooks fail the test; one of `ExUnit.Callbacks.on_exit/2`'s isn't.
 
       setup %{test_pid: test_pid} do
         on_exit(fn ->

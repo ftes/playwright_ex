@@ -86,6 +86,46 @@ defmodule Playwright.Test.EndToEndTest do
     refute File.read!(Path.join([output_dir, dir, "trace.zip"])) == first
   end
 
+  # Upstream's `_failWithError` of a fixture teardown's error: the test failed, for its artifacts.
+  test "an on_exit callback's failure fails the test and keeps its artifacts; a passing one's are dropped",
+       %{tmp_dir: tmp_dir} do
+    child = start("on_exit", tmp_dir)
+    assert ChildProcess.exit_code(child, 60_000) == 0
+    output = ChildProcess.output(child)
+
+    # ExUnit reports it as without `Playwright.Test.on_exit/2`.
+    assert output =~ ~r"2 tests, 1 failure|Result: 1/2 passed"
+    assert failure(output, "test fails in on_exit (OnExitTest)") =~ "unhandled page errors"
+    assert output =~ "(status=>test fails in on_exit=>:failed)"
+    assert output =~ "(status=>test passes in on_exit=>:passed)"
+
+    output_dir = Path.join(tmp_dir, "test-results")
+    assert [dir] = File.ls!(output_dir)
+    assert dir =~ ~r/fails-in-on-exit-[0-9a-f]{5}$/
+    assert Enum.sort(File.ls!(Path.join(output_dir, dir))) == ["error-context.md", "test-failed-1.png", "trace.zip"]
+
+    assert File.read!(Path.join([output_dir, dir, "error-context.md"])) =~
+             "ExUnit.AssertionError: unhandled page errors"
+
+    {:ok, files} = :zip.unzip(String.to_charlist(Path.join([output_dir, dir, "trace.zip"])), [:memory])
+    {_, trace} = List.keyfind(files, ~c"test.trace", 0)
+    events = for event <- String.split(trace, "\n", trim: true), do: JSON.decode!(event)
+
+    assert Enum.any?(
+             events,
+             &match?(%{"type" => "error", "message" => "ExUnit.AssertionError: unhandled page errors" <> _}, &1)
+           )
+
+    report = JSON.decode!(File.read!(Path.join(tmp_dir, "report.json")))
+    assert %{"expected" => 1, "unexpected" => 1} = report["stats"]
+    [%{"specs" => specs}] = report["suites"]
+
+    statuses =
+      Map.new(specs, fn %{"title" => title, "tests" => [%{"results" => [result]}]} -> {title, result["status"]} end)
+
+    assert statuses == %{"fails in on_exit" => "failed", "passes in on_exit" => "passed"}
+  end
+
   test "the JSON formatter writes upstream's report, with each test's steps and artifacts' paths",
        %{tmp_dir: tmp_dir} do
     child = start("json", tmp_dir)

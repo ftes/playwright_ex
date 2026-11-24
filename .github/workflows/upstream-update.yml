@@ -7,8 +7,9 @@
 # secret (both already used by claude-code-review.yml). Recommended: a ruleset on main
 # requiring PRs, so no token can push to main whatever the prompt says.
 #
-# Accepted risk (.github/actions/claude): with an id-token, Claude edits files and runs mix, and
-# `fix` runs a port branch's setup code. Only main and this repository's upstream/* branches.
+# Accepted risk: with an id-token, Claude edits files and runs mix (ftes/ci/claude), and `fix`
+# runs a port branch's setup code (.github/actions/fix-ci). Only main and this repository's
+# upstream/* branches.
 name: Upstream update
 
 on:
@@ -87,7 +88,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # Main's Claude action and code, also on a workflow_dispatch from another branch.
+          # Main's code, also on a workflow_dispatch from another branch.
           ref: main
           # Else checkout's read-only token can override the app token Claude pushes with: from v6
           # it sits in an includeIf file claude-code-action doesn't clear, so the push gets a 403.
@@ -100,28 +101,28 @@ jobs:
         uses: ftes/ci/playwright-browser@70f3e82336c42d568193e6653b5d3e30e4693d39 # v1.0.4
         with:
           driver-dir: .
-      # The upstream clone (see the prompt) lives outside the checkout; --add-dir needs it.
-      - run: mkdir -p /tmp/playwright
+      # The upstream clone (see the prompt) and the upstream sources the mix tasks download live
+      # outside the checkout; --add-dir needs them.
+      - run: mkdir -p /tmp/playwright ~/.cache/playwright
       # No github_token input: the action uses the Claude App token (see above). Tools: file tools
       # and subagents; the mix tasks the port uses; git on the checkout (no fetching; pushes to
       # BRANCH only) and on the upstream clone (fetches the FROM and TO tags only); gh for the
       # release notes, playwright-python's files at TO and this run's PR; curl for
       # playwright-python's raw files at TO; a few read-only shell helpers. These rules steer
-      # Claude's tools, as .github/actions/claude says; main's ruleset guards pushes. --add-dir:
-      # the upstream clone.
-      - uses: ./.github/actions/claude
+      # Claude's tools, as ftes/ci/claude says; main's ruleset guards pushes. --add-dir:
+      # the upstream clone and sources.
+      - uses: ftes/ci/claude@70f3e82336c42d568193e6653b5d3e30e4693d39 # v1.0.4
         with:
           token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          setup: none
-          prompt: upstream-update
-          context: |
+          prompt-file: .github/prompts/upstream-update.md
+          prompt: |
             FROM: ${{ needs.check.outputs.from }}
             TO: ${{ needs.check.outputs.to }}
             VERSION: ${{ needs.check.outputs.version }}
             BRANCH: ${{ needs.check.outputs.branch }}
             RELEASE: https://github.com/microsoft/playwright/releases/tag/v${{ needs.check.outputs.to }}
           max-turns: "600"
-          add-dir: /tmp/playwright
+          add-dir: /tmp/playwright /home/runner/.cache/playwright
           allowed-tools: "Skill,Read,Write,Edit,MultiEdit,Glob,Grep,LS,Agent,Task,TodoWrite,Bash(mix format),Bash(mix format *),Bash(mix compile),Bash(mix compile *),Bash(mix credo),Bash(mix credo *),Bash(mix test),Bash(mix test *),Bash(PW_UNSKIP=env,flaky mix test *),Bash(mix playwright.*),Bash(mix usage_rules.*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git rm:*),Bash(git mv:*),Bash(git restore:*),Bash(git commit:*),Bash(git switch -c ${{ needs.check.outputs.branch }}),Bash(git push origin ${{ needs.check.outputs.branch }}),Bash(git push -u origin ${{ needs.check.outputs.branch }}),Bash(git init -q /tmp/playwright),Bash(git -C /tmp/playwright fetch --depth=1 https://github.com/microsoft/playwright tag v${{ needs.check.outputs.from }} tag v${{ needs.check.outputs.to }}),Bash(git -C /tmp/playwright diff *),Bash(git -C /tmp/playwright show *),Bash(git -C /tmp/playwright log *),Bash(gh release view * --repo microsoft/playwright),Bash(gh api repos/microsoft/playwright-python/contents/*?ref=v${{ needs.check.outputs.to }}),Bash(gh pr create --draft --base main --head ${{ needs.check.outputs.branch }} *),Bash(gh pr edit ${{ needs.check.outputs.branch }} --body-file *),Bash(curl -fsSL https://raw.githubusercontent.com/microsoft/playwright-python/v${{ needs.check.outputs.to }}/*),Bash(ls:*),Bash(mkdir:*),Bash(wc:*),Bash(diff:*)"
           disallowed-tools: "Bash(git *pull/*),Bash(git * --upload-pack*),Bash(gh api *&*),Bash(curl *..*),Bash(curl *%*),Bash(curl -fsSL https://raw.githubusercontent.com/microsoft/playwright-python/v${{ needs.check.outputs.to }}/* *)"
       # Claude's run succeeds whatever it did, so a port that never got published would go unnoticed.
@@ -196,8 +197,8 @@ jobs:
           persist-credentials: false
           ref: ${{ matrix.pr.branch }}
           fetch-depth: 0
-      # The Claude actions and prompts from main, not from the ref checked out above
-      # (.github/actions/claude): into a gitignored path, after that checkout, which would clean it.
+      # The fix-ci action from main, not from the ref checked out above: into a gitignored path,
+      # after that checkout, which would clean it.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main

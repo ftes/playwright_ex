@@ -390,9 +390,15 @@ notes the error and re-raises it: a test passed when it was marked and its proce
 and failed setups. The `catch` gives `error-context.md` the errors; failure output stays
 ExUnit's, byte for byte (tested). Its `setup` registers the test and adds the test's first
 `on_exit`, which runs last. The mark also takes the end-of-body screenshots
-(`didFinishTestFunction`). Not covered: doctests and other macros' tests (no mark: their
-artifacts are kept), a failure only in an `on_exit` (it counts as passed), and a failure in a
-case template's own `setup` before the registration. Rejected: an ExUnit formatter (a second
+(`didFinishTestFunction`). The `on_exit/1,2` it imports in place of ExUnit's wraps the callback
+in a `catch` that fails the test with the error and re-raises it, as upstream's `_failWithError`
+fails it in an `afterEach` hook or a fixture's teardown: the result is `:failed` even after the
+pass mark, so the artifacts are kept. Not covered: doctests and other macros' tests (no mark:
+their artifacts are kept), a failure only in an `ExUnit.Callbacks.on_exit/2` callback (called
+qualified), in one registered before the registration (it runs after the artifacts' `on_exit`)
+or in one ExUnit kills past its timeout (it counts as passed), and a failure in a case
+template's own `setup` before the registration. Rejected: reading ExUnit's own `on_exit` errors
+(internal to `ExUnit.OnExitHandler`, and known only after the last callback), an ExUnit formatter (a second
 piece to install; `module_finished` never comes for a module `--max-failures` stops), a
 `defoverridable` wrapper of each test (renames the test's frame), and a monitor on the
 `setup_all` process (its `DOWN` races the user's `on_exit`).
@@ -490,6 +496,7 @@ errors (exit 1) are not. One rerun rather than upstream's `retries: 3`, so flake
 workflow_dispatch input `max_cases`, overrides it). Headed tests run under xvfb with
 `HEADED=1 --only headed`, in each browser's first partition. deps and `_build` are cached, written
 on main only. A new push to a PR cancels its running CI; other runs (main, nightly, dispatched
-experiments, and a PR's run that tests nothing: a draft, or below the top of its stack) get a group
-of their own, so they are never cancelled or queued, and can't cancel the tip's test run. A daily workflow checks npm for a new release and opens a
-draft PR that ports it per PORTING.
+experiments) get a group of their own, so they are never cancelled or queued. Drafts and PRs below
+the top of a stack skip every job but `quality`, which reports green: the top PR's run tests the
+whole stack. A daily workflow checks npm for a new release and opens a draft PR that ports it per
+PORTING.
