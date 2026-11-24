@@ -32,6 +32,10 @@ Read them before changing ported code. When reviewing a change or fixing review 
   ready top first.
 - `mix check` is the full verification: `mix lint` (format, credo, compile, usage rules, Hex package
   compile, docs, dialyzer), then parity and the tests.
+- The compatibility floor is Elixir 1.18 on OTP 27 (`.tool-versions.oldest`), which CI's oldest
+  lane runs with `mix.lock.oldest`. There are no runtime dependencies, so that lock holds only the
+  dev and test ones the lane builds with; a newer one in `mix.lock` can't break the floor. A new
+  runtime dependency goes into `mix.lock.oldest` at its floor; a test checks they match.
 - Files marked "do not edit manually" are generated: run `mix playwright.gen.api`
   (`mix playwright.gen.protocol` for the protocol) instead of editing them.
 - `.agents/skills` (linked from `.claude/skills`) is generated: after updating deps run
