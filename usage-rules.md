@@ -19,8 +19,8 @@ guides are at hexdocs.pm/playwright_ex.
   write `timeout: :infinity` for none, and never use `0` for an immediate check.
 - A Chromium `--enable-features=`/`--disable-features=` in `launch_options: [args: ...]` replaces
   the list Playwright passes (Chromium keeps the last flag): repeat Playwright's features, from
-  `chromiumSwitches.ts` at the driver's version
-  (github.com/microsoft/playwright/blob/v1.65.0/packages/playwright-core/src/server/chromium/chromiumSwitches.ts),
+  `chromiumSwitches.ts` at the tag of the package's `DRIVER_VERSION` (for 1.65.1,
+  github.com/microsoft/playwright/blob/v1.65.1/packages/playwright-core/src/server/chromium/chromiumSwitches.ts),
   or leave the flag out.
 - There is no npm, `package.json`, `playwright.config.ts` or `@playwright/test`:
   `mix playwright.install` installs the driver and browsers, and Elixir config replaces the rest.

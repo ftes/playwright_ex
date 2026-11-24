@@ -207,8 +207,8 @@ launch). Run one configuration per invocation, as Playwright Test's projects eff
 each module with its configuration (`@moduletag browser: :firefox`) and run
 `mix test --only browser:firefox`, or give each CI job one. ExUnit runs `async: false` modules
 one at a time, after the async ones, so they never wait on `workers`: a rare module with unusual
-options can be one, and restarts no worker of the others. In a suite of only those, `workers`
-only sets how many configurations stay warm.
+options can be one, which at most restarts an idle worker of the others once they're done. In a
+suite of only those, `workers` only sets how many configurations stay warm.
 
 Or keep each configuration's workers warm, at the cost of memory: with `workers` above
 `max_cases` (up to `max_cases` per configuration), no more than `max_cases` modules hold a worker
