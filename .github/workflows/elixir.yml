@@ -76,7 +76,7 @@ jobs:
       - &mix-restore
         name: Restore deps and _build
         id: mix_cache
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: mix-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ env.MIX_ENV }}-${{ hashFiles('**/mix.lock') }}-${{ github.sha }}
           restore-keys: |
@@ -90,7 +90,7 @@ jobs:
       # A PR never writes the shared cache; `mix dialyzer --plt` builds what a restore lacks.
       - name: Restore Dialyzer PLT cache
         id: plt_cache
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: plt-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}-${{ hashFiles('**/mix.lock') }}
           restore-keys: plt-${{ runner.os }}-${{ steps.runner_image.outputs.os }}-${{ hashFiles('.tool-versions') }}
@@ -102,7 +102,7 @@ jobs:
         run: mix dialyzer --plt
       - name: Save PLT cache
         if: github.ref == 'refs/heads/main' && steps.plt_cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: ${{ steps.plt_cache.outputs.cache-primary-key }}
           path: priv/plts
@@ -113,7 +113,7 @@ jobs:
       # Last, so only a green job saves; under the key computed before deps.get.
       - name: Save deps and _build
         if: success() && github.ref == 'refs/heads/main' && steps.mix_cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with: &mix-save
           key: ${{ steps.mix_cache.outputs.cache-primary-key }}
           path: |
@@ -201,7 +201,7 @@ jobs:
       # superseded .debs.
       - name: Restore browser system packages
         id: apt_cache
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: apt-${{ matrix.browser }}-${{ hashFiles('DRIVER_VERSION', 'NODE_VERSION') }}-${{ steps.runner_image.outputs.os }}-${{ steps.runner_image.outputs.day }}
           restore-keys: apt-${{ matrix.browser }}-${{ hashFiles('DRIVER_VERSION', 'NODE_VERSION') }}-${{ steps.runner_image.outputs.os }}-
@@ -225,7 +225,7 @@ jobs:
       # only: a PR's cache is visible to that PR alone.
       - name: Save browser system packages
         if: github.ref == 'refs/heads/main' && matrix.lane == 'newest' && matrix.partition == 1 && steps.apt_cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: ${{ steps.apt_cache.outputs.cache-primary-key }}
           path: ~/apt-cache
@@ -292,7 +292,7 @@ jobs:
       - name: Restore Selenium Server jars
         if: matrix.lane == 'newest' && matrix.browser == 'chromium' && matrix.partition == 1
         id: selenium_cache
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: selenium-server-3.141.59-4.8.3
           path: ~/selenium
@@ -304,7 +304,7 @@ jobs:
           curl -fsSL --retry 3 -o ~/selenium/selenium-server-standalone-3.141.59.jar https://github.com/SeleniumHQ/selenium/releases/download/selenium-3.141.59/selenium-server-standalone-3.141.59.jar
       - name: Save Selenium Server jars
         if: github.ref == 'refs/heads/main' && steps.selenium_cache.outcome == 'success' && steps.selenium_cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: ${{ steps.selenium_cache.outputs.cache-primary-key }}
           path: ~/selenium
@@ -326,7 +326,7 @@ jobs:
       # only, under the key computed before deps.get.
       - name: Save deps and _build
         if: success() && matrix.lane == 'oldest' && matrix.partition == 1 && github.ref == 'refs/heads/main' && steps.mix_cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with: *mix-save
       # The display is shared by the steps above: its log, in case it went down.
       - name: Show Xvfb log
