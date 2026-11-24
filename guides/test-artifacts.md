@@ -153,6 +153,11 @@ passes:
     mix test || { [ $? -eq 2 ] && retry; }
 ```
 
+In an umbrella, each app without failures prints that line, even when another app's failures
+rerun: there, fail the rerun when no `Running ExUnit with seed` line appears instead (it needs
+`ExUnit.CLIFormatter` among the formatters). That catches a rerun where no app ran, not one app
+losing its failures while another reruns.
+
 The other retry modes are Playwright Test's too: `:on_all_retries` traces every rerun,
 `:retain_on_first_failure` the first run's failures, `:retain_on_failure_and_retries` both;
 `video` takes them as well, and `screenshot` has `:on_first_failure`.
@@ -200,8 +205,10 @@ restart an idle one of other options. ExUnit runs modules in random order, so in
 mixes options each switch restarts a worker (a driver start, about 110 ms, plus the browser's
 launch). Run one configuration per invocation, as Playwright Test's projects effectively do: tag
 each module with its configuration (`@moduletag browser: :firefox`) and run
-`mix test --only browser:firefox`, or give each CI job one. A rare module with unusual options
-can be `async: false`, so it doesn't wait behind the others.
+`mix test --only browser:firefox`, or give each CI job one. ExUnit runs `async: false` modules
+one at a time, after the async ones, so they never wait on `workers`: a rare module with unusual
+options can be one, which at most restarts an idle worker of the others once they're done. In a
+suite of only those, `workers` only sets how many configurations stay warm.
 
 Or keep each configuration's workers warm, at the cost of memory: with `workers` above
 `max_cases` (up to `max_cases` per configuration), no more than `max_cases` modules hold a worker

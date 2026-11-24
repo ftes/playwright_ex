@@ -436,7 +436,11 @@ An app running as an OS process of its own needs no start in the test VM: `mix t
 starts no application, so start this library's in `test_helper.exs`
 (`Application.ensure_all_started(:playwright)`). A server the tests start themselves inherits
 their environment, `MIX_ENV` included when the shell or CI job sets it: pass the child's
-explicitly (`env: [{~c"MIX_ENV", ~c"dev"}]` in `Port.open/2`).
+explicitly (`env: [{~c"MIX_ENV", ~c"dev"}]` in `Port.open/2`). Like `webServer`, wait in
+`test_helper.exs` until its URL answers, and stop it in `ExUnit.after_suite/1` with its process
+group (`System.cmd("kill", ["-TERM", "-#{os_pid}"])`, the pid from `Port.info(port, :os_pid)`):
+`Port.close/1` closes its pipes but doesn't stop it. Prefer the endpoint in the test VM where you
+can: only there does the SQL sandbox below isolate each test's data.
 
 Async modules run at once against one app and one database. Seed data each module owns (names
 with `System.unique_integer([:positive])`), or wrap seeding that can't be unique in
