@@ -270,6 +270,62 @@ defmodule Playwright.Test.BrowserPoolTest do
       assert_receive {:DOWN, ^ref, :process, _, :killed}, 10_000
     end
 
+    # `Playwright.Test.on_exit/2`'s `{:failed_in_teardown, pid, failure}`, from the process that
+    # runs the test's `on_exit` callbacks (here a Task).
+    test "an on_exit callback's failure fails a passed test and resets its worker; not once its finish began" do
+      failure = {:error, %RuntimeError{message: "teardown boom"}, []}
+
+      for finishing? <- [false, true] do
+        t = fake_test()
+        hold(t, opts())
+        [worker] = for {pid, %{scope: ^t}} <- :sys.get_state(Pool).workers, do: pid
+        assert end_test(t, [passed()], :shutdown) == {:passed, []}
+
+        result =
+          Task.await(
+            Task.async(fn ->
+              if finishing?, do: Results.finishing(t)
+              Results.notify({:failed_in_teardown, t, failure})
+              result = Results.result(t, 5000)
+              Pool.release(t)
+              result
+            end)
+          )
+
+        %{scope: nil, key: key} = :sys.get_state(Pool).workers[worker]
+
+        if finishing? do
+          assert result == {:passed, []}
+          assert key != nil
+        else
+          assert {:failed, [{:error, %RuntimeError{message: "teardown boom"}, []}]} = result
+          assert key == nil
+        end
+      end
+    end
+
+    test "an on_exit callback's failure of a process that is no test (a setup_all) fails nothing" do
+      opts = opts()
+      test = self()
+
+      {pid, ref} =
+        spawn_monitor(fn ->
+          send(test, {:held, Pool.browser(Options.pool(opts), {:process, self()})})
+          receive do: (:end -> :ok)
+        end)
+
+      assert_receive {:held, held}, 30_000
+      Results.notify({:failed_in_teardown, pid, {:error, %RuntimeError{message: "teardown boom"}, []}})
+      refute :sys.get_state(Pool).scopes[pid].failed?
+      send(pid, :end)
+      assert_receive {:DOWN, ^ref, :process, ^pid, :normal}, 10_000
+      Pool.release(pid)
+
+      t = fake_test()
+      assert hold(t, opts).playwright == held.playwright
+      finish(t, [passed()], :shutdown)
+    end
+
     test "forgotten once the test's on_exit took it" do
       pid = fake_test()
       assert end_test(pid, [passed()], :shutdown) == {:passed, []}

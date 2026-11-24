@@ -242,13 +242,14 @@ defmodule Playwright.Test.Pool do
   end
 
   # An `on_exit` callback of an ended test failed (`Playwright.Test.on_exit/2`): its scopes fail,
-  # as a failed test's. Before the test's `DOWN` (no runner yet), that fails them.
+  # as a failed test's, if that failed it (not past its finish's start). Before the test's `DOWN`
+  # (no runner yet), that fails them.
   def handle_info({:failed_in_teardown, pid, _failure} = message, state) do
-    state = %{state | results: Results.handle_info(message, state.results)}
+    results = Results.handle_info(message, state.results)
 
-    case Results.runner(state.results, pid) do
-      nil -> {:noreply, state}
-      runner -> {:noreply, fail_scopes(state, pid, runner)}
+    case results != state.results && Results.runner(results, pid) do
+      runner when is_pid(runner) -> {:noreply, fail_scopes(%{state | results: results}, pid, runner)}
+      _ -> {:noreply, %{state | results: results}}
     end
   end
 

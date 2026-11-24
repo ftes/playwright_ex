@@ -260,9 +260,16 @@ defmodule Playwright.Test.Results do
   end
 
   # An `on_exit` callback's error fails the test, as upstream's `_failWithError` does in teardown:
-  # after its end, or before the pool saw its `DOWN` (`test_ended/4` adds it then).
+  # after its end, or before the pool saw its `DOWN` (`test_ended/4` adds it then). Not once its
+  # finish began (`finishing/1`), by when its artifacts went by its result: a later callback's
+  # counts as passed. The callbacks run in the finishing process, so theirs come before it.
   def handle_info({:failed_in_teardown, pid, failure}, state) do
+    finishing? = Enum.any?(state.kept, fn {_keeper, test_pids} -> pid in test_pids end)
+
     case state do
+      _ when finishing? ->
+        state
+
       %{results: %{^pid => {_verdict, failures, duration, runner}}} ->
         put_in(state.results[pid], {:failed, failures ++ [failure], duration, runner})
 

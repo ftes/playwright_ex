@@ -259,7 +259,8 @@ A fixture teardown that fails the test, such as LiveView's `page` fixture checki
 errors, is an `on_exit`: an assertion there fails the test, reported by ExUnit as an `on_exit`
 failure, and the recording counts it as a failure, so its artifacts are kept. That takes the
 `on_exit/1,2` `use Playwright.Test` imports, in a `setup` after the `use` (or in the test), not
-`ExUnit.Callbacks.on_exit/2` called qualified. Its state must outlive the test process. Playwright
+`ExUnit.Callbacks.on_exit/2` called qualified; a case template passes the import on only with
+the `use` in its `using`, as `Playwright.Case` has it. Its state must outlive the test process. Playwright
 Test's option fixtures (`test.extend` with `{ option: true }`, set with `test.use`) are plain
 tags or parameter keys of your own: `test.use({ ignoreJSErrors: true })` becomes
 `@tag :ignore_js_errors` (or `@describetag`, `@moduletag`, a key of a project's

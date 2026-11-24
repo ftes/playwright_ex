@@ -572,7 +572,8 @@ defmodule Playwright.Test do
 
         quote do
           import ExUnit.Case, only: [describe: 2]
-          # `on_exit/1,2` are `Playwright.Test`'s.
+          # Elixir only: `on_exit/1,2` are `Playwright.Test`'s, as ExUnit tells the test's end nothing
+          # of its `on_exit` callbacks' errors (upstream's `_failWithError` sees its hooks' own).
           import ExUnit.Callbacks, except: [on_exit: 1, on_exit: 2]
           unquote(imports)
           require Playwright.Test
@@ -588,7 +589,8 @@ defmodule Playwright.Test do
       {:using, 1} in Keyword.get(macros, ExUnit.CaseTemplate, []) ->
         quote do
           Playwright.Test.__template_use__(unquote(opts), __ENV__)
-          # `on_exit/1,2` are `Playwright.Test`'s, for the template's own `setup` callbacks.
+          # Elixir only: `on_exit/1,2` are `Playwright.Test`'s (as in a test module), for the
+          # template's own `setup` callbacks.
           import ExUnit.Callbacks, except: [on_exit: 1, on_exit: 2]
           import Playwright.Test, only: [on_exit: 1, on_exit: 2]
 
@@ -784,12 +786,19 @@ defmodule Playwright.Test do
   without the import) doesn't, nor one killed past ExUnit's timeout.
   """
   @spec on_exit(term(), (-> term())) :: :ok
+  # Elixir only: upstream's worker fails the test with a hook's error itself (`_failWithError`);
+  # ExUnit keeps an `on_exit` callback's error to itself, so the callback is wrapped. Only in a
+  # registered test: elsewhere (a module's `setup_all`) there is no test to fail.
   def on_exit(name_or_ref \\ make_ref(), callback) when is_function(callback, 0) do
     test_pid = self()
-    # A tail call: its frame is `run_on_exit/2`'s.
-    ExUnit.Callbacks.on_exit(name_or_ref, fn -> run_on_exit(test_pid, callback) end)
+
+    if Recorder.registration(test_pid),
+      # A tail call: its frame is `run_on_exit/2`'s.
+      do: ExUnit.Callbacks.on_exit(name_or_ref, fn -> run_on_exit(test_pid, callback) end),
+      else: ExUnit.Callbacks.on_exit(name_or_ref, callback)
   end
 
+  # Elixir only: the wrapped callback of `on_exit/2`.
   defp run_on_exit(test_pid, callback) do
     callback.()
   catch
