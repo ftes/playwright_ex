@@ -106,6 +106,12 @@ guides are at hexdocs.pm/playwright_ex.
   `ExUnit.Callbacks.on_exit/2` called qualified: that failure counts as passed, and its trace is
   dropped. Don't `import ExUnit.Callbacks` after the `use`: a bare `on_exit` call is then
   ambiguous and fails to compile.
+- Tracing slows every test it records, most in its DOM snapshots. On CI use
+  `trace: :on_first_retry` (records nothing on the first run, only the `mix test --failed`
+  rerun: see Retries in the "Artifacts, retries and workers" guide) or `:retain_on_failure`
+  (still takes the DOM snapshots in every test; on a pass skips only the merge and the save of
+  contexts still open at its end), not `:on`. `trace: [mode: ..., snapshots: false]` drops the
+  snapshots' cost, but the kept traces then have no DOM snapshots to inspect.
 - A failed test writes `test-results/<test>/error-context.md` (errors, source, an aria snapshot):
   read it first. Open traces with `mix playwright.cli show-trace <path>`.
 - To map tests to their trace, screenshots and videos, read the `attachments` of

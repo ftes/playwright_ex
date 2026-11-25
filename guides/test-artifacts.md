@@ -43,6 +43,17 @@ the test's title and steps over the video). Each replaces the value under it as 
 unknown `use` option fails the module's compilation, and an unknown mode records nothing, as
 upstream's.
 
+Recording slows every test it records, as in Playwright Test. On one suite (Chromium, 10
+actions a test, one machine, 1.65), roughly: `trace: :on, screenshot: :on` added about
+220 ms a test. Most of it is the trace's DOM snapshots, taken whenever a test traces:
+`trace: [mode: :on, snapshots: false], screenshot: :on` keeps the actions and the trace's
+screenshots (`:screenshots`) and added about 50 ms. Saving and merging the trace come next,
+growing with its size; `:retain_on_failure` records the same, but on a pass skips the merge, and
+the save of the contexts still open at its end. The screenshot is the least, and
+`:only_on_failure` still takes it when the context closes, as upstream's, and drops it on a
+pass. Playwright Test's docs warn against `trace: :on` on CI; they recommend `on-first-retry`,
+see [Retries](#retries).
+
 Files of your own go in the test's dir with `Playwright.Test.output_path("export.csv")`; they
 stay when the test passes. `Playwright.Test.attach("export", path: path)` (or `body:`) also shows
 one in the trace, as Playwright Test's `testInfo.attach`. The files kept are the test's
@@ -88,10 +99,10 @@ ExUnit can't fill in: `Playwright.Test.JSONFormatter`.
 
 ## Retries
 
-Tracing slows every test. Playwright Test's answer is to trace only the retry of a failure
-(`on-first-retry`). ExUnit has no retries in a run, but `mix test --failed` is one: under it a
-test is Playwright Test's first retry (`Playwright.Test.info().retry` is 1), and the retry
-modes go by it. So trace only the rerun:
+Playwright Test's answer to what tracing costs ([above](#traces-screenshots-and-videos)) is to
+trace only the retry of a failure (`on-first-retry`). ExUnit has no retries in a run, but
+`mix test --failed` is one: under it a test is Playwright Test's first retry
+(`Playwright.Test.info().retry` is 1), and the retry modes go by it. So trace only the rerun:
 
 ```elixir
 # config/test.exs
