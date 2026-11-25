@@ -307,6 +307,9 @@ Node 26.13.1.
 - Licensed under Apache-2.0 (was MIT), as the port of Playwright's client; 0.16 and earlier stay
   MIT.
 - No runtime dependencies: `nimble_options`, `mime` and `websockex` are gone.
+- **RC only:** with `node:`, the driver downloads only `playwright-core`, not Node; with
+  `executable:`, `mix playwright.install` downloads nothing and installs the browsers with that
+  CLI. Neither is checked against the pins.
 
 ### Fixed
 

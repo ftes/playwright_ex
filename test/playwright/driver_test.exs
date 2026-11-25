@@ -58,6 +58,32 @@ defmodule Playwright.DriverTest do
       Driver.install(platform: "freebsd-x64", checksums: %{Driver.checksums() | node: %{}}, cache_dir: cache)
     end
   end
+
+  test "with node: only the package is installed", %{tmp_dir: cache} do
+    # No Node checksums: a Node download would raise.
+    opts = [
+      node: "/usr/local/bin/node",
+      cache_dir: cache,
+      checksums: %{Driver.checksums() | node: %{}}
+    ]
+
+    refute Driver.installed?(opts)
+    assert {"/usr/local/bin/node", [cli]} = Driver.ensure_installed(opts)
+    assert File.regular?(cli)
+    assert File.ls!(Driver.install_dir(opts)) == ["package"]
+    assert Driver.installed?(opts)
+    # Without node:, the same directory lacks Node: not installed.
+    refute Driver.installed?(Keyword.delete(opts, :node))
+  end
+
+  test "with executable: nothing is installed", %{tmp_dir: cache} do
+    opts = [executable: "/opt/pw/playwright", cache_dir: cache]
+
+    assert Driver.installed?(opts)
+    assert :ok = Driver.install(opts)
+    assert {"/opt/pw/playwright", []} = Driver.ensure_installed(opts)
+    assert File.ls!(cache) == []
+  end
 end
 
 defmodule Playwright.DriverConfigTest do
