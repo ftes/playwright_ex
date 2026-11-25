@@ -431,7 +431,11 @@ defmodule Playwright.Client.Connection do
           ChannelOwner._adopt(object, child)
 
         method == "__dispose__" ->
+          # Elixir only: then the connection frees its oldest disposed objects past its cap, but
+          # not those of this dispose (`ChannelOwner._retire/2`).
+          mark = Conn.disposed_mark()
           ChannelOwner._dispose(object, params["reason"])
+          Conn.trim(this.table, mark)
 
         true ->
           validator = Validator.find_validator(get(object, :_type), method, "Event")

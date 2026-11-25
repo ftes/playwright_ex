@@ -135,6 +135,19 @@ Node 26.13.1.
 
 ### Changed
 
+- **RC only:** a closed page, context or browser stays readable from any process while its
+  connection retains it: up to 50,000 rows of closed objects per connection (about 50 MB), the
+  oldest freed first (what one close frees, a context with its pages or a browser, stays readable
+  at least until a later close on the connection frees it, even one running at the same time as
+  yours, and `close` still returns then; a launched browser's close keeps all its contexts unless
+  they and concurrent closes on the connection exceed the cap, and a connected browser's ends its
+  connection, whose objects stay until it stops), instead of until the processes that created or
+  closed it exited. So a case template's `on_exit` after a passing test reads them, and a
+  long-lived process no longer keeps every context it closed. Freed ones raise
+  `Playwright.TargetClosedError`, but the closed-state getters answer. Concurrent users of one
+  connection share the cap; an open context keeps its closed pages until it closes. Tombstones of
+  driver-collected objects are bounded on their own (10,000). `Playwright.Test` reads each page's
+  video as the page opens, so it saves the videos of contexts freed before the test's end.
 - **RC only:** `usage-rules.md` keeps only the traps an agent gets wrong and points to the
   module docs for setup and config keys.
 - **RC only:** the docs prefer plain Elixir (sequential calls, `Task`) to `Playwright.Promise`

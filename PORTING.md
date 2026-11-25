@@ -134,10 +134,18 @@ single thread. Use each only where the JS code needs it, with its marker.
 
 - A listener runs in a process of its own while the connection waits for it to return or first
   await. Blocking on non-Playwright work there stalls dispatch, as it would in JS.
-- A closed context (and what it owned) stays readable until the processes that created or
-  closed it have exited; reads after that raise TargetClosedError, except the closed-state
-  getters (`Page.is_closed`, `BrowserContext.is_closed`, `Browser.is_connected`)
-  ([why](docs/architecture.md#object-lifetimes)). Tests read closed objects in the test process.
+- A closed context (and what it owned) stays readable while its connection retains it: the recently
+  closed ones, up to a row cap per connection that concurrent users share. What one dispose frees
+  (a context with its pages, or a browser) stays readable at least until a later dispose on the
+  connection trims it, even one of a close running at the same time (the close still returns); a
+  launched browser's close disposes its contexts one by one, the oldest trimmed first, so all stay
+  readable unless they and concurrent closes on the connection exceed the cap (a connected
+  browser's close takes no disposes: its objects stay until its connection stops). Older ones, and
+  those of a connection that is gone, raise TargetClosedError, except the closed-state getters
+  (`Page.is_closed`, `BrowserContext.is_closed`, `Browser.is_connected`)
+  ([why](docs/architecture.md#object-lifetimes)). Read what a test needs right after the close;
+  library code that reads a closed object much later (upstream's runner reads videos at the test's
+  end) reads it while it is open, as the recorder does.
 - `then_`/`catch_` are lazy: a reaction nobody awaits never runs. For a side effect use
   `Promise.void(fn -> f.(Promise.await(p)) end)` (`p` a latch).
 - Public entry points run inside `Playwright.Runtime.Facade.call/2` (the generated facade does

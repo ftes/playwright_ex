@@ -233,20 +233,26 @@ defmodule Playwright.Client.ChannelOwner do
   end
 
   # Elixir only, in the connection. JS keeps a disposed object readable (its last field values,
-  # its settled promises) while referenced. Here its rows are kept until its anchor is freed:
-  #   * a BrowserContext or Browser: the processes that created or closed it (`_set_creator/1`,
-  #     inherited from the parent chain; else the connection), freed when the last one exits;
-  #   * anything else: the nearest BrowserContext (else Browser) ancestor, freed with it.
+  # its settled promises) while referenced. Here its rows are retained, then freed:
+  #   * under a BrowserContext still open (a closed page, a detached frame, a resolved
+  #     BindingCall, the context's `request` disposed by its close): kept with the context, whose
+  #     own code may still read them (`_on_close` reads `request.tracing`), until it is disposed;
+  #   * else, and then, in the connection's FIFO of disposed objects (`Conn.retain/2`), children
+  #     (and the objects kept with a context) before their parent. Once it retains more than its
+  #     cap of rows, the oldest are freed, a page before its context (`Conn.trim/2`, after each
+  #     `__dispose__`, which spares the objects it disposed).
   # Its listeners go (they never fire again; user listener processes stop) and pending latches
   # are rejected. An object the driver collected (`reason: "gc"`) is freed at once (deviation: JS
-  # still reads its fields); a tombstone (`_wasCollected`) stays until its anchor is freed. A
-  # handle disposed by itself and a JsonPipe are freed at once, without one (`_free_at_dispose?/2`).
-  # deviation: reads after those processes exit raise TargetClosedError (JS: GC while
-  # referenced); a long-lived process keeps the contexts it closed (~175 rows each) until it exits.
+  # still reads its fields); its tombstone (`_wasCollected`) is kept apart, bounded by a count of
+  # its own (`Conn.collected/2`). A handle disposed by itself and a JsonPipe are freed at once,
+  # without one (`_free_at_dispose?/2`).
+  # deviation: reads of a freed object raise TargetClosedError (JS: GC while referenced), but
+  # those of the closed-state getters (`Heap.get_or_freed/3`).
   defp _retire(this, reason) do
     error = TargetClosedError.new()
+    rows = Heap.rows(this, this.guid)
 
-    for {local, value} <- Heap.rows(this, this.guid) do
+    for {local, value} <- rows do
       case {sub(local), value} do
         {{:map, :_events, _}, {_seq, entries}} ->
           for %{kind: :user, pid: pid} <- entries, do: send(pid, :pw_stop)
@@ -261,23 +267,55 @@ defmodule Playwright.Client.ChannelOwner do
       end
     end
 
-    case if(_free_at_dispose?(this, reason), do: :freed, else: _anchor(this)) do
-      # Its rows went with an anchor freed while its children were disposed, or nothing reads them
-      # (below): nothing to keep.
-      :freed -> Heap.release(this.table, this.guid)
-      anchor -> _keep(this, reason, anchor)
+    free? = _free_at_dispose?(this, reason) or reason == "gc"
+    context = if !free?, do: _open_context(get(this, :_parent))
+
+    # The objects kept with this context: to the FIFO, oldest first.
+    if !context do
+      for {{:kept, n}, guid} <- rows do
+        :ets.delete(this.table, {this.guid, {:kept, n}})
+        Conn.retain(this.table, guid)
+      end
+    end
+
+    cond do
+      free? ->
+        Heap.free_rows(this, this.guid)
+        if reason == "gc", do: Conn.collected(this.table, this.guid)
+
+      context ->
+        n = :erlang.unique_integer([:monotonic])
+
+        :ets.insert(this.table, [
+          {{this.guid, :__retained__}, {:kept, context.guid, n}},
+          {{context.guid, {:kept, n}}, this.guid}
+        ])
+
+      true ->
+        Conn.retain(this.table, this.guid)
     end
   end
 
-  # Objects freed at once instead of kept until their anchor is freed:
+  # The nearest BrowserContext ancestor, if open.
+  defp _open_context(nil), do: nil
+
+  defp _open_context(object) do
+    if get(object, :_type) == "BrowserContext",
+      do: if(Heap.alive?(object), do: object),
+      else: _open_context(get(object, :_parent))
+  rescue
+    # An ancestor freed already.
+    TargetClosedError -> nil
+  end
+
+  # Objects freed at once instead of retained:
   #   * a JSHandle or ElementHandle the driver disposed by itself (`JSHandle.dispose`; a parent's
-  #     dispose removes the parent from the connection first). JS frees it once unreferenced; kept,
-  #     a long-lived page would grow with the handles it disposed. Calls raise TargetClosedError, as
-  #     in JS (the driver no longer knows the guid). deviation: so do field reads, and `to_string/1`
-  #     (JS: the last preview).
+  #     dispose removes the parent from the connection first). JS frees it once unreferenced;
+  #     kept with its open context, a long-lived page would grow with the handles it disposed.
+  #     Calls raise TargetClosedError, as in JS (the driver no longer knows the guid). deviation:
+  #     so do field reads, and `to_string/1` (JS: the last preview).
   #   * a JsonPipe (a remote connection's, on the local LocalUtils): only its transport uses it,
-  #     whose calls after close raise and are dropped, as in JS. Its dispose may arrive after the
-  #     remote connection stopped, so the connection cannot free it (anchored to the local one).
+  #     whose calls after close raise and are dropped, as in JS.
   defp _free_at_dispose?(this, reason) do
     case get(this, :_type) do
       type when type in ["JSHandle", "ElementHandle"] -> reason != "gc" and Heap.alive?(get(this, :_parent))
@@ -286,39 +324,27 @@ defmodule Playwright.Client.ChannelOwner do
     end
   end
 
-  # The marker's value is the anchor, for `_forget_disposed/1`.
-  defp _keep(this, reason, anchor) do
-    if reason == "gc" do
-      Heap.release(this.table, this.guid)
-      :ets.insert(this.table, {{this.guid, :__collected__}, anchor})
-    else
-      :ets.insert(this.table, {{this.guid, :__retained__}, anchor})
-    end
-
-    case anchor do
-      {:processes, pids} -> for pid <- pids, do: Conn.anchor(this.table, pid, this.guid)
-      anchor -> :ets.insert(this.table, {{anchor, {:retained, this.guid}}, true})
-    end
-  end
-
   # Elixir only, in the connection (`__create__`): the driver creates an object under the guid of
   # one it disposed, a new dispatcher for the same server object (`newContextForReuse` after
-  # `disconnectFromReusedContext`: the context and its pages). deviation: JS has two objects, the
-  # disposed one readable while referenced; here rows are keyed by guid, so the disposed one's
-  # retention ends now (its rows, its tombstone, its anchor). Kept, its anchor freed later (its
-  # creator exiting) would free the new object's rows, and its stale fields would be the new one's.
+  # `disconnectFromReusedContext`: the context and its pages; a `gc`-collected object referenced
+  # again). deviation: JS has two objects, the disposed one readable while referenced; here rows
+  # are keyed by guid, so the disposed one's retention ends now (its rows, its tombstone, its FIFO
+  # entry or its context's row). Kept, its eviction later would free the new object's rows, and
+  # its stale fields would be the new one's.
   defp _forget_disposed(%{table: table, guid: guid}) when is_binary(guid) do
-    case :ets.lookup(table, {guid, :__retained__}) ++ :ets.lookup(table, {guid, :__collected__}) do
-      [] ->
+    case {:ets.lookup(table, {guid, :__retained__}), :ets.lookup(table, {guid, :__collected__})} do
+      {[], []} ->
         :ok
 
-      [{_, anchor} | _] ->
-        case anchor do
-          {:processes, pids} -> for pid <- pids, do: Conn.unanchor(table, pid, guid)
-          anchor -> :ets.delete(table, {anchor, {:retained, guid}})
+      {retained, collected} ->
+        case retained do
+          [{_, {:kept, context, n}}] -> :ets.delete(table, {context, {:kept, n}})
+          [{_, seq}] -> Conn.forget(table, seq)
+          [] -> :ok
         end
 
-        Heap.release(table, guid)
+        with [{_, seq}] <- collected, do: Conn.forget_collected(table, seq)
+        Heap.free_rows(%{table: table}, guid)
     end
   end
 
@@ -334,37 +360,11 @@ defmodule Playwright.Client.ChannelOwner do
 
   def _was_collected(_this), do: false
 
-  defp _anchor(this) do
-    if get(this, :_type) in ["BrowserContext", "Browser"],
-      do: _creator(this),
-      else: _anchor(get(this, :_parent), ["BrowserContext", "Browser"])
-  rescue
-    TargetClosedError -> :freed
-  end
-
-  defp _anchor(nil, _types), do: :connection
-
-  defp _anchor(object, types) do
-    if get(object, :_type) in types, do: object.guid, else: _anchor(get(object, :_parent), types)
-  rescue
-    # An ancestor freed already (not expected: children are disposed first).
-    TargetClosedError -> :connection
-  end
-
-  defp _creator(nil), do: :connection
-
-  defp _creator(object) do
-    case get(object, :_creators) do
-      [_ | _] = pids -> {:processes, pids}
-      _ -> _creator(get(object, :_browser) || get(object, :_parent))
-    end
-  rescue
-    TargetClosedError -> :connection
-  end
-
   @doc false
   # Elixir only: records the calling process as the creator of a BrowserContext or Browser it
-  # obtained or closes (the retention anchor of its rows after dispose, see `_retire/2`).
+  # obtained, or of a Browser it closes. A lost driver's table lives until its creators exit
+  # (`Conn.hand_off/2`), a closed remote connection until its browser's do
+  # (`Conn.stop_when_down/2`).
   def _set_creator(this) do
     if !Conn.in_conn?(), do: set_add(this, :_creators, self())
     this

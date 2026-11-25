@@ -606,7 +606,7 @@ defmodule Playwright.RuntimeConnTest do
       # initializer data: in the handle
       assert Request.url(request) == server.empty_page
       assert Response.status(response) == 200
-      # mutable fields: the last value (retained until the browser closes)
+      # mutable fields: the last value (retained by the connection)
       assert Page.url(page) == server.empty_page
     end
 
@@ -620,12 +620,12 @@ defmodule Playwright.RuntimeConnTest do
       assert e.message =~ "The object has been collected to prevent unbounded heap growth."
     end
 
-    test "a disposed object is readable until its anchor is freed", %{browser: browser, server: server} do
+    test "a disposed object is readable after close", %{browser: browser, server: server} do
       context = Browser.new_context!(browser)
       page = BrowserContext.new_page!(context)
       Page.goto!(page, server.empty_page)
       BrowserContext.close!(context)
-      # Retained under the browser (the context's anchor): last values, as JS.
+      # Retained by the connection: last values, as JS.
       assert BrowserContext.browser(context) == browser
       assert BrowserContext.pages(context) == []
       assert Page.is_closed(page)
@@ -674,76 +674,6 @@ defmodule Playwright.RuntimeConnTest do
             do: {guid, local}
 
       assert leftovers == []
-    end
-
-    test "a process's closed contexts are freed when it exits", %{browser: browser, page: page, server: server} do
-      conn = page.conn
-      Page.goto!(page, server.empty_page)
-
-      cycle = fn ->
-        context = Browser.new_context!(browser)
-        page = BrowserContext.new_page!(context)
-        Page.route!(page, "**/*", fn route, _ -> Route.continue!(route) end)
-        Page.goto!(page, server.empty_page)
-        BrowserContext.close!(context)
-        {context, page}
-      end
-
-      # Outside the test (no `$callers`): a test's contexts are its recording's until it ends.
-      outside = fn fun ->
-        Task.async(fn ->
-          Process.delete(:"$callers")
-          fun.()
-        end)
-      end
-
-      # Warm the caches (localUtils' glob cache) in a process that exits.
-      Task.await(outside.(cycle))
-      Process.sleep(50)
-      before = Conn.stats(conn)
-
-      task = outside.(fn -> for _ <- 1..10, do: cycle.() end)
-      [{context, page} | _] = Task.await(task, 60_000)
-      Process.sleep(50)
-
-      assert Conn.stats(conn).rows == before.rows
-      # Reads after the creator exited raise (deviation: JS reads the last value).
-      assert_raise Playwright.TargetClosedError, fn -> BrowserContext.browser(context) end
-      assert_raise Playwright.TargetClosedError, fn -> Page.url(page) end
-    end
-
-    test "a long-lived process keeps the contexts it closed until it exits (bound: <200 rows each)", %{
-      browser: browser,
-      page: page
-    } do
-      conn = page.conn
-      Task.await(Task.async(fn -> BrowserContext.close!(Browser.new_context!(browser)) end))
-      Process.sleep(50)
-      before = Conn.stats(conn)
-      test = self()
-
-      holder =
-        spawn(fn ->
-          # 20 contexts measure the per-context bound as well as 200 (an average), at a tenth of the time.
-          for _ <- 1..20 do
-            context = Browser.new_context!(browser)
-            BrowserContext.new_page!(context)
-            BrowserContext.close!(context)
-          end
-
-          send(test, :closed)
-          receive do: (:exit -> :ok)
-        end)
-
-      assert_receive :closed, 20_000
-      Process.sleep(50)
-      retained = Conn.stats(conn).rows - before.rows
-      assert retained > 0
-      assert retained / 20 < 200
-
-      send(holder, :exit)
-      Process.sleep(100)
-      assert Conn.stats(conn).rows == before.rows
     end
   end
 

@@ -180,14 +180,29 @@ Elixir form fits depends on when the call completes:
 
 ## Lifetimes after close
 
-As in JS, a closed page or context stays readable: [`Page.url/1`](`Playwright.Page.url/1`) and
-other accessors return the last values. That lasts until every process that created or closed its
-context (or browser) has exited; after that, reading it raises `Playwright.TargetClosedError`,
-but `Page.is_closed/1` and `BrowserContext.is_closed/1` still return `true`, and
-`Browser.is_connected/1` `false`. `Frame.is_detached/1` and `WebSocket.is_closed/1` aren't
-included: frames and websockets are disposed with their page without a detach or close event. A
-process that lives for long and closes many contexts keeps a few hundred rows per context until it
-exits, so in a long-running service, create each context in a process that ends with the session.
+As in JS, a closed page or context stays readable, from any process:
+[`Page.url/1`](`Playwright.Page.url/1`) and other accessors return the last values. That holds for
+recently closed objects: each connection keeps up to 50,000 rows of closed objects (about 50 MB; 100
+to 370 closed contexts of one small page) and frees the oldest beyond that. What one close frees (a
+context with its pages, or a browser) stays readable, however much that is, at least until a later
+close on the connection frees it, even one running at the same time as yours (your `close` still
+returns then). Closing a launched browser (or its crash) closes its contexts one by one, so they all
+stay readable unless they and concurrent closes on the connection exceed the cap; closing a
+connected browser ends its connection instead, whose objects stay readable until the processes that
+connected, created or closed the browser have exited. Reading an object that was freed, or one of a
+connection that is gone (a closed remote connection's, a lost driver's, once their tables are
+freed), raises `Playwright.TargetClosedError`, but `Page.is_closed/1` and
+`BrowserContext.is_closed/1` still return `true`, and `Browser.is_connected/1` `false`.
+`Frame.is_detached/1` and `WebSocket.is_closed/1` aren't included: frames and websockets are
+disposed with their page without a detach or close event.
+
+The cap is per connection, so processes that share one (concurrent tests on one browser, sessions
+of a service) share it: a context you closed earlier is freed once about 50,000 rows of later
+closes on its connection have gone by, other processes' included, even while the process that
+created it lives. Read what you need soon after the close. JS keeps a closed object for as long as
+it is referenced; the cap is a deviation. A context that stays open keeps its closed pages,
+detached frames and the calls of its exposed bindings until it closes, so in a long-running
+service, close each context with its session.
 
 Handles of a lost driver stay readable the same way; `Playwright.Supervisor` has the details.
 

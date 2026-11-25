@@ -55,7 +55,7 @@ defmodule Playwright.Client.BrowserType do
         env: if(options[:env], do: env_object_to_array(options[:env]))
       })
 
-    # Elixir only: `_set_creator/1`, the calling process anchors the browser (here and below).
+    # Elixir only: `_set_creator/1`, the calling process is the browser's creator (here and below).
     browser =
       ChannelOwner._set_creator(
         Browser.from(

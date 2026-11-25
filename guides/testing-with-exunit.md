@@ -254,11 +254,14 @@ send to the test process (a late message is dropped with it), or keep the state 
 (`Agent.start/1`).
 
 An `on_exit` registered before `use Playwright.Test` (a case template's own `setup`) runs after
-the test's contexts have closed. Once the processes that created or closed them have exited,
-`Page.is_closed/1` still returns `true`, but other reads (`Page.url/1`, `BrowserContext.pages/1`)
-raise `Playwright.TargetClosedError`. Read what you need in the test, or use
-`Playwright.Test.info/1`. That raises too once another such callback's process has died,
-because ExUnit then runs the remaining callbacks in a new process.
+the test's contexts have closed. After a passing test they still read their last values
+(`Page.url/1`, `BrowserContext.pages/1`): the connection keeps recently closed objects, up to a
+cap it shares with whatever else runs on it ([Lifetimes after
+close](concurrency.md#lifetimes-after-close)). After a failing test its worker's driver is stopped
+around then, and once it is, only `Page.is_closed/1`, `BrowserContext.is_closed/1` and
+`Browser.is_connected/1` answer; other reads raise `Playwright.TargetClosedError`. Read what you
+need in the test, or use `Playwright.Test.info/1`. That raises too once another such callback's
+process has died, because ExUnit then runs the remaining callbacks in a new process.
 
 ### A check after the test
 
