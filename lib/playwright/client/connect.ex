@@ -61,7 +61,7 @@ defmodule Playwright.Client.Connect do
       # Emulate all pages, contexts and the browser closing upon disconnect.
       emulate_close(List.wrap(browser), fn ->
         # Elixir only: the connection process (and its table) stops once the processes that
-        # connected and created the browser have exited; without a browser, now.
+        # connected, created or closed the browser have exited; without a browser, now.
         pids = if browser, do: [caller | get(browser, :_creators) || []], else: []
         Conn.stop_when_down(connection.conn, pids)
       end)

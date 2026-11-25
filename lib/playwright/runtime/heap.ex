@@ -18,9 +18,9 @@ defmodule Playwright.Runtime.Heap do
 
   A handle carries the immutable part of its object (`guid`, `type`, `initializer`, its
   connection): `:_type`, `:_guid`, `:_initializer` and `:_connection` stay readable after dispose.
-  A disposed object keeps its rows until its anchor is freed (see
-  `_dispose` in `Playwright.Client.ChannelOwner`), so it reads and writes as in JS. Fields of a
-  freed object raise `Playwright.TargetClosedError` (closed-state fields read with
+  A disposed object keeps its rows while its connection retains it (a capped FIFO of disposed
+  objects, see `_dispose` in `Playwright.Client.ChannelOwner`), so it reads and writes as in JS.
+  Fields of a freed object raise `Playwright.TargetClosedError` (closed-state fields read with
   `get_or_freed/3` excepted); writes to it are dropped.
 
   `new_object(module)` is a process-local object: its fields live in the process dictionary of
@@ -261,14 +261,6 @@ defmodule Playwright.Runtime.Heap do
   # select), as `{local, value}`; `free_rows/2` deletes them.
   def rows(%{table: table}, guid) when is_binary(guid),
     do: :ets.select(table, [{{{guid, :"$1"}, :"$2"}, [], [{{:"$1", :"$2"}}]}])
-
-  @doc false
-  # In the connection: frees a retained object's rows and those of the objects it anchors
-  # (`{guid, {:retained, child}}`, see `Playwright.Client.ChannelOwner._dispose/2`).
-  def release(table, guid) do
-    for {{:retained, child}, _} <- rows(%{table: table}, guid), do: release(table, child)
-    free_rows(%{table: table}, guid)
-  end
 
   @doc false
   def free_rows(%{table: table}, guid) when is_binary(guid),

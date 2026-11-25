@@ -695,8 +695,6 @@ defmodule Playwright.Client.BrowserContext do
     if !closing do
       nil
     else
-      # Elixir only: the closing process anchors the closed context (it reads it next).
-      ChannelOwner._set_creator(this)
       APIRequestContext.dispose(get(this, :request), options)
       ClientInstrumentation.run_before_close_browser_context(get(this, :_instrumentation), this)
 
@@ -709,7 +707,16 @@ defmodule Playwright.Client.BrowserContext do
         end
 
       channel_call(this, :close, options, TimeoutSettings.k_no_timeout())
-      Promise.await(get(this, :_closedPromise))
+
+      try do
+        Promise.await(get(this, :_closedPromise))
+      rescue
+        # deviation: the reply follows the context's dispose, and any later dispose on the
+        # connection may free the context before this read (`Conn.trim/2`): another context's or
+        # page's close, by any process or by the driver (`window.close()`, a crash). JS still
+        # reads the settled promise; the context is closed, so close returns.
+        TargetClosedError -> nil
+      end
 
       if har_error, do: raise(har_error)
       nil

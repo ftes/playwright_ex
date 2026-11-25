@@ -10,13 +10,17 @@ defmodule Playwright.Test.ArtifactsTest do
   alias Playwright.APIRequestContext
   alias Playwright.Browser
   alias Playwright.BrowserContext
+  alias Playwright.BrowserType
+  alias Playwright.Client.ClientInstrumentation
   alias Playwright.Expect
   alias Playwright.Page
+  alias Playwright.Runtime.Conn
   alias Playwright.Test.BrowserPool
   alias Playwright.Test.ErrorContext
   alias Playwright.Test.Pool
   alias Playwright.Test.Recorder
   alias Playwright.Test.Results
+  alias Playwright.TestBrowser
   alias Playwright.Tracing
   alias Playwright.VideoPlayer
 
@@ -145,6 +149,33 @@ defmodule Playwright.Test.ArtifactsTest do
 
     for marker <- ~w(ALICE BOB TASK TASK-NEW), do: assert(traced?(trace, marker), "#{marker} not in the trace")
     refute traced?(trace, "OTHER")
+  end
+
+  # A page's video is read as the page opens: the test's contexts, closed past their connection's
+  # cap together, have their pages freed by its end (`Playwright.Runtime.Conn.trim/2`), and every
+  # video is still saved. A driver of its own, for the small cap.
+  test "the videos of contexts freed before the test's end are saved" do
+    name = Module.concat(__MODULE__, VideoDriver)
+    start_supervised!({Playwright.Supervisor, name: name})
+    playwright = Playwright.instance(name)
+    ClientInstrumentation.add_listener(get(playwright, :_instrumentation), Recorder.listener())
+    browser = BrowserType.launch!(TestBrowser.browser_type(playwright), headless: TestBrowser.headless())
+    Conn.run(browser.conn, fn -> Process.put(:pw_max_retained_rows, 1) end)
+    test = fake_test(%{video: :on})
+
+    pages =
+      test.run.(fn ->
+        for marker <- ~w(ONE TWO THREE) do
+          context = Browser.new_context!(browser)
+          page = page(context, marker)
+          BrowserContext.close!(context)
+          page
+        end
+      end)
+
+    assert_raise Playwright.TargetClosedError, fn -> Page.url(hd(pages)) end
+    finish(test, [passed()], :shutdown)
+    assert Enum.sort(File.ls!(test.dir)) == ~w(video-1.webm video-2.webm video.webm)
   end
 
   test "a context of another worker's browser is recorded", %{browser: browser} do

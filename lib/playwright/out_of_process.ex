@@ -24,7 +24,7 @@ defmodule Playwright.OutOfProcess do
   and its connection hands its table to a keeper process before it stops
   (`Playwright.Runtime.Conn.hand_off/2`), so handles of the lost driver keep reading their last
   state, as JS objects stay readable while referenced: until the processes that created or
-  closed its browsers and contexts have exited, or the supervisor has.
+  closed its browsers, or created its contexts, have exited, or the supervisor has.
   """
   # terminate/2 waits for the driver's exit (`Pipe.close/1`, at most 31 s), then for the close
   # emulation (`@close_emulation_timeout`), with a margin.

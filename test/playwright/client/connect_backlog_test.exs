@@ -5,7 +5,9 @@ defmodule Playwright.Client.ConnectBacklogTest do
   use Playwright.UpstreamCase, async: false
 
   alias Playwright.Browser
+  alias Playwright.BrowserContext
   alias Playwright.BrowserType
+  alias Playwright.Page
   alias Playwright.Runtime.Facade
 
   @moduletag timeout: 300_000
@@ -163,5 +165,33 @@ defmodule Playwright.Client.ConnectBacklogTest do
     # (Linux firefox: ~30 rows after 20 cycles).
     assert eventually(fn -> :ets.info(browser_type.table, :size) - rows < 10 end),
            "#{:ets.info(browser_type.table, :size) - rows} new rows"
+  end
+
+  # The closing process reads the browser next: the remote connection stops once the processes
+  # that connected, created or closed the browser have exited, not at once.
+  test "a remote browser closed by a process that didn't connect it reads for that process", %{
+    browser_type: browser_type,
+    start_remote_server: start_remote_server
+  } do
+    server = start_remote_server.("launchServer", %{})
+    endpoint = Playwright.RemoteServer.ws_endpoint(server)
+
+    task =
+      Task.async(fn ->
+        browser = BrowserType.connect!(browser_type, endpoint)
+        context = Browser.new_context!(browser)
+        {browser, context, BrowserContext.new_page!(context)}
+      end)
+
+    {browser, context, page} = Task.await(task)
+    ref = Process.monitor(task.pid)
+    assert_receive {:DOWN, ^ref, :process, _, _}
+
+    Browser.close!(browser)
+    refute Browser.is_connected(browser)
+    assert Process.alive?(browser.conn)
+    assert Page.url(page) == "about:blank"
+    assert BrowserContext.browser(context) == browser
+    assert BrowserContext.pages(context) == []
   end
 end

@@ -40,6 +40,10 @@
 #     module with `trace: :on, screenshot: :on` (a passing test that attaches and steps, a failing
 #     one in a describe, failing in a nested step), a plain ExUnit module (a passing and a
 #     skipped test) and one whose `setup_all` fails.
+#   * `late_reads` - a failing and a passing test, each with an `on_exit` callback registered
+#     before `use Playwright.Test` (runs after the test's end) that prints what reads of its
+#     closed page and context return, for the failing one once its reset worker's driver has
+#     stopped: `(late=>name=>[...])`, a keyword list (its order fixed, unlike a map's).
 #   * `on_exit` - the testing guide's page-error check in an `on_exit` callback (`Playwright.Test.on_exit/2`):
 #     a test whose page error fails it there, and one whose check ignores it; each prints its
 #     status from an `on_exit` callback that runs after the check: `(status=>name=>status)`. With
@@ -709,6 +713,70 @@ case mode do
 
       @tag :ignore_js_errors
       test("passes in on_exit", %{page: page, errors: errors}, do: page_error(page, errors))
+    end
+
+  "late_reads" ->
+    defmodule LateReadsTest do
+      use ExUnit.Case, async: true
+
+      alias Playwright.BrowserContext
+      alias Playwright.Page
+
+      setup_all do
+        :ets.new(__MODULE__, [:public, :named_table])
+        :ok
+      end
+
+      # Before the registration: runs after the test's end, its contexts closed, a failed
+      # test's worker reset.
+      setup %{test: name} do
+        test_pid = self()
+
+        on_exit(fn ->
+          [{_, %{context: context, page: page}}] = :ets.take(__MODULE__, test_pid)
+
+          # A failed test's worker resets (`Playwright.Test.Pool`): its driver stops around now
+          # (a cast), its connection's table with it. Once it has, as reads race it before.
+          if Playwright.Test.info(test_pid).status == :failed do
+            ref = Process.monitor(page.conn)
+
+            receive do
+              {:DOWN, ^ref, :process, _, _} -> :ok
+            after
+              10_000 -> raise "the failed test's driver was not stopped"
+            end
+          end
+
+          read = fn fun ->
+            try do
+              fun.()
+            rescue
+              Playwright.TargetClosedError -> :raised
+            end
+          end
+
+          reads = [
+            page_closed: Page.is_closed(page),
+            context_closed: BrowserContext.is_closed(context),
+            url: read.(fn -> Page.url(page) end),
+            pages: read.(fn -> BrowserContext.pages(context) end)
+          ]
+
+          IO.puts("(late=>#{name}=>#{inspect(reads)})")
+        end)
+      end
+
+      use Playwright.Test
+
+      setup do
+        context = Playwright.Browser.new_context!(Playwright.Test.BrowserPool.browser())
+        page = BrowserContext.new_page!(context)
+        :ets.insert(__MODULE__, {self(), %{context: context, page: page}})
+        :ok
+      end
+
+      test("fails", do: flunk("on purpose"))
+      test("passes", do: :ok)
     end
 
   "pool_start" ->

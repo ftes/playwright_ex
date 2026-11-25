@@ -189,41 +189,80 @@ alternative: smaller, but a missed holder becomes a new failure mode.
 
 ## Object lifetimes
 
-JS keeps a closed object readable while referenced. Here a disposed object keeps its field rows
-and settled latches until its anchor is freed, so reads after close return the last values. The
-anchor of a BrowserContext or Browser is the set of processes that created or closed it
-(`ChannelOwner._set_creator/1`; implicit ones inherit the parent chain's, else the connection);
-the Conn monitors them and frees the rows when the last exits or the connection closes. Anything
-else is anchored to its nearest context (else browser). After that, fields raise
-`TargetClosedError` and writes are dropped, but `Page.is_closed`, `BrowserContext.is_closed` and
-`Browser.is_connected` answer as after dispose (`Heap.get_or_freed/3`): freed rows mean the
-object was disposed or its connection is gone. Upstream's closed-state getters (`isClosed()`,
-`isConnected()`) never throw. `Frame.is_detached` and `WebSocket.is_closed` are not among them:
-upstream's answer after their page closes isn't fixed, as frames and websockets are disposed with
-their page without a detach or close event. Initializer data, type and guid live on the handle
-struct and stay readable forever.
+JS keeps a closed object readable while referenced. Here a disposed object keeps its field rows and
+settled latches while its connection retains it, so reads after close return the last values, from
+any process. The Conn, the table's only writer, keeps a FIFO of disposed objects (`Conn.retain/2`):
+each `__dispose__` enqueues its objects, children before their parent, then frees the oldest while
+more than `@max_retained_rows` (50,000) rows are retained (`Conn.trim/2`). It never frees those of
+that dispose, so what one dispose frees (a context with its pages, or a browser) stays readable,
+whatever its size, at least until a later dispose trims it. A close may take several: the driver
+disposes each page as it closes, and a launched browser's close (`Browser.close`, a crash, or a
+close the driver starts) each context, then the browser (`server/browser.ts:173-183`,
+`browserContext.ts:256-273`, `browserContextDispatcher.ts:109-111`). As trimming frees the oldest
+entries first, such a close keeps all its contexts readable unless they and concurrent closes on the
+connection exceed the cap. A connected browser's close ends its connection and takes no disposes:
+its objects stay readable until its Conn stops (below). A server that isolates contexts
+(`isolateContexts`) never disposes the browser. An object disposed under a context that is still
+open (a closed page, a detached frame, a resolved BindingCall, the context's `request`, which its
+close disposes first) stays with that context and joins the FIFO ahead of it when the context is
+disposed: the context's own code reads some of them (`_on_close` reads `request.tracing`). A freed
+object's fields raise `TargetClosedError` and writes are dropped, but `Page.is_closed`,
+`BrowserContext.is_closed` and `Browser.is_connected` answer as after dispose
+(`Heap.get_or_freed/3`): freed rows mean the object was disposed or its connection is gone.
+Upstream's closed-state getters (`isClosed()`, `isConnected()`) never throw. `Frame.is_detached` and
+`WebSocket.is_closed` are not among them: upstream's answer after their page closes isn't fixed, as
+frames and websockets are disposed with their page without a detach or close event. Initializer
+data, type and guid live on the handle struct and stay readable forever.
 
-The cost: a long-lived process keeps ~175 rows per context it closed until it exits. Closing a
-context frees its children one by one (linear, ~7 µs each); accepted, with no close-walk
-optimization. Objects the driver collects (`gc`) are freed at once, with a tombstone so calls
-raise upstream's "has been collected" error. A JSHandle disposed by itself (`dispose`, not with its page) is freed at once too,
-without a tombstone: calls raise `TargetClosedError` as in JS, and so do field reads (JS: the last
-preview). A remote connection's JsonPipe is freed when disposed. An object the driver creates under
-the guid of a disposed one (a reused context and its pages) ends the old one's retention, as rows
-are keyed by guid. A closed remote connection's Conn stops once the processes that connected have
-exited. Latches shared with `shared: true` go when their creator exits; `Promise.free/1` drops a
-wait nobody needs. AbortSignal rows go when their creator exits.
+The cap is a deviation: JS keeps a disposed object while it is referenced (GC, no cap). The nearest
+upstream precedent is the server's dispatcher GC, which disposes the oldest dispatchers of a type
+past 10,000 (`dispatcher.ts:281-295`); this cap counts rows rather than objects, so it bounds memory
+directly. The cost: 0.7 to 1.1 KB per row (handles carry their initializers; measured with
+`:ets.info(table, :memory)`), so about 50 MB per connection, 100 to 370 closed contexts of one small
+page (135 to 500 rows each). The bound is the cap plus the last dispose's objects, give or take the
+rows written to or freed from retained objects since they were counted (few: closed objects rarely
+get writes, mostly settled or freed latches), plus what open contexts keep: a long-lived open
+context keeps its closed pages, detached frames and BindingCalls until it closes. Each entry's row
+count is taken when it is enqueued and again before the trim frees it, as a retained object still
+gets writes and loses rows. The cap bounds closed contexts per connection, not per process:
+concurrent users of one connection share it. That is a regression from the process anchors this
+replaced, which kept a closed context readable as long as the process that created it lived: now a
+context closed earlier is freed once about 50,000 rows of later closes on its connection have gone
+by, those of other tests running concurrently on one pooled connection included (JS: readable while
+referenced). So read what you need soon after the close. `Playwright.Test`'s recorder reads each
+page's video as the page opens (upstream reads it at the test's end, from the page objects it keeps;
+the value is the same, and the video's artifact outlives page and context), so a context freed
+before the test's end still has its video saved. Closing a context frees its children one by one
+(linear, ~7 µs each); accepted, with no close-walk optimization.
+
+Objects the driver collects (`gc`) are freed at once, with a tombstone so calls raise upstream's
+"has been collected" error (`Conn.collected/2`). Tombstones are kept outside the FIFO, bounded
+by a count of their own (10,000, the driver's per-type threshold; about 330 bytes each): the
+driver collects in bulk on request-heavy pages, and counted in the FIFO they would push closed
+contexts out. Past the count the oldest goes, and a call on its handle raises `TargetClosedError`
+instead (deviation: JS keeps `_wasCollected` while referenced). A JSHandle disposed by itself
+(`dispose`, not with its page) is freed at once too, without a tombstone: calls raise
+`TargetClosedError` as in JS, and so do field reads (JS: the last preview). A remote connection's
+JsonPipe is freed when disposed. An object the driver creates under the guid of a disposed one (a
+reused context and its pages) ends the old one's retention, as rows are keyed by guid. A closed
+remote connection's Conn stops once the processes that connected, created or closed its browser
+have exited (`Browser.close` records its caller with `ChannelOwner._set_creator/1`). Latches
+shared with `shared: true` go when their creator exits; `Promise.free/1` drops a wait nobody
+needs. AbortSignal rows go when their creator exits.
 
 A lost local driver's Conn hands its table to a keeper process before it stops
 (`Conn.hand_off/2`), so its handles read their last state (closed, the last URL) as JS objects
 stay readable while referenced. Calls and writes raise `TargetClosedError`, as the connection
 process is gone; `close` of a page, context or browser returns, as JS's catches that error. The
-table goes whole once every process that created or anchored one of its objects has exited, or
+table goes whole once every process that created or closed one of its browsers, or created one of
+its contexts, has exited, or
 with the supervisor (monitored, so a brutal kill counts too). `OutOfProcess` logs the loss
 (`Logger.error`) with the driver's exit status, once, and not on a normal stop.
 
-Rejected: free-on-settle (breaks late awaits of `_closedPromise` and `expect_*` handles) and the
-tracing GC's 500-object graveyard.
+Rejected: free-on-settle (breaks late awaits of `_closedPromise` and `expect_*` handles), the
+tracing GC's 500-object graveyard, and retention anchored to the processes that created or closed
+a context (reads failed in a callback that outlived them, such as a case template's `on_exit`, and
+a long-lived closer kept every context it closed).
 
 ## Ordering
 

@@ -86,6 +86,21 @@ defmodule Playwright.Test.EndToEndTest do
     refute File.read!(Path.join([output_dir, dir, "trace.zip"])) == first
   end
 
+  # An `on_exit` callback that runs after the test's end (a case template's): a passing test's
+  # closed page and context still read, as the connection retains them; once a failed test's
+  # worker has reset (its driver stopped), only the closed-state getters answer.
+  test "late on_exit reads: all after a pass, the closed-state getters after a failure", %{tmp_dir: tmp_dir} do
+    child = start("late_reads", tmp_dir)
+    assert ChildProcess.exit_code(child, 60_000) == 0
+    output = ChildProcess.output(child)
+    assert output =~ ~r"2 tests, 1 failure|Result: 1/2 passed"
+
+    assert output =~
+             ~s|(late=>test passes=>[page_closed: true, context_closed: true, url: "about:blank", pages: []])|
+
+    assert output =~ "(late=>test fails=>[page_closed: true, context_closed: true, url: :raised, pages: :raised])"
+  end
+
   # Upstream's `_failWithError` of a fixture teardown's error: the test failed, for its artifacts.
   test "an on_exit callback's failure fails the test and keeps its artifacts; a passing one's are dropped",
        %{tmp_dir: tmp_dir} do

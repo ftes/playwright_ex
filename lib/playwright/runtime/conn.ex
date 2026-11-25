@@ -47,6 +47,25 @@ defmodule Playwright.Runtime.Conn do
   # ExUnit's 60 s), so the warning comes before the timeout it explains.
   @stall_warning 5_000
 
+  # The rows a connection retains for disposed objects (`retain/2`) before it frees the oldest.
+  # deviation: JS keeps a disposed object while referenced (GC, no cap). The nearest upstream
+  # precedent is the server's dispatcher GC (`dispatcher.ts:281-295`: past 10,000 dispatchers of a
+  # type it disposes the oldest); this cap counts rows, not objects, so it bounds memory directly.
+  # Measured with `:ets.info(table, :memory)` over closed contexts of one page with a route and a
+  # listener: 0.7 to 1.1 KB per row (handles carry their initializers); 135 rows for a blank page,
+  # 500 for a small one with subresources. So about 50 MB per connection: 100 to 370 such contexts.
+  # The count is approximate: off by the rows written to or freed from retained objects since they
+  # were counted (few: closed objects rarely get writes, mostly settled or freed latches), as
+  # `trim/2` recounts the oldest only, so the total may end a little above or below the cap.
+  @max_retained_rows 50_000
+
+  # The tombstones of objects the driver collected (`collected/2`) a connection keeps before it
+  # frees the oldest. deviation: JS keeps a collected object, and its `_wasCollected`, while
+  # referenced. A count of their own, outside the row cap: the driver collects in bulk (the
+  # oldest tenth past 10,000 dispatchers of a type), and its tombstones would push closed contexts
+  # out of the FIFO. 10,000, the driver's threshold: about 3 MB (two rows, ~330 bytes, each).
+  @max_collected 10_000
+
   @doc """
   Options: `:transport` (1-arity fun called here with each batch of outgoing messages; or set
   later, `set_transport/2`), `:local_utils`, `:headers`, `:on_dispatch_error` (1-arity fun called
@@ -88,8 +107,8 @@ defmodule Playwright.Runtime.Conn do
   # Stops the connection process, handing its table to a keeper process first (a lost local
   # driver, see `Playwright.OutOfProcess`): handles of the connection keep reading their last
   # values (calls and writes raise TargetClosedError, as the connection process is gone) until
-  # every process that created or anchored an object has exited, or `lifeline` (the supervisor)
-  # has, whichever comes first.
+  # every process that created or closed a browser, or created a context, has exited, or
+  # `lifeline` (the supervisor) has, whichever comes first.
   def hand_off(conn, lifeline) do
     GenServer.call(conn, {:hand_off, lifeline}, :infinity)
   catch
@@ -118,23 +137,107 @@ defmodule Playwright.Runtime.Conn do
   ## Called in this process
 
   @doc false
-  # In the connection: `guid` (a retained object) is freed when the last of the pids anchored
-  # to it exits.
-  def anchor(table, pid, guid) do
-    :ets.insert(table, [{{:connection, {:anchored, pid, guid}}, true}, {{guid, {:anchor, pid}}, true}])
-    if !Process.get({:pw_anchor, pid}), do: Process.put({:pw_anchor, pid}, Process.monitor(pid))
+  # In the connection: `guid` was disposed and its rows (with its marker `{guid, :__retained__}`)
+  # are retained, the newest entry of the connection's FIFO of disposed objects:
+  # `{:connection, {:disposed, seq}} => {guid, rows}`, the marker's value `seq`. This process alone
+  # enqueues, counts and trims (`trim/2`).
+  def retain(table, guid) do
+    seq = disposed_mark()
+    Process.put(:pw_disposed_seq, seq + 1)
+    :ets.insert(table, {{guid, :__retained__}, seq})
+    :ets.insert(table, {{:connection, {:disposed, seq}}, {guid, 0}})
+    recount(table, {:connection, {:disposed, seq}})
   end
 
   @doc false
-  # In the connection: undoes `anchor/3`. The pid's monitor is shared by the guids it anchors, so
-  # it goes with the last of them.
-  def unanchor(table, pid, guid) do
-    :ets.delete(table, {:connection, {:anchored, pid, guid}})
-    :ets.delete(table, {guid, {:anchor, pid}})
+  # In the connection: the `seq` of the next object `retain/2` enqueues (`trim/2`'s mark).
+  def disposed_mark, do: Process.get(:pw_disposed_seq, 0)
 
-    if :ets.select_count(table, [{{{:connection, {:anchored, pid, :_}}, :_}, [], [true]}]) == 0 do
-      with mref when is_reference(mref) <- Process.delete({:pw_anchor, pid}), do: Process.demonitor(mref, [:flush])
+  @doc false
+  # In the connection: frees the oldest retained objects (their rows, marker and entry) while
+  # more than the cap's rows are retained, but none enqueued from `mark` on (the unit whose
+  # dispose this is, so it reads right after its close, whatever its size).
+  def trim(table, mark) do
+    with true <- retained_rows() > max_retained_rows(),
+         {:connection, {:disposed, seq}} = key when seq < mark <- :ets.next(table, {:connection, {:disposed, -1}}) do
+      # A retained object still gets writes, and loses rows (a latch `Promise.free/1` frees).
+      recount(table, key)
+
+      if retained_rows() > max_retained_rows() do
+        [{_, {guid, _rows}}] = :ets.lookup(table, key)
+        forget(table, seq)
+        Heap.free_rows(%{table: table}, guid)
+        trim(table, mark)
+      end
     end
+
+    :ok
+  end
+
+  @doc false
+  # In the connection: drops entry `seq` of the FIFO (its object's rows stay for the caller).
+  def forget(table, seq) do
+    key = {:connection, {:disposed, seq}}
+
+    with [_] <- :ets.lookup(table, key) do
+      rows = recount(table, key)
+      :ets.delete(table, key)
+      Process.put(:pw_retained_rows, retained_rows() - rows)
+    end
+
+    :ok
+  end
+
+  # The rows of entry `key`'s object (its marker's too) and the entry's own, counted now: the
+  # entry and the count of retained rows follow.
+  defp recount(table, key) do
+    [{_, {guid, counted}}] = :ets.lookup(table, key)
+    rows = :ets.select_count(table, [{{{guid, :_}, :_}, [], [true]}]) + 1
+
+    if rows != counted do
+      :ets.insert(table, {key, {guid, rows}})
+      Process.put(:pw_retained_rows, retained_rows() + rows - counted)
+    end
+
+    rows
+  end
+
+  defp retained_rows, do: Process.get(:pw_retained_rows, 0)
+
+  @doc false
+  # In the connection: the cap. A test may set another for its own connection (`Process.put/2`
+  # in `run/2`).
+  def max_retained_rows, do: Process.get(:pw_max_retained_rows, @max_retained_rows)
+
+  @doc false
+  # In the connection: `guid` was collected by the driver (`__dispose__` with reason "gc"), its
+  # rows freed: its tombstone (`{guid, :__collected__} => seq`, `{:connection, {:collected, seq}}
+  # => guid`), so calls raise upstream's "has been collected" error. Kept outside the FIFO of
+  # `retain/2`, bounded by a count: past it, the oldest goes.
+  def collected(table, guid) do
+    seq = Process.get(:pw_collected_seq, 0)
+    Process.put(:pw_collected_seq, seq + 1)
+    :ets.insert(table, [{{guid, :__collected__}, seq}, {{:connection, {:collected, seq}}, guid}])
+    Process.put(:pw_collected, Process.get(:pw_collected, 0) + 1)
+
+    # A test may set another cap, as `max_retained_rows/0`'s.
+    if Process.get(:pw_collected) > Process.get(:pw_max_collected, @max_collected) do
+      {:connection, {:collected, oldest}} = key = :ets.next(table, {:connection, {:collected, -1}})
+      [{_, oldest_guid}] = :ets.lookup(table, key)
+      forget_collected(table, oldest)
+      :ets.delete(table, {oldest_guid, :__collected__})
+    end
+  end
+
+  @doc false
+  # In the connection: drops tombstone entry `seq` (its marker stays for the caller).
+  def forget_collected(table, seq) do
+    with [{key, _guid}] <- :ets.lookup(table, {:connection, {:collected, seq}}) do
+      :ets.delete(table, key)
+      Process.put(:pw_collected, Process.get(:pw_collected) - 1)
+    end
+
+    :ok
   end
 
   @doc false
@@ -250,10 +353,8 @@ defmodule Playwright.Runtime.Conn do
   end
 
   def handle_call({:hand_off, lifeline}, _from, %{table: table} = state) do
-    # The processes that created a browser or context, or anchor a closed one's rows.
-    creators = :ets.select(table, [{{{:_, :_creators}, :"$1"}, [], [:"$1"]}])
-    anchors = :ets.select(table, [{{{:connection, {:anchored, :"$1", :_}}, :_}, [], [:"$1"]}])
-    pids = Enum.uniq(List.flatten(creators) ++ anchors)
+    # The processes that created or closed a browser, or created a context (`_set_creator/1`).
+    pids = Enum.uniq(List.flatten(:ets.select(table, [{{{:_, :_creators}, :"$1"}, [], [:"$1"]}])))
     conn = self()
     keeper = spawn(fn -> keep(conn, lifeline, pids) end)
     :ets.give_away(table, keeper, nil)
@@ -306,20 +407,7 @@ defmodule Playwright.Runtime.Conn do
     if mons == %{}, do: {:stop, :normal, state}, else: {:noreply, %{state | stop_when_down: mons}}
   end
 
-  def handle_info({:DOWN, mref, :process, pid, _reason}, %{table: table} = state) do
-    # A retention anchor exited: free what it anchored.
-    if Process.get({:pw_anchor, pid}) == mref do
-      Process.delete({:pw_anchor, pid})
-      anchored = :ets.select(table, [{{{:connection, {:anchored, pid, :"$1"}}, :_}, [], [:"$1"]}])
-      :ets.select_delete(table, [{{{:connection, {:anchored, pid, :_}}, :_}, [], [true]}])
-
-      for guid <- anchored do
-        :ets.delete(table, {guid, {:anchor, pid}})
-        # The last of its anchor processes.
-        if :ets.select_count(table, [{{{guid, {:anchor, :_}}, :_}, [], [true]}]) == 0, do: Heap.release(table, guid)
-      end
-    end
-
+  def handle_info({:DOWN, mref, :process, pid, _reason}, state) do
     state =
       case Map.pop(state.procs, mref) do
         # A subscription process exited (killed, or a linked process crashed) with invocations

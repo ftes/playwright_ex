@@ -6,12 +6,12 @@ defmodule Playwright.Test.Recorder do
   #
   # A process per test that creates a context (`Playwright.Test.Results.recorder/1`, started on
   # its first one; on its registration when it traces, for the steps of `test.trace`), alive to
-  # the end of its `on_exit`: it remembers the test's contexts and anchors them (so their pages
-  # and videos stay readable after the process that created or closed them exits). The driver's
-  # listener (`listener/0`) runs in the processes that create and close contexts; `finish/3`
-  # runs in ExUnit's `on_exit` process, once the test's result is known, and keeps or drops the
-  # artifacts by it. Every artifact step rescues and logs: an exception in `on_exit` would fail
-  # the test and hide its own error, and upstream's artifact code swallows its errors too.
+  # the end of its `on_exit`: it remembers the test's contexts and their pages' videos. The
+  # driver's listener (`listener/0`) runs in the processes that create and close contexts;
+  # `finish/3` runs in ExUnit's `on_exit` process, once the test's result is known, and keeps or
+  # drops the artifacts by it. Every artifact step rescues and logs: an exception in `on_exit`
+  # would fail the test and hide its own error, and upstream's artifact code swallows its errors
+  # too.
   #
   # The recorder also owns the test's timeout (upstream's `closeReason` of a `timedOut` test):
   # just before ExUnit kills the test process, it closes the test's open contexts with
@@ -293,9 +293,7 @@ defmodule Playwright.Test.Recorder do
 
   @impl true
   def handle_call({:add_context, context}, _from, state) do
-    # The recorder anchors the context: its videos are saved after its creator may have exited.
-    ChannelOwner._set_creator(context)
-    {:reply, :ok, %{state | contexts: state.contexts ++ [%{guid: context.guid, context: context, pages: []}]}}
+    {:reply, :ok, %{state | contexts: state.contexts ++ [%{guid: context.guid, context: context, videos: []}]}}
   end
 
   def handle_call({:closed, guid}, _from, state), do: {:reply, :ok, %{state | closed: state.closed ++ [guid]}}
@@ -492,11 +490,14 @@ defmodule Playwright.Test.Recorder do
     {:noreply, %{state | finisher: pid}}
   end
 
-  def handle_cast({:add_page, guid, page}, state) do
+  def handle_cast({:add_page, guid, page, video}, state) do
     contexts =
       Enum.map(state.contexts, fn
-        %{guid: ^guid, pages: pages} = entry -> if page in pages, do: entry, else: %{entry | pages: pages ++ [page]}
-        entry -> entry
+        %{guid: ^guid, videos: videos} = entry ->
+          if List.keymember?(videos, page, 0), do: entry, else: %{entry | videos: videos ++ [{page, video}]}
+
+        entry ->
+          entry
       end)
 
     {:noreply, %{state | contexts: contexts}}
@@ -606,10 +607,10 @@ defmodule Playwright.Test.Recorder do
     if test.video[:show][:test], do: step("show the test's title", fn -> install_title_updater(context, recorder) end)
 
     # Elixir only: created by this call (`Browser.new_context/2`, `launch_persistent_context/3`,
-    # which anchor it in the calling process just before) after the test timeout fired (or as it
-    # fired, during the setup above), it is closed (a close the timeout started already returns at
-    # once), and its creation fails with the timeout's reason: upstream's timeout failed the test
-    # already, and its teardown closes the context. Its calls would fail without the reason, or
+    # which record the calling process as its creator just before) after the test timeout fired
+    # (or as it fired, during the setup above), it is closed (a close the timeout started already
+    # returns at once), and its creation fails with the timeout's reason: upstream's timeout failed
+    # the test already, and its teardown closes the context. Its calls would fail without the reason, or
     # never return during its close. Not `connect_over_cdp`'s default context: the external
     # browser's, which a close may end, and the connected browser is the call's result.
     if Heap.set_has(context, :_creators, self()) and match?(%{timed_out: true}, call(recorder, {:fields, [:timed_out]})) do
@@ -766,9 +767,19 @@ defmodule Playwright.Test.Recorder do
   defp stop_request_tracing(request, recorder, state),
     do: step("save the trace", fn -> stop_tracing(request, APIRequestContext.tracing(request), recorder, state) end)
 
+  # `context.on('page', page => contextData.pagesWithVideo.push(page))`. Elixir only: with the
+  # page's video, read now, while the page certainly reads: its rows may be freed by the test's
+  # end, once later closes on its connection push them out (`Conn.trim/2`). The value is upstream's
+  # at the close: a page's video and its context's options are set at its creation, and the
+  # video's artifact outlives the page and context (the driver scopes it to the browser).
   defp follow_pages(context, recorder) do
-    BrowserContext.on(context, :page, &GenServer.cast(recorder, {:add_page, context.guid, &1}))
-    for page <- BrowserContext.pages(context), do: GenServer.cast(recorder, {:add_page, context.guid, page})
+    add_page = fn page ->
+      video = step("find a video", fn -> Page.video(page) end)
+      GenServer.cast(recorder, {:add_page, context.guid, page.guid, video})
+    end
+
+    BrowserContext.on(context, :page, add_page)
+    for page <- BrowserContext.pages(context), do: add_page.(page)
   end
 
   @doc false
@@ -1002,26 +1013,12 @@ defmodule Playwright.Test.Recorder do
   end
 
   # Past the budget: the contexts still open are closed in the background, so they don't pile up
-  # in a pooled browser. The task anchors them before the recorder stops.
+  # in a pooled browser.
   defp close_leftovers(state) do
     leftovers =
       for(%{guid: guid, context: context} <- state.contexts, guid not in state.closed, do: context) ++ state.requests
 
-    {parent, ref} = {self(), make_ref()}
-
-    if leftovers != [] do
-      Task.start(fn ->
-        Enum.each(leftovers, &ChannelOwner._set_creator/1)
-        send(parent, ref)
-        Enum.each(leftovers, &close_leftover/1)
-      end)
-
-      receive do
-        ^ref -> :ok
-      after
-        5000 -> :ok
-      end
-    end
+    if leftovers != [], do: Task.start(fn -> Enum.each(leftovers, &close_leftover/1) end)
   end
 
   defp close_leftover(%Playwright.APIRequestContext{} = request),
@@ -1061,8 +1058,8 @@ defmodule Playwright.Test.Recorder do
   defp do_save_videos(pid, state) do
     by_guid = Map.new(state.contexts, &{&1.guid, &1})
     open = for %{guid: guid} <- state.contexts, guid not in state.closed, do: guid
-    pages = for guid <- state.closed ++ open, page <- by_guid[guid].pages, do: page
-    videos = for page <- pages, video = step("find a video", fn -> Page.video(page) end), video != nil, do: video
+    # Read as each page was added (`follow_pages/2`).
+    videos = for guid <- state.closed ++ open, {_page, video} <- by_guid[guid].videos, video != nil, do: video
 
     for {video, i} <- Enum.with_index(videos) do
       path = Path.join(state.opts.output_dir, if(i == 0, do: "video.webm", else: "video-#{i}.webm"))

@@ -27,9 +27,11 @@ defmodule Playwright.Supervisor do
 
   Handles of the old driver keep reading their last state (`Playwright.Page.is_closed/1` is
   true, `Playwright.Page.url/1` the last URL) until the processes that created or closed its
-  browsers and contexts have exited, or the supervisor stops. Calls and other writes on them fail
-  with `Playwright.TargetClosedError`; closing a page, context or browser returns `:ok`, as it
-  does for anything closed.
+  browsers, or created its contexts, have exited, or the supervisor stops; after that, only
+  `Playwright.Page.is_closed/1`, `Playwright.BrowserContext.is_closed/1` and
+  `Playwright.Browser.is_connected/1` answer. Calls and other writes on them fail with
+  `Playwright.TargetClosedError`; closing a page, context or browser returns `:ok`, as it does
+  for anything closed.
 
   Get the root again with `Playwright.instance/1`: it waits for the new driver (in a
   `disconnected` listener too).
@@ -37,9 +39,8 @@ defmodule Playwright.Supervisor do
   The loss is logged as an error, with the driver's exit status (137: killed, often for lack of
   memory), its version, the supervisor's name and how many browsers and contexts it closed.
 
-  Browsers and contexts are not closed when the process that created them exits; only the data
-  the library keeps for closed ones is freed then. So close what you open, as tests close their
-  contexts in `on_exit`.
+  Browsers and contexts are not closed when the process that created them exits. So close what
+  you open, as tests close their contexts in `on_exit`.
 
   Starting installs the driver first if it is missing
   (`Playwright.Driver.ensure_installed/1`): a download that blocks `start_link/1`.

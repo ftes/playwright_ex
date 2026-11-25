@@ -76,7 +76,7 @@ defmodule Playwright.Client.Browser do
         do: channel_call(this, :newContextForReuse, context_options, TimeoutSettings.k_no_timeout()),
         else: channel_call(this, :newContext, context_options, TimeoutSettings.k_no_timeout())
 
-    # Elixir only: the calling process anchors the context (`_set_creator/1`).
+    # Elixir only: the calling process is the context's creator (`_set_creator/1`).
     context = ChannelOwner._set_creator(BrowserContext.from(response.context))
     if for_reuse, do: put(context, :_forReuse, true)
     if options[:logger], do: put(context, :_logger, options.logger)
@@ -182,7 +182,8 @@ defmodule Playwright.Client.Browser do
       # connection process is gone (a lost driver), where JS's succeed and its call then raises:
       # the browser is closed already, so close returns.
       put(this, :_closeReason, options[:reason])
-      # Elixir only: the closing process anchors the closed browser (it reads it next).
+      # Elixir only: the closing process reads it next: a closed remote connection stops once
+      # the processes that connected, created or closed the browser exit (`Conn.stop_when_down/2`).
       ChannelOwner._set_creator(this)
 
       # Elixir only: `Connection.close` in one step (its check-then-set races the transport's close).

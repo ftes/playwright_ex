@@ -2,8 +2,8 @@ defmodule Playwright.Test.Pool.Worker do
   @moduledoc false
   # A worker of `Playwright.Test.Pool` (upstream's worker): a process that runs one driver
   # and its browser at a time, those of its holder's options. Starting, stopping and launching
-  # block this worker and its holder only, and it stays alive as the browser's creator, which
-  # anchors its rows. Lazy: the driver starts with the first `browser/3`, which adds the
+  # block this worker and its holder only, and it stays alive as the browser's creator (which
+  # keeps a lost driver's table, `Conn.hand_off/2`). Lazy: the driver starts with the first `browser/3`, which adds the
   # recording listener (`Playwright.Test.Recorder.listener/0`), sets the test id attribute and
   # runs `on_start` on each new driver's Playwright before the launch. A `browser/3` of another
   # key stops the driver and starts one of the key, in place, as `_runJobInWorker` awaits
