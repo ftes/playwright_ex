@@ -7,8 +7,6 @@ defmodule Playwright.Page.JshandleToStringTest do
   @upstream "tests/page/jshandle-to-string.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   alias Playwright.Expect
 
   alias Playwright.ConsoleMessage

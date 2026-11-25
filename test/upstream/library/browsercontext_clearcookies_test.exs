@@ -7,8 +7,6 @@ defmodule Playwright.Library.BrowsercontextClearcookiesTest do
   @upstream "tests/library/browsercontext-clearcookies.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   alias Playwright.Expect
 
   alias Playwright.Browser

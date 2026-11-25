@@ -6,8 +6,6 @@ defmodule Playwright.Page.PageDragTest do
   @upstream "tests/page/page-drag.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   alias Playwright.Expect
   alias Playwright.Frame
   alias Playwright.JSHandle

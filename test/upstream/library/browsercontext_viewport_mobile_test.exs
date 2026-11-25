@@ -18,7 +18,7 @@ defmodule Playwright.Library.BrowsercontextViewportMobileTest do
 
   describe "mobile viewport" do
     # it.skip(({ browserName, isBidi }) => browserName === 'firefox' && !isBidi)
-    if System.get_env("BROWSER", "chromium") == "firefox", do: @describetag(skip: "upstream skip: firefox (non-BiDi)")
+    if @browser_name == "firefox", do: @describetag(skip: "upstream skip: firefox (non-BiDi)")
 
     test "DV-011 should support mobile emulation", %{playwright: playwright, browser: browser, server: server} do
       iphone = Playwright.devices(playwright)["iPhone 6"]

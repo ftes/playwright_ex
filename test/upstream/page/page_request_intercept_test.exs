@@ -7,8 +7,6 @@ defmodule Playwright.Page.PageRequestInterceptTest do
   @upstream "tests/page/page-request-intercept.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   alias Playwright.APIRequestContext
   alias Playwright.APIResponse
   alias Playwright.Locator

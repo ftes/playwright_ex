@@ -24,8 +24,6 @@ defmodule Playwright.Library.MulticlientTest do
   alias Playwright.TestServer
   alias Playwright.Tracing
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   @k_target_closed_error_message "Target page, context or browser has been closed"
 
   # test.skip(mode !== 'default')  -- always default mode

@@ -21,8 +21,6 @@ defmodule Playwright.Library.PageCloseTest do
 
   @moduletag :page
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   # tests/config/errors.ts
   @k_target_closed_error_message "Target page, context or browser has been closed"
 

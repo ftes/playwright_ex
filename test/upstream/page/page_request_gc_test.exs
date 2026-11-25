@@ -11,8 +11,6 @@ defmodule Playwright.Page.PageRequestGcTest do
 
   @moduletag :page
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   test "RO-149 should work", %{page: page} do
     Page.evaluate!(page, """
     () => {

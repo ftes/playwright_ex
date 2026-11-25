@@ -7,8 +7,6 @@ defmodule Playwright.Library.BrowsercontextExposeFunctionTest do
   @upstream "tests/library/browsercontext-expose-function.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   alias Playwright.BrowserContext
   alias Playwright.Disposable
   alias Playwright.Frame

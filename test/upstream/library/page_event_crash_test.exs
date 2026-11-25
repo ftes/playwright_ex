@@ -18,7 +18,7 @@ defmodule Playwright.Library.PageEventCrashTest do
   @moduletag :page
 
   # webkit, firefox: toImpl(page).delegate._session.send('Page.crash')
-  if System.get_env("BROWSER", "chromium") != "chromium",
+  if @browser_name != "chromium",
     do: @moduletag(skip: "not ported: toImpl (crash via the server-side page session)")
 
   # Upstream skips chromium on ubuntu24.04 ('never dispatches the crash event'); CI's ubuntu-latest
@@ -26,7 +26,7 @@ defmodule Playwright.Library.PageEventCrashTest do
   # test.beforeEach: test.skip(browserName === 'chromium' && utils.hostPlatform.startsWith('ubuntu24.04'))
   # test.beforeEach: test.skip(webkit && debian13 / webkit-wsl)  -- moot: webkit is skipped above
   # test.beforeEach: test.slow(platform === 'linux' && browserName === 'webkit', ...)
-  if System.get_env("BROWSER", "chromium") == "webkit" and match?({:unix, :linux}, :os.type()),
+  if @browser_name == "webkit" and match?({:unix, :linux}, :os.type()),
     do: @moduletag(timeout: @slow_timeout)
 
   # The `crash` fixture: page.goto('chrome://crash').catch(e => {})

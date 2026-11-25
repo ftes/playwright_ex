@@ -22,7 +22,6 @@ defmodule Playwright.Library.VideoTest do
   alias Playwright.Video
   alias Playwright.VideoPlayer
 
-  @browser_name System.get_env("BROWSER", "chromium")
   @ffmpeg_skip VideoPlayer.skip_reason()
   # it.skip(({ video }) => video === 'on', 'conflicts with built-in video recording');  -- the runner records no video
 

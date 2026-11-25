@@ -6,8 +6,6 @@ defmodule Playwright.Library.TracingTest do
   @upstream "tests/library/tracing.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   import Playwright.Runtime.Heap, only: [get: 2]
   import Playwright.Utils, only: [parse_trace_raw: 2, rafraf: 1]
 

@@ -7,8 +7,6 @@ defmodule Playwright.Page.LocatorFrameTest do
   @upstream "tests/page/locator-frame.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   alias Playwright.Expect
   alias Playwright.Frame
   alias Playwright.FrameLocator

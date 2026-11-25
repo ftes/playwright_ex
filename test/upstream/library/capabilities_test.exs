@@ -21,7 +21,6 @@ defmodule Playwright.Library.CapabilitiesTest do
 
   @moduletag :page
 
-  @browser_name System.get_env("BROWSER", "chromium")
   @is_windows match?({:win32, _}, :os.type())
   # Upstream's CI runs Linux under xvfb-run: headless Firefox without a display finds no GL driver.
   @no_display match?({:unix, :linux}, :os.type()) and System.get_env("DISPLAY") in [nil, ""]

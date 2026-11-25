@@ -7,8 +7,6 @@ defmodule Playwright.Library.BrowsercontextBasicTest do
   @upstream "tests/library/browsercontext-basic.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   alias Playwright.Browser
   alias Playwright.BrowserContext
   alias Playwright.Client.ChannelOwner

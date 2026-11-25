@@ -24,7 +24,7 @@ defmodule Playwright.Library.Chromium.ChromiumTest do
   alias Playwright.TestServer
   alias Playwright.Worker
 
-  @chromium_only if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: chromium only")
+  @chromium_only if(@browser_name != "chromium", do: "upstream skip: chromium only")
   @moduletag skip: @chromium_only
 
   # Deviations:

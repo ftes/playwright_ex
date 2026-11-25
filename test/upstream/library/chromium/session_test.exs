@@ -18,7 +18,7 @@ defmodule Playwright.Library.Chromium.SessionTest do
   alias Playwright.TimeoutError
   alias Playwright.Utils
 
-  @moduletag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: Chromium only")
+  @moduletag skip: if(@browser_name != "chromium", do: "upstream skip: Chromium only")
 
   # tests/config/errors.ts
   @k_target_closed_error_message "Target page, context or browser has been closed"

@@ -64,7 +64,7 @@ defmodule Playwright.Page.PageAddScriptTagTest do
     assert Page.evaluate!(page, "() => window['__injected']") == 42
   end
 
-  @tag skip: if(System.get_env("BROWSER", "chromium") == "webkit", do: "upstream skip: webkit")
+  @tag skip: if(@browser_name == "webkit", do: "upstream skip: webkit")
   test "AT-008 should include sourceURL when path is provided", %{page: page, server: server, asset: asset} do
     Page.goto!(page, server.empty_page)
     Page.add_script_tag!(page, path: asset.("injectedfile.js"))

@@ -7,8 +7,6 @@ defmodule Playwright.Page.PageGotoTest do
   @upstream "tests/page/page-goto.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   import ExUnit.CaptureLog
 
   alias Playwright.BrowserContext

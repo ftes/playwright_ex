@@ -7,8 +7,6 @@ defmodule Playwright.Page.PageRouteTest do
   @upstream "tests/page/page-route.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   alias Playwright.Browser
   alias Playwright.BrowserContext
   alias Playwright.Expect

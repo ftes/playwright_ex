@@ -23,8 +23,6 @@ defmodule Playwright.Library.HarTest do
   @upstream "tests/library/har.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   alias Playwright.APIRequest
   alias Playwright.APIRequestContext
   alias Playwright.APIResponse

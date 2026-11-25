@@ -12,8 +12,6 @@ defmodule Playwright.Page.NetworkPostDataTest do
 
   @moduletag :page
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   test "NE-108 should return correct postData buffer for utf-8 body", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     value = "baẞ"

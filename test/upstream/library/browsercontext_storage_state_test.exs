@@ -21,8 +21,6 @@ defmodule Playwright.Library.BrowsercontextStorageStateTest do
   alias Playwright.Route
   alias Playwright.TestServer
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   # route.fulfill({ body: '<html></html>' }).catch(() => {})
   defp fulfill_html(page), do: Page.route!(page, "**/*", &Route.fulfill(&1, body: "<html></html>"))
 

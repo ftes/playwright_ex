@@ -7,8 +7,6 @@ defmodule Playwright.Library.BrowsertypeBasicTest do
   @upstream "tests/library/browsertype-basic.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   alias Playwright.BrowserType
 
   test "BT-001 browserType.executablePath should work", %{browser_type: browser_type} do

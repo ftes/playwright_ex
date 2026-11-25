@@ -11,7 +11,7 @@ defmodule Playwright.Library.Chromium.TracingTest do
   alias Playwright.Browser
   alias Playwright.Page
 
-  if System.get_env("BROWSER", "chromium") != "chromium", do: @moduletag(skip: "upstream skip: chromium only")
+  if @browser_name != "chromium", do: @moduletag(skip: "upstream skip: chromium only")
 
   # testInfo.outputPath(...) is a path in the test's tmp_dir.
 

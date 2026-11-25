@@ -6,8 +6,6 @@ defmodule Playwright.Library.BrowsercontextFetchTest do
   @upstream "tests/library/browsercontext-fetch.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   import Bitwise
 
   alias Playwright.APIRequestContext

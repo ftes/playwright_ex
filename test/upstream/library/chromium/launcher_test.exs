@@ -11,7 +11,7 @@ defmodule Playwright.Library.Chromium.LauncherTest do
   alias Playwright.CDPSession
   alias Playwright.RemoteServer.LaunchServer
 
-  @moduletag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: Chromium only")
+  @moduletag skip: if(@browser_name != "chromium", do: "upstream skip: Chromium only")
 
   # `browserType.launchServer(options)` is the `launch_server` fixture (the driver's
   # `launch-server` command); it.skip(mode !== 'default')  -- always default mode.

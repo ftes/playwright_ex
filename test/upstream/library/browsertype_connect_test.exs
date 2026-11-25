@@ -15,8 +15,6 @@ defmodule Playwright.Library.BrowsertypeConnectTest do
   @upstream "tests/library/browsertype-connect.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   # test.slow(true, 'All connect tests are slow')
   # Slow upstream too, and the longest module in its CI partition. Splitting the file would even
   # out the partitions, but it stays one file to mirror upstream's spec.

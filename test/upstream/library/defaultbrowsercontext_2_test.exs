@@ -7,8 +7,6 @@ defmodule Playwright.Library.Defaultbrowsercontext2Test do
   @upstream "tests/library/defaultbrowsercontext-2.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   alias Playwright.Browser
   alias Playwright.BrowserContext
   alias Playwright.BrowserType
@@ -224,7 +222,7 @@ defmodule Playwright.Library.Defaultbrowsercontext2Test do
     assert_received :closed
   end
 
-  @tag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: chromium only")
+  @tag skip: if(@browser_name != "chromium", do: "upstream skip: chromium only")
   test "DC-034 coverage should work", %{server: server, launch_persistent: launch_persistent} do
     %{page: page} = launch_persistent.([])
     Coverage.start_js_coverage!(Page.coverage(page))

@@ -10,7 +10,7 @@ defmodule Playwright.Library.Chromium.JsCoverageTest do
   alias Playwright.Page
 
   @moduletag :page
-  @moduletag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: Chromium only")
+  @moduletag skip: if(@browser_name != "chromium", do: "upstream skip: Chromium only")
 
   # it.skip(({ trace }) => trace === 'on');  -- the runner does not trace
 

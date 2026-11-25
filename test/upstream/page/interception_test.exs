@@ -24,8 +24,6 @@ defmodule Playwright.Page.InterceptionTest do
 
   @moduletag :page
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   # `const intercepted = []; ... intercepted.push(x)`: the handlers send to the test process.
   defp received(acc \\ []) do
     receive do

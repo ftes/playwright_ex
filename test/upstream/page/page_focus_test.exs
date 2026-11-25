@@ -6,8 +6,6 @@ defmodule Playwright.Page.PageFocusTest do
   @upstream "tests/page/page-focus.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   alias Playwright.Expect
   alias Playwright.FrameLocator
   alias Playwright.Keyboard

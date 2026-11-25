@@ -6,8 +6,6 @@ defmodule Playwright.Library.DownloadTest do
   @upstream "tests/library/download.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   alias Playwright.APIRequestContext
   alias Playwright.APIResponse
   alias Playwright.Browser

@@ -16,7 +16,7 @@ defmodule Playwright.Library.Chromium.DisableWebSecurityTest do
   alias Playwright.TestServer
 
   @moduletag :page
-  @moduletag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: chromium only")
+  @moduletag skip: if(@browser_name != "chromium", do: "upstream skip: chromium only")
 
   # it.use({ launchOptions }): this module's `browser` is launched with --disable-web-security.
   setup_all %{browser_type: browser_type} do

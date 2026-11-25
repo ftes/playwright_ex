@@ -7,8 +7,6 @@ defmodule Playwright.Page.ElementhandlePressTest do
   @upstream "tests/page/elementhandle-press.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   alias Playwright.Page
 
   @moduletag :page

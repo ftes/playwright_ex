@@ -21,8 +21,6 @@ defmodule Playwright.Page.PageRequestContinueTest do
 
   @moduletag :page
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   # `request.headers[name]` of a server-side request.
   defp req_header(conn, name), do: conn |> Plug.Conn.get_req_header(name) |> List.first()
 

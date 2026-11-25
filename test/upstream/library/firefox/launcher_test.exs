@@ -12,7 +12,7 @@ defmodule Playwright.Library.Firefox.LauncherTest do
   alias Playwright.Page
   alias Playwright.TestServer
 
-  @moduletag skip: if(System.get_env("BROWSER", "chromium") != "firefox", do: "upstream skip: Firefox only")
+  @moduletag skip: if(@browser_name != "firefox", do: "upstream skip: Firefox only")
 
   @proxy_prefs %{
     "network.proxy.type" => 1,

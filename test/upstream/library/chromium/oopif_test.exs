@@ -28,7 +28,7 @@ defmodule Playwright.Library.Chromium.OopifTest do
   alias Playwright.TestServer
   alias Playwright.Worker
 
-  @chromium_only if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: Chromium only")
+  @chromium_only if(@browser_name != "chromium", do: "upstream skip: Chromium only")
   @moduletag skip: @chromium_only
 
   # it.use({ launchOptions: { ...launchOptions, args: ['--site-per-process'] } }): this module's

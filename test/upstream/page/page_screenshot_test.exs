@@ -7,8 +7,6 @@ defmodule Playwright.Page.PageScreenshotTest do
   @upstream "tests/page/page-screenshot.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   import Playwright.Utils
   import Playwright.UpstreamSnapshot
 

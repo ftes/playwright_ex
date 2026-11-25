@@ -21,7 +21,7 @@ defmodule Playwright.Library.Chromium.ExtensionsTest do
   alias Playwright.TestServer
   alias Playwright.Worker
 
-  if System.get_env("BROWSER", "chromium") != "chromium", do: @moduletag(skip: "upstream skip: chromium only")
+  if @browser_name != "chromium", do: @moduletag(skip: "upstream skip: chromium only")
 
   # it.skip(({ isHeadlessShell }) => isHeadlessShell, 'Headless Shell has no support for extensions'):
   # we run headless Chromium, the headless shell. Deviation: the spec's `launchPersistentContext`

@@ -7,8 +7,6 @@ defmodule Playwright.Library.BrowsercontextViewportTest do
   @upstream "tests/library/browsercontext-viewport.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   import Playwright.Utils, only: [verify_viewport: 3]
 
   alias Playwright.Browser

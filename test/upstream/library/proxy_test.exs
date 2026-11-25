@@ -15,8 +15,6 @@ defmodule Playwright.Library.ProxyTest do
   alias Playwright.TestProxy
   alias Playwright.TestServer
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   setup {TestProxy, :proxy_server}
   setup {TestProxy, :socks_port}
 

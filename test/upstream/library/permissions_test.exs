@@ -19,8 +19,6 @@ defmodule Playwright.Library.PermissionsTest do
 
   @moduletag :page
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   defp get_permission(%Playwright.Frame{} = frame, name),
     do: Frame.evaluate!(frame, "name => navigator.permissions.query({ name }).then(result => result.state)", name)
 

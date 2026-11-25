@@ -17,8 +17,6 @@ defmodule Playwright.Page.PageNetworkSizesTest do
 
   # it.skip(({ isElectron, browserMajorVersion }) => isElectron && browserMajorVersion < 99, 'This needs Chromium >= 99');  -- not Electron
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   test "NE-058 should set bodySize and headersSize", %{page: page, server: server} do
     Page.goto!(page, server.empty_page)
     request = Page.wait_for_event(page, :request)
