@@ -140,7 +140,7 @@ defmodule Playwright.Library.RouteWebSocketTest do
         assert_receive {:message, "hi"}, 5000
       end
 
-      if System.get_env("BROWSER") == "webkit",
+      if @browser_name == "webkit",
         do: @tag(skip: "upstream skip: WebKit ignores the connection error and fires no events!")
 
       test "WS-018 should work when connection errors out", %{page: page, server: server} do
@@ -156,13 +156,13 @@ defmodule Playwright.Library.RouteWebSocketTest do
       end
 
       cond do
-        System.get_env("BROWSER") == "firefox" ->
+        @browser_name == "firefox" ->
           @tag skip: "upstream skip: Firefox does not close the websocket upon a bad frame"
 
-        System.get_env("BROWSER") == "webkit" and match?({:unix, :linux}, :os.type()) ->
+        @browser_name == "webkit" and match?({:unix, :linux}, :os.type()) ->
           @tag skip: "upstream skip: WebKit linux does not close the websocket upon a bad frame"
 
-        System.get_env("BROWSER") == "webkit" and match?({:win32, _}, :os.type()) ->
+        @browser_name == "webkit" and match?({:win32, _}, :os.type()) ->
           @tag skip: "upstream skip: WebKit Windows does not close the websocket upon a bad frame"
 
         true ->

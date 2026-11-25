@@ -7,8 +7,6 @@ defmodule Playwright.Page.PageMouseTest do
   @upstream "tests/page/page-mouse.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   alias Playwright.Expect
 
   alias Playwright.Frame

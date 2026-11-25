@@ -11,7 +11,7 @@ defmodule Playwright.Library.Chromium.ConnectToWorkerTest do
   alias Playwright.Runtime.Facade
   alias Playwright.Worker
 
-  if System.get_env("BROWSER", "chromium") != "chromium", do: @moduletag(skip: "upstream skip: chromium only")
+  if @browser_name != "chromium", do: @moduletag(skip: "upstream skip: chromium only")
 
   # Deviations:
   #   * `childProcess({ command })` (tests/config/commonFixtures.ts) is a port running the command,
@@ -71,7 +71,7 @@ defmodule Playwright.Library.Chromium.ConnectToWorkerTest do
   # The gap from the reply to the evaluate's send was a `File.cwd!/0` per stack frame of each
   # call (`ClientStackTrace`): 1.5 ms (62 ms under load, 35 of 40 failed), now ~0.2 ms (1 of 40
   # under load, macOS, 2026-11-06).
-  @tag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: chromium only")
+  @tag skip: if(@browser_name != "chromium", do: "upstream skip: chromium only")
   test "CR-043 should connect, evaluate, receive console and disconnect", %{browser_type: browser_type} do
     child =
       child_process([

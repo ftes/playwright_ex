@@ -7,8 +7,6 @@ defmodule Playwright.Page.PageFillTest do
   @upstream "tests/page/page-fill.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   import Playwright.Utils, only: [rafraf: 2]
 
   alias Playwright.Expect

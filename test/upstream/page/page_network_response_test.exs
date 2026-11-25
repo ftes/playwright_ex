@@ -7,8 +7,6 @@ defmodule Playwright.Page.PageNetworkResponseTest do
   @upstream "tests/page/page-network-response.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   alias Playwright.Frame
   alias Playwright.Page
   alias Playwright.Request

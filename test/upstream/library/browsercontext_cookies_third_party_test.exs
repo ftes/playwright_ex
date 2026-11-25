@@ -15,8 +15,6 @@ defmodule Playwright.Library.BrowsercontextCookiesThirdPartyTest do
   alias Playwright.Page
   alias Playwright.TestServer
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   # contextTest's `context`/`page` with `test.use({ ignoreHTTPSErrors: true })`; `contextFactory`
   # gets it too (upstream's runner applies it to every context it creates).
   setup %{context_factory: context_factory} do
@@ -646,7 +644,7 @@ defmodule Playwright.Library.BrowsercontextCookiesThirdPartyTest do
   end
 
   @tag skip:
-         if(System.get_env("BROWSER") == "webkit" and match?({:unix, :darwin}, :os.type()),
+         if(@browser_name == "webkit" and match?({:unix, :darwin}, :os.type()),
            do: "upstream fixme: webkit on mac"
          )
   test "CO-059 should be able to send third party cookies via an iframe", %{
@@ -753,7 +751,7 @@ defmodule Playwright.Library.BrowsercontextCookiesThirdPartyTest do
     end
   end
 
-  @tag skip: if(System.get_env("BROWSER") == "webkit", do: "upstream skip: No third party cookies in WebKit")
+  @tag skip: if(@browser_name == "webkit", do: "upstream skip: No third party cookies in WebKit")
   test "CO-062 should not block third party SameSite=None cookies", %{
     context_factory: context_factory,
     https_server: https_server

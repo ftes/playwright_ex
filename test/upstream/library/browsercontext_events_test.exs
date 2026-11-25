@@ -6,8 +6,6 @@ defmodule Playwright.Library.BrowsercontextEventsTest do
   @upstream "tests/library/browsercontext-events.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   alias Playwright.Expect
 
   alias Playwright.BrowserContext

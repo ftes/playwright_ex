@@ -14,8 +14,6 @@ defmodule Playwright.Page.PageEmulateMediaTest do
 
   @moduletag :page
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   # expect.extend({ toMatchMedia })
   defp matches_media?(page, media_query) do
     case Page.evaluate(page, "mediaQuery => matchMedia(mediaQuery).matches", media_query) do

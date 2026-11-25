@@ -32,7 +32,7 @@ defmodule Playwright.Library.Chromium.ConnectOverCdpTest do
   #   * `9339 + testInfo.workerIndex` is a free port (modules run in parallel).
   #   * `http.get(.../json/version/)` uses the API request context.
 
-  if System.get_env("BROWSER", "chromium") != "chromium", do: @moduletag(skip: "upstream skip: chromium only")
+  if @browser_name != "chromium", do: @moduletag(skip: "upstream skip: chromium only")
 
   setup {TestProxy, :proxy_server}
 
@@ -170,7 +170,7 @@ defmodule Playwright.Library.Chromium.ConnectOverCdpTest do
   # A test-level `skip: nil` would override the module's chromium-only skip.
   @tag skip:
          (cond do
-            System.get_env("BROWSER", "chromium") != "chromium" ->
+            @browser_name != "chromium" ->
               "upstream skip: chromium only"
 
             match?({:unix, :darwin}, :os.type()) ->

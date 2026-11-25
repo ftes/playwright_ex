@@ -15,8 +15,6 @@ defmodule Playwright.Library.IgnorehttpserrorsTest do
   alias Playwright.Route
   alias Playwright.TestServer
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   @ws_evaluate """
   endpoint => {
     let cb;

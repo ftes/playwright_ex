@@ -6,8 +6,6 @@ defmodule Playwright.Library.BrowsercontextServiceWorkerPolicyTest do
   @upstream "tests/library/browsercontext-service-worker-policy.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   alias Playwright.BrowserContext
   alias Playwright.ConsoleMessage
   alias Playwright.Expect

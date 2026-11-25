@@ -7,8 +7,6 @@ defmodule Playwright.Page.PageKeyboardTest do
   @upstream "tests/page/page-keyboard.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   alias Playwright.ElementHandle
   alias Playwright.Expect
   alias Playwright.Frame
@@ -131,7 +129,7 @@ defmodule Playwright.Page.PageKeyboardTest do
   end
 
   @tag skip:
-         if(System.get_env("BROWSER", "chromium") == "firefox",
+         if(@browser_name == "firefox",
            do: "upstream skip: Firefox/Juggler dispatches keydown and keypress in the same task"
          )
   test "KB-008 should dispatch key events in separate tasks", %{page: page} do
@@ -551,7 +549,7 @@ defmodule Playwright.Page.PageKeyboardTest do
             !@is_mac ->
               "upstream skip: macOS only (platform !== 'darwin')"
 
-            System.get_env("BROWSER", "chromium") == "firefox" ->
+            @browser_name == "firefox" ->
               "upstream fixme: https://github.com/microsoft/playwright/issues/5721"
 
             true ->
@@ -592,7 +590,7 @@ defmodule Playwright.Page.PageKeyboardTest do
   end
 
   @tag skip:
-         if(System.get_env("BROWSER", "chromium") != "webkit",
+         if(@browser_name != "webkit",
            do: "upstream skip: event.keyIdentifier has been removed from all browsers except WebKit"
          )
   test "KB-037 should expose keyIdentifier in webkit", %{page: page} do
@@ -876,7 +874,7 @@ defmodule Playwright.Page.PageKeyboardTest do
   end
 
   @tag skip:
-         if(System.get_env("BROWSER", "chromium") == "chromium" and match?({:win32, _}, :os.type()),
+         if(@browser_name == "chromium" and match?({:win32, _}, :os.type()),
            do: "upstream skip: context menu support is best-effort for Linux and MacOS"
          )
   test "KB-050 should dispatch insertText after context menu was opened", %{page: page, server: server} do
@@ -901,7 +899,7 @@ defmodule Playwright.Page.PageKeyboardTest do
   end
 
   @tag skip:
-         if(System.get_env("BROWSER", "chromium") == "chromium" and match?({:win32, _}, :os.type()),
+         if(@browser_name == "chromium" and match?({:win32, _}, :os.type()),
            do: "upstream skip: context menu support is best-effort for Linux and MacOS"
          )
   test "KB-051 should type after context menu was opened", %{page: page} do

@@ -7,8 +7,6 @@ defmodule Playwright.Page.FrameHierarchyTest do
   @upstream "tests/page/frame-hierarchy.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   import Playwright.Utils, only: [attach_frame: 3, detach_frame: 2]
 
   alias Playwright.ConsoleMessage

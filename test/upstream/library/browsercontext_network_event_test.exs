@@ -18,8 +18,6 @@ defmodule Playwright.Library.BrowsercontextNetworkEventTest do
 
   @moduletag :page
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   defp received(tag, acc \\ []) do
     receive do
       {^tag, value} -> received(tag, [value | acc])

@@ -71,8 +71,6 @@ defmodule Playwright.Library.ClientCertificatesTest do
   @upstream "tests/library/client-certificates.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   alias Playwright.APIRequest
   alias Playwright.APIRequestContext
   alias Playwright.APIResponse
@@ -1076,7 +1074,7 @@ defmodule Playwright.Library.ClientCertificatesTest do
       Page.close!(page)
     end
 
-    @tag skip: if(System.get_env("BROWSER", "chromium") != "chromium", do: "upstream skip: browserName !== 'chromium'")
+    @tag skip: if(@browser_name != "chromium", do: "upstream skip: browserName !== 'chromium'")
     test "CC-037 support http2 if the browser only supports http1.1",
          %{browser_type: browser_type, start_cc_server: start_cc_server, asset: asset} do
       server_url = start_cc_server.(http2: true, enable_http1_fallback_when_using_http2: true)

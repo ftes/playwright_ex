@@ -13,8 +13,6 @@ defmodule Playwright.Page.PageClickScrollTest do
 
   @moduletag :page
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   test "CL-094 should not hit scroll bar", %{page: page} do
     Page.set_content!(page, """
     <style>

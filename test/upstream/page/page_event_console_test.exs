@@ -7,8 +7,6 @@ defmodule Playwright.Page.PageEventConsoleTest do
   @upstream "tests/page/page-event-console.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   alias Playwright.Expect
 
   alias Playwright.ConsoleMessage

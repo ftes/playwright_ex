@@ -18,8 +18,6 @@ defmodule Playwright.Library.HeadfulTest do
   alias Playwright.TestServer
   alias Playwright.UpstreamSnapshot
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   # it.skip(({ headless }) => headless, 'avoid popping windows in headless mode');
   # it.skip(({ channel }) => channel === 'chromium-headless-shell', 'shell is never headed');  -- we run no channel
   @headless_skip if(Playwright.TestBrowser.headless(),

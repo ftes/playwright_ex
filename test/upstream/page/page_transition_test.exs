@@ -6,8 +6,6 @@ defmodule Playwright.Page.PageTransitionTest do
   @upstream "tests/page/page-transition.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   alias Playwright.Page
 
   @moduletag :page

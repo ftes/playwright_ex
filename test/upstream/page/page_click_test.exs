@@ -7,8 +7,6 @@ defmodule Playwright.Page.PageClickTest do
   @upstream "tests/page/page-click.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   import Playwright.Utils, only: [attach_frame: 3, rafraf: 2, rafraf: 1]
 
   alias Playwright.AbortController

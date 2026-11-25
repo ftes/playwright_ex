@@ -6,8 +6,6 @@ defmodule Playwright.Library.PopupTest do
   @upstream "tests/library/popup.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   alias Playwright.Browser
   alias Playwright.BrowserContext
   alias Playwright.Locator

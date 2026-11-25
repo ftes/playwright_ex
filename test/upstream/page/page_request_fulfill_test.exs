@@ -7,8 +7,6 @@ defmodule Playwright.Page.PageRequestFulfillTest do
   @upstream "tests/page/page-request-fulfill.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   import Playwright.UpstreamSnapshot
 
   alias Playwright.APIRequest

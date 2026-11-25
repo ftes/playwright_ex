@@ -13,8 +13,6 @@ defmodule Playwright.Library.BrowsertypeLaunchSeleniumTest do
   alias Playwright.RemoteServer.ChildProcess
   alias Playwright.Runtime.Facade
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   # test.skip(({ mode }) => mode !== 'default', 'Using test hooks'): we run in the default mode.
   # test.skip(!chromeDriver): the tests need `java` on the PATH, PWTEST_SELENIUM (the directory of
   # the Selenium Server jars) and PWTEST_CHROMEDRIVER (a chromedriver for the installed Google

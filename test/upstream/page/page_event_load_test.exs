@@ -6,8 +6,6 @@ defmodule Playwright.Page.PageEventLoadTest do
   @upstream "tests/page/page-event-load.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   alias Playwright.Expect
   alias Playwright.FrameLocator
   alias Playwright.Locator

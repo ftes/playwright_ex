@@ -6,8 +6,6 @@ defmodule Playwright.Library.WebmcpTest do
   @upstream "tests/library/webmcp.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   alias Playwright.BrowserType
   alias Playwright.Frame
   alias Playwright.Page
@@ -16,7 +14,7 @@ defmodule Playwright.Library.WebmcpTest do
   alias Playwright.WebMCP
 
   @moduletag :page
-  @webkit_skip if(System.get_env("BROWSER") == "webkit", do: "upstream skip: WebKit does not implement WebMCP")
+  @webkit_skip if(@browser_name == "webkit", do: "upstream skip: WebKit does not implement WebMCP")
   @moduletag skip: @webkit_skip
   # test.skip(({ isBidi }) => isBidi, 'WebMCP is not implemented over BiDi');
 

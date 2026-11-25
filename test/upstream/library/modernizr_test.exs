@@ -10,7 +10,6 @@ defmodule Playwright.Library.ModernizrTest do
   alias Playwright.BrowserContext
   alias Playwright.Page
 
-  @browser_name System.get_env("BROWSER", "chromium")
   # it.skip(browserName === 'webkit' && platform === 'darwin' && os.arch() === 'x64')
   @intel_mac match?({:unix, :darwin}, :os.type()) and
                String.starts_with?(to_string(:erlang.system_info(:system_architecture)), "x86_64")

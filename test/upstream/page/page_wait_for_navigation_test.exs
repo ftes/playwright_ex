@@ -7,8 +7,6 @@ defmodule Playwright.Page.PageWaitForNavigationTest do
   @upstream "tests/page/page-wait-for-navigation.spec.ts"
   use Playwright.UpstreamCase, async: true
 
-  @browser_name System.get_env("BROWSER", "chromium")
-
   alias Playwright.Expect
 
   alias Playwright.Frame
