@@ -253,6 +253,13 @@ State linked to the test (an `Agent.start_link/1` of it, a `start_supervised!/1`
 send to the test process (a late message is dropped with it), or keep the state unlinked
 (`Agent.start/1`).
 
+An `on_exit` registered before `use Playwright.Test` (a case template's own `setup`) runs after
+the test's contexts have closed. Once the processes that created or closed them have exited,
+`Page.is_closed/1` still returns `true`, but other reads (`Page.url/1`, `BrowserContext.pages/1`)
+raise `Playwright.TargetClosedError`. Read what you need in the test, or use
+`Playwright.Test.info/1`. That raises too once another such callback's process has died,
+because ExUnit then runs the remaining callbacks in a new process.
+
 ### A check after the test
 
 A fixture teardown that fails the test, such as LiveView's `page` fixture checking for page

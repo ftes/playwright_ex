@@ -135,7 +135,8 @@ single thread. Use each only where the JS code needs it, with its marker.
 - A listener runs in a process of its own while the connection waits for it to return or first
   await. Blocking on non-Playwright work there stalls dispatch, as it would in JS.
 - A closed context (and what it owned) stays readable until the processes that created or
-  closed it have exited; reads after that raise TargetClosedError
+  closed it have exited; reads after that raise TargetClosedError, except the closed-state
+  getters (`Page.is_closed`, `BrowserContext.is_closed`, `Browser.is_connected`)
   ([why](docs/architecture.md#object-lifetimes)). Tests read closed objects in the test process.
 - `then_`/`catch_` are lazy: a reaction nobody awaits never runs. For a side effect use
   `Promise.void(fn -> f.(Promise.await(p)) end)` (`p` a latch).

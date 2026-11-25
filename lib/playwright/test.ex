@@ -1409,6 +1409,9 @@ defmodule Playwright.Test do
 
   An error of an earlier `on_exit/1,2` callback is among them (`status` `:failed`), as
   upstream's `afterEach` hooks fail the test; one of `ExUnit.Callbacks.on_exit/2`'s isn't.
+  `info/1` raises in a callback that runs after another such callback crashed, if the crashed
+  one runs after Playwright.Test's own finish callback (it was registered before
+  `use Playwright.Test`): ExUnit runs the rest in a new process.
 
       setup %{test_pid: test_pid} do
         on_exit(fn ->

@@ -195,7 +195,12 @@ anchor of a BrowserContext or Browser is the set of processes that created or cl
 (`ChannelOwner._set_creator/1`; implicit ones inherit the parent chain's, else the connection);
 the Conn monitors them and frees the rows when the last exits or the connection closes. Anything
 else is anchored to its nearest context (else browser). After that, fields raise
-`TargetClosedError` and writes are dropped. Initializer data, type and guid live on the handle
+`TargetClosedError` and writes are dropped, but `Page.is_closed`, `BrowserContext.is_closed` and
+`Browser.is_connected` answer as after dispose (`Heap.get_or_freed/3`): freed rows mean the
+object was disposed or its connection is gone. Upstream's closed-state getters (`isClosed()`,
+`isConnected()`) never throw. `Frame.is_detached` and `WebSocket.is_closed` are not among them:
+upstream's answer after their page closes isn't fixed, as frames and websockets are disposed with
+their page without a detach or close event. Initializer data, type and guid live on the handle
 struct and stay readable forever.
 
 The cost: a long-lived process keeps ~175 rows per context it closed until it exits. Closing a

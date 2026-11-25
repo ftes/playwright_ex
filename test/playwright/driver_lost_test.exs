@@ -218,7 +218,9 @@ defmodule Playwright.DriverLostTest do
     ref = Process.monitor(keeper)
     send(creator, :exit)
     assert_receive {:DOWN, ^ref, :process, _, _}
-    assert_raise TargetClosedError, fn -> Page.is_closed(page) end
+    assert_raise TargetClosedError, fn -> Page.url(page) end
+    # A closed-state getter answers from the gone table.
+    assert Page.is_closed(page)
     assert Page.off(page, :close, fn _ -> :ok end) == page
   end
 
@@ -244,7 +246,9 @@ defmodule Playwright.DriverLostTest do
     ref = Process.monitor(keeper)
     stop.(name)
     assert_receive {:DOWN, ^ref, :process, _, _}
-    assert_raise TargetClosedError, fn -> Page.is_closed(page) end
+    assert_raise TargetClosedError, fn -> Page.url(page) end
+    # A closed-state getter answers from the gone table.
+    assert Page.is_closed(page)
   end
 
   # The table's owner once the connection process stopped.

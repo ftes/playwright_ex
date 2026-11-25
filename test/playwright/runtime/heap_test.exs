@@ -82,10 +82,48 @@ defmodule Playwright.Runtime.HeapTest do
     {owner, task_obj} =
       Task.await(Task.async(fn -> {self(), tap(new(:rows), &Heap.put(&1, :_x, 2))} end))
 
+    ref = Process.monitor(owner)
+    assert_receive {:DOWN, ^ref, :process, ^owner, _}, 1_000
     :sys.get_state(ProcessOwner)
-    refute Process.alive?(owner)
+    await_freed(task_obj, :_x, 500)
     assert_raise Playwright.TargetClosedError, fn -> Heap.get(task_obj, :_x) end
     assert :ets.select(obj.table, [{{{owner, :_}, :_}, [], [true]}]) == []
+  end
+
+  test "get_or_freed reads a field, nil while unset, and its freed value once the rows are freed" do
+    {owner, task_obj} =
+      Task.await(
+        Task.async(fn ->
+          obj = tap(new(:rows), &Heap.put(&1, :_closed, false))
+          assert Heap.get_or_freed(obj, :_closed, true) == false
+          assert Heap.get_or_freed(obj, :_unset, true) == nil
+          {self(), obj}
+        end)
+      )
+
+    ref = Process.monitor(owner)
+    assert_receive {:DOWN, ^ref, :process, ^owner, _}, 1_000
+    :sys.get_state(ProcessOwner)
+    await_freed(task_obj, :_closed, 500)
+    assert Heap.get_or_freed(task_obj, :_closed, true) == true
+    assert_raise Playwright.TargetClosedError, fn -> Heap.get(task_obj, :_closed) end
+  end
+
+  test "get_or_freed reads a process-local object's field" do
+    obj = tap(new(:local), &Heap.put(&1, :_closed, false))
+    assert Heap.get_or_freed(obj, :_closed, true) == false
+    assert Heap.get_or_freed(obj, :_unset, true) == nil
+  end
+
+  # `readable?/1` of a process-owned object is just `Process.alive?(owner)`, true before `ProcessOwner`
+  # handles the owner's :DOWN; poll the field's row instead.
+  defp await_freed(obj, field, 0), do: flunk("row #{inspect(field)} of #{inspect(obj.guid)} was not freed within 5 s")
+
+  defp await_freed(obj, field, tries) do
+    if Heap.get_or_freed(obj, field, :freed) != :freed do
+      Process.sleep(10)
+      await_freed(obj, field, tries - 1)
+    end
   end
 
   defp safe(fun) do
