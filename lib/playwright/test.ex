@@ -47,9 +47,13 @@ defmodule Playwright.Test do
   registers each test: its recording modes, its output dir and an `on_exit` (the first, so it
   runs last) that keeps or drops the artifacts by the result, then releases the test's
   `BrowserPool.browser/1` drivers. Tests of other macros (doctests, a `property`) count as
-  failed for their artifacts. A failure in an `on_exit` callback that isn't `on_exit/1,2`'s
-  (`ExUnit.Callbacks.on_exit/2` called qualified), or that runs after that `on_exit` (registered
-  before the `setup`), counts as passed.
+  failed for their artifacts. A test that another macro generates (a Cucumber feature's) gets its
+  result when its `test` call resolves to this macro: unqualified, below the module's
+  `use Playwright.Test` (or a case template's `using` with it), and quoted in a module that
+  imports no `test` of its own. For a property, run StreamData's `check all` in a `test`. A
+  failure in an `on_exit` callback that isn't `on_exit/1,2`'s (`ExUnit.Callbacks.on_exit/2`
+  called qualified), or that runs after that `on_exit` (registered before the `setup`), counts as
+  passed.
 
   In a case template, `use Playwright.Test` may also be the first line of the template's
   body: a template's own `setup` callbacks run before those its `using` brings in, so the test
