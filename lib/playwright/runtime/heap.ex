@@ -20,7 +20,8 @@ defmodule Playwright.Runtime.Heap do
   connection): `:_type`, `:_guid`, `:_initializer` and `:_connection` stay readable after dispose.
   A disposed object keeps its rows until its anchor is freed (see
   `_dispose` in `Playwright.Client.ChannelOwner`), so it reads and writes as in JS. Fields of a
-  freed object raise `Playwright.TargetClosedError`; writes to it are dropped.
+  freed object raise `Playwright.TargetClosedError` (closed-state fields read with
+  `get_or_freed/3` excepted); writes to it are dropped.
 
   `new_object(module)` is a process-local object: its fields live in the process dictionary of
   its creator, which alone may use it (another process raises); `free/1` erases it.
@@ -88,6 +89,25 @@ defmodule Playwright.Runtime.Heap do
     case lookup(obj, key(obj, field)) do
       [{_, value}] -> value
       [] -> missing(obj)
+    end
+  end
+
+  @doc """
+  Elixir only: `get/2` of a closed-state field (`Page._closed`), `freed` once the object's rows
+  are freed, where `get/2` raises: such an object was disposed, or its connection is gone. So
+  `freed` is the field's value after dispose (`true` for `_closed`).
+  """
+  # If the driver reuses a disposed object's guid, the old handle reads the new object's rows, so
+  # a closed-state getter can answer for the new object. Pre-existing and accepted.
+  def get_or_freed(obj, field, _freed) when field in @special and is_binary(:erlang.map_get(:guid, obj)),
+    do: get(obj, field)
+
+  def get_or_freed(%{table: nil} = obj, field, _freed), do: get(obj, field)
+
+  def get_or_freed(obj, field, freed) do
+    case lookup(obj, key(obj, field)) do
+      [{_, value}] -> value
+      [] -> if readable?(obj), do: nil, else: freed
     end
   end
 

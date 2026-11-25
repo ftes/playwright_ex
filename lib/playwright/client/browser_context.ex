@@ -332,7 +332,8 @@ defmodule Playwright.Client.BrowserContext do
   end
 
   def is_closed(this) do
-    get(this, :_closingStatus) != "none"
+    # deviation: true once its rows are freed (it was disposed or its connection is gone), where a field read raises
+    get_or_freed(this, :_closingStatus, "closed") != "none"
   end
 
   def new_page(this) do

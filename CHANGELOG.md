@@ -297,6 +297,9 @@ Node 26.13.1.
 
 ### Fixed
 
+- **RC only:** `Page.is_closed/1` and `BrowserContext.is_closed/1` return `true`, and
+  `Browser.is_connected/1` `false`, once a closed object's rows are freed (in a callback after the
+  test's end), instead of raising `Playwright.TargetClosedError`.
 - A test whose body passes but whose `on_exit` callback fails counts as failed, as an
   `afterEach` hook's failure fails it upstream: its trace, screenshots and `error-context.md` are
   kept under the on-failure modes, and `info/1` and the reporters say `:failed`. `use

@@ -990,7 +990,8 @@ defmodule Playwright.Client.Page do
   end
 
   def is_closed(this) do
-    get(this, :_closed)
+    # deviation: true once its rows are freed (it was disposed or its connection is gone), where a field read raises
+    get_or_freed(this, :_closed, true)
   end
 
   def click(this, selector, options \\ %{}) do

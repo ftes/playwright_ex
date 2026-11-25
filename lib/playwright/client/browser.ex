@@ -145,7 +145,8 @@ defmodule Playwright.Client.Browser do
   end
 
   def is_connected(this) do
-    get(this, :_isConnected)
+    # deviation: false once its rows are freed (it was disposed or its connection is gone), where a field read raises
+    get_or_freed(this, :_isConnected, false)
   end
 
   def new_browser_cdp_session(this) do

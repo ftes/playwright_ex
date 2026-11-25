@@ -182,7 +182,10 @@ Elixir form fits depends on when the call completes:
 
 As in JS, a closed page or context stays readable: [`Page.url/1`](`Playwright.Page.url/1`) and
 other accessors return the last values. That lasts until every process that created or closed its
-context (or browser) has exited; after that, reading it raises `Playwright.TargetClosedError`. A
+context (or browser) has exited; after that, reading it raises `Playwright.TargetClosedError`,
+but `Page.is_closed/1` and `BrowserContext.is_closed/1` still return `true`, and
+`Browser.is_connected/1` `false`. `Frame.is_detached/1` and `WebSocket.is_closed/1` aren't
+included: frames and websockets are disposed with their page without a detach or close event. A
 process that lives for long and closes many contexts keeps a few hundred rows per context until it
 exits, so in a long-running service, create each context in a process that ends with the session.
 
