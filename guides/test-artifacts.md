@@ -109,12 +109,16 @@ trace only the retry of a failure (`on-first-retry`). ExUnit has no retries in a
 config :playwright, :test, trace: :on_first_retry
 ```
 
-and rerun the failures in CI, only on exit status 2 (tests failed; a crash or a missed
-`--cover` threshold isn't retried, and an empty `--failed` run would pass):
+On Elixir 1.21 or later, a job without a coverage check can retry on exit status 2
+(tests failed):
 
 ```sh
 mix test || { [ $? -eq 2 ] && mix test --failed; }
 ```
+
+If the job uses `--cover`, keep the initial run's status even on Elixir 1.21 or later.
+A run can fail both tests and the coverage threshold, and rerunning only failed tests
+doesn't recheck the full suite's coverage. Use the diagnostic retry below instead.
 
 Call `mix test` itself, not through an alias that runs it with `mix cmd`: `mix cmd` turns exit
 status 2 into 1, so the retry never fires. In CI, with `--partitions` and annotations:
@@ -140,34 +144,31 @@ strategy:
       - {project: "Desktop Chrome", browser: chromium}
       - {project: "Desktop Firefox", browser: firefox}
       - {project: "Desktop Safari", browser: webkit}
+env:
+  PROJECTS: ${{ matrix.project }}
 steps:
   # ...
   - run: mix playwright.install ${{ matrix.browser }} --with-deps
-  - env:
-      PROJECTS: ${{ matrix.project }}
-    run: mix test || { [ $? -eq 2 ] && mix test --failed; }
+  - run: mix test
 ```
 
-A rerun that lost every failure prints `There are no tests to run` and exits 0, and no
-`mix test` flag turns that into a failure, so check its output, in a bash step (`retry` passes
-its arguments on, such as the formatters). A rerun that runs only the failures it kept still
-passes:
+A rerun that lost every failure prints `There are no tests to run` and exits 0. Checking for
+that message only catches an empty retry. If a `setup_all` teardown fails and an unrelated test
+fails, the retry can run just that test and pass. On affected Elixir versions, or in a coverage
+job, keep the initial CI run failed and retry only for diagnostics. In the matrix above,
+replace `run: mix test` with these two steps; both inherit the job's `PROJECTS`. For a coverage
+job, add `--cover` to the first command only.
 
 ```yaml
-- shell: bash
+- id: tests
   run: |
-    retry() {
-      mix test --failed "$@" 2>&1 | tee "$RUNNER_TEMP/retry.log"; s=${PIPESTATUS[0]}
-      if grep -q "^There are no tests to run" "$RUNNER_TEMP/retry.log"; then return 1; fi
-      return $s
-    }
-    mix test || { [ $? -eq 2 ] && retry; }
+    status=0
+    mix test || status=$?
+    echo "status=$status" >> "$GITHUB_OUTPUT"
+    exit "$status"
+- if: ${{ failure() && steps.tests.outputs.status == '2' }}
+  run: mix test --failed
 ```
-
-In an umbrella, each app without failures prints that line, even when another app's failures
-rerun: there, fail the rerun when no `Running ExUnit with seed` line appears instead (it needs
-`ExUnit.CLIFormatter` among the formatters). That catches a rerun where no app ran, not one app
-losing its failures while another reruns.
 
 The other retry modes are Playwright Test's too: `:on_all_retries` traces every rerun,
 `:retain_on_first_failure` the first run's failures, `:retain_on_failure_and_retries` both;
