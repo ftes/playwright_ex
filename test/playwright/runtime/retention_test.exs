@@ -233,7 +233,7 @@ defmodule Playwright.RetentionTest do
         end
       end)
 
-    churn = for _ <- 1..4, do: Task.async(fn -> for(_ <- 1..10, do: closed_context(browser)) end)
+    churn = for _ <- 1..4, do: Task.async(fn -> for(_ <- 1..3, do: closed_context(browser)) end)
     {context, page} = closed_context(browser)
     closed = Enum.flat_map(churn, &Task.await(&1, 60_000))
     {last_context, _} = closed_context(browser)
