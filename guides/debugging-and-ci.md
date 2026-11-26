@@ -197,9 +197,10 @@ takes a `mix test --failed` run for retry 1, a local `--failed` rerun after a fi
 fixed test as flaky: the formatter is meant for CI. Rerun
 only on exit status 2 (tests failed): any other failure, such as a crash or a missed coverage
 threshold, would otherwise go green on an empty `--failed` run.
-On Elixir 1.20 and earlier, `--failed` loses some failures, and a rerun that lost them all
-exits 0: see [Retries](test-artifacts.md#retries) for a guard, the bash function `retry`, defined
-in the same step.
+On Elixir 1.20 and earlier, `--failed` can miss some failures. See
+[Retries](test-artifacts.md#retries) for a separate diagnostic step that preserves the initial
+failure. On Elixir 1.21 or later, you can let the retry determine the job result if the job
+doesn't check coverage.
 `erlef/setup-beam`'s problem matchers annotate each failure again, at the test's line, so turn
 them off. With the formatter in `test_helper.exs`:
 
@@ -209,26 +210,21 @@ them off. With the formatter in `test_helper.exs`:
     elixir-version: "1.20"
     otp-version: "29"
     disable_problem_matchers: true
-- shell: bash
-  run: |
-    retry() { ...; }  # from Retries
-    mix test || { [ $? -eq 2 ] && retry; }
+- run: mix test
 ```
 
-Or, without it in `test_helper.exs`, pass the formatters as flags to both runs (`retry $f`
-passes them on):
+Or, without it in `test_helper.exs`, pass the formatters as flags. Use the same flags if you
+add a retry:
 
 ```yaml
-- shell: bash
-  run: |
-    retry() { ...; }  # from Retries
-    f="--formatter ExUnit.CLIFormatter --formatter Playwright.Test.GitHubFormatter"
-    mix test $f || { [ $? -eq 2 ] && retry $f; }
+- run: mix test --formatter ExUnit.CLIFormatter --formatter Playwright.Test.GitHubFormatter
 ```
 
 With `--partitions`, rerun without it. The failures manifest holds only this partition's
 failures, and `mix test` deals the files to the partitions round-robin, so `--partitions` would
 deal them again: a partition reruns only some of its failures, possibly none, and can exit 0.
+
+For Elixir 1.21 or later, without a coverage check:
 
 ```yaml
 - env:
