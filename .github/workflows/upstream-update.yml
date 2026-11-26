@@ -95,10 +95,10 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
       - name: Set up toolchain and deps
-        uses: ftes/ci/setup@69c1983b7caa80316be46edc22ba0b70f8c46b77 # v1.0.10
+        uses: ftes/ci/setup@3b7244fd1eb84225fcf94fd3f7d6cad6bb40d5c4 # v1.0.11
       # The FROM driver; Claude reinstalls after bumping (--with-deps covers the OS packages).
       - name: Install driver and browser
-        uses: ftes/ci/playwright-browser@69c1983b7caa80316be46edc22ba0b70f8c46b77 # v1.0.10
+        uses: ftes/ci/playwright-browser@3b7244fd1eb84225fcf94fd3f7d6cad6bb40d5c4 # v1.0.11
         with:
           driver-dir: .
       # The upstream clone (see the prompt) and the upstream sources the mix tasks download live
@@ -111,7 +111,7 @@ jobs:
       # playwright-python's raw files at TO; a few read-only shell helpers. These rules steer
       # Claude's tools, as ftes/ci/claude says; main's ruleset guards pushes. --add-dir:
       # the upstream clone and sources.
-      - uses: ftes/ci/claude@69c1983b7caa80316be46edc22ba0b70f8c46b77 # v1.0.10
+      - uses: ftes/ci/claude@3b7244fd1eb84225fcf94fd3f7d6cad6bb40d5c4 # v1.0.11
         with:
           token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt-file: .github/prompts/upstream-update.md
