@@ -56,3 +56,48 @@ defmodule Mix.Tasks.Playwright.InstallTest do
     assert output =~ "no-such-browser"
   end
 end
+
+defmodule Mix.Tasks.Playwright.InstallExecutableTest do
+  # Not async: the app env is global.
+  use ExUnit.Case, async: false
+
+  import ExUnit.CaptureIO
+
+  alias Mix.Tasks.Playwright.Install
+
+  @moduletag :tmp_dir
+
+  setup %{tmp_dir: tmp} do
+    previous = Application.fetch_env(:playwright, :driver)
+
+    on_exit(fn ->
+      case previous do
+        {:ok, config} -> Application.put_env(:playwright, :driver, config)
+        :error -> Application.delete_env(:playwright, :driver)
+      end
+    end)
+
+    cli = Path.join(tmp, "playwright")
+    File.write!(cli, "#!/bin/sh\necho \"fake cli: $*\"\n")
+    File.chmod!(cli, 0o755)
+    cache = Path.join(tmp, "cache")
+    Application.put_env(:playwright, :driver, executable: cli, cache_dir: cache)
+    %{cli: cli, cache: cache}
+  end
+
+  test "with executable: downloads nothing and installs the browsers with that CLI", %{cli: cli, cache: cache} do
+    output = capture_io(fn -> Install.run(~w(chromium --with-deps)) end)
+
+    assert output =~ "No driver to install: config :playwright, :driver sets executable: #{cli}"
+    assert output =~ "fake cli: install chromium --with-deps"
+    refute File.exists?(cache)
+  end
+
+  test "with executable: and --no-browsers does nothing", %{cache: cache} do
+    output = capture_io(fn -> Install.run(~w(--no-browsers)) end)
+
+    assert output =~ "No driver to install"
+    refute output =~ "fake cli"
+    refute File.exists?(cache)
+  end
+end

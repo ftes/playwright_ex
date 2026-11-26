@@ -1,5 +1,5 @@
 defmodule Mix.Tasks.Playwright.Install do
-  @shortdoc "Installs the Playwright driver (Node + playwright-core) and browsers"
+  @shortdoc "Installs the Playwright driver and browsers"
   @moduledoc """
   Usage: `mix playwright.install [ARGS...]` (browsers and flags, in any order)
 
@@ -8,10 +8,11 @@ defmodule Mix.Tasks.Playwright.Install do
   `mix playwright.install chromium firefox --with-deps`. Two flags, in any position, are the
   task's own:
 
-    * `--no-browsers` - installs only the driver, for a browser launched with `:executable_path`
-      or `:channel`. It takes no other args but `--force`.
-    * `--force` - reinstalls the driver, and is forwarded, so it reinstalls the browsers too. To
-      reinstall only a browser, run `mix playwright.cli install --force <browser>`.
+    * `--no-browsers` - installs only the driver (nothing with `:executable`), for a browser
+      launched with `:executable_path` or `:channel`. It takes no other args but `--force`.
+    * `--force` - reinstalls the driver (none with `:executable`), and is forwarded, so it
+      reinstalls the browsers too. To reinstall only a browser, run
+      `mix playwright.cli install --force <browser>`.
 
   Every other arg is forwarded in order.
 
@@ -20,8 +21,9 @@ defmodule Mix.Tasks.Playwright.Install do
   sees `config/config.exs` and the files it imports, not `config/runtime.exs`:
 
     * `:cache_dir` - where the driver is installed.
-    * `:executable`, `:node` - the CLI, or the Node binary, that installs the browsers. The pinned
-      driver is downloaded all the same.
+    * `:executable` - the CLI that installs the browsers. Nothing is downloaded.
+    * `:node` - the Node binary that runs the driver and installs the browsers. Only
+      `playwright-core` is downloaded.
 
   `HTTPS_PROXY` (else `https_proxy`) sets the proxy for the driver download.
 
@@ -38,7 +40,11 @@ defmodule Mix.Tasks.Playwright.Install do
     Enum.each([:inets, :ssl], &Mix.ensure_application!/1)
 
     :ok = Playwright.Driver.install(force: force?)
-    Mix.shell().info("Driver installed in #{Playwright.Driver.install_dir()}")
+
+    case Playwright.Driver.executable() do
+      {cli, []} -> Mix.shell().info("No driver to install: config :playwright, :driver sets executable: #{cli}")
+      {_node, [_cli_js]} -> Mix.shell().info("Driver installed in #{Playwright.Driver.install_dir()}")
+    end
 
     if browsers? do
       try do

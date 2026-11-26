@@ -48,8 +48,10 @@ ship only with an upstream minor, so `~> 1.65.0` is safe to depend on.
 The driver is pinned too: `Playwright.Driver` downloads `playwright-core@<pin>` from npm
 (sha512) and Node from nodejs.org (SHASUMS256, committed for six platforms; no musl, like
 Playwright), lazily on first start or with `mix playwright.install`. No Node needed
-beforehand, and no client-side version check: the pin always matches, and remote servers reject
-mismatches by the `Playwright/<pin>` user agent. `executable:` points at an npm-managed CLI.
+beforehand, and no client-side version check: the pin matches, and remote servers reject
+mismatches by the `Playwright/<pin>` user agent. `executable:` points at an npm-managed CLI
+(nothing is downloaded) and `node:` at a Node binary (only `playwright-core` is); neither is
+checked against the pins.
 Remote browsers (`BrowserType.connect`) go through the local driver's `LocalUtils.connect` and
 `JsonPipe`, as the JS client does, so there is no Elixir WebSocket client.
 

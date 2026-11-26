@@ -9,19 +9,22 @@ defmodule Playwright.Driver do
   Layout (same as Python's `playwright/driver/`):
 
       <cache_dir>/<driver_version>/<platform>/
-        node | node.exe   Node.js binary
-        LICENSE           Node.js license
+        node | node.exe   Node.js binary (not with `:node`)
+        LICENSE           Node.js license (not with `:node`)
         package/          playwright-core npm package (package/cli.js is the entry point)
 
   `cache_dir` defaults to `:filename.basedir(:user_cache, "playwright")`, overridable with
   the `:cache_dir` option.
 
-  Overrides (no download happens when one is set):
+  Overrides:
 
     * `executable: path` - an npm-managed `playwright` CLI (e.g. `node_modules/.bin/playwright`),
-      run as `path run-driver`.
-    * `node: path` - like Python: use this Node binary with the cached `package/cli.js` (the
-      package is still installed if missing).
+      run as `path run-driver`. Nothing is downloaded.
+    * `node: path` - like Python: use this Node binary with the cached `package/cli.js`. Only the
+      package is downloaded.
+
+  Neither is checked against the pins: the CLI should be npm's `playwright` at `version/0`, and
+  the Node binary one that version supports.
 
   ## Configuration
 
@@ -103,31 +106,22 @@ defmodule Playwright.Driver do
   end
 
   @doc """
-  Installs the driver unless it is installed or an override is set (`install/1`), then returns
-  `executable/1`. `Playwright.Supervisor` calls it when it starts.
+  Installs the driver unless it is installed (`install/1`), then returns `executable/1`.
+  `Playwright.Supervisor` calls it when it starts.
   """
   @spec ensure_installed([option()]) :: {String.t(), [String.t()]}
   def ensure_installed(opts \\ []) do
-    cond do
-      option(opts, :executable) ->
-        :ok
-
-      File.regular?(cli_path(opts)) and
-          (option(opts, :node) || File.regular?(node_path(opts))) ->
-        :ok
-
-      true ->
-        install(opts)
-    end
-
+    if not installed?(opts), do: install(opts)
     executable(opts)
   end
 
-  @doc "Whether the pinned driver is installed in `install_dir/1`."
+  @doc """
+  Whether what the options need is installed in `install_dir/1`: nothing with `:executable`,
+  the package with `:node`, else the package and Node.
+  """
   @spec installed?([option()]) :: boolean()
   def installed?(opts \\ []) do
-    platform = opts[:platform] || platform!()
-    complete?(install_dir(Keyword.put(opts, :platform, platform)), platform)
+    option(opts, :executable) != nil or complete?(install_dir(opts), opts)
   end
 
   @doc "Where the pinned driver is (or will be) installed: `<cache_dir>/<version>/<platform>`."
@@ -145,21 +139,27 @@ defmodule Playwright.Driver do
   end
 
   @doc """
-  Downloads, verifies and extracts the driver. Idempotent; atomic (everything happens in a
+  Downloads, verifies and extracts what the options need: nothing with `:executable`, only the
+  package with `:node`, else the package and Node. Idempotent; atomic (everything happens in a
   temp dir next to the target, which is renamed into place only after all checks passed).
 
-  Options: `:cache_dir`, `:platform`, `force: true` to reinstall. Raises if a download or a
-  checksum fails.
+  Options: those of `t:option/0`, `force: true` to reinstall. Raises if a download or a checksum
+  fails.
   """
   @spec install([option() | {:force, boolean()}]) :: :ok
   def install(opts \\ []) do
+    if option(opts, :executable), do: :ok, else: install_driver(opts)
+  end
+
+  defp install_driver(opts) do
     platform = opts[:platform] || platform!()
     platform in @platforms || unsupported!("Playwright.Driver.install/1", platform)
-    target = install_dir(Keyword.put(opts, :platform, platform))
+    opts = Keyword.put(opts, :platform, platform)
+    target = install_dir(opts)
     force = Keyword.get(opts, :force, false)
 
     # A directory with a file missing (an interrupted copy, a cleaned cache) is repaired.
-    if complete?(target, platform) and not force do
+    if complete?(target, opts) and not force do
       :ok
     else
       checksums = opts[:checksums] || @checksums
@@ -169,10 +169,10 @@ defmodule Playwright.Driver do
       File.mkdir_p!(tmp)
 
       try do
-        build(tmp, platform, checksums)
+        build(tmp, platform, checksums, !option(opts, :node))
 
         # A concurrent installer's complete result stays: it is equally valid, and may be running.
-        if File.dir?(target) and (force or not complete?(target, platform)), do: File.rm_rf!(target)
+        if File.dir?(target) and (force or not complete?(target, opts)), do: File.rm_rf!(target)
 
         case File.rename(tmp, target) do
           :ok ->
@@ -191,10 +191,12 @@ defmodule Playwright.Driver do
     end
   end
 
-  defp complete?(dir, platform),
-    do: File.regular?(Path.join([dir, "package", "cli.js"])) and File.regular?(Path.join(dir, node_file(platform)))
+  defp complete?(dir, opts) do
+    File.regular?(Path.join([dir, "package", "cli.js"])) and
+      (option(opts, :node) != nil or File.regular?(Path.join(dir, node_file(Path.basename(dir)))))
+  end
 
-  defp build(tmp, platform, checksums) do
+  defp build(tmp, platform, checksums, with_node?) do
     downloads = Path.join(tmp, ".downloads")
     File.mkdir_p!(downloads)
 
@@ -210,11 +212,13 @@ defmodule Playwright.Driver do
       raise "Playwright.Driver.install/1: package/cli.js missing in #{npm_url()}"
 
     # Node.js: official archive, verified against SHASUMS256.txt. Only node + LICENSE are kept.
-    expected = Map.fetch!(checksums.node, platform)
-    archive = Path.join(downloads, node_archive(platform))
-    download!(node_url(platform), archive)
-    verify!(archive, "sha256-hex:" <> expected)
-    extract_node!(archive, platform, tmp)
+    if with_node? do
+      expected = Map.fetch!(checksums.node, platform)
+      archive = Path.join(downloads, node_archive(platform))
+      download!(node_url(platform), archive)
+      verify!(archive, "sha256-hex:" <> expected)
+      extract_node!(archive, platform, tmp)
+    end
 
     File.rm_rf!(downloads)
     :ok
@@ -342,8 +346,7 @@ defmodule Playwright.Driver do
     raise """
     #{label}: no driver download for this platform, expected one of #{Enum.join(@platforms, ", ")}, got: #{desc}.
     Install Playwright yourself (`npm i playwright@#{@driver_version}`) and pass
-    `executable: "node_modules/.bin/playwright"` (or `config :playwright, :driver, executable: ...`),
-    or point `node:` at a Node.js binary.\
+    `executable: "node_modules/.bin/playwright"` (or `config :playwright, :driver, executable: ...`).\
     """
   end
 
