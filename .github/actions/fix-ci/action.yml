@@ -1,14 +1,16 @@
-# Pushes a fix for a PR whose CI failed, for claude-nightly.yml (simplification PRs) and
-# upstream-update.yml (ports). The caller checks out the PR's branch with `persist-credentials:
-# false`, gives the job `contents: read`, `actions: read` (the failed log) and `id-token: write`,
-# and takes this action from main's copy in tmp/default-branch, so a branch can't change it.
+# Pushes a fix for a PR whose CI failed or that has open review findings, for claude-nightly.yml
+# (simplification PRs) and upstream-update.yml (ports). The caller checks out the PR's branch with
+# `persist-credentials: false`, gives the job `contents: read`, `actions: read` (the failed log)
+# and `id-token: write`, and takes this action from main's copy in tmp/default-branch, so a branch
+# can't change it. For findings, the caller runs ftes/ci/review-threads before this and
+# ftes/ci/review-threads/answer on `structured_output` after it.
 # Only new commits, nothing merged from main, so no workflow files (the app can't push those).
 #
 # Accepted risk: with an id-token, the setup runs the branch's code (mix.exs, deps), which can
 # tamper with the job or mint the app token. Only maintainers, Claude's own branches and Renovate
 # can push branches here, and the callers take only their own branches, never Renovate's.
 name: Fix CI
-description: Has Claude fix, re-run or give up on a PR whose CI failed.
+description: Has Claude fix a PR's failed CI or review findings, re-run it or give up on it.
 
 inputs:
   token:
@@ -23,6 +25,17 @@ inputs:
   branch:
     description: The PR's branch, checked out.
     required: true
+  failing:
+    description: "Whether the PR's CI failed: `false` leaves only the review findings to fix."
+    default: "true"
+  json-schema:
+    description: "ftes/ci/review-threads' schema, after it listed the PR's findings: Claude answers them."
+    default: ""
+
+outputs:
+  structured_output:
+    description: Claude's answer to the findings, for ftes/ci/review-threads/answer.
+    value: ${{ steps.claude.outputs.structured_output }}
 
 runs:
   using: composite
@@ -37,12 +50,14 @@ runs:
         KIND: ${{ inputs.kind }}
         PR: ${{ inputs.pr }}
         BRANCH: ${{ inputs.branch }}
+        FAILING: ${{ inputs.failing }}
       run: |
-        if [[ ! $KIND =~ ^(nightly|upstream)$ || ! $PR =~ ^[0-9]+$ || ! $BRANCH =~ ^[A-Za-z0-9._/-]+$ ]] ||
+        if [[ ! $KIND =~ ^(nightly|upstream)$ || ! $PR =~ ^[0-9]+$ || ! $BRANCH =~ ^[A-Za-z0-9._/-]+$ || ! $FAILING =~ ^(true|false)$ ]] ||
           [[ $KIND == nightly && $BRANCH != claude/nightly-* ]] || [[ $KIND == upstream && $BRANCH != upstream/* ]]; then
-          echo "::error::bad input: $KIND $PR $BRANCH"
+          echo "::error::bad input: $KIND $PR $BRANCH $FAILING"
           exit 1
         fi
+        [[ $FAILING == true ]] || exit 0
         # This repository's runs of the checked-out commit only.
         head=$(git rev-parse HEAD)
         # shellcheck disable=SC2016 # jq's $ENV
@@ -59,7 +74,8 @@ runs:
       continue-on-error: true
       shell: bash
       run: mkdir -p ~/.cache/playwright && mix playwright.upstream
-    - uses: ftes/ci/claude@e53e22699f50c88157237931a10500d367cca47c # v1.0.13
+    - id: claude
+      uses: ftes/ci/claude@69c1983b7caa80316be46edc22ba0b70f8c46b77 # v1.0.10
       with:
         token: ${{ inputs.token }}
         prompt-file: .github/prompts/fix-ci.md
@@ -67,6 +83,8 @@ runs:
           REPO: ${{ github.repository }}
           PR: ${{ inputs.pr }} (${{ inputs.kind == 'nightly' && 'a simplification by the nightly workflow' || 'a draft porting a Playwright release' }})
           BRANCH: ${{ inputs.branch }} (already checked out)
+          CI: ${{ inputs.failing == 'true' && 'failed, the end of the failed steps'' log is in tmp/ci-failed.log (tmp/ is gitignored)' || 'passing' }}
+          FINDINGS: ${{ inputs.json-schema != '' && format('tmp/review-threads/{0}.md (tmp/ is gitignored)', inputs.pr) || 'none' }}
           SUBJECT: ${{ inputs.kind == 'nightly' && 'one imperative sentence (match `git log`)' || '"Fix CI: <one imperative sentence>"' }}
           GIVE UP CONDITION: ${{ inputs.kind == 'nightly' && 'It can''t be fixed without redesigning the change' || 'It needs a redesign of the change, a decision or a skip' }}
           GIVE UP: ${{ inputs.kind == 'nightly' && format('gh pr close {0} --delete-branch --comment "<one sentence on why>"', inputs.pr) || format('gh pr comment {0} --body "Needs a human: <one sentence on why>"', inputs.pr) }}
@@ -74,4 +92,5 @@ runs:
         max-turns: ${{ inputs.kind == 'nightly' && '60' || '150' }}
         add-dir: /home/runner/.cache/playwright
         system-prompt: ${{ steps.sources.outcome == 'success' && 'Upstream''s sources at the pin are under ~/.cache/playwright/<version>/upstream.' || '' }}
-        allowed-tools: "Skill,Read,Grep,Glob,Edit,Write,${{ inputs.kind != 'nightly' && 'Agent,Task,' || '' }}Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix credo:*),Bash(mix playwright.parity:*),Bash(mix playwright.gen.api:*),Bash(mix playwright.gen.protocol:*),Bash(gh pr view ${{ inputs.pr }}),Bash(gh pr view ${{ inputs.pr }} *),Bash(gh pr diff ${{ inputs.pr }}),Bash(gh pr diff ${{ inputs.pr }} *),Bash(git push origin ${{ inputs.branch }}),${{ inputs.kind == 'nightly' && format('Bash(gh pr close {0} *)', inputs.pr) || format('Bash(gh pr comment {0} *)', inputs.pr) }}"
+        json-schema: ${{ inputs.json-schema }}
+        allowed-tools: "Skill,Read,Grep,Glob,Edit,Write,StructuredOutput,${{ inputs.kind != 'nightly' && 'Agent,Task,' || '' }}Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix credo:*),Bash(mix playwright.parity:*),Bash(mix playwright.gen.api:*),Bash(mix playwright.gen.protocol:*),Bash(gh pr view ${{ inputs.pr }}),Bash(gh pr view ${{ inputs.pr }} *),Bash(gh pr diff ${{ inputs.pr }}),Bash(gh pr diff ${{ inputs.pr }} *),Bash(git push origin ${{ inputs.branch }}),${{ inputs.kind == 'nightly' && format('Bash(gh pr close {0} *)', inputs.pr) || format('Bash(gh pr comment {0} *)', inputs.pr) }}"
