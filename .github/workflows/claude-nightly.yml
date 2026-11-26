@@ -1,102 +1,97 @@
-# Accepted risk (.github/actions/fix-ci): with an id-token, `fix` runs a nightly PR branch's setup
-# code. Only claude/nightly-* branches.
-name: Claude Nightly Improvement
+name: OpenCode Nightly Improvement
 
 on:
   schedule:
     - cron: "17 1 * * *"
   workflow_dispatch:
 
-# One run at a time, so two runs can't both take the last slot.
+# Keep the group stable across the migration.
 concurrency:
   group: claude-nightly
   cancel-in-progress: false
 
-# Each job asks for what it needs.
 permissions: {}
 
 env:
-  # As in ci.yml.
   MIX_ENV: test
+  BASE_BRANCH: ${{ github.event.repository.default_branch }}
 
 jobs:
-  # Frees slots before the cap is counted. A job, not an earlier cron: GitHub delays scheduled
-  # runs, and only `needs` guarantees the order.
   triage:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ${{ vars.RUNNER == 'github' && 'ubuntu-26.04' || 'ubicloud-standard-2-ubuntu-2604' }}
     timeout-minutes: 30
     permissions:
       contents: read
       pull-requests: read
-      id-token: write # Exchanged for the Claude app token, which closes the PRs.
+      id-token: write
     outputs:
-      redo: ${{ steps.redo.outputs.redo }}
+      redo: ${{ steps.triage.outputs.redo }}
     steps:
-      - name: List open nightly PRs without human comments or reviews
+      - name: Snapshot open nightly PRs
         id: list
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        # A human comment or review keeps a PR out of triage; Claude's and CodeRabbit's reviews
-        # don't. The allowlist names each PR, so Claude can't read or close any other.
         run: |
-          prs=$(gh pr list --state open --limit 1000 --json number,headRefName,isCrossRepository,comments,reviews \
-            --jq '[.[] | select((.isCrossRepository | not) and (.headRefName | startswith("claude/nightly-")) and ([.comments[], .reviews[]] | all(.author.login | IN("claude", "coderabbitai")))) | {number, branch: .headRefName}]')
-          numbers=$(jq -c 'map(.number)' <<< "$prs")
-          {
-            echo "numbers=$(jq -r 'join(" ")' <<< "$numbers")"
-            echo "allowed=$(jq -r 'map("Bash(gh pr close \(.) *),Bash(gh pr view \(.)),Bash(gh pr view \(.) *),Bash(gh pr diff \(.)),Bash(gh pr diff \(.) *)") | join(",")' <<< "$numbers")"
-            echo "listed=$(jq -r 'map("#\(.number) (\(.branch))") | join(", ")' <<< "$prs")"
-          } >> "$GITHUB_OUTPUT"
-      - name: Checkout repository
-        if: steps.list.outputs.numbers != ''
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+          prs=$(gh pr list --state open --limit 1000 --json number,headRefName,headRefOid,baseRefName,isCrossRepository,comments,reviews \
+            --jq '[.[] | select((.isCrossRepository | not) and .baseRefName == env.BASE_BRANCH
+              and (.headRefName | test("^(claude|opencode)/nightly-[0-9]+(-[0-9]+)?$"))
+              and ([.comments[], .reviews[]] | all(.author.login | IN("claude", "opencode-agent", "coderabbitai"))))
+              | {number, branch: .headRefName, head: .headRefOid}]')
+          echo "targets=$prs" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # Main's code, also on a workflow_dispatch from another branch.
-          ref: main
+          ref: ${{ env.BASE_BRANCH }}
           persist-credentials: false
           fetch-depth: 0
-      - id: claude
-        if: steps.list.outputs.numbers != ''
-        uses: ftes/ci/claude@e53e22699f50c88157237931a10500d367cca47c # v1.0.13
+      - name: Triage
+        id: triage
+        if: steps.list.outputs.targets != '[]'
+        uses: ftes/ci/opencode-scheduled@5184fac0b5a41c940975836b0a48d8ff3b4416d5 # ftes/ci#18
         with:
-          token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt-file: .github/prompts/nightly-triage.md
+          mode: triage
+          client-id: ${{ vars.OPENCODE_CLIENT_ID }}
+          base: ${{ env.BASE_BRANCH }}
+          targets: ${{ steps.list.outputs.targets }}
           prompt: |
-            REPO: ${{ github.repository }}
-            OPEN NIGHTLY PRS, each with its branch: ${{ steps.list.outputs.listed }}
-          max-turns: "60"
-          allowed-tools: "Skill,Read,Grep,Glob,Agent,Task,StructuredOutput,Bash(git log:*),Bash(git show:*),Bash(git diff:*),${{ steps.list.outputs.allowed }}"
-          json-schema: '{"type":"object","properties":{"redo":{"type":"array","items":{"type":"object","properties":{"number":{"type":"integer"},"why":{"type":"string"}},"required":["number","why"]}}},"required":["redo"]}'
-      - name: Keep the redo verdicts of listed PRs
-        id: redo
-        if: ${{ !cancelled() }}
-        env:
-          OUTPUT: ${{ steps.claude.outputs.structured_output }}
-          NUMBERS: ${{ steps.list.outputs.numbers }}
-        # Claude's answer is data: only the PRs it was given, and a `why` cut to one line.
-        run: |
-          redo=$(jq -cn --arg numbers "$NUMBERS" '($numbers | split(" ") | map(select(. != "") | tonumber)) as $listed
-            | (env.OUTPUT | try fromjson catch {}) | (.redo // [])
-            | map(select(.number as $n | $listed | any(. == $n)) | {number, why: (.why | tostring | gsub("\\s+"; " ") | .[:200])})
-            | unique_by(.number)')
-          echo "::notice::To redo: $(jq -r 'map("#\(.number)") | join(" ")' <<< "$redo")"
-          echo "redo=$redo" >> "$GITHUB_OUTPUT"
+            An earlier nightly run opened the OPEN NIGHTLY PRS, simplification PRs, and main has moved on
+            since. Check that each still makes sense on main as it is now. main is checked out.
 
-  # After triage, so only PRs worth keeping get fixed.
+            For each PR, Read the PR context and, on main, the code it touches, its callers
+            and the patterns it follows. Then decide one of:
+
+            - keep: the change still fits main. This is the default: when in doubt, keep it.
+            - close: main made it obsolete or wrong. The code it simplifies is gone or rewritten, main
+              already made the same change or solved the problem another way, or main changed the design it
+              relies on, so the idea no longer holds.
+            - redo: the idea still holds, but the diff no longer fits main as it is. For example, main
+              changed the code it touches or its callers, renamed what it uses or added a use it misses, so
+              merging it as is would break or leave the code inconsistent. A redo makes the same change again
+              on a new branch from current main, which CI then tests.
+              A change is redone at most once: a PR whose branch is `opencode/nightly-<run>-<old PR>` or its legacy `claude/` form,
+              with two numbers, is itself a redo, so keep or close it.
+
+            A merge conflict alone, the PR's age or a preference for other work is no reason for either:
+            conflicts get redone anyway.
+
+            Report closes and redos separately, with a one-sentence reason per PR. Omit keep decisions.
+
   classify:
     needs: triage
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && needs.triage.result != 'skipped' }}
     runs-on: ${{ vars.RUNNER == 'github' && 'ubuntu-26.04' || 'ubicloud-standard-2-ubuntu-2604' }}
     timeout-minutes: 5
     permissions:
-      contents: write # Deletes the branch of a PR given up on.
-      pull-requests: write # Closes that PR.
+      contents: read
+      id-token: write
+      pull-requests: write # Recovers pending review thread resolutions.
       # Read by statusCheckRollup.
       actions: read
       checks: read
       statuses: read
     outputs:
+      base: ${{ steps.list.outputs.base }}
       recreate: ${{ steps.list.outputs.recreate }}
       work: ${{ steps.work.outputs.work }}
     steps:
@@ -119,27 +114,29 @@ jobs:
         # and the app can't push a merge or rebase, so the cap on redos is triage's alone.
         run: |
           list() {
-            gh pr list --state open --limit 40 --json number,headRefName,isCrossRepository,mergeable,commits,statusCheckRollup,comments,reviews \
-              --jq '[.[] | select((.isCrossRepository | not) and (.headRefName | startswith("claude/nightly-")) and ([.comments[], .reviews[]] | all(.author.login | IN("claude", "coderabbitai")))) | {number, branch: .headRefName, mergeable, commits: (.commits | length), failing: ([.statusCheckRollup[] | select(.workflowName == "CI")] | group_by(.name) | map(max_by(.startedAt)) | any(.conclusion == "FAILURE" or .conclusion == "TIMED_OUT"))}]'
+            gh pr list --state open --limit 40 --json number,headRefName,headRefOid,baseRefName,isCrossRepository,mergeable,commits,statusCheckRollup,comments,reviews \
+              --jq '[.[] | select((.isCrossRepository | not) and .baseRefName == env.BASE_BRANCH and (.headRefName | test("^(claude|opencode)/nightly-[0-9]+(-[0-9]+)?$")) and ([.comments[], .reviews[]] | all(.author.login | IN("claude", "opencode-agent", "coderabbitai")))) | {number, branch: .headRefName, head: .headRefOid, mergeable, commits: (.commits | length), failing: ([.statusCheckRollup[] | select(.workflowName == "CI")] | group_by(.name) | map(max_by(.startedAt)) | any(.conclusion == "FAILURE" or .conclusion == "TIMED_OUT"))}]'
           }
+          base=$(gh api "repos/$GH_REPO/git/ref/heads/$BASE_BRANCH" --jq .object.sha)
           list > /dev/null
           sleep 30
           prs=$(list)
-          exhausted=$(jq -c --argjson max "$MAX_COMMITS" 'map(select(.mergeable == "MERGEABLE" and .failing and .commits >= $max) | .number)' <<< "$prs")
+          exhausted=$(jq -c --argjson max "$MAX_COMMITS" 'map(select(.mergeable == "MERGEABLE" and .failing and .commits >= $max) | {number, branch, head})' <<< "$prs")
           # Triage's redo, if still open and listed (triage may have closed it, or a human commented
           # since), not out of fixes and not a redo itself (claude/nightly-<run>-<old PR>).
-          recreate=$(jq -c --argjson redo "$REDO" --argjson exhausted "$exhausted" '. as $prs
-            | ($redo | map(select(.number as $n | ($prs | any(.number == $n and (.branch | test("^claude/nightly-[0-9]+-[0-9]+$") | not))) and ($exhausted | all(. != $n)))))
-              + map(select(.mergeable == "CONFLICTING") | {number, why: "It conflicts with main."})
+          recreate=$(jq -c --arg base "$base" --argjson redo "$REDO" --argjson exhausted "$exhausted" '. as $prs
+            | ($redo | map(select(. as $r | .base == $base and ($prs | any(.number == $r.number and .head == $r.head and (.branch | test("^(claude|opencode)/nightly-[0-9]+-[0-9]+$") | not))) and ($exhausted | all(.number != $r.number)))))
+              + map(select(.mergeable == "CONFLICTING") | {number, branch, head, base: $base, why: "It conflicts with the default branch."})
             | unique_by(.number)' <<< "$prs")
           others=$(jq -c --argjson recreate "$recreate" 'map(select(.number as $n | $recreate | all(.number != $n)))' <<< "$prs")
           # Mergeable and within the fix budget: fix picks those that fail CI or have open findings.
-          candidates=$(jq -c --argjson max "$MAX_COMMITS" 'map(select(.mergeable == "MERGEABLE" and .commits < $max) | {number, branch, failing})' <<< "$others")
+          candidates=$(jq -c --argjson max "$MAX_COMMITS" 'map(select(.mergeable == "MERGEABLE" and .commits < $max) | {number, branch, head, failing})' <<< "$others")
           {
+            echo "base=$base"
             echo "recreate=$recreate"
             echo "candidates=$candidates"
             echo "candidate-numbers=$(jq -r 'map(.number) | join(" ")' <<< "$candidates")"
-            echo "exhausted=$(jq -r 'join(" ")' <<< "$exhausted")"
+            echo "exhausted=$exhausted"
           } >> "$GITHUB_OUTPUT"
       # The findings Claude's review and CodeRabbit left unresolved, which a ruleset requiring
       # resolved conversations blocks the merge on. Should it fail, only CI failures get fixed.
@@ -149,6 +146,7 @@ jobs:
         continue-on-error: true
         uses: ftes/ci/review-threads@e59c4b0b13300a060349ceac1781be70363a0850 # review-threads (ftes/ci#16)
         with:
+          authors: claude opencode-agent coderabbitai
           prs: ${{ steps.list.outputs.candidate-numbers }}
       - name: Pick the PRs to fix
         id: work
@@ -156,28 +154,25 @@ jobs:
           CANDIDATES: ${{ steps.list.outputs.candidates || '[]' }}
           OPEN: ${{ steps.threads.outputs.open || '[]' }}
         run: echo "work=$(jq -cn --argjson open "$OPEN" 'env.CANDIDATES | fromjson | map(select(.failing or (.number as $n | $open | any(. == $n))))')" >> "$GITHUB_OUTPUT"
-      - name: Close PRs still failing after two fixes
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          NUMBERS: ${{ steps.list.outputs.exhausted }}
-        run: |
-          for number in $NUMBERS; do
-            gh pr close "$number" --delete-branch --comment "CI still fails after two automatic fixes."
-          done
+      - name: Exhaust
+        if: steps.list.outputs.exhausted != '[]'
+        uses: ftes/ci/opencode-scheduled@5184fac0b5a41c940975836b0a48d8ff3b4416d5 # ftes/ci#18
+        with:
+          mode: exhaust
+          client-id: ${{ vars.OPENCODE_CLIENT_ID }}
+          base: ${{ env.BASE_BRANCH }}
+          targets: ${{ steps.list.outputs.exhausted }}
 
-  # Pushes a fix to each PR whose CI failed, which is where a change gets tested: improve publishes
-  # without running the suite, or that has open review findings, which it then answers.
   fix:
     needs: classify
-    if: ${{ !cancelled() && needs.classify.result == 'success' && needs.classify.outputs.work != '[]' }}
+    if: needs.classify.outputs.work != '' && needs.classify.outputs.work != '[]'
     runs-on: ${{ vars.RUNNER == 'github' && 'ubuntu-26.04' || 'ubicloud-standard-2-ubuntu-2604' }}
     timeout-minutes: 45
     permissions:
       contents: read
-      actions: read # gh run view, for the failed log.
-      id-token: write # Exchanged for the Claude app token.
-      pull-requests: write # Answers the review findings.
+      actions: read
+      id-token: write
+      pull-requests: write
     strategy:
       fail-fast: false
       matrix:
@@ -185,72 +180,77 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # Else checkout's read-only token can override the app token Claude pushes with: from v6
-          # it sits in an includeIf file claude-code-action doesn't clear, so the push gets a 403.
+          ref: ${{ matrix.pr.head }}
           persist-credentials: false
-          ref: ${{ matrix.pr.branch }}
           fetch-depth: 0
-      # The fix-ci action from main, not from the ref checked out above: into a gitignored path,
-      # after that checkout, which would clean it.
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Prepare fix
+        id: prepare
+        uses: ftes/ci/opencode-scheduled@5184fac0b5a41c940975836b0a48d8ff3b4416d5 # ftes/ci#18
         with:
-          ref: main
-          path: tmp/default-branch
-          sparse-checkout: .github
-          persist-credentials: false
-      # After both checkouts, which would clean it. Should it fail, Claude fixes CI alone: without
-      # the schema, no findings, and no answers.
+          mode: prepare-fix
+          client-id: ${{ vars.OPENCODE_CLIENT_ID }}
+          base: ${{ env.BASE_BRANCH }}
+          targets: ${{ format('[{0}]', toJSON(matrix.pr)) }}
+      - name: Set up toolchain and deps
+        if: steps.prepare.outputs.active == 'true'
+        uses: ftes/ci/setup@0e4b067199ea2f6a255a26ab43403f6f6acb5cb6 # v1.0.12
+      - name: Download upstream sources
+        if: steps.prepare.outputs.active == 'true'
+        continue-on-error: true
+        run: mix playwright.upstream
       - name: List open review findings
         id: threads
+        if: steps.prepare.outputs.active == 'true'
         continue-on-error: true
-        uses: ftes/ci/review-threads@e59c4b0b13300a060349ceac1781be70363a0850 # review-threads (ftes/ci#16)
+        uses: ftes/ci/review-threads@0e4b067199ea2f6a255a26ab43403f6f6acb5cb6 # v1.0.12
         with:
           prs: ${{ matrix.pr.number }}
-      - id: fix
-        uses: ./tmp/default-branch/.github/actions/fix-ci
+          authors: claude opencode-agent coderabbitai
+      - name: Fix
+        id: fix
+        if: steps.prepare.outputs.active == 'true'
+        uses: ftes/ci/opencode-scheduled@5184fac0b5a41c940975836b0a48d8ff3b4416d5 # ftes/ci#18
         with:
-          token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          kind: nightly
-          pr: ${{ matrix.pr.number }}
-          branch: ${{ matrix.pr.branch }}
-          failing: ${{ matrix.pr.failing }}
-          json-schema: ${{ steps.threads.outcome == 'success' && steps.threads.outputs.schema || '' }}
-      # Replies to each finding; reacts to and resolves the fixed ones.
+          mode: fix
+          client-id: ${{ vars.OPENCODE_CLIENT_ID }}
+          base: ${{ env.BASE_BRANCH }}
+          targets: ${{ format('[{0}]', toJSON(matrix.pr)) }}
+          schema: ${{ steps.threads.outcome == 'success' && steps.threads.outputs.schema || '' }}
+          prompt: |
+            Fix the PR's CI failure and any review findings that hold. Read the saved PR
+            metadata and diff, the findings file if present, and tmp/ci-failed.log if CI failed.
+            Follow AGENTS.md and PORTING.md and compare ported code against upstream.
+            Do not weaken a test or merge or rebase. Run `mix format`, `mix compile --warnings-as-errors`, `mix credo` and `mix playwright.parity`.
+            Return fix with an imperative commit subject if you changed code; retry for an
+            unrelated CI failure if you made no edits; give-up with a reason if a redesign is
+            needed; or skip if CI passed and no changes are justified. For fix, retry or skip,
+            answer every listed finding with its id, fixed boolean and short reply.
       - name: Answer the review findings
-        if: ${{ !cancelled() && steps.fix.outputs.structured_output != '' }}
-        uses: ftes/ci/review-threads/answer@e59c4b0b13300a060349ceac1781be70363a0850 # review-threads (ftes/ci#16)
+        if: steps.fix.outputs.answers != ''
+        uses: ftes/ci/review-threads/answer@0e4b067199ea2f6a255a26ab43403f6f6acb5cb6 # v1.0.12
         with:
           pr: ${{ matrix.pr.number }}
-          answers: ${{ steps.fix.outputs.structured_output }}
+          answers: ${{ steps.fix.outputs.answers }}
 
-  # Replaces each conflicted PR, and each that triage found no longer fits main, with one on a new
-  # branch from main. The Claude app can't push workflow file changes, which a merge or rebase of
-  # the old branch would carry from main.
   recreate:
     needs: classify
-    if: ${{ !cancelled() && needs.classify.result == 'success' && needs.classify.outputs.recreate != '[]' }}
+    if: needs.classify.outputs.recreate != '' && needs.classify.outputs.recreate != '[]'
     runs-on: ${{ vars.RUNNER == 'github' && 'ubuntu-26.04' || 'ubicloud-standard-2-ubuntu-2604' }}
     timeout-minutes: 45
     permissions:
       contents: read
-      id-token: write # Exchanged for the Claude app token.
+      pull-requests: read
+      id-token: write
     strategy:
       fail-fast: false
       matrix:
         pr: ${{ fromJSON(needs.classify.outputs.recreate) }}
-    env:
-      NIGHTLY_BRANCH: claude/nightly-${{ github.run_id }}-${{ matrix.pr.number }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # Main's code, also on a workflow_dispatch from another branch.
-          ref: main
-          # Else checkout's read-only token can override the app token Claude pushes with: from v6
-          # it sits in an includeIf file claude-code-action doesn't clear, so the push gets a 403.
+          ref: ${{ needs.classify.outputs.base }}
           persist-credentials: false
           fetch-depth: 0
-      - run: git switch -c "$NIGHTLY_BRANCH"
       - name: Set up toolchain and deps
         uses: ftes/ci/setup@e53e22699f50c88157237931a10500d367cca47c # v1.0.13
       # Best effort: Claude runs without them.
@@ -258,22 +258,27 @@ jobs:
         id: sources
         continue-on-error: true
         run: mkdir -p ~/.cache/playwright && mix playwright.upstream
-      - uses: ftes/ci/claude@e53e22699f50c88157237931a10500d367cca47c # v1.0.13
+      - name: Recreate
+        uses: ftes/ci/opencode-scheduled@5184fac0b5a41c940975836b0a48d8ff3b4416d5 # ftes/ci#18
         with:
-          token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt-file: .github/prompts/nightly-recreate.md
+          mode: recreate
+          client-id: ${{ vars.OPENCODE_CLIENT_ID }}
+          base: ${{ env.BASE_BRANCH }}
+          targets: ${{ format('[{0}]', toJSON(matrix.pr)) }}
           prompt: |
-            REPO: ${{ github.repository }}
-            OLD_PR: ${{ matrix.pr.number }}
-            WHY: ${{ matrix.pr.why }}
-            BRANCH: ${{ env.NIGHTLY_BRANCH }} (already checked out, from current main)
-          max-turns: "60"
-          add-dir: /home/runner/.cache/playwright
-          system-prompt: ${{ steps.sources.outcome == 'success' && 'Upstream''s sources at the pin are under ~/.cache/playwright/<version>/upstream.' || '' }}
-          allowed-tools: "Skill,Read,Grep,Glob,Edit,Write,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix credo:*),Bash(mix playwright.parity:*),Bash(mix playwright.gen.api:*),Bash(mix playwright.gen.protocol:*),Bash(gh pr view ${{ matrix.pr.number }}),Bash(gh pr view ${{ matrix.pr.number }} *),Bash(gh pr diff ${{ matrix.pr.number }}),Bash(gh pr diff ${{ matrix.pr.number }} *),Bash(git push -u origin ${{ env.NIGHTLY_BRANCH }}),Bash(gh pr create --base main --head ${{ env.NIGHTLY_BRANCH }} *),Bash(gh pr close ${{ matrix.pr.number }} *)"
+            Reason to redo: ${{ matrix.pr.why }}
 
-  # Enforces the cap before any toolchain is set up. Runs even if an earlier job failed: the
-  # count is still right, it just finds fewer slots.
+            The OLD PR is a simplification that no longer fits main, for the reason in WHY. Redo it on
+            BRANCH.
+
+            Read the saved PR metadata and diff for what it set out to do, then make the same
+            change against the code as it is now, keeping what main has changed since and covering what WHY
+            names, following AGENTS.md and PORTING.md (generated files are regenerated, never merged by
+            hand). Run `mix format`, `mix compile --warnings-as-errors`, `mix credo` and
+            `mix playwright.parity`; they must pass. CI on the new PR runs the test suite.
+
+            Return publish with the old title and an updated description, or give-up with a one-sentence reason.
+
   capacity:
     needs: [fix, recreate]
     if: ${{ !cancelled() }}
@@ -296,7 +301,7 @@ jobs:
         # Same-repo branches only: a fork can pick any branch name, and this repo is public.
         run: |
           prs=$(gh pr list --state all --limit 1000 --json number,title,state,headRefName,isCrossRepository \
-            --jq '[.[] | select((.isCrossRepository | not) and (.headRefName | startswith("claude/nightly-"))) | {number, title, state}]')
+            --jq '[.[] | select((.isCrossRepository | not) and (.headRefName | test("^(claude|opencode)/nightly-[0-9]+(-[0-9]+)?$"))) | {number, title, state}]')
           open=$(jq '[.[] | select(.state == "OPEN")] | length' <<< "$prs")
           echo "::notice::$open of $MAX_OPEN_PRS nightly PRs open"
           if [ "$open" -lt "$MAX_OPEN_PRS" ]; then has_slot=true; else has_slot=false; fi
@@ -308,7 +313,7 @@ jobs:
           for number in $(jq -r '.[] | select(.state == "CLOSED") | .number' <<< "$recent"); do
             why=$(gh pr view "$number" --json closedAt,comments,reviews > "$RUNNER_TEMP/pr.json" &&
               gh api --paginate "repos/$GH_REPO/issues/$number/comments" \
-                --jq '.[] | select(.user.type == "Bot" and (.user.login | IN("claude[bot]", "github-actions[bot]"))) | {body, createdAt: .created_at}' |
+                --jq '.[] | select(.user.type == "Bot" and (.user.login | IN("claude[bot]", "opencode-agent[bot]", "github-actions[bot]"))) | {body, createdAt: .created_at}' |
                 jq -s . > "$RUNNER_TEMP/bots.json" &&
               jq -c --slurpfile bots "$RUNNER_TEMP/bots.json" '(.closedAt | fromdate) as $closed
                 | [.comments[], .reviews[] | select(.authorAssociation | IN("OWNER", "MEMBER", "COLLABORATOR"))]
@@ -324,28 +329,27 @@ jobs:
 
   improve:
     needs: capacity
-    # !cancelled(): the implicit success() would also fail on any failed or skipped job further up.
-    if: ${{ !cancelled() && needs.capacity.outputs.has-slot == 'true' }}
+    if: ${{ !cancelled() && needs.capacity.outputs.has-slot == 'true'
+      && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
     runs-on: ${{ vars.RUNNER == 'github' && 'ubuntu-26.04' || 'ubicloud-standard-2-ubuntu-2604' }}
     timeout-minutes: 60
     permissions:
       contents: read
-      id-token: write # Exchanged for the Claude app token. PRs from GITHUB_TOKEN wouldn't trigger CI.
-    env:
-      # The run's only branch: the exact push and PR commands below allow no other, and GitHub
-      # refuses a second PR for one head, so a run opens at most one.
-      NIGHTLY_BRANCH: claude/nightly-${{ github.run_id }}
+      pull-requests: read
+      id-token: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # Main's code, also on a workflow_dispatch from another branch.
-          ref: main
-          # Else checkout's read-only token can override the app token Claude pushes with: from v6
-          # it sits in an includeIf file claude-code-action doesn't clear, so the push gets a 403.
+          ref: ${{ env.BASE_BRANCH }}
           persist-credentials: false
           fetch-depth: 0
-      - run: git switch -c "$NIGHTLY_BRANCH"
+      - name: Set up toolchain and deps
+        uses: ftes/ci/setup@0e4b067199ea2f6a255a26ab43403f6f6acb5cb6 # v1.0.12
+      # Best effort: Claude runs without them.
+      - name: Download upstream sources
+        id: sources
+        continue-on-error: true
+        run: mkdir -p ~/.cache/playwright && mix playwright.upstream
       - name: Pick tonight's focus area
         id: focus
         # By day of the year, so successive nights look at different parts of the code.
@@ -362,23 +366,43 @@ jobs:
           echo "::notice::Focus: $area"
           echo "area=$area" >> "$GITHUB_OUTPUT"
 
-      - name: Set up toolchain and deps
-        uses: ftes/ci/setup@e53e22699f50c88157237931a10500d367cca47c # v1.0.13
-      # Best effort: Claude runs without them.
-      - name: Download upstream sources
-        id: sources
-        continue-on-error: true
-        run: mkdir -p ~/.cache/playwright && mix playwright.upstream
-      - uses: ftes/ci/claude@e53e22699f50c88157237931a10500d367cca47c # v1.0.13
+      - name: Improve
+        uses: ftes/ci/opencode-scheduled@5184fac0b5a41c940975836b0a48d8ff3b4416d5 # ftes/ci#18
         with:
-          token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt-file: .github/prompts/nightly-improve.md
+          mode: improve
+          client-id: ${{ vars.OPENCODE_CLIENT_ID }}
+          base: ${{ env.BASE_BRANCH }}
           prompt: |
-            REPO: ${{ github.repository }}
-            BRANCH: ${{ env.NIGHTLY_BRANCH }} (already checked out)
-            PREVIOUS NIGHTLY PRS, newest first: ${{ needs.capacity.outputs.prs }}
-            FOCUS: ${{ steps.focus.outputs.area }}
-          max-turns: "150"
-          add-dir: /home/runner/.cache/playwright
-          system-prompt: ${{ steps.sources.outcome == 'success' && 'Upstream''s sources at the pin are under ~/.cache/playwright/<version>/upstream.' || '' }}
-          allowed-tools: "Skill,Read,Grep,Glob,Edit,Write,Agent,Task,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix credo:*),Bash(mix playwright.parity:*),Bash(mix playwright.gen.api:*),Bash(mix playwright.gen.protocol:*),Bash(git push -u origin ${{ env.NIGHTLY_BRANCH }}),Bash(gh pr create --base main --head ${{ env.NIGHTLY_BRANCH }} *)"
+            Find the single most valuable improvement to this codebase's simplicity or consistency for one pull request, the kind a senior maintainer would be glad to merge. Pick it in or
+            touching FOCUS: each night looks at a different part of the codebase.
+
+            The rules for ported, generated and our own code are in AGENTS.md and PORTING.md: shorter ported
+            code is not simpler, and in ported code an unneeded deviation (PORTING.md, "Rules") is the best
+            find.
+
+            1. Read PORTING.md, docs/architecture.md and enough of the code in FOCUS to know the prevailing
+               patterns. Use subagents to survey separate areas in parallel.
+            2. Look for duplicated logic that belongs in one place, dead code, needless indirection or
+               options, and one concept handled or named differently across modules.
+            3. Rank the candidates by how much simpler or more uniform the code becomes for how little it
+               changes, with unneeded deviations in ported code first. Read the callers and tests of the best
+               one before committing to it. Skip anything overlapping an OPEN PR in PREVIOUS NIGHTLY PRS or
+               repeating a CLOSED one: those were declined, and `why` holds the reasons people gave.
+            4. Implement that one idea, matching the surrounding code. Prefer a diff that removes more than
+               it adds.
+
+            Limits: observable public behaviour stays the same, except where removing an unneeded deviation
+            restores upstream's. No new features, bug fixes, dependency, CI or changelog changes, and no
+            changes that are only formatting, comments or renames to taste.
+
+            Run `mix format`, `mix compile --warnings-as-errors`, `mix credo` and `mix playwright.parity`;
+            they must pass. Tests can't run here, in place of AGENTS.md's `mix check`: CI runs them on the
+            PR, and a later nightly run fixes any failure.
+
+            If nothing is clearly worth a maintainer's time, stop without pushing and say why. No PR is a
+            good result; a marginal PR is not.
+
+            Return publish with one imperative sentence as title and a short PR body, or skip.
+
+            Previous nightly PRs: ${{ needs.capacity.outputs.prs }}
+            Focus: ${{ steps.focus.outputs.area }}
