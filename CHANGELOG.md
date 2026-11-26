@@ -38,7 +38,7 @@ upstream minor, so `~> 1.65.0` is safe.
 1.x is a clean cut from 0.16: the guid-based modules, `Selector`, `EventWaiter` and the other
 0.16 APIs are gone. [Upgrading from 0.x](guides/upgrading-from-0.x.md) maps them to 1.x.
 
-## [1.65.0-rc.6] 2026-11-26
+## [Unreleased]
 
 Changes since 0.16.0, gathered across the release candidates.
 
