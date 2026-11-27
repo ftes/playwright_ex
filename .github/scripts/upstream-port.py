@@ -191,7 +191,7 @@ def finish(s, checked, base, branch, title, marker, parent, number, version, nod
 
     def available(head):
         pr = s.current(target | {"head": head})
-        if (pr and pr["draft"] and pr["title"] == title and pr["body"] in (PLACEHOLDER, body)
+        if (pr and pr["state"] == "open" and pr["draft"] and pr["title"] == title and pr["body"] in (PLACEHOLDER, body)
                 and pr["base"]["sha"] == base):
             return pr
         return None

@@ -81,7 +81,7 @@ class PortTest(unittest.TestCase):
         base, sha = "a" * 40, "b" * 40
         shared = Mock(BASE="main")
         shared.remote_head.side_effect = [sha, base]
-        shared.current.return_value = {"draft": True, "title": "Maintainer's title"}
+        shared.current.return_value = {"state": "open", "draft": True, "title": "Maintainer's title"}
         with tempfile.TemporaryDirectory() as directory:
             checked = Path(directory)
             (checked / "body").write_text("Port details.")
@@ -93,6 +93,28 @@ class PortTest(unittest.TestCase):
                                 "marker", sha, 7, "1.65.1", "26.13.1")
         shared.app_token.assert_not_called()
         shared.push.assert_not_called()
+
+    def test_finish_does_not_publish_to_a_closed_draft(self):
+        base, sha = "a" * 40, "b" * 40
+        title = "Update to Playwright 1.65.1"
+        shared = Mock(BASE="main")
+        shared.remote_head.side_effect = [sha, base]
+        shared.current.return_value = {
+            "state": "closed", "draft": True, "title": title, "body": port.PLACEHOLDER, "base": {"sha": base},
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            checked = Path(directory)
+            (checked / "body").write_text("Port details.")
+            shared.text.return_value = "Port details."
+            with (patch.object(port, "apply", return_value={"lib/port.ex"}),
+                  patch.object(port, "check_pins"), patch.object(port, "sealed_tree")):
+                with self.assertRaisesRegex(ValueError, "no longer under automation"):
+                    port.finish(shared, checked, base, "upstream/1.65.1", title,
+                                "marker", sha, 7, "1.65.1", "26.13.1")
+        shared.commit.assert_not_called()
+        shared.app_token.assert_not_called()
+        shared.push.assert_not_called()
+        shared.api.assert_not_called()
 
 
 if __name__ == "__main__":
