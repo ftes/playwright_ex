@@ -1,0 +1,192 @@
+name: Manual upstream port pilot
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Newer stable Playwright release (X.Y.Z)"
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      replay:
+        required: true
+        type: boolean
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN:
+        required: true
+
+permissions: {}
+
+concurrency:
+  group: upstream-port-pilot-${{ github.ref }}-${{ inputs.version }}
+  cancel-in-progress: false
+
+env:
+  TO: ${{ inputs.version }}
+  BASE: ${{ inputs.replay && 'upstream-pilot-replay-base' || 'main' }}
+  # The replay base is the real 1.65.0 source with only today's CI entry point added.
+  EXPECTED_BASE: ${{ inputs.replay && 'f7974c98e7826cbd5b8cffe88f22b6f0eb8c9020' || github.sha }}
+  MIX_ENV: test
+  BROWSER: chromium
+
+jobs:
+  prepare:
+    if: >-
+      github.repository == 'ftes/playwright_ex' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.actor == github.repository_owner && github.triggering_actor == github.repository_owner &&
+      ((!inputs.replay && github.ref == 'refs/heads/main') ||
+        (inputs.replay && github.ref == 'refs/heads/upstream-pilot-replay-workflow' && inputs.version == '1.65.1'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    outputs:
+      artifact: ${{ steps.upload.outputs.artifact-id }}
+      from-sha: ${{ steps.generate.outputs.from-sha }}
+      to-sha: ${{ steps.generate.outputs.to-sha }}
+      node: ${{ steps.generate.outputs.node }}
+    steps:
+      - &control
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - &checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.EXPECTED_BASE }}
+          path: port
+          persist-credentials: false
+      - &mise
+        uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
+        with:
+          version: "2026.11.12"
+          install: false
+          cache: false
+      - name: Prepare the pinned sources and generated files
+        id: generate
+        working-directory: port
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_BASE"
+          bash ../.github/scripts/upstream-pilot.sh prepare
+          python3 -I -B ../.github/scripts/upstream-pilot.py prepared
+      - id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pilot-prepared-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/pilot-prepared
+          if-no-files-found: error
+          retention-days: 7
+
+  infer:
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    outputs:
+      artifact: ${{ steps.upload.outputs.artifact-id }}
+    steps:
+      - *control
+      - *checkout
+      - &prepared
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ needs.prepare.outputs.artifact }}
+          path: ${{ runner.temp }}/pilot-prepared
+          merge-multiple: true
+      - uses: ftes/ci/opencode-install@41939eef91514e8ac6b33a1d6e7923edc42f4628 # v1.0.14
+      - name: Install the pinned Claude Code CLI
+        run: npm install --global @anthropic-ai/claude-code@2.1.332 # zizmor: ignore[adhoc-packages]
+      - name: Edit the scaffold without shell access
+        working-directory: port
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          test -n "$CLAUDE_CODE_OAUTH_TOKEN"
+          python3 -I -B ../.github/scripts/upstream-pilot.py infer
+      - id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pilot-proposal-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/pilot-proposal
+          if-no-files-found: error
+          retention-days: 7
+
+  verify:
+    needs: [prepare, infer]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    permissions:
+      contents: read
+    env:
+      FROM_SHA: ${{ needs.prepare.outputs.from-sha }}
+      TO_SHA: ${{ needs.prepare.outputs.to-sha }}
+      NODE: ${{ needs.prepare.outputs.node }}
+    outputs:
+      tree: ${{ steps.seal.outputs.tree }}
+      artifact: ${{ steps.upload.outputs.artifact-id }}
+    steps:
+      - *control
+      - *checkout
+      - *prepared
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ needs.infer.outputs.artifact }}
+          path: ${{ runner.temp }}/pilot-proposal
+          merge-multiple: true
+      - *mise
+      - name: Regenerate and seal the final candidate
+        id: seal
+        working-directory: port
+        run: |
+          python3 -I -B ../.github/scripts/upstream-pilot.py scaffold
+          bash ../.github/scripts/upstream-pilot.sh regenerate
+          python3 -I -B ../.github/scripts/upstream-pilot.py proposal
+          bash ../.github/scripts/upstream-pilot.sh finalize
+          python3 -I -B ../.github/scripts/upstream-pilot.py checked
+      - id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pilot-checked-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/pilot-checked
+          if-no-files-found: error
+          retention-days: 7
+      - name: Check the sealed candidate
+        working-directory: port
+        env:
+          SEALED_TREE: ${{ steps.seal.outputs.tree }}
+        run: |
+          python3 -I -B ../.github/scripts/upstream-pilot.py check-tree
+          bash ../.github/scripts/upstream-pilot.sh check
+          python3 -I -B ../.github/scripts/upstream-pilot.py check-tree
+
+  publish:
+    needs: [prepare, verify]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+      id-token: write
+    steps:
+      - *control
+      - *checkout
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ needs.verify.outputs.artifact }}
+          path: ${{ runner.temp }}/pilot-checked
+          merge-multiple: true
+      - name: Publish the checked patch as a draft
+        working-directory: port
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SEALED_TREE: ${{ needs.verify.outputs.tree }}
+          TO_SHA: ${{ needs.prepare.outputs.to-sha }}
+        run: python3 -I -B ../.github/scripts/upstream-pilot.py publish

@@ -15,6 +15,7 @@ jobs:
     if: >-
       (github.event.action != 'edited' || github.event.changes.base.ref.from != null) &&
       !github.event.pull_request.draft &&
+      !startsWith(github.head_ref, 'upstream-pilot/') &&
       !startsWith(github.head_ref, 'renovate/') &&
       (github.event.pull_request.user.type != 'Bot' ||
         contains(fromJSON('["claude[bot]","opencode-agent[bot]"]'), github.event.pull_request.user.login)) &&
