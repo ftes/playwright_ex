@@ -69,7 +69,7 @@ jobs:
       # the same MIX_ENV=test tree).
       - name: Set up toolchain and deps
         id: setup
-        uses: ftes/ci/setup@0e4b067199ea2f6a255a26ab43403f6f6acb5cb6 # v1.0.12
+        uses: ftes/ci/setup@e53e22699f50c88157237931a10500d367cca47c # v1.0.13
       # A PR never writes the shared cache; `mix dialyzer --plt` builds what a restore lacks. Keyed
       # per runner image and OTP build: a PLT from another is rejected as "Old PLT file".
       - name: Restore Dialyzer PLT cache
@@ -167,13 +167,13 @@ jobs:
       # The lane's toolchain; the build job (newest) or below (oldest) saves its deps and _build.
       - name: Set up toolchain and deps
         id: setup
-        uses: ftes/ci/setup@0e4b067199ea2f6a255a26ab43403f6f6acb5cb6 # v1.0.12
+        uses: ftes/ci/setup@e53e22699f50c88157237931a10500d367cca47c # v1.0.13
         with:
           lane: ${{ matrix.lane }}
       # This repo's DRIVER_VERSION: the driver it tests. One job per browser saves the apt cache
       # (the partitions and lanes would race for the key); the action saves on main only.
       - name: Install driver and browser
-        uses: ftes/ci/playwright-browser@0e4b067199ea2f6a255a26ab43403f6f6acb5cb6 # v1.0.12
+        uses: ftes/ci/playwright-browser@e53e22699f50c88157237931a10500d367cca47c # v1.0.13
         with:
           browser: ${{ matrix.browser }}
           driver-dir: .

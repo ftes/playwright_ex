@@ -52,14 +52,14 @@ runs:
         mkdir -p tmp
         gh run view "$run" --log-failed | tail -n 5000 > tmp/ci-failed.log
     - name: Set up toolchain and deps
-      uses: ftes/ci/setup@0e4b067199ea2f6a255a26ab43403f6f6acb5cb6 # v1.0.12
+      uses: ftes/ci/setup@e53e22699f50c88157237931a10500d367cca47c # v1.0.13
     # Best effort: Claude runs without them.
     - name: Download upstream sources
       id: sources
       continue-on-error: true
       shell: bash
       run: mkdir -p ~/.cache/playwright && mix playwright.upstream
-    - uses: ftes/ci/claude@0e4b067199ea2f6a255a26ab43403f6f6acb5cb6 # v1.0.12
+    - uses: ftes/ci/claude@e53e22699f50c88157237931a10500d367cca47c # v1.0.13
       with:
         token: ${{ inputs.token }}
         prompt-file: .github/prompts/fix-ci.md
