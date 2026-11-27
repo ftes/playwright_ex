@@ -69,10 +69,12 @@ class PortTest(unittest.TestCase):
         shared.commit.return_value = sha
         shared.app_token.return_value = nullcontext("app")
         shared.api.return_value = pr
+        shared.published_pr_matches.return_value = True
         with (patch.object(port, "artifact"), patch.object(port, "apply"), patch.object(port, "check_pins"),
               patch.object(port, "sealed_tree"), patch.dict(os.environ, GITHUB_OUTPUT=os.devnull)):
             port.checkpoint(shared, Path("prep"), base, branch, title, "marker", "1.65.1", "26.13.1")
         shared.push.assert_called_once_with(branch, "app", "")
+        shared.published_pr_matches.assert_called_once_with(pr, branch, sha, base)
         self.assertTrue(shared.api.call_args.kwargs["payload"]["draft"])
 
     def test_finish_does_not_publish_after_a_maintainer_changes_the_draft(self):

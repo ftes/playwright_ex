@@ -15,8 +15,8 @@ import time
 from urllib.request import urlopen
 
 
-CI = "843b4ef16d0776013b95c2c9f31c3e9c67a818b0"
-CONTROL_HASH = "5295a27eda1db3561a439e0e55714a4eee9fce68d68472d84b3792e67cb84256"
+CI = "41939eef91514e8ac6b33a1d6e7923edc42f4628"  # v1.0.14
+CONTROL_HASH = "32095ffd96a6d98994f262b2fc978299b0bd5b043ad45b9c9f2fe41683e9993f"
 PIN_FILES = {"DRIVER_VERSION", "NODE_VERSION", "priv/driver_checksums.exs"}
 SCAFFOLD = PIN_FILES | {
     "lib/playwright/protocol/validator.ex", "lib/playwright/protocol/metainfo.ex",
@@ -167,7 +167,8 @@ def checkpoint(s, prep, base, branch, title, marker, version, node):
         pr = prs[0] if prs else s.api("pulls", token=token, method="POST", payload={
             "head": branch, "base": s.BASE, "title": title, "body": PLACEHOLDER, "draft": True,
         })
-        s.require_published_pr(pr, branch, sha, base)
+        require(s.published_pr_matches(pr, branch, sha, base),
+                "Checkpoint PR does not match the validated branch, head and base")
         require(pr["draft"] and pr["state"] == "open" and pr["title"] == title and pr["body"] == PLACEHOLDER
                 and s.remote_head(s.BASE) == base and s.remote_head(branch) == sha,
                 "The checkpoint no longer matches; leaving the draft for a maintainer")
@@ -215,7 +216,8 @@ def finish(s, checked, base, branch, title, marker, parent, number, version, nod
             if pr:
                 if pr["body"] == PLACEHOLDER:
                     updated = s.api(f"pulls/{number}", token=token, method="PATCH", payload={"body": body})
-                    s.require_published_pr(updated, branch, sha, base)
+                    require(s.published_pr_matches(updated, branch, sha, base),
+                            "Updated PR does not match the validated branch, head and base")
                     require(updated["draft"] and updated["state"] == "open" and updated["body"] == body
                             and updated["title"] == title and s.remote_head(branch) == sha
                             and s.remote_head(s.BASE) == base,
