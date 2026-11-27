@@ -29,16 +29,33 @@ jobs:
       issues: read
       pull-requests: read
     outputs:
-      run: ${{ steps.gate.outputs.run }}
+      run: ${{ steps.guard.outputs.allowed }}
       fork: ${{ steps.gate.outputs.fork }}
       pr: ${{ steps.gate.outputs.pr }}
       number: ${{ steps.gate.outputs.number }}
       branch: ${{ steps.gate.outputs.branch }}
+      head: ${{ steps.guard.outputs.head }}
+      trusted: ${{ steps.guard.outputs.trusted }}
     steps:
       - id: gate
         uses: ftes/ci/opencode@b4b5623a6415b2740137e9f42cc26c3ed1b4ec11 # ftes/ci#17
         with:
           mode: gate
+      - if: steps.gate.outputs.run == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Bind the command to the trusted checkout and current PR head
+        if: steps.gate.outputs.run == 'true'
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ steps.gate.outputs.number }}
+          IS_PR: ${{ steps.gate.outputs.pr }}
+          BRANCH: ${{ steps.gate.outputs.branch }}
+        run: python3 -I -B .github/scripts/privileged-port-guard.py snapshot
 
   reply:
     needs: gate
@@ -73,7 +90,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.repository.default_branch }}
+          ref: ${{ needs.gate.outputs.trusted }}
           persist-credentials: false
           fetch-depth: 0
       - uses: ftes/ci/opencode-install@b4b5623a6415b2740137e9f42cc26c3ed1b4ec11 # ftes/ci#17
@@ -83,11 +100,16 @@ jobs:
           client-id: ${{ vars.OPENCODE_CLIENT_ID }}
       - name: Switch to the authorized worktree
         env:
+          GH_TOKEN: ${{ github.token }}
+          TRUSTED: ${{ needs.gate.outputs.trusted }}
+          EXPECTED_HEAD: ${{ needs.gate.outputs.head }}
+          NUMBER: ${{ needs.gate.outputs.number }}
           IS_PR: ${{ needs.gate.outputs.pr }}
           BRANCH: ${{ needs.gate.outputs.branch }}
         run: |
           if [[ "$IS_PR" == true ]]; then
-            git switch --detach "origin/$BRANCH"
+            python3 -I -B .github/scripts/privileged-port-guard.py require
+            git switch --detach "$EXPECTED_HEAD"
           else
             git switch -c "$BRANCH"
           fi

@@ -42,6 +42,7 @@ jobs:
       ((!inputs.replay && github.ref == 'refs/heads/main') ||
         (inputs.replay && github.ref == 'refs/heads/upstream-pilot-replay-workflow' && inputs.version == '1.65.1'))
     runs-on: ubuntu-latest
+    cache-mode: none
     timeout-minutes: 35
     permissions:
       contents: read
@@ -122,6 +123,7 @@ jobs:
   verify:
     needs: [prepare, infer]
     runs-on: ubuntu-latest
+    cache-mode: none
     timeout-minutes: 50
     permissions:
       contents: read
