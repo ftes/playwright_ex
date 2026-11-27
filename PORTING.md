@@ -238,6 +238,10 @@ test, starts with a prefix, then says why:
 
 ## Bumping the pinned version
 
+The repository owner can also run **Manual upstream port pilot** from the default branch with
+an explicit newer stable version. It checks the candidate before opening one draft; review
+the port and finish this checklist before marking it ready.
+
 `.github/workflows/upstream-update.yml` checks npm daily and opens a draft PR doing these steps
 (`.github/prompts/upstream-update.md`); finish its checklist by hand. Until you comment on or push
 to that PR, the workflow also pushes fixes for its CI failures. The mix tasks below live in
