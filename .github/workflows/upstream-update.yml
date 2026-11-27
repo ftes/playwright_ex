@@ -87,7 +87,7 @@ jobs:
           curl -fsSL --retry 3 "https://api.github.com/repos/microsoft/playwright/releases/tags/v$TO" \
             | jq -er .body > tmp/scheduled/upstream-release.md
       - name: Prepare and publish the port
-        uses: ftes/ci/opencode-scheduled@c9b8517b4d040e40bc5474c4b43616770745245f # ftes/ci#18
+        uses: ftes/ci/opencode-scheduled@8386c6cbd07ae70efb0071c9cacdd04ffe7b5b6f # ftes/ci#18
         with:
           mode: upstream
           client-id: ${{ vars.OPENCODE_CLIENT_ID }}
