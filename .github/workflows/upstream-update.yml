@@ -1,8 +1,18 @@
+# Opens a draft PR porting a new upstream Playwright release (PORTING.md "Bumping the pinned
+# version"), and pushes fixes for that PR's CI failures. Runs from the default branch (main):
+# GitHub runs schedules and lists workflow_dispatch workflows from it only, and claude-code-action's
+# token exchange rejects a workflow file that differs from the default branch's.
+#
+# Owner setup: the Claude GitHub App installed on the repo and the CLAUDE_CODE_OAUTH_TOKEN
+# secret (both already used by claude-code-review.yml). Recommended: a ruleset on main
+# requiring PRs, so no token can push to main whatever the prompt says.
+#
+# Release porting still uses the existing Claude job. CI repair uses the isolated candidate workflow.
 name: Upstream update
 
 on:
   schedule:
-    - cron: "17 5 * * *"
+    - cron: "17 5 * * *" # daily, off the hour (top-of-hour schedules are delayed or dropped)
   workflow_dispatch:
     inputs:
       version:
@@ -10,34 +20,39 @@ on:
         required: false
         type: string
 
+# One run at a time and no cancelling: a queued run waits for the port in progress, then finds
+# its branch and stops in `check`.
 concurrency:
   group: upstream-update
   cancel-in-progress: false
 
+# Each job asks for what it needs.
 permissions: {}
 
 env:
+  # As in ci.yml, so a fix compiles what CI failed on.
   MIX_ENV: test
   BASE_BRANCH: ${{ github.event.repository.default_branch }}
 
 jobs:
+  # Cheap, no Claude: is there a newer stable release without a branch or PR for it?
   check:
-    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ${{ vars.RUNNER == 'github' && 'ubuntu-26.04' || 'ubicloud-standard-2-ubuntu-2604' }}
     timeout-minutes: 5
     permissions:
-      contents: read
-      pull-requests: read
+      contents: read # read DRIVER_VERSION and mix.exs
+      pull-requests: read # gh pr list (dedup)
     outputs:
       update: ${{ steps.check.outputs.update }}
       from: ${{ steps.check.outputs.from }}
       to: ${{ steps.check.outputs.to }}
       version: ${{ steps.check.outputs.version }}
-      base: ${{ steps.check.outputs.base }}
+      branch: ${{ steps.check.outputs.branch }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ env.BASE_BRANCH }}
+          # As `update`, so both read main's tree on a workflow_dispatch from another branch.
+          ref: main
           persist-credentials: false
           sparse-checkout: |
             .github/scripts
@@ -48,6 +63,7 @@ jobs:
         id: check
         env:
           GH_TOKEN: ${{ github.token }}
+          # Via env, not interpolated into the script (injection).
           TARGET: ${{ inputs.version }}
         run: .github/scripts/upstream-check.sh "$TARGET"
 
@@ -55,48 +71,75 @@ jobs:
     needs: check
     if: needs.check.outputs.update == 'true'
     runs-on: ${{ vars.RUNNER == 'github' && 'ubuntu-26.04' || 'ubicloud-standard-2-ubuntu-2604' }}
+    # A minor release can mean hours of porting.
     timeout-minutes: 240
     permissions:
+      # The workflow token only checks out. Claude pushes and opens the PR
+      # with the Claude GitHub App's installation token, which the action gets by exchanging
+      # this job's OIDC token (id-token: write) at api.anthropic.com
+      # (contents/pull-requests/issues: write on this repo only). Unlike GITHUB_TOKEN, an app
+      # token's push and PR do trigger workflows, so ci.yml runs on the PR as on any other.
       contents: read
       id-token: write
-      pull-requests: read
+      pull-requests: read # the PR check after Claude
     env:
       BROWSER: chromium
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.check.outputs.base }}
+          # Main's code, also on a workflow_dispatch from another branch.
+          ref: main
+          # Else checkout's read-only token can override the app token Claude pushes with: from v6
+          # it sits in an includeIf file claude-code-action doesn't clear, so the push gets a 403.
           persist-credentials: false
           fetch-depth: 0
       - name: Set up toolchain and deps
-        uses: ftes/ci/setup@0e4b067199ea2f6a255a26ab43403f6f6acb5cb6 # v1.0.12
+        uses: ftes/ci/setup@e53e22699f50c88157237931a10500d367cca47c # v1.0.13
+      # The FROM driver; Claude reinstalls after bumping (--with-deps covers the OS packages).
       - name: Install driver and browser
         uses: ftes/ci/playwright-browser@e53e22699f50c88157237931a10500d367cca47c # v1.0.13
         with:
           driver-dir: .
-      - name: Fetch the exact upstream tags and port instructions
-        shell: bash
-        env:
-          FROM: ${{ needs.check.outputs.from }}
-          TO: ${{ needs.check.outputs.to }}
-        run: |
-          git init -q tmp/opencode-upstream
-          git -C tmp/opencode-upstream fetch --depth=1 https://github.com/microsoft/playwright tag "v$FROM" tag "v$TO"
-          mkdir -p tmp/scheduled
-          cp .github/prompts/upstream-update.md tmp/scheduled/upstream-update.md
-          curl -fsSL --retry 3 "https://api.github.com/repos/microsoft/playwright/releases/tags/v$TO" \
-            | jq -er .body > tmp/scheduled/upstream-release.md
-      - name: Prepare and publish the port
-        uses: ftes/ci/opencode-scheduled@8386c6cbd07ae70efb0071c9cacdd04ffe7b5b6f # ftes/ci#18
+      # The upstream clone (see the prompt) and the upstream sources the mix tasks download live
+      # outside the checkout; --add-dir needs them.
+      - run: mkdir -p /tmp/playwright ~/.cache/playwright
+      # No github_token input: the action uses the Claude App token (see above). Tools: file tools
+      # and subagents; the mix tasks the port uses; git on the checkout (no fetching; pushes to
+      # BRANCH only) and on the upstream clone (fetches the FROM and TO tags only); gh for the
+      # release notes, playwright-python's files at TO and this run's PR; curl for
+      # playwright-python's raw files at TO; a few read-only shell helpers. These rules steer
+      # Claude's tools, as ftes/ci/claude says; main's ruleset guards pushes. --add-dir:
+      # the upstream clone and sources.
+      - uses: ftes/ci/claude@e53e22699f50c88157237931a10500d367cca47c # v1.0.13
         with:
-          mode: upstream
-          client-id: ${{ vars.OPENCODE_CLIENT_ID }}
-          base: ${{ env.BASE_BRANCH }}
-          version: ${{ needs.check.outputs.to }}
+          token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt-file: .github/prompts/upstream-update.md
           prompt: |
-            Follow tmp/scheduled/upstream-update.md. The upstream release notes are in
-            tmp/scheduled/upstream-release.md. FROM is ${{ needs.check.outputs.from }}.
-            TO is ${{ needs.check.outputs.to }}. The next port version is ${{ needs.check.outputs.version }}.
+            FROM: ${{ needs.check.outputs.from }}
+            TO: ${{ needs.check.outputs.to }}
+            VERSION: ${{ needs.check.outputs.version }}
+            BRANCH: ${{ needs.check.outputs.branch }}
+            RELEASE: https://github.com/microsoft/playwright/releases/tag/v${{ needs.check.outputs.to }}
+          max-turns: "600"
+          add-dir: /tmp/playwright /home/runner/.cache/playwright
+          allowed-tools: "Skill,Read,Write,Edit,MultiEdit,Glob,Grep,LS,Agent,Task,TodoWrite,Bash(mix format),Bash(mix format *),Bash(mix compile),Bash(mix compile *),Bash(mix credo),Bash(mix credo *),Bash(mix test),Bash(mix test *),Bash(PW_UNSKIP=env,flaky mix test *),Bash(mix playwright.*),Bash(mix usage_rules.*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git rm:*),Bash(git mv:*),Bash(git restore:*),Bash(git commit:*),Bash(git switch -c ${{ needs.check.outputs.branch }}),Bash(git push origin ${{ needs.check.outputs.branch }}),Bash(git push -u origin ${{ needs.check.outputs.branch }}),Bash(git init -q /tmp/playwright),Bash(git -C /tmp/playwright fetch --depth=1 https://github.com/microsoft/playwright tag v${{ needs.check.outputs.from }} tag v${{ needs.check.outputs.to }}),Bash(git -C /tmp/playwright diff *),Bash(git -C /tmp/playwright show *),Bash(git -C /tmp/playwright log *),Bash(gh release view * --repo microsoft/playwright),Bash(gh api repos/microsoft/playwright-python/contents/*?ref=v${{ needs.check.outputs.to }}),Bash(gh pr create --draft --base main --head ${{ needs.check.outputs.branch }} *),Bash(gh pr edit ${{ needs.check.outputs.branch }} --body-file *),Bash(curl -fsSL https://raw.githubusercontent.com/microsoft/playwright-python/v${{ needs.check.outputs.to }}/*),Bash(ls:*),Bash(mkdir:*),Bash(wc:*),Bash(diff:*)"
+          disallowed-tools: "Bash(git *pull/*),Bash(git * --upload-pack*),Bash(gh api *&*),Bash(curl *..*),Bash(curl *%*),Bash(curl -fsSL https://raw.githubusercontent.com/microsoft/playwright-python/v${{ needs.check.outputs.to }}/* *)"
+      # Claude's run succeeds whatever it did, so a port that never got published would go unnoticed.
+      - name: Check the branch and PR exist
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ needs.check.outputs.branch }}
+        run: |
+          if ! gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --silent; then
+            echo "::error::Claude pushed no branch $BRANCH; see the job summary for its last message"
+            exit 1
+          fi
+          pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$BRANCH" --state open --json url --jq '.[0].url')
+          if [[ -z $pr ]]; then
+            echo "::error::$BRANCH has no open PR; see the job summary for Claude's last message"
+            exit 1
+          fi
+          echo "Opened $pr" >> "$GITHUB_STEP_SUMMARY"
 
   failing:
     if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
@@ -110,7 +153,6 @@ jobs:
       statuses: read
     outputs:
       prs: ${{ steps.list.outputs.prs }}
-      base: ${{ steps.list.outputs.base }}
     steps:
       - name: Snapshot completed ports with failing CI
         id: list
@@ -133,40 +175,36 @@ jobs:
                   | map(max_by(.startedAt)) | any(.conclusion == "FAILURE" or .conclusion == "TIMED_OUT")))
                 | {number, branch: .headRefName, head: .headRefOid, failing: true}]'
           }
-          base=$(gh api "repos/$GH_REPO/git/ref/heads/$BASE_BRANCH" --jq .object.sha)
           list > /dev/null
           sleep 30
           echo "prs=$(list)" >> "$GITHUB_OUTPUT"
-          echo "base=$base" >> "$GITHUB_OUTPUT"
 
   fix:
     needs: failing
     if: needs.failing.outputs.prs != '' && needs.failing.outputs.prs != '[]'
-    runs-on: ${{ vars.RUNNER == 'github' && 'ubuntu-26.04' || 'ubicloud-standard-2-ubuntu-2604' }}
-    timeout-minutes: 60
-    permissions:
-      contents: read
-      actions: read
-      pull-requests: read
-      id-token: write
     strategy:
       fail-fast: false
       matrix:
         pr: ${{ fromJSON(needs.failing.outputs.prs) }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          ref: ${{ matrix.pr.head }}
-          fetch-depth: 0
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ needs.failing.outputs.base }}
-          path: tmp/default-branch
-          sparse-checkout: .github/actions/fix-ci
-          persist-credentials: false
-      - uses: ./tmp/default-branch/.github/actions/fix-ci
-        with:
-          client-id: ${{ vars.OPENCODE_CLIENT_ID }}
-          targets: ${{ format('[{0}]', toJSON(matrix.pr)) }}
-          base: ${{ env.BASE_BRANCH }}
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: write
+      id-token: write
+    uses: ftes/ci/.github/workflows/scheduled-candidate.yml@843b4ef16d0776013b95c2c9f31c3e9c67a818b0
+    with:
+      mode: fix
+      base: ${{ github.event.repository.default_branch }}
+      checkout-sha: ${{ matrix.pr.head }}
+      client-id: ${{ vars.OPENCODE_CLIENT_ID }}
+      runner: ${{ vars.RUNNER == 'github' && 'ubuntu-26.04' || 'ubicloud-standard-2-ubuntu-2604' }}
+      key: ${{ format('upstream-{0}', matrix.pr.number) }}
+      targets: ${{ format('[{0}]', toJSON(matrix.pr)) }}
+      prompt: |
+        Fix the port's CI failure. Read the saved PR metadata, diff and tmp/ci-failed.log.
+        Follow AGENTS.md and PORTING.md. Don't hand-edit generated protocol files or
+        skip or weaken tests. The check job verifies the exact patch and port parity.
+
+        Return fix with a short imperative title; retry only for an unrelated failure
+        with no edits; or give-up with a reason when generation or a human decision
+        is required. Return an empty threads list.

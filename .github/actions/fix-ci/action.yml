@@ -1,49 +1,77 @@
-name: Fix port CI
-description: Fix a Playwright port at the classified PR head and failing CI attempt.
+# Pushes a fix for a PR whose CI failed, for claude-nightly.yml (simplification PRs) and
+# upstream-update.yml (ports). The caller checks out the PR's branch with `persist-credentials:
+# false`, gives the job `contents: read`, `actions: read` (the failed log) and `id-token: write`,
+# and takes this action from main's copy in tmp/default-branch, so a branch can't change it.
+# Only new commits, nothing merged from main, so no workflow files (the app can't push those).
+#
+# Accepted risk: with an id-token, the setup runs the branch's code (mix.exs, deps), which can
+# tamper with the job or mint the app token. Only maintainers, Claude's own branches and Renovate
+# can push branches here, and the callers take only their own branches, never Renovate's.
+name: Fix CI
+description: Has Claude fix, re-run or give up on a PR whose CI failed.
+
 inputs:
-  client-id:
-    description: Public OpenCode OIDC client ID.
+  token:
+    description: The CLAUDE_CODE_OAUTH_TOKEN secret.
     required: true
-  targets:
-    description: One JSON PR snapshot with number, branch, head and failing state.
+  kind:
+    description: "`nightly` (gives up by closing the PR) or `upstream` (by asking for a human)."
     required: true
-  base:
-    description: Default branch name.
+  pr:
+    description: The PR's number.
     required: true
+  branch:
+    description: The PR's branch, checked out.
+    required: true
+
 runs:
   using: composite
   steps:
-    - id: prepare
-      uses: ftes/ci/opencode-scheduled@8386c6cbd07ae70efb0071c9cacdd04ffe7b5b6f # ftes/ci#18
-      with:
-        mode: prepare-fix
-        client-id: ${{ inputs.client-id }}
-        base: ${{ inputs.base }}
-        targets: ${{ inputs.targets }}
+    # The number and branch go into the prompt and the allowlist. Only the workflows' own branches
+    # (never Renovate's): this job has an id-token and runs the branch's setup.
+    - name: Save the failed CI log
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+        KIND: ${{ inputs.kind }}
+        PR: ${{ inputs.pr }}
+        BRANCH: ${{ inputs.branch }}
+      run: |
+        if [[ ! $KIND =~ ^(nightly|upstream)$ || ! $PR =~ ^[0-9]+$ || ! $BRANCH =~ ^[A-Za-z0-9._/-]+$ ]] ||
+          [[ $KIND == nightly && $BRANCH != claude/nightly-* ]] || [[ $KIND == upstream && $BRANCH != upstream/* ]]; then
+          echo "::error::bad input: $KIND $PR $BRANCH"
+          exit 1
+        fi
+        # This repository's runs of the checked-out commit only.
+        head=$(git rev-parse HEAD)
+        # shellcheck disable=SC2016 # jq's $ENV
+        run=$(gh api "repos/$GH_REPO/actions/workflows/ci.yml/runs?branch=$BRANCH&head_sha=$head&event=pull_request&per_page=100" \
+          --jq '[.workflow_runs[] | select(.head_repository.full_name == $ENV.GH_REPO)][0].id // empty')
+        if [[ -z $run ]]; then echo "::error::no CI run of $BRANCH at $head"; exit 1; fi
+        mkdir -p tmp
+        gh run view "$run" --log-failed | tail -n 5000 > tmp/ci-failed.log
     - name: Set up toolchain and deps
-      if: steps.prepare.outputs.active == 'true'
-      uses: ftes/ci/setup@0e4b067199ea2f6a255a26ab43403f6f6acb5cb6 # v1.0.12
+      uses: ftes/ci/setup@e53e22699f50c88157237931a10500d367cca47c # v1.0.13
+    # Best effort: Claude runs without them.
     - name: Download upstream sources
-      if: steps.prepare.outputs.active == 'true'
+      id: sources
       continue-on-error: true
       shell: bash
-      run: mix playwright.upstream
-    - name: Fix the failed CI attempt
-      if: steps.prepare.outputs.active == 'true'
-      uses: ftes/ci/opencode-scheduled@8386c6cbd07ae70efb0071c9cacdd04ffe7b5b6f # ftes/ci#18
+      run: mkdir -p ~/.cache/playwright && mix playwright.upstream
+    - uses: ftes/ci/claude@e53e22699f50c88157237931a10500d367cca47c # v1.0.13
       with:
-        mode: fix
-        client-id: ${{ inputs.client-id }}
-        targets: ${{ inputs.targets }}
-        base: ${{ inputs.base }}
+        token: ${{ inputs.token }}
+        prompt-file: .github/prompts/fix-ci.md
         prompt: |
-          Fix the port's CI failure. Read the saved PR metadata and diff and tmp/ci-failed.log.
-          Follow AGENTS.md and PORTING.md. The upstream sources may be available under
-          ~/.cache/playwright/<version>/upstream. Regenerate generated files through their mix
-          tasks. Don't skip or weaken tests or merge or rebase.
-
-          Run `mix format`, `mix compile --warnings-as-errors`, `mix credo` and
-          `mix playwright.parity`. CI runs the browser matrix after publication.
-          Return fix with a short imperative commit title, retry for an unrelated failure with
-          no edits, or give-up with a reason if the port needs a human decision. Return an
-          empty threads list.
+          REPO: ${{ github.repository }}
+          PR: ${{ inputs.pr }} (${{ inputs.kind == 'nightly' && 'a simplification by the nightly workflow' || 'a draft porting a Playwright release' }})
+          BRANCH: ${{ inputs.branch }} (already checked out)
+          SUBJECT: ${{ inputs.kind == 'nightly' && 'one imperative sentence (match `git log`)' || '"Fix CI: <one imperative sentence>"' }}
+          GIVE UP CONDITION: ${{ inputs.kind == 'nightly' && 'It can''t be fixed without redesigning the change' || 'It needs a redesign of the change, a decision or a skip' }}
+          GIVE UP: ${{ inputs.kind == 'nightly' && format('gh pr close {0} --delete-branch --comment "<one sentence on why>"', inputs.pr) || format('gh pr comment {0} --body "Needs a human: <one sentence on why>"', inputs.pr) }}
+        # Nightly fixes are small: fewer turns, no subagents.
+        max-turns: ${{ inputs.kind == 'nightly' && '60' || '150' }}
+        add-dir: /home/runner/.cache/playwright
+        system-prompt: ${{ steps.sources.outcome == 'success' && 'Upstream''s sources at the pin are under ~/.cache/playwright/<version>/upstream.' || '' }}
+        allowed-tools: "Skill,Read,Grep,Glob,Edit,Write,${{ inputs.kind != 'nightly' && 'Agent,Task,' || '' }}Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(mix format:*),Bash(mix compile:*),Bash(mix usage_rules.docs:*),Bash(mix usage_rules.search_docs:*),Bash(mix credo:*),Bash(mix playwright.parity:*),Bash(mix playwright.gen.api:*),Bash(mix playwright.gen.protocol:*),Bash(gh pr view ${{ inputs.pr }}),Bash(gh pr view ${{ inputs.pr }} *),Bash(gh pr diff ${{ inputs.pr }}),Bash(gh pr diff ${{ inputs.pr }} *),Bash(git push origin ${{ inputs.branch }}),${{ inputs.kind == 'nightly' && format('Bash(gh pr close {0} *)', inputs.pr) || format('Bash(gh pr comment {0} *)', inputs.pr) }}"

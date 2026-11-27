@@ -81,20 +81,15 @@ gh api "repos/microsoft/playwright/git/ref/tags/v$target" --silent 2>/dev/null |
 branch="upstream/$target"
 out branch "$branch"
 out version "$(next_version "$ours" "$target")"
-base=$(git -C "$root" rev-parse HEAD)
-out base "$base"
 
 # Dedup: the branch (a run in progress, or a PR's head) or a PR from it, open or closed, means
 # the release is handled. To retry: close the PR, delete the branch, dispatch with the version.
 prs=$(gh pr list --repo "$repo" --head "$branch" --state "$states" --json url --jq '[.[].url] | join(" ")')
 [[ -z $prs ]] || stop "PR exists: $prs"
-if head=$(gh api "repos/$repo/git/ref/heads/$branch" --jq .object.sha 2>&1); then
-  # Recover a completed OpenCode port when a push succeeded but PR creation did not.
-  # The publisher validates the commit parent, files, version and author before opening it.
-  marker=$(gh api "repos/$repo/git/commits/$head" --jq '.message | split("\n") | last')
-  [[ $marker == "OpenCode-Scheduled: $branch $base" ]] || stop "branch $branch exists"
-elif [[ $head != *"404"* ]]; then
-  echo "branch lookup failed: $head" >&2
+if err=$(gh api "repos/$repo/git/ref/heads/$branch" --silent 2>&1); then
+  stop "branch $branch exists"
+elif [[ $err != *"404"* ]]; then
+  echo "branch lookup failed: $err" >&2
   exit 1
 fi
 
