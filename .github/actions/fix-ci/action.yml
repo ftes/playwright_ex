@@ -14,7 +14,7 @@ runs:
   using: composite
   steps:
     - id: prepare
-      uses: ftes/ci/opencode-scheduled@922ec907b44a7362091b9e67c1df36620b6c9288 # ftes/ci#18
+      uses: ftes/ci/opencode-scheduled@c9b8517b4d040e40bc5474c4b43616770745245f # ftes/ci#18
       with:
         mode: prepare-fix
         client-id: ${{ inputs.client-id }}
@@ -30,7 +30,7 @@ runs:
       run: mix playwright.upstream
     - name: Fix the failed CI attempt
       if: steps.prepare.outputs.active == 'true'
-      uses: ftes/ci/opencode-scheduled@922ec907b44a7362091b9e67c1df36620b6c9288 # ftes/ci#18
+      uses: ftes/ci/opencode-scheduled@c9b8517b4d040e40bc5474c4b43616770745245f # ftes/ci#18
       with:
         mode: fix
         client-id: ${{ inputs.client-id }}
