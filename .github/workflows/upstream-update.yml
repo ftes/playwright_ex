@@ -191,7 +191,7 @@ jobs:
       actions: read
       pull-requests: write
       id-token: write
-    uses: ftes/ci/.github/workflows/scheduled-candidate.yml@843b4ef16d0776013b95c2c9f31c3e9c67a818b0
+    uses: ftes/ci/.github/workflows/scheduled-candidate.yml@41939eef91514e8ac6b33a1d6e7923edc42f4628 # v1.0.14
     with:
       mode: fix
       base: ${{ github.event.repository.default_branch }}
