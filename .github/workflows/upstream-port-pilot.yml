@@ -41,7 +41,7 @@ jobs:
       github.actor == github.repository_owner && github.triggering_actor == github.repository_owner &&
       ((!inputs.replay && github.ref == 'refs/heads/main') ||
         (inputs.replay && github.ref == 'refs/heads/upstream-pilot-replay-workflow' && inputs.version == '1.65.1'))
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 35
     permissions:
       contents: read
@@ -121,7 +121,7 @@ jobs:
 
   verify:
     needs: [prepare, infer]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 50
     permissions:
       contents: read
