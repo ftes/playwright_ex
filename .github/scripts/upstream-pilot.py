@@ -16,10 +16,17 @@ from urllib.request import urlopen
 CI = "41939eef91514e8ac6b33a1d6e7923edc42f4628"  # v1.0.14
 CONTROL_HASH = "32095ffd96a6d98994f262b2fc978299b0bd5b043ad45b9c9f2fe41683e9993f"
 PINS = {"DRIVER_VERSION", "NODE_VERSION", "priv/driver_checksums.exs"}
+GUIDE_PINS = {
+    "README.md": ("drives Playwright {version}", "pins driver {version}", "v{version}-noble"),
+    "guides/debugging-and-ci.md": ("mcr.microsoft.com/playwright:v{version}-noble",
+                                  "playwright@{version} run-server", "`Version {version}`"),
+    "test/guides/debugging_and_ci_test.exs": ('assert Playwright.Driver.version() == "{version}"',),
+}
 MECHANICAL = PINS | {"lib/playwright/protocol/validator.ex", "lib/playwright/protocol/metainfo.ex",
-                      "lib/playwright/isomorphic/device_descriptors.ex", "test/upstream_registry.md"}
-PORT = {"README.md", "CHANGELOG.md", "usage-rules.md", "NOTICE", "dev/mix/playwright/api_rules.ex"}
+                      "lib/playwright/isomorphic/device_descriptors.ex", "test/upstream_registry.md"} | GUIDE_PINS.keys()
+PORT = {"CHANGELOG.md", "usage-rules.md", "NOTICE", "dev/mix/playwright/api_rules.ex"}
 SHA = r"[0-9a-f]{40}"
+STABLE = r"[0-9]+\.[0-9]+\.[0-9]+"
 
 
 def require(condition, message):
@@ -36,6 +43,18 @@ def git(*args, **options):
 
 def rev(expression):
     return git("rev-parse", expression).decode().strip()
+
+
+def guide_pins(to):
+    previous = git("show", "HEAD:DRIVER_VERSION").decode().strip()
+    require(re.fullmatch(STABLE, previous) and previous != to, "Expected an older stable driver pin")
+    for name, phrases in GUIDE_PINS.items():
+        original = git("show", f"HEAD:{name}").decode()
+        updated = original
+        for phrase in phrases:
+            updated = updated.replace(phrase.format(version=previous), phrase.format(version=to))
+        require(updated != original, f"No driver version references to update in {name}")
+        Path(name).write_text(updated)
 
 
 def allowed(name, phase):
@@ -207,10 +226,12 @@ def report(key, value):
 def main(phase):
     parent, to = os.environ["EXPECTED_BASE"], os.environ["TO"]
     require(re.fullmatch(SHA, parent) and rev("HEAD") == parent, "Unexpected port checkout")
-    require(re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", to), "Expected a stable release")
+    require(re.fullmatch(STABLE, to), "Expected a stable release")
     root = Path(os.environ["RUNNER_TEMP"])
     prepared, proposal, checked = (root / f"pilot-{name}" / "patch" for name in ("prepared", "proposal", "checked"))
-    if phase == "prepared":
+    if phase == "guides":
+        guide_pins(to)
+    elif phase == "prepared":
         git("add", "-A")
         seal(prepared, "prepared")
     elif phase == "infer":
