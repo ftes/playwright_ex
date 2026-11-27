@@ -15,7 +15,7 @@ paths=(
 
 tag_commit() {
   local ref="refs/tags/v$2" refs
-  refs=$(git ls-remote "$1" "$ref" "$ref^{}")
+  refs=$(git ls-remote "$1" "$ref" "$ref^{}") || return
   awk -v ref="$ref" '$2 == ref {tag=$1} $2 == ref "^{}" {peeled=$1}
     END {print (peeled ? peeled : tag)}' <<< "$refs"
 }
@@ -49,6 +49,24 @@ generate_pins_and_protocol() {
   python3 -I -B "$(dirname "$0")/upstream-pilot.py" guides
 }
 
+prepare_api() {
+  # Stale translations need a semantic edit. Leave the facade as it is in the
+  # scaffold and attach the diagnostic; final generation still uses the strict task.
+  mise exec -- mix run --no-start -e '
+    try do
+      Mix.Task.run("playwright.gen.api", System.argv())
+    rescue
+      error in Mix.Error ->
+        message = Exception.message(error)
+        if String.starts_with?(message, "gen.api: examples for JS upstream no longer has (test/examples):\n") do
+          Mix.shell().info("API generation deferred until the stale examples are ported.\n\n" <> message)
+        else
+          reraise error, __STACKTRACE__
+        end
+    end
+  ' -- "$PW_UPSTREAM"
+}
+
 case "$1" in
   prepare)
     from=$(<DRIVER_VERSION)
@@ -67,8 +85,8 @@ case "$1" in
     fi
     install_deps
     generate_pins_and_protocol
-    mise exec -- mix playwright.gen.api "$PW_UPSTREAM"
     mkdir "$context"
+    prepare_api | tee "$context/parity.txt"
     {
       printf 'Playwright %s (%s) → %s (%s)\n\n' "$from" "$FROM_SHA" "$TO" "$TO_SHA"
       git -C "$PW_UPSTREAM" diff --stat "$FROM_SHA" "$TO_SHA"
@@ -76,7 +94,7 @@ case "$1" in
     } > "$context/upstream.diff"
     git -C "$PW_UPSTREAM" archive --format=tar.gz --output="$context/upstream.tar.gz" "$TO_SHA" -- "${paths[@]}"
     # Parity can fail until the semantic port. Preserve diagnostics for the model.
-    mise exec -- mix playwright.parity > "$context/parity.txt" 2>&1 || true
+    mise exec -- mix playwright.parity >> "$context/parity.txt" 2>&1 || true
     printf 'from-sha=%s\nto-sha=%s\nnode=%s\n' "$FROM_SHA" "$TO_SHA" "$NODE" >> "$GITHUB_OUTPUT"
     ;;
   regenerate)

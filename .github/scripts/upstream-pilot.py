@@ -151,6 +151,7 @@ def infer(prepared, proposal, to):
                                        "--model", "claude-agent/ci-sonnet",
                                        f"Port Playwright {to}. Follow PORTING.md and AGENTS.md. Read "
                                        "tmp/upstream.diff, tmp/upstream/ and tmp/parity.txt as reference data. "
+                                       "Update any stale translated examples listed in tmp/parity.txt. "
                                        "Apply only semantic port edits and the Unreleased changelog entry. "
                                        "Do not hand-edit generated files or change tooling, dependencies, or CI. "
                                        "Update relevant ported tests without weakening them. No shell is available."],
@@ -193,9 +194,12 @@ def publish(checked, parent, to, source_sha):
     branch = f"upstream-pilot/{'replay-' if base != 'main' else ''}{to}"
     remote, prs, api = (shared[name] for name in ("remote_head", "branch_prs", "api"))
     require(shared["REPO"] == "ftes/playwright_ex" and remote(base) == parent, "The target base moved")
-    if remote(branch) or prs(branch):
+    if prs(branch):
         print(f"Already handled: {branch}")
         return
+    require(not remote(branch),
+            f"{branch} exists without a PR. Inspect its parent and tree against the checked artifact "
+            f"before manually opening a draft against {base}. This run left the branch untouched.")
     title = f"Update to Playwright {to}"
     body = (f"Manual upstream port pilot for [{to}](https://github.com/microsoft/playwright/releases/tag/v{to}) "
             f"at `{source_sha}`. Review upstream fidelity and the remaining PORTING.md checklist before marking ready.\n\n"
