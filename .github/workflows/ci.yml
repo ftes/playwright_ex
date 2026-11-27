@@ -1,0 +1,389 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+    # A release tag, from ftes/ci's release/release.exs: the publish job below releases it.
+    tags: ["v*"]
+  # Any base branch, so PRs stacked on another PR's branch get CI too.
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  # Nightly, so firefox/webkit regressions show up without a push.
+  schedule:
+    - cron: "0 3 * * *"
+  # The inputs are for experiments; their defaults (and every other event) run the full CI.
+  workflow_dispatch:
+    inputs:
+      max_cases:
+        description: "ExUnit max_cases for the test runs (PW_MAX_CASES), default: half the schedulers"
+        required: false
+        type: string
+        default: ""
+      browsers:
+        description: 'Browsers to test: one name or a JSON list (firefox, ["firefox","webkit"]), default: all'
+        required: false
+        type: string
+        default: ""
+      partitions:
+        description: "Partitions per browser (1-8), default: firefox 6, others 3"
+        required: false
+        type: string
+        default: ""
+      skip_lint:
+        description: "Skip the build and lint job (the tests then restore the build cache only)"
+        required: false
+        type: boolean
+        default: false
+
+# A new push to a PR cancels its running CI. Other events (main pushes, the nightly, dispatched
+# experiments) get a group of their own: in a shared group GitHub keeps one run pending and cancels
+# the older pending one, which would drop a nightly or a main push's cache save, and serialize
+# parallel experiments.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: true
+
+# Each job asks for what it needs.
+permissions: {}
+
+env:
+  MIX_ENV: test
+
+jobs:
+  build:
+    name: Build and lint
+    # Draft PRs skip CI until marked ready, and in a stack only the top PR runs it (the tests need
+    # this job): it holds every change below it. `stack` is absent outside a stack and on other events.
+    # Tradeoffs (re-run CI on a PR that becomes the top): ftes/ci README, "Pull request CI".
+    if: ${{ !inputs.skip_lint && !github.event.pull_request.draft && (github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size) }}
+    runs-on: ${{ vars.RUNNER == 'github' && 'ubuntu-26.04' || 'ubicloud-standard-2-ubuntu-2604' }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # deps and _build: every job restores them, this job saves them on main (the test jobs build
+      # the same MIX_ENV=test tree).
+      - name: Set up toolchain and deps
+        id: setup
+        uses: ftes/ci/setup@41939eef91514e8ac6b33a1d6e7923edc42f4628 # v1.0.14
+      # A PR never writes the shared cache; `mix dialyzer --plt` builds what a restore lacks. Keyed
+      # per runner image and OTP build: a PLT from another is rejected as "Old PLT file".
+      - name: Restore Dialyzer PLT cache
+        id: plt_cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          key: plt-${{ steps.setup.outputs.image }}-erlang-${{ steps.setup.outputs.erlang }}-${{ steps.setup.outputs.erlang-build }}-elixir-${{ steps.setup.outputs.elixir }}-${{ hashFiles('mix.lock') }}
+          restore-keys: plt-${{ steps.setup.outputs.image }}-erlang-${{ steps.setup.outputs.erlang }}-${{ steps.setup.outputs.erlang-build }}-elixir-${{ steps.setup.outputs.elixir }}-
+          path: priv/plts
+      # Saved right after it is built, so a lint failure doesn't waste the build; `mix lint`'s
+      # Dialyzer step then reuses it. Building it compiles the app (dialyxir's `cons_apps` loads
+      # it to list the PLT's apps), so an app compile error fails this step.
+      - name: Build Dialyzer PLT
+        run: mix dialyzer --plt
+      - name: Save PLT cache
+        if: github.ref == 'refs/heads/main' && steps.plt_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          key: ${{ steps.plt_cache.outputs.cache-primary-key }}
+          path: priv/plts
+      # mix.exs's `lint`, which `mix check` runs too: format, credo, compile, the usage rules, the
+      # Hex package, the docs and Dialyzer.
+      - name: Lint
+        run: mix lint
+      # Last, so only a green job saves; under the key computed before deps.get.
+      - name: Save deps and _build
+        if: success() && github.ref == 'refs/heads/main' && steps.setup.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with: &mix-save
+          key: ${{ steps.setup.outputs.cache-key }}
+          path: |
+            deps
+            _build
+
+  # The test jobs, one per lane, browser and partition: the browsers (default all) in `partitions`
+  # jobs each (default firefox 6, whose slowest sets the run's time, the others 3), on the newest
+  # lane, and chromium's on the oldest too. Skipped where the build is (draft, or below
+  # the top of a stack), but not by skip_lint: the tests still run then.
+  matrix:
+    name: Test matrix
+    if: ${{ !github.event.pull_request.draft && (github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size) }}
+    runs-on: ${{ vars.RUNNER == 'github' && 'ubuntu-26.04' || 'ubicloud-standard-2-ubuntu-2604' }}
+    timeout-minutes: 5
+    permissions: {}
+    outputs:
+      include: ${{ steps.matrix.outputs.include }}
+    steps:
+      - id: matrix
+        env:
+          BROWSERS: ${{ inputs.browsers }}
+          PARTITIONS: ${{ inputs.partitions }}
+        run: |
+          if [[ -n $PARTITIONS && ! $PARTITIONS =~ ^[1-8]$ ]]; then echo "::error::partitions: 1-8, got: $PARTITIONS"; exit 1; fi
+          if [[ -z $BROWSERS ]]; then BROWSERS='["chromium","firefox","webkit"]'; elif [[ $BROWSERS != '['* ]]; then BROWSERS=$(jq -cn --arg b "$BROWSERS" '[$b]'); fi
+          include=$(jq -c --arg partitions "$PARTITIONS" '
+            if all(.[]; IN("chromium", "firefox", "webkit")) then . else error("browsers: chromium, firefox or webkit, got: \(.)") end
+            | [.[] as $browser
+              | (if $partitions != "" then $partitions | tonumber elif $browser == "firefox" then 6 else 3 end) as $n
+              | (["newest"] + if $browser == "chromium" then ["oldest"] else [] end)[] as $lane
+              | range(1; $n + 1) as $partition
+              | {lane: $lane, browser: $browser, partition: $partition, partitions: $n}]' <<< "$BROWSERS")
+          echo "include=$include" >> "$GITHUB_OUTPUT"
+
+  # Each browser's suite in `partitions` jobs (`mix test --partitions`: test files round-robin by
+  # path). Parity, Selenium and headful run once per browser, in partition 1, on the newest lane.
+  # The oldest lane (.tool-versions.oldest, mix.exs's floor, with mix.lock.oldest) runs chromium's
+  # main suite only, with warnings allowed so newer backwards-compatible features stay usable: the
+  # tests catch what the floor lacks (a call to a missing function is only a compile warning there).
+  test:
+    name: Test (${{ matrix.lane }}, ${{ matrix.browser }}, ${{ matrix.partition }})
+    runs-on: ${{ vars.RUNNER == 'github' && 'ubuntu-26.04' || 'ubicloud-standard-4-ubuntu-2604' }}
+    needs: [build, matrix]
+    # After a green build, or none when skip_lint skipped it.
+    if: ${{ !cancelled() && needs.matrix.result == 'success' && (needs.build.result == 'success' || (inputs.skip_lint && needs.build.result == 'skipped')) }}
+    # The slowest partition took ~12 min at 4 per browser (firefox, with BrowsertypeConnectTest); a
+    # hang fails here instead of at GitHub's 6 h.
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.matrix.outputs.include) }}
+    env:
+      BROWSER: ${{ matrix.browser }}
+      # The Xvfb of "Start Xvfb".
+      DISPLAY: ':99'
+      # Empty (the default, and on other events) leaves test_helper.exs's default.
+      PW_MAX_CASES: ${{ inputs.max_cases }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The lane's toolchain; the build job (newest) or below (oldest) saves its deps and _build.
+      - name: Set up toolchain and deps
+        id: setup
+        uses: ftes/ci/setup@41939eef91514e8ac6b33a1d6e7923edc42f4628 # v1.0.14
+        with:
+          lane: ${{ matrix.lane }}
+      # This repo's DRIVER_VERSION: the driver it tests. One job per browser saves the apt cache
+      # (the partitions and lanes would race for the key); the action saves on main only.
+      - name: Install driver and browser
+        uses: ftes/ci/playwright-browser@41939eef91514e8ac6b33a1d6e7923edc42f4628 # v1.0.14
+        with:
+          browser: ${{ matrix.browser }}
+          driver-dir: .
+          save-apt-cache: ${{ matrix.lane == 'newest' && matrix.partition == 1 }}
+      - name: Check parity with upstream
+        if: matrix.lane == 'newest' && matrix.browser == 'chromium' && matrix.partition == 1
+        run: mix playwright.parity
+      # A display like upstream's CI (Linux firefox WebGL needs one): one Xvfb with xvfb-run's
+      # defaults, left running for the job. Not xvfb-run: its teardown can exit 5 in place of mix's.
+      - name: Start Xvfb
+        run: |
+          Xvfb "$DISPLAY" -screen 0 1280x1024x24 -nolisten tcp > "$RUNNER_TEMP/xvfb.log" 2>&1 &
+          pid=$!
+          for _ in $(seq 100); do
+            if kill -0 "$pid" 2> /dev/null && [[ -S /tmp/.X11-unix/X${DISPLAY#:} ]]; then exit 0; fi
+            sleep 0.1
+          done
+          cat "$RUNNER_TEMP/xvfb.log"
+          exit 1
+      # Test failures (exit 2) are retried once (`mix test --failed`, as the testing guide does), as
+      # upstream retries on CI (`retries: 3`); compile errors are not. The first run's failures
+      # (Playwright.FailuresFormatter) are its alone, so a green rerun does not hide them. Both runs
+      # annotate (Playwright.Test.GitHubFormatter), as upstream annotates every attempt. The rerun
+      # takes no --partitions: the failures manifest holds this partition's failures only, and
+      # --partitions would split those files again. Warnings fail the newest lane only.
+      - name: Run tests
+        id: tests
+        env:
+          PW_FAILURES_FILE: ${{ runner.temp }}/first-run-failures.txt
+          PW_MODULE_TIMES_FILE: ${{ runner.temp }}/module-times.txt
+          PW_GITHUB_FORMATTER: "1"
+          MIX_TEST_PARTITION: ${{ matrix.partition }}
+          PARTITIONS: ${{ matrix.partitions }}
+          WARNINGS_AS_ERRORS: ${{ matrix.lane == 'newest' && '1' || '' }}
+        run: |
+          mix test ${WARNINGS_AS_ERRORS:+--warnings-as-errors} --partitions "$PARTITIONS" ||
+            { [ $? -eq 2 ] && echo "rerun=true" >> "$GITHUB_OUTPUT" &&
+              PW_FAILURES_FILE='' PW_MODULE_TIMES_FILE='' mix test --failed; }
+      # The first run's failures to the job summary, and its 10 slowest modules
+      # (Playwright.ModuleTimesFormatter): the floor of a partition's time.
+      - name: Summarize the first run
+        if: ${{ !cancelled() }}
+        env:
+          PW_FAILURES_FILE: ${{ runner.temp }}/first-run-failures.txt
+          PW_MODULE_TIMES_FILE: ${{ runner.temp }}/module-times.txt
+          LABEL: ${{ matrix.lane }}, ${{ matrix.browser }}, ${{ matrix.partition }}/${{ matrix.partitions }}
+        run: |
+          if [[ -s "$PW_MODULE_TIMES_FILE" ]]; then
+            echo "Slowest modules ($LABEL), wall ms, setup_all included:"
+            sort -rn "$PW_MODULE_TIMES_FILE" | head -n 10
+          fi
+          if [[ -s "$PW_FAILURES_FILE" ]]; then
+            {
+              echo "### First-run failures ($LABEL, retried once)"
+              echo
+              while IFS=$'\t' read -r location name; do echo "- \`$location\` $name"; done < "$PW_FAILURES_FILE"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+      # tests/library/browsertype-launch-selenium.spec.ts, set up as upstream's installation test
+      # (connect-to-selenium.spec.ts) does: the two Selenium Server jars (cached; downloaded on
+      # chromium only), the runner image's Google Chrome and its ChromeDriver, Java 17 (the image's
+      # default 25 is newer than Selenium 3.141.59). The step above skips the spec (no
+      # PWTEST_SELENIUM); this one runs only it: the grid tests on chromium, the non-chromium error
+      # test (no grid) on firefox and webkit.
+      - name: Restore Selenium Server jars
+        if: matrix.lane == 'newest' && matrix.browser == 'chromium' && matrix.partition == 1
+        id: selenium_cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          key: selenium-server-3.141.59-4.8.3
+          path: ~/selenium
+      - name: Download Selenium Server jars
+        if: matrix.lane == 'newest' && matrix.browser == 'chromium' && matrix.partition == 1 && steps.selenium_cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/selenium
+          curl -fsSL --retry 3 -o ~/selenium/selenium-server-4.8.3.jar https://github.com/SeleniumHQ/selenium/releases/download/selenium-4.8.0/selenium-server-4.8.3.jar
+          curl -fsSL --retry 3 -o ~/selenium/selenium-server-standalone-3.141.59.jar https://github.com/SeleniumHQ/selenium/releases/download/selenium-3.141.59/selenium-server-standalone-3.141.59.jar
+      - name: Save Selenium Server jars
+        if: github.ref == 'refs/heads/main' && steps.selenium_cache.outcome == 'success' && steps.selenium_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          key: ${{ steps.selenium_cache.outputs.cache-primary-key }}
+          path: ~/selenium
+      - name: Run Selenium tests
+        if: matrix.lane == 'newest' && matrix.partition == 1
+        run: |
+          export PATH=$JAVA_HOME_17_X64/bin:$PATH PWTEST_SELENIUM=$HOME/selenium PWTEST_CHROMEDRIVER=$CHROMEWEBDRIVER/chromedriver
+          mix test test/upstream/library/browsertype_launch_selenium_test.exs || { [ $? -eq 2 ] && mix test --failed; }
+      # Upstream runs headed-only tests (headful.spec.ts, `test.skip(headless)`) in its headed runs
+      # (`--headed`); HEADED=1 is that `headless: false` (Playwright.TestBrowser). Only the tests
+      # tagged :headed, under the same xvfb and in this job (no extra setup): ~10-20 s of tests.
+      # Blocking as the job is: green on all three browsers.
+      - name: Run headful tests
+        if: matrix.lane == 'newest' && matrix.partition == 1
+        env:
+          HEADED: "1"
+        run: mix test --only headed || { [ $? -eq 2 ] && mix test --failed; }
+      # The oldest lane has no build job: one green partition saves its deps and _build, on main
+      # only, under the key computed before deps.get.
+      - name: Save deps and _build
+        if: success() && matrix.lane == 'oldest' && matrix.partition == 1 && github.ref == 'refs/heads/main' && steps.setup.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with: *mix-save
+      # The display is shared by the steps above: its log, in case it went down.
+      - name: Show Xvfb log
+        if: failure()
+        run: cat "$RUNNER_TEMP/xvfb.log" || true
+      # Each failed test's error-context.md and artifacts (test_helper.exs's `output_dir`), as the
+      # testing guide uploads `test-results`: on a failure or after a rerun, as a green rerun
+      # keeps the first run's files. Not on every green job: `preserve_output: :always` keeps the
+      # passing tests' output too.
+      - name: Upload test results
+        if: ${{ failure() || steps.tests.outputs.rerun == 'true' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-results-${{ matrix.lane }}-${{ matrix.browser }}-${{ matrix.partition }}
+          path: /tmp/playwright-test-results
+          if-no-files-found: ignore
+          retention-days: 7
+          # A re-run of the workflow keeps the first attempt's artifact of the same name.
+          overwrite: true
+
+  # The one check to require: green when every lane's and browser's partitions are, which need a
+  # green build.
+  quality:
+    name: quality
+    if: always()
+    needs: test
+    runs-on: ${{ vars.RUNNER == 'github' && 'ubuntu-26.04' || 'ubicloud-standard-2-ubuntu-2604' }}
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      # Green without checking on a draft or a PR below the top of its stack, whose jobs above are
+      # skipped.
+      - if: ${{ !github.event.pull_request.draft && (github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size) }}
+        env:
+          RESULT: ${{ needs.test.result }}
+        run: test "$RESULT" = success
+
+  # A pushed vX.Y.Z tag (from ftes/ci's release/release.exs): publishes to Hex once every job
+  # above passed on the tagged commit, then creates the GitHub release from CHANGELOG.md. Hex
+  # authenticates the job by workload identity (hex.pm/docs/workload-identity): no API key. The
+  # package's workload identity names this file and the `release` environment, so renaming either
+  # breaks publishing. Staged publishing holds the release until an owner approves it on hex.pm
+  # with 2FA; `--wait` blocks until then, so the GitHub release appears only once the Hex release
+  # is live. Approve within the job's 6 h, or create the GitHub release by hand.
+  publish:
+    name: Publish to Hex and GitHub
+    needs: quality
+    # A tag push only: a dispatched run on a tag takes experiment inputs (one browser, no lint).
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ${{ vars.RUNNER == 'github' && 'ubuntu-26.04' || 'ubicloud-standard-2-ubuntu-2604' }}
+    environment: release
+    timeout-minutes: 360
+    permissions:
+      contents: write # gh release create
+      id-token: write # Hex workload identity
+    env:
+      # ex_doc, which hex.publish builds the docs with, is a dev dependency.
+      MIX_ENV: dev
+      RELEASE_TITLE: Playwright
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false # gh authenticates with GH_TOKEN; nothing pushes with git
+      # mise installs precompiled Erlang (builds.hex.pm) only on the Ubuntu runners it detects (up
+      # to 24.04) and compiles it from source, ~5 min, on newer ones. Drop once it detects this one.
+      - name: Use precompiled Erlang
+        run: | # zizmor: ignore[github-env] (only the runner's ImageOS digits)
+          if [[ "${ImageOS:-}" =~ ^ubuntu([0-9]{2})$ ]]; then echo "MISE_ERLANG_PRECOMPILED_OS=ubuntu-${BASH_REMATCH[1]}.04" >> "$GITHUB_ENV"; fi
+      # Not ftes/ci/setup, and no mise cache: a publishing job restores nothing another run saved.
+      - name: Setup languages
+        uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
+        with:
+          cache: false
+      # Before publishing, so a wrong tag or a missing changelog entry stages nothing on Hex.
+      - name: Check the tag and extract the release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          version=$(sed -n 's/^  @version "\(.*\)"$/\1/p' mix.exs)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME doesn't match @version $version in mix.exs"
+            exit 1
+          fi
+          status=$(gh api "repos/$GH_REPO/compare/main...$GITHUB_SHA" --jq .status)
+          if [ "$status" != identical ] && [ "$status" != behind ]; then
+            echo "::error::$GITHUB_REF_NAME ($GITHUB_SHA) is not on main"
+            exit 1
+          fi
+          awk -v v="$version" '/^## /{if (f) exit; f = ($2 == v || $2 == "[" v "]"); next} f' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+          if ! grep -q '[^[:space:]]' "$RUNNER_TEMP/notes.md"; then
+            echo "::error::No '## $version' section in CHANGELOG.md"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+      - name: Install dependencies
+        run: |
+          mix local.hex --force
+          mix local.rebar --force
+          mix deps.get
+      # No HEX_API_KEY: with one set, Hex would use it instead of the workload identity.
+      - name: Publish to Hex and wait for approval
+        run: mix hex.publish --yes --wait
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prerelease=""
+          case "$VERSION" in *-*) prerelease="--prerelease" ;; esac
+          gh release create "$GITHUB_REF_NAME" --verify-tag $prerelease \
+            --title "$RELEASE_TITLE $VERSION" --notes-file "$RUNNER_TEMP/notes.md"
