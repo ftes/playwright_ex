@@ -191,9 +191,10 @@ jobs:
       actions: read
       pull-requests: write
       id-token: write
-    uses: ftes/ci/.github/workflows/scheduled-candidate.yml@41939eef91514e8ac6b33a1d6e7923edc42f4628 # v1.0.14
+    uses: ftes/ci/.github/workflows/scheduled-candidate.yml@2b6de2fc7f6a22cb5b50cf34ac5353ac95def791
     with:
       mode: fix
+      upstream-repair: true
       base: ${{ github.event.repository.default_branch }}
       checkout-sha: ${{ matrix.pr.head }}
       client-id: ${{ vars.OPENCODE_CLIENT_ID }}
@@ -202,6 +203,7 @@ jobs:
       targets: ${{ format('[{0}]', toJSON(matrix.pr)) }}
       prompt: |
         Fix the port's CI failure. Read the saved PR metadata, diff and tmp/ci-failed.log.
+        Compare behavior with the pinned upstream sources in tmp/upstream-source/.
         Follow AGENTS.md and PORTING.md. Don't hand-edit generated protocol files or
         skip or weaken tests. The check job verifies the exact patch and port parity.
 
