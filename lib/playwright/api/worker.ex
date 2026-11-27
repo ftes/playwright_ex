@@ -207,7 +207,7 @@ defmodule Playwright.Worker do
   """
   @spec wait_for_event!(t(), event() | String.t(), wait_for_event_options() | fun()) :: term()
   def wait_for_event!(%Playwright.Worker{} = worker, event, options \\ []),
-    do: Facade.await!(wait_for_event(worker, event, options))
+    do: Playwright.Promise.await!(wait_for_event(worker, event, options))
 
   @expect_event_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}, signal: {:signal, nil}}}
 

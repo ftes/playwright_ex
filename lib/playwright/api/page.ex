@@ -5599,7 +5599,7 @@ defmodule Playwright.Page do
   """
   @spec wait_for_event!(t(), event() | String.t(), wait_for_event_options() | fun()) :: term()
   def wait_for_event!(%Playwright.Page{} = page, event, options \\ []),
-    do: Facade.await!(wait_for_event(page, event, options))
+    do: Playwright.Promise.await!(wait_for_event(page, event, options))
 
   @wait_for_function_options {:object,
                               %{
@@ -5906,7 +5906,7 @@ defmodule Playwright.Page do
   """
   @spec wait_for_navigation!(t(), wait_for_navigation_options()) :: nil | Playwright.Response.t()
   def wait_for_navigation!(%Playwright.Page{} = page, options \\ []),
-    do: Facade.await!(wait_for_navigation(page, options))
+    do: Playwright.Promise.await!(wait_for_navigation(page, options))
 
   @wait_for_request_options {:object, %{signal: {:signal, nil}, timeout: {:timeout, nil}}}
 
@@ -6005,7 +6005,7 @@ defmodule Playwright.Page do
           wait_for_request_options()
         ) :: Playwright.Request.t()
   def wait_for_request!(%Playwright.Page{} = page, url_or_predicate, options \\ []),
-    do: Facade.await!(wait_for_request(page, url_or_predicate, options))
+    do: Playwright.Promise.await!(wait_for_request(page, url_or_predicate, options))
 
   @wait_for_response_options {:object, %{signal: {:signal, nil}, timeout: {:timeout, nil}}}
 
@@ -6105,7 +6105,7 @@ defmodule Playwright.Page do
           wait_for_response_options()
         ) :: Playwright.Response.t()
   def wait_for_response!(%Playwright.Page{} = page, url_or_predicate, options \\ []),
-    do: Facade.await!(wait_for_response(page, url_or_predicate, options))
+    do: Playwright.Promise.await!(wait_for_response(page, url_or_predicate, options))
 
   @wait_for_selector_options {:object,
                               %{

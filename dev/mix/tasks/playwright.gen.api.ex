@@ -731,7 +731,7 @@ defmodule Mix.Tasks.Playwright.Gen.Api do
     #{m.deprecated}@doc #{doc(promise_bang_doc(member, m))}
     #{spec(m.name <> "!", m, m.return)}
     def #{m.name}!(#{Enum.join(m.matched, ", ")}),
-      do: Facade.await!(#{m.name}(#{Enum.map_join(m.params, ", ", &no_default/1)}))
+      do: Playwright.Promise.await!(#{m.name}(#{Enum.map_join(m.params, ", ", &no_default/1)}))
     """
   end
 
