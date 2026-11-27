@@ -30,6 +30,9 @@ fetch_sources() {
 }
 
 install_deps() {
+  if [[ -z ${MISE_ERLANG_PRECOMPILED_OS:-} && ${ImageOS:-} =~ ^ubuntu([0-9]{2})$ ]]; then
+    export MISE_ERLANG_PRECOMPILED_OS="ubuntu-${BASH_REMATCH[1]}.04"
+  fi
   mise install erlang elixir
   mise exec -- mix deps.get
   git diff --exit-code HEAD -- mix.lock
