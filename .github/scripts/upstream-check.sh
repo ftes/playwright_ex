@@ -1,97 +1,75 @@
 #!/usr/bin/env bash
-# Detection for .github/workflows/upstream-update.yml (job `check`). Runs locally too:
-#
-#   .github/scripts/upstream-check.sh [<target version>]   # needs curl, jq, gh (authenticated)
-#   .github/scripts/upstream-check.sh next-version <our version> <upstream version>
-#
-# Prints key=value lines (also appended to $GITHUB_OUTPUT on CI): from, to, version, branch,
-# update (true|false), reason.
+# Read-only discovery for upstream-update.yml. Local use requires curl, jq, git and gh.
 set -euo pipefail
-
-# Our version for an upstream release: a new upstream major.minor X.Y gives X.Y.0, an upstream
-# patch of the minor we already mirror gives our next patch (the patch is ours,
-# docs/architecture.md "Port and versions").
-# A pre-release of ours (X.Y.Z-rc.N) stays as it is; the next version is picked by hand.
-next_version() {
-  local ours=$1 upstream=$2
-  local o_major o_minor o_patch u_major u_minor
-  if [[ $ours == *-* ]]; then
-    echo "$ours"
-    return
-  fi
-  IFS=. read -r o_major o_minor o_patch <<<"$ours"
-  IFS=. read -r u_major u_minor _ <<<"$upstream"
-  if [[ $o_major == "$u_major" && $o_minor == "$u_minor" ]]; then
-    echo "$o_major.$o_minor.$((o_patch + 1))"
-  else
-    echo "$u_major.$u_minor.0"
-  fi
-}
-
-# True when $1 > $2 (both X.Y.Z).
-newer() { [[ $1 != "$2" && $(printf '%s\n%s\n' "$1" "$2" | sort -V | tail -n1) == "$1" ]]; }
-
-if [[ ${1:-} == next-version ]]; then
-  next_version "$2" "$3"
-  exit 0
-fi
 
 root=$(cd "$(dirname "$0")/../.." && pwd)
 repo=${GITHUB_REPOSITORY:-ftes/playwright_ex}
-target=${1:-}
-# A target given by hand is a deliberate retry: only an open PR blocks it, not a closed one.
-if [[ -n $target ]]; then states=open; else states=all; fi
+requested=${1:-}
 stable='^[0-9]+\.[0-9]+\.[0-9]+$'
-# Ours may be a pre-release (X.Y.Z-rc.N).
-semver='^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'
 
-out() {
-  echo "$1=$2"
-  if [[ -n ${GITHUB_OUTPUT:-} ]]; then echo "$1=$2" >>"$GITHUB_OUTPUT"; fi
-}
-
-stop() {
-  out update false
-  out reason "$1"
-  exit 0
+report() {
+  printf '%s\n' "$1"
+  if [[ -n ${GITHUB_STEP_SUMMARY:-} ]]; then
+    printf '%s\n' "$1" >> "$GITHUB_STEP_SUMMARY"
+  fi
 }
 
 from=$(<"$root/DRIVER_VERSION")
-ours=$(sed -nE 's/^ *@version "([^"]+)".*/\1/p' "$root/mix.exs")
-[[ $from =~ $stable && $ours =~ $semver ]] || { echo "cannot read DRIVER_VERSION/@version" >&2; exit 1; }
-out from "$from"
+[[ $from =~ $stable && ( -z $requested || $requested =~ $stable ) ]] ||
+  { echo "Expected stable X.Y.Z driver and target versions" >&2; exit 1; }
 
-# The driver is the playwright-core npm package (Playwright.Driver.npm_url/0), so the npm
-# registry is the source of truth: dist-tags.latest is the stable release (next/beta are tagged
-# otherwise).
-meta=$(curl -fsSL --retry 3 https://registry.npmjs.org/playwright-core)
-if [[ -z $target ]]; then
-  target=$(jq -r '."dist-tags".latest' <<<"$meta")
-fi
-out to "$target"
-
-[[ $target =~ $stable ]] || stop "$target is not a stable X.Y.Z version"
-jq -e --arg v "$target" '.versions[$v]' <<<"$meta" >/dev/null || stop "playwright-core@$target is not on npm"
-newer "$target" "$from" || stop "$target is not newer than the pinned $from"
-
-# The port diffs the upstream tags; npm can publish before the GitHub tag exists.
-gh api "repos/microsoft/playwright/git/ref/tags/v$target" --silent 2>/dev/null ||
-  stop "microsoft/playwright has no tag v$target yet"
-
-branch="upstream/$target"
-out branch "$branch"
-out version "$(next_version "$ours" "$target")"
-
-# Dedup: the branch (a run in progress, or a PR's head) or a PR from it, open or closed, means
-# the release is handled. To retry: close the PR, delete the branch, dispatch with the version.
-prs=$(gh pr list --repo "$repo" --head "$branch" --state "$states" --json url --jq '[.[].url] | join(" ")')
-[[ -z $prs ]] || stop "PR exists: $prs"
-if err=$(gh api "repos/$repo/git/ref/heads/$branch" --silent 2>&1); then
-  stop "branch $branch exists"
-elif [[ $err != *"404"* ]]; then
-  echo "branch lookup failed: $err" >&2
-  exit 1
+# The driver comes from npm. Its `latest` dist-tag excludes beta and next releases.
+meta=$(curl -fsSL --retry 3 "https://registry.npmjs.org/playwright-core/${requested:-latest}")
+to=$(jq -er '.version' <<< "$meta")
+[[ $to =~ $stable && ( -z $requested || $to == "$requested" ) ]] ||
+  { echo "Expected stable Playwright npm metadata" >&2; exit 1; }
+if [[ $to == "$from" || $(printf '%s\n%s\n' "$from" "$to" | sort -V | tail -n1) != "$to" ]]; then
+  report "Playwright $to is not newer than the pinned $from."
+  exit 0
 fi
 
-out update true
-out reason "playwright $target is newer than the pinned $from"
+# npm can publish first. For an annotated tag report the peeled commit.
+ref="refs/tags/v$to"
+if refs=$(git ls-remote --exit-code https://github.com/microsoft/playwright.git "$ref" "$ref^{}"); then
+  sha=$(awk -v ref="$ref" '$2 == ref {tag=$1} $2 == ref "^{}" {peeled=$1}
+    END {print (peeled ? peeled : tag)}' <<< "$refs")
+  [[ $sha =~ ^[0-9a-f]{40}$ ]] || { echo "Invalid upstream tag revision" >&2; exit 1; }
+else
+  status=$?
+  if [[ $status != 2 ]]; then exit "$status"; fi
+  report "Playwright $to is on npm; upstream tag v$to is not available yet."
+  exit 0
+fi
+
+tracked=$(gh pr list --repo "$repo" --head "upstream/$to" --state all \
+  --json state,isCrossRepository,url \
+  --jq 'map(select(.state != "CLOSED" and (.isCrossRepository | not))) | first | .url // ""')
+if [[ -n $tracked ]]; then
+  report "Playwright $to already has a port PR: $tracked"
+  exit 0
+fi
+
+# A retained notice deduplicates across runs even before a maintainer opens a PR.
+name="upstream-release-$to"
+if [[ -n ${GITHUB_OUTPUT:-} ]]; then
+  prior=$(gh api --method GET "repos/$repo/actions/artifacts" -f name="$name" \
+    --jq '[.artifacts[] | select(.expired | not)] | first | .workflow_run.id // ""')
+  if [[ -n $prior ]]; then
+    report "Playwright $to was already reported: https://github.com/$repo/actions/runs/$prior"
+    if [[ ${GITHUB_EVENT_NAME:-} != workflow_dispatch ]]; then exit 0; fi
+  fi
+fi
+
+notice=$(cat <<EOF
+### Playwright $to is available
+
+- Current driver: \`$from\`
+- [Upstream release](https://github.com/microsoft/playwright/releases/tag/v$to), commit \`$sha\`
+- [Prepare the port locally](https://github.com/$repo/blob/${GITHUB_SHA:-main}/PORTING.md#bumping-the-pinned-version) with \`TO=$to\` and \`UPSTREAM_SHA=$sha\`.
+EOF
+)
+report "$notice"
+if [[ -n ${GITHUB_OUTPUT:-} && -z $prior ]]; then
+  printf '%s\n' "$notice" > "$RUNNER_TEMP/upstream-notice.md"
+  printf 'notice=%s\n' "$name" >> "$GITHUB_OUTPUT"
+fi

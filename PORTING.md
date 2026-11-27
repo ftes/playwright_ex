@@ -238,14 +238,37 @@ test, starts with a prefix, then says why:
 
 ## Bumping the pinned version
 
-`.github/workflows/upstream-update.yml` checks npm daily and opens a draft PR doing these steps
-(`.github/prompts/upstream-update.md`); finish its checklist by hand. Until you comment on or push
-to that PR, the workflow also pushes fixes for its CI failures. The mix tasks below live in
-`dev/`, which only the dev and test envs compile, so they stay out of the Hex package.
+The **Upstream release notice** workflow checks npm daily. Its run summary links to the release
+and records the upstream commit. An existing port PR or retained notice suppresses duplicates.
+Run the workflow manually on the default branch to check a specific release or see its notice
+again. A maintainer chooses the release, ports the changes, and opens the PR.
 
-1. `mix playwright.checksums <driver> <node>` (Node bumped only if Python's `NODE_VERSION`
-   was): writes the repo-root `DRIVER_VERSION` and `NODE_VERSION` and the checksums.
-2. `mix playwright.gen.protocol` and `mix playwright.gen.api`, commit the generated diff.
+1. In a local checkout with dev dependencies installed, set `TO` and `UPSTREAM_SHA` from the
+   notice. Set `NODE` to the current `NODE_VERSION` unless the matching `microsoft/playwright-python`
+   release changes it. Fetch both JavaScript tags into a scratch directory and verify the target
+   commit before using it:
+
+   ```sh
+   FROM=$(cat DRIVER_VERSION)
+   PW_UPSTREAM=$(mktemp -d)
+   export PW_UPSTREAM
+   (
+     set -eu
+     git -C "$PW_UPSTREAM" init -q
+     git -C "$PW_UPSTREAM" fetch --no-tags --depth=1 https://github.com/microsoft/playwright.git \
+       "refs/tags/v$FROM:refs/tags/v$FROM" "refs/tags/v$TO:refs/tags/v$TO"
+     test "$(git -C "$PW_UPSTREAM" rev-parse "v$TO^{commit}")" = "$UPSTREAM_SHA"
+     git -C "$PW_UPSTREAM" switch --detach "$UPSTREAM_SHA"
+     mix playwright.checksums "$TO" "$NODE"
+     mix run -e 'Playwright.Driver.install(force: true)'
+     mix playwright.gen.protocol "$PW_UPSTREAM"
+   )
+   ```
+
+   This writes the driver and Node pins and their checksums. The driver installer verifies the
+   downloads before unpacking them. Keep `PW_UPSTREAM` set for generation and parity.
+2. Run `mix playwright.gen.api "$PW_UPSTREAM"`. If the new release changes translated examples
+   or API rules, update those and regenerate. Review the generated diff before committing.
 3. `git diff vA vB -- packages/playwright-core/src/client packages/playwright/src/matchers tests/page tests/library`
    in upstream; port the hunks.
    - Read the runner's diff as well, from this repo:
