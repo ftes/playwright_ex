@@ -144,11 +144,12 @@ def infer(prepared, proposal, to):
                 if event["type"] == "step_finish":
                     stopped = event["part"]["reason"] == "stop"
             require(stopped, "OpenCode did not complete the port")
+        shutil.rmtree(context)
         index = root / "index"
         env = dict(os.environ, GIT_DIR=rev("--absolute-git-dir"), GIT_WORK_TREE=str(source),
                    GIT_INDEX_FILE=str(index), GIT_CONFIG_GLOBAL="/dev/null", GIT_CONFIG_NOSYSTEM="1")
         git("read-tree", scaffold, env=env, cwd=source)
-        git("add", "-A", "--", ".", ":(exclude)tmp", env=env, cwd=source)
+        git("add", "-A", env=env, cwd=source)
         proposal.parent.mkdir()
         seal(proposal, "proposal", scaffold, env=env, cwd=source)
 
