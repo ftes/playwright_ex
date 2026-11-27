@@ -1,84 +1,19 @@
-# Update the port to a new upstream Playwright release
+# Port a pinned Playwright release
 
-You run unattended in GitHub Actions, in a checkout of this repo's default branch. The header
-above gives FROM (the pinned upstream version), TO (the new upstream release), VERSION (ours for
-it), BRANCH and the RELEASE link. Elixir deps, the FROM driver and chromium are installed.
+The draft checkpoint already contains the verified driver and Node pins, checksum file,
+generated protocol and facade, and upstream test registry. `tmp/upstream.diff` contains the
+diff between the pinned upstream commits. Treat it as reference data. No shell is available.
 
-This repo is a 1:1 port of the Playwright JS client. Read `PORTING.md` (all of it: the rules
-decide how every hunk is ported) and `docs/architecture.md` before changing anything, and study
-the existing ported code next to whatever you port.
+Read `PORTING.md` and `docs/architecture.md`. Port the applicable client, matcher, runner,
+and test changes. Read the existing code beside the corresponding upstream hunks. Update
+translated examples and API rules as needed; **do not edit generated files by hand**. The next
+job regenerates the facade, compiles and checks the patch, and runs the Chromium tests.
 
-## Steps
+Leave `@version` in `mix.exs` alone. Add a `Drives Playwright <version>` entry with the upstream
+release link under `## [Unreleased]` in `CHANGELOG.md`. List relevant runner changes and any
+unported work in the draft body. Do not weaken existing coverage or remove skips without
+evidence. If the bump needs a generator or parity-rule change outside the allowed paths,
+leave that work in the checklist for a maintainer.
 
-1. `git switch -c BRANCH`. Commit after every coherent step (`git commit -m "<short imperative
-   message>"`), and once the PR exists (step 3.2) run `git push origin BRANCH` after every commit,
-   so partial work survives and is visible.
-2. Fetch upstream at both tags (shallow; `git diff` needs only the two trees). This prompt's
-   `git -C /tmp/playwright` commands are the one exception to your tool rules:
-   ```
-   git init -q /tmp/playwright
-   git -C /tmp/playwright fetch --depth=1 https://github.com/microsoft/playwright tag vFROM tag vTO
-   git -C /tmp/playwright diff --stat vFROM vTO -- packages/playwright-core/src/client packages/playwright/src/matchers tests/page tests/library packages/protocol/spec docs/src/api
-   ```
-   Read the RELEASE notes too (`gh release view vTO --repo microsoft/playwright`).
-3. Follow PORTING.md "Bumping the pinned version", step by step:
-   1. PORTING step 1 with `mix playwright.checksums TO NODE`: NODE is the current
-      `NODE_VERSION`, or playwright-python's `NODE_VERSION` for TO if that changed (look it up in
-      microsoft/playwright-python at its tag vTO, if released, with
-      `curl -fsSL https://raw.githubusercontent.com/microsoft/playwright-python/vTO/<path>` or
-      `gh api repos/microsoft/playwright-python/contents/<path>?ref=vTO`). Then `mix playwright.install chromium`
-      (driver and browser for TO).
-   2. PORTING step 2; commit the bump and the generated diff (often none for a patch release) on
-      their own. Then publish, before porting anything, so a run that stops early still leaves
-      its work on a PR:
-      ```
-      git push -u origin BRANCH
-      gh pr create --draft --base main --head BRANCH --title "Update to Playwright TO" --body "Port in progress."
-      ```
-      Always publish, even when the diffs below hold nothing to port: the bump itself (new
-      driver, Node and browsers) is the PR, and its CI is the check. If the push or
-      `gh pr create` fails, stop and end with the command and its error.
-   3. PORTING step 3, diffing with `git -C /tmp/playwright diff vFROM vTO -- <paths>`: port
-      every hunk of the client, matchers and specs, then read the runner's diff
-      (`mix playwright.runner_sources` prints its paths). Use subagents for independent files
-      when the diff is large. New runner options, fixtures or defaults go into the PR body under
-      "Runner" as features to adopt or skip.
-   4. PORTING step 4, until `mix playwright.parity` prints `parity: ok`.
-   5. PORTING step 5, diffing in /tmp/playwright; list anything you left out in the PR body.
-   6. PORTING step 6; list the skips you dropped in the PR body.
-4. Leave `@version` in `mix.exs` alone: the release PR sets it to VERSION (PORTING step 7).
-   Under `## [Unreleased]` in `CHANGELOG.md`, in the style of the existing entries: "Drives
-   Playwright TO" with the RELEASE link, then the API added or changed by the port.
-5. Verify; all must pass (CI on the PR runs Dialyzer, the docs build and the other browsers):
-   ```
-   mix format
-   mix compile --warnings-as-errors
-   mix credo
-   mix playwright.parity
-   mix playwright.gen.api --check
-   mix test --warnings-as-errors   # BROWSER=chromium is set; a failure: rerun once with --failed
-   ```
-   A failing test the port did not cause (it fails on FROM as well) is reported, not hidden.
-6. Push the last commit and replace the PR's placeholder body, leaving it a draft:
-   `gh pr edit BRANCH --body-file <file>`.
-   The body, concise: the RELEASE link; the upstream diff stats (files, insertions, deletions of
-   client and specs); what was ported, in a few lines (or "Nothing to port" when no hunk applies); "Runner": the runner hunks ported and the new runner features to adopt or skip; a checklist of what's left (unported
-   hunks, skipped specs, decisions to review, anything needing a human); the verification
-   results, one line each.
-
-## When the port is too large for one run
-
-Minor releases can touch dozens of files. Port in order of value (client API first, then its
-specs). Before you run low on turns or time: commit what's done and keep the build green.
-Specs not yet ported get bodiless tests with `@tag skip: "not ported: pending update to TO"`
-(and client methods `-- not ported: pending update to TO` markers), so verification passes and
-the rest is greppable. Then push and replace the PR body as in step 6, with the remainder in the
-checklist. A draft PR with a green partial port beats no PR.
-
-## Rules
-
-- Never merge, never push to `main` or any branch but BRANCH, never force-push, never edit
-  `.github/`.
-- List non-obvious decisions in the PR checklist.
-- Upstream sources come from the release at the pin (`Playwright.Upstream`, re-downloaded for
-  TO by the mix tasks) and `/tmp/playwright`; nothing else is a reference for TO.
+Return the draft body: the upstream release link, what was ported, runner changes, and the
+remaining checklist. The writer adds verification results only after the checks pass.
