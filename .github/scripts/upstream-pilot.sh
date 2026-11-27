@@ -43,6 +43,7 @@ generate_pins_and_protocol() {
   mise exec -- mix playwright.cli install --with-deps chromium
   mise exec -- mix playwright.gen.protocol "$PW_UPSTREAM"
   cp "$PW_UPSTREAM/tests/registry.md" test/upstream_registry.md
+  python3 -I -B "$(dirname "$0")/upstream-pilot.py" guides
 }
 
 case "$1" in
@@ -81,7 +82,8 @@ case "$1" in
     generate_pins_and_protocol
     # The deterministic scaffold must reproduce byte for byte.
     git diff --exit-code -- DRIVER_VERSION NODE_VERSION priv/driver_checksums.exs \
-      lib/playwright/protocol/{validator,metainfo}.ex test/upstream_registry.md
+      lib/playwright/protocol/{validator,metainfo}.ex test/upstream_registry.md \
+      README.md guides/debugging-and-ci.md test/guides/debugging_and_ci_test.exs
     ;;
   finalize)
     mise exec -- mix playwright.gen.api "$PW_UPSTREAM"

@@ -129,6 +129,7 @@ jobs:
       FROM_SHA: ${{ needs.prepare.outputs.from-sha }}
       TO_SHA: ${{ needs.prepare.outputs.to-sha }}
       NODE: ${{ needs.prepare.outputs.node }}
+      DISPLAY: ':99'
     outputs:
       tree: ${{ steps.seal.outputs.tree }}
       artifact: ${{ steps.upload.outputs.artifact-id }}
@@ -158,6 +159,17 @@ jobs:
           path: ${{ runner.temp }}/pilot-checked
           if-no-files-found: error
           retention-days: 7
+      - name: Start Xvfb
+        run: |
+          command -v Xvfb
+          Xvfb "$DISPLAY" -screen 0 1280x1024x24 -nolisten tcp > "$RUNNER_TEMP/xvfb.log" 2>&1 &
+          pid=$!
+          for _ in $(seq 100); do
+            if kill -0 "$pid" 2> /dev/null && [[ -S /tmp/.X11-unix/X${DISPLAY#:} ]]; then exit 0; fi
+            sleep 0.1
+          done
+          cat "$RUNNER_TEMP/xvfb.log"
+          exit 1
       - name: Check the sealed candidate
         working-directory: port
         env:
