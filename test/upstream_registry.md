@@ -1,5 +1,3 @@
-<!-- Copy of tests/registry.md in microsoft/playwright at v1.65.0. Update it with the pin. -->
-
 # Test registry
 
 Every test in `tests/page` and `tests/library`, with its identifier. The identifier is
