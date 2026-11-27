@@ -58,7 +58,7 @@ jobs:
           fetch-depth: 0
       - id: claude
         if: steps.list.outputs.numbers != ''
-        uses: ftes/ci/claude@e53e22699f50c88157237931a10500d367cca47c # v1.0.13
+        uses: ftes/ci/claude@41939eef91514e8ac6b33a1d6e7923edc42f4628 # v1.0.14
         with:
           token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt-file: .github/prompts/nightly-triage.md
@@ -215,13 +215,13 @@ jobs:
           fetch-depth: 0
       - run: git switch -c "$NIGHTLY_BRANCH"
       - name: Set up toolchain and deps
-        uses: ftes/ci/setup@e53e22699f50c88157237931a10500d367cca47c # v1.0.13
+        uses: ftes/ci/setup@41939eef91514e8ac6b33a1d6e7923edc42f4628 # v1.0.14
       # Best effort: Claude runs without them.
       - name: Download upstream sources
         id: sources
         continue-on-error: true
         run: mkdir -p ~/.cache/playwright && mix playwright.upstream
-      - uses: ftes/ci/claude@e53e22699f50c88157237931a10500d367cca47c # v1.0.13
+      - uses: ftes/ci/claude@41939eef91514e8ac6b33a1d6e7923edc42f4628 # v1.0.14
         with:
           token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt-file: .github/prompts/nightly-recreate.md
@@ -326,13 +326,13 @@ jobs:
           echo "area=$area" >> "$GITHUB_OUTPUT"
 
       - name: Set up toolchain and deps
-        uses: ftes/ci/setup@e53e22699f50c88157237931a10500d367cca47c # v1.0.13
+        uses: ftes/ci/setup@41939eef91514e8ac6b33a1d6e7923edc42f4628 # v1.0.14
       # Best effort: Claude runs without them.
       - name: Download upstream sources
         id: sources
         continue-on-error: true
         run: mkdir -p ~/.cache/playwright && mix playwright.upstream
-      - uses: ftes/ci/claude@e53e22699f50c88157237931a10500d367cca47c # v1.0.13
+      - uses: ftes/ci/claude@41939eef91514e8ac6b33a1d6e7923edc42f4628 # v1.0.14
         with:
           token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt-file: .github/prompts/nightly-improve.md
