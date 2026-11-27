@@ -239,12 +239,14 @@ test, starts with a prefix, then says why:
 ## Bumping the pinned version
 
 The **Upstream release notice** workflow checks npm daily. Its run summary links to the release
-and records the upstream commit. An existing port PR or retained notice suppresses duplicates.
+and records the upstream commit. A port PR from `upstream/$TO` in this repository or a retained
+notice suppresses scheduled duplicates.
 Run the workflow manually on the default branch to check a specific release or see its notice
 again. A maintainer chooses the release, ports the changes, and opens the PR.
 
 1. In a local checkout with dev dependencies installed, set `TO` and `UPSTREAM_SHA` from the
-   notice. Set `NODE` to the current `NODE_VERSION` unless the matching `microsoft/playwright-python`
+   notice and work on `upstream/$TO` so discovery can recognize the port PR. Set `NODE` to the
+   current `NODE_VERSION` unless the matching `microsoft/playwright-python`
    release changes it. Fetch both JavaScript tags into a scratch directory and verify the target
    commit before using it:
 
@@ -261,12 +263,14 @@ again. A maintainer chooses the release, ports the changes, and opens the PR.
      git -C "$PW_UPSTREAM" switch --detach "$UPSTREAM_SHA"
      mix playwright.checksums "$TO" "$NODE"
      mix run -e 'Playwright.Driver.install(force: true)'
+     mix playwright.install chromium
      mix playwright.gen.protocol "$PW_UPSTREAM"
    )
    ```
 
    This writes the driver and Node pins and their checksums. The driver installer verifies the
-   downloads before unpacking them. Keep `PW_UPSTREAM` set for generation and parity.
+   downloads before unpacking them. Installing Chromium here uses the new driver's browser
+   revision for `mix test`. Keep `PW_UPSTREAM` set for generation and parity.
 2. Run `mix playwright.gen.api "$PW_UPSTREAM"`. If the new release changes translated examples
    or API rules, update those and regenerate. Review the generated diff before committing.
 3. `git diff vA vB -- packages/playwright-core/src/client packages/playwright/src/matchers tests/page tests/library`

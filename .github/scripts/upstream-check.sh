@@ -44,14 +44,13 @@ fi
 tracked=$(gh pr list --repo "$repo" --head "upstream/$to" --state all \
   --json state,isCrossRepository,url \
   --jq 'map(select(.state != "CLOSED" and (.isCrossRepository | not))) | first | .url // ""')
+name="upstream-release-$to"
+prior=
 if [[ -n $tracked ]]; then
   report "Playwright $to already has a port PR: $tracked"
-  exit 0
-fi
-
-# A retained notice deduplicates across runs even before a maintainer opens a PR.
-name="upstream-release-$to"
-if [[ -n ${GITHUB_OUTPUT:-} ]]; then
+  if [[ ${GITHUB_EVENT_NAME:-} != workflow_dispatch ]]; then exit 0; fi
+elif [[ -n ${GITHUB_OUTPUT:-} ]]; then
+  # A retained notice deduplicates across runs even before a maintainer opens a PR.
   prior=$(gh api --method GET "repos/$repo/actions/artifacts" -f name="$name" \
     --jq '[.artifacts[] | select(.expired | not)] | first | .workflow_run.id // ""')
   if [[ -n $prior ]]; then
@@ -69,7 +68,7 @@ notice=$(cat <<EOF
 EOF
 )
 report "$notice"
-if [[ -n ${GITHUB_OUTPUT:-} && -z $prior ]]; then
+if [[ -n ${GITHUB_OUTPUT:-} && -z $tracked && -z $prior ]]; then
   printf '%s\n' "$notice" > "$RUNNER_TEMP/upstream-notice.md"
   printf 'notice=%s\n' "$name" >> "$GITHUB_OUTPUT"
 fi
