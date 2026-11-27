@@ -41,6 +41,15 @@ upstream minor, so `~> 1.65.0` is safe.
 
 ## [Unreleased]
 
+Drives [Playwright 1.65.1](https://github.com/microsoft/playwright/releases/tag/v1.65.1).
+
+### Changed
+
+- The pinned driver is Playwright 1.65.1, a patch release: browser updates (Chromium 159.0.8154.6,
+  so the built-in device descriptors report Chrome 159) and the matching protocol typings. The
+  client has no changes; the `locator-highlight` specs now check the `outline` longhands, as
+  upstream's do.
+
 ### Fixed
 
 - `mix playwright.install` and `mix playwright.cli` failed with "module :public_key is not
