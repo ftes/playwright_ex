@@ -52,7 +52,7 @@ defmodule Playwright.Client.BrowserType do
       Map.merge(options, %{
         ignoreDefaultArgs: if(is_list(options[:ignoreDefaultArgs]), do: options[:ignoreDefaultArgs]),
         ignoreAllDefaultArgs: !!options[:ignoreDefaultArgs] and !is_list(options[:ignoreDefaultArgs]),
-        env: if(options[:env], do: env_object_to_array(options[:env]))
+        env: if(options[:env], do: ClientHelper.env_object_to_array(options[:env]))
       })
 
     # Elixir only: `_set_creator/1`, the calling process is the browser's creator (here and below).
@@ -93,7 +93,7 @@ defmodule Playwright.Client.BrowserType do
       Map.merge(context_params, %{
         ignoreDefaultArgs: if(is_list(options[:ignoreDefaultArgs]), do: options[:ignoreDefaultArgs]),
         ignoreAllDefaultArgs: !!options[:ignoreDefaultArgs] and !is_list(options[:ignoreDefaultArgs]),
-        env: if(options[:env], do: env_object_to_array(options[:env])),
+        env: if(options[:env], do: ClientHelper.env_object_to_array(options[:env])),
         channel: options[:channel],
         userDataDir:
           if(Path.type(user_data_dir) == :absolute or user_data_dir == "",
@@ -212,14 +212,4 @@ defmodule Playwright.Client.BrowserType do
   end
 
   # isConnectionTransport  -- not ported: connectOverCDP(transport) (architecture: Generated facade)
-
-  # clientHelper.ts envObjectToArray
-  defp env_object_to_array(env) do
-    for {name, value} <- env,
-        value != nil,
-        do: %{
-          name: to_string(name),
-          value: if(is_number(value), do: ClientHelper.number_to_string(value), else: to_string(value))
-        }
-  end
 end

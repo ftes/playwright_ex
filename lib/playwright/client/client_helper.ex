@@ -16,7 +16,14 @@ defmodule Playwright.Client.ClientHelper do
   alias Playwright.Protocol.Validator
   alias Playwright.Runtime.Promise
 
-  # envObjectToArray  -- not ported: inlined in BrowserType.launch
+  def env_object_to_array(env) do
+    for {name, value} <- env,
+        value != nil,
+        do: %{
+          name: to_string(name),
+          value: if(is_number(value), do: number_to_string(value), else: to_string(value))
+        }
+  end
 
   def evaluation_script(fun, arg \\ nil, add_source_url \\ true) do
     cond do
