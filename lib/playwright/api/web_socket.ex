@@ -151,7 +151,7 @@ defmodule Playwright.WebSocket do
   """
   @spec wait_for_event!(t(), event() | String.t(), wait_for_event_options() | fun()) :: term()
   def wait_for_event!(%Playwright.WebSocket{} = web_socket, event, options \\ []),
-    do: Facade.await!(wait_for_event(web_socket, event, options))
+    do: Playwright.Promise.await!(wait_for_event(web_socket, event, options))
 
   @expect_event_options {:object, %{predicate: {:predicate, nil}, timeout: {:timeout, nil}, signal: {:signal, nil}}}
 

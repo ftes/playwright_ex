@@ -3705,7 +3705,7 @@ defmodule Playwright.Frame do
   """
   @spec wait_for_navigation!(t(), wait_for_navigation_options()) :: nil | Playwright.Response.t()
   def wait_for_navigation!(%Playwright.Frame{} = frame, options \\ []),
-    do: Facade.await!(wait_for_navigation(frame, options))
+    do: Playwright.Promise.await!(wait_for_navigation(frame, options))
 
   @wait_for_selector_options {:object,
                               %{
